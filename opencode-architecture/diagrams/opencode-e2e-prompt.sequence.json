@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "OpenCode 标准 Prompt 端到端",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [960, 580],
+    "column_fit": "spread"
+  },
+  "participants": [
+    { "id": "client", "type": "frontend", "label": "Client", "sublabel": "TUI/SDK" },
+    { "id": "handler", "type": "backend", "label": "handler", "sublabel": "server" },
+    { "id": "session", "type": "backend", "label": "SessionV2", "sublabel": "prompt" },
+    { "id": "admit", "type": "backend", "label": "admit", "sublabel": "准入" },
+    { "id": "wake", "type": "backend", "label": "wake", "sublabel": "执行" },
+    { "id": "drain", "type": "backend", "label": "Drain", "sublabel": "Runner" },
+    { "id": "llm", "type": "external", "label": "llm.stream", "sublabel": "Provider" },
+    { "id": "tools", "type": "messagebus", "label": "ToolRegistry", "sublabel": "settle" }
+  ],
+  "segments": [
+    { "from": 170, "to": 270, "label": "准入" },
+    { "from": 285, "to": 430, "label": "Drain 循环" },
+    { "from": 445, "to": 490, "label": "回传" }
+  ],
+  "messages": [
+    { "from": "client", "to": "handler", "y": 180, "label": "prompt" },
+    { "from": "handler", "to": "session", "y": 208, "label": "forward" },
+    { "from": "session", "to": "admit", "y": 236, "label": "admit", "variant": "emphasis" },
+    { "from": "admit", "to": "wake", "y": 264, "label": "wake" },
+    { "from": "wake", "to": "drain", "y": 300, "label": "run", "variant": "emphasis" },
+    { "from": "drain", "to": "llm", "y": 330, "label": "stream" },
+    { "from": "llm", "to": "drain", "y": 358, "label": "tool_calls", "variant": "return" },
+    { "from": "drain", "to": "tools", "y": 388, "label": "settle" },
+    { "from": "tools", "to": "drain", "y": 416, "label": "results", "variant": "return" },
+    { "from": "drain", "to": "client", "y": 460, "label": "events", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "client", "from": 178, "to": 463, "type": "frontend" },
+    { "participant": "handler", "from": 178, "to": 215, "type": "backend" },
+    { "participant": "session", "from": 206, "to": 245, "type": "backend" },
+    { "participant": "admit", "from": 234, "to": 272, "type": "backend" },
+    { "participant": "wake", "from": 262, "to": 310, "type": "backend" },
+    { "participant": "drain", "from": 298, "to": 455, "type": "backend" },
+    { "participant": "llm", "from": 327, "to": 365, "type": "external" },
+    { "participant": "tools", "from": 385, "to": 423, "type": "messagebus" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "Drain", "items": ["SessionRunner 外层推广 input，内层 Provider Turn"] }
+  ]
+}

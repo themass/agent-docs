@@ -1,0 +1,38 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "PlanningFlow 外层编排",
+    "locale": "zh-CN",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    { "id": "flow", "label": "PlanningFlow" }
+  ],
+  "nodes": [
+    { "id": "intent", "lane": "flow", "col": 0, "type": "frontend", "label": "用户意图" },
+    { "id": "create", "lane": "flow", "col": 1, "type": "cloud", "label": "PlanningTool", "sublabel": "create plan" },
+    { "id": "route", "lane": "flow", "col": 2, "type": "backend", "label": "get_executor", "sublabel": "[AGENT] 标签" },
+    { "id": "run", "lane": "flow", "col": 3, "type": "backend", "label": "Manus.run", "sublabel": "内层 ReAct" },
+    { "id": "mark", "lane": "flow", "col": 4, "type": "database", "label": "mark_step", "sublabel": "completed" },
+    { "id": "summary", "lane": "flow", "col": 5, "type": "external", "label": "Flow LLM 总结" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "intent", "to": "create", "label": "规划请求" },
+    { "id": "e2", "from": "create", "to": "route", "label": "steps[]" },
+    { "id": "e3", "from": "route", "to": "run", "label": "step_prompt", "variant": "emphasis" },
+    { "id": "e4", "from": "run", "to": "mark", "label": "step 完成" },
+    { "id": "e5", "from": "mark", "to": "route", "label": "下一 step", "variant": "dashed" },
+    { "id": "e6", "from": "mark", "to": "summary", "label": "全部完成" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "双 LLM · 隔离 Memory",
+      "items": [
+        "规划器与执行器分离；每 step 一次完整 run()，内层 Memory 不跨 step 共享",
+        "PlanStepStatus: not_started → in_progress → completed / blocked"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//home/lian/.claude/skills/**)",
+      "Read(//home/lian/notebooks/claude-exp/**)"
+    ]
+  }
+}

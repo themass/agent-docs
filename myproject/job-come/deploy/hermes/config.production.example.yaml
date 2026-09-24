@@ -1,0 +1,47 @@
+# JobCome C 端生产 — Hermes Gateway 配置模板
+# 用法：envsubst 或密钥管理渲染后放到 $HERMES_HOME/config.yaml
+# 注意：C 端不启用 IM platforms；Gateway 仅内网监听。
+
+gateway:
+  # 仅本机 / 内网访问；安全组勿放行此端口到公网
+  host: 127.0.0.1
+  port: 8642
+  api_server:
+    enabled: true
+    # OpenAI-compatible API，供 jobcome-api HermesSessionClient 调用
+
+# C 端 Web 产品：关闭所有 IM Bot 平台（飞书/Telegram/钉钉等）
+platforms: {}
+
+mcp_servers:
+  jobcome:
+    command: uv
+    args:
+      - run
+      - python
+      - -m
+      - jobcome.hermes.mcp.server
+    env:
+      JOB_COME_DATABASE_URL: ${JOB_COME_DATABASE_URL}
+      JOB_COME_MCP_SECRET: ${JOB_COME_MCP_SECRET}
+      # MCP 读写的业务真相在 JobCome PostgreSQL
+
+skills:
+  paths:
+    - /opt/jobcome/hermes/skills/jobcome
+
+plugins:
+  - jobcome
+
+# 平台托管模型密钥 — 仅服务端环境变量，C 端用户不可见
+llm:
+  default_model: ${LLM_DEFAULT_MODEL}
+  api_key: ${LLM_API_KEY}
+
+memory:
+  # MVP：Hermes 内置 sqlite，辅助单轮/多轮对话；档案/题库仍以 JobCome DB 为准
+  provider: sqlite
+
+# 日志与观测（按 upstream Hermes 实际字段调整）
+logging:
+  level: info

@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Grok Build 与 Pi 架构对照",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [860, 400]
+  },
+  "components": [
+    { "id": "grok_outer", "type": "database", "label": "Session FIFO", "sublabel": "Grok 外层", "pos": [100, 80], "size": [130, 56] },
+    { "id": "grok_inner", "type": "backend", "label": "Turn loop", "sublabel": "内环", "pos": [300, 80], "size": [120, 56] },
+    { "id": "pi_outer", "type": "backend", "label": "runLoop while", "sublabel": "Pi 外层", "pos": [100, 280], "size": [130, 56] },
+    { "id": "pi_inner", "type": "backend", "label": "内环", "sublabel": "stream→tool", "pos": [300, 280], "size": [120, 56] },
+    { "id": "shared", "type": "external", "label": "共同模式", "sublabel": "双层循环", "pos": [560, 180], "size": [120, 56] }
+  ],
+  "connections": [
+    { "from": "grok_outer", "to": "grok_inner", "label": "run_turn", "labelDy": -18 },
+    { "from": "pi_outer", "to": "pi_inner", "label": "单轮", "labelDy": -18 },
+    { "from": "grok_inner", "to": "shared", "label": "内环对齐", "fromSide": "right", "toSide": "left" },
+    { "from": "pi_inner", "to": "shared", "label": "内环对齐", "fromSide": "right", "toSide": "left", "labelDy": 18 }
+  ],
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "关键差异",
+      "items": [
+        "Pi followUp 在 runLoop 外层 while；Grok 下条 Prompt 在 Session 队列",
+        "Grok steer 称 Interjection；插话后 loop continue"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "概念对齐",
+      "items": [
+        "均无独立 Agent 类；Turn/内环 ≈ Pi Loop"
+      ]
+    }
+  ]
+}

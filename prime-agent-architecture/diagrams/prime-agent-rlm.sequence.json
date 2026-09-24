@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Prime RLM 子 Session 时序",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [820, 480],
+    "column_fit": "spread"
+  },
+  "participants": [
+    { "id": "kernel", "type": "backend", "label": "Kernel", "sublabel": "IPython" },
+    { "id": "pyrt", "type": "backend", "label": "runtime", "sublabel": "Python" },
+    { "id": "rlmts", "type": "backend", "label": "rlm-runtime", "sublabel": "TS" },
+    { "id": "child", "type": "backend", "label": "子 Worker", "sublabel": "JSONL" }
+  ],
+  "segments": [
+    { "from": 165, "to": 250, "label": "调用" },
+    { "from": 265, "to": 340, "label": "子 Session" },
+    { "from": 355, "to": 385, "label": "返回" }
+  ],
+  "messages": [
+    { "from": "kernel", "to": "pyrt", "y": 190, "label": "rlm.run()" },
+    { "from": "pyrt", "to": "rlmts", "y": 220, "label": "host", "variant": "emphasis" },
+    { "from": "rlmts", "to": "child", "y": 280, "label": "spawn+run", "variant": "emphasis" },
+    { "from": "child", "to": "rlmts", "y": 320, "label": "结果", "variant": "return" },
+    { "from": "rlmts", "to": "pyrt", "y": 360, "label": "回 Python", "variant": "return" },
+    { "from": "pyrt", "to": "kernel", "y": 382, "label": "out", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "kernel", "from": 188, "to": 393, "type": "backend" },
+    { "participant": "pyrt", "from": 188, "to": 368, "type": "backend" },
+    { "participant": "rlmts", "from": 218, "to": 368, "type": "backend" },
+    { "participant": "child", "from": 278, "to": 328, "type": "backend" }
+  ],
+  "cards": [
+    { "dot": "violet", "title": "隔离", "items": ["子任务不进父 chat，父只见 ipython 返回值"] }
+  ]
+}

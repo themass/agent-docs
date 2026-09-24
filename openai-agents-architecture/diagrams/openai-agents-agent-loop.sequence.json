@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "OpenAI Agents 单轮循环时序",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [960, 560],
+    "column_fit": "spread"
+  },
+  "participants": [
+    { "id": "app", "type": "frontend", "label": "应用", "sublabel": "宿主" },
+    { "id": "runner", "type": "backend", "label": "Runner", "sublabel": "run.py" },
+    { "id": "loop", "type": "backend", "label": "run_loop", "sublabel": "内环" },
+    { "id": "model", "type": "external", "label": "Model", "sublabel": "provider" },
+    { "id": "tools", "type": "messagebus", "label": "Tools", "sublabel": "function" },
+    { "id": "items", "type": "database", "label": "RunItem", "sublabel": "流" }
+  ],
+  "segments": [
+    { "from": 170, "to": 260, "label": "启动" },
+    { "from": 275, "to": 420, "label": "单轮循环" },
+    { "from": 435, "to": 500, "label": "决策" }
+  ],
+  "messages": [
+    { "from": "app", "to": "runner", "y": 180, "label": "Runner.run(agent, input)" },
+    { "from": "runner", "to": "loop", "y": 208, "label": "needs_another_turn", "variant": "emphasis" },
+    { "from": "loop", "to": "model", "y": 236, "label": "model.stream" },
+    { "from": "model", "to": "loop", "y": 264, "label": "tool_calls", "variant": "return" },
+    { "from": "loop", "to": "tools", "y": 292, "label": "execute" },
+    { "from": "tools", "to": "loop", "y": 320, "label": "ToolCallOutput", "variant": "return" },
+    { "from": "loop", "to": "items", "y": 348, "label": "append items", "variant": "dashed" },
+    { "from": "loop", "to": "runner", "y": 376, "label": "NextStep", "variant": "return" },
+    { "from": "runner", "to": "app", "y": 404, "label": "RunResult", "variant": "emphasis" }
+  ],
+  "activations": [
+    { "participant": "runner", "from": 205, "to": 410, "type": "backend" },
+    { "participant": "loop", "from": 206, "to": 384, "type": "backend" },
+    { "participant": "model", "from": 233, "to": 270, "type": "external" },
+    { "participant": "tools", "from": 289, "to": 326, "type": "messagebus" },
+    { "participant": "items", "from": 345, "to": 366, "type": "database" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "双层循环",
+      "items": [
+        "外层 Runner.run 直到无 tool、无 handoff 或达 max_turns",
+        "内层单轮：model 采样 → 并行/串行 tool → items 回注"
+      ]
+    }
+  ]
+}

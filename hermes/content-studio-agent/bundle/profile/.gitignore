@@ -1,0 +1,10 @@
+secrets.env
+.env
+config/tts-providers.yaml
+config.yaml
+reports/**
+!reports/.gitkeep
+logs/**
+!logs/.gitkeep
+__pycache__/
+*.pyc

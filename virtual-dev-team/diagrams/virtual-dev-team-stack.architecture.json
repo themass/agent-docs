@@ -1,0 +1,239 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "虚拟开发团队系统架构",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "three-sources",
+        "label": "三个真源",
+        "focus": ["you", "cursor", "teamai", "multica", "openspec"],
+        "note": "合同在 OpenSpec，卡在 Multica，Cursor 与 Codex 的 skill 由 teamai-cli 同步。"
+      },
+      {
+        "id": "worker-path",
+        "label": "领卡工人",
+        "focus": ["multica", "headroom", "codex", "codegraph"],
+        "note": "Multica 拉起工人；Headroom wrap 压缩工具输出；CodeGraph 查调用链。"
+      },
+      {
+        "id": "design-qa",
+        "label": "设计与验收",
+        "focus": ["you", "cursor", "opendesign", "openspec", "playwright"],
+        "note": "有 UI 必须过 OpenDesign 的 G1.5；QA 新会话只跑 OpenSpec 场景。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "buzz",
+      "type": "external",
+      "label": "Buzz",
+      "sublabel": "可选人机房间",
+      "tag": "不当板",
+      "pos": [40, 48],
+      "size": [148, 64]
+    },
+    {
+      "id": "you",
+      "type": "external",
+      "label": "你",
+      "sublabel": "G1 / G1.5 / G2",
+      "pos": [40, 200],
+      "size": [148, 64]
+    },
+    {
+      "id": "cursor",
+      "type": "frontend",
+      "label": "Cursor",
+      "sublabel": "产品 · 架构入口",
+      "tag": "人机 HQ",
+      "pos": [260, 200],
+      "size": [148, 64]
+    },
+    {
+      "id": "opendesign",
+      "type": "frontend",
+      "label": "OpenDesign",
+      "sublabel": "原型 + DESIGN.md",
+      "tag": "G1.5 强制",
+      "pos": [260, 48],
+      "size": [148, 64]
+    },
+    {
+      "id": "teamai",
+      "type": "backend",
+      "label": "teamai-cli",
+      "sublabel": "skills 分发",
+      "tag": "Cursor ↔ Codex",
+      "pos": [260, 380],
+      "size": [148, 64]
+    },
+    {
+      "id": "multica",
+      "type": "messagebus",
+      "label": "Multica",
+      "sublabel": "Agent 上板认领",
+      "tag": "唯一看板",
+      "pos": [480, 200],
+      "size": [148, 64]
+    },
+    {
+      "id": "openspec",
+      "type": "database",
+      "label": "OpenSpec",
+      "sublabel": "Git 规格合同",
+      "brand": "github",
+      "pos": [480, 380],
+      "size": [148, 64]
+    },
+    {
+      "id": "headroom",
+      "type": "security",
+      "label": "Headroom",
+      "sublabel": "wrap 工具输出",
+      "tag": "两边都 wrap",
+      "pos": [700, 200],
+      "size": [148, 64]
+    },
+    {
+      "id": "codex",
+      "type": "backend",
+      "label": "Codex",
+      "sublabel": "领卡 · Superpowers",
+      "brand": "openai",
+      "pos": [920, 200],
+      "size": [148, 64]
+    },
+    {
+      "id": "codegraph",
+      "type": "database",
+      "label": "CodeGraph",
+      "sublabel": "live callers",
+      "pos": [920, 380],
+      "size": [148, 64]
+    },
+    {
+      "id": "playwright",
+      "type": "cloud",
+      "label": "Playwright",
+      "sublabel": "QA 新会话",
+      "pos": [700, 380],
+      "size": [148, 64]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "人签字层",
+      "wraps": ["you", "cursor", "opendesign"]
+    },
+    {
+      "kind": "region",
+      "label": "团队运营",
+      "wraps": ["teamai", "multica"]
+    },
+    {
+      "kind": "security-group",
+      "label": "工人运行时",
+      "wraps": ["headroom", "codex"]
+    },
+    {
+      "kind": "region",
+      "label": "合同与证据",
+      "wraps": ["openspec", "codegraph", "playwright"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "optional-room",
+      "from": "buzz",
+      "to": "you",
+      "variant": "dashed"
+    },
+    {
+      "id": "sign-gates",
+      "from": "you",
+      "to": "cursor",
+      "label": "签字",
+      "variant": "emphasis"
+    },
+    {
+      "id": "visual-gate",
+      "from": "cursor",
+      "to": "opendesign",
+      "label": "G1.5"
+    },
+    {
+      "id": "harness-sync",
+      "from": "cursor",
+      "to": "teamai"
+    },
+    {
+      "id": "board-ready",
+      "from": "cursor",
+      "to": "multica",
+      "label": "Ready",
+      "variant": "emphasis"
+    },
+    {
+      "id": "card-contract",
+      "from": "multica",
+      "to": "openspec",
+      "label": "挂 change",
+      "labelDy": 24
+    },
+    {
+      "id": "spawn-worker",
+      "from": "multica",
+      "to": "headroom",
+      "label": "拉起工人",
+      "variant": "emphasis"
+    },
+    {
+      "id": "wrap-codex",
+      "from": "headroom",
+      "to": "codex",
+      "label": "wrap"
+    },
+    {
+      "id": "live-graph",
+      "from": "codex",
+      "to": "codegraph"
+    },
+    {
+      "id": "qa-scenes",
+      "from": "openspec",
+      "to": "playwright",
+      "label": "只跑场景"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "三个真源，不要叠",
+      "items": [
+        "OpenSpec 合同 · Multica 看板 · teamai-cli 分发",
+        "Buzz 频道不是卡，不当第二块板"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "各件作用",
+      "items": [
+        "Cursor 谈签字，Codex 领卡；OpenDesign 管视觉",
+        "Headroom 压输出，CodeGraph 少盲搜，Playwright 验收"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "明确不进栈",
+      "items": [
+        "ECC / deer-flow / eigent 会变成第二 HQ",
+        "oh-my-codex 默认不装，避免抢主循环"
+      ]
+    }
+  ]
+}

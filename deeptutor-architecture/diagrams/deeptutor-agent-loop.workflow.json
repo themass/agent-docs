@@ -1,0 +1,45 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "DeepTutor AgentLoop 轮次状态机",
+    "locale": "zh-CN",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    { "id": "round", "label": "LLM 轮次" },
+    { "id": "tools", "label": "工具分发" }
+  ],
+  "nodes": [
+    { "id": "round", "lane": "round", "col": 0, "type": "backend", "label": "Round", "sublabel": "_call_llm" },
+    { "id": "narr", "lane": "round", "col": 1, "type": "messagebus", "label": "narration", "sublabel": "有 tool_calls" },
+    { "id": "finish", "lane": "round", "col": 2, "type": "external", "label": "finish", "sublabel": "无工具" },
+    { "id": "dispatch", "lane": "tools", "col": 1, "type": "backend", "label": "dispatch", "sublabel": "并行 ≤8", "width": 120 },
+    { "id": "pause", "lane": "tools", "col": 2, "type": "security", "label": "ask_user", "sublabel": "WAIT" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "round", "to": "narr", "label": "tool_calls" },
+    { "id": "e2", "from": "round", "to": "finish", "label": "无工具", "variant": "emphasis" },
+    { "id": "e3", "from": "narr", "to": "dispatch", "label": "分发" },
+    { "id": "e4", "from": "dispatch", "to": "round", "label": "追加 results", "variant": "dashed" },
+    { "id": "e5", "from": "dispatch", "to": "pause", "label": "pause", "variant": "dashed" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "narration / finish",
+      "items": [
+        "有 tool_calls → narration，文本是工具前导语",
+        "无 tool_calls → finish，文本即最终答案"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "预算分层",
+      "items": [
+        "exploration 预算用尽 → Settlement（≤3 轮）",
+        "仍要 tools → Forced finish（tool_schemas=None）"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Codex 上下文压缩双路径",
+    "locale": "zh-CN",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    { "id": "inline", "label": "路径 A：内联 Auto" },
+    { "id": "manual", "label": "路径 B：手动 Compact" }
+  ],
+  "nodes": [
+    { "id": "preturn", "lane": "inline", "col": 0, "type": "backend", "label": "PreTurn", "sublabel": "采样前检查" },
+    { "id": "midturn", "lane": "inline", "col": 1, "type": "backend", "label": "MidTurn", "sublabel": "Step 后阈值" },
+    { "id": "compact", "lane": "inline", "col": 2, "type": "cloud", "label": "auto_compact", "sublabel": "RegularTask" },
+    { "id": "replace", "lane": "inline", "col": 3, "type": "database", "label": "替换 history", "sublabel": "内存整体" },
+    { "id": "rollup", "lane": "inline", "col": 4, "type": "database", "label": "Rollout", "sublabel": "append Compacted" },
+    { "id": "op", "lane": "manual", "col": 0, "type": "frontend", "label": "Op::Compact", "sublabel": "/compact" },
+    { "id": "sl", "lane": "manual", "col": 1, "type": "messagebus", "label": "SQ 循环", "sublabel": "dispatch" },
+    { "id": "task", "lane": "manual", "col": 2, "type": "security", "label": "CompactTask", "sublabel": "独立任务" }
+  ],
+  "edges": [
+    { "id": "a1", "from": "preturn", "to": "compact", "label": "token 满" },
+    { "id": "a2", "from": "midturn", "to": "compact", "label": "should_roll_over" },
+    { "id": "a3", "from": "compact", "to": "replace", "label": "摘要", "variant": "emphasis" },
+    { "id": "a4", "from": "replace", "to": "rollup", "label": "检查点" },
+    { "id": "b1", "from": "op", "to": "sl", "label": "submit" },
+    { "id": "b2", "from": "sl", "to": "task", "label": "spawn_task", "variant": "emphasis" },
+    { "id": "b3", "from": "task", "to": "replace", "label": "compact.rs", "variant": "dashed" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "路径 A 内联",
+      "items": [
+        "run_pre_sampling_compact / run_auto_compact 在 run_turn 内",
+        "压完继续采样，不阻塞 submission_loop"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "两层语义",
+      "items": [
+        "内存 ContextManager 整体 replace",
+        "JSONL 只追加 Compacted，旧行保留作审计"
+      ]
+    }
+  ]
+}

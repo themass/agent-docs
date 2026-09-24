@@ -1,0 +1,283 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-background: oklch(99% 0 0);
+  --color-foreground: oklch(14.5% 0 0);
+  --color-muted: oklch(96% 0 0);
+  --color-muted-foreground: oklch(45% 0 0);
+  --color-border: oklch(92% 0 0);
+  --color-primary: oklch(48.8% 0.243 264.376);
+  --color-primary-foreground: oklch(98.5% 0 0);
+  --color-destructive: oklch(57.7% 0.245 27.325);
+  --color-card: oklch(100% 0 0);
+  --color-accent: oklch(97% 0 0);
+  --radius-lg: 0.5rem;
+  --radius-md: 0.375rem;
+}
+
+:root {
+  --nf-ink: #17211f;
+  --nf-muted: #69716c;
+  --nf-paper: #f8f6ef;
+  --nf-line: #d6d3c8;
+  --nf-accent: #ff5c35;
+  --nf-dark: #17211f;
+  --nf-signal: #bef264;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+}
+
+html:not(.nf-popup-html),
+body:not(.nf-popup-body),
+html:not(.nf-popup-html) #root {
+  height: 100%;
+}
+
+/* Extension popups: never use vh — Chrome sizes the window from content and vh collapses to a sliver. */
+html.nf-popup-html,
+html.nf-popup-html body.nf-popup-body {
+  width: 300px;
+  height: 560px;
+  min-height: 560px;
+  max-height: 600px;
+  overflow: hidden;
+}
+
+.nf-popup {
+  height: 100%;
+  min-height: 560px;
+  max-height: 600px;
+}
+
+body {
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    sans-serif;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  -webkit-font-smoothing: antialiased;
+}
+
+.chat-panel {
+  width: 100%;
+  min-width: 0;
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.chat-wide {
+  width: min(1280px, 100%);
+  margin: 0 auto;
+  font-size: 16px;
+  line-height: 1.55;
+  border-left: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border);
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--color-border) 40%, transparent);
+}
+
+.nf-popup-footer {
+  flex-shrink: 0;
+  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+}
+
+body.nf-popup-body #root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 560px;
+  overflow: hidden;
+}
+
+.nf-popup-scroll {
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+.nf-popup-section {
+  margin: 0;
+  padding: 4px 2px 2px;
+  font-size: 9px;
+  font-weight: 650;
+  color: var(--nf-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.nf-popup-btn {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--nf-line);
+  background: #fffef9;
+  padding: 10px 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 120ms ease, border-color 120ms ease;
+}
+
+.nf-popup-btn-dense {
+  gap: 7px;
+  padding: 5px 8px;
+}
+
+.nf-popup-btn-dense:hover {
+  transform: none;
+}
+
+.nf-popup-btn:hover {
+  transform: translateY(-1px);
+  border-color: var(--nf-ink);
+}
+
+.nf-popup-btn-primary {
+  background: var(--nf-accent);
+  border-color: var(--nf-accent);
+  color: #171d1b;
+}
+
+.nf-popup-btn-primary .text-\[var\(--nf-muted\)\] {
+  color: #3a403d;
+}
+
+.nf-popup-footer-btn {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--nf-line);
+  background: #fffef9;
+  padding: 5px 7px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+
+.nf-popup-footer-btn:hover {
+  border-color: var(--nf-ink);
+}
+
+.nf-popup-footer {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.nf-popup-footer-feature:hover {
+  border-color: #5a7a2a;
+}
+
+.nf-popup-settings-btn {
+  display: flex;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--nf-line);
+  border-radius: 999px;
+  background: #fffef9;
+  color: var(--nf-ink);
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(15, 20, 18, 0.08);
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.nf-popup-settings-btn:hover {
+  border-color: var(--nf-ink);
+  background: #f4f7f5;
+}
+
+.nf-popup-record-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #e8c4c4;
+  border-radius: 10px;
+  background: #fffef9;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.nf-popup-record-btn:hover {
+  border-color: #c44;
+}
+
+.nf-popup-record-btn-active {
+  border-color: #d44;
+  background: #fff5f5;
+  color: #922;
+}
+
+.nf-popup-saved-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #c8e4a8;
+  border-radius: 8px;
+  background: #eef8e3;
+  padding: 6px 8px;
+}
+
+.nf-popup-saved-action {
+  flex-shrink: 0;
+  border: 0;
+  background: #5a7a2a;
+  color: #fff;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.nf-popup-saved-action:hover {
+  background: #4a6a1a;
+}
+
+.nf-auth-strip {
+  min-height: 26px;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.nf-popup-account-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+
+.ad-banner {
+  min-height: 50px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.ad-banner-frame {
+  display: block;
+  width: 100%;
+  min-height: 50px;
+  height: 72px;
+  border: 0;
+}
+
+.ad-banner:empty {
+  min-height: 0;
+  background: transparent;
+}

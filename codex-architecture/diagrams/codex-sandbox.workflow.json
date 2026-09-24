@@ -1,0 +1,47 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Codex 工具沙箱执行流程",
+    "locale": "zh-CN",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    { "id": "tool", "label": "ToolOrchestrator" },
+    { "id": "guard", "label": "纵深防御" }
+  ],
+  "nodes": [
+    { "id": "call", "lane": "tool", "col": 0, "type": "backend", "label": "FunctionCall", "sublabel": "模型输出" },
+    { "id": "dispatch", "lane": "tool", "col": 1, "type": "backend", "label": "dispatch", "sublabel": "ToolRouter" },
+    { "id": "approval", "lane": "guard", "col": 2, "type": "security", "label": "ExecApproval", "sublabel": "需审批?" },
+    { "id": "sandbox1", "lane": "guard", "col": 3, "type": "security", "label": "Sandbox 1", "sublabel": "Seatbelt" },
+    { "id": "escalate", "lane": "guard", "col": 4, "type": "cloud", "label": "attempt 2", "sublabel": "escalatable" },
+    { "id": "exec", "lane": "tool", "col": 5, "type": "database", "label": "record 输出", "sublabel": "history" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "call", "to": "dispatch", "label": "handle" },
+    { "id": "e2", "from": "dispatch", "to": "approval", "label": "policy" },
+    { "id": "e3", "from": "approval", "to": "sandbox1", "label": "resume" },
+    { "id": "e4", "from": "sandbox1", "to": "escalate", "label": "denied", "variant": "dashed" },
+    { "id": "e5", "from": "sandbox1", "to": "exec", "label": "允许", "variant": "emphasis" },
+    { "id": "e6", "from": "escalate", "to": "exec", "label": "无重审批" }
+  ],
+  "cards": [
+    {
+      "dot": "rose",
+      "title": "纵深防御",
+      "items": [
+        "Sandbox、ExecPolicy、Guardian、网络审批分层",
+        "escalatable 拒绝可 attempt 2，无需重新审批"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "并行工具",
+      "items": [
+        "parallel_tool_calls + router 支持时多个 call 同时 in_flight",
+        "Control tools 挂起等待 Op::UserInputAnswer"
+      ]
+    }
+  ]
+}

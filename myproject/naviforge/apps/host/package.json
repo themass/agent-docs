@@ -1,0 +1,28 @@
+{
+  "name": "@naviforge/host",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "naviforge-host": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p ../../packages/shared/tsconfig.json && tsc -p ../../packages/session/tsconfig.json && tsc -p tsconfig.json",
+    "start": "NAVIFORGE_HOST_HTTP_ONLY=1 node dist/index.js",
+    "start:mcp": "node dist/index.js",
+    "install-helper": "npm run build && node dist/install.js",
+    "check": "tsc -p ../../packages/shared/tsconfig.json && tsc -p ../../packages/session/tsconfig.json && tsx src/traceroute.self-check.ts && tsx src/workspace.self-check.ts"
+  },
+  "dependencies": {
+    "@naviforge/session": "0.0.1",
+    "@naviforge/shared": "0.0.1",
+    "@modelcontextprotocol/client": "^2.0.0",
+    "@modelcontextprotocol/server": "*",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "*",
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.0"
+  }
+}

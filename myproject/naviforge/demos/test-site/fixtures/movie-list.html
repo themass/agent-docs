@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="utf-8" />
+    <title>Movie list fixture</title>
+    <style>
+      body { margin: 0; font: 14px/1.5 system-ui, sans-serif; }
+      nav { display: flex; gap: 16px; padding: 12px 24px; background: #111; color: #fff; }
+      nav a { color: #fff; }
+      .list { display: grid; grid-template-columns: repeat(4, 180px); gap: 16px; padding: 16px 24px; }
+      .item a { display: block; text-decoration: none; color: inherit; }
+      .poster { width: 180px; height: 240px; background: #eee; }
+      .name { font-weight: 600; }
+      .sub { color: #666; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <nav><a href="/">首页</a><a href="/tv">电视剧</a><a href="/movie">电影</a></nav>
+    <div class="list">
+      <div class="item">
+        <a href="/detail/91827">
+          <div class="poster"><img src="/fake/cover.png" alt="" /></div>
+          <div class="name">星际穿越</div>
+          <div class="sub"><span>2014</span> · <span>9.4</span></div>
+        </a>
+      </div>
+      <div class="item">
+        <a href="/detail/91828">
+          <div class="poster"><img src="/fake/cover.png" alt="" /></div>
+          <div class="name">三体 第二季</div>
+          <div class="sub"><span>更新至第12集</span> · <span>8.7</span></div>
+        </a>
+      </div>
+      <div class="item">
+        <a href="/detail/91829">
+          <div class="poster"><img src="/fake/cover.png" alt="" /></div>
+          <div class="name">沙丘</div>
+          <div class="sub"><span>2021</span> · <span>8.0</span></div>
+        </a>
+      </div>
+      <div class="item">
+        <a href="/detail/91830">
+          <div class="poster"><img src="/fake/cover.png" alt="" /></div>
+          <div class="name">奥本海默</div>
+          <div class="sub"><span>2023</span> · <span>8.9</span></div>
+        </a>
+      </div>
+    </div>
+  </body>
+</html>

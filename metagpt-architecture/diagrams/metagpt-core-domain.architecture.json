@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "MetaGPT 核心领域模型",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [900, 520]
+  },
+  "components": [
+    { "id": "team", "type": "backend", "label": "Team", "sublabel": "hire · run", "pos": [40, 56], "size": [120, 52] },
+    { "id": "context", "type": "cloud", "label": "Context", "sublabel": "Config · Cost", "pos": [40, 160], "size": [120, 52] },
+    { "id": "mgx", "type": "messagebus", "label": "MGXEnv", "sublabel": "默认 · Mike 门控", "pos": [200, 56], "size": [148, 52] },
+    { "id": "message", "type": "database", "label": "Message", "sublabel": "cause_by · send_to", "pos": [388, 56], "size": [128, 52] },
+    { "id": "role", "type": "backend", "label": "Role", "sublabel": "基类 · react", "pos": [388, 268], "size": [120, 52] },
+    { "id": "rolezero", "type": "backend", "label": "RoleZero", "sublabel": "Planner · 命令", "pos": [200, 268], "size": [148, 52] },
+    { "id": "rc", "type": "backend", "label": "RoleContext", "sublabel": "buffer · watch", "pos": [540, 268], "size": [132, 52] },
+    { "id": "action", "type": "backend", "label": "Action", "sublabel": "run()", "pos": [696, 268], "size": [120, 52] },
+    { "id": "repo", "type": "database", "label": "ProjectRepo", "sublabel": "docs · src", "pos": [540, 160], "size": [132, 52] },
+    { "id": "pool_mgx", "type": "backend", "label": "默认 CLI", "sublabel": "Mike·Alice·Bob·Alex·David", "pos": [200, 368], "size": [148, 52] },
+    { "id": "pool_classic", "type": "backend", "label": "经典 Role", "sublabel": "Engineer·Edward·Eve·DI", "pos": [388, 368], "size": [200, 52] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "L1 编排与消息", "wraps": ["team", "context", "mgx", "message", "repo"] },
+    { "kind": "region", "label": "L2 运行时", "wraps": ["rolezero", "role", "rc", "action"] },
+    { "kind": "region", "label": "L3 角色池", "wraps": ["pool_mgx", "pool_classic"] }
+  ],
+  "connections": [
+    { "from": "team", "to": "mgx", "label": "编排" },
+    { "from": "mgx", "to": "message", "label": "投递" },
+    { "from": "context", "to": "team", "label": "共享", "fromSide": "top", "toSide": "bottom" },
+    { "from": "rolezero", "to": "role", "label": "继承" },
+    { "from": "role", "to": "rc", "label": "rc" },
+    { "from": "rc", "to": "action", "label": "todo", "labelDy": 52 },
+    { "from": "action", "to": "repo", "label": "落盘", "fromSide": "top", "toSide": "bottom" },
+    { "from": "pool_mgx", "to": "rolezero", "label": "hire", "fromSide": "top", "toSide": "bottom" },
+    { "from": "pool_classic", "to": "role", "label": "hire", "fromSide": "top", "toSide": "bottom" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "阅读顺序",
+      "items": [
+        "上：Team→MGX→Message；中：RoleZero/Role 内核；下：两类 hire 池",
+        "§2.0 Mermaid 全类图保留不动，本图为 Archify 分层版"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Environment",
+      "items": [
+        "经典 Environment 与 MGXEnv 平级继承 ExtEnv",
+        "use_mgx=false 时走 Environment + watch SOP（无 Mike Hub）"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "经典 Role",
+      "items": [
+        "默认 CLI 不 hire；Chainlit / fixed SOP / DI 仍用经典池"
+      ]
+    }
+  ]
+}

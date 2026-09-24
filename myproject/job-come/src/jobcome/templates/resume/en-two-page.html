@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>{{ header.name }} — Resume</title>
+  <style>
+    @page { size: A4; margin: 18mm 16mm; }
+    body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; margin: 0; color: #111; font-size: 12.5px; line-height: 1.45; }
+    h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -0.02em; }
+    .headline { color: #444; margin-bottom: 4px; font-size: 14px; }
+    .contact { color: #666; font-size: 12px; margin-bottom: 18px; }
+    h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin-top: 20px; }
+    .exp-title { font-weight: 600; }
+    .exp-meta { color: #555; font-size: 12px; }
+    ul { margin: 6px 0 14px 18px; }
+    li { margin-bottom: 4px; }
+    .summary { line-height: 1.55; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 24px; }
+  </style>
+</head>
+<body>
+  <h1>{{ header.name }}</h1>
+  <div class="headline">{{ header.headline }}</div>
+  <div class="contact">{{ header.contact_line }}</div>
+
+  {% if summary %}
+  <h2>Summary</h2>
+  <p class="summary">{{ summary }}</p>
+  {% endif %}
+
+  {% if experience_blocks %}
+  <h2>Experience</h2>
+  {% for exp in experience_blocks %}
+  <div class="exp-title">{{ exp.company }} — {{ exp.title }}</div>
+  <div class="exp-meta">{{ exp.date_range }}{% if exp.location %} · {{ exp.location }}{% endif %}</div>
+  <ul>
+    {% for bullet in exp.bullets %}<li>{{ bullet }}</li>{% endfor %}
+  </ul>
+  {% endfor %}
+  {% endif %}
+
+  <div class="two-col">
+    <div>
+      {% if education_blocks %}
+      <h2>Education</h2>
+      {% for edu in education_blocks %}
+      <div class="exp-title">{{ edu.school }}</div>
+      <div class="exp-meta">{{ edu.degree_line }} · {{ edu.date_range }}</div>
+      {% endfor %}
+      {% endif %}
+    </div>
+    <div>
+      {% if skills_block.content %}
+      <h2>{{ skills_block.title }}</h2>
+      <p>{{ skills_block.content }}</p>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if project_blocks %}
+  <h2>Projects</h2>
+  {% for proj in project_blocks %}
+  <div class="exp-title">{{ proj.name }}</div>
+  <ul>
+    {% for bullet in proj.bullets %}<li>{{ bullet }}</li>{% endfor %}
+  </ul>
+  {% endfor %}
+  {% endif %}
+</body>
+</html>

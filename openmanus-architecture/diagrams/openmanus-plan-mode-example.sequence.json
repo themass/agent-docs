@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Plan 模式完整示例时序",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [1000, 580],
+    "column_fit": "spread"
+  },
+  "participants": [
+    { "id": "user", "type": "frontend", "label": "用户", "sublabel": "prompt" },
+    { "id": "flow", "type": "backend", "label": "PlanningFlow", "sublabel": "execute" },
+    { "id": "ptool", "type": "database", "label": "PlanningTool", "sublabel": "plans" },
+    { "id": "manus", "type": "backend", "label": "Manus", "sublabel": "Memory 复用" },
+    { "id": "data", "type": "cloud", "label": "DataAnalysis", "sublabel": "独立账" },
+    { "id": "llm", "type": "external", "label": "LLM", "sublabel": "双实例" }
+  ],
+  "segments": [
+    { "from": 150, "to": 250, "label": "建计划" },
+    { "from": 264, "to": 390, "label": "逐步执行" },
+    { "from": 404, "to": 488, "label": "总结" }
+  ],
+  "messages": [
+    { "from": "user", "to": "flow", "y": 168, "label": "分析 CSV 并写报告" },
+    { "from": "flow", "to": "llm", "y": 196, "label": "ask_tool + planning", "variant": "emphasis" },
+    { "from": "llm", "to": "flow", "y": 224, "label": "create tool_call", "variant": "return" },
+    { "from": "flow", "to": "ptool", "y": 252, "label": "create 并覆盖 plan_id" },
+    { "from": "flow", "to": "manus", "y": 284, "label": "run(step 0)", "variant": "emphasis" },
+    { "from": "manus", "to": "llm", "y": 312, "label": "think/act 写入 Memory", "variant": "dashed" },
+    { "from": "flow", "to": "data", "y": 340, "label": "run(step 1) 新 Memory" },
+    { "from": "flow", "to": "manus", "y": 368, "label": "run(step 2) 累积旧消息", "variant": "emphasis" },
+    { "from": "flow", "to": "llm", "y": 420, "label": "ask 总结，仅见勾选表" },
+    { "from": "flow", "to": "user", "y": 456, "label": "拼接各 step 结果", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "user", "from": 165, "to": 464, "type": "frontend" },
+    { "participant": "flow", "from": 165, "to": 464, "type": "backend" },
+    { "participant": "llm", "from": 193, "to": 232, "type": "external" },
+    { "participant": "ptool", "from": 249, "to": 264, "type": "database" },
+    { "participant": "manus", "from": 281, "to": 320, "type": "backend" },
+    { "participant": "data", "from": 337, "to": 352, "type": "cloud" },
+    { "participant": "manus", "from": 365, "to": 380, "type": "backend" },
+    { "participant": "llm", "from": 309, "to": 348, "type": "external" },
+    { "participant": "llm", "from": 417, "to": 432, "type": "external" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "规划对话不进 Memory",
+      "items": [
+        "Flow.llm 的 create / 总结是局部变量，ask 完即丢"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "同一 Manus 跨步",
+      "items": [
+        "step 2 仍含 step 0 的 tool observation"
+      ]
+    }
+  ]
+}

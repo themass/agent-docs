@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Codex 多 Agent 协作架构",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [900, 480]
+  },
+  "components": [
+    { "id": "user", "type": "external", "label": "用户", "sublabel": "复杂任务", "pos": [40, 200], "size": [110, 60] },
+    { "id": "parent", "type": "backend", "label": "父 Thread", "sublabel": "协调者", "pos": [200, 200], "size": [130, 60] },
+    { "id": "child1", "type": "backend", "label": "子 Thread A", "sublabel": "执行者", "pos": [420, 100], "size": [130, 60] },
+    { "id": "child2", "type": "backend", "label": "子 Thread B", "sublabel": "执行者", "pos": [420, 300], "size": [130, 60] },
+    { "id": "pmem", "type": "database", "label": "父记忆", "sublabel": "ContextMgr", "pos": [200, 360], "size": [120, 60] },
+    { "id": "cmem1", "type": "database", "label": "子 A 记忆", "sublabel": "隔离", "pos": [620, 100], "size": [120, 60] },
+    { "id": "cmem2", "type": "database", "label": "子 B 记忆", "sublabel": "隔离", "pos": [620, 300], "size": [120, 60] },
+    { "id": "v1", "type": "messagebus", "label": "协作 V1", "sublabel": "send_input", "pos": [620, 200], "size": [120, 60] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "父子隔离 · 独立 rollout", "wraps": ["parent", "child1", "child2", "pmem", "cmem1", "cmem2"] }
+  ],
+  "connections": [
+    { "from": "user", "to": "parent", "label": "任务" },
+    { "from": "parent", "to": "child1", "label": "spawn", "variant": "emphasis" },
+    { "from": "parent", "to": "child2", "label": "spawn", "variant": "emphasis" },
+    { "from": "parent", "to": "pmem", "label": "读写", "fromSide": "bottom", "toSide": "top" },
+    { "from": "child1", "to": "cmem1", "label": "独立" },
+    { "from": "child2", "to": "cmem2", "label": "独立" },
+    { "from": "parent", "to": "v1", "label": "派活", "variant": "dashed" },
+    { "from": "v1", "to": "child1", "label": "V1 片段注入", "variant": "dashed" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "设计原则",
+      "items": [
+        "子 = 新 Thread，独立上下文与 rollout",
+        "spawn 默认异步；同步需显式 wait"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "V1 vs V2",
+      "items": [
+        "V1 send_input：子完成即片段注入父下一拍",
+        "V2 send_message：进 input_queue，Turn 收尾后 drain"
+      ]
+    }
+  ]
+}

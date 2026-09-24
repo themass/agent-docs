@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Prime Agent 架构总览",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [1180, 640]
+  },
+  "components": [
+    { "id": "client", "type": "frontend", "label": "客户端", "sublabel": "TUI · RPC", "pos": [48, 300], "size": [120, 60] },
+    { "id": "daemon", "type": "backend", "label": "Daemon v7", "sublabel": "Supervisor", "pos": [208, 300], "size": [120, 60] },
+    { "id": "worker", "type": "backend", "label": "Worker", "sublabel": "Session 进程", "pos": [368, 300], "size": [120, 60] },
+    { "id": "agentsession", "type": "backend", "label": "AgentSession", "sublabel": "会话编排", "pos": [528, 300], "size": [130, 60] },
+    { "id": "loop", "type": "backend", "label": "runAgentLoop", "sublabel": "pi-agent-core", "pos": [698, 300], "size": [130, 60] },
+    { "id": "ipython", "type": "backend", "label": "IPython", "sublabel": "主工具", "pos": [868, 300], "size": [120, 60] },
+    { "id": "jsonl", "type": "database", "label": "JSONL 树", "sublabel": "~/.prime", "pos": [1028, 300], "size": [120, 60] },
+    { "id": "provider", "type": "external", "label": "pi-ai", "sublabel": "Provider", "pos": [698, 140], "size": [120, 60] },
+    { "id": "goals", "type": "cloud", "label": "Goals", "sublabel": "Harness", "pos": [528, 140], "size": [120, 60] },
+    { "id": "rlm", "type": "backend", "label": "RLM", "sublabel": "子 Session", "pos": [868, 140], "size": [120, 60] },
+    { "id": "host", "type": "backend", "label": "host.request", "sublabel": "副作用", "pos": [808, 480], "size": [120, 60] },
+    { "id": "pyrt", "type": "backend", "label": "prime-runtime", "sublabel": "Python 扩展", "pos": [968, 480], "size": [130, 60] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Prime 产品封装", "wraps": ["daemon", "worker", "agentsession", "ipython", "host", "pyrt", "jsonl", "rlm", "goals"] },
+    { "kind": "region", "label": "Pi 双环心脏", "wraps": ["loop", "provider"] }
+  ],
+  "connections": [
+    { "from": "client", "to": "daemon", "label": "RPC" },
+    { "from": "daemon", "to": "worker", "label": "路由" },
+    { "from": "worker", "to": "agentsession", "label": "托管" },
+    { "from": "agentsession", "to": "loop", "label": "运行" },
+    { "from": "loop", "to": "ipython", "label": "tool" },
+    { "from": "ipython", "to": "jsonl", "label": "持久化" },
+    { "from": "loop", "to": "provider", "label": "stream", "fromSide": "top", "toSide": "bottom" },
+    { "from": "agentsession", "to": "goals", "label": "精炼", "variant": "dashed", "fromSide": "top", "toSide": "bottom" },
+    { "from": "ipython", "to": "rlm", "label": "rlm.run", "variant": "dashed", "fromSide": "top", "toSide": "bottom", "labelDx": -40 },
+    { "from": "ipython", "to": "host", "label": "副作用", "fromSide": "bottom", "toSide": "top" },
+    { "from": "host", "to": "pyrt", "label": "扩展 API", "labelDy": 54 }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "设计哲学",
+      "items": [
+        "Pi 管怎么转：双环 runAgentLoop + steering/follow-up",
+        "Prime 管在哪转、记什么、用什么工具、子任务怎么拆"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "进程与持久化",
+      "items": [
+        "Daemon 托管 Worker，关终端可 attach 重连",
+        "JSONL 树为单账本，Compaction 可折叠长上下文"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "工具与子任务",
+      "items": [
+        "模型主要只见 IPython，组合逻辑写在 cell 里",
+        "rlm.run() 在子 Session 执行，父上下文只见返回值"
+      ]
+    }
+  ]
+}

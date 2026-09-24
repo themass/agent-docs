@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "CrewAI Role-Agent 执行时序",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [960, 560],
+    "column_fit": "spread"
+  },
+  "participants": [
+    { "id": "crew", "type": "backend", "label": "Crew", "sublabel": "kickoff" },
+    { "id": "task", "type": "cloud", "label": "Task", "sublabel": "当前节点" },
+    { "id": "agent", "type": "backend", "label": "Agent", "sublabel": "role" },
+    { "id": "llm", "type": "external", "label": "LLM", "sublabel": "provider" },
+    { "id": "tool", "type": "messagebus", "label": "@tool", "sublabel": "绑定的工具" },
+    { "id": "ctx", "type": "database", "label": "context", "sublabel": "上游输出" }
+  ],
+  "segments": [
+    { "from": 170, "to": 260, "label": "Task 激活" },
+    { "from": 275, "to": 420, "label": "Agent 执行" },
+    { "from": 435, "to": 500, "label": "传递" }
+  ],
+  "messages": [
+    { "from": "crew", "to": "task", "y": 180, "label": "选取 Task" },
+    { "from": "task", "to": "ctx", "y": 208, "label": "读取 context", "variant": "dashed" },
+    { "from": "task", "to": "agent", "y": 236, "label": "分配 agent", "variant": "emphasis" },
+    { "from": "agent", "to": "llm", "y": 264, "label": "prompt + role" },
+    { "from": "llm", "to": "agent", "y": 292, "label": "tool_use", "variant": "return" },
+    { "from": "agent", "to": "tool", "y": 320, "label": "执行" },
+    { "from": "tool", "to": "agent", "y": 348, "label": "结果", "variant": "return" },
+    { "from": "agent", "to": "task", "y": 376, "label": "Task 输出" },
+    { "from": "task", "to": "crew", "y": 404, "label": "写入 context", "variant": "emphasis" },
+    { "from": "crew", "to": "task", "y": 432, "label": "下一 Task", "variant": "dashed" }
+  ],
+  "activations": [
+    { "participant": "crew", "from": 205, "to": 440, "type": "backend" },
+    { "participant": "task", "from": 206, "to": 412, "type": "cloud" },
+    { "participant": "agent", "from": 234, "to": 384, "type": "backend" },
+    { "participant": "llm", "from": 261, "to": 298, "type": "external" },
+    { "participant": "tool", "from": 317, "to": 354, "type": "messagebus" },
+    { "participant": "ctx", "from": 205, "to": 220, "type": "database" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "静态 Crew",
+      "items": [
+        "无运行时 spawn；Agent 在定义期绑定",
+        "Task description + agent + context 构成执行单元"
+      ]
+    }
+  ]
+}

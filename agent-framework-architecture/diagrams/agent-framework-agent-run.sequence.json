@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Agent Framework ChatAgent 运行时序",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [960, 560],
+    "column_fit": "spread"
+  },
+  "participants": [
+    { "id": "app", "type": "frontend", "label": "应用", "sublabel": "宿主" },
+    { "id": "agent", "type": "backend", "label": "ChatAgent", "sublabel": "run()" },
+    { "id": "model", "type": "external", "label": "Model", "sublabel": "client" },
+    { "id": "tools", "type": "messagebus", "label": "Tools", "sublabel": "function" },
+    { "id": "thread", "type": "database", "label": "Thread", "sublabel": "history" },
+    { "id": "otel", "type": "cloud", "label": "Telemetry", "sublabel": "OTel" }
+  ],
+  "segments": [
+    { "from": 170, "to": 260, "label": "外层 run" },
+    { "from": 275, "to": 420, "label": "单轮内环" },
+    { "from": 435, "to": 500, "label": "产出" }
+  ],
+  "messages": [
+    { "from": "app", "to": "agent", "y": 180, "label": "agent.run(message)" },
+    { "from": "agent", "to": "thread", "y": 208, "label": "load history" },
+    { "from": "agent", "to": "otel", "y": 236, "label": "start span", "variant": "dashed" },
+    { "from": "agent", "to": "model", "y": 264, "label": "stream request" },
+    { "from": "model", "to": "agent", "y": 292, "label": "function_call", "variant": "return" },
+    { "from": "agent", "to": "tools", "y": 320, "label": "schema 校验 + 执行" },
+    { "from": "tools", "to": "agent", "y": 348, "label": "结果 item", "variant": "return" },
+    { "from": "agent", "to": "thread", "y": 376, "label": "append RunItem", "variant": "emphasis" },
+    { "from": "agent", "to": "app", "y": 404, "label": "streaming updates" },
+    { "from": "agent", "to": "app", "y": 432, "label": "final response", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "agent", "from": 205, "to": 440, "type": "backend" },
+    { "participant": "model", "from": 261, "to": 298, "type": "external" },
+    { "participant": "tools", "from": 317, "to": 354, "type": "messagebus" },
+    { "participant": "thread", "from": 206, "to": 384, "type": "database" },
+    { "participant": "otel", "from": 233, "to": 250, "type": "cloud" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "双层循环",
+      "items": [
+        "外层：多轮用户消息 / session",
+        "内层：model → function tools → 再 model"
+      ]
+    }
+  ]
+}

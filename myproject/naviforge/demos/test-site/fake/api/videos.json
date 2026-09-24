@@ -1,0 +1,6 @@
+{
+  "items": [
+    { "title": "Demo Video 1", "url": "/watch/1", "stream": "/fake/master.m3u8" },
+    { "title": "Demo Video 2", "url": "/watch/2", "stream": "/fake/720p/index.m3u8" }
+  ]
+}

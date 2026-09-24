@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "MetaGPT 端到端：idea → archive",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [1000, 560],
+    "column_fit": "spread"
+  },
+  "participants": [
+    { "id": "user", "type": "external", "label": "用户", "sublabel": "CLI" },
+    { "id": "team", "type": "backend", "label": "Team", "sublabel": "编排" },
+    { "id": "env", "type": "messagebus", "label": "MGXEnv", "sublabel": "总线" },
+    { "id": "tl", "type": "backend", "label": "Leader", "sublabel": "Mike" },
+    { "id": "pm", "type": "backend", "label": "PM", "sublabel": "产品" },
+    { "id": "ar", "type": "backend", "label": "Architect", "sublabel": "架构" },
+    { "id": "en", "type": "backend", "label": "Engineer", "sublabel": "工程" },
+    { "id": "repo", "type": "database", "label": "ProjectRepo", "sublabel": "归档" }
+  ],
+  "segments": [
+    { "from": 160, "to": 230, "label": "启动" },
+    { "from": 245, "to": 405, "label": "SOP 消息链" },
+    { "from": 420, "to": 510, "label": "归档" }
+  ],
+  "messages": [
+    { "from": "user", "to": "team", "y": 170, "label": "metagpt idea" },
+    { "from": "team", "to": "env", "y": 198, "label": "publish_message", "variant": "emphasis" },
+    { "from": "env", "to": "tl", "y": 226, "label": "路由 Leader" },
+    { "from": "tl", "to": "pm", "y": 254, "label": "派活 PM" },
+    { "from": "pm", "to": "env", "y": 282, "label": "WritePRD" },
+    { "from": "env", "to": "ar", "y": 310, "label": "watch 命中" },
+    { "from": "ar", "to": "env", "y": 338, "label": "WriteDesign" },
+    { "from": "env", "to": "en", "y": 366, "label": "WriteTasks" },
+    { "from": "en", "to": "env", "y": 394, "label": "WriteCode", "variant": "return" },
+    { "from": "team", "to": "repo", "y": 435, "label": "archive()", "variant": "dashed" },
+    { "from": "repo", "to": "user", "y": 465, "label": "docs · srcs", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "user", "from": 168, "to": 473, "type": "external" },
+    { "participant": "team", "from": 168, "to": 447, "type": "backend" },
+    { "participant": "env", "from": 196, "to": 402, "type": "messagebus" },
+    { "participant": "tl", "from": 224, "to": 262, "type": "backend" },
+    { "participant": "pm", "from": 252, "to": 290, "type": "backend" },
+    { "participant": "ar", "from": 308, "to": 346, "type": "backend" },
+    { "participant": "en", "from": 364, "to": 402, "type": "backend" },
+    { "participant": "repo", "from": 433, "to": 471, "type": "database" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "默认路径",
+      "items": [
+        "software_company 入口：hire + invest + run；MGXEnv 经 TeamLeader 路由"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "产物驱动",
+      "items": [
+        "PRD → 设计 → 任务 → 代码；最终 archive 到 ProjectRepo 目录树"
+      ]
+    }
+  ]
+}

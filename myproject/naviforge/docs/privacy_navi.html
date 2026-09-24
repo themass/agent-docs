@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NaviForge Privacy Policy</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f6f7f8;
+      --card: #fff;
+      --text: #14181a;
+      --muted: #5c6570;
+      --border: #e2e6ea;
+      --link: #0b6bcb;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f1214;
+        --card: #1a1f24;
+        --text: #e8eaed;
+        --muted: #9aa3ad;
+        --border: #2a323a;
+        --link: #6eb3ff;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 32px 20px 48px;
+    }
+    article {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px 32px;
+    }
+    h1 { font-size: 1.75rem; line-height: 1.25; margin: 0 0 8px; }
+    .meta { color: var(--muted); font-size: 0.9rem; margin-bottom: 24px; }
+    h2 { font-size: 1.15rem; margin: 28px 0 12px; }
+    p, li { margin: 0 0 12px; }
+    ul { padding-left: 1.25rem; margin: 0 0 16px; }
+    a { color: var(--link); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      margin: 12px 0 20px;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: var(--bg); font-weight: 600; }
+    strong { font-weight: 600; }
+  </style>
+</head>
+<body>
+  <main>
+    <article>
+      <h1>NaviForge Privacy Policy</h1>
+      <p class="meta">Last updated: 2026-08-18</p>
+
+      <p>
+        NaviForge (“we”, “the extension”) is a Chrome extension that runs an AI agent in
+        your browser. This policy describes what data is processed, where it stays, and what
+        you control.
+      </p>
+
+      <h2>Summary</h2>
+      <ul>
+        <li><strong>Local-first</strong>: Chat history, settings, and workspace files default to your device.</li>
+        <li><strong>Bring your own model (default)</strong>: If you configure your own API, data goes directly to your chosen LLM provider—we do not receive that traffic.</li>
+        <li><strong>Optional hosted inference</strong>: If you register and choose fully managed mode, requests go through our API; usage counts against your plan. Login is required only for hosted mode.</li>
+        <li><strong>Optional local Host</strong>: Separate software on your machine; not included in the Chrome Web Store package.</li>
+      </ul>
+
+      <h2>Data the extension may process</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Purpose</th>
+            <th>Stored locally?</th>
+            <th>Sent off-device?</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Page text / DOM summaries</td>
+            <td>Agent tasks</td>
+            <td>Session logs in extension storage / ~/NaviForge</td>
+            <td>To your LLM provider when you run the Agent</td>
+          </tr>
+          <tr>
+            <td>Screenshots / images / OCR</td>
+            <td>Vision tasks, screenshot studio</td>
+            <td>Workspace shots/ when saved</td>
+            <td>To your vision model when you OCR or attach images</td>
+          </tr>
+          <tr>
+            <td>Voice / microphone</td>
+            <td>Dictation in composer</td>
+            <td>Optional audio files in workspace</td>
+            <td>To speech/LLM services if you use voice features</td>
+          </tr>
+          <tr>
+            <td>API keys (LLM, Brave/Tavily search)</td>
+            <td>Authentication</td>
+            <td>chrome.storage.local if you enable “Store API Key”</td>
+            <td>Only to the provider you chose</td>
+          </tr>
+          <tr>
+            <td>Network metadata / bodies</td>
+            <td>Debugging, Agent verification</td>
+            <td>Sniff projects locally when enabled</td>
+            <td>Not to NaviForge; may appear in prompts to your LLM</td>
+          </tr>
+          <tr>
+            <td>Site profiles / playbooks</td>
+            <td>Faster re-extraction</td>
+            <td>Local storage / workspace</td>
+            <td>Only if included in Agent prompts</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Optional features (higher risk, off by default)</h2>
+      <ul>
+        <li><strong>Network Plane / debugger</strong>: Observes network activity on pages you use with the Agent.</li>
+        <li><strong>Modify Header</strong>: Injects request/response headers on all http(s) traffic when you
+          explicitly enable it in Settings → Privacy.</li>
+        <li><strong>DOM script injection / MAIN probe</strong>: Only when toggled in Privacy settings.</li>
+      </ul>
+
+      <h2>Optional Local Host (not part of the Chrome Web Store package)</h2>
+      <p>
+        You may install <strong>NaviForge Host</strong> separately: a process on 127.0.0.1 that lets
+        external tools (e.g. MCP clients) queue browser tasks and access your ~/NaviForge
+        folder. It uses a Bearer token on localhost. The Host does not send data to NaviForge;
+        it only communicates between your machine and the extension.
+      </p>
+
+      <h2>Data retention and deletion</h2>
+      <ul>
+        <li>Adjust <strong>activity retention</strong> in Settings → Privacy.</li>
+        <li><strong>Clear all local data</strong> in Settings → Advanced removes extension storage (not
+          ~/NaviForge unless you delete that folder yourself).</li>
+        <li>Disabling <strong>Store API Key</strong> and saving privacy settings removes stored keys.</li>
+      </ul>
+
+      <h2>Children</h2>
+      <p>NaviForge is not directed at children under 13.</p>
+
+      <h2>Changes</h2>
+      <p>
+        We may update this policy. Material changes will be reflected in the extension release
+        notes or an updated date above.
+      </p>
+
+      <h2>Contact</h2>
+      <p>Support: <a href="mailto:justbegin010@gmail.com">justbegin010@gmail.com</a></p>
+    </article>
+  </main>
+</body>
+</html>

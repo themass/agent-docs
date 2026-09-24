@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Codex 工具执行管道",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [860, 520]
+  },
+  "stages": [
+    { "label": "采样" },
+    { "label": "编排" },
+    { "label": "落盘" }
+  ],
+  "nodes": [
+    { "id": "try", "type": "backend", "label": "try_run_sampling", "sublabel": "SSE 事件机", "stage": 0, "row": 1 },
+    { "id": "tcr", "type": "backend", "label": "ToolCallRuntime", "sublabel": "handle_call", "stage": 1, "row": 0 },
+    { "id": "or", "type": "security", "label": "ToolOrchestrator", "sublabel": "dispatch", "stage": 1, "row": 1 },
+    { "id": "ap", "type": "security", "label": "ExecApproval", "sublabel": "EQ 挂起", "stage": 1, "row": 2 },
+    { "id": "sb", "type": "cloud", "label": "SandboxManager", "sublabel": "attempt 1/2", "stage": 2, "row": 1 },
+    { "id": "hist", "type": "database", "label": "ContextManager", "sublabel": "record 输出", "stage": 2, "row": 0 }
+  ],
+  "flows": [
+    { "from": "try", "to": "tcr", "label": "tool call", "variant": "emphasis", "channelY": -50, "labelAt": [156, 200], "labelDy": -28 },
+    { "from": "tcr", "to": "or", "label": "dispatch", "variant": "emphasis", "labelAt": [315, 200] },
+    { "from": "or", "to": "ap", "label": "需审批?", "channelY": 30, "labelAt": [315, 314] },
+    { "from": "ap", "to": "sb", "label": "resume", "channelY": 40, "labelAt": [315, 428] },
+    { "from": "sb", "to": "hist", "label": "record", "variant": "emphasis", "channelY": -40, "labelAt": [530, 200] }
+  ],
+  "cards": [
+    {
+      "dot": "rose",
+      "title": "审批唤醒",
+      "items": [
+        "ExecApprovalRequest 经 EQ 到客户端",
+        "Op::ExecApproval 唤醒 orchestrator 挂起 future"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "并行与控制工具",
+      "items": [
+        "parallel_tool_calls 时多个 call 同时 in_flight",
+        "request_user_input 等 Control tools 不结束 Turn"
+      ]
+    }
+  ]
+}

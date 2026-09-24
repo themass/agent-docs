@@ -1,0 +1,6 @@
+export { launchScreenshotStudio } from './capture/launch.js'
+export { SCREENSHOT_STUDIO_MESSAGE, STUDIO_COMPOSER_ATTACH_KEY } from './messages.js'
+export { readStudioSession } from './session.js'
+export { ScreenshotEditor } from './editor/ScreenshotEditor.js'
+export { useScreenshotStudioComposerBridge } from './bridge/use-composer-bridge.js'
+export type { ScreenshotStudioSession, StudioAnnotation, StudioTool } from './types.js'

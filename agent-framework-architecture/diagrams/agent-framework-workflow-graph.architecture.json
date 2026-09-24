@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Agent Framework Workflow 图架构",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [760, 300]
+  },
+  "components": [
+    { "id": "host", "type": "frontend", "label": "Hosting / App", "sublabel": "宿主", "pos": [48, 120], "size": [110, 56] },
+    { "id": "chat", "type": "backend", "label": "ChatAgent", "sublabel": "对话", "pos": [220, 80], "size": [110, 56] },
+    { "id": "workflow", "type": "backend", "label": "Workflow", "sublabel": "图编排", "pos": [220, 200], "size": [110, 56] },
+    { "id": "model", "type": "external", "label": "Model client", "sublabel": "provider", "pos": [400, 80], "size": [110, 56] },
+    { "id": "thread", "type": "database", "label": "Thread history", "sublabel": "Chat 状态", "pos": [580, 80], "size": [120, 56] },
+    { "id": "state", "type": "database", "label": "WorkflowRunState", "sublabel": "checkpoint", "pos": [580, 200], "size": [140, 56] }
+  ],
+  "connections": [
+    { "from": "host", "to": "chat", "label": "run" },
+    { "from": "host", "to": "workflow", "label": "graph", "fromSide": "bottom", "toSide": "left", "labelDy": 14 },
+    { "from": "chat", "to": "model", "label": "采样" },
+    { "from": "model", "to": "thread", "label": "RunItem", "variant": "emphasis" },
+    { "from": "workflow", "to": "state", "label": "checkpoint", "variant": "emphasis" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "双模式",
+      "items": [
+        "Chat Agent：thread history + run 内 tool 循环",
+        "Workflow：图遍历 + WorkflowRunState checkpoint"
+      ]
+    }
+  ]
+}

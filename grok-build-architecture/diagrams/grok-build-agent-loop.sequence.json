@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Grok Build Agent 循环时序",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [960, 580],
+    "column_fit": "spread"
+  },
+  "participants": [
+    { "id": "user", "type": "external", "label": "用户", "sublabel": "CLI/TUI" },
+    { "id": "session", "type": "backend", "label": "Session", "sublabel": "外层队列" },
+    { "id": "turn", "type": "backend", "label": "Turn", "sublabel": "内层循环" },
+    { "id": "llm", "type": "external", "label": "provider", "sublabel": "LLM" },
+    { "id": "tools", "type": "messagebus", "label": "Tool registry", "sublabel": "执行" },
+    { "id": "tui", "type": "frontend", "label": "TUI", "sublabel": "流式" }
+  ],
+  "segments": [
+    { "from": 160, "to": 240, "label": "入队" },
+    { "from": 255, "to": 420, "label": "Turn 内环" },
+    { "from": 435, "to": 520, "label": "边界" }
+  ],
+  "messages": [
+    { "from": "user", "to": "session", "y": 170, "label": "submit prompt" },
+    { "from": "session", "to": "turn", "y": 198, "label": "dequeue → run_turn", "variant": "emphasis" },
+    { "from": "turn", "to": "llm", "y": 226, "label": "采样" },
+    { "from": "llm", "to": "turn", "y": 254, "label": "tool_calls", "variant": "return" },
+    { "from": "turn", "to": "tools", "y": 282, "label": "registry 执行" },
+    { "from": "tools", "to": "turn", "y": 310, "label": "output", "variant": "return" },
+    { "from": "turn", "to": "llm", "y": 338, "label": "继续采样", "variant": "dashed" },
+    { "from": "turn", "to": "tui", "y": 366, "label": "delta 事件" },
+    { "from": "turn", "to": "session", "y": 394, "label": "turn complete", "variant": "return" },
+    { "from": "session", "to": "user", "y": 422, "label": "渲染完成" },
+    { "from": "user", "to": "session", "y": 460, "label": "Interjection", "variant": "emphasis" },
+    { "from": "session", "to": "turn", "y": 488, "label": "synthetic user → continue" }
+  ],
+  "activations": [
+    { "participant": "session", "from": 195, "to": 500, "type": "backend" },
+    { "participant": "turn", "from": 196, "to": 400, "type": "backend" },
+    { "participant": "llm", "from": 223, "to": 348, "type": "external" },
+    { "participant": "tools", "from": 279, "to": 316, "type": "messagebus" },
+    { "participant": "tui", "from": 363, "to": 380, "type": "frontend" }
+  ],
+  "cards": [
+    {
+      "dot": "violet",
+      "title": "Interjection",
+      "items": [
+        "运行中注入叫 Interjection：synthetic user → loop continue",
+        "下一条 Prompt 在 Session FIFO 排队（产品级串行）"
+      ]
+    }
+  ]
+}

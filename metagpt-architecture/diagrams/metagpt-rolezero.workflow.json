@@ -1,0 +1,38 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "MetaGPT 固定 SOP vs RoleZero",
+    "locale": "zh-CN",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    { "id": "path", "label": "执行路径" }
+  ],
+  "nodes": [
+    { "id": "req", "lane": "path", "col": 0, "type": "frontend", "label": "用户需求", "sublabel": "UserRequirement" },
+    { "id": "mode", "lane": "path", "col": 1, "type": "security", "label": "路径选择", "sublabel": "use_fixed_sop?" },
+    { "id": "sop", "lane": "path", "col": 2, "type": "backend", "label": "固定 SOP", "sublabel": "watch 链触发" },
+    { "id": "chain", "lane": "path", "col": 3, "type": "backend", "label": "SOP 链", "sublabel": "PRD·Design·Code" },
+    { "id": "rz", "lane": "path", "col": 4, "type": "backend", "label": "RoleZero", "sublabel": "Leader + 命令工具" },
+    { "id": "repo", "lane": "path", "col": 5, "type": "database", "label": "ProjectRepo", "sublabel": "archive" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "req", "to": "mode", "label": "publish" },
+    { "id": "e2", "from": "mode", "to": "sop", "label": "固定 SOP", "variant": "emphasis" },
+    { "id": "e3", "from": "mode", "to": "rz", "label": "RoleZero 默认" },
+    { "id": "e4", "from": "sop", "to": "chain", "label": "watch 命中" },
+    { "id": "e5", "from": "chain", "to": "repo", "label": "Action 落盘" },
+    { "id": "e6", "from": "rz", "to": "repo", "label": "Planner + AskReview" }
+  ],
+  "cards": [
+    {
+      "dot": "violet",
+      "title": "双路径共存",
+      "items": [
+        "固定 SOP：每步由 cause_by → watch 链触发，行为可预测",
+        "RoleZero：LLM 命令块 → tool_execution_map，现代 DI 角色默认继承"
+      ]
+    }
+  ]
+}

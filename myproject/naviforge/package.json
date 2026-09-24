@@ -1,0 +1,33 @@
+{
+  "name": "naviforge",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @naviforge/extension",
+    "build": "npm run build -w @naviforge/host && npm run build -w @naviforge/extension",
+    "host": "npm run build -w @naviforge/host && npm run start -w @naviforge/host",
+    "host:install": "npm run install-helper -w @naviforge/host",
+    "check": "npm run build -w @naviforge/shared && npm run check -w @naviforge/policy && npm run check -w @naviforge/media-plane && npm run check -w @naviforge/extract && npm run build -w @naviforge/session && npm run check -w @naviforge/session && npm run check -w @naviforge/context-metrics && npm run check -w @naviforge/intake && npm run check -w @naviforge/observe && npm run check -w @naviforge/playbook && npm run check -w @naviforge/runtime && npm run check -w @naviforge/shared && npm run check -w @naviforge/host && node scripts/check-boundaries.mjs && bash scripts/check-trace-kind.sh && npm run check -w @naviforge/extension",
+    "test:e2e": "playwright test",
+    "test:live:assertions": "tsx tests/live/assertions.self-check.ts",
+    "test:live": "npm run build -w @naviforge/extension && NAVIFORGE_LIVE=1 playwright test -c playwright.live.config.ts",
+    "test:live:bilibili": "npm run build -w @naviforge/extension && NAVIFORGE_LIVE=1 NAVIFORGE_LIVE_SITES=bilibili-knowledge playwright test -c playwright.live.config.ts",
+    "test:live:headed": "npm run build -w @naviforge/extension && NAVIFORGE_LIVE=1 NAVIFORGE_HEADED=1 playwright test -c playwright.live.config.ts",
+    "demo:site": "npx --yes serve demos/test-site -p 4177"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "overrides": {
+    "vite": "7.1.12",
+    "@vitejs/plugin-react": "5.0.4"
+  }
+}

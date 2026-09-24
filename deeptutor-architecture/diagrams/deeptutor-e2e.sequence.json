@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "DeepTutor 端到端：CLI 冷启动 → 回答",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [1080, 560],
+    "column_fit": "spread"
+  },
+  "participants": [
+    { "id": "user", "type": "external", "label": "用户", "sublabel": "chat" },
+    { "id": "cli", "type": "frontend", "label": "CLI", "sublabel": "Typer" },
+    { "id": "trm", "type": "backend", "label": "TRM", "sublabel": "start_turn" },
+    { "id": "orch", "type": "backend", "label": "Orchestrator", "sublabel": "handle" },
+    { "id": "cap", "type": "cloud", "label": "ChatCap", "sublabel": "responding" },
+    { "id": "al", "type": "backend", "label": "AgentLoop", "sublabel": "pipeline" },
+    { "id": "llm", "type": "external", "label": "LLM", "sublabel": "stream" },
+    { "id": "store", "type": "database", "label": "Store", "sublabel": "SQLite" }
+  ],
+  "segments": [
+    { "from": 160, "to": 230, "label": "冷启动" },
+    { "from": 245, "to": 400, "label": "推理" },
+    { "from": 415, "to": 470, "label": "持久化" }
+  ],
+  "messages": [
+    { "from": "user", "to": "cli", "y": 170, "label": "傅里叶变换?" },
+    { "from": "cli", "to": "store", "y": 198, "label": "ensure_session()" },
+    { "from": "cli", "to": "orch", "y": 226, "label": "handle(ctx)" },
+    { "from": "orch", "to": "cap", "y": 254, "label": "run(StreamBus)" },
+    { "from": "cap", "to": "al", "y": 282, "label": "AgentLoop.run()" },
+    { "from": "al", "to": "llm", "y": 310, "label": "stream(messages)", "variant": "emphasis" },
+    { "from": "llm", "to": "al", "y": 338, "label": "chunks", "variant": "dashed" },
+    { "from": "al", "to": "orch", "y": 366, "label": "CONTENT*" },
+    { "from": "orch", "to": "cli", "y": 394, "label": "DONE", "variant": "dashed" },
+    { "from": "cli", "to": "store", "y": 422, "label": "add_message" },
+    { "from": "cli", "to": "user", "y": 450, "label": "渲染回答", "variant": "dashed" }
+  ],
+  "activations": [
+    { "participant": "user", "from": 168, "to": 458, "type": "external" },
+    { "participant": "cli", "from": 168, "to": 458, "type": "frontend" },
+    { "participant": "orch", "from": 224, "to": 402, "type": "backend" },
+    { "participant": "cap", "from": 252, "to": 402, "type": "cloud" },
+    { "participant": "al", "from": 280, "to": 374, "type": "backend" },
+    { "participant": "llm", "from": 308, "to": 346, "type": "external" },
+    { "participant": "store", "from": 196, "to": 210, "type": "database" },
+    { "participant": "store", "from": 420, "to": 430, "type": "database" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "典型无工具路径",
+      "items": [
+        "STAGE_START(responding) → CONTENT* → RESULT → DONE",
+        "active_capability=None 默认走 ChatCapability"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "UnifiedContext",
+      "items": [
+        "session_id、user_message、conversation_history 单对象贯穿",
+        "第二次提问时 ContextBuilder 拉取历史 messages"
+      ]
+    }
+  ]
+}

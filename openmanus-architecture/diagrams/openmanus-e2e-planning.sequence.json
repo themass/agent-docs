@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "OpenManus main.py vs run_flow.py",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [1000, 640],
+    "column_fit": "spread"
+  },
+  "participants": [
+    { "id": "user", "type": "frontend", "label": "用户", "sublabel": "prompt" },
+    { "id": "main", "type": "frontend", "label": "main.py", "sublabel": "单轮 ReAct" },
+    { "id": "flow", "type": "frontend", "label": "run_flow.py", "sublabel": "PlanningFlow" },
+    { "id": "manus", "type": "backend", "label": "Manus", "sublabel": "executor" },
+    { "id": "plan", "type": "cloud", "label": "PlanningTool", "sublabel": "create plan" },
+    { "id": "llm", "type": "external", "label": "LLM", "sublabel": "双实例" }
+  ],
+  "segments": [
+    { "from": 160, "to": 320, "label": "main.py 路径" },
+    { "from": 335, "to": 555, "label": "run_flow.py 路径" }
+  ],
+  "messages": [
+    { "from": "user", "to": "main", "y": 170, "label": "prompt" },
+    { "from": "main", "to": "manus", "y": 198, "label": "create() + run()" },
+    { "from": "manus", "to": "llm", "y": 226, "label": "think → ask_tool" },
+    { "from": "llm", "to": "manus", "y": 254, "label": "tool_calls", "variant": "return" },
+    { "from": "manus", "to": "main", "y": 282, "label": "act → FINISHED", "variant": "return" },
+    { "from": "main", "to": "user", "y": 308, "label": "cleanup 返回", "variant": "return" },
+    { "from": "user", "to": "flow", "y": 340, "label": "复杂任务", "variant": "emphasis" },
+    { "from": "flow", "to": "llm", "y": 368, "label": "Flow LLM create plan" },
+    { "from": "llm", "to": "plan", "y": 396, "label": "PlanningTool.create", "variant": "return" },
+    { "from": "flow", "to": "manus", "y": 424, "label": "executor.run(step)" },
+    { "from": "manus", "to": "llm", "y": 452, "label": "内层 think/act", "variant": "dashed" },
+    { "from": "flow", "to": "plan", "y": 480, "label": "mark_step completed" },
+    { "from": "flow", "to": "llm", "y": 508, "label": "全部完成 → 总结" },
+    { "from": "llm", "to": "flow", "y": 548, "label": "返回用户", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "user", "from": 168, "to": 316, "type": "frontend" },
+    { "participant": "main", "from": 168, "to": 316, "type": "frontend" },
+    { "participant": "manus", "from": 196, "to": 288, "type": "backend" },
+    { "participant": "llm", "from": 224, "to": 260, "type": "external" },
+    { "participant": "user", "from": 338, "to": 556, "type": "frontend" },
+    { "participant": "flow", "from": 338, "to": 556, "type": "frontend" },
+    { "participant": "plan", "from": 394, "to": 488, "type": "cloud" },
+    { "participant": "manus", "from": 422, "to": 460, "type": "backend" },
+    { "participant": "llm", "from": 366, "to": 554, "type": "external" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "模式对比",
+      "items": [
+        "main.py：单 Agent 直接 ReAct，MCP 工具在 create() 时合并",
+        "run_flow.py：先 PlanningTool 拆步，每 step 独立 run()，Memory 不跨步共享"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "双 LLM",
+      "items": [
+        "Flow.llm 负责规划与总结；executor.llm 负责内层 think/act"
+      ]
+    }
+  ]
+}

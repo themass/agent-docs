@@ -1,0 +1,86 @@
+# GitHub Analyst video TTS provider configuration.
+#
+# Copy this file to:
+#   ~/.hermes/profiles/github/config/tts-providers.yaml
+#
+# Then fill the private credentials in the copied file. Do not commit or share
+# the real `tts-providers.yaml`.
+
+enabled:
+  - BYTE_LLM
+  - BYTE_DEF
+  - MINIMAX_CH
+  - MINIMAX_Q
+  - ALI_DEF
+  - edge-tts
+
+ttsEngConfig:
+  BYTE_LLM:
+    supplier: bytedanceTtsService
+    url: https://openspeech.bytedance.com
+    appid: YOUR_BYTE_LLM_APP_ID
+    cluster: volcano_tts
+    uid: github-analyst
+    voice_type: zh_female_shuangkuaisisi_moon_bigtts
+    emotion: happy
+    text_type: plain
+    encoding: wav
+    speed_ratio: 1
+    sample_rate: 24000
+    token: YOUR_BYTE_LLM_TOKEN
+    ttsName: 字节大模型tts默认
+    desc: 字节大模型tts默认
+
+  BYTE_DEF:
+    supplier: bytedanceTtsService
+    url: https://openspeech.bytedance.com
+    appid: YOUR_BYTE_DEF_APP_ID
+    cluster: volcano_tts
+    uid: github-analyst
+    voice_type: BV001_streaming
+    emotion: happy
+    text_type: plain
+    encoding: wav
+    sample_rate: 16000
+    token: YOUR_BYTE_DEF_TOKEN
+    ttsName: 字节传统tts默认
+    desc: 字节传统tts默认
+
+  ALI_DEF:
+    supplier: aliTtsService
+    url: https://nls-gateway.cn-shanghai.aliyuncs.com/stream/v1/tts
+    appid: YOUR_ALI_APPKEY
+    access_key: YOUR_ALI_ACCESS_KEY_ID
+    access_key_secret: YOUR_ALI_ACCESS_KEY_SECRET
+    text_type: plain
+    encoding: wav
+    sample_rate: 16000
+    volume_ratio: 3
+    uid: betty
+    ttsName: 阿里tts默认
+    desc: 阿里tts默认
+
+  MINIMAX_Q:
+    supplier: miniMaxTtsService
+    url: https://api.minimax.chat/v1/t2a_v2?GroupId=YOUR_GROUP_ID
+    appid: Bearer YOUR_MINIMAX_API_TOKEN
+    sample_rate: 16000
+    speed_ratio: 1.2
+    encoding: wav
+    voice_type: speech-01-turbo
+    uid: cute_boy
+    ttsName: minimax小Q版本
+    desc: 试用与课前的学伴，中文
+
+  MINIMAX_CH:
+    supplier: miniMaxTtsService
+    url: https://api.minimax.chat/v1/t2a_v2?GroupId=YOUR_GROUP_ID
+    appid: Bearer YOUR_MINIMAX_API_TOKEN
+    sample_rate: 16000
+    speed_ratio: 1
+    encoding: wav
+    text_type: plain
+    voice_type: speech-2.6-hd
+    uid: wangyi251202_englishall
+    ttsName: minimax王怡中文版
+    desc: 体验课，中文，王怡

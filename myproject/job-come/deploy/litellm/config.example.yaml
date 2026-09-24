@@ -1,0 +1,47 @@
+# LiteLLM — copy to config.yaml; fill YUAI_* in .env (never commit secrets)
+
+model_list:
+  - model_name: jobcome-fast
+    litellm_params:
+      model: openai/bt-deepseek-v4-flash
+      api_base: os.environ/YUAI_API_BASE
+      api_key: os.environ/YUAI_API_KEY
+
+  - model_name: jobcome-writer
+    litellm_params:
+      model: openai/bt-deepseek-v4-pro
+      api_base: os.environ/YUAI_API_BASE
+      api_key: os.environ/YUAI_API_KEY
+
+  - model_name: jobcome-coach
+    litellm_params:
+      model: openai/mt-gpt-5-6-terra
+      api_base: os.environ/YUAI_API_BASE
+      api_key: os.environ/YUAI_API_KEY
+
+  # Vision — separate credentials (scan PDF / image resume)
+  - model_name: jobcome-vision
+    litellm_params:
+      model: openai/qwen-vl-ocr
+      api_base: os.environ/YUAI_VISION_API_BASE
+      api_key: os.environ/YUAI_VISION_API_KEY
+
+router_settings:
+  routing_strategy: simple-shuffle
+
+# 同名 model_name 多条 = 负载均衡；litellm_settings.fallbacks = 跨别名 failover
+# 推荐：应用内 SDK + deploy/llm/routing.yaml（见 docs/Skill与MCP-集成清单.md）
+# 本文件仅在你坚持跑 litellm proxy 时使用。
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+
+litellm_settings:
+  drop_params: true
+  success_callback: ["langfuse_otel"]
+  failure_callback: ["langfuse_otel"]
+  fallbacks:
+    - jobcome-fast: [jobcome-writer]
+    - jobcome-writer: [jobcome-fast]
+    - jobcome-coach: [jobcome-writer]
+    - jobcome-vision: [jobcome-fast]

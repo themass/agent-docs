@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>NaviForge Phase C Test</title>
+    <style>
+      body {
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        max-width: 520px;
+        margin: 48px auto;
+        padding: 0 16px;
+      }
+      label {
+        display: block;
+        margin-bottom: 12px;
+      }
+      input {
+        width: 100%;
+        padding: 8px;
+        box-sizing: border-box;
+      }
+      button {
+        padding: 10px 16px;
+        cursor: pointer;
+      }
+      #out {
+        margin-top: 16px;
+        min-height: 24px;
+        color: #047857;
+        font-weight: 600;
+      }
+      iframe {
+        width: 100%;
+        height: 120px;
+        border: 1px solid #ccc;
+        margin-top: 16px;
+      }
+      video-card {
+        display: block;
+        margin-top: 12px;
+        padding: 8px;
+        border: 1px solid #ddd;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>NaviForge test-site</h1>
+    <p>Phase 0: snapshot → type → click → verify Success.</p>
+    <p>Phase C: iframe child + open shadow DOM below.</p>
+    <label>
+      Message
+      <input id="msg" type="text" placeholder="type here" />
+    </label>
+    <button id="go" type="button">Go</button>
+    <div id="out" aria-live="polite"></div>
+
+    <iframe id="child" title="child frame" srcdoc="<!doctype html><html><body><button id='in-frame'>Frame Go</button><div id='frame-out'></div><script>document.getElementById('in-frame').onclick=()=>document.getElementById('frame-out').textContent='Frame Success';</script></body></html>"></iframe>
+
+    <div id="shadow-host"></div>
+
+    <script>
+      document.getElementById('go').addEventListener('click', () => {
+        const v = document.getElementById('msg').value.trim()
+        document.getElementById('out').textContent = v ? 'Success: ' + v : 'Empty'
+      })
+
+      class VideoCard extends HTMLElement {
+        connectedCallback() {
+          const shadow = this.attachShadow({ mode: 'open' })
+          shadow.innerHTML =
+            '<a href="https://example.com/video/demo-1">Demo Video 1</a>' +
+            '<button type="button">Play shadow</button>'
+        }
+      }
+      customElements.define('video-card', VideoCard)
+      const host = document.getElementById('shadow-host')
+      host.innerHTML = '<video-card></video-card>'
+
+      // Fake media API for network.media_hints self-test (fetch from same origin)
+      window.__TEST_MEDIA__ = '/fake/master.m3u8'
+    </script>
+  </body>
+</html>

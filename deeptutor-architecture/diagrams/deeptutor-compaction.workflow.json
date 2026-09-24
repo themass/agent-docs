@@ -1,0 +1,52 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "DeepTutor ContextBuilder 历史压缩",
+    "locale": "zh-CN",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    { "id": "build", "label": "ContextBuilder" },
+    { "id": "guard", "label": "防线" }
+  ],
+  "nodes": [
+    { "id": "leaf", "lane": "build", "col": 0, "type": "frontend", "label": "get_messages", "sublabel": "祖先链" },
+    { "id": "budget", "lane": "build", "col": 1, "type": "backend", "label": "预算检查", "sublabel": "35% window" },
+    { "id": "select", "lane": "build", "col": 2, "type": "cloud", "label": "选 recent", "sublabel": "recent_budget" },
+    { "id": "summ", "lane": "build", "col": 3, "type": "backend", "label": "_summarize", "sublabel": "SummaryAgent" },
+    { "id": "wm", "lane": "build", "col": 4, "type": "database", "label": "watermark", "sublabel": "推进水位线" },
+    { "id": "result", "lane": "build", "col": 5, "type": "external", "label": "BuildResult", "sublabel": "history" },
+    { "id": "pop", "lane": "guard", "col": 3, "type": "security", "label": "降级 pop", "sublabel": "摘要失败" },
+    { "id": "guard", "lane": "guard", "col": 4, "type": "security", "label": "_guard_context", "sublabel": "AgentLoop 内" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "leaf", "to": "budget", "label": "tokens?" },
+    { "id": "e2", "from": "budget", "to": "result", "label": "fit", "variant": "emphasis" },
+    { "id": "e3", "from": "budget", "to": "select", "label": "超 budget" },
+    { "id": "e4", "from": "select", "to": "summ", "label": "原始/折叠" },
+    { "id": "e5", "from": "summ", "to": "wm", "label": "成功" },
+    { "id": "e6", "from": "summ", "to": "pop", "label": "失败", "variant": "dashed" },
+    { "id": "e7", "from": "wm", "to": "result", "label": "_build_history" },
+    { "id": "e8", "from": "pop", "to": "result", "label": "硬 pop" },
+    { "id": "e9", "from": "result", "to": "guard", "label": "Turn 内二次", "variant": "dashed" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "双防线",
+      "items": [
+        "Turn 开头 ContextBuilder.build() 填 conversation_history",
+        "AgentLoop._guard_context_window 防单 turn 膨胀"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "抗漂移",
+      "items": [
+        "前缀 fit rebuild_budget 时从原始消息重摘要",
+        "edit-branch 时水位线不在祖先链则丢弃旧 summary"
+      ]
+    }
+  ]
+}

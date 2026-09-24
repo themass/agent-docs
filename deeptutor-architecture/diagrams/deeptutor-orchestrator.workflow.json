@@ -1,0 +1,47 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "DeepTutor ChatOrchestrator 编排流程",
+    "locale": "zh-CN",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    { "id": "orch", "label": "编排层" },
+    { "id": "exec", "label": "执行层" }
+  ],
+  "nodes": [
+    { "id": "ctx", "lane": "orch", "col": 0, "type": "frontend", "label": "UnifiedContext", "sublabel": "单对象入口" },
+    { "id": "handle", "lane": "orch", "col": 1, "type": "backend", "label": "handle()", "sublabel": "Orchestrator" },
+    { "id": "reg", "lane": "orch", "col": 2, "type": "cloud", "label": "Registry", "sublabel": "Capability" },
+    { "id": "bus", "lane": "orch", "col": 3, "type": "messagebus", "label": "StreamBus", "sublabel": "扇出" },
+    { "id": "run", "lane": "exec", "col": 4, "type": "backend", "label": "capability.run", "sublabel": "AgentLoop" },
+    { "id": "done", "lane": "exec", "col": 5, "type": "external", "label": "RESULT", "sublabel": "DONE" }
+  ],
+  "edges": [
+    { "id": "o1", "from": "ctx", "to": "handle", "label": "入参" },
+    { "id": "o2", "from": "handle", "to": "reg", "label": "解析" },
+    { "id": "o3", "from": "reg", "to": "bus", "label": "创建 bus" },
+    { "id": "o4", "from": "reg", "to": "run", "label": "run(ctx)", "variant": "emphasis" },
+    { "id": "o5", "from": "run", "to": "done", "label": "finish" },
+    { "id": "o6", "from": "run", "to": "bus", "label": "emit", "variant": "dashed" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Agent-Native",
+      "items": [
+        "Capability 接管整轮执行，非 UI 换皮",
+        "active_capability=None 时默认 chat"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "双引擎",
+      "items": [
+        "AgentLoop：narration / finish 语义",
+        "run_agentic_loop：标签驱动第二引擎"
+      ]
+    }
+  ]
+}

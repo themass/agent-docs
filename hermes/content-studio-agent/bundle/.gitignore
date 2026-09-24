@@ -1,0 +1,9 @@
+profile/secrets.env
+profile/config.yaml
+profile/config/tts-providers.yaml
+profile/reports/**
+!profile/reports/.gitkeep
+profile/logs/**
+!profile/logs/.gitkeep
+__pycache__/
+*.pyc

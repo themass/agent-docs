@@ -1,0 +1,37 @@
+export type {
+  CatalogCrawlPlan,
+  CatalogCrawlResult,
+  CatalogCrawlSpec,
+  CatalogDiscoverResult,
+  CatalogListEntry,
+  CatalogSection,
+} from './types.js'
+export { isCatalogCrawlTask, isSiteCatalogSopTask, parseCatalogCrawlSpec } from './spec.js'
+export {
+  buildCatalogPlan,
+  buildCurrentPagePlan,
+  CATALOG_DISCOVER_JS,
+  discoverCatalogPage,
+  parseDiscoverPayload,
+} from './discover.js'
+export { classifyPageBrief, detailShapeRegex, urlMatchesDetailShape } from './page-role.js'
+export type { PageBrief, PageRole } from './page-role.js'
+export {
+  selectCatalogStrategy,
+  spawnMediaGuidance,
+  wantsMultipleMediaItems,
+} from './strategy.js'
+export type { CatalogStrategy } from './strategy.js'
+export { runCurrentPageListCrawl } from './current-page.js'
+export { runCatalogCrawl } from './executor.js'
+export { AUTH_GATE_JS, parseAuthGatePayload } from './auth-gate.js'
+export { CATALOG_TABLE_EXTRACT_JS, parseTableExtractPayload } from './table-extract.js'
+export { validateCatalogCrawlResult } from './validate.js'
+export {
+  MEDIA_AGENT_JUDGMENT_GUIDANCE,
+  MEDIA_ENTRY_OUTPUT_SCHEMA,
+  classifyPlaybackUrl,
+  entryHasPlayableEvidence,
+  type MediaPlaybackFormat,
+} from './media-entry.js'
+export { formatCatalogCrawlResult, formatCatalogPlanEvidence } from './format.js'

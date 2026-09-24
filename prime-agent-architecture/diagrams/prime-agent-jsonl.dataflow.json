@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Prime JSONL 上下文数据流",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [900, 400]
+  },
+  "stages": [
+    { "label": "账本" },
+    { "label": "投影" },
+    { "label": "消费" }
+  ],
+  "nodes": [
+    { "id": "jsonl", "type": "database", "label": "JSONL 树", "sublabel": "真相源", "stage": 0, "row": 1 },
+    { "id": "bsc", "type": "backend", "label": "buildContext", "sublabel": "折叠压缩", "stage": 1, "row": 1 },
+    { "id": "msgs", "type": "messagebus", "label": "messages[]", "sublabel": "LLM 视图", "stage": 1, "row": 0 },
+    { "id": "llm", "type": "external", "label": "streamSimple", "sublabel": "pi-ai", "stage": 2, "row": 1 }
+  ],
+  "flows": [
+    { "from": "jsonl", "to": "bsc", "label": "load", "variant": "emphasis" },
+    { "from": "bsc", "to": "msgs", "label": "折叠" },
+    { "from": "msgs", "to": "llm", "label": "输入", "variant": "emphasis" }
+  ],
+  "cards": [
+    { "dot": "amber", "title": "真相源", "items": ["Turn 事件不持久化；采样后 append 写回 JSONL 树"] }
+  ]
+}

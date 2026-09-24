@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Prime 双环 Loop 结构",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [880, 480]
+  },
+  "components": [
+    { "id": "prompt", "type": "frontend", "label": "prompt()", "sublabel": "外环入口", "pos": [80, 200], "size": [120, 60] },
+    { "id": "followup", "type": "messagebus", "label": "followUpQueue", "sublabel": "外环", "pos": [80, 80], "size": [130, 60] },
+    { "id": "session", "type": "backend", "label": "AgentSession", "sublabel": "包裹层", "pos": [280, 200], "size": [130, 60] },
+    { "id": "loop", "type": "backend", "label": "runAgentLoop", "sublabel": "内环", "pos": [480, 200], "size": [130, 60] },
+    { "id": "stream", "type": "external", "label": "streamSimple", "sublabel": "pi-ai", "pos": [680, 200], "size": [120, 60] },
+    { "id": "steer", "type": "security", "label": "steeringQueue", "sublabel": "内环插队", "pos": [480, 80], "size": [130, 60] },
+    { "id": "ipython", "type": "backend", "label": "IPython", "sublabel": "主工具", "pos": [680, 320], "size": [120, 60] },
+    { "id": "jsonl", "type": "database", "label": "JSONL", "sublabel": "持久化", "pos": [280, 320], "size": [120, 60] }
+  ],
+  "connections": [
+    { "from": "prompt", "to": "session", "label": "外环" },
+    { "from": "session", "to": "loop", "label": "运行" },
+    { "from": "loop", "to": "stream", "label": "stream", "labelDy": 20 },
+    { "from": "loop", "to": "ipython", "label": "tool", "fromSide": "bottom", "toSide": "top" },
+    { "from": "loop", "to": "steer", "label": "steer", "fromSide": "top", "toSide": "bottom" },
+    { "from": "steer", "to": "loop", "variant": "dashed", "fromSide": "right", "toSide": "right" },
+    { "from": "loop", "to": "jsonl", "label": "append", "fromSide": "bottom", "toSide": "top" },
+    { "from": "followup", "to": "session", "label": "follow-up", "variant": "dashed", "fromSide": "bottom", "toSide": "top" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "双环", "items": ["内环：stream→tool→steer；外环：follow-up 再跑"] }
+  ]
+}

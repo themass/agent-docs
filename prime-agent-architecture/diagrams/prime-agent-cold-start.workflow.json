@@ -1,0 +1,30 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Prime Agent 冷启动流程",
+    "locale": "zh-CN",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    { "id": "bootstrap", "label": "启动与首轮" }
+  ],
+  "nodes": [
+    { "id": "daemon", "lane": "bootstrap", "col": 0, "type": "backend", "label": "Daemon" },
+    { "id": "worker", "lane": "bootstrap", "col": 1, "type": "backend", "label": "Worker 拉起" },
+    { "id": "jsonl", "lane": "bootstrap", "col": 2, "type": "database", "label": "JSONL" },
+    { "id": "kernel", "lane": "bootstrap", "col": 3, "type": "backend", "label": "KernelManager" },
+    { "id": "rlm", "lane": "bootstrap", "col": 4, "type": "backend", "label": "注入 rlm" },
+    { "id": "loop", "lane": "bootstrap", "col": 5, "type": "backend", "label": "首轮 loop" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "daemon", "to": "worker", "label": "托管" },
+    { "id": "e2", "from": "worker", "to": "jsonl" },
+    { "id": "e3", "from": "worker", "to": "kernel" },
+    { "id": "e4", "from": "kernel", "to": "rlm" },
+    { "id": "e5", "from": "rlm", "to": "loop", "label": "prompt→BSC→loop", "variant": "emphasis" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "冷路径", "items": ["Daemon 先起，客户端 attach 后再 prompt"] }
+  ]
+}

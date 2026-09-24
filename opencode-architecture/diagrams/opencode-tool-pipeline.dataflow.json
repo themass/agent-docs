@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "OpenCode ToolRegistry 管线",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [860, 520]
+  },
+  "stages": [
+    { "label": "装配" },
+    { "label": "执行" },
+    { "label": "投影" }
+  ],
+  "nodes": [
+    { "id": "loc", "type": "security", "label": "Location", "sublabel": "作用域", "stage": 0, "row": 1 },
+    { "id": "mat", "type": "backend", "label": "materialize", "sublabel": "builtin", "stage": 0, "row": 0 },
+    { "id": "model", "type": "external", "label": "tools[]", "sublabel": "给模型", "stage": 1, "row": 0 },
+    { "id": "exec", "type": "backend", "label": "并行执行", "stage": 1, "row": 1 },
+    { "id": "settle", "type": "backend", "label": "settle", "sublabel": "有界", "stage": 2, "row": 0 },
+    { "id": "hist", "type": "database", "label": "session_msg", "stage": 2, "row": 1 }
+  ],
+  "flows": [
+    { "from": "loc", "to": "mat", "label": "过滤", "labelAt": [130, 314] },
+    { "from": "mat", "to": "model", "label": "装配", "variant": "emphasis", "channelY": -50, "labelAt": [280, 200] },
+    { "from": "model", "to": "exec", "label": "calls", "labelAt": [430, 314] },
+    { "from": "exec", "to": "settle", "label": "并行", "variant": "emphasis", "channelY": -50, "labelAt": [580, 200] },
+    { "from": "settle", "to": "hist", "label": "投影", "labelAt": [730, 314] }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "管线", "items": ["materialize → model → settle → session_message 投影"] }
+  ]
+}

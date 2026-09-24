@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "MetaGPT Role 内层 observe/react 循环",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [960, 560],
+    "column_fit": "spread"
+  },
+  "participants": [
+    { "id": "env", "type": "messagebus", "label": "Environment", "sublabel": "总线" },
+    { "id": "role", "type": "backend", "label": "Role", "sublabel": "Agent" },
+    { "id": "buffer", "type": "database", "label": "msg_buffer", "sublabel": "队列" },
+    { "id": "memory", "type": "database", "label": "Memory", "sublabel": "watch 过滤" },
+    { "id": "action", "type": "backend", "label": "Action", "sublabel": "todo" },
+    { "id": "llm", "type": "external", "label": "LLM", "sublabel": "provider" }
+  ],
+  "segments": [
+    { "from": 150, "to": 250, "label": "observe" },
+    { "from": 265, "to": 400, "label": "react" },
+    { "from": 415, "to": 480, "label": "publish" }
+  ],
+  "messages": [
+    { "from": "env", "to": "buffer", "y": 160, "label": "put_message" },
+    { "from": "role", "to": "buffer", "y": 188, "label": "_observe()" },
+    { "from": "buffer", "to": "role", "y": 216, "label": "新消息", "variant": "return" },
+    { "from": "role", "to": "memory", "y": 244, "label": "watch 过滤" },
+    { "from": "memory", "to": "role", "y": 272, "label": "rc.news", "variant": "return" },
+    { "from": "role", "to": "action", "y": 328, "label": "_think() → _act()", "variant": "emphasis" },
+    { "from": "action", "to": "llm", "y": 384, "label": "run(history)" },
+    { "from": "llm", "to": "action", "y": 412, "label": "输出", "variant": "return" },
+    { "from": "action", "to": "role", "y": 440, "label": "AIMessage", "variant": "return" },
+    { "from": "role", "to": "env", "y": 468, "label": "publish_message", "variant": "emphasis" }
+  ],
+  "activations": [
+    { "participant": "env", "from": 466, "to": 478, "type": "messagebus" },
+    { "participant": "role", "from": 186, "to": 476, "type": "backend" },
+    { "participant": "buffer", "from": 158, "to": 224, "type": "database" },
+    { "participant": "memory", "from": 242, "to": 280, "type": "database" },
+    { "participant": "action", "from": 354, "to": 446, "type": "backend" },
+    { "participant": "llm", "from": 382, "to": 418, "type": "external" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "SOP 边",
+      "items": [
+        "observe 仅对 cause_by ∈ watch 或 name ∈ send_to 的消息写入 memory",
+        "react_mode 决定 _think 选 Action：by_order / react / plan_and_act"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "产出",
+      "items": [
+        "Action.run() 产出 AIMessage(cause_by=Action类名)，供下游 watch 订阅"
+      ]
+    }
+  ]
+}

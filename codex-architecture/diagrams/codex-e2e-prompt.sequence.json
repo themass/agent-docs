@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Codex 端到端：用户 Prompt → 响应",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [1000, 580],
+    "column_fit": "spread"
+  },
+  "participants": [
+    { "id": "ui", "type": "frontend", "label": "UI 循环", "sublabel": "submit" },
+    { "id": "ct", "type": "backend", "label": "CodexThread", "sublabel": "持有" },
+    { "id": "sl", "type": "backend", "label": "SQ 循环", "sublabel": "submission_loop" },
+    { "id": "ti", "type": "backend", "label": "turn_input", "sublabel": "handle" },
+    { "id": "rk", "type": "backend", "label": "RegularTask", "sublabel": "tokio::spawn" },
+    { "id": "rt", "type": "backend", "label": "run_turn", "sublabel": "Step 循环" },
+    { "id": "api", "type": "external", "label": "Responses API", "sublabel": "采样" },
+    { "id": "hist", "type": "database", "label": "ContextMgr", "sublabel": "history" }
+  ],
+  "segments": [
+    { "from": 160, "to": 250, "label": "提交" },
+    { "from": 265, "to": 430, "label": "后台 Turn" },
+    { "from": 445, "to": 520, "label": "完成" }
+  ],
+  "messages": [
+    { "from": "ui", "to": "ct", "y": 170, "label": "submit(Op::TurnInput)" },
+    { "from": "ct", "to": "sl", "y": 198, "label": "tx_sub", "variant": "emphasis" },
+    { "from": "sl", "to": "ti", "y": 226, "label": "Start" },
+    { "from": "ti", "to": "rk", "y": 254, "label": "spawn_task", "variant": "emphasis" },
+    { "from": "rk", "to": "rt", "y": 282, "label": "run_turn(...)" },
+    { "from": "rt", "to": "hist", "y": 310, "label": "for_prompt + record" },
+    { "from": "rt", "to": "api", "y": 338, "label": "stream 采样" },
+    { "from": "api", "to": "rt", "y": 366, "label": "OutputItem / tool", "variant": "return" },
+    { "from": "rt", "to": "hist", "y": 394, "label": "FunctionCallOutput" },
+    { "from": "rt", "to": "ct", "y": 422, "label": "TurnComplete (EQ)", "variant": "return" },
+    { "from": "ct", "to": "ui", "y": 450, "label": "next_event", "variant": "return" },
+    { "from": "rt", "to": "hist", "y": 478, "label": "Rollout append", "variant": "dashed" }
+  ],
+  "activations": [
+    { "participant": "ui", "from": 168, "to": 458, "type": "frontend" },
+    { "participant": "ct", "from": 168, "to": 458, "type": "backend" },
+    { "participant": "sl", "from": 196, "to": 260, "type": "backend" },
+    { "participant": "ti", "from": 224, "to": 260, "type": "backend" },
+    { "participant": "rk", "from": 252, "to": 430, "type": "backend" },
+    { "participant": "rt", "from": 280, "to": 430, "type": "backend" },
+    { "participant": "api", "from": 336, "to": 374, "type": "external" },
+    { "participant": "hist", "from": 308, "to": 486, "type": "database" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "非阻塞派发",
+      "items": [
+        "submission_loop 收到 Start 后立即返回 recv，不等待 run_turn",
+        "RegularTask::run 在独立 Tokio 任务中执行"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "needs_follow_up",
+      "items": [
+        "工具执行后 needs_follow_up=true，Step 循环继续采样",
+        "无工具且 stop 时 break，发 TurnComplete"
+      ]
+    }
+  ]
+}

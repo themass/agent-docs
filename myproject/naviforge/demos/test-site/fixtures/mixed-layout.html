@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="utf-8" />
+    <title>Mixed layout fixture</title>
+    <style>
+      body { margin: 0; font: 14px/1.5 system-ui, sans-serif; display: flex; }
+      .sidebar { width: 180px; padding: 16px; background: #f5f5f5; }
+      .sidebar a { display: block; margin-bottom: 8px; }
+      .feed { flex: 1; display: grid; grid-template-columns: repeat(2, 240px); gap: 16px; padding: 24px; }
+      .card a { display: block; text-decoration: none; color: inherit; }
+      .cover { width: 240px; height: 135px; background: #eee; }
+      .title { font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <aside class="sidebar">
+      <a href="/v/popular">热门推荐</a>
+      <a href="/v/live">直播</a>
+      <a href="/v/rank">排行榜</a>
+    </aside>
+    <div class="feed">
+      <div class="card"><a href="/video/BV1mix001"><div class="cover"></div><span class="title">主内容一</span></a></div>
+      <div class="card"><a href="/video/BV1mix002"><div class="cover"></div><span class="title">主内容二</span></a></div>
+      <div class="card"><a href="/video/BV1mix003"><div class="cover"></div><span class="title">主内容三</span></a></div>
+      <div class="card"><a href="/video/BV1mix004"><div class="cover"></div><span class="title">主内容四</span></a></div>
+    </div>
+  </body>
+</html>

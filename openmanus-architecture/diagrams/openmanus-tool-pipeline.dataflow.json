@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "ToolCollection 工具管线",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [900, 400]
+  },
+  "stages": [
+    { "label": "模型决策" },
+    { "label": "工具路由" },
+    { "label": "副作用执行" }
+  ],
+  "nodes": [
+    { "id": "llm", "type": "external", "label": "LLM.ask_tool", "sublabel": "tool_calls", "stage": 0, "row": 1 },
+    { "id": "params", "type": "messagebus", "label": "to_params()", "sublabel": "JSON Schema", "stage": 0, "row": 0 },
+    { "id": "tcoll", "type": "backend", "label": "ToolCollection", "sublabel": "execute", "stage": 1, "row": 1 },
+    { "id": "tools", "type": "backend", "label": "BaseTool 插件", "sublabel": "本地 · MCP · 控制", "stage": 2, "row": 1 }
+  ],
+  "flows": [
+    { "from": "llm", "to": "params", "label": "Schema", "variant": "dashed", "route": "vertical-channel", "labelAt": [100, 100] },
+    { "from": "llm", "to": "tcoll", "label": "tool_calls", "variant": "emphasis", "route": "straight" },
+    { "from": "tcoll", "to": "tools", "label": "dispatch", "variant": "emphasis", "route": "straight" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "统一接口",
+      "items": [
+        "本地 BaseTool 与 MCPClientTool 同走 ToolCollection.execute",
+        "结果以字符串写回 Memory 的 tool message"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "代表工具",
+      "items": [
+        "PythonExecute、StrReplaceEditor、Bash、MCPClientTool、Terminate、沙箱 Daytona"
+      ]
+    }
+  ]
+}

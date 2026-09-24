@@ -1,0 +1,53 @@
+# Content Studio — 报告分发配置
+# 添加新渠道：设置对应环境变量并启用。
+# 统一入口：skills/content-studio/knowledge-library/scripts/report_dispatcher.py
+
+channels:
+  # --- 默认通道：本地归档（始终启用）---
+  local:
+    enabled: true
+    base_dir: "~/.hermes/profiles/content-studio/reports"
+    # 归档结构: base_dir/YYYY/MM/YYYY-MM-DD.md
+
+  index:
+    enabled: true
+    path: "~/.hermes/profiles/content-studio/reports/index.md"
+    # 每次分发时自动刷新报告索引，方便 Workspace / Jobs 查看已生成文档。
+
+  # --- 扩展通道（按需启用）---
+
+  # 邮件推送
+  email:
+    enabled: false
+    to: "your@email.com"
+    subject_template: "GitHub{report_type} - {date}"
+    # 需要配置 SMTP: ~/.hermes/profiles/content-studio/.env 中设置
+    # SMTP_HOST=smtp.gmail.com
+    # SMTP_PORT=587
+    # SMTP_USER=your@gmail.com
+    # SMTP_PASS=app-password
+
+  # 飞书 Webhook
+  feishu:
+    enabled: false
+    webhook_env: "CONTENT_STUDIO_FEISHU_WEBHOOK"
+
+  # 企业微信 Webhook
+  wecom:
+    enabled: false
+    webhook_env: "CONTENT_STUDIO_WECOM_WEBHOOK"
+
+  # 钉钉 Webhook
+  dingtalk:
+    enabled: false
+    webhook_env: "CONTENT_STUDIO_DINGTALK_WEBHOOK"
+
+  # Telegram (使用 Hermes 原生 deliver=telegram)
+  telegram:
+    enabled: false
+    # 在 Hermes 层配置: hermes cron create --deliver telegram
+
+  # Discord Webhook
+  discord:
+    enabled: false
+    webhook_env: "CONTENT_STUDIO_DISCORD_WEBHOOK"

@@ -1,0 +1,13 @@
+李四
+lisi@example.com | 13900139000 | 上海
+
+Summary
+Full-stack engineer with React and Node.js experience.
+
+Experience
+2019-06 — present | Example Corp | Software Engineer
+- Built internal dashboards used by 200+ employees
+- Improved CI pipeline reducing deploy time by 40%
+
+Education
+2015 — 2019 | Example University | BS Computer Science

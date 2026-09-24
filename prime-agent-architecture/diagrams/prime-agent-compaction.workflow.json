@@ -1,0 +1,34 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Prime Compaction 与 Harness 流程",
+    "locale": "zh-CN",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    { "id": "compact", "label": "Compaction" },
+    { "id": "harness", "label": "Harness" }
+  ],
+  "nodes": [
+    { "id": "long", "lane": "compact", "col": 0, "type": "backend", "label": "History 过长" },
+    { "id": "trigger", "lane": "compact", "col": 1, "type": "backend", "label": "auto/手动触发" },
+    { "id": "node", "lane": "compact", "col": 2, "type": "database", "label": "压缩节点" },
+    { "id": "bsc", "lane": "compact", "col": 3, "type": "backend", "label": "buildContext" },
+    { "id": "short", "lane": "compact", "col": 4, "type": "external", "label": "短 messages[]" },
+    { "id": "refine", "lane": "harness", "col": 0, "type": "frontend", "label": "/refine 指令" },
+    { "id": "reg", "lane": "harness", "col": 1, "type": "database", "label": "registers 文件" },
+    { "id": "inject", "lane": "harness", "col": 2, "type": "cloud", "label": "注入 system" }
+  ],
+  "edges": [
+    { "id": "c1", "from": "long", "to": "trigger" },
+    { "id": "c2", "from": "trigger", "to": "node", "label": "插 JSONL 节点" },
+    { "id": "c3", "from": "node", "to": "bsc", "label": "cutoff" },
+    { "id": "c4", "from": "bsc", "to": "short", "variant": "emphasis" },
+    { "id": "h1", "from": "refine", "to": "reg" },
+    { "id": "h2", "from": "reg", "to": "inject", "label": "跨 Turn" }
+  ],
+  "cards": [
+    { "dot": "amber", "title": "Harness", "items": ["跨 Turn 精炼状态，原始 JSONL 仍保留可审计"] }
+  ]
+}

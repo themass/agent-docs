@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Codex 设计思想图解</title>
+  <style>
+    :root {
+      --primary: #10a37f;
+      --primary-dark: #0d8c6d;
+      --primary-light: #e6f7f1;
+      --bg: #f6faf8;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #c8e6d9;
+      --warn: #b45309;
+      --warn-bg: #fffbeb;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: #fff;
+      padding: 2.5rem 1.5rem 2rem;
+      text-align: center;
+    }
+    header h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: 0.5rem; }
+    header p { opacity: 0.92; font-size: 0.95rem; max-width: 680px; margin: 0 auto; }
+    nav {
+      display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center;
+      padding: 1rem 1.5rem; background: var(--card); border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 10;
+    }
+    nav a {
+      text-decoration: none; color: var(--primary-dark); font-size: 0.78rem;
+      padding: 0.35rem 0.65rem; border-radius: 999px; background: var(--primary-light);
+    }
+    nav a:hover { background: var(--primary); color: #fff; }
+    main { max-width: 820px; margin: 0 auto; padding: 1.5rem; }
+    section {
+      background: var(--card); border-radius: 12px; border: 1px solid var(--border);
+      padding: 1.5rem 1.75rem; margin-bottom: 1.5rem;
+      box-shadow: 0 2px 8px rgba(16, 163, 127, 0.07);
+    }
+    section h2 {
+      color: var(--primary-dark); font-size: 1.2rem; margin-bottom: 0.25rem;
+      display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+    }
+    section h2 span {
+      background: var(--primary); color: #fff; font-size: 0.72rem;
+      padding: 0.15rem 0.5rem; border-radius: 4px; font-weight: 600;
+    }
+    section .tagline { color: var(--muted); font-size: 0.88rem; margin-bottom: 0.75rem; }
+    section .why { font-size: 0.85rem; color: var(--muted); margin-bottom: 1rem; padding-left: 0.75rem; border-left: 3px solid var(--primary-light); }
+    pre {
+      background: var(--primary-light); border-left: 4px solid var(--primary);
+      padding: 1rem; border-radius: 0 8px 8px 0; overflow-x: auto;
+      font-size: 0.78rem; line-height: 1.5; margin: 0.75rem 0;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin: 0.75rem 0; }
+    th { background: var(--primary-light); color: var(--primary-dark); text-align: left; padding: 0.45rem; }
+    td { padding: 0.45rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .warn {
+      background: var(--warn-bg); border: 1px solid #fcd34d; border-radius: 8px;
+      padding: 0.75rem 1rem; font-size: 0.82rem; margin: 0.75rem 0;
+    }
+    .warn strong { color: var(--warn); }
+    .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin: 0.75rem 0; }
+    .box {
+      background: var(--primary-light); border: 1px solid var(--border);
+      padding: 0.4rem 0.65rem; border-radius: 8px; font-size: 0.78rem; font-weight: 500;
+    }
+    .arrow { color: var(--primary); font-weight: bold; }
+    .path-hero {
+      background: #1e293b; color: #e2e8f0; padding: 1rem 1.25rem; border-radius: 10px;
+      font-size: 0.78rem; line-height: 1.55; margin-bottom: 1.5rem;
+    }
+    .path-hero em { color: #6ee7b7; font-style: normal; }
+    footer { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.78rem; }
+    footer a { color: var(--primary-dark); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Codex 设计思想图解</h1>
+    <p>循序渐进 · 一次 UserTurn 的完整路径 · 配套 DESIGN_THINKING_SERIES.md</p>
+  </header>
+  <nav>
+    <a href="#path">运行路径</a>
+    <a href="#s1">全景</a>
+    <a href="#s2">控制/执行</a>
+    <a href="#s3">Step 循环</a>
+    <a href="#s4">装配</a>
+    <a href="#s5">工具</a>
+    <a href="#s6">三真相</a>
+    <a href="#s7">Steer</a>
+    <a href="#s8">Rollout</a>
+    <a href="#s9">边界</a>
+  </nav>
+  <main>
+    <div class="path-hero" id="path">
+      <em>先背这条路径</em><br>
+      Op::UserTurn → submission_loop → turn_input → run_turn Step 循环<br>
+      → run_sampling_request → ToolOrchestrator → EventMsg 流 → Rollout JSONL append
+    </div>
+
+    <section id="s1">
+      <h2><span>1</span> 源码全景</h2>
+      <p class="tagline">多客户端共用 codex-core + SQ/EQ + Rollout Resume</p>
+      <p class="why">TUI / exec / app-server 不是三套运行时，是一套 Session。</p>
+      <pre>codex-rs/
+├── core/       Session, run_turn, ContextManager
+├── protocol/   Op, EventMsg, ModeKind
+├── rollout/    ~/.codex/sessions/*.jsonl
+└── tui/        queued_user_messages</pre>
+    </section>
+
+    <section id="s2">
+      <h2><span>2</span> 控制面 vs 执行面</h2>
+      <p class="tagline">submission_loop 收 Op；run_turn 跑模型</p>
+      <div class="flow">
+        <div class="box">Client</div><span class="arrow">→</span>
+        <div class="box">submission_loop</div><span class="arrow">→</span>
+        <div class="box">run_turn</div><span class="arrow">→</span>
+        <div class="box">采样+工具</div>
+      </div>
+      <table>
+        <tr><th></th><th>控制面</th><th>执行面</th></tr>
+        <tr><td>入口</td><td>handlers.rs submission_loop</td><td>turn.rs run_turn</td></tr>
+        <tr><td>类比 Pi</td><td>AgentSession</td><td>Agent Loop</td></tr>
+      </table>
+    </section>
+
+    <section id="s3">
+      <h2><span>3</span> Step 循环与 needs_follow_up</h2>
+      <p class="tagline">外层 Step；内层 run_sampling_request</p>
+      <pre>needs_follow_up = model_needs_follow_up || has_pending_input
+// turn.rs — 不是「子 Agent 没跑完」</pre>
+      <table>
+        <tr><th>变量</th><th>含义</th></tr>
+        <tr><td>model_needs_follow_up</td><td>工具链未完 / end_turn=false</td></tr>
+        <tr><td>has_pending_input</td><td>steer 邮箱有待消费输入</td></tr>
+      </table>
+    </section>
+
+    <section id="s4">
+      <h2><span>4</span> 依赖与装配</h2>
+      <p class="tagline">Turn 开始时 spec_plan + MCP 扁平化进 registry</p>
+      <div class="flow">
+        <div class="box">ThreadManager</div><span class="arrow">→</span>
+        <div class="box">Session</div><span class="arrow">→</span>
+        <div class="box">TurnContext</div><span class="arrow">→</span>
+        <div class="box">for_prompt()</div>
+      </div>
+    </section>
+
+    <section id="s5">
+      <h2><span>5</span> ToolOrchestrator 管线</h2>
+      <p class="tagline">FunctionCall → 审批 → 沙箱 → FunctionCallOutput</p>
+      <div class="warn"><strong>校正：</strong>ToolOrchestrator 管单 Turn 工具；spawn_agent 管子 Session，层级不同。</div>
+    </section>
+
+    <section id="s6">
+      <h2><span>6</span> 三真相投影</h2>
+      <p class="tagline">UI ≠ 模型 ≠ 磁盘 — 刻意允许短暂不一致</p>
+      <table>
+        <tr><th>真相</th><th>载体</th><th>消费者</th></tr>
+        <tr><td>模型</td><td>ContextManager</td><td>下一轮采样</td></tr>
+        <tr><td>UI</td><td>EventMsg / TurnItem</td><td>TUI、app-server</td></tr>
+        <tr><td>磁盘</td><td>RolloutItem 行</td><td>Resume、合规</td></tr>
+      </table>
+      <div class="warn"><strong>校正：</strong>PlanUpdate 瞬时 UI；update_plan 的 FunctionCall <em>会</em>进 rollout。</div>
+    </section>
+
+    <section id="s7">
+      <h2><span>7</span> Steer / Follow-up / MA</h2>
+      <p class="tagline">三种「第二条消息」语义完全不同</p>
+      <table>
+        <tr><th>机制</th><th>何时进模型</th><th>类比 Pi</th></tr>
+        <tr><td>Steer 邮箱</td><td>当前 Turn 下一 Step</td><td>steeringQueue</td></tr>
+        <tr><td>TUI 队列</td><td>idle 后新 UserTurn</td><td>followUpQueue</td></tr>
+        <tr><td>MA followup_task</td><td>子 Session 自己的 Turn</td><td>跨 lane</td></tr>
+      </table>
+    </section>
+
+    <section id="s8">
+      <h2><span>8</span> Rollout / JSONL 账本</h2>
+      <p class="tagline">append-only · Compacted 是切窗检查点</p>
+      <pre>SessionMeta（首行）
+→ ResponseItem 流
+→ Compacted { replacement_history }
+→ 继续 append</pre>
+      <p style="font-size:0.82rem;margin-top:0.5rem">Token Budget：<code>new_context_window</code> + notes/history 工具</p>
+    </section>
+
+    <section id="s9">
+      <h2><span>9</span> Plan / MA / 扩展边界</h2>
+      <p class="tagline">Plan Mode 与 update_plan 硬互斥</p>
+      <table>
+        <tr><th>要先审方案</th><td>ModeKind::Plan</td></tr>
+        <tr><th>执行中勾进度</th><td>update_plan（Default）</td></tr>
+        <tr><th>派子任务</th><td>spawn_agent / MA V2</td></tr>
+      </table>
+    </section>
+  </main>
+  <footer>
+    docs/codex-architecture/diagrams/design-thinking-series.html<br>
+    深潜：<a href="../DESIGN_THINKING_SERIES.md">DESIGN_THINKING_SERIES.md</a> ·
+    <a href="../JSONL_TREE_GUIDE.md">JSONL_TREE_GUIDE.md</a>
+  </footer>
+</body>
+</html>

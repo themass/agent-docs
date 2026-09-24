@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>{{ header.name }} — 简历</title>
+  <style>
+    body { font-family: "PingFang SC", "Microsoft YaHei", sans-serif; margin: 40px; color: #111; }
+    h1 { font-size: 28px; margin: 0 0 4px; }
+    .headline { color: #444; margin-bottom: 4px; }
+    .contact { color: #666; font-size: 13px; margin-bottom: 20px; }
+    h2 { font-size: 15px; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin-top: 24px; }
+    .exp-title { font-weight: 600; }
+    .exp-meta { color: #555; font-size: 13px; }
+    ul { margin: 8px 0 16px 18px; }
+    li { margin-bottom: 4px; line-height: 1.5; }
+    .summary { line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <h1>{{ header.name }}</h1>
+  <div class="headline">{{ header.headline }}</div>
+  <div class="contact">{{ header.contact_line }}</div>
+
+  {% if summary %}
+  <h2>个人总结</h2>
+  <p class="summary">{{ summary }}</p>
+  {% endif %}
+
+  {% if experience_blocks %}
+  <h2>工作经历</h2>
+  {% for exp in experience_blocks %}
+  <div class="exp-title">{{ exp.company }} — {{ exp.title }}</div>
+  <div class="exp-meta">{{ exp.date_range }}{% if exp.location %} · {{ exp.location }}{% endif %}</div>
+  <ul>
+    {% for bullet in exp.bullets %}<li>{{ bullet }}</li>{% endfor %}
+  </ul>
+  {% endfor %}
+  {% endif %}
+
+  {% if education_blocks %}
+  <h2>教育背景</h2>
+  {% for edu in education_blocks %}
+  <div class="exp-title">{{ edu.school }}</div>
+  <div class="exp-meta">{{ edu.degree_line }} · {{ edu.date_range }}</div>
+  {% endfor %}
+  {% endif %}
+
+  {% if skills_block.content %}
+  <h2>{{ skills_block.title }}</h2>
+  <p>{{ skills_block.content }}</p>
+  {% endif %}
+</body>
+</html>

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="utf-8" />
+    <title>Shop grid fixture</title>
+    <style>
+      body { margin: 0; font: 14px/1.5 system-ui, sans-serif; }
+      header { padding: 12px 24px; background: #fff3e0; }
+      .grid { display: grid; grid-template-columns: repeat(4, 200px); gap: 16px; padding: 16px 24px; }
+      .sku a.sku-link { display: block; text-decoration: none; color: inherit; }
+      .thumb { width: 200px; height: 200px; background: #eee; }
+      .price { color: #e4393c; font-weight: 700; }
+      .shop { font-size: 12px; color: #666; }
+    </style>
+  </head>
+  <body>
+    <header><a href="/">商城首页</a> <a href="/cart">购物车</a></header>
+    <div class="grid">
+      <div class="sku">
+        <a class="sku-link" href="/item/728391.html">
+          <div class="thumb"><img src="/fake/cover.png" alt="" /></div>
+          <div class="name">机械键盘 87 键 客制化 热插拔</div>
+          <div class="price">¥399.00</div>
+        </a>
+        <div class="shop"><a href="/shop/geek">极客数码旗舰店</a></div>
+      </div>
+      <div class="sku">
+        <a class="sku-link" href="/item/728392.html">
+          <div class="thumb"><img src="/fake/cover.png" alt="" /></div>
+          <div class="name">人体工学椅 网布透气 可躺</div>
+          <div class="price">¥1299.00</div>
+        </a>
+        <div class="shop"><a href="/shop/home">家居优选</a></div>
+      </div>
+      <div class="sku">
+        <a class="sku-link" href="/item/728393.html">
+          <div class="thumb"><img src="/fake/cover.png" alt="" /></div>
+          <div class="name">4K 显示器 27 英寸 广色域</div>
+          <div class="price">¥2099.00</div>
+        </a>
+        <div class="shop"><a href="/shop/screen">显示专营店</a></div>
+      </div>
+      <div class="sku">
+        <a class="sku-link" href="/item/728394.html">
+          <div class="thumb"><img src="/fake/cover.png" alt="" /></div>
+          <div class="name">降噪耳机 主动降噪 长续航</div>
+          <div class="price">¥899.00</div>
+        </a>
+        <div class="shop"><a href="/shop/audio">声学工坊</a></div>
+      </div>
+    </div>
+  </body>
+</html>

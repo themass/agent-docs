@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Prime Agent 单轮执行时序",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [960, 580],
+    "column_fit": "spread"
+  },
+  "participants": [
+    { "id": "user", "type": "external", "label": "用户", "sublabel": "TUI" },
+    { "id": "client", "type": "frontend", "label": "连接层", "sublabel": "AgentConn" },
+    { "id": "daemon", "type": "backend", "label": "Daemon", "sublabel": "v7" },
+    { "id": "worker", "type": "backend", "label": "Worker", "sublabel": "Session" },
+    { "id": "loop", "type": "backend", "label": "runAgentLoop", "sublabel": "内环" },
+    { "id": "llm", "type": "external", "label": "Provider", "sublabel": "pi-ai" },
+    { "id": "ipython", "type": "backend", "label": "IPython", "sublabel": "主工具" },
+    { "id": "jsonl", "type": "database", "label": "JSONL", "sublabel": "账本" }
+  ],
+  "segments": [
+    { "from": 170, "to": 270, "label": "提交" },
+    { "from": 285, "to": 420, "label": "Agent 循环" },
+    { "from": 435, "to": 500, "label": "回传" }
+  ],
+  "messages": [
+    { "from": "user", "to": "client", "y": 180, "label": "prompt" },
+    { "from": "client", "to": "daemon", "y": 208, "label": "RPC", "variant": "emphasis" },
+    { "from": "daemon", "to": "worker", "y": 236, "label": "路由" },
+    { "from": "worker", "to": "loop", "y": 264, "label": "runAgentLoop", "variant": "emphasis" },
+    { "from": "loop", "to": "llm", "y": 292, "label": "stream" },
+    { "from": "llm", "to": "loop", "y": 320, "label": "tool_use", "variant": "return" },
+    { "from": "loop", "to": "ipython", "y": 348, "label": "execute cell" },
+    { "from": "ipython", "to": "loop", "y": 376, "label": "结果", "variant": "return" },
+    { "from": "loop", "to": "jsonl", "y": 404, "label": "追加节点", "variant": "dashed" },
+    { "from": "loop", "to": "worker", "y": 432, "label": "turn done", "variant": "return" },
+    { "from": "worker", "to": "client", "y": 460, "label": "事件流" },
+    { "from": "client", "to": "user", "y": 488, "label": "渲染", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "client", "from": 205, "to": 491, "type": "frontend" },
+    { "participant": "daemon", "from": 206, "to": 244, "type": "backend" },
+    { "participant": "worker", "from": 234, "to": 468, "type": "backend" },
+    { "participant": "loop", "from": 262, "to": 440, "type": "backend" },
+    { "participant": "llm", "from": 289, "to": 326, "type": "external" },
+    { "participant": "ipython", "from": 345, "to": 382, "type": "backend" },
+    { "participant": "jsonl", "from": 401, "to": 422, "type": "database" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "双环分工",
+      "items": [
+        "Worker 托管 Session；runAgentLoop 处理 stream → tool → 追加"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "真相源",
+      "items": [
+        "JSONL 树为 LLM 视图来源，Turn 事件不单独持久化"
+      ]
+    }
+  ]
+}

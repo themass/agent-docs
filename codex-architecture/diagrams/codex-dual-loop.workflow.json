@@ -1,0 +1,47 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Codex 双循环：外层调度与内层 Agent",
+    "locale": "zh-CN",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    { "id": "outer", "label": "外层 submission_loop" },
+    { "id": "inner", "label": "内层 RunningTask" }
+  ],
+  "nodes": [
+    { "id": "recv", "lane": "outer", "col": 0, "type": "messagebus", "label": "recv", "sublabel": "SQ rx_sub" },
+    { "id": "dispatch", "lane": "outer", "col": 1, "type": "backend", "label": "dispatch", "sublabel": "Op 路由" },
+    { "id": "start", "lane": "outer", "col": 2, "type": "backend", "label": "turn_input", "sublabel": "Start" },
+    { "id": "interrupt", "lane": "outer", "col": 3, "type": "security", "label": "Interrupt", "sublabel": "cancel token" },
+    { "id": "spawn", "lane": "inner", "col": 2, "type": "cloud", "label": "tokio::spawn", "sublabel": "不 await" },
+    { "id": "rt", "lane": "inner", "col": 3, "type": "backend", "label": "run_turn", "sublabel": "Step 循环" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "recv", "to": "dispatch", "label": "Submission" },
+    { "id": "e2", "from": "dispatch", "to": "start", "label": "TurnInput" },
+    { "id": "e3", "from": "start", "to": "spawn", "label": "spawn_task", "variant": "emphasis" },
+    { "id": "e4", "from": "spawn", "to": "rt", "label": "RegularTask::run" },
+    { "id": "e5", "from": "dispatch", "to": "interrupt", "label": "Interrupt" },
+    { "id": "e6", "from": "interrupt", "to": "rt", "label": "abort", "variant": "dashed" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "外层不跑 LLM",
+      "items": [
+        "submission_loop 只 dispatch，不 await run_turn",
+        "Start 后立刻回到 recv；Steer 写 pending_input 由 run_turn drain"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "内层 Step 循环",
+      "items": [
+        "采样 → 工具 → needs_follow_up 决定是否继续",
+        "新 Start 抢占：abort_all_tasks(Replaced)"
+      ]
+    }
+  ]
+}

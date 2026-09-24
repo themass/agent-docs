@@ -1,0 +1,11 @@
+Company: Example SaaS Inc.
+Role: Senior Full Stack Engineer
+
+Requirements:
+- 4+ years with React and TypeScript
+- Experience with Node.js or Python backends
+- Familiar with AWS or similar cloud
+
+Responsibilities:
+- Build customer-facing features end-to-end
+- Collaborate with product on roadmap

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>{{ zh.header.name if zh.header else en.header.name }} — 中英对照简历</title>
+  <style>
+    @page { size: A4; margin: 16mm; }
+    body { color: #111; margin: 0; }
+    .track-zh { font-family: "PingFang SC", "Microsoft YaHei", sans-serif; }
+    .track-en { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 12.5px; }
+    h1 { font-size: 26px; margin: 0 0 4px; }
+    .headline { color: #444; margin-bottom: 4px; }
+    .contact { color: #666; font-size: 13px; margin-bottom: 18px; }
+    h2 { font-size: 14px; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin-top: 22px; }
+    .exp-title { font-weight: 600; }
+    .exp-meta { color: #555; font-size: 13px; }
+    ul { margin: 8px 0 16px 18px; }
+    li { margin-bottom: 4px; line-height: 1.5; }
+    .summary { line-height: 1.55; }
+    .page-break { break-before: page; page-break-before: always; padding-top: 8px; }
+  </style>
+</head>
+<body>
+  <section class="track-zh">
+    <h1>{{ zh.header.name }}</h1>
+    <div class="headline">{{ zh.header.headline }}</div>
+    <div class="contact">{{ zh.header.contact_line }}</div>
+    {% if zh.summary %}
+    <h2>个人总结</h2>
+    <p class="summary">{{ zh.summary }}</p>
+    {% endif %}
+    {% if zh.experience_blocks %}
+    <h2>工作经历</h2>
+    {% for exp in zh.experience_blocks %}
+    <div class="exp-title">{{ exp.company }} — {{ exp.title }}</div>
+    <div class="exp-meta">{{ exp.date_range }}{% if exp.location %} · {{ exp.location }}{% endif %}</div>
+    <ul>
+      {% for bullet in exp.bullets %}<li>{{ bullet }}</li>{% endfor %}
+    </ul>
+    {% endfor %}
+    {% endif %}
+    {% if zh.education_blocks %}
+    <h2>教育背景</h2>
+    {% for edu in zh.education_blocks %}
+    <div class="exp-title">{{ edu.school }}</div>
+    <div class="exp-meta">{{ edu.degree_line }} · {{ edu.date_range }}</div>
+    {% endfor %}
+    {% endif %}
+    {% if zh.skills_block and zh.skills_block.content %}
+    <h2>{{ zh.skills_block.title }}</h2>
+    <p>{{ zh.skills_block.content }}</p>
+    {% endif %}
+  </section>
+
+  <section class="track-en page-break">
+    <h1>{{ en.header.name }}</h1>
+    <div class="headline">{{ en.header.headline }}</div>
+    <div class="contact">{{ en.header.contact_line }}</div>
+    {% if en.summary %}
+    <h2>Summary</h2>
+    <p class="summary">{{ en.summary }}</p>
+    {% endif %}
+    {% if en.experience_blocks %}
+    <h2>Experience</h2>
+    {% for exp in en.experience_blocks %}
+    <div class="exp-title">{{ exp.company }} — {{ exp.title }}</div>
+    <div class="exp-meta">{{ exp.date_range }}{% if exp.location %} · {{ exp.location }}{% endif %}</div>
+    <ul>
+      {% for bullet in exp.bullets %}<li>{{ bullet }}</li>{% endfor %}
+    </ul>
+    {% endfor %}
+    {% endif %}
+    {% if en.education_blocks %}
+    <h2>Education</h2>
+    {% for edu in en.education_blocks %}
+    <div class="exp-title">{{ edu.school }}</div>
+    <div class="exp-meta">{{ edu.degree_line }} · {{ edu.date_range }}</div>
+    {% endfor %}
+    {% endif %}
+    {% if en.skills_block and en.skills_block.content %}
+    <h2>{{ en.skills_block.title }}</h2>
+    <p>{{ en.skills_block.content }}</p>
+    {% endif %}
+  </section>
+</body>
+</html>

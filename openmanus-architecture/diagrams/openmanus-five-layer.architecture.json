@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "OpenManus 五层架构",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [1100, 520]
+  },
+  "components": [
+    { "id": "main", "type": "frontend", "label": "main.py", "sublabel": "L0 入口", "pos": [40, 200], "size": [110, 56] },
+    { "id": "flow_entry", "type": "frontend", "label": "run_flow.py", "sublabel": "L0 入口", "pos": [40, 320], "size": [110, 56] },
+    { "id": "pf", "type": "backend", "label": "PlanningFlow", "sublabel": "L1 flow", "pos": [200, 320], "size": [130, 56] },
+    { "id": "manus", "type": "backend", "label": "Manus", "sublabel": "L2 Agent", "pos": [200, 200], "size": [110, 56] },
+    { "id": "base_run", "type": "backend", "label": "BaseAgent.run", "sublabel": "外层循环", "pos": [370, 260], "size": [130, 56] },
+    { "id": "react_step", "type": "backend", "label": "ReActAgent.step", "sublabel": "think/act", "pos": [550, 260], "size": [140, 56] },
+    { "id": "schema", "type": "database", "label": "schema.py", "sublabel": "L3 Memory", "pos": [550, 400], "size": [130, 56] },
+    { "id": "llm", "type": "external", "label": "LLM", "sublabel": "L3 ask_tool", "pos": [730, 200], "size": [110, 56] },
+    { "id": "tcoll", "type": "backend", "label": "ToolCollection", "sublabel": "L4 能力", "pos": [730, 320], "size": [130, 56] },
+    { "id": "tools", "type": "backend", "label": "BaseTool", "sublabel": "本地 + MCP", "pos": [900, 320], "size": [120, 56] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "L0 入口", "wraps": ["main", "flow_entry"] },
+    { "kind": "region", "label": "L1 flow", "wraps": ["pf"] },
+    { "kind": "region", "label": "L2 Agent 内核", "wraps": ["manus", "base_run", "react_step"] },
+    { "kind": "region", "label": "L3 协议与模型", "wraps": ["schema", "llm"] },
+    { "kind": "region", "label": "L4 能力层", "wraps": ["tcoll", "tools"] }
+  ],
+  "connections": [
+    { "from": "main", "to": "manus", "label": "create" },
+    { "from": "flow_entry", "to": "pf", "label": "execute" },
+    { "from": "manus", "to": "base_run", "label": "run()" },
+    { "from": "pf", "to": "base_run", "variant": "dashed", "labelAt": [300, 380] },
+    { "from": "base_run", "to": "react_step", "label": "step()" },
+    { "from": "react_step", "to": "llm", "label": "think" },
+    { "from": "react_step", "to": "tcoll", "label": "act", "labelAt": [680, 340] },
+    { "from": "tcoll", "to": "tools", "label": "execute", "labelAt": [860, 310] }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "分层职责",
+      "items": [
+        "入口决定运行模式；flow 在多 step 间排班",
+        "Agent 内核手写 while 循环，无 LangGraph"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "think / act 分离",
+      "items": [
+        "think 调 LLM.ask_tool；act 经 ToolCollection 产生副作用",
+        "schema 承载 Message、Memory 与 AgentState 生命周期"
+      ]
+    }
+  ]
+}

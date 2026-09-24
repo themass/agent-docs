@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Plan 模式三本账",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [900, 400]
+  },
+  "stages": [
+    { "label": "规划器瞬时消息" },
+    { "label": "计划结构" },
+    { "label": "执行器 Memory" }
+  ],
+  "nodes": [
+    { "id": "ephemeral", "type": "messagebus", "label": "局部 system+user", "sublabel": "用完即丢", "stage": 0, "row": 0 },
+    { "id": "flowllm", "type": "external", "label": "Flow.llm", "sublabel": "ask_tool / ask", "stage": 0, "row": 1 },
+    { "id": "plans", "type": "database", "label": "PlanningTool.plans", "sublabel": "steps + statuses", "stage": 1, "row": 1 },
+    { "id": "execmem", "type": "backend", "label": "executor Memory", "sublabel": "Manus 累积 · DA 独立", "stage": 2, "row": 1 }
+  ],
+  "flows": [
+    { "from": "flowllm", "to": "ephemeral", "label": "现场拼 messages" },
+    { "from": "flowllm", "to": "plans", "label": "create / mark_step", "variant": "emphasis" },
+    { "from": "plans", "to": "execmem", "label": "step_prompt 注入", "variant": "emphasis" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "互不同步",
+      "items": [
+        "finalize 只读勾选表，看不到 tool observation"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "system 也不在 Memory",
+      "items": [
+        "ask_tool 每次把 system_prompt 临时前置"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "OpenCode 多 Agent 与子 Session",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [900, 420]
+  },
+  "components": [
+    { "id": "user", "type": "external", "label": "用户", "pos": [60, 180], "size": [100, 56] },
+    { "id": "build", "type": "frontend", "label": "build", "sublabel": "primary", "pos": [220, 180], "size": [110, 56] },
+    { "id": "plan", "type": "frontend", "label": "plan", "sublabel": "只读规划", "pos": [220, 80], "size": [110, 56] },
+    { "id": "main", "type": "backend", "label": "主 Session", "sublabel": "Drain", "pos": [400, 180], "size": [120, 56] },
+    { "id": "sub", "type": "backend", "label": "子 Session", "sublabel": "parent_id", "pos": [580, 180], "size": [120, 56] },
+    { "id": "scout", "type": "cloud", "label": "subagent", "sublabel": "explore", "pos": [580, 80], "size": [120, 56] },
+    { "id": "hist", "type": "database", "label": "独立 history", "pos": [760, 180], "size": [120, 56] }
+  ],
+  "connections": [
+    { "from": "user", "to": "build", "label": "Tab切换" },
+    { "from": "build", "to": "main", "variant": "emphasis" },
+    { "from": "plan", "to": "main", "variant": "dashed", "fromSide": "right", "toSide": "top" },
+    { "from": "main", "to": "sub", "label": "spawn", "variant": "emphasis" },
+    { "from": "scout", "to": "sub", "fromSide": "bottom", "toSide": "top" },
+    { "from": "sub", "to": "hist" }
+  ],
+  "cards": [
+    { "dot": "violet", "title": "子 Session", "items": ["同引擎不同 Agent 配置；子 history 独立投影", "子任务完成后摘要回主 Session"] }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "OpenCode Session 冷启动",
+    "locale": "zh-CN",
+    "quality_profile": "showcase"
+  },
+  "lanes": [{ "id": "boot", "label": "冷启动" }],
+  "nodes": [
+    { "id": "create", "lane": "boot", "col": 0, "type": "frontend", "label": "create" },
+    { "id": "row", "lane": "boot", "col": 1, "type": "database", "label": "session 行" },
+    { "id": "epoch", "lane": "boot", "col": 2, "type": "cloud", "label": "ContextEpoch" },
+    { "id": "idle", "lane": "boot", "col": 3, "type": "backend", "label": "Idle" },
+    { "id": "prompt", "lane": "boot", "col": 4, "type": "frontend", "label": "首次 prompt" },
+    { "id": "drain", "lane": "boot", "col": 5, "type": "backend", "label": "首次 Drain" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "create", "to": "row" },
+    { "id": "e2", "from": "row", "to": "epoch", "label": "baseline" },
+    { "id": "e3", "from": "epoch", "to": "idle" },
+    { "id": "e4", "from": "prompt", "to": "drain", "variant": "emphasis" },
+    { "id": "e5", "from": "idle", "to": "prompt", "label": "admit" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "冷路径", "items": ["创建 Session 后 Epoch baseline，首次 prompt 触发 Drain"] }
+  ]
+}

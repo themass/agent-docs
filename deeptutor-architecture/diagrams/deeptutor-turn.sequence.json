@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "DeepTutor Turn 执行时序",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [1000, 580],
+    "column_fit": "spread"
+  },
+  "participants": [
+    { "id": "client", "type": "frontend", "label": "客户端", "sublabel": "WS / CLI" },
+    { "id": "trm", "type": "backend", "label": "TRM", "sublabel": "TurnRuntime" },
+    { "id": "orch", "type": "backend", "label": "Orchestrator", "sublabel": "Chat" },
+    { "id": "cap", "type": "cloud", "label": "Capability", "sublabel": "chat / solve" },
+    { "id": "al", "type": "backend", "label": "AgentLoop", "sublabel": "内环" },
+    { "id": "llm", "type": "external", "label": "services/llm", "sublabel": "stream" },
+    { "id": "store", "type": "database", "label": "SessionStore", "sublabel": "SQLite" }
+  ],
+  "segments": [
+    { "from": 160, "to": 240, "label": "启动" },
+    { "from": 255, "to": 420, "label": "执行" },
+    { "from": 435, "to": 510, "label": "落库" }
+  ],
+  "messages": [
+    { "from": "client", "to": "trm", "y": 170, "label": "start_turn(payload)" },
+    { "from": "trm", "to": "store", "y": 198, "label": "ensure_session", "variant": "dashed" },
+    { "from": "trm", "to": "orch", "y": 226, "label": "handle(UnifiedContext)", "variant": "emphasis" },
+    { "from": "orch", "to": "cap", "y": 254, "label": "run(ctx, StreamBus)" },
+    { "from": "cap", "to": "al", "y": 282, "label": "AgentLoop.run()" },
+    { "from": "al", "to": "llm", "y": 310, "label": "stream(messages, tools)" },
+    { "from": "llm", "to": "al", "y": 338, "label": "content chunks", "variant": "return" },
+    { "from": "al", "to": "trm", "y": 366, "label": "StreamEvent CONTENT*", "variant": "return" },
+    { "from": "trm", "to": "client", "y": 394, "label": "subscribe 推送" },
+    { "from": "cap", "to": "trm", "y": 422, "label": "RESULT + DONE" },
+    { "from": "trm", "to": "store", "y": 450, "label": "flush turn_events" },
+    { "from": "trm", "to": "store", "y": 478, "label": "add_message 终稿", "variant": "dashed" }
+  ],
+  "activations": [
+    { "participant": "client", "from": 168, "to": 402, "type": "frontend" },
+    { "participant": "trm", "from": 168, "to": 486, "type": "backend" },
+    { "participant": "orch", "from": 224, "to": 430, "type": "backend" },
+    { "participant": "cap", "from": 252, "to": 430, "type": "cloud" },
+    { "participant": "al", "from": 280, "to": 374, "type": "backend" },
+    { "participant": "llm", "from": 308, "to": 346, "type": "external" },
+    { "participant": "store", "from": 196, "to": 210, "type": "database" },
+    { "participant": "store", "from": 448, "to": 486, "type": "database" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "seq 单调",
+      "items": [
+        "StreamEvent seq 递增；断线后 subscribe_turn(after_seq) 补缺口",
+        "STAGE_START → CONTENT → TOOL_* → RESULT → DONE"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "终稿 vs 轨迹",
+      "items": [
+        "turn_events 存全轨迹；messages 仅存回合终稿",
+        "内部 narration 默认不进 messages"
+      ]
+    }
+  ]
+}

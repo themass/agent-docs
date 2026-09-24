@@ -1,0 +1,153 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "虚拟开发团队主循环",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "agree-first",
+        "label": "先签字再上板",
+        "focus": ["explore", "g1", "g15", "g2", "ready"],
+        "note": "G1 产品、G1.5 视觉、G2 架构都过了，Multica 才能打 Ready。"
+      },
+      {
+        "id": "claim-and-build",
+        "label": "领卡实现",
+        "focus": ["ready", "build", "review"],
+        "note": "WIP=1；Headroom wrap 的 Codex 对照 tasks.md 做 TDD，不能自己 Done。"
+      },
+      {
+        "id": "verify-archive",
+        "label": "验收收口",
+        "focus": ["review", "qa", "archive"],
+        "note": "架构 Review 后 QA 新会话只跑场景；archive 之后卡才算结束。"
+      }
+    ]
+  },
+  "lanes": [
+    { "id": "product", "label": "产品与设计" },
+    { "id": "ops", "label": "架构 · 看板 · 开发" },
+    { "id": "qa", "label": "评审与验收", "variant": "exception" }
+  ],
+  "phases": [
+    { "id": "agree", "label": "签字", "fromCol": 0, "toCol": 2, "variant": "emphasis" },
+    { "id": "build-phase", "label": "领卡实现", "fromCol": 3, "toCol": 4 },
+    { "id": "close", "label": "验收收口", "fromCol": 5, "toCol": 5, "variant": "dashed" }
+  ],
+  "mainPath": ["explore", "g1", "g15", "g2", "ready", "build", "review", "qa", "archive"],
+  "nodes": [
+    {
+      "id": "explore",
+      "lane": "product",
+      "col": 0,
+      "type": "external",
+      "label": "需求",
+      "sublabel": "brainstorm",
+      "width": 128
+    },
+    {
+      "id": "g1",
+      "lane": "product",
+      "col": 1,
+      "type": "security",
+      "label": "G1 产品",
+      "sublabel": "OpenSpec propose",
+      "width": 128
+    },
+    {
+      "id": "g15",
+      "lane": "product",
+      "col": 2,
+      "type": "frontend",
+      "label": "G1.5 视觉",
+      "sublabel": "OpenDesign",
+      "tag": "有 UI 强制",
+      "width": 128
+    },
+    {
+      "id": "g2",
+      "lane": "ops",
+      "col": 2,
+      "type": "security",
+      "label": "G2 架构",
+      "sublabel": "design.md",
+      "width": 128
+    },
+    {
+      "id": "ready",
+      "lane": "ops",
+      "col": 3,
+      "type": "messagebus",
+      "label": "Multica Ready",
+      "sublabel": "assignee = Agent",
+      "width": 128
+    },
+    {
+      "id": "build",
+      "lane": "ops",
+      "col": 4,
+      "type": "backend",
+      "label": "Codex TDD",
+      "sublabel": "Headroom wrap",
+      "brand": "openai",
+      "width": 128
+    },
+    {
+      "id": "review",
+      "lane": "qa",
+      "col": 4,
+      "type": "security",
+      "label": "架构 Review",
+      "sublabel": "越界则打回",
+      "width": 128
+    },
+    {
+      "id": "qa",
+      "lane": "qa",
+      "col": 5,
+      "type": "cloud",
+      "label": "QA 新会话",
+      "sublabel": "Playwright",
+      "width": 128
+    },
+    {
+      "id": "archive",
+      "lane": "ops",
+      "col": 5,
+      "type": "database",
+      "label": "archive",
+      "sublabel": "规格库 = 真相",
+      "brand": "github",
+      "width": 128
+    }
+  ],
+  "edges": [
+    { "id": "to-g1", "from": "explore", "to": "g1", "label": "propose", "variant": "emphasis" },
+    { "id": "to-g15", "from": "g1", "to": "g15", "label": "有 UI" },
+    { "id": "to-g2", "from": "g15", "to": "g2", "label": "设计是输入" },
+    { "id": "to-ready", "from": "g2", "to": "ready", "label": "DoR" },
+    { "id": "to-build", "from": "ready", "to": "build", "label": "领卡", "variant": "emphasis" },
+    { "id": "to-review", "from": "build", "to": "review" },
+    { "id": "reject", "from": "review", "to": "build", "label": "打回", "variant": "dashed", "role": "error" },
+    { "id": "to-qa", "from": "review", "to": "qa", "label": "批准" },
+    { "id": "to-archive", "from": "qa", "to": "archive", "label": "通过后", "variant": "emphasis" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "出门条件",
+      "items": [
+        "没过 G1 / G1.5 / G2 不准 Ready；未 archive 不算结束"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "会话隔离",
+      "items": [
+        "开发与 QA 不得同会话；实现者不能自 Done"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "MetaGPT 四层协作模型",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [1000, 480]
+  },
+  "components": [
+    { "id": "cli", "type": "frontend", "label": "CLI 入口", "sublabel": "software_company", "pos": [40, 180], "size": [120, 60] },
+    { "id": "team", "type": "backend", "label": "Team", "sublabel": "hire · run", "pos": [200, 180], "size": [120, 60] },
+    { "id": "env", "type": "messagebus", "label": "Environment", "sublabel": "publish · run", "pos": [360, 180], "size": [130, 60] },
+    { "id": "role", "type": "backend", "label": "Role", "sublabel": "observe · react", "pos": [530, 180], "size": [120, 60] },
+    { "id": "action", "type": "backend", "label": "Action", "sublabel": "单次 run()", "pos": [690, 180], "size": [120, 60] },
+    { "id": "ctx", "type": "cloud", "label": "Context", "sublabel": "config · cost", "pos": [360, 320], "size": [130, 60] },
+    { "id": "repo", "type": "database", "label": "ProjectRepo", "sublabel": "产物落盘", "pos": [690, 320], "size": [130, 60] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "L0–L4 主路径", "wraps": ["cli", "team", "env", "role", "action"] }
+  ],
+  "connections": [
+    { "from": "cli", "to": "team", "label": "启动" },
+    { "from": "team", "to": "env", "label": "编排" },
+    { "from": "env", "to": "role", "label": "路由" },
+    { "from": "role", "to": "action", "label": "todo" },
+    { "from": "role", "to": "env", "label": "publish", "fromSide": "bottom", "toSide": "bottom", "labelDy": 54 },
+    { "from": "action", "to": "repo", "label": "落盘", "variant": "dashed", "fromSide": "bottom", "toSide": "top" },
+    { "from": "ctx", "to": "team", "label": "共享", "variant": "dashed", "fromSide": "left", "toSide": "bottom", "labelDx": -20 },
+    { "from": "ctx", "to": "env", "label": "共享", "variant": "dashed", "fromSide": "top", "toSide": "bottom" },
+    { "from": "ctx", "to": "role", "label": "共享", "variant": "dashed", "fromSide": "right", "toSide": "bottom", "labelDx": 20 }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "公司隐喻",
+      "items": [
+        "Code = SOP(Team)：SOP 编码为 cause_by → watch 消息订阅图",
+        "Environment 即总线，不硬编码 if pm_done then architect()"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "职责边界",
+      "items": [
+        "Team 管预算与轮次；Role 管 observe/react；Action 管单次 LLM 任务",
+        "Action 产出 AIMessage(cause_by) 回注 Role，再 publish 到总线"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "MGX 与预算",
+      "items": [
+        "默认 MGXEnv 经 TeamLeader 统一路由；Team.invest 设 LLM 花费上限"
+      ]
+    }
+  ]
+}

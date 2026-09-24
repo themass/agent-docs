@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "CrewAI Task DAG 架构",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [820, 360]
+  },
+  "components": [
+    { "id": "crew", "type": "backend", "label": "Crew", "sublabel": "静态编排", "pos": [60, 160], "size": [100, 56] },
+    { "id": "t1", "type": "cloud", "label": "Task 1", "sublabel": "research", "pos": [220, 80], "size": [100, 56] },
+    { "id": "t2", "type": "cloud", "label": "Task 2", "sublabel": "analyze", "pos": [400, 80], "size": [100, 56] },
+    { "id": "t3", "type": "cloud", "label": "Task 3", "sublabel": "write", "pos": [580, 80], "size": [100, 56] },
+    { "id": "a1", "type": "backend", "label": "Agent A", "sublabel": "researcher", "pos": [220, 260], "size": [100, 56] },
+    { "id": "a2", "type": "backend", "label": "Agent B", "sublabel": "analyst", "pos": [400, 260], "size": [100, 56] },
+    { "id": "a3", "type": "backend", "label": "Agent C", "sublabel": "writer", "pos": [580, 260], "size": [100, 56] }
+  ],
+  "connections": [
+    { "from": "crew", "to": "t1", "label": "kickoff", "labelDy": -18 },
+    { "from": "t1", "to": "t2", "label": "context", "variant": "emphasis" },
+    { "from": "t2", "to": "t3", "label": "context" },
+    { "from": "t1", "to": "a1", "fromSide": "bottom", "toSide": "top" },
+    { "from": "t2", "to": "a2", "fromSide": "bottom", "toSide": "top" },
+    { "from": "t3", "to": "a3", "fromSide": "bottom", "toSide": "top" }
+  ],
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "声明式 DAG",
+      "items": [
+        "Task 间 context 传递输出；kickoff 前流程固定",
+        "Agent 定义期绑定；无运行时 spawn"
+      ]
+    }
+  ]
+}

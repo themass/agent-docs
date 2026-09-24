@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="utf-8" />
+    <title>Video feed fixture</title>
+    <style>
+      body { margin: 0; font: 14px/1.5 system-ui, sans-serif; }
+      .header { display: flex; gap: 16px; padding: 12px 24px; background: #f5f5f5; }
+      .carousel { margin: 16px 24px; }
+      .carousel a { display: block; width: 700px; height: 180px; background: #ddeeff; }
+      .feed { display: grid; grid-template-columns: repeat(3, 240px); gap: 16px; padding: 0 24px; }
+      .card a.card-link { display: block; text-decoration: none; color: inherit; }
+      .cover { width: 240px; height: 135px; background: #eee; position: relative; }
+      .duration { position: absolute; right: 6px; bottom: 6px; color: #fff; background: #0008; padding: 0 4px; }
+      .title { display: block; font-weight: 600; }
+      .meta { color: #666; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <a href="/">首页</a>
+      <a href="/v/popular">热门</a>
+      <a href="/v/live">直播</a>
+      <a href="/login">登录</a>
+    </header>
+
+    <!-- Promotional carousel: shaped like content, must never become TOP1. -->
+    <div class="carousel">
+      <a href="/video/BV1PromoBanner"><img src="/fake/cover.png" alt="限时活动" /><span>大会员限时 5 折</span></a>
+    </div>
+
+    <div class="feed">
+      <div class="card">
+        <a class="card-link" href="/video/BV1H7M26dEEA">
+          <div class="cover"><img src="/fake/cover.png" alt="" /><span class="duration">12:04</span></div>
+          <span class="title">三分钟看懂扩散模型</span>
+        </a>
+        <div class="meta"><a href="/space/1001">AI 研究所</a> · <span>18.6万</span></div>
+      </div>
+      <div class="card">
+        <a class="card-link" href="/video/BV1gKuF6rEqy">
+          <div class="cover"><img src="/fake/cover.png" alt="" /><span class="duration">24:31</span></div>
+          <span class="title">从零实现一个浏览器 Agent</span>
+        </a>
+        <div class="meta"><a href="/space/1002">码农小林</a> · <span>9.2万</span></div>
+      </div>
+      <!-- Inline promo wearing the same card markup: only link-shape voting kills it. -->
+      <div class="card">
+        <a class="card-link" href="/blackboard/era/spring-2026.html">
+          <div class="cover"><img src="/fake/cover.png" alt="" /></div>
+          <span class="title">春季创作激励计划报名中</span>
+        </a>
+        <div class="meta"><span>官方活动</span></div>
+      </div>
+      <div class="card">
+        <a class="card-link" href="/video/BV1aa1111111">
+          <div class="cover"><img src="/fake/cover.png" alt="" /><span class="duration">08:12</span></div>
+          <span class="title">Rust 所有权到底在解决什么问题</span>
+        </a>
+        <div class="meta"><a href="/space/1003">系统角落</a> · <span>4.1万</span></div>
+      </div>
+      <div class="card">
+        <a class="card-link" href="/video/BV1bb2222222">
+          <div class="cover"><img src="/fake/cover.png" alt="" /><span class="duration">05:40</span></div>
+          <span class="title">一次讲清 HTTP 缓存策略</span>
+        </a>
+        <div class="meta"><a href="/space/1004">前端周刊</a> · <span>7.8万</span></div>
+      </div>
+      <div class="card">
+        <a class="card-link" href="/video/BV1cc3333333">
+          <div class="cover"><img src="/fake/cover.png" alt="" /><span class="duration">11:03</span></div>
+          <span class="title">数据库索引的十个误区</span>
+        </a>
+        <div class="meta"><a href="/space/1005">后端笔记</a> · <span>12.4万</span></div>
+      </div>
+    </div>
+  </body>
+</html>

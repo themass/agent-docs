@@ -1,0 +1,35 @@
+{
+  "scenario": "coach-mock",
+  "company": "字节跳动",
+  "role_title": "高级后端工程师",
+  "question_stem": "请介绍一次你主导的性能优化项目，结果如何？",
+  "user_answer": "去年我负责订单服务接口优化。当时 P99 延迟在 800ms，我先用链路追踪定位到数据库慢查询和缓存穿透。然后我加了 Redis 缓存、改写 SQL 并做了连接池调优，两周内把 P99 降到 280ms，错误率也下降了。复盘后我们建立了慢查询周报机制。",
+  "coach_feedback": {
+    "score": 8,
+    "dimensions": {
+      "structure": 8,
+      "relevance": 8,
+      "depth": 8,
+      "communication": 8,
+      "reflection": 7
+    },
+    "strengths": [
+      "STAR 结构完整，有具体指标",
+      "提到复盘与机制化改进"
+    ],
+    "gaps": [
+      "可补充业务影响（订单量/收入）",
+      "可说明你在团队中的协调角色"
+    ],
+    "rewrite_hint": "在 Result 段补一句业务价值，并点明你是 owner 还是协作者。"
+  },
+  "expected_tool": "jobcome_answer_save_attempt",
+  "min_score": 7,
+  "required_dimension_keys": [
+    "structure",
+    "relevance",
+    "depth",
+    "communication",
+    "reflection"
+  ]
+}

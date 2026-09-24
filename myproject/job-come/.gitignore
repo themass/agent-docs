@@ -1,0 +1,15 @@
+.env
+.env.local
+.env.*.local
+deploy/litellm/config.yaml
+*.pyc
+__pycache__/
+.venv/
+# 在 deepagents monorepo 内用 ../venv；不要在本目录创建 .venv
+.data/
+.data/deerflow/
+node_modules/
+.next/
+dist/
+*.log
+.DS_Store

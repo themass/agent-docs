@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "DeepTutor Memory L1–L3 双层记忆",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [900, 520]
+  },
+  "stages": [
+    { "label": "写入" },
+    { "label": "提炼" },
+    { "label": "读取" }
+  ],
+  "nodes": [
+    { "id": "turn", "type": "backend", "label": "Turn 结束", "sublabel": "非 regenerate", "stage": 0, "row": 1 },
+    { "id": "l1", "type": "database", "label": "L1 Trace", "sublabel": "JSONL 事件", "stage": 0, "row": 2 },
+    { "id": "cons", "type": "cloud", "label": "consolidator", "sublabel": "LLM ops", "stage": 1, "row": 1 },
+    { "id": "l2", "type": "database", "label": "L2 Document", "sublabel": "PROFILE.md", "stage": 1, "row": 0 },
+    { "id": "l3", "type": "database", "label": "L3 Slots", "sublabel": "四槽 Markdown", "stage": 1, "row": 2 },
+    { "id": "ctx", "type": "backend", "label": "memory_context", "sublabel": "system 注入", "stage": 2, "row": 0 },
+    { "id": "tool", "type": "frontend", "label": "read_memory", "sublabel": "工具读取", "stage": 2, "row": 2 }
+  ],
+  "flows": [
+    { "from": "turn", "to": "l1", "label": "emit", "variant": "emphasis", "channelY": 40, "labelAt": [100, 314] },
+    { "from": "l1", "to": "cons", "label": "L1→L2", "variant": "emphasis", "labelAt": [210, 314] },
+    { "from": "cons", "to": "l2", "label": "update_l2", "channelY": -50, "labelAt": [315, 124] },
+    { "from": "cons", "to": "l3", "label": "update_l3", "channelY": 50, "labelAt": [315, 428] },
+    { "from": "l3", "to": "ctx", "label": "read_l3", "variant": "emphasis", "channelY": -80, "labelAt": [530, 124], "labelDy": -28 },
+    { "from": "l3", "to": "tool", "label": "快照", "channelY": 30, "labelAt": [530, 428] }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "可审计记忆",
+      "items": [
+        "L2/L3 为 Markdown + 脚注，用户可手改",
+        "consolidator 用 LLM ops 合并，非黑盒向量"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Turn 集成",
+      "items": [
+        "Turn 开头 read_snapshot → memory_context",
+        "write_memory 经 ops 写回 L2/L3"
+      ]
+    }
+  ]
+}

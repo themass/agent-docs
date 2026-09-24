@@ -1,0 +1,49 @@
+{
+  "name": "@naviforge/extension",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "build": "npm run build -w @naviforge/intake && wxt build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "check": "npm run typecheck && tsx src/i18n/i18n.self-check.ts && tsx src/chat/chat-events.self-check.ts && tsx src/chat/live-session.self-check.ts && tsx src/chat/live-thinking.self-check.ts && tsx src/lib/leaf-feed.self-check.ts && tsx src/chat/agent-run-controller.self-check.ts && tsx src/modules/intake-ui/session.self-check.ts && tsx src/components/chat/collapsible-text.self-check.ts && tsx src/lib/agent-event-projection.self-check.ts && tsx src/lib/list-result-format.self-check.ts && tsx src/lib/agent-presence.self-check.ts && tsx src/components/chat/composer-key.self-check.ts && tsx src/lib/ime-safe-surface.self-check.ts && tsx src/lib/newapi-auth.self-check.ts && tsx src/entrypoints/options/model.self-check.ts && tsx src/modules/genius-fall/genius-fall.self-check.ts && tsx src/modules/behavior-forge/behavior-forge.self-check.ts && tsx src/lib/session-model.self-check.ts && tsx src/lib/resume-session.self-check.ts && tsx src/lib/workspace-restore.self-check.ts && tsx src/lib/tab-workspace.self-check.ts && tsx src/lib/selector-resolver.self-check.ts && tsx src/lib/content-extract.self-check.ts && tsx src/lib/read-page-core.self-check.ts && tsx src/lib/site-profile-store.self-check.ts && tsx src/lib/run-phase.self-check.ts && tsx src/lib/extension-runtime.self-check.ts && tsx src/lib/toolkit-gates.self-check.ts && tsx src/lib/toolkit-catalog.self-check.ts && tsx src/lib/run-readiness.self-check.ts && tsx src/lib/isolated-script.self-check.ts && tsx src/lib/dom-extract.self-check.ts && tsx src/lib/capture-full-page.self-check.ts && tsx src/lib/scroll-page.self-check.ts && tsx src/lib/toolkit-actions.self-check.ts && tsx src/lib/toolkit-palette-open.self-check.ts && tsx src/lib/page-translate.self-check.ts && tsx src/lib/video-subtitles.self-check.ts && tsx src/lib/sniff-ingest.self-check.ts && tsx src/lib/format-bytes.self-check.ts && tsx src/lib/modify-headers.self-check.ts && tsx src/lib/json-format.self-check.ts && tsx src/lib/net-diag.self-check.ts && tsx src/lib/toolkit-run-result.self-check.ts && tsx src/lib/vision-ocr.self-check.ts && tsx src/lib/web-search.self-check.ts && tsx src/lib/local-workspace.self-check.ts && tsx src/lib/image-ask.self-check.ts && tsx src/lib/speech-dictation.self-check.ts && tsx src/lib/context-menu.self-check.ts && tsx src/lib/audio-record.self-check.ts && tsx src/lib/camera-capture.self-check.ts && tsx src/lib/run-supervisor.self-check.ts && tsx src/lib/page-markdown.self-check.ts && tsx src/modules/screenshot-studio/self-check.ts && tsx src/lib/regression.self-check.ts",
+    "zip": "wxt zip",
+    "postinstall": "wxt prepare"
+  },
+  "dependencies": {
+    "@mozilla/readability": "^0.6.0",
+    "@naviforge/context-metrics": "0.0.1",
+    "@naviforge/dom-plane": "0.0.1",
+    "@naviforge/intake": "0.0.1",
+    "@naviforge/network-plane": "0.0.1",
+    "@naviforge/observe": "0.0.1",
+    "@naviforge/playbook": "0.0.1",
+    "@naviforge/runtime": "0.0.1",
+    "@naviforge/session": "0.0.1",
+    "@naviforge/shared": "0.0.1",
+    "@naviforge/skill-runtime": "0.0.1",
+    "@page-agent/page-controller": "file:../../../page-agent/packages/page-controller",
+    "@tailwindcss/vite": "^4.3.3",
+    "clsx": "^2.1.1",
+    "jsonrepair": "^3.15.0",
+    "lucide-react": "^1.31.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "rrweb": "^2.1.1",
+    "tailwindcss": "^4.3.3",
+    "turndown": "^7.2.4",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.326",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@types/turndown": "^5.0.6",
+    "@wxt-dev/module-react": "^1.2.2",
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.0",
+    "vite": "7.1.12",
+    "wxt": "^0.21.4"
+  }
+}

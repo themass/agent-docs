@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "DeepTutor 四层上下文投影",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [900, 560]
+  },
+  "stages": [
+    { "label": "执行" },
+    { "label": "投影" },
+    { "label": "消费" }
+  ],
+  "nodes": [
+    { "id": "cap", "type": "backend", "label": "Capability", "sublabel": "AgentLoop", "stage": 0, "row": 1 },
+    { "id": "p1", "type": "messagebus", "label": "StreamEvent", "sublabel": "投影①", "stage": 1, "row": 0 },
+    { "id": "p2", "type": "database", "label": "turn_events", "sublabel": "投影②", "stage": 1, "row": 1 },
+    { "id": "p3", "type": "database", "label": "messages", "sublabel": "投影③", "stage": 1, "row": 2 },
+    { "id": "ui", "type": "frontend", "label": "Web UI", "sublabel": "subscribe", "stage": 2, "row": 0 },
+    { "id": "reg", "type": "security", "label": "regenerate", "sublabel": "seq 链", "stage": 2, "row": 1 },
+    { "id": "llm", "type": "external", "label": "LLM 采样", "sublabel": "ContextBuilder", "stage": 2, "row": 2 }
+  ],
+  "flows": [
+    { "from": "cap", "to": "p1", "label": "流式", "variant": "emphasis", "channelY": -60, "labelDy": -28 },
+    { "from": "cap", "to": "p2", "label": "轨迹", "variant": "emphasis", "channelY": 0, "labelAt": [240, 295] },
+    { "from": "cap", "to": "p3", "label": "终稿", "variant": "emphasis", "channelY": 60, "labelAt": [240, 355] },
+    { "from": "p1", "to": "ui", "label": "推送" },
+    { "from": "p2", "to": "reg", "label": "全轨迹" },
+    { "from": "p3", "to": "llm", "label": "build()", "variant": "emphasis", "labelDy": 28 }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "四者不同构",
+      "items": [
+        "Capability 同时写出 StreamEvent / turn_events / messages",
+        "ContextBuilder 另算第四层 LLM messages[]"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "易错点",
+      "items": [
+        "UI 看到的长流式内容 ≠ 下轮 history 长度",
+        "regenerate 依赖 turn_events，非仅 messages"
+      ]
+    }
+  ]
+}

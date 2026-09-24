@@ -1,0 +1,30 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Prime Goals 与 Autonomous 流程",
+    "locale": "zh-CN",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    { "id": "goals", "label": "Goals" }
+  ],
+  "nodes": [
+    { "id": "goal", "lane": "goals", "col": 0, "type": "frontend", "label": "/goal 指令" },
+    { "id": "state", "lane": "goals", "col": 1, "type": "cloud", "label": "GoalState" },
+    { "id": "entry", "lane": "goals", "col": 2, "type": "database", "label": "custom Entry" },
+    { "id": "bsc", "lane": "goals", "col": 3, "type": "backend", "label": "buildContext" },
+    { "id": "loop", "lane": "goals", "col": 4, "type": "backend", "label": "runLoop" },
+    { "id": "auto", "lane": "goals", "col": 5, "type": "external", "label": "Autonomous", "sublabel": "跨 Turn 目标" }
+  ],
+  "edges": [
+    { "id": "g1", "from": "goal", "to": "state" },
+    { "id": "g2", "from": "state", "to": "entry", "label": "写入 JSONL" },
+    { "id": "g3", "from": "entry", "to": "bsc", "label": "注入" },
+    { "id": "g4", "from": "bsc", "to": "loop", "variant": "emphasis" },
+    { "id": "g5", "from": "loop", "to": "auto", "label": "精炼进度", "variant": "dashed" }
+  ],
+  "cards": [
+    { "dot": "violet", "title": "跨 Turn", "items": ["Goals 在 Session 层，不靠用户每轮重复总目标"] }
+  ]
+}

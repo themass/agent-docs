@@ -1,0 +1,9 @@
+{
+  "extName": { "message": "NaviForge" },
+  "extDescription": { "message": "教会网页，锻造工作流。" },
+  "contextOpenAgent": { "message": "打开 NaviForge Agent" },
+  "contextAskSelection": { "message": "用 NaviForge 提问选中内容" },
+  "contextMore": { "message": "NaviForge" },
+  "contextOpenWorkspace": { "message": "打开工作台" },
+  "contextOpenTools": { "message": "工具列表" }
+}

@@ -1,0 +1,19 @@
+# Copy to ~/.hermes/profiles/content-studio/config.yaml — do not commit real keys.
+model:
+  default: gemini-3.1-pro-preview
+  provider: custom
+  api_key: sk-your-key-here
+  base_url: http://127.0.0.1:8080/v1
+providers:
+  manifest:
+    type: openai
+    base_url: http://127.0.0.1:8080/v1
+    key_env: CUSTOM_API_KEY
+toolsets:
+  - hermes-cli
+agent:
+  max_turns: 90
+  gateway_timeout: 1800
+terminal:
+  backend: local
+  timeout: 3600

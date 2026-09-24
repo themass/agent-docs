@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{TITLE}}</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main id="app" class="story-shell"></main>
+    <script id="story-data" type="application/json">{{STORY_DATA}}</script>
+    <script>
+      const data = JSON.parse(document.getElementById("story-data").textContent);
+      const app = document.getElementById("app");
+
+      const esc = (value) =>
+        String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;");
+
+      const projectCard = (project, index) => `
+        <section class="story-section project-section">
+          <div class="section-copy">
+            <p class="eyebrow">链上角色 0${index + 1}</p>
+            <h2>${esc(project.shortName)}</h2>
+            <p class="role">${esc(project.role)}</p>
+            <p class="summary">${esc(project.summary)}</p>
+            <div class="repo-meta">
+              <span>#${esc(project.rank || index + 1)}</span>
+              <span>${esc(project.language || "GitHub")}</span>
+              <span>${esc(project.repo)}</span>
+            </div>
+          </div>
+          <div class="browser-frame">
+            <div class="browser-top">
+              <span></span><span></span><span></span>
+              <strong>github.com/${esc(project.repo)}</strong>
+            </div>
+            <div class="github-shot-wrap">
+              <div class="github-scroll-layer">
+                <img class="github-shot" src="${esc(project.screenshot)}" alt="${esc(project.repo)} GitHub screenshot" />
+                <div class="callout callout-stars">Star / Watch</div>
+                <div class="callout callout-readme">README</div>
+              </div>
+            </div>
+          </div>
+        </section>
+      `;
+
+      app.innerHTML = `
+        <section class="story-section hero-section">
+          <p class="eyebrow">Content Studio · ${esc(data.date)}</p>
+          <h1>${esc(data.theme.title)}</h1>
+          <p class="thesis">${esc(data.theme.thesis)}</p>
+          <div class="tag-row">
+            ${data.theme.tags.map((tag) => `<span>${esc(tag)}</span>`).join("")}
+          </div>
+          <div class="ranking-panel">
+            ${data.projects
+              .map(
+                (project, index) => `
+                  <div class="ranking-row">
+                    <b>#${esc(project.rank || index + 1)}</b>
+                    <strong>${esc(project.shortName)}</strong>
+                    <span>${esc(project.role)}</span>
+                  </div>
+                `,
+              )
+              .join("")}
+          </div>
+          <p class="chain">${data.theme.chain.map(esc).join(" → ")}</p>
+        </section>
+
+        ${data.projects.map(projectCard).join("")}
+
+        <section class="story-section summary-section">
+          <p class="eyebrow">长期判断</p>
+          <h2>接下来的核心竞争力</h2>
+          <h3>不是模型接口，而是工程化链路</h3>
+          <div class="summary-grid">
+            ${data.summary.bullets
+              .map(
+                (item, index) => `
+                  <article>
+                    <b>${["趋势", "机会", "行动"][index] || "判断"}</b>
+                    <p>${esc(item)}</p>
+                  </article>
+                `,
+              )
+              .join("")}
+          </div>
+          <p class="summary-line">${esc(data.summary.oneLine)}</p>
+        </section>
+      `;
+    </script>
+  </body>
+</html>

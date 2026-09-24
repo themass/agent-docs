@@ -1,0 +1,28 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "OpenCode 队列与 steer",
+    "locale": "zh-CN",
+    "quality_profile": "showcase"
+  },
+  "lanes": [{ "id": "q", "label": "session_input" }],
+  "nodes": [
+    { "id": "prompt", "lane": "q", "col": 0, "type": "frontend", "label": "prompt" },
+    { "id": "admit", "lane": "q", "col": 1, "type": "backend", "label": "admit" },
+    { "id": "inbox", "lane": "q", "col": 2, "type": "database", "label": "inbox" },
+    { "id": "promote", "lane": "q", "col": 3, "type": "messagebus", "label": "promote" },
+    { "id": "steer", "lane": "q", "col": 4, "type": "security", "label": "steer" },
+    { "id": "drain", "lane": "q", "col": 5, "type": "backend", "label": "Drain" }
+  ],
+  "edges": [
+    { "id": "q1", "from": "prompt", "to": "admit" },
+    { "id": "q2", "from": "admit", "to": "inbox" },
+    { "id": "q3", "from": "inbox", "to": "promote" },
+    { "id": "q4", "from": "steer", "to": "promote", "label": "插队", "variant": "security" },
+    { "id": "q5", "from": "promote", "to": "drain", "variant": "emphasis" }
+  ],
+  "cards": [
+    { "dot": "rose", "title": "队列", "items": ["session_input 持久化；steer 在 Drain 前 promote"] }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "extName": { "message": "NaviForge" },
+  "extDescription": { "message": "Teach the web. Forge the workflow." },
+  "contextOpenAgent": { "message": "Open NaviForge Agent" },
+  "contextAskSelection": { "message": "Ask NaviForge about selection" },
+  "contextMore": { "message": "NaviForge" },
+  "contextOpenWorkspace": { "message": "Open workspace" },
+  "contextOpenTools": { "message": "Tool list" }
+}

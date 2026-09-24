@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "MetaGPT Environment publish / run",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [960, 560],
+    "column_fit": "spread"
+  },
+  "participants": [
+    { "id": "pub", "type": "backend", "label": "Team / Role", "sublabel": "发布方" },
+    { "id": "env", "type": "messagebus", "label": "Environment", "sublabel": "总线" },
+    { "id": "route", "type": "security", "label": "member_addrs", "sublabel": "路由表" },
+    { "id": "role", "type": "backend", "label": "Role", "sublabel": "订阅方" },
+    { "id": "hist", "type": "database", "label": "env.history", "sublabel": "调试 Memory" }
+  ],
+  "segments": [
+    { "from": 150, "to": 280, "label": "publish_message" },
+    { "from": 295, "to": 420, "label": "env.run()" },
+    { "from": 435, "to": 500, "label": "并行 tick" }
+  ],
+  "messages": [
+    { "from": "pub", "to": "env", "y": 160, "label": "publish_message(msg)", "variant": "emphasis" },
+    { "from": "env", "to": "route", "y": 188, "label": "遍历 member_addrs" },
+    { "from": "route", "to": "env", "y": 216, "label": "is_send_to?", "variant": "return" },
+    { "from": "env", "to": "role", "y": 244, "label": "put_message → msg_buffer" },
+    { "from": "env", "to": "hist", "y": 272, "label": "追加 history", "variant": "dashed" },
+    { "from": "pub", "to": "env", "y": 310, "label": "env.run()", "variant": "emphasis" },
+    { "from": "env", "to": "role", "y": 338, "label": "非 idle Role 并行" },
+    { "from": "role", "to": "env", "y": 366, "label": "observe → react → publish", "variant": "return" },
+    { "from": "env", "to": "pub", "y": 394, "label": "is_idle()?", "variant": "return" },
+    { "from": "env", "to": "role", "y": 438, "label": "MGX: 经 TeamLeader 派活", "variant": "dashed" }
+  ],
+  "activations": [
+    { "participant": "pub", "from": 158, "to": 428, "type": "backend" },
+    { "participant": "env", "from": 158, "to": 428, "type": "messagebus" },
+    { "participant": "route", "from": 186, "to": 224, "type": "security" },
+    { "participant": "role", "from": 236, "to": 400, "type": "backend" },
+    { "participant": "hist", "from": 270, "to": 278, "type": "database" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "总线语义",
+      "items": [
+        "publish_message 不硬编码下游 Role；由 is_send_to 与 member_addrs 决定投递",
+        "一轮 env.run() = 所有非 idle Role 并行 tick，非严格轮流"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "MGXEnv",
+      "items": [
+        "常规消息先 send_to TeamLeader，再由 publish_team_message 派活目标 Role"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+# JobCome embedded DeerFlow harness (see docs/DeerFlow接入.md)
+config_version: 3
+
+models:
+  - name: jobcome-coach
+    display_name: JobCome Coach
+    use: langchain_openai:ChatOpenAI
+    model: mt-gpt-5-6-terra
+    base_url: $YUAI_API_BASE
+    api_key: $YUAI_API_KEY
+    max_tokens: 8192
+    context_window: 200000
+    temperature: 0.1
+
+  - name: jobcome-writer
+    display_name: JobCome Writer
+    use: langchain_openai:ChatOpenAI
+    model: bt-deepseek-v4-pro
+    base_url: $YUAI_API_BASE
+    api_key: $YUAI_API_KEY
+    max_tokens: 8192
+    context_window: 200000
+    temperature: 0.1
+
+skills:
+  path: skills
+
+checkpointer:
+  type: sqlite
+  connection_string: .data/deerflow/checkpoints.sqlite3
+
+token_usage:
+  enabled: true
+
+summarization:
+  enabled: true
+  model_name: null
+  trigger:
+    - type: tokens
+      # Auto: JOB_COME_MODEL_CONTEXT_WINDOW × JOB_COME_SUMMARIZATION_TRIGGER_RATIO (default 200k × 0.16 = 32k)
+      value: $JOB_COME_SUMMARIZATION_TRIGGER_TOKENS
+  keep:
+    type: messages
+    value: $JOB_COME_SUMMARIZATION_KEEP_MESSAGES
+  trim_tokens_to_summarize: 15564
+
+subagent_runtime:
+  max_running: 3
+  max_queued: 64
+  admission_policy: queue
+  queue_timeout_seconds: 300
+
+subagents:
+  max_total_per_run: 6
+  timeout_seconds: 1800
+  custom_agents:
+    resume-writer:
+      description: Generate job-tailored elevated resume sections from verified profile facts only.
+      system_prompt: |
+        You are Resume Writer for JobCome. Read profile via jobcome_profile_get.
+        Write structured resume sections with elevation_map; never invent employers or metrics.
+        Use the resume-writer skill rubric. Delegate review to resume-reviewer before export.
+      tools:
+        - jobcome_profile_get
+        - jobcome_resume_review
+      skills:
+        - resume-writer
+      model: jobcome-writer
+      max_turns: 30
+      timeout_seconds: 600
+    resume-reviewer:
+      description: Review resume draft for factual consistency before export or apply pipeline.
+      system_prompt: |
+        You are Resume Reviewer for JobCome. Call jobcome_resume_review on the latest draft.
+        Report pass/fail with concrete issues. Block export when facts are unsupported.
+      tools:
+        - jobcome_profile_get
+        - jobcome_resume_review
+      skills:
+        - resume-reviewer
+      model: jobcome-coach
+      max_turns: 20
+      timeout_seconds: 300
+
+memory:
+  enabled: false
+
+title:
+  enabled: false
+
+authorization:
+  enabled: false
+
+sandbox:
+  use: deerflow.sandbox.local:LocalSandboxProvider
+  allow_host_bash: false
+
+tool_search:
+  enabled: false

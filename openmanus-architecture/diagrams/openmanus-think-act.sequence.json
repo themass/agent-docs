@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "think / act 内层 ReAct",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [900, 580],
+    "column_fit": "spread"
+  },
+  "participants": [
+    { "id": "agent", "type": "backend", "label": "ToolCallAgent", "sublabel": "toolcall.py" },
+    { "id": "memory", "type": "database", "label": "Memory", "sublabel": "max 100" },
+    { "id": "llm", "type": "external", "label": "LLM", "sublabel": "ask_tool" },
+    { "id": "tcoll", "type": "backend", "label": "ToolCollection", "sublabel": "execute" },
+    { "id": "state", "type": "cloud", "label": "AgentState", "sublabel": "FINISHED" }
+  ],
+  "segments": [
+    { "from": 150, "to": 280, "label": "think 决策" },
+    { "from": 295, "to": 430, "label": "act 副作用" }
+  ],
+  "messages": [
+    { "from": "agent", "to": "memory", "y": 160, "label": "add next_step_prompt (user)" },
+    { "from": "agent", "to": "llm", "y": 188, "label": "ask_tool(messages, tools)", "variant": "emphasis" },
+    { "from": "llm", "to": "agent", "y": 216, "label": "assistant + tool_calls", "variant": "return" },
+    { "from": "agent", "to": "memory", "y": 244, "label": "add assistant message" },
+    { "from": "agent", "to": "tcoll", "y": 310, "label": "execute(name, args)", "variant": "emphasis" },
+    { "from": "tcoll", "to": "agent", "y": 338, "label": "ToolResult", "variant": "return" },
+    { "from": "agent", "to": "memory", "y": 366, "label": "add tool message" },
+    { "from": "agent", "to": "tcoll", "y": 394, "label": "下一 tool_call", "variant": "dashed" },
+    { "from": "agent", "to": "state", "y": 422, "label": "Terminate → FINISHED", "variant": "emphasis" }
+  ],
+  "activations": [
+    { "participant": "agent", "from": 157, "to": 458, "type": "backend" },
+    { "participant": "memory", "from": 157, "to": 252, "type": "database" },
+    { "participant": "llm", "from": 185, "to": 222, "type": "external" },
+    { "participant": "tcoll", "from": 307, "to": 400, "type": "backend" },
+    { "participant": "memory", "from": 363, "to": 378, "type": "database" },
+    { "participant": "state", "from": 419, "to": 434, "type": "cloud" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "内层循环",
+      "items": [
+        "think 与 act 在同一 step() 内完成一轮决策与执行",
+        "tool_choices 支持 AUTO / REQUIRED / NONE"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "终止条件",
+      "items": [
+        "Terminate 在 special_tool_names 中，触发 _handle_special_tool 设 FINISHED"
+      ]
+    }
+  ]
+}

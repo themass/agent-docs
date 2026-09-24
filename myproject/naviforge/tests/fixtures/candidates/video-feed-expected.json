@@ -1,0 +1,11 @@
+{
+  "fixture": "/fixtures/video-feed.html",
+  "url": "https://video.example.com/",
+  "n": 4,
+  "titles": [
+    "三分钟看懂扩散模型",
+    "从零实现一个浏览器 Agent",
+    "Rust 所有权到底在解决什么问题",
+    "一次讲清 HTTP 缓存策略"
+  ]
+}

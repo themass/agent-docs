@@ -1,0 +1,13 @@
+公司：某 AI 创业公司
+岗位：iOS 工程师
+
+要求：
+- 3年以上 Swift / Objective-C 开发经验
+- 熟悉 UIKit、SwiftUI、网络层与本地存储
+- 有 App Store 上架与崩溃治理经验
+- 对 LLM 应用或语音交互有兴趣加分
+
+职责：
+- 负责 iOS 客户端核心功能开发与性能优化
+- 与后端协作定义 API 与埋点方案
+- 参与技术选型与 Code Review

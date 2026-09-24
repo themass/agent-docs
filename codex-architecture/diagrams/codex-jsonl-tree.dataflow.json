@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Codex Rollout JSONL：三真相投影",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [900, 560]
+  },
+  "stages": [
+    { "label": "热路径" },
+    { "label": "投影" },
+    { "label": "消费" }
+  ],
+  "nodes": [
+    { "id": "rt", "type": "backend", "label": "run_turn", "sublabel": "Step 采样", "stage": 0, "row": 1 },
+    { "id": "ctx", "type": "database", "label": "ContextManager", "sublabel": "模型 prompt", "stage": 1, "row": 0 },
+    { "id": "eq", "type": "messagebus", "label": "EventMsg", "sublabel": "EQ 流式", "stage": 1, "row": 1 },
+    { "id": "jsonl", "type": "database", "label": "Rollout jsonl", "sublabel": "append-only", "stage": 1, "row": 2 },
+    { "id": "llm", "type": "external", "label": "下一轮采样", "sublabel": "for_prompt()", "stage": 2, "row": 0 },
+    { "id": "ui", "type": "frontend", "label": "TUI / IDE", "sublabel": "next_event", "stage": 2, "row": 1 },
+    { "id": "resume", "type": "security", "label": "Resume / Fork", "sublabel": "重放行", "stage": 2, "row": 2 }
+  ],
+  "flows": [
+    { "from": "rt", "to": "ctx", "label": "prompt", "variant": "emphasis", "channelY": -60, "labelDy": -28 },
+    { "from": "rt", "to": "eq", "label": "EQ", "variant": "emphasis", "channelY": 0, "labelAt": [240, 295] },
+    { "from": "rt", "to": "jsonl", "label": "jsonl", "variant": "emphasis", "channelY": 60, "labelAt": [240, 355] },
+    { "from": "ctx", "to": "llm", "label": "history" },
+    { "from": "eq", "to": "ui", "label": "流式 delta" },
+    { "from": "jsonl", "to": "resume", "label": "Phase1 扫描" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "三真相",
+      "items": [
+        "run_turn 同时写出 ContextManager / EventMsg / Rollout",
+        "PlanUpdate 等瞬时事件可能不进 durable rollout"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Compacted 检查点",
+      "items": [
+        "Token Budget 切窗后写入 Compacted { replacement_history }",
+        "旧 ResponseItem 行保留，逻辑上被替换"
+      ]
+    }
+  ]
+}

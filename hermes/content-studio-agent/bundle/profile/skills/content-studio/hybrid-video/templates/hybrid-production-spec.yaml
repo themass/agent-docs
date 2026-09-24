@@ -1,0 +1,80 @@
+version: 1
+profile: content-studio
+pipeline: hybrid-video
+
+metadata:
+  date: "YYYY-MM-DD"
+  source_report: "/Users/gqli/.hermes/profiles/content-studio/reports/YYYY/MM/YYYY-MM-DD.md"
+  script_file: "/Users/gqli/.hermes/profiles/content-studio/reports/YYYY/MM/YYYY-MM-DD-video-script.md"
+  storyboard_file: "/Users/gqli/.hermes/profiles/content-studio/reports/YYYY/MM/YYYY-MM-DD-hybrid-storyboard.md"
+  output_video: "/Users/gqli/.hermes/profiles/content-studio/reports/YYYY/MM/YYYY-MM-DD-hybrid-video.mp4"
+  asset_dir: "/Users/gqli/.hermes/profiles/content-studio/reports/YYYY/MM/assets/YYYY-MM-DD-hybrid"
+
+render_policy:
+  preserve_existing_pipelines: true
+  fail_fast_on_github: true
+  ai_broll_failure_policy: card_fallback
+  max_ai_broll_segments: 3
+
+theme:
+  thesis: "一句行业判断"
+  trend_label: "趋势标签"
+
+segments:
+  - id: intro-thesis
+    asset_type: card
+    visual_type: concept_card
+    duration_seconds: 12
+    narration_ref: intro
+    card:
+      title: "趋势标签"
+      subtitle: "一句 thesis"
+      bullets:
+        - "证据 1"
+        - "证据 2"
+
+  - id: intro-ai-broll
+    asset_type: ai_broll
+    visual_type: ai_generated
+    duration_seconds: 6
+    narration_ref: intro_metaphor
+    visual_prompt: "A vertical cinematic 9:16 visual metaphor for the thesis, professional developer-tool atmosphere, no readable text, no logos."
+    negative_prompt: "watermark, logo, fake text, unreadable text, blurry, distorted hands, generic programmer typing"
+    ai_broll:
+      provider: volcengine_seedance
+      mode: text_to_video
+      fallback: concept_card
+
+  - id: project-1-github
+    asset_type: github
+    visual_type: github_scroll_callout
+    duration_seconds: 20
+    narration_ref: project_1_evidence
+    repo: "owner/repo"
+    callouts:
+      - repo_name
+      - stars
+      - readme
+
+  - id: project-1-card
+    asset_type: card
+    visual_type: concept_card
+    duration_seconds: 8
+    narration_ref: project_1_capabilities
+    card:
+      title: "链上角色"
+      bullets:
+        - "痛点"
+        - "能力"
+        - "意义"
+
+  - id: outro-summary
+    asset_type: card
+    visual_type: summary_card
+    duration_seconds: 12
+    narration_ref: outro
+    card:
+      title: "长期判断"
+      bullets:
+        - "趋势"
+        - "机会"

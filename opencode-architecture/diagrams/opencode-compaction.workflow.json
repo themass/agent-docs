@@ -1,0 +1,28 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "OpenCode Compaction 压缩",
+    "locale": "zh-CN",
+    "quality_profile": "showcase"
+  },
+  "lanes": [{ "id": "cmp", "label": "Compaction" }],
+  "nodes": [
+    { "id": "check", "lane": "cmp", "col": 0, "type": "security", "label": "token 检查" },
+    { "id": "gate", "lane": "cmp", "col": 1, "type": "backend", "label": "超 buffer" },
+    { "id": "summary", "lane": "cmp", "col": 2, "type": "external", "label": "LLM 摘要" },
+    { "id": "cutoff", "lane": "cmp", "col": 3, "type": "database", "label": "History cutoff" },
+    { "id": "epoch", "lane": "cmp", "col": 4, "type": "cloud", "label": "新 Epoch" },
+    { "id": "resume", "lane": "cmp", "col": 5, "type": "backend", "label": "续跑 Turn" }
+  ],
+  "edges": [
+    { "id": "c1", "from": "check", "to": "gate" },
+    { "id": "c2", "from": "gate", "to": "summary", "variant": "emphasis" },
+    { "id": "c3", "from": "summary", "to": "cutoff" },
+    { "id": "c4", "from": "cutoff", "to": "epoch" },
+    { "id": "c5", "from": "epoch", "to": "resume" }
+  ],
+  "cards": [
+    { "dot": "amber", "title": "Epoch", "items": ["压缩后切换 Context Epoch，保留尾部 tokens"] }
+  ]
+}

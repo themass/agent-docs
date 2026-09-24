@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Codex 子 Agent：spawn 与跨线程投递",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [1000, 620],
+    "column_fit": "spread"
+  },
+  "participants": [
+    { "id": "pr", "type": "backend", "label": "父 run_turn", "sublabel": "Step 内" },
+    { "id": "tr", "type": "backend", "label": "ToolRouter", "sublabel": "FunctionCall" },
+    { "id": "ac", "type": "cloud", "label": "AgentControl", "sublabel": "Thread 树" },
+    { "id": "cs", "type": "backend", "label": "子 Session", "sublabel": "独立 history" },
+    { "id": "sl", "type": "messagebus", "label": "子 submission_loop", "sublabel": "SQ" },
+    { "id": "mb", "type": "database", "label": "input_queue", "sublabel": "邮箱" }
+  ],
+  "segments": [
+    { "from": 160, "to": 280, "label": "Spawn" },
+    { "from": 295, "to": 420, "label": "投递" },
+    { "from": 435, "to": 520, "label": "回传" }
+  ],
+  "messages": [
+    { "from": "pr", "to": "tr", "y": 170, "label": "spawn_agent" },
+    { "from": "tr", "to": "ac", "y": 198, "label": "spawn_agent_with_metadata", "variant": "emphasis" },
+    { "from": "ac", "to": "cs", "y": 226, "label": "新建 Thread + Session" },
+    { "from": "pr", "to": "tr", "y": 268, "label": "send_input" },
+    { "from": "tr", "to": "ac", "y": 296, "label": "submit TurnInput" },
+    { "from": "ac", "to": "cs", "y": 324, "label": "Start / Steer" },
+    { "from": "cs", "to": "sl", "y": 352, "label": "turn_input" },
+    { "from": "pr", "to": "tr", "y": 394, "label": "send_message" },
+    { "from": "tr", "to": "ac", "y": 422, "label": "InterAgentCommunication" },
+    { "from": "ac", "to": "mb", "y": 450, "label": "enqueue 邮箱", "variant": "emphasis" },
+    { "from": "mb", "to": "sl", "y": 478, "label": "maybe_start_turn" },
+    { "from": "cs", "to": "pr", "y": 506, "label": "回传父 history", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "pr", "from": 168, "to": 514, "type": "backend" },
+    { "participant": "tr", "from": 168, "to": 430, "type": "backend" },
+    { "participant": "ac", "from": 196, "to": 458, "type": "cloud" },
+    { "participant": "cs", "from": 224, "to": 486, "type": "backend" },
+    { "participant": "sl", "from": 350, "to": 486, "type": "messagebus" },
+    { "participant": "mb", "from": 448, "to": 486, "type": "database" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "两层语义",
+      "items": [
+        "对模型是 ToolRouter 里的普通 FunctionCall",
+        "运行时每个子 Agent 是独立 Session + submission_loop"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "两条投递路径",
+      "items": [
+        "send_input → TurnInput → pending_input（steer）",
+        "send_message → InterAgentCommunication → 邮箱"
+      ]
+    }
+  ]
+}

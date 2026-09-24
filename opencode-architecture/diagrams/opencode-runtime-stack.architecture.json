@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "OpenCode 运行时分层总览",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [1000, 400]
+  },
+  "components": [
+    { "id": "client", "type": "frontend", "label": "客户端", "sublabel": "TUI/SDK", "pos": [60, 170], "size": [120, 60] },
+    { "id": "http", "type": "cloud", "label": "HttpApi", "sublabel": "protocol", "pos": [220, 170], "size": [120, 60] },
+    { "id": "handler", "type": "backend", "label": "handlers", "sublabel": "server", "pos": [380, 170], "size": [120, 60] },
+    { "id": "admit", "type": "backend", "label": "SessionInput", "sublabel": "admit", "pos": [540, 170], "size": [120, 60] },
+    { "id": "wake", "type": "backend", "label": "Execution", "sublabel": "wake", "pos": [700, 170], "size": [120, 60] },
+    { "id": "drain", "type": "backend", "label": "SessionRunner", "sublabel": "Drain", "pos": [860, 170], "size": [120, 60] },
+    { "id": "inbox", "type": "database", "label": "session_input", "sublabel": "inbox", "pos": [540, 60], "size": [120, 60] },
+    { "id": "tools", "type": "messagebus", "label": "ToolRegistry", "sublabel": "settle", "pos": [860, 60], "size": [120, 60] }
+  ],
+  "connections": [
+    { "from": "client", "to": "http", "label": "RPC" },
+    { "from": "http", "to": "handler" },
+    { "from": "handler", "to": "admit", "label": "prompt" },
+    { "from": "admit", "to": "inbox", "fromSide": "top", "toSide": "bottom" },
+    { "from": "admit", "to": "wake" },
+    { "from": "wake", "to": "drain", "variant": "emphasis" },
+    { "from": "drain", "to": "tools", "label": "tool", "fromSide": "top", "toSide": "bottom" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "双路径", "items": ["准入持久化 inbox；执行层进程内 Drain + ContextEpoch"] }
+  ]
+}

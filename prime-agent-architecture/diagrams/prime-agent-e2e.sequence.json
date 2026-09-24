@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Prime Agent 端到端详版时序",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [960, 580],
+    "column_fit": "spread"
+  },
+  "participants": [
+    { "id": "client", "type": "frontend", "label": "客户端", "sublabel": "TUI/RPC" },
+    { "id": "daemon", "type": "backend", "label": "Daemon", "sublabel": "v7" },
+    { "id": "worker", "type": "backend", "label": "AgentSession", "sublabel": "Worker" },
+    { "id": "loop", "type": "backend", "label": "runAgentLoop", "sublabel": "内环" },
+    { "id": "llm", "type": "external", "label": "streamSimple", "sublabel": "pi-ai" },
+    { "id": "kernel", "type": "backend", "label": "IPython", "sublabel": "Kernel" },
+    { "id": "host", "type": "backend", "label": "host.request", "sublabel": "TS 侧" },
+    { "id": "jsonl", "type": "database", "label": "JSONL", "sublabel": "账本" }
+  ],
+  "segments": [
+    { "from": 170, "to": 250, "label": "提交" },
+    { "from": 265, "to": 430, "label": "内环循环" },
+    { "from": 445, "to": 500, "label": "回传" }
+  ],
+  "messages": [
+    { "from": "client", "to": "daemon", "y": 180, "label": "prompt/steer" },
+    { "from": "daemon", "to": "worker", "y": 208, "label": "路由" },
+    { "from": "worker", "to": "jsonl", "y": 236, "label": "buildContext", "variant": "dashed" },
+    { "from": "worker", "to": "loop", "y": 264, "label": "runAgentLoop", "variant": "emphasis" },
+    { "from": "loop", "to": "llm", "y": 292, "label": "stream" },
+    { "from": "llm", "to": "loop", "y": 320, "label": "tool_use", "variant": "return" },
+    { "from": "loop", "to": "kernel", "y": 348, "label": "execute cell" },
+    { "from": "kernel", "to": "host", "y": 376, "label": "读盘/写盘" },
+    { "from": "host", "to": "kernel", "y": 404, "label": "result", "variant": "return" },
+    { "from": "kernel", "to": "loop", "y": 432, "label": "cell 输出", "variant": "return" },
+    { "from": "loop", "to": "jsonl", "y": 460, "label": "append", "variant": "dashed" },
+    { "from": "worker", "to": "client", "y": 488, "label": "turn 事件", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "client", "from": 178, "to": 491, "type": "frontend" },
+    { "participant": "daemon", "from": 178, "to": 215, "type": "backend" },
+    { "participant": "worker", "from": 206, "to": 491, "type": "backend" },
+    { "participant": "loop", "from": 262, "to": 468, "type": "backend" },
+    { "participant": "llm", "from": 289, "to": 326, "type": "external" },
+    { "participant": "kernel", "from": 345, "to": 438, "type": "backend" },
+    { "participant": "host", "from": 373, "to": 410, "type": "backend" },
+    { "participant": "jsonl", "from": 457, "to": 478, "type": "database" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "上下文", "items": ["prompt 前 buildSessionContext 折叠 compaction"] },
+    { "dot": "emerald", "title": "IPython 路径", "items": ["特权 IO 经 host.request，Kernel 不直接碰盘"] }
+  ]
+}

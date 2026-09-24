@@ -1,0 +1,39 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "PlanningFlow 外环逐步执行",
+    "locale": "zh-CN",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    { "id": "flow", "label": "PlanningFlow" },
+    { "id": "exec", "label": "Executor" }
+  ],
+  "nodes": [
+    { "id": "create", "lane": "flow", "col": 0, "type": "cloud", "label": "create plan", "sublabel": "Flow.llm" },
+    { "id": "pick", "lane": "flow", "col": 1, "type": "backend", "label": "取当前 step", "sublabel": "首个 active" },
+    { "id": "route", "lane": "flow", "col": 2, "type": "backend", "label": "get_executor", "sublabel": "[AGENT]" },
+    { "id": "run", "lane": "exec", "col": 3, "type": "frontend", "label": "executor.run", "sublabel": "完整 ReAct" },
+    { "id": "mark", "lane": "flow", "col": 4, "type": "database", "label": "mark completed" },
+    { "id": "done", "lane": "flow", "col": 5, "type": "external", "label": "finalize", "sublabel": "Flow.llm.ask" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "create", "to": "pick", "label": "plans[] 全 not_started" },
+    { "id": "e2", "from": "pick", "to": "route", "label": "step_info.type" },
+    { "id": "e3", "from": "route", "to": "run", "label": "step_prompt", "variant": "emphasis" },
+    { "id": "e4", "from": "run", "to": "mark", "label": "run 返回即勾完" },
+    { "id": "e5", "from": "mark", "to": "pick", "label": "还有 active", "variant": "dashed" },
+    { "id": "e6", "from": "pick", "to": "done", "label": "无 active step" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "外环不管内环细节",
+      "items": [
+        "一个 plan step 内最多 20 次 think/act；Flow 只回收一段字符串",
+        "terminate 被 state_context 改回 IDLE，外环仍继续后续步骤"
+      ]
+    }
+  ]
+}

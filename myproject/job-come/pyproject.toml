@@ -1,0 +1,70 @@
+[project]
+name = "jobcome"
+version = "0.1.0"
+description = "JobCome API — resume, interview coach, DeerFlow agents"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "agentkit",
+    "deerflow-extension-api==0.1.2",
+    "deerflow-harness",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "uvicorn[standard]>=0.32.0",
+    "aiomysql>=0.2.0",
+    "python-multipart>=0.0.12",
+    "bcrypt>=4.2.0",
+    "pydantic-settings>=2.6.0",
+    "email-validator>=2.2.0",
+    "alembic>=1.14.0",
+    "httpx>=0.28.0",
+    "pymupdf>=1.24.0",
+    "python-docx>=1.1.0",
+    "jinja2>=3.1.0",
+    "litellm>=1.55.0",
+    "langgraph==1.2.9",
+    "pyyaml>=6.0.0",
+    "mcp>=1.2.0,<2",
+]
+
+[tool.uv.sources]
+agentkit = { path = "../libs/agentkit", editable = true }
+deerflow-harness = { path = "../libs/agentkit/vendor/deer-flow/backend/packages/harness", editable = true }
+deerflow-extension-api = { path = "../libs/agentkit/vendor/deer-flow/backend/packages/extension-api", editable = true }
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
+]
+export = [
+    "playwright>=1.49.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/jobcome"]
+
+[project.scripts]
+jobcome-mcp = "jobcome.mcp.server:main"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["jobcome"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

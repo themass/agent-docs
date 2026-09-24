@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "MetaGPT 消息总线：cause_by / watch",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [900, 520]
+  },
+  "stages": [
+    { "label": "发布" },
+    { "label": "路由" },
+    { "label": "订阅" }
+  ],
+  "nodes": [
+    { "id": "producer", "type": "backend", "label": "Role / Action", "sublabel": "产出方", "stage": 0, "row": 1 },
+    { "id": "msg", "type": "messagebus", "label": "Message", "sublabel": "cause_by 边键", "stage": 0, "row": 0 },
+    { "id": "env", "type": "messagebus", "label": "Environment", "sublabel": "publish_message", "stage": 1, "row": 1 },
+    { "id": "addrs", "type": "backend", "label": "member_addrs", "sublabel": "send_to 路由", "stage": 1, "row": 0 },
+    { "id": "buffer", "type": "database", "label": "msg_buffer", "sublabel": "Role 队列", "stage": 2, "row": 0 },
+    { "id": "watch", "type": "security", "label": "watch 过滤", "sublabel": "cause_by 匹配", "stage": 2, "row": 1 },
+    { "id": "react", "type": "backend", "label": "react()", "sublabel": "触发内层循环", "stage": 2, "row": 2 }
+  ],
+  "flows": [
+    { "from": "producer", "to": "msg", "label": "AIMessage", "variant": "emphasis" },
+    { "from": "msg", "to": "env", "label": "publish", "variant": "emphasis" },
+    { "from": "env", "to": "addrs", "label": "is_send_to" },
+    { "from": "env", "to": "buffer", "label": "put_message" },
+    { "from": "buffer", "to": "watch", "label": "observe", "labelDy": 24 },
+    { "from": "watch", "to": "react", "label": "rc.news", "variant": "emphasis", "labelDy": 24 }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "SOP = 消息图",
+      "items": [
+        "经典链：UserRequirement → WritePRD → WriteDesign → WriteTasks → WriteCode",
+        "watch 命中后写入 role.memory，再触发 react() 内层循环"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "MGX 增强",
+      "items": [
+        "MGXEnv 常规消息先 send_to TeamLeader，再由 Leader publish_team_message 派活"
+      ]
+    }
+  ]
+}

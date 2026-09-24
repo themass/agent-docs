@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "OpenAI Agents SDK Runner 栈",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [1000, 480]
+  },
+  "components": [
+    { "id": "app", "type": "frontend", "label": "应用", "sublabel": "宿主", "pos": [48, 200], "size": [110, 56] },
+    { "id": "runner", "type": "backend", "label": "Runner", "sublabel": "run.py", "pos": [198, 200], "size": [110, 56] },
+    { "id": "loop", "type": "backend", "label": "run_loop", "sublabel": "核心循环", "pos": [348, 200], "size": [120, 56] },
+    { "id": "agent", "type": "backend", "label": "Agent", "sublabel": "Handoff 边", "pos": [518, 100], "size": [110, 56] },
+    { "id": "model", "type": "external", "label": "Model", "sublabel": "provider", "pos": [678, 100], "size": [110, 56] },
+    { "id": "tools", "type": "messagebus", "label": "Tools", "sublabel": "function/MCP", "pos": [518, 300], "size": [110, 56] },
+    { "id": "session", "type": "database", "label": "Session", "sublabel": "RunItem 账本", "pos": [678, 300], "size": [120, 56] },
+    { "id": "guard", "type": "security", "label": "Guardrails", "sublabel": "护栏", "pos": [198, 80], "size": [110, 56] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "公开 API", "wraps": ["app", "runner", "guard"] },
+    { "kind": "region", "label": "run_internal", "wraps": ["loop", "session"] }
+  ],
+  "connections": [
+    { "from": "app", "to": "runner", "label": "Runner.run", "labelDy": -20 },
+    { "from": "runner", "to": "loop", "label": "编排", "variant": "emphasis" },
+    { "from": "loop", "to": "agent", "label": "current_agent", "fromSide": "top", "toSide": "bottom" },
+    { "from": "agent", "to": "model", "label": "stream" },
+    { "from": "loop", "to": "tools", "label": "tool_call", "fromSide": "bottom", "toSide": "top" },
+    { "from": "loop", "to": "session", "label": "append items", "fromSide": "right", "toSide": "left", "variant": "emphasis" },
+    { "from": "runner", "to": "guard", "label": "校验", "fromSide": "top", "toSide": "bottom", "variant": "dashed" },
+    { "from": "session", "to": "runner", "label": "history 注入", "variant": "dashed", "fromSide": "bottom", "toSide": "bottom", "via": [[738, 380], [253, 380]] }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "三层抽象",
+      "items": [
+        "Runner 编排多轮；run_loop 处理 model → tool → handoff",
+        "Handoff = 图上的边；Agent.as_tool() 包装子 Agent"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Session 账",
+      "items": [
+        "RunItem 持久化；session_persistence 支持恢复与 rewind"
+      ]
+    }
+  ]
+}

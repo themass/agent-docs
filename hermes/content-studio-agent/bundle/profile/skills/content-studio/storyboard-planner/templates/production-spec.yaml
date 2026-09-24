@@ -1,0 +1,133 @@
+version: 1
+profile: content-studio
+persona: github_trend_analyst
+
+metadata:
+  date: "YYYY-MM-DD"
+  source_report: "/Users/gqli/.hermes/profiles/content-studio/reports/YYYY/MM/YYYY-MM-DD.md"
+  script_file: "/Users/gqli/.hermes/profiles/content-studio/reports/YYYY/MM/YYYY-MM-DD-video-script.md"
+  storyboard_file: "/Users/gqli/.hermes/profiles/content-studio/reports/YYYY/MM/YYYY-MM-DD-storyboard.md"
+  output_video: "/Users/gqli/.hermes/profiles/content-studio/reports/YYYY/MM/YYYY-MM-DD-video.mp4"
+  duration_target_seconds: 120
+
+theme:
+  thesis: "一句行业判断"
+  trend_label: "趋势标签"
+  narrative_chain:
+    - role: "标准制定者"
+      repo: "owner/repo"
+    - role: "工程增强包"
+      repo: "owner/repo"
+    - role: "成本压缩网关"
+      repo: "owner/repo"
+
+render_policy:
+  fail_fast: true
+  no_card_scroll_fallback: true
+  required_visuals:
+    - github_scroll_callout
+  subtitle:
+    enabled: true
+  transition:
+    default: fade
+    duration_seconds: 0.4
+
+segments:
+  - id: intro-thesis
+    visual_type: concept_card
+    duration_seconds: 15
+    narration_ref: intro
+    card:
+      title: "趋势标签"
+      subtitle: "一句 thesis"
+      bullets:
+        - "证据 1"
+        - "证据 2"
+        - "证据 3"
+
+  - id: intro-ranking
+    visual_type: ranking_chart
+    duration_seconds: 8
+    narration_ref: intro_evidence
+    highlight_repos:
+      - "owner/repo"
+      - "owner/repo"
+      - "owner/repo"
+
+  - id: project-1-scroll
+    visual_type: github_scroll_callout
+    duration_seconds: 22
+    narration_ref: project_1
+    repo: "owner/repo"
+    callouts:
+      - repo_name
+      - stars
+      - about
+      - readme
+
+  - id: project-1-card
+    visual_type: concept_card
+    duration_seconds: 7
+    narration_ref: project_1_capabilities
+    card:
+      title: "项目角色"
+      bullets:
+        - "能力 1"
+        - "能力 2"
+        - "为什么重要"
+
+  - id: project-2-scroll
+    visual_type: github_scroll_callout
+    duration_seconds: 22
+    narration_ref: project_2
+    repo: "owner/repo"
+    callouts:
+      - repo_name
+      - stars
+      - about
+      - readme
+
+  - id: project-2-card
+    visual_type: concept_card
+    duration_seconds: 7
+    narration_ref: project_2_capabilities
+    card:
+      title: "项目角色"
+      bullets:
+        - "能力 1"
+        - "能力 2"
+        - "为什么重要"
+
+  - id: project-3-scroll
+    visual_type: github_scroll_callout
+    duration_seconds: 22
+    narration_ref: project_3
+    repo: "owner/repo"
+    callouts:
+      - repo_name
+      - stars
+      - about
+      - readme
+
+  - id: project-3-diagram
+    visual_type: workflow_diagram
+    duration_seconds: 8
+    narration_ref: project_3_chain
+    diagram:
+      title: "闭环链路"
+      nodes:
+        - "标准"
+        - "增强"
+        - "压缩"
+        - "落地"
+
+  - id: outro-vision
+    visual_type: summary_card
+    duration_seconds: 15
+    narration_ref: outro
+    card:
+      title: "长期判断"
+      bullets:
+        - "趋势判断"
+        - "开发者机会"
+        - "落地建议"

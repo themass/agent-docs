@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "CrewAI 记忆召回数据流",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [820, 380]
+  },
+  "stages": [
+    { "label": "触发" },
+    { "label": "召回引擎" },
+    { "label": "存储" }
+  ],
+  "nodes": [
+    { "id": "agent", "type": "backend", "label": "Agent", "sublabel": "执行中", "stage": 0, "row": 0 },
+    { "id": "recall_tool", "type": "messagebus", "label": "RecallMemoryTool", "sublabel": "主动搜索", "stage": 1, "row": 0 },
+    { "id": "recall_flow", "type": "backend", "label": "recall_flow.py", "sublabel": "查询蒸馏", "stage": 1, "row": 1 },
+    { "id": "store", "type": "database", "label": "记忆存储", "sublabel": "多 scope", "stage": 2, "row": 0 },
+    { "id": "remember", "type": "messagebus", "label": "RememberTool", "sublabel": "主动写入", "stage": 2, "row": 1 }
+  ],
+  "flows": [
+    { "from": "agent", "to": "recall_tool", "label": "需要回忆", "variant": "emphasis" },
+    { "from": "recall_tool", "to": "recall_flow", "label": "查询", "labelDy": 24 },
+    { "from": "recall_flow", "to": "store", "label": "多 scope 搜索", "variant": "emphasis" },
+    { "from": "remember", "to": "store", "label": "持久化" }
+  ],
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "记忆策略",
+      "items": [
+        "无对话级自动压缩；RecallMemoryTool 智能召回",
+        "RememberTool 主动写入；Task context 管短期传递"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "OpenCode 双层循环",
+    "locale": "zh-CN",
+    "quality_profile": "showcase"
+  },
+  "lanes": [{ "id": "loop", "label": "Drain × Provider Turn" }],
+  "nodes": [
+    { "id": "promote", "lane": "loop", "col": 0, "type": "backend", "label": "推广 input" },
+    { "id": "epoch", "lane": "loop", "col": 1, "type": "database", "label": "Epoch.prepare" },
+    { "id": "stream", "lane": "loop", "col": 2, "type": "external", "label": "llm.stream" },
+    { "id": "settle", "lane": "loop", "col": 3, "type": "messagebus", "label": "settle" },
+    { "id": "check", "lane": "loop", "col": 4, "type": "security", "label": "queue检查" },
+    { "id": "idle", "lane": "loop", "col": 5, "type": "cloud", "label": "Drain idle" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "promote", "to": "epoch" },
+    { "id": "e2", "from": "epoch", "to": "stream", "variant": "emphasis" },
+    { "id": "e3", "from": "stream", "to": "settle" },
+    { "id": "e4", "from": "settle", "to": "check", "label": "续跑?" },
+    { "id": "e5", "from": "check", "to": "stream", "label": "是", "variant": "dashed" },
+    { "id": "e6", "from": "check", "to": "idle", "label": "否" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "双环", "items": ["外层 Drain 推广 input；内层 Provider Turn stream→settle"] }
+  ]
+}

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="utf-8" />
+    <title>News list fixture</title>
+    <style>
+      body { margin: 0; font: 14px/1.5 system-ui, sans-serif; }
+      header { padding: 12px 24px; border-bottom: 1px solid #eee; }
+      .news { padding: 8px 24px; max-width: 760px; }
+      .row { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
+      .row a.headline { flex: 1; text-decoration: none; color: inherit; font-size: 16px; }
+      .thumb { width: 140px; height: 90px; background: #eee; }
+      .meta { color: #888; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <header><a href="/">要闻</a> <a href="/finance">财经</a> <a href="/tech">科技</a></header>
+    <div class="news">
+      <div class="row">
+        <div class="thumb"><img src="/fake/cover.png" alt="" /></div>
+        <a class="headline" href="/article/20260810123">
+          某国宣布下调基准利率 25 个基点
+          <div class="meta"><span>2小时前</span></div>
+        </a>
+        <div class="meta"><a href="/source/finance-daily">财经日报</a></div>
+      </div>
+      <div class="row">
+        <div class="thumb"><img src="/fake/cover.png" alt="" /></div>
+        <a class="headline" href="/article/20260810124">
+          新一代模型发布，推理成本下降四成
+          <div class="meta"><span>5小时前</span></div>
+        </a>
+        <div class="meta"><a href="/source/tech-front">科技前线</a></div>
+      </div>
+      <div class="row">
+        <div class="thumb"><img src="/fake/cover.png" alt="" /></div>
+        <a class="headline" href="/article/20260810125">
+          城市轨道交通新线今日开通运营
+          <div class="meta"><span>2026-08-10</span></div>
+        </a>
+        <div class="meta"><a href="/source/city-news">城市观察</a></div>
+      </div>
+      <div class="row">
+        <div class="thumb"><img src="/fake/cover.png" alt="" /></div>
+        <a class="headline" href="/article/20260810126">
+          海上风电装机容量再创新高
+          <div class="meta"><span>1天前</span></div>
+        </a>
+        <div class="meta"><a href="/source/energy-watch">能源观察</a></div>
+      </div>
+    </div>
+  </body>
+</html>

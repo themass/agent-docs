@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Codex 运行时分层总览",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [1150, 560]
+  },
+  "components": [
+    { "id": "app", "type": "frontend", "label": "客户端", "sublabel": "TUI · IDE", "pos": [40, 220], "size": [120, 60] },
+    { "id": "entry", "type": "backend", "label": "Entry", "sublabel": "codex-rs", "pos": [190, 220], "size": [120, 60] },
+    { "id": "ct", "type": "backend", "label": "CodexThread", "sublabel": "submit", "pos": [340, 220], "size": [130, 60] },
+    { "id": "io", "type": "messagebus", "label": "SessionIo", "sublabel": "SQ / EQ", "pos": [500, 220], "size": [120, 60] },
+    { "id": "sess", "type": "backend", "label": "Session", "sublabel": "运行时", "pos": [660, 220], "size": [120, 60] },
+    { "id": "rt", "type": "backend", "label": "run_turn", "sublabel": "Step 循环", "pos": [820, 220], "size": [120, 60] },
+    { "id": "api", "type": "external", "label": "Responses API", "sublabel": "采样", "pos": [980, 220], "size": [120, 60] },
+    { "id": "sl", "type": "backend", "label": "submission_loop", "sublabel": "后台", "pos": [660, 80], "size": [130, 60] },
+    { "id": "hist", "type": "database", "label": "ContextMgr", "sublabel": "history", "pos": [820, 380], "size": [120, 60] },
+    { "id": "rol", "type": "database", "label": "Rollout", "sublabel": "jsonl", "pos": [980, 380], "size": [120, 60] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Session 运行时", "wraps": ["io", "sess", "sl", "rt", "hist", "rol"] }
+  ],
+  "connections": [
+    { "from": "app", "to": "entry", "label": "Op" },
+    { "from": "entry", "to": "ct", "label": "ThreadMgr", "labelDy": 54 },
+    { "from": "ct", "to": "io", "label": "持有" },
+    { "from": "io", "to": "sess", "label": "tx_sub", "labelDy": 54 },
+    { "from": "sess", "to": "rt", "label": "spawn_task", "variant": "emphasis", "labelDy": 54 },
+    { "from": "rt", "to": "api", "label": "stream" },
+    { "from": "rt", "to": "hist", "label": "record", "labelDy": 54 },
+    { "from": "hist", "to": "rol", "label": "append", "variant": "dashed" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "协议化运行时",
+      "items": [
+        "任意客户端经 Op / EventMsg 驱动同一套 core",
+        "ResponseItem[] 只追加不重写，利于 prompt cache"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Turn 执行链",
+      "items": [
+        "Start → spawn_task(RegularTask) → run_turn Step 循环",
+        "Steer → pending_input，由已在跑的 run_turn drain"
+      ]
+    }
+  ]
+}

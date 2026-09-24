@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "MetaGPT Team.run 外层循环",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [960, 560],
+    "column_fit": "spread"
+  },
+  "participants": [
+    { "id": "cli", "type": "frontend", "label": "CLI", "sublabel": "入口" },
+    { "id": "team", "type": "backend", "label": "Team", "sublabel": "编排器" },
+    { "id": "env", "type": "messagebus", "label": "Environment", "sublabel": "总线" },
+    { "id": "roles", "type": "backend", "label": "Roles", "sublabel": "并行 tick" },
+    { "id": "cost", "type": "security", "label": "CostManager", "sublabel": "预算" },
+    { "id": "repo", "type": "database", "label": "ProjectRepo", "sublabel": "归档" }
+  ],
+  "segments": [
+    { "from": 160, "to": 240, "label": "初始化" },
+    { "from": 255, "to": 390, "label": "n_round 循环" },
+    { "from": 405, "to": 480, "label": "收尾" }
+  ],
+  "messages": [
+    { "from": "cli", "to": "team", "y": 170, "label": "hire + invest" },
+    { "from": "team", "to": "cost", "y": 198, "label": "max_budget", "variant": "dashed" },
+    { "from": "team", "to": "env", "y": 226, "label": "publish_message(idea)", "variant": "emphasis" },
+    { "from": "team", "to": "env", "y": 270, "label": "env.run()", "variant": "emphasis" },
+    { "from": "env", "to": "roles", "y": 298, "label": "并行非 idle Role" },
+    { "from": "roles", "to": "env", "y": 326, "label": "publish_message", "variant": "return" },
+    { "from": "team", "to": "env", "y": 354, "label": "is_idle()?" },
+    { "from": "env", "to": "team", "y": 382, "label": "idle / 继续", "variant": "return" },
+    { "from": "team", "to": "cost", "y": 420, "label": "_check_balance()" },
+    { "from": "cost", "to": "team", "y": 448, "label": "OK / NoMoney", "variant": "return" },
+    { "from": "team", "to": "repo", "y": 476, "label": "archive()", "variant": "dashed" }
+  ],
+  "activations": [
+    { "participant": "cli", "from": 158, "to": 195, "type": "frontend" },
+    { "participant": "team", "from": 158, "to": 468, "type": "backend" },
+    { "participant": "env", "from": 214, "to": 382, "type": "messagebus" },
+    { "participant": "roles", "from": 286, "to": 324, "type": "backend" },
+    { "participant": "cost", "from": 186, "to": 210, "type": "security" },
+    { "participant": "cost", "from": 398, "to": 438, "type": "security" },
+    { "participant": "repo", "from": 454, "to": 475, "type": "database" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "外层循环",
+      "items": [
+        "一轮 env.run() = 所有非 idle Role 并行执行，非严格轮流",
+        "n_round 递减直至 idle 或预算耗尽"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "预算模型",
+      "items": [
+        "Team.invest 设 max_budget；超支抛 NoMoneyException"
+      ]
+    }
+  ]
+}

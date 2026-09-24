@@ -1,0 +1,63 @@
+# JobCome LLM 路由 — 应用内 SDK 使用（不依赖 litellm proxy 进程）
+# 复制为 routing.yaml，由 jobcome.llm.router 加载
+#
+# 每个 scenario 是一条 failover 链：按顺序尝试，前一个失败/超时则下一个。
+# model 填 NewAPI 上的真实 slug（openai/ 前缀按 YuAI 约定）。
+# DeepSeek 在 YuAI 为 bt-deepseek-v4-*（无 mt-deepseek-v4-* 渠道）。
+
+scenarios:
+  # 简历 MD→JSON、JD 解析、Reviewer 文案
+  ingest_fast:
+    - model: openai/bt-deepseek-v4-flash
+      timeout_sec: 120
+    - model: openai/bt-deepseek-v4-pro
+      timeout_sec: 120
+    - model: openai/mt-gpt-5-6-terra
+      timeout_sec: 120
+    - model: openai/mt-gpt-6-astra
+      timeout_sec: 120
+
+  # 拔高 / 改稿（质量优先，可慢）
+  writer:
+    - model: openai/bt-deepseek-v4-pro
+      timeout_sec: 180
+    - model: openai/mt-gpt-5-6-terra
+      timeout_sec: 180
+    - model: openai/mt-gpt-6-astra
+      timeout_sec: 180
+    - model: openai/bt-deepseek-v4-flash
+      timeout_sec: 180
+
+  # 模拟面试 / 点评
+  coach:
+    - model: openai/mt-gpt-5-6-terra
+      timeout_sec: 180
+    - model: openai/mt-gpt-6-astra
+      timeout_sec: 180
+    - model: openai/bt-deepseek-v4-pro
+      timeout_sec: 180
+    - model: openai/bt-deepseek-v4-flash
+      timeout_sec: 180
+
+  # 扫描 PDF / 图片 OCR（独立 vision 网关）
+  vision:
+    - model: openai/qwen-vl-ocr
+      api_base_env: YUAI_VISION_API_BASE
+      api_key_env: YUAI_VISION_API_KEY
+      timeout_sec: 180
+
+  # 轻量、要快（分类、短回复）
+  flash:
+    - model: openai/bt-deepseek-v4-flash
+      timeout_sec: 60
+    - model: openai/bt-deepseek-v4-pro
+      timeout_sec: 60
+    - model: openai/mt-gpt-5-6-terra
+      timeout_sec: 60
+    - model: openai/mt-gpt-6-astra
+      timeout_sec: 60
+
+defaults:
+  api_base_env: YUAI_API_BASE
+  api_key_env: YUAI_API_KEY
+  temperature: 0.1

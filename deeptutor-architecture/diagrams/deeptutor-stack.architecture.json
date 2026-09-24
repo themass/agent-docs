@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "DeepTutor 六层运行时分层",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [1100, 520]
+  },
+  "components": [
+    { "id": "web", "type": "frontend", "label": "Next.js", "sublabel": "L7 Web", "pos": [40, 80], "size": [120, 60] },
+    { "id": "cli", "type": "frontend", "label": "CLI", "sublabel": "Typer", "pos": [40, 220], "size": [120, 60] },
+    { "id": "ws", "type": "messagebus", "label": "unified_ws", "sublabel": "L6", "pos": [200, 80], "size": [120, 60] },
+    { "id": "trm", "type": "backend", "label": "TRM", "sublabel": "L5 编排", "pos": [360, 220], "size": [120, 60] },
+    { "id": "orch", "type": "backend", "label": "Orchestrator", "sublabel": "L5 路由", "pos": [520, 220], "size": [130, 60] },
+    { "id": "bus", "type": "messagebus", "label": "StreamBus", "sublabel": "扇出", "pos": [520, 80], "size": [120, 60] },
+    { "id": "cap", "type": "cloud", "label": "Capabilities", "sublabel": "L4", "pos": [680, 220], "size": [130, 60] },
+    { "id": "al", "type": "backend", "label": "AgentLoop", "sublabel": "L3", "pos": [840, 220], "size": [120, 60] },
+    { "id": "tools", "type": "backend", "label": "ToolRegistry", "sublabel": "L2", "pos": [840, 380], "size": [120, 60] },
+    { "id": "sqlite", "type": "database", "label": "SQLite", "sublabel": "L1", "pos": [360, 380], "size": [120, 60] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "L7–L6 入口", "wraps": ["web", "cli", "ws"] },
+    { "kind": "region", "label": "L5–L3 编排链", "wraps": ["trm", "orch", "bus", "cap", "al"] }
+  ],
+  "connections": [
+    { "from": "web", "to": "ws", "label": "WebSocket", "labelDy": 54 },
+    { "from": "cli", "to": "trm", "label": "直连" },
+    { "from": "ws", "to": "trm", "label": "start_turn" },
+    { "from": "trm", "to": "orch", "label": "handle", "variant": "emphasis", "labelDy": 54 },
+    { "from": "orch", "to": "bus", "label": "emit", "fromSide": "top", "toSide": "bottom" },
+    { "from": "orch", "to": "cap", "label": "路由" },
+    { "from": "cap", "to": "al", "label": "run" },
+    { "from": "al", "to": "tools", "label": "dispatch", "labelDy": 54 },
+    { "from": "trm", "to": "sqlite", "label": "持久化", "variant": "dashed", "labelDy": 54 }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "三大支柱",
+      "items": [
+        "Agent-Native：Capability 接管整轮",
+        "UnifiedContext 单对象贯穿编排链"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "个性化学习",
+      "items": [
+        "L1–L3 Memory 跨会话个性化",
+        "deep_solve / deep_research Capability 切换"
+      ]
+    }
+  ]
+}

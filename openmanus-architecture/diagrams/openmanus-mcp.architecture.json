@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "OpenManus MCP 双向扩展",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [1000, 520]
+  },
+  "components": [
+    { "id": "cfg", "type": "frontend", "label": "config", "sublabel": "mcp_servers", "pos": [40, 140], "size": [120, 56] },
+    { "id": "clients", "type": "backend", "label": "MCPClients", "sublabel": "客户端", "pos": [200, 140], "size": [120, 56] },
+    { "id": "session", "type": "cloud", "label": "MCP session", "sublabel": "SSE / stdio", "pos": [360, 140], "size": [120, 56] },
+    { "id": "wrap", "type": "backend", "label": "MCPClientTool", "sublabel": "代理包装", "pos": [520, 140], "size": [130, 56] },
+    { "id": "tcoll", "type": "backend", "label": "ToolCollection", "sublabel": "统一执行", "pos": [680, 140], "size": [130, 56] },
+    { "id": "manus", "type": "backend", "label": "Manus", "sublabel": "Agent", "pos": [680, 280], "size": [110, 56] },
+    { "id": "srv_entry", "type": "frontend", "label": "run_mcp_server.py", "sublabel": "服务端入口", "pos": [40, 360], "size": [140, 56] },
+    { "id": "fastmcp", "type": "cloud", "label": "FastMCP", "sublabel": "server.py", "pos": [220, 360], "size": [120, 56] },
+    { "id": "expose", "type": "backend", "label": "暴露工具", "sublabel": "bash · editor", "pos": [400, 360], "size": [130, 56] },
+    { "id": "harness", "type": "external", "label": "外部 harness", "sublabel": "调用方", "pos": [580, 360], "size": [120, 56] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "作为 MCP 客户端", "wraps": ["cfg", "clients", "session", "wrap", "tcoll", "manus"] },
+    { "kind": "region", "label": "作为 MCP 服务端", "wraps": ["srv_entry", "fastmcp", "expose", "harness"] }
+  ],
+  "connections": [
+    { "from": "cfg", "to": "clients", "label": "initialize", "labelDy": 52 },
+    { "from": "clients", "to": "session", "label": "connect", "labelDy": 52 },
+    { "from": "session", "to": "wrap", "label": "list_tools", "labelDy": 52 },
+    { "from": "wrap", "to": "tcoll", "label": "add_tools", "labelDy": 52 },
+    { "from": "manus", "to": "tcoll", "label": "act → execute", "fromSide": "top", "toSide": "bottom" },
+    { "from": "manus", "to": "clients", "label": "cleanup", "variant": "dashed", "fromSide": "left", "toSide": "bottom", "labelDx": -30 },
+    { "from": "srv_entry", "to": "fastmcp", "label": "启动" },
+    { "from": "fastmcp", "to": "expose", "label": "注册" },
+    { "from": "harness", "to": "expose", "label": "远程调用", "variant": "emphasis" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "客户端路径",
+      "items": [
+        "Manus.create() 读配置 → connect → list_tools → 并入 ToolCollection",
+        "run() 结束 cleanup() disconnect；MCPAgent 每 5 步 refresh_tools"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "服务端路径",
+      "items": [
+        "run_mcp_server.py 经 FastMCP 暴露 bash、editor、terminate 供外部 harness 消费"
+      ]
+    }
+  ]
+}

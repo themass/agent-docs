@@ -1,0 +1,38 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "OpenAI Agents Handoff 工作流",
+    "locale": "zh-CN",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    { "id": "run", "label": "Runner 多 Agent 路由" }
+  ],
+  "nodes": [
+    { "id": "start", "lane": "run", "col": 0, "type": "frontend", "label": "用户输入" },
+    { "id": "agentA", "lane": "run", "col": 1, "type": "backend", "label": "Agent A", "sublabel": "triage" },
+    { "id": "decide", "lane": "run", "col": 2, "type": "cloud", "label": "model 决策", "sublabel": "handoff tool" },
+    { "id": "agentB", "lane": "run", "col": 3, "type": "backend", "label": "Agent B", "sublabel": "specialist" },
+    { "id": "tools", "lane": "run", "col": 4, "type": "messagebus", "label": "执行工具", "sublabel": "function / MCP" },
+    { "id": "done", "lane": "run", "col": 5, "type": "external", "label": "RunResult", "sublabel": "final output" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "start", "to": "agentA", "label": "Runner.run" },
+    { "id": "e2", "from": "agentA", "to": "decide", "label": "单轮采样" },
+    { "id": "e3", "from": "decide", "to": "agentB", "label": "HandoffCallItem", "variant": "emphasis" },
+    { "id": "e4", "from": "agentB", "to": "tools", "label": "tool_call" },
+    { "id": "e5", "from": "tools", "to": "agentB", "label": "回注 items", "variant": "dashed" },
+    { "id": "e6", "from": "agentB", "to": "done", "label": "无 handoff" }
+  ],
+  "cards": [
+    {
+      "dot": "violet",
+      "title": "Handoff 语义",
+      "items": [
+        "Handoff = 图上的边；切换 current_agent 后继续 run_loop",
+        "Agent.as_tool() 可把子 Agent 包装成 function（与 delegate 对照）"
+      ]
+    }
+  ]
+}

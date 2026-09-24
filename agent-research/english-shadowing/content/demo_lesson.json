@@ -1,0 +1,38 @@
+{
+  "lesson_id": "cafe_ordering_v1",
+  "title": "Coffee shop — ordering",
+  "title_zh": "咖啡店点餐",
+  "daily_goal_sentences": 10,
+  "sentences": [
+    {
+      "id": "cafe_01",
+      "text": "Hi, I'd like a latte, please.",
+      "hint_zh": "打招呼 + 点拿铁",
+      "audio_asset": "cafe_01.mp3"
+    },
+    {
+      "id": "cafe_02",
+      "text": "Can I get this to go?",
+      "hint_zh": "打包带走",
+      "audio_asset": "cafe_02.mp3"
+    },
+    {
+      "id": "cafe_03",
+      "text": "Do you have oat milk?",
+      "hint_zh": "燕麦奶",
+      "audio_asset": "cafe_03.mp3"
+    },
+    {
+      "id": "cafe_04",
+      "text": "That'll be all, thanks.",
+      "hint_zh": "就这些，谢谢",
+      "audio_asset": "cafe_04.mp3"
+    },
+    {
+      "id": "cafe_05",
+      "text": "Could I have the receipt?",
+      "hint_zh": "要收据",
+      "audio_asset": "cafe_05.mp3"
+    }
+  ]
+}

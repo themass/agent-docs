@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "OpenAI Agents 端到端会话时序",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [1000, 620],
+    "column_fit": "spread"
+  },
+  "participants": [
+    { "id": "user", "type": "external", "label": "用户", "sublabel": "UI" },
+    { "id": "app", "type": "frontend", "label": "应用", "sublabel": "宿主" },
+    { "id": "runner", "type": "backend", "label": "Runner", "sublabel": "外层循环" },
+    { "id": "session", "type": "database", "label": "Session", "sublabel": "InMemory" },
+    { "id": "loop", "type": "backend", "label": "run_loop", "sublabel": "内层" },
+    { "id": "model", "type": "external", "label": "Model", "sublabel": "OpenAI" },
+    { "id": "guard", "type": "security", "label": "Guardrails", "sublabel": "护栏" }
+  ],
+  "segments": [
+    { "from": 160, "to": 250, "label": "首轮" },
+    { "from": 265, "to": 400, "label": "执行" },
+    { "from": 415, "to": 540, "label": "续聊" }
+  ],
+  "messages": [
+    { "from": "user", "to": "app", "y": 170, "label": "你好" },
+    { "from": "app", "to": "runner", "y": 198, "label": "Runner.run(session=...)" },
+    { "from": "runner", "to": "session", "y": 226, "label": "load history" },
+    { "from": "runner", "to": "guard", "y": 254, "label": "input guard" },
+    { "from": "runner", "to": "loop", "y": 282, "label": "run_loop", "variant": "emphasis" },
+    { "from": "loop", "to": "model", "y": 310, "label": "stream" },
+    { "from": "model", "to": "loop", "y": 338, "label": "assistant", "variant": "return" },
+    { "from": "loop", "to": "session", "y": 366, "label": "append items", "variant": "dashed" },
+    { "from": "runner", "to": "app", "y": 394, "label": "RunResult" },
+    { "from": "user", "to": "app", "y": 430, "label": "继续刚才的话题" },
+    { "from": "app", "to": "runner", "y": 458, "label": "再次 Runner.run", "variant": "emphasis" },
+    { "from": "runner", "to": "session", "y": 486, "label": "注入 history" },
+    { "from": "runner", "to": "app", "y": 514, "label": "续聊响应", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "app", "from": 195, "to": 520, "type": "frontend" },
+    { "participant": "runner", "from": 196, "to": 518, "type": "backend" },
+    { "participant": "session", "from": 223, "to": 372, "type": "database" },
+    { "participant": "loop", "from": 279, "to": 372, "type": "backend" },
+    { "participant": "model", "from": 307, "to": 344, "type": "external" },
+    { "participant": "guard", "from": 251, "to": 268, "type": "security" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "续聊模式",
+      "items": [
+        "无 Pi 式 steer/followUp；再次 Runner.run + 同一 session 即续聊",
+        "Realtime 通道独立处理运行中注入"
+      ]
+    }
+  ]
+}

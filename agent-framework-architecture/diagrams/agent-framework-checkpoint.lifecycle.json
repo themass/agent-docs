@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "Agent Framework Checkpoint 生命周期",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [820, 566],
+    "legend": { "mode": "hidden" }
+  },
+  "lanes": [
+    { "id": "main", "label": "Workflow" }
+  ],
+  "states": [
+    { "id": "init", "type": "start", "label": "初始化", "sublabel": "run", "lane": "main", "col": 0, "step": "01" },
+    { "id": "running", "type": "active", "label": "执行中", "sublabel": "遍历", "lane": "main", "col": 1, "step": "02" },
+    { "id": "checkpoint", "type": "active", "label": "Checkpoint", "sublabel": "持久化", "lane": "main", "col": 2, "step": "03" },
+    { "id": "completed", "type": "success", "label": "完成", "sublabel": "输出", "lane": "main", "col": 3, "step": "04" }
+  ],
+  "transitions": []
+}

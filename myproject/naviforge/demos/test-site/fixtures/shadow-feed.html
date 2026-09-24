@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="utf-8" />
+    <title>Shadow feed fixture</title>
+    <style>
+      body { margin: 0; font: 14px/1.5 system-ui, sans-serif; }
+      video-feed-host { display: block; padding: 24px; }
+    </style>
+  </head>
+  <body>
+    <video-feed-host></video-feed-host>
+    <script>
+      class VideoFeedHost extends HTMLElement {
+        connectedCallback() {
+          const root = this.attachShadow({ mode: 'open' })
+          root.innerHTML = `
+            <style>
+              .feed { display: grid; grid-template-columns: repeat(2, 240px); gap: 16px; }
+              .card a { display: block; text-decoration: none; color: inherit; }
+              .cover { width: 240px; height: 135px; background: #eee; }
+              .title { font-weight: 600; }
+            </style>
+            <div class="feed">
+              <div class="card"><a href="/video/BV1shadow01"><div class="cover"></div><span class="title">Shadow 视频一</span></a></div>
+              <div class="card"><a href="/video/BV1shadow02"><div class="cover"></div><span class="title">Shadow 视频二</span></a></div>
+              <div class="card"><a href="/video/BV1shadow03"><div class="cover"></div><span class="title">Shadow 视频三</span></a></div>
+              <div class="card"><a href="/video/BV1shadow04"><div class="cover"></div><span class="title">Shadow 视频四</span></a></div>
+            </div>
+          `
+        }
+      }
+      customElements.define('video-feed-host', VideoFeedHost)
+    </script>
+  </body>
+</html>

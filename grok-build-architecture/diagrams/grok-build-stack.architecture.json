@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Grok Build 运行栈",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [820, 360]
+  },
+  "components": [
+    { "id": "cli", "type": "frontend", "label": "grok CLI", "sublabel": "入口", "pos": [60, 160], "size": [100, 56] },
+    { "id": "core", "type": "backend", "label": "core Session", "sublabel": "外层队列", "pos": [220, 160], "size": [120, 56] },
+    { "id": "turn", "type": "backend", "label": "Turn", "sublabel": "内层循环", "pos": [400, 160], "size": [100, 56] },
+    { "id": "provider", "type": "external", "label": "provider", "sublabel": "LLM", "pos": [560, 80], "size": [100, 56] },
+    { "id": "registry", "type": "messagebus", "label": "Tool registry", "sublabel": "bash/MCP", "pos": [560, 240], "size": [110, 56] },
+    { "id": "memory", "type": "database", "label": "Memory", "sublabel": "长效知识", "pos": [720, 160], "size": [100, 56] }
+  ],
+  "connections": [
+    { "from": "cli", "to": "core", "label": "submit", "labelDy": -18 },
+    { "from": "core", "to": "turn", "label": "run_turn", "variant": "emphasis" },
+    { "from": "turn", "to": "provider", "label": "LLM", "fromSide": "top", "toSide": "bottom" },
+    { "from": "turn", "to": "registry", "label": "tool", "fromSide": "bottom", "toSide": "top" },
+    { "from": "turn", "to": "memory", "label": "读写", "variant": "dashed" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "双层循环",
+      "items": [
+        "Session FIFO（外层）+ Turn 内 LLM↔tool（内层）",
+        "Memory、Plan、多 Agent 为三个正交维度"
+      ]
+    }
+  ]
+}

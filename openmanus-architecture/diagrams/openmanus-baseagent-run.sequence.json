@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "BaseAgent.run 外层循环",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [880, 560],
+    "column_fit": "spread"
+  },
+  "participants": [
+    { "id": "user", "type": "external", "label": "用户", "sublabel": "prompt" },
+    { "id": "base", "type": "backend", "label": "BaseAgent", "sublabel": "base.py" },
+    { "id": "memory", "type": "database", "label": "Memory", "sublabel": "消息栈" },
+    { "id": "react", "type": "backend", "label": "ReActAgent", "sublabel": "step()" },
+    { "id": "state", "type": "cloud", "label": "AgentState", "sublabel": "状态机" }
+  ],
+  "segments": [
+    { "from": 150, "to": 230, "label": "初始化" },
+    { "from": 245, "to": 370, "label": "while step < max_steps" },
+    { "from": 385, "to": 490, "label": "收尾" }
+  ],
+  "messages": [
+    { "from": "user", "to": "base", "y": 160, "label": "request" },
+    { "from": "base", "to": "memory", "y": 188, "label": "add user message" },
+    { "from": "base", "to": "state", "y": 216, "label": "state_context → RUNNING", "variant": "emphasis" },
+    { "from": "base", "to": "react", "y": 260, "label": "await step()", "variant": "emphasis" },
+    { "from": "react", "to": "base", "y": 288, "label": "step_result", "variant": "return" },
+    { "from": "base", "to": "react", "y": 316, "label": "下一步 step()", "variant": "dashed" },
+    { "from": "base", "to": "state", "y": 352, "label": "Terminate → FINISHED", "variant": "emphasis" },
+    { "from": "base", "to": "state", "y": 392, "label": "max_steps → IDLE", "variant": "dashed" },
+    { "from": "base", "to": "user", "y": 440, "label": "last_assistant_content", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "base", "from": 185, "to": 448, "type": "backend" },
+    { "participant": "memory", "from": 185, "to": 200, "type": "database" },
+    { "participant": "state", "from": 213, "to": 408, "type": "cloud" },
+    { "participant": "react", "from": 257, "to": 350, "type": "backend" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "外层循环",
+      "items": [
+        "while current_step < max_steps 且 state ≠ FINISHED 时调用 step()",
+        "max_steps 用尽回到 IDLE，不等于 FINISHED"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "卡住检测",
+      "items": [
+        "连续重复 assistant content ≥ 2 时改写 next_step_prompt 催促换策略"
+      ]
+    }
+  ]
+}
