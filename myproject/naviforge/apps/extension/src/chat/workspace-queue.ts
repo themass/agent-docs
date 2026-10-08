@@ -10,6 +10,7 @@ import {
 import { updateActivity } from '../lib/activity-store'
 import type { AgentSession } from '../lib/session-model'
 import { cleanQueuedTasks } from './agent-run-controller'
+import type { WorkspaceRunOutcome } from './run-outcome'
 
 export type QueueControlDeps = {
   queueRef: MutableRefObject<ReturnType<typeof createMessageQueue>>
@@ -49,11 +50,7 @@ export type QueueControlDeps = {
   setStatusDetail(value: string | null): void
   setLiveFeed(value: string[]): void
   setAwaitingQuestion(value: string | null): void
-  setRunOutcome(value: {
-    kind: 'success' | 'failed' | 'blocked' | 'waiting' | 'cancelled'
-    title: string
-    message: string
-  } | null): void
+  setRunOutcome(value: WorkspaceRunOutcome | null): void
   push(line: string): void
   recordSession(record: { type: 'user.task'; payload: { text: string; audioPath?: string; audioLabel?: string } }): void
   appendLocal(
@@ -114,7 +111,12 @@ export function createQueueControl(deps: QueueControlDeps) {
       })
   }
 
-  function abortUnstarted(taskItem: QueuedTask, title: string, message: string): void {
+  function abortUnstarted(
+    taskItem: QueuedTask,
+    title: string,
+    message: string,
+    optionsSection?: string
+  ): void {
     deps.runningRef.current = false
     deps.setRunning(false)
     deps.setRunStartedAt(null)
@@ -127,7 +129,7 @@ export function createQueueControl(deps: QueueControlDeps) {
     if (sessionId) {
       void deps.markSessionComplete(sessionId, 'failed', message)
     }
-    deps.setRunOutcome({ kind: 'failed', title, message })
+    deps.setRunOutcome({ kind: 'failed', title, message, optionsSection })
     deps.setTask((current) => (current.trim() ? current : taskItem.text))
   }
 
@@ -276,8 +278,8 @@ export function createQueueControl(deps: QueueControlDeps) {
   function enqueueSteer(): void {
     const text = deps.task.trim()
     if (!deps.running || !text) return
-    // ask_user / intake 等待中：纠偏即回复，避免 steer 入队后 HITL 永不解锁。
-    if (deps.awaitingQuestion || deps.status === RUN_STATUS.CLARIFYING) {
+    // ask_user 等待中：纠偏即回复，避免 steer 入队后 HITL 永不解锁。
+    if (deps.awaitingQuestion) {
       void replyHitl(text)
       return
     }
@@ -286,10 +288,6 @@ export function createQueueControl(deps: QueueControlDeps) {
         deps.setTask('')
         deps.setAwaitingQuestion(null)
         deps.setRunOutcome(null)
-        if (deps.status === RUN_STATUS.CLARIFYING) {
-          deps.setStatus(RUN_STATUS.RUNNING)
-          deps.setStatusDetail('澄清已提交，继续执行')
-        }
         deps.recordSession({ type: 'user.task', payload: { text } })
         deps.push(`↩ replied: ${text}`)
         if (r.pending) deps.setQueuePending(r.pending)
@@ -308,14 +306,9 @@ export function createQueueControl(deps: QueueControlDeps) {
   async function replyHitl(replyText?: string): Promise<void> {
     const text = (replyText ?? deps.task).trim()
     if (!deps.running || !text) return
-    if (
-      !deps.awaitingQuestion &&
-      deps.status !== RUN_STATUS.WAITING_USER &&
-      deps.status !== RUN_STATUS.CLARIFYING
-    ) {
+    if (!deps.awaitingQuestion && deps.status !== RUN_STATUS.WAITING_USER) {
       return
     }
-    const isIntake = deps.status === RUN_STATUS.CLARIFYING
     deps.setTask('')
     const r = await deps.agentRun.reply(text)
     if (!r?.ok) {
@@ -323,14 +316,8 @@ export function createQueueControl(deps: QueueControlDeps) {
       deps.setTask(text)
       return
     }
-    if (!isIntake) {
-      deps.recordSession({ type: 'user.task', payload: { text } })
-      deps.push(`↩ replied: ${text}`)
-    } else {
-      deps.setStatus(RUN_STATUS.RUNNING)
-      deps.setStatusDetail('澄清已提交，继续执行')
-      deps.push('↩ 澄清已提交')
-    }
+    deps.recordSession({ type: 'user.task', payload: { text } })
+    deps.push(`↩ replied: ${text}`)
     deps.setAwaitingQuestion(null)
     deps.setRunOutcome(null)
   }

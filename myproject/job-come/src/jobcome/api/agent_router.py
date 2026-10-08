@@ -131,6 +131,7 @@ async def agent_message_stream(
             content=body.content,
             attachments=body.attachments,
             reply_locale=body.reply_locale,
+            ui_context=body.ui_context,
         ):
             yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n".encode()
 

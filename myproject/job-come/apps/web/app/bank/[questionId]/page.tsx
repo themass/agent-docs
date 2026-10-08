@@ -41,6 +41,15 @@ export default function QuestionDetailPage() {
           {detail.company ?? "—"} · {detail.question_type} · {detail.attempt_count} 次练习
           {detail.best_score != null ? ` · 最佳 ${detail.best_score}/10` : ""}
         </p>
+        <Link
+          href={`/coach-agent?${new URLSearchParams({
+            ...(detail.job_id ? { job_id: detail.job_id } : {}),
+            practice: detail.id,
+          }).toString()}`}
+          className="mt-2 inline-block text-sm text-brand-700 underline"
+        >
+          用这题再练
+        </Link>
       </div>
 
       {latestDims ? (
@@ -53,6 +62,26 @@ export default function QuestionDetailPage() {
                 <li key={k}>{k}: {v}/10</li>
               ))}
             </ul>
+          </div>
+        </section>
+      ) : null}
+
+      {detail.attempts.length >= 2 ? (
+        <section className="rounded-lg border border-brand-100 bg-brand-50/40 p-4">
+          <h2 className="font-medium text-slate-900">最近两次对比</h2>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            {detail.attempts.slice(0, 2).map((a, idx) => (
+              <div key={a.id} className="rounded-lg border border-slate-200 bg-white p-3 text-sm">
+                <p className="text-xs text-slate-500">
+                  {idx === 0 ? "最近一次" : "上一次"} · {new Date(a.created_at).toLocaleString()}
+                  {a.is_best ? " · 最佳" : ""}
+                </p>
+                <p className="mt-2 whitespace-pre-wrap text-slate-800">{a.user_answer}</p>
+                {typeof a.coach_feedback?.score === "number" ? (
+                  <p className="mt-2 text-xs text-slate-600">得分 {a.coach_feedback.score}/10</p>
+                ) : null}
+              </div>
+            ))}
           </div>
         </section>
       ) : null}

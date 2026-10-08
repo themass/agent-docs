@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 
-import { expandSkillSlashPayload, parseSkillSlashName, skillSlashName } from './slash-skill.ts'
-import type { Skill } from './index.ts'
+import { expandSkillSlashPayload, parseSkillSlashName, skillSlashName } from './slash-skill.js'
+import type { Skill } from './index.js'
 
 const sample: Skill = {
   manifest: { id: 'demo', version: '1.0.0', description: 'demo skill' },

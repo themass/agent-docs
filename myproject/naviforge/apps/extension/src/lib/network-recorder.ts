@@ -115,6 +115,61 @@ export function digestNetwork(tabId: number, limit = 12) {
   return buildDigest(bucket(tabId).events, limit)
 }
 
+/** True when this extension holds the CDP debugger on the tab. */
+export function isNetworkDebuggerAttached(tabId: number): boolean {
+  return attachedTabs.has(tabId)
+}
+
+export async function verifyNetworkDebuggerAttached(tabId: number): Promise<boolean> {
+  const targets = await chrome.debugger.getTargets()
+  const target = targets.find((item) => item.tabId === tabId)
+  const ours = Boolean(
+    target?.attached && (!target.extensionId || target.extensionId === chrome.runtime.id)
+  )
+  if (ours) {
+    if (!attachedTabs.has(tabId)) attachedTabs.add(tabId)
+    return true
+  }
+  if (attachedTabs.has(tabId)) attachedTabs.delete(tabId)
+  return false
+}
+
+export type NetworkAttachCause =
+  | 'ok'
+  | 'stale_session'
+  | 'devtools_open'
+  | 'foreign_debugger'
+  | 'unknown'
+
+export function classifyNetworkAttachCause(error?: string): NetworkAttachCause {
+  const msg = (error ?? '').toLowerCase()
+  if (!msg) return 'unknown'
+  if (/another extension|extension.*debug/i.test(msg)) return 'foreign_debugger'
+  if (/devtools|inspector|already attached|another debugger/i.test(msg)) return 'devtools_open'
+  return 'unknown'
+}
+
+export async function classifyNetworkAttachCauseForTab(
+  tabId: number,
+  lastError?: string
+): Promise<NetworkAttachCause> {
+  const targets = await chrome.debugger.getTargets()
+  const target = targets.find((item) => item.tabId === tabId)
+  if (target?.attached) {
+    if (target.extensionId && target.extensionId !== chrome.runtime.id) return 'foreign_debugger'
+    if (!target.extensionId) return 'devtools_open'
+  }
+  return classifyNetworkAttachCause(lastError)
+}
+
+export async function ensureNetworkDebuggerAttached(
+  tabId: number
+): Promise<{ ok: boolean; error?: string }> {
+  if (isNetworkDebuggerAttached(tabId)) return { ok: true }
+  const r = await attachNetwork(tabId)
+  return r.attached ? { ok: true } : { ok: false, error: r.error ?? 'debugger attach failed' }
+}
+
 /** C: start a new network slice when the tab navigates. */
 export function segmentNetworkTab(tabId: number, url: string): void {
   const b = bucket(tabId)
@@ -260,13 +315,17 @@ export async function attachNetwork(
 ): Promise<{ attached: boolean; error?: string }> {
   if (opts?.captureBodies != null) configureNetworkTab(tabId, { captureBodies: opts.captureBodies })
   if (attachedTabs.has(tabId)) {
-    const targets = await chrome.debugger.getTargets()
-    const target = targets.find((item) => item.tabId === tabId)
-    const ours =
-      target?.attached &&
-      (!target.extensionId || target.extensionId === chrome.runtime.id)
-    if (ours) return { attached: true }
-    attachedTabs.delete(tabId)
+    if (await verifyNetworkDebuggerAttached(tabId)) {
+      try {
+        await chrome.debugger.sendCommand({ tabId }, 'Network.enable', {
+          maxResourceBufferSize: 0,
+          maxPostDataSize: 0,
+        })
+      } catch {
+        /* already enabled */
+      }
+      return { attached: true }
+    }
   }
   try {
     await chrome.debugger.attach({ tabId }, '1.3')

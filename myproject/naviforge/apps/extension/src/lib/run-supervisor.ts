@@ -16,6 +16,10 @@ import { pinAgentTabGroup } from './agent-tab-group'
 import { createChromeDomPlane } from './chrome-dom-plane'
 import { createChromeNetworkPlane } from './chrome-network-plane'
 import { attachNetwork, detachNetwork } from './network-recorder'
+import {
+  attachNetworkWithRecovery,
+  formatNetworkDegradedNote,
+} from './network-attach-recovery'
 import { createChromeRecipePlane } from './chrome-recipe-plane'
 import { createChromeScriptPlane } from './chrome-script-plane'
 import { createChromeTabsPlane, createEphemeralTabScope } from './chrome-tabs-plane'
@@ -36,6 +40,8 @@ import { buildHostPollRunRequest } from './host-run-request'
 import { leafProgressLine } from './leaf-feed'
 import { createWebSearchPlane } from './web-search'
 import { createFetchTextPlane } from './fetch-text'
+import { forgePlaybookAfterSuccessfulRun } from './playbook-forge-after-run'
+import { learnSiteRecipeFromRun } from './recipe-from-run'
 
 import {
   composeSystemPrompt,
@@ -43,6 +49,8 @@ import {
   createMessageQueue,
   createPauseController,
   resolveTaskMode,
+  resolveTaskIntent,
+  resolveDeliverable,
   runAgent,
   type RunAgentResult,
   workspaceSlug,
@@ -101,6 +109,20 @@ export class RunSupervisor {
 
   hasActiveRun(): boolean {
     return this.activeRun !== null
+  }
+
+  /**
+   * Keep the active run's tabId in sync when something outside the main
+   * run loop retargets the tab — e.g. NETWORK attach recovery duplicating
+   * the tab to escape a foreign/DevTools debugger. No-op if there is no
+   * active run or the run has already moved off `fromTabId` (stale call).
+   */
+  retargetActiveRunTab(fromTabId: number, toTabId: number): void {
+    const run = this.activeRun
+    if (!run || run.tabId !== fromTabId || toTabId === fromTabId) return
+    run.tabId = toTabId
+    this.writePresence(this.presenceFromRun(run))
+    void this.bindRunTabGroup(run)
   }
 
   dispatch(message: { action?: string; request?: unknown; text?: string; id?: string; tasks?: unknown }): {
@@ -277,9 +299,43 @@ export class RunSupervisor {
       mcpNote: mcp.ok ? undefined : mcp.reason,
     }, request.taskId)
     let result: RunAgentResult | undefined
+    let networkEnabledForRun = request.networkEnabled
+    let networkDegradedNote: string | undefined
     try {
+      if (request.networkEnabled) {
+        const attach = await attachNetworkWithRecovery(run.tabId, {
+          captureBodies: request.captureNetworkBodies,
+        })
+        if (attach.tabId !== run.tabId) {
+          run.tabId = attach.tabId
+          this.writePresence(this.presenceFromRun(run))
+          void this.bindRunTabGroup(run)
+        }
+        this.publishBackgroundRecord('run.network', {
+          attached: attach.attached,
+          message: attach.attached
+            ? `debugger attached to tab ${attach.tabId}${attach.actions.length ? ` (${attach.actions.join(', ')})` : ''}`
+            : `debugger attach failed (${attach.cause}): ${attach.error ?? 'unknown'}${attach.actions.length ? `; tried ${attach.actions.join(', ')}` : ''}`,
+        })
+        if (!attach.attached) {
+          // Media extraction is timing-sensitive: the readiness probe may have
+          // released the debugger just before the run starts. Keep a Network
+          // plane for media runs so Runtime can retry after the first DOM
+          // snapshot/card click instead of permanently removing `network`.
+          const retryInsideRuntime = resolveDeliverable(request.task) === 'media'
+          networkEnabledForRun = retryInsideRuntime
+          networkDegradedNote = retryInsideRuntime ? undefined : formatNetworkDegradedNote(attach)
+          this.publishBackgroundRecord('run.note', {
+            topic: 'network_recovery',
+            text: retryInsideRuntime
+              ? `${formatNetworkDegradedNote(attach)}媒体任务保留 Network Plane，Runtime 将在页面稳定后重试。`
+              : networkDegradedNote ?? formatNetworkDegradedNote(attach),
+          })
+        }
+      }
       result = await runAgent({
         task: request.task,
+        taskAnchor: request.taskAnchor,
         runId: request.id,
         taskId: request.taskId,
         dom: createChromeDomPlane(() => run.tabId),
@@ -320,12 +376,13 @@ export class RunSupervisor {
         recipes: createChromeRecipePlane(() => run.tabId),
         search: createWebSearchPlane(),
         fetch: createFetchTextPlane(),
-        network: request.networkEnabled
+        network: networkEnabledForRun
           ? createChromeNetworkPlane(() => run.tabId, {
               captureBodies: request.captureNetworkBodies,
               getSignal: () => abort.signal,
             })
           : undefined,
+        networkDegradedNote,
         skillGuidance: request.skillGuidance,
         skills: request.skillRegistry,
         threadContext: request.threadContext,
@@ -340,7 +397,6 @@ export class RunSupervisor {
         runTimeoutMs: request.runTimeoutMs,
         runTokenBudget: request.runTokenBudget,
         maxInputTokens: request.maxInputTokens,
-        intakeMode: request.intakeMode,
         signal: abort.signal,
         pause,
         queue,
@@ -428,6 +484,39 @@ export class RunSupervisor {
                 : 'failed',
           result.result ?? result.status
         )
+      }
+      if (result.status === 'done' && result.recordedActions.length) {
+        const session = request.sessionId ? await getSession(request.sessionId) : undefined
+        const forged = await forgePlaybookAfterSuccessfulRun({
+          task: request.task,
+          recordedActions: result.recordedActions,
+          sessionId: request.sessionId,
+          pageUrl: session?.page?.url,
+        }).catch(() => null)
+        if (forged) {
+          this.publishBackgroundRecord('run.note', {
+            topic: 'playbook',
+            text: `Playbook forged ${forged.id} (${forged.steps} steps)`,
+          })
+        }
+        const learned = await learnSiteRecipeFromRun({
+          task: request.task,
+          recordedActions: result.recordedActions,
+          url: session?.page?.url,
+        }).catch(() => null)
+        if (learned) {
+          this.publishBackgroundRecord('run.note', {
+            topic: 'recipe',
+            text: `Site recipe learned ${learned.id} (${learned.steps.length} steps)`,
+          })
+        }
+        if (resolveTaskIntent(request.task) === 'media_extract') {
+          this.publishBackgroundRecord('run.note', {
+            topic: 'script',
+            text:
+              '视频落盘：~/NaviForge/scripts/download-hls.sh（Host 初始化后）或对话「用 script_save 写 ffmpeg 下载脚本」',
+          })
+        }
       }
       return result
     } finally {
@@ -559,8 +648,7 @@ export class RunSupervisor {
     if (record.type === 'run.error') {
       run.status = record.payload.code === 'cancelled' ? 'CANCELLED' : 'FAILED'
     }
-    if (record.type === 'run.ask' || record.type === 'intake.question') run.status = 'WAITING_USER'
-    if (record.type === 'intake.answer' || record.type === 'intake.complete') run.status = 'RUNNING'
+    if (record.type === 'run.ask') run.status = 'WAITING_USER'
     if (record.type === 'tool.result') run.lastAction = record.payload.tool
     this.writePresence(this.presenceFromRun(run))
     this.persistSessionRecord(run.request.sessionId, record, run)

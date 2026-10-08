@@ -18,6 +18,7 @@ import {
 import type { RecoveryPlan } from './recovery.js'
 import {
   interpretTurn,
+  looksLikeSafetyRefusal,
   ToolOutcomePolicy,
   transportAskQuestion,
   type ModelDecision,
@@ -58,6 +59,46 @@ export const CONTINUE: HookDecision = { kind: 'continue' }
  * Hooks may rewrite `ctx.prompt`, `ctx.tools`, `ctx.skills`, `ctx.messages`,
  * `ctx.toolCall.arguments`. They must not own Chrome / LLM I/O.
  */
+/**
+ * `AgentGates` keys a hook may read or write. Declaring these lets
+ * `validateHookOrdering` catch "hook A reads a gate before hook B (which
+ * writes it) has run" at pipeline-construction time instead of as a silent
+ * mid-run state bug (see docs/BEST_PRACTICES_REVIEW.md section 4 P0 — this is
+ * the same class of risk that caused the deliverable cross-turn drift fixed
+ * in GENERAL_BROWSER_AGENT_REFACTOR_PHASE_1.md section 9).
+ *
+ * Keep this union in sync with `AgentGates` (loop-gate-state.ts). It is
+ * intentionally a plain string union, not `keyof AgentGates`, to avoid an
+ * import cycle between hooks.ts and loop-gate-state.ts.
+ */
+export type GateKey =
+  | 'loadedSkillIds'
+  | 'loadedSkillBodies'
+  | 'jsCspBlocked'
+  | 'seenObs'
+  | 'lastObsByKey'
+  | 'dupSkipByKey'
+  | 'actionLoop'
+  | 'lastListHints'
+  | 'taskHintIssued'
+  | 'stepsWithoutNewObs'
+  | 'frictionHitlKeys'
+  | 'lastPageFriction'
+  | 'runTabIds'
+  | 'subtaskEvidenceReady'
+  | 'tabsListProgressUsed'
+  | 'pageVisits'
+  | 'taskIntent'
+  | 'deliverable'
+  | 'scriptLoginAskIssued'
+  | 'scriptSaved'
+  | 'scriptSavePath'
+  | 'recipeUsed'
+  | 'recipeId'
+  | 'mediaPassiveObserveEmpty'
+  | 'inertActionIndexes'
+  | 'lastPageStateFor'
+
 export interface AgentHook {
   readonly name: string
   onStart?(ctx: AgentCtx): HookDecision | void
@@ -71,12 +112,23 @@ export interface AgentHook {
   afterTool?(ctx: AgentCtx): ToolOutcome | void
   /** Deterministic reads before the model loop; first non-empty result wins. */
   runTaskPreflight?(ctx: AgentCtx): Promise<string | undefined>
+  /**
+   * `ctx.gates` keys this hook reads. Mark an entry
+   * `{ key, optional: true }` when the hook has a safe fallback (e.g.
+   * `ctx.gates.deliverable ?? resolveDeliverable(ctx.task)`) so an ordering
+   * violation against it is a warning, not a hard failure. Omit entirely if
+   * the hook touches no gate state.
+   */
+  readonly reads?: readonly (GateKey | { readonly key: GateKey; readonly optional: true })[]
+  /** `ctx.gates` keys this hook writes (initializes or mutates). */
+  readonly writes?: readonly GateKey[]
 }
 
 type DecisionPhase = 'onStart' | 'beforeStep' | 'onModelError' | 'beforeTool'
 
 export class WorkingSetHook implements AgentHook {
   readonly name = 'working-set'
+  readonly reads = ['loadedSkillBodies'] as const
 
   onStart(ctx: AgentCtx): void {
     ctx.emit(ctx.createRecord('run.tools', { catalog: buildToolCatalog(ctx.tools) }))
@@ -197,6 +249,7 @@ export class WorkingSetHook implements AgentHook {
 
 export class ProtocolHook implements AgentHook {
   readonly name = 'protocol'
+  // No ctx.gates reads/writes — decides purely from ctx.completion.
   private invalidCount = 0
 
   constructor(private readonly maxRetries = 1) {}
@@ -209,6 +262,28 @@ export class ProtocolHook implements AgentHook {
       return command
     }
     if (command.kind !== 'retry_turn') return command
+
+    // A missing tool call that reads like a safety/policy refusal is not a
+    // protocol slip the model can be coached out of — re-sending "you must
+    // call exactly one tool" just reproduces the same refusal (the model is
+    // declining the *task*, not confused about the *protocol*). Burning the
+    // retry budget here only delays an identical outcome and surfaces as a
+    // generic `run.error`, giving the user no indication the task itself was
+    // declined. Stop immediately with `blocked` instead.
+    if (looksLikeSafetyRefusal(ctx.completion.content ?? '') || looksLikeSafetyRefusal(ctx.completion.reasoning ?? '')) {
+      const refusalText = (ctx.completion.content || ctx.completion.reasoning || '').trim()
+      return {
+        kind: 'stop',
+        plan: {
+          strategy: 'protocol_error',
+          retryable: false,
+          diagnostic: `Model declined the task on safety/policy grounds: ${refusalText.slice(0, 300)}`,
+        },
+        result: refusalText || 'Task declined on safety/policy grounds.',
+        status: 'blocked',
+      }
+    }
+
     this.invalidCount += 1
     if (this.invalidCount > this.maxRetries) {
       return {
@@ -237,6 +312,7 @@ export class ProtocolHook implements AgentHook {
 
 export class ToolOutcomeHook implements AgentHook {
   readonly name = 'tool-outcome'
+  readonly reads = ['lastListHints'] as const
 
   constructor(private readonly policy: ToolOutcomePolicy) {}
 
@@ -263,6 +339,7 @@ export class ToolOutcomeHook implements AgentHook {
 
 export class ModelErrorHook implements AgentHook {
   readonly name = 'model-error'
+  // No ctx.gates reads/writes — only reads ctx.metadata.modelError.
 
   onModelError(ctx: AgentCtx): HookDecision {
     const diagnostic = String(ctx.metadata.modelError ?? 'model request failed')
@@ -270,8 +347,83 @@ export class ModelErrorHook implements AgentHook {
   }
 }
 
+/**
+ * `AgentGates` keys that `createAgentGates` initializes with a concrete
+ * default (Set/Map/array/false/0 — see loop-gate-state.ts) rather than
+ * leaving `undefined`. These are safe to read from turn one by construction
+ * and are seeded into `validateHookOrdering`'s writer map up front, so only
+ * the genuinely-optional (`?`) gate keys — the ones a specific hook must
+ * populate before anyone downstream can rely on them — are checked for
+ * ordering. Keep in sync with the non-optional fields of `AgentGates`.
+ */
+const GATES_WITH_RUN_START_DEFAULT: readonly GateKey[] = [
+  'loadedSkillIds',
+  'loadedSkillBodies',
+  'jsCspBlocked',
+  'seenObs',
+  'lastObsByKey',
+  'dupSkipByKey',
+  'actionLoop',
+  'lastListHints',
+  'taskHintIssued',
+  'stepsWithoutNewObs',
+  'frictionHitlKeys',
+  'runTabIds',
+  'subtaskEvidenceReady',
+  'tabsListProgressUsed',
+  'pageVisits',
+]
+
+/**
+ * Checks that every hook's declared `reads` of a genuinely-optional gate key
+ * (one with no `createAgentGates` default — see `GATES_WITH_RUN_START_DEFAULT`)
+ * is satisfied by an earlier `writes` in `hooks` order. This covers both the
+ * first-wins phases and the sequential `runTaskPreflight` phase (which —
+ * unlike the other phases — calls every hook's `runTaskPreflight` in array
+ * order until one returns non-empty, not just the first one with a
+ * decision; see `HookPipeline.runTaskPreflight` below).
+ *
+ * This cannot catch every possible mistake (a hook can still read gate
+ * state that nothing declares, or declare `reads`/`writes` that don't match
+ * what its code actually touches) but it turns "someone reordered the
+ * array and silently broke a dependency" from a production drift bug into
+ * a thrown error at `createRunHooks()` call time. See
+ * docs/BEST_PRACTICES_REVIEW.md section 4 P0.
+ *
+ * Hooks whose `reads` entry is `{ key, optional: true }` only produce a
+ * warning (pushed onto the returned `warnings` array) instead of a thrown
+ * violation, because they have a documented fallback for the unset case
+ * (e.g. `ctx.gates.deliverable ?? resolveDeliverable(ctx.task)`).
+ */
+export function validateHookOrdering(hooks: readonly AgentHook[]): { warnings: string[] } {
+  const warnings: string[] = []
+  const writtenBy = new Map<GateKey, string>(
+    GATES_WITH_RUN_START_DEFAULT.map((key) => [key, 'createAgentGates (run-start default)'])
+  )
+  for (const hook of hooks) {
+    for (const entry of hook.reads ?? []) {
+      const key = typeof entry === 'string' ? entry : entry.key
+      const optional = typeof entry === 'string' ? false : entry.optional
+      if (writtenBy.has(key)) continue
+      const message = `hook ordering: '${hook.name}' reads gates.${key} but no earlier hook writes it (array order). ` +
+        `Either move a writer before '${hook.name}', or confirm '${hook.name}' has a safe fallback and mark it { key: '${key}', optional: true } in reads.`
+      if (optional) {
+        warnings.push(message)
+      } else {
+        throw new Error(message)
+      }
+    }
+    for (const key of hook.writes ?? []) {
+      if (!writtenBy.has(key)) writtenBy.set(key, hook.name)
+    }
+  }
+  return { warnings }
+}
+
 export class HookPipeline {
-  constructor(readonly hooks: readonly AgentHook[]) {}
+  constructor(readonly hooks: readonly AgentHook[]) {
+    validateHookOrdering(hooks)
+  }
 
   private firstDecision(phase: DecisionPhase, ctx: AgentCtx): HookDecision {
     for (const hook of this.hooks) {

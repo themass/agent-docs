@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { homedir } from 'node:os'
-import { mkdir, readFile, readdir, rm, stat, writeFile, appendFile, chmod } from 'node:fs/promises'
+import { chmod, mkdir, readFile, readdir, rm, stat, writeFile, appendFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -14,6 +14,7 @@ import {
   statWorkspace,
   touchWorkspace,
 } from './fs-ops.js'
+import { seedDefaultScripts } from './script-templates.js'
 import {
   mcpHasErrors,
   parseMcpServersJson,
@@ -93,6 +94,7 @@ export async function ensureWorkspace(root: string): Promise<void> {
   } catch {
     await writeFile(readme, WORKSPACE_README, 'utf8')
   }
+  await seedDefaultScripts(path.join(root, 'scripts'))
 }
 
 export async function resolveHostToken(root: string, envToken?: string): Promise<string> {

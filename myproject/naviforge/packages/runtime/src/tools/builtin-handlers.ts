@@ -1,6 +1,4 @@
 import { AGENT_TOOL_IDS } from '@naviforge/shared'
-import { extractPageList } from '@naviforge/extract'
-import { mediaHintsFromUrls, type MediaHint } from '@naviforge/media-plane'
 import type { RecordedDomAction } from '@naviforge/playbook'
 import { findSkill, loadSkillBody, type Skill } from '@naviforge/skill-runtime'
 
@@ -16,6 +14,7 @@ import { handlerPrelude } from './handlers/prelude.js'
 import type { BuiltinContext, BuiltinHandler, BuiltinResult } from './handlers/types.js'
 import { num, str } from './handlers/types.js'
 import { workspaceCatalogHandler, workspaceHandlers } from './handlers/workspace.js'
+import { pageListToToolData, runSystemExtractPage } from '../system-extract-page.js'
 
 const tabsList: BuiltinHandler = async (input) => {
   const { tabs, ctx } = handlerPrelude(input)
@@ -150,25 +149,29 @@ const fetchText: BuiltinHandler = async (input) => {
       urls.map(async (url) => {
         const result = await fetch.fetchText(url, maxChars ?? undefined)
         return result.ok
-          ? { url, ok: true as const, ...result.data }
+          ? { ok: true as const, ...result.data, url }
           : { url, ok: false as const, error: result.error }
       })
     )
     const okCount = items.filter((item) => item.ok).length
+    if (okCount === 0) {
+      return {
+        result: {
+          ok: false as const,
+          data: { items, okCount, n: items.length },
+          error: {
+            code: 'fetch_failed',
+            message:
+              items.find((item) => item.ok === false && 'error' in item && item.error)?.error?.message ??
+              'all fetches failed',
+            recoverable: true,
+          },
+        },
+        snap,
+      }
+    }
     return {
-      result: {
-        ok: okCount > 0,
-        data: { items, okCount, n: items.length },
-        ...(okCount === 0
-          ? {
-              error: {
-                code: 'fetch_failed',
-                message: items.find((item) => item.ok === false && 'error' in item && item.error)?.error?.message ?? 'all fetches failed',
-                recoverable: true,
-              },
-            }
-          : {}),
-      },
+      result: { ok: true as const, data: { items, okCount, n: items.length } },
       snap,
     }
   }
@@ -311,25 +314,17 @@ const domProbe: BuiltinHandler = async (input) => {
 
 const systemExtractPage: BuiltinHandler = async (input) => {
   const { dom, network } = handlerPrelude(input)
-  let snap = input.snap
-  let mediaHints: MediaHint[] = []
-  const jsonPreviews: Array<{ url: string; preview: string }> = []
-  if (network) {
-    const listed = await network.list({ limit: 80 })
-    if (listed.ok) {
-      mediaHints = mediaHintsFromUrls(listed.data)
-      for (const event of listed.data) {
-        if (event.bodyPreview) jsonPreviews.push({ url: event.url, preview: event.bodyPreview })
-      }
-    }
-  }
-  const items = extractPageList({
-    snapshotContent: snap.content,
-    frames: snap.frames,
-    mediaHints,
-    jsonPreviews,
+  const limit = num(input.action.arguments.limit) ?? num(input.action.arguments.n)
+  const { items, snap } = await runSystemExtractPage({
+    snap: input.snap,
+    dom,
+    network: network ?? undefined,
+    limit: limit ?? undefined,
   })
-  return { result: { ok: true, data: { items, count: items.length } }, snap }
+  return {
+    result: { ok: true, data: pageListToToolData(items) },
+    snap,
+  }
 }
 
 const systemCaptchaWait: BuiltinHandler = async (input) => {
@@ -458,6 +453,40 @@ export const BUILTIN_TOOL_REGISTRY = new ToolRegistry<BuiltinContext, BuiltinRes
   .register('system_ask_user', systemAskUser)
   .register('system_spawn_readonly_tasks', systemSpawnReadonlyTasks)
   .register('dom_read', domCatalogHandler)
+  .register('browser_observe', metaCatalogHandler)
+  .register('browser_act', metaCatalogHandler)
+  .register('browser_nav', metaCatalogHandler)
+  .register('tabs', metaCatalogHandler)
+  .register('network', metaCatalogHandler)
+
+function metaCatalogHandler(input: BuiltinContext): Promise<BuiltinResult> {
+  const resolved = resolveBuiltinToolCall(input.action.tool, input.action.arguments)
+  if (resolved.tool === input.action.tool) {
+    return Promise.resolve({
+      result: {
+        ok: false,
+        error: {
+          code: 'bad_args',
+          message: `unknown ${input.action.tool} action`,
+          recoverable: true,
+        },
+      },
+      snap: input.snap,
+    })
+  }
+  const handler = BUILTIN_TOOL_REGISTRY.get(resolved.tool)
+  if (!handler) {
+    return Promise.resolve({
+      result: { ok: false, error: { code: 'unknown_tool', message: resolved.tool, recoverable: false } },
+      snap: input.snap,
+    })
+  }
+  const out = handler({
+    ...input,
+    action: { ...input.action, tool: resolved.tool, arguments: resolved.arguments },
+  })
+  return out instanceof Promise ? out : Promise.resolve(out)
+}
 
 BUILTIN_TOOL_REGISTRY.assertCatalog(AGENT_TOOL_IDS)
 

@@ -28,6 +28,7 @@ export const STORAGE = {
   tabWorkspaces: 'naviforgeTabWorkspaces',
   /** One-shot deep link: open side panel to this section (toolkit, agent, …). */
   openSection: 'naviforgeOpenSection',
+  openSettingsTab: 'naviforgeOpenSettingsTab',
   /** One-shot: workspace panel disk tab (shots, audio, …). */
   openWorkspaceDir: 'naviforgeOpenWorkspaceDir',
   /** One-shot: workspace panel tab (replay, config, …). */
@@ -81,6 +82,10 @@ export const STORAGE = {
   behaviorForgeRrweb: 'naviforgeBehaviorForgeRrweb',
   /** Behavior replay prefs (captureDom, pointer throttle, …). */
   behaviorForgePrefs: 'naviforgeBehaviorForgePrefs',
+  /** Global behavior recording HUD: { visible, tabId, x, y }. */
+  behaviorRecordingHudGlobal: 'naviforgeBehaviorRecordingHudGlobal',
+  /** Experimental NaviForge hosted login (NewAPI). Off for store default (BYOK). */
+  managedLoginEnabled: 'naviforgeManagedLoginEnabled',
 } as const
 
 /** Written by automation「继续此会话」; consumed once by AgentWorkspace. */
@@ -162,8 +167,6 @@ export type PrivacySettings = AgentCapabilityGates & {
    * Cursor/DSH-style UIs show this as “context”; default 32k (conservative for DOM-heavy prompts).
    */
   maxInputTokens?: number
-  /** Pre-execution clarification: off | auto (default) | always. */
-  intakeMode?: 'off' | 'auto' | 'always'
   /** When true, matched skill tool allowlist hard-blocks other tools (default off). */
   enforceSkillToolAllowlist?: boolean
 }
@@ -213,10 +216,6 @@ export function normalizeMaxInputTokens(value: unknown): number {
   return Math.min(2_000_000, Math.max(4_000, Math.round(n)))
 }
 
-export function normalizeIntakeMode(value: unknown): 'off' | 'auto' | 'always' {
-  return value === 'off' || value === 'always' ? value : 'auto'
-}
-
 /** Normalize persisted privacy fields (token budget bounds). */
 export function normalizePrivacySettings(privacy: PrivacySettings): {
   privacy: PrivacySettings
@@ -232,11 +231,6 @@ export function normalizePrivacySettings(privacy: PrivacySettings): {
   const normalizedInput = normalizeMaxInputTokens(next.maxInputTokens ?? DEFAULT_MAX_INPUT_TOKENS)
   if (normalizedInput !== next.maxInputTokens) {
     next.maxInputTokens = normalizedInput
-    changed = true
-  }
-  const normalizedIntake = normalizeIntakeMode(next.intakeMode)
-  if (normalizedIntake !== next.intakeMode) {
-    next.intakeMode = normalizedIntake
     changed = true
   }
   return { privacy: next, changed }
@@ -300,7 +294,7 @@ export function seedMcpConnections(saved: unknown): McpConnection[] {
 }
 
 export const DEFAULT_PRIVACY: PrivacySettings = {
-  networkEnabled: true,
+  networkEnabled: false,
   storeApiKey: true,
   retainHistoryDays: 30,
   allowDomInject: false,
@@ -315,7 +309,6 @@ export const DEFAULT_PRIVACY: PrivacySettings = {
   runTimeoutMs: DEFAULT_RUN_TIMEOUT_MS,
   tokenBudget: DEFAULT_TOKEN_BUDGET,
   maxInputTokens: DEFAULT_MAX_INPUT_TOKENS,
-  intakeMode: 'auto',
   enforceSkillToolAllowlist: false,
 }
 

@@ -20,7 +20,6 @@ export {
   FETCH_TEXT_MAX_CHARS,
 } from './fetch-plane.js'
 export type { ScriptArtifact, ScriptLanguage, ScriptPlane } from './script-plane.js'
-export { attachIntakeAnswer, runIntakeLoop } from './run-intake-loop.js'
 export { emitContextMetrics } from './emit-context-metrics.js'
 export type { TaskMode } from './task-classifier.js'
 export {
@@ -173,3 +172,54 @@ export { findSiteRecipe, hostFromUrl, recipeHostMatches } from './site-recipe.js
 export type { RecipePlane } from './recipe-plane.js'
 export { runSiteRecipe, type RecipeRunResult } from './recipe-runner.js'
 export { isMediaTask, resolveTaskIntent, intentPreflightSkill, intentGuidanceNotes, type TaskIntent } from './task-intent.js'
+export {
+  resolveDeliverable,
+  lockDeliverable,
+  isScriptDeliverableTask,
+  type Deliverable,
+} from './deliverable.js'
+export {
+  taskRequiresNetworkPlane,
+  shouldEnableNetworkPlane,
+  anchorTask,
+  ensureAnchorTask,
+  syncDeliverableFromTask,
+  taskTextForRouting,
+} from './execution-task.js'
+
+export {
+  buildTaskContract,
+  requiresTaskEvidence,
+  taskContractSummary,
+  type TaskContract,
+  type TaskEvidenceRequirement,
+  type TaskCapabilityRequirement,
+} from './task-contract.js'
+export {
+  createEvidenceStore,
+  addEvidence,
+  findEvidence,
+  hasEvidenceKind,
+  type Evidence,
+  type EvidenceKind,
+  type EvidenceStore,
+} from './evidence.js'
+export {
+  createCapabilityRegistry,
+  createCapabilityState,
+  transitionCapability,
+  capabilityRetryable,
+  capabilityUsable,
+  type CapabilityName,
+  type CapabilityState,
+  type CapabilityStatus,
+  type CapabilityRegistry,
+} from './capability-state.js'
+export {
+  createRuntimeState,
+  reduceRuntimeState,
+  type RuntimeState,
+  type RuntimeStateEvent,
+  type ProgressState,
+} from './runtime-state.js'
+export { evaluateEvidence, type EvaluationResult, type EvaluationStatus } from './evaluator.js'

@@ -2,15 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import UTC, date
-
-from agentkit.common.ids import new_id
 from agentkit.web.auth import Actor, UserActor
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from jobcome.observability.events import log_product_event
+from jobcome.exceptions import AppError, NotFoundError
 from jobcome.models.enums import ElevationLevel, ExportFormat, JobTag
-from jobcome.models.interview import Application
+from jobcome.observability.events import log_product_event
 from jobcome.schemas.job import (
     ApplyPipelineRequest,
     ApplyPipelineResponse,
@@ -18,10 +15,10 @@ from jobcome.schemas.job import (
     JobParseRequest,
 )
 from jobcome.schemas.resume import ExportRequest
+from jobcome.services.application_service import ApplicationService
 from jobcome.services.job_service import JobService
 from jobcome.services.profile_service import ProfileService
 from jobcome.services.resume_service import ResumeService
-from jobcome.stores.application_store import ApplicationStore
 from jobcome.stores.job_store import JobStore
 
 
@@ -31,7 +28,7 @@ class ApplyPipelineService:
         self._jobs = JobService(db)
         self._resumes = ResumeService(db)
         self._profiles = ProfileService(db)
-        self._applications = ApplicationStore(db)
+        self._applications = ApplicationService(db)
         self._job_store = JobStore(db)
 
     async def run(
@@ -125,17 +122,13 @@ class ApplyPipelineService:
             )
 
         if body.create_application and export_resp and export_resp.status == "done":
-            app = Application(
-                id=new_id("appl"),
-                job_id=job_id,
-                profile_id=profile_id,
-                user_id=actor.user_id,
+            app = await self._applications.mark_applied(
+                profile_id,
+                job_id,
+                actor=actor,
                 resume_variant_id=draft.id,
-                applied_at=date.today(),
-                user_marked=True,
                 note=f"export:{export_resp.id}",
             )
-            await self._applications.create(app)
             application_id = app.id
             job = await self._job_store.get_by_id(job_id)
             if job is not None:

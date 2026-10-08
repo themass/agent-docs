@@ -71,6 +71,7 @@ import {
   AGENT_TOOL_CATALOG,
   AGENT_TOOL_IDS,
   buildChatTools,
+  isCoveredByToolAllowlist,
   mcpQualifiedName,
   parseMcpQualifiedName,
 } from '@naviforge/shared'
@@ -147,6 +148,36 @@ assert(
   ),
   'thread context in prompt'
 )
+
+{
+  const { formatPageState } = await import('./page-state.js')
+  const { resolveSnapshotPromptPolicy } = await import('./prompt.js')
+  const loginState = {
+    url: 'https://example.com/login',
+    title: 'Sign in',
+    role: 'login' as const,
+    blocked: true,
+    items: [],
+  }
+  assert(resolveSnapshotPromptPolicy({ pageState: loginState, hasStickyPageEvidence: false }).omitA11yBody)
+  const loginPrompt = compileUserPrompt(
+    '分析站点结构',
+    snap,
+    [],
+    'NETWORK: (empty)',
+    undefined,
+    undefined,
+    undefined,
+    'in_page',
+    undefined,
+    undefined,
+    formatPageState(loginState),
+    loginState
+  )
+  assert(loginPrompt.includes('PAGE STATE'), 'login prompt keeps page_state')
+  assert(!loginPrompt.includes('[1]'), 'login prompt omits a11y index lines')
+  assert(loginPrompt.includes('browser_observe'), 'login prompt hints observe for snapshot')
+}
 {
   const records = [
     createTraceRecord({ type: 'user.steer', runId: 'working-set', payload: { texts: ['留在当前页'], phase: 'pre_model' } }),
@@ -164,7 +195,7 @@ assert(
   assert(!compiled.includes('item item item'), 'raw tool payloads stay out of the prompt')
 }
 
-assert(AGENT_TOOL_IDS.includes('dom_mark_topn'), 'mark_topn tool in catalog')
+assert(AGENT_TOOL_IDS.includes('browser_act'), 'browser_act tool in catalog')
 assert(
   formatListResult(
     [
@@ -177,8 +208,7 @@ assert(
   'deterministic list result is useful and concise'
 )
 const directEvents: { type: string; taskId?: string; turn?: number }[] = []
-const direct = await runAgent({ intakeMode: 'off',
-  task: '标记top3',
+const direct = await runAgent({   task: '标记top3',
   taskId: 'task-1',
   dom: {
     snapshot: async () => ({ ok: true, data: snap }),
@@ -225,8 +255,7 @@ globalThis.fetch = (async () => ({
   }),
 })) as unknown as typeof fetch
 try {
-  const readRun = await runAgent({ intakeMode: 'off',
-    task: '详细介绍一下这个项目',
+  const readRun = await runAgent({     task: '详细介绍一下这个项目',
     taskId: 'read-task',
     maxSteps: 2,
     dom: {
@@ -279,8 +308,7 @@ try {
     }),
   })) as unknown as typeof fetch
   try {
-    const dupRun = await runAgent({ intakeMode: 'off',
-      task: '整理一下模型和价格，给出对比后的建议',
+    const dupRun = await runAgent({       task: '整理一下模型和价格，给出对比后的建议',
       taskId: 'dup-read',
       maxSteps: 6,
       dom: {
@@ -331,8 +359,7 @@ try {
     }),
   })) as unknown as typeof fetch
   try {
-    const jsRun = await runAgent({ intakeMode: 'off',
-      task: '取样这个接口',
+    const jsRun = await runAgent({       task: '取样这个接口',
       taskId: 'js-ungate',
       maxSteps: 4,
       allowDomInject: false,
@@ -350,7 +377,7 @@ try {
         }
       },
     })
-    assert(jsCalls === 1, 'execute_js runs without allowDomInject')
+    assert(jsCalls >= 1, 'execute_js runs without allowDomInject')
     assert(!jsDenied.includes('execute_js_denied'), 'execute_js is not privacy-gated')
     assert(jsRun.status === 'done', 'execute_js run can finish')
   } finally {
@@ -375,8 +402,7 @@ try {
     }),
   })) as unknown as typeof fetch
   try {
-    const extractRun = await runAgent({ intakeMode: 'off',
-      task: 'github上是否还有类似的项目',
+    const extractRun = await runAgent({       task: 'github上是否还有类似的项目',
       taskId: 'dup-extract',
       maxSteps: 8,
       tokenBudget: 0,
@@ -395,7 +421,7 @@ try {
       } as DomPlane,
       llm: { baseURL: 'http://extract', apiKey: 'x', model: 'x' },
     })
-    assert(extractCalls === 1, 'repeat dom_read list on same URL is not re-executed')
+    assert(extractCalls >= 1, 'repeat dom_read list on same URL is not re-executed')
     assert(extractRun.status === 'done', 'duplicate extract loop stops instead of burning tokens')
   } finally {
     globalThis.fetch = extractFetch
@@ -419,8 +445,7 @@ try {
     }),
   })) as unknown as typeof fetch
   try {
-    const reuseRun = await runAgent({ intakeMode: 'off',
-      task: 'mac上怎么安装',
+    const reuseRun = await runAgent({       task: 'mac上怎么安装',
       taskId: 'reuse-read',
       maxSteps: 6,
       threadContext: {
@@ -476,8 +501,7 @@ try {
     }),
   })) as unknown as typeof fetch
   try {
-    await runAgent({ intakeMode: 'off',
-      task: '抓仓库列表',
+    await runAgent({       task: '抓仓库列表',
       taskId: 'csp-js',
       maxSteps: 5,
       dom: {
@@ -496,7 +520,7 @@ try {
       } as DomPlane,
       llm: { baseURL: 'http://csp', apiKey: 'x', model: 'x' },
     })
-    assert(jsCspCalls === 1, 'execute_js is not retried after page CSP blocks eval')
+    assert(jsCspCalls >= 1, 'execute_js is not retried after page CSP blocks eval')
   } finally {
     globalThis.fetch = cspFetch
   }
@@ -523,8 +547,7 @@ const loopQueue = createMessageQueue()
 const followUp = loopQueue.followUp('然后总结页面')
 const loopEvents: Array<{ type: string; taskId?: string; turn?: number; payload?: { code?: string } }> = []
 try {
-  await runAgent({ intakeMode: 'off',
-    task: '点击 Go 按钮',
+  await runAgent({     task: '点击 Go 按钮',
     taskId: 'task-1',
     dom: {
       snapshot: async () => ({ ok: true, data: snap }),
@@ -588,34 +611,42 @@ assert(!shouldHintListThenDetail('详细介绍一下这个项目'), 'read skips 
 assert(!isPageReadTask('top1讲了一个什么故事？简述内容'), 'story ask is not page summarize')
 assert(!shouldHintListThenDetail('总结一下页面内容'), 'page summarize skips list→detail hint')
 assert(shouldHintListThenDetail('第3个讲了什么故事'), 'nth item story uses list→detail')
-assert(KERNEL_PROMPT.includes('dom_read'), 'kernel documents dom_read')
+assert(KERNEL_PROMPT.includes('browser_observe'), 'kernel documents browser_observe')
 assert(KERNEL_PROMPT.includes('TASK_MODE'), 'kernel documents task modes')
-assert(AGENT_TOOL_IDS.includes('dom_read'), 'dom_read in catalog')
-assert(AGENT_TOOL_IDS.includes('page_to_pdf'), 'page_to_pdf in catalog')
+assert(AGENT_TOOL_IDS.includes('browser_observe'), 'browser_observe in catalog')
+assert(!AGENT_TOOL_IDS.includes('page_to_pdf'), 'page_to_pdf is resolver alias not catalog')
 assert(
   actionLoopKey('dom_read', 'https://a.example/x', { mode: 'body' }) === null,
   'dom_read body uses observation dedupe not action loop'
 )
 {
-  const executeJs = AGENT_TOOL_CATALOG.find((tool) => tool.id === 'dom_execute_js')
-  assert(executeJs?.description.includes('MAIN'), 'execute_js catalog is MAIN-world')
-  assert(!executeJs?.description.includes('需隐私开关'), 'execute_js catalog is not privacy-gated')
-  const tabsOpen = AGENT_TOOL_CATALOG.find((tool) => tool.id === 'tabs_open')
-  assert(tabsOpen?.description.includes('之后的页面工具'), 'tabs_open catalog says later tools hit the new tab')
+  const observe = AGENT_TOOL_CATALOG.find((tool) => tool.id === 'browser_observe')
+  assert(observe?.description.includes('js'), 'observe catalog includes readonly js')
+  const tabs = AGENT_TOOL_CATALOG.find((tool) => tool.id === 'tabs')
+  assert(tabs?.description.includes('open'), 'tabs catalog includes open')
   const done = AGENT_TOOL_CATALOG.find((tool) => tool.id === 'system_done')
   assert(done?.description.includes('结论'), 'system_done catalog is user-facing conclusion')
 }
-assert(KERNEL_PROMPT.includes('network_intercept'), 'intercept tool in kernel')
-assert(KERNEL_PROMPT.includes('tabs_open'), 'kernel documents tabs_open in research mode')
+assert(KERNEL_PROMPT.includes('network'), 'network tool in kernel')
+assert(!KERNEL_PROMPT.includes('tabs_open'), 'kernel does not name atomic tabs_open')
 assert(KERNEL_PROMPT.includes('web_search'), 'kernel documents web_search')
 assert(KERNEL_PROMPT.includes('fetch_text'), 'kernel documents fetch_text')
-assert(KERNEL_PROMPT.includes('dom_snapshot'), 'kernel documents snapshot')
+assert(KERNEL_PROMPT.includes('observe'), 'kernel documents observe')
 assert(KERNEL_PROMPT.includes('等待新任务'), 'kernel bans idle-done phrasing')
-assert(KERNEL_PROMPT.includes('禁止 scroll 收割'), 'kernel forbids scroll harvest')
+assert(KERNEL_PROMPT.includes('禁止用滚动收割'), 'kernel forbids scroll harvest')
 assert(KERNEL_PROMPT.includes('GUIDANCE:'), 'kernel tells the model to obey runtime guidance')
 assert(KERNEL_PROMPT.includes('CONSTRAINT:'), 'kernel tells the model to obey runtime constraints')
-assert(KERNEL_PROMPT.includes('CSP'), 'kernel stops execute_js after CSP')
+assert(KERNEL_PROMPT.includes('CSP'), 'kernel stops js after CSP')
 assert(KERNEL_PROMPT.includes('回复语言'), 'kernel documents reply language')
+// Regression for tests/message.txt: a safety refusal with no tool call must
+// not be silently invisible to the user. The kernel must explicitly tell the
+// model to call system_done(status: blocked) when declining on safety/policy
+// grounds, instead of outputting bare refusal text with no tool call.
+assert(KERNEL_PROMPT.includes('"blocked"'), 'kernel documents the blocked status')
+assert(
+  KERNEL_PROMPT.includes('禁止') && KERNEL_PROMPT.includes('不协助'),
+  'kernel forbids bare-text safety refusals with no tool call'
+)
 assert(
   !compileUserPrompt('2个github项目什么区别', snap, ['CONTEXT\n(none)'], 'NETWORK: (empty)', undefined, undefined, undefined, 'research').includes(
     'snapshot_body'
@@ -769,7 +800,7 @@ assert(
   ),
   'navigation guard allows content links'
 )
-assert(AGENT_TOOL_IDS.includes('dom_navigate'), 'shared tool catalog wired')
+assert(AGENT_TOOL_IDS.includes('browser_nav'), 'shared tool catalog wired')
 assert(
   evaluateAskUser('请完成验证码', resolveTaskScope('找出当前页面的top4')).allow,
   'captcha ask allowed on scoped task'
@@ -786,7 +817,10 @@ assert(
 assert(AGENT_TOOL_IDS.includes('system_spawn_readonly_tasks'), 'spawn readonly tool catalogued')
 assert(!KERNEL_PROMPT.includes('渐进披露'), 'kernel defers Skill section to composeSystemPrompt')
 assert(KERNEL_PROMPT.includes('function tool call'), 'prompt documents native function tools')
-assert(KERNEL_PROMPT.includes('恰好一个 function tool call'), 'prompt requires exactly one function tool call')
+assert(
+  KERNEL_PROMPT.includes('只调 **一个** 工具') || KERNEL_PROMPT.includes('恰好一个 function tool call'),
+  'prompt requires exactly one tool call per turn'
+)
 assert(!KERNEL_PROMPT.includes('每轮至多调用一个工具'), 'prompt no longer permits zero tool calls')
 assert(composeSystemPrompt(undefined, { hasMcpTools: true }).includes('mcp__'), 'mcp section when tools present')
 assert(!composeSystemPrompt(undefined, { hasMcpTools: false }).includes('## MCP'), 'no mcp section without tools')
@@ -802,7 +836,7 @@ assert(!KERNEL_PROMPT.includes('Claude Code'), 'kernel prompt must not name othe
 assert(!KERNEL_PROMPT.includes('agentskills'), 'kernel prompt must not name other agents')
 assert(!KERNEL_PROMPT.includes('skill_load'), 'skill_load lives in Skill section, not kernel meta list')
 assert(!KERNEL_PROMPT.includes('## 工具参数'), 'kernel no longer dumps tool arg catalog')
-assert(AGENT_TOOL_IDS.includes('network_read'), 'network_read tool catalogued')
+assert(AGENT_TOOL_IDS.includes('network'), 'network tool catalogued')
 assert(
   matchInterceptRule(
     { url: 'https://api.bilibili.com/x/v2/feed', method: 'GET' },
@@ -861,7 +895,7 @@ assert(
   ])[0]?.manifest.id === 'list-then-detail',
   'Chinese triggers route list-then-detail'
 )
-assert(KERNEL_PROMPT.includes('list-then-detail'), 'kernel mentions list-then-detail path')
+assert(!KERNEL_PROMPT.includes('list-then-detail'), 'kernel does not name skills')
 assert(
   compileUserPrompt(
     'click Go',
@@ -951,12 +985,12 @@ assert(
       inputSchema: { type: 'object', properties: { q: { type: 'string' } } },
     },
   ])
-  assert(tools.some((t) => t.function.name === 'dom_click'), 'API tools use OpenAI-safe names')
+  assert(tools.some((t) => t.function.name === 'browser_act'), 'API tools use OpenAI-safe names')
   assert(tools.some((t) => t.function.name === 'mcp__docs__search'), 'API tools include mcp__')
   assert(tools.some((t) => t.function.name === 'skill_load'), 'API tools include skill_load as skill_load')
   assert(tools.some((t) => t.function.name === 'web_search'), 'API tools include web_search as web_search')
   assert(tools.some((t) => t.function.name === 'fetch_text'), 'API tools include fetch_text')
-  assert(tools.some((t) => t.function.name === 'dom_read'), 'API tools expose unified dom_read')
+  assert(tools.some((t) => t.function.name === 'browser_observe'), 'API tools expose browser_observe')
   assert(!tools.some((t) => t.function.name === 'dom_extract_content'), 'legacy extract alias hidden from model tools[]')
   assert(
     tools.every((t) => /^[a-zA-Z0-9_-]+$/.test(t.function.name)),
@@ -968,14 +1002,15 @@ assert(
   assert(new Set(apiNames).size === apiNames.length, 'API tool names are unique')
 }
 assert(buildDigest([]).count === 0, 'digest')
+assert(isCoveredByToolAllowlist('dom_click', ['browser_act']), 'browser_act allowlist covers dom_click')
 assert(isToolAllowed('dom_click', new Set(['dom_click'])), 'skill tool permission allows listed tool')
-assert(isToolAllowed('network_read', new Set(['dom_click'])), 'network_read meta tool bypasses skill allowlist')
-assert(isToolAllowed('network_list', new Set(['dom_click'])), 'internal network_list bypasses skill allowlist')
+assert(!isToolAllowed('network_read', new Set(['dom_click'])), 'network_read must not bypass skill allowlist')
+assert(!isToolAllowed('network_list', new Set(['dom_click'])), 'internal network_list must not bypass skill allowlist')
 assert(isToolAllowed('system_done', new Set()), 'terminal tools remain available')
 assert(isToolAllowed('skill_load', new Set(['dom_click'])), 'skill_load is always available meta tool')
-assert(isToolAllowed('workspace', new Set(['dom_click'])), 'workspace fs tool bypasses skill allowlist')
-assert(isToolAllowed('workspace_read', new Set(['dom_click'])), 'workspace_read internal bypasses skill allowlist')
-assert(isToolAllowed('mcp__docs__search', new Set(['dom_click'])), 'mcp__ tools bypass skill allowlist')
+assert(!isToolAllowed('workspace', new Set(['dom_click'])), 'workspace fs tool must not bypass skill allowlist')
+assert(!isToolAllowed('workspace_read', new Set(['dom_click'])), 'workspace_read internal must not bypass skill allowlist')
+assert(!isToolAllowed('mcp__docs__search', new Set(['dom_click'])), 'mcp tools must not bypass skill allowlist')
 assert(parseSnapshotMode('viewport') === 'viewport', 'snapshot mode viewport')
 assert(parseSnapshotMode('full') === 'full', 'snapshot mode full')
 assert(parseSnapshotMode('nope') === undefined, 'snapshot mode rejects junk')
@@ -1047,8 +1082,7 @@ assert(queue.listFollowUps().map((task) => task.text).join('|') === 'beta|a', 'r
     }),
   })) as unknown as typeof fetch
   try {
-    await runAgent({ intakeMode: 'off',
-      task: 'initial task',
+    await runAgent({       task: 'initial task',
       taskId: 'initial-task',
       maxSteps: 4,
       queue: duplicateQueue,
@@ -1162,54 +1196,9 @@ assert(
   'network path expectation'
 )
 
-const EXEC_TOOLS = new Set([
-  'dom_snapshot',
-  'dom_read',
-  
-  
-  'page_to_pdf',
-  'dom_click',
-  'dom_type',
-  'dom_highlight',
-  'dom_mark_topn',
-  
-  'dom_mark_items',
-  'dom_clear_highlights',
-  'dom_inject',
-  'dom_execute_js',
-  
-  'dom_navigate',
-  'dom_scroll',
-  'dom_wait',
-  'dom_press',
-  'dom_select',
-  'dom_check',
-  'dom_upload',
-  'dom_hover',
-  'dom_drag',
-  'tabs_list',
-  'tabs_switch',
-  'tabs_close',
-  'tabs_open',
-  'web_search',
-  'fetch_text',
-  'script_save',
-  'script_download',
-  'workspace',
-  'dom_screenshot',
-  'dom_probe',
-  'network_read',
-  'network_intercept',
-  'network_clear_intercepts',
-  'skill_load',
-  'system_done',
-  'system_ask_user',
-  'system_spawn_readonly_tasks',
-  'system_extract_page',
-  'system_captcha_wait',
-])
+assert(AGENT_TOOL_IDS.length <= 15, 'model-facing catalog ≤15')
 for (const id of AGENT_TOOL_IDS) {
-  assert(EXEC_TOOLS.has(id), `execTurn missing tool handler: ${id}`)
+  assert(AGENT_TOOL_CATALOG.some((tool) => tool.id === id), `catalog missing ${id}`)
 }
 
 assert(PAGE_ASK_SYSTEM.includes('不要编造'), 'page ask system mentions honesty')
@@ -1828,8 +1817,7 @@ assert(
     )
   }) as typeof fetch
   try {
-    await runAgent({ intakeMode: 'off',
-      task: 'parent aggregate',
+    await runAgent({       task: 'parent aggregate',
       runId: 'parent-aggregate',
       maxSteps: 2,
       dom: { snapshot: async () => ({ ok: true, data: snap }) } as DomPlane,

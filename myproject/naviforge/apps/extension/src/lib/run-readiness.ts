@@ -1,5 +1,7 @@
 /** Pre-run checks surfaced in Side Panel before agent loop starts. */
 
+import { hasBroadHostAccess } from './host-permissions'
+
 export type RunReadinessItem = {
   id: string
   ok: boolean
@@ -77,6 +79,15 @@ export async function runReadinessChecks(opts: {
     blocking: true,
   })
 
+  const hostAccess = await hasBroadHostAccess()
+  items.push({
+    id: 'host_access',
+    ok: hostAccess,
+    label: '网站访问权限',
+    detail: hostAccess ? '已授权 http(s)' : '首次 Run 时将请求访问网站',
+    blocking: false,
+  })
+
   items.push({
     id: 'content_script',
     ok: false,
@@ -129,9 +140,10 @@ export async function runReadinessChecks(opts: {
     const item = items.find((i) => i.id === 'debugger')
     if (item) {
       item.ok = dbg.ok
+      item.blocking = false
       item.detail = dbg.ok
         ? 'debugger 可附加'
-        : `${dbg.detail ?? 'attach failed'} — 关闭 DevTools / 其他调试扩展后重试`
+        : `${dbg.detail ?? 'attach failed'} — Run 时将自动重试；仍失败则降级为 DOM 模式（不拦 Run）`
     }
   }
 

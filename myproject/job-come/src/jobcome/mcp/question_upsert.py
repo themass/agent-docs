@@ -10,6 +10,26 @@ from jobcome.models.interview import InterviewQuestion
 from jobcome.stores.interview_store import InterviewStore
 
 
+async def _attach_to_mock(
+    store: InterviewStore,
+    *,
+    profile_id: str,
+    mock_session_id: str,
+    question_id: str,
+    created: bool,
+) -> None:
+    session = await store.get_mock_session(mock_session_id)
+    if session is None or session.profile_id != profile_id:
+        return
+    qids = list(session.question_ids or [])
+    if question_id in qids:
+        return
+    qids.append(question_id)
+    session.question_ids = qids
+    if created:
+        session.generated_count = int(session.generated_count or 0) + 1
+
+
 async def question_upsert(
     ctx: McpRunContext,
     *,
@@ -20,6 +40,7 @@ async def question_upsert(
     job_id: str | None = None,
     mock_session_id: str | None = None,
     tags: list[str] | None = None,
+    round: str | None = None,
 ) -> dict:
     if not ctx.profile_id:
         raise ValueError("profile_id required")
@@ -30,6 +51,17 @@ async def question_upsert(
     store = InterviewStore(ctx.db)
     existing = await store.find_question_by_stem(ctx.profile_id, text, company=company)
     if existing is not None:
+        if job_id and not existing.job_id:
+            existing.job_id = job_id
+        if mock_session_id:
+            await _attach_to_mock(
+                store,
+                profile_id=ctx.profile_id,
+                mock_session_id=mock_session_id,
+                question_id=existing.id,
+                created=False,
+            )
+        await ctx.db.commit()
         return {
             "id": existing.id,
             "stem": existing.stem,
@@ -46,15 +78,17 @@ async def question_upsert(
         company=company,
         role_title=role_title,
         job_id=job_id,
+        round=round,
         tags=tags or [],
     )
     await store.create_question(row)
     if mock_session_id:
-        session = await store.get_mock_session(mock_session_id)
-        if session is not None and session.profile_id == ctx.profile_id:
-            qids = list(session.question_ids or [])
-            if row.id not in qids:
-                qids.append(row.id)
-            session.question_ids = qids
+        await _attach_to_mock(
+            store,
+            profile_id=ctx.profile_id,
+            mock_session_id=mock_session_id,
+            question_id=row.id,
+            created=True,
+        )
     await ctx.db.commit()
     return {"id": row.id, "stem": row.stem, "created": True, "attempt_count": 0}

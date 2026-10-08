@@ -4,8 +4,8 @@ import type { RecordView } from '../lib/agent-event-projection'
 import type { ListResultItem } from '../lib/list-result-format'
 
 export const DEFAULT_LLM = {
-  baseURL: 'https://newapi.yuaiweiwu.com/v1',
-  model: 'mt-claude-sonnet-4-6',
+  baseURL: 'https://api.openai.com/v1',
+  model: 'gpt-4o-mini',
   apiKey: '',
 }
 

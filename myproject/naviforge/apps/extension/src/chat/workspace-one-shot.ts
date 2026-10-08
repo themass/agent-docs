@@ -6,13 +6,14 @@ import {
   pickedElementExcerpt,
   resolveOneShotQuestion,
 } from '@naviforge/runtime'
+import type { LlmConfig } from '@naviforge/runtime'
 import {
   getActiveModelProfile,
   loadModelProfiles,
   profileToLlmConfig,
-  type LlmConfig,
 } from '../lib/llm-profiles'
 import { loadNewApiAuth } from '../lib/newapi-auth'
+import { isManagedLoginEnabled } from '../lib/managed-login-feature'
 import { syncManagedProfilesFromNewApi } from '../lib/newapi-sync'
 
 import { createChromeDomPlane } from '../lib/chrome-dom-plane'
@@ -25,6 +26,7 @@ import { workspaceRpc } from '../lib/local-workspace'
 import { safeRuntimeSendMessage } from '../lib/extension-runtime'
 import type { PickedElement } from './workspace-helpers'
 import { pickedLabel } from './workspace-helpers'
+import type { WorkspaceRunOutcome } from './run-outcome'
 
 export type OneShotActionsDeps = {
   llm: LlmConfig
@@ -39,11 +41,7 @@ export type OneShotActionsDeps = {
   setStatus(value: WorkspaceRunStatus): void
   setStatusDetail(value: string | null): void
   setTask(value: string | ((current: string) => string)): void
-  setRunOutcome(value: {
-    kind: 'success' | 'failed' | 'blocked' | 'waiting' | 'cancelled'
-    title: string
-    message: string
-  } | null): void
+  setRunOutcome(value: WorkspaceRunOutcome | null): void
   setTokenUsage(value: {
     lastPrompt: number
     lastCompletion: number
@@ -62,7 +60,8 @@ export type OneShotActionsDeps = {
 export function createOneShotActions(deps: OneShotActionsDeps) {
   async function resolveOneShotLlm(): Promise<LlmConfig> {
     const auth = await loadNewApiAuth()
-    if (auth.mode === 'managed') {
+    const managedFeature = await isManagedLoginEnabled()
+    if (managedFeature && auth.mode === 'managed') {
       const profilesBefore = await loadModelProfiles()
       const activeBefore = getActiveModelProfile(profilesBefore)
       const staleHttps = /^https:\/\/gpt\.sspacee\.com/i.test(activeBefore.baseURL)
@@ -106,7 +105,12 @@ export function createOneShotActions(deps: OneShotActionsDeps) {
       deps.setPageAskBusy(false)
       deps.setStatus(RUN_STATUS.FAILED)
       deps.setStatusDetail(null)
-      deps.setRunOutcome({ kind: 'failed', title: '未配置模型', message: '请先在设置中填写 API Key' })
+      deps.setRunOutcome({
+        kind: 'failed',
+        title: '未配置模型',
+        message: '请先在设置中填写 API Key',
+        optionsSection: 'settings',
+      })
       deps.setTask((current) => (current.trim() ? current : question))
       return
     }

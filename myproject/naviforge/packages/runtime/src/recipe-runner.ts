@@ -75,8 +75,11 @@ async function runStep(
     }
     case 'network_wait': {
       if (!network) return { ok: false, error: 'network plane unavailable' }
-      const started = await network.start()
-      if (!started.ok) return { ok: false, error: started.error.message }
+      const digest = await network.digest(1)
+      if (!digest.ok) {
+        const started = await network.start()
+        if (!started.ok) return { ok: false, error: started.error.message }
+      }
       const waited = await network.wait({
         urlIncludes: step.urlIncludes,
         timeoutMs: step.timeout_ms ?? 15_000,

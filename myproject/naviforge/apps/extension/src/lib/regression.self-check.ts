@@ -120,7 +120,7 @@ assert.doesNotMatch(
   /chrome\.tabs\.onActivated/,
   'toolkit bound tab must not follow every tab you click'
 )
-assert.match(background, /command === 'open-toolkit'[\s\S]{0,120}openPageToolList/, 'open-toolkit opens page tool list overlay')
+assert.match(background, /command === 'open-toolkit'[\s\S]{0,120}openToolkitPage/, 'open-toolkit opens options toolkit tab')
 assert.match(
   background,
   /command === 'toolkit-translate'[\s\S]{0,120}lastFocusedWindow/,

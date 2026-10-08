@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 from agentkit.common.ids import new_id
-from agentkit.web.auth import Actor
+from agentkit.web.auth import Actor, UserActor
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from jobcome.exceptions import NotFoundError
 from jobcome.models.job import Job
-from jobcome.schemas.job import FitScoreRequest, JobParseRequest, JobResponse
-from jobcome.schemas.profile_payload import ProfilePayload
+from jobcome.schemas.job import FitScoreRequest, FitScoreResponse, JobParseRequest, JobResponse
+from jobcome.services.application_service import ApplicationService
 from jobcome.services.fit_score_service import FitScoreService
 from jobcome.services.jd_parser_service import JdParserService
 from jobcome.services.profile_service import ProfileService
@@ -23,6 +23,7 @@ class JobService:
         self._profiles = ProfileService(db)
         self._jd = JdParserService()
         self._fit = FitScoreService()
+        self._applications = ApplicationService(db)
 
     async def parse_jd(
         self,
@@ -31,7 +32,7 @@ class JobService:
         actor: Actor,
         body: JobParseRequest,
     ) -> JobResponse:
-        profile_resp = await self._profiles.get(profile_id, actor=actor)
+        await self._profiles.get(profile_id, actor=actor)
         parsed = await self._jd.parse(raw_text=body.raw_text)
 
         job: Job | None = None
@@ -102,6 +103,8 @@ class JobService:
                 "legitimacy": result.legitimacy,
             }
             await self._jobs.save(job)
+            if isinstance(actor, UserActor):
+                await self._applications.upsert_evaluated(profile_id, job.id, actor=actor)
             await self._db.commit()
             result = result.model_copy(update={"job_id": job.id})
         return result

@@ -14,7 +14,7 @@ import type { applyPrivacySettings } from './workspace-effects'
 
 /** Privacy toggles + run limits mirrored from chrome.storage privacy settings. */
 export function useWorkspacePrivacyState() {
-  const [useNetwork, setUseNetwork] = useState(true)
+  const [useNetwork, setUseNetwork] = useState(false)
   const [allowDomInject, setAllowDomInject] = useState(false)
   const [allowNetworkIntercept, setAllowNetworkIntercept] = useState(false)
   const [hitlPolicy, setHitlPolicy] = useState<'strict' | 'balanced' | 'permissive'>('balanced')
@@ -27,7 +27,6 @@ export function useWorkspacePrivacyState() {
   const [runTimeoutMs, setRunTimeoutMs] = useState(DEFAULT_RUN_TIMEOUT_MS)
   const [tokenBudget, setTokenBudget] = useState(DEFAULT_TOKEN_BUDGET)
   const [maxInputTokens, setMaxInputTokens] = useState(DEFAULT_MAX_INPUT_TOKENS)
-  const [intakeMode, setIntakeMode] = useState<'off' | 'auto' | 'always'>('auto')
   const [enforceSkillToolAllowlist, setEnforceSkillToolAllowlist] = useState(false)
 
   const privacySetters: Parameters<typeof applyPrivacySettings>[1] = useMemo(
@@ -46,7 +45,6 @@ export function useWorkspacePrivacyState() {
       setRunTimeoutMs,
       setTokenBudget,
       setMaxInputTokens,
-      setIntakeMode,
     }),
     []
   )
@@ -78,7 +76,6 @@ export function useWorkspacePrivacyState() {
     runTimeoutMs,
     tokenBudget,
     maxInputTokens,
-    intakeMode,
     enforceSkillToolAllowlist,
     privacySetters,
     capabilityGates,

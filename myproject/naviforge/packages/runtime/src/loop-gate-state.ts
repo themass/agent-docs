@@ -37,9 +37,31 @@ export type AgentGates = {
   pageVisits: Map<string, PageVisit>
   /** Resolved once per run for intent routing. */
   taskIntent?: import('./task-intent.js').TaskIntent
+  /** Primary deliverable narrative (Phase A). */
+  deliverable?: import('./deliverable.js').Deliverable
+  scriptLoginAskIssued?: boolean
+  /** Successful script_save this run (Phase C verify). */
+  scriptSaved?: boolean
+  scriptSavePath?: string
   /** SiteRecipe preflight succeeded without LLM. */
   recipeUsed?: boolean
   recipeId?: string
+  /** Passive browser_observe extract/read returning empty (media milestone). */
+  mediaPassiveObserveEmpty?: number
+  /**
+   * Generic click targets (keyed `${url}#${index}`) that produced no
+   * observable effect (no URL/DOM/Page-State/Network change). Any
+   * click-and-check flow should consult this before retrying an index.
+   * See post-action-verify.ts.
+   */
+  inertActionIndexes?: Set<string>
+  /**
+   * `(url, snapshot revision)` PAGE STATE was last computed for. Lets
+   * attachPageState skip recompute + duplicate PAGE STATE note emission
+   * when called again with nothing changed (e.g. once at run start, once
+   * more from PreflightHook — both before any navigation/click happens).
+   */
+  lastPageStateFor?: { url: string; revision: number }
 }
 
 export function createAgentGates(sameActionLimit: number): AgentGates {

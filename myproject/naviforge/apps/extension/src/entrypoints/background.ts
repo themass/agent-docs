@@ -7,6 +7,7 @@ import {
   digestNetwork,
   ensureNetworkListeners,
   listIntercepts,
+  verifyNetworkDebuggerAttached,
   listNetwork,
   listScriptBodyPreviews,
   fetchMissingScriptBodies,
@@ -21,6 +22,7 @@ import {
   releaseRunNetwork,
 } from '../lib/network-session'
 import { startHostBridge } from '../lib/host-bridge'
+import { attachNetworkWithRecovery } from '../lib/network-attach-recovery'
 import { runSupervisor } from '../lib/run-supervisor'
 import { STORAGE } from '../lib/settings'
 import {
@@ -34,7 +36,7 @@ import {
 } from '../lib/modify-headers'
 import {
   openJsonFormatPage,
-  openPageToolList,
+  openToolkitPage,
   ensureSidePanelRegistered,
   openSidePanelWithGesture,
   openSidePanelForStudioAttach,
@@ -504,8 +506,27 @@ export default defineBackground(() => {
           const tabId = message.tabId as number
           switch (message.action) {
             case 'attach': {
-              const r = await attachNetwork(tabId, { captureBodies: message.captureBodies === true })
-              sendResponse(r.attached ? { ok: true, attached: true } : { ok: false, error: r.error })
+              // Route every attach through the same recovery path used at run
+              // start (retry + DevTools/foreign-debugger detection + tab
+              // duplication). A bare attachNetwork() here would silently drop
+              // all of that whenever Runtime re-attaches mid-run (e.g. after a
+              // media candidate click), which previously surfaced as a
+              // one-shot 'debugger attach failed' with no recovery attempted.
+              const recovered = await attachNetworkWithRecovery(tabId, {
+                captureBodies: message.captureBodies === true,
+              })
+              if (recovered.tabId !== tabId) {
+                runSupervisor.retargetActiveRunTab(tabId, recovered.tabId)
+              }
+              sendResponse(
+                recovered.attached
+                  ? { ok: true, attached: true, tabId: recovered.tabId }
+                  : {
+                      ok: false,
+                      error: `${recovered.error ?? 'debugger attach failed'} (${recovered.cause}; tried ${recovered.actions.join(', ') || 'none'})`,
+                      tabId: recovered.tabId,
+                    }
+              )
               return
             }
             case 'probe': {
@@ -561,10 +582,18 @@ export default defineBackground(() => {
               return
             }
             case 'digest': {
+              if (!(await verifyNetworkDebuggerAttached(tabId))) {
+                sendResponse({ ok: false, error: 'debugger not attached' })
+                return
+              }
               sendResponse({ ok: true, data: digestNetwork(tabId, message.limit ?? 12) })
               return
             }
             case 'list': {
+              if (!(await verifyNetworkDebuggerAttached(tabId))) {
+                sendResponse({ ok: false, error: 'debugger not attached' })
+                return
+              }
               sendResponse({ ok: true, data: listNetwork(tabId, message.filter) })
               return
             }
@@ -728,11 +757,7 @@ try {
     void (async () => {
       try {
         if (command === 'open-toolkit') {
-          const result = await openPageToolList()
-          if (!result.ok && result.error) {
-            const tab = await resolveToolkitTab()
-            await flashCommandFeedback(result.error, tab?.id)
-          }
+          await openToolkitPage()
           return
         }
         if (command === 'open-json-format') {

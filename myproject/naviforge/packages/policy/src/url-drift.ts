@@ -11,7 +11,14 @@ export function urlsEquivalentForScope(before: string, after: string): boolean {
   }
 }
 
-const URL_MUTATING_TOOLS = new Set(['dom_click', 'dom_navigate', 'dom_press', 'dom_type'])
+const URL_MUTATING_TOOLS = new Set([
+  'dom_click',
+  'dom_navigate',
+  'dom_press',
+  'dom_type',
+  'browser_act',
+  'browser_nav',
+])
 
 export function isUrlMutatingTool(tool: string): boolean {
   return URL_MUTATING_TOOLS.has(tool)

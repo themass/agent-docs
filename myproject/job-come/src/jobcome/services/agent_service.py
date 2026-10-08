@@ -30,6 +30,7 @@ from jobcome.schemas.agent import (
     AgentSessionListItem,
     AgentSessionListResponse,
     AgentSessionResponse,
+    AgentUiContext,
 )
 from jobcome.observability.events import log_product_event
 from jobcome.services.profile_service import ProfileService
@@ -196,10 +197,18 @@ class AgentService:
         content: str,
         attachments: list[AgentAttachment] | None = None,
         reply_locale: str = "zh-CN",
+        ui_context: AgentUiContext | None = None,
     ) -> AsyncIterator[dict]:
         session = await self._require_session(session_id, actor=actor)
         attachment_list = attachments or []
         user_text = _format_user_message(content, attachment_list)
+        persist_payload: dict[str, Any] | None = None
+        if attachment_list or ui_context is not None:
+            persist_payload = {}
+            if attachment_list:
+                persist_payload["attachments"] = [a.model_dump() for a in attachment_list]
+            if ui_context is not None:
+                persist_payload["ui_context"] = ui_context.model_dump()
 
         await self._messages.append(
             message_id=new_id("agm"),
@@ -207,9 +216,7 @@ class AgentService:
             role="user",
             event_type="message",
             content=user_text,
-            payload={"attachments": [a.model_dump() for a in attachment_list]}
-            if attachment_list
-            else None,
+            payload=persist_payload,
         )
         await self._db.commit()
 
@@ -242,6 +249,32 @@ class AgentService:
                 agent_message,
                 profile_id=session.profile_id,
                 digest=digest,
+                ui_context=ui_context,
+            )
+        elif skill in {"coach-mock", "coach-answer"}:
+            from jobcome.agent.coach_task import wrap_coach_mock_message
+            from jobcome.stores.interview_store import InterviewStore
+
+            mock_id = None
+            drawn_stems: list[str] = []
+            if session.profile_id:
+                store = InterviewStore(self._db)
+                mock = await store.get_active_mock(
+                    session.profile_id, job_id=session.job_id
+                )
+                if mock is not None:
+                    mock_id = mock.id
+                    draw_n = int(mock.bank_draw_count or 0)
+                    for qid in list(mock.question_ids or [])[:draw_n]:
+                        q = await store.get_question(qid)
+                        if q is not None:
+                            drawn_stems.append(q.stem)
+            agent_message = wrap_coach_mock_message(
+                agent_message,
+                profile_id=session.profile_id,
+                job_id=session.job_id,
+                mock_session_id=mock_id,
+                drawn_stems=drawn_stems,
             )
         agent_message = f"{reply_language_instruction(reply_locale)}\n\n{agent_message}"
 

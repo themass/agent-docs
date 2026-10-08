@@ -6,6 +6,7 @@ import {
   createPauseController,
   type LlmConfig,
   type QueuedTask,
+  shouldEnableNetworkPlane,
 } from '@naviforge/runtime'
 import { formatSkillGuidance, routeSkills, type Skill } from '@naviforge/skill-runtime'
 import { capabilityGatesFromPrivacy } from '@naviforge/shared'
@@ -13,7 +14,9 @@ import { capabilityGatesFromPrivacy } from '@naviforge/shared'
 import { addActivity } from '../lib/activity-store'
 import { createHostMcpRuntime } from '../lib/host-bridge'
 import { getActiveModelProfile, loadModelProfiles, profileToLlmConfig } from '../lib/llm-profiles'
+import { hasBroadHostAccess, requestBroadHostAccess } from '../lib/host-permissions'
 import { loadNewApiAuth } from '../lib/newapi-auth'
+import { isManagedLoginEnabled } from '../lib/managed-login-feature'
 import { syncManagedProfilesFromNewApi } from '../lib/newapi-sync'
 import { blockingReadinessItems, runReadinessChecks, type RunReadinessItem } from '../lib/run-readiness'
 import {
@@ -30,6 +33,7 @@ import { isBrowserPdfUrl, ocrVisiblePage } from '../lib/vision-ocr'
 import { STORAGE } from '../lib/settings'
 import { safeRuntimeSendMessage } from '../lib/extension-runtime'
 import type { TraceRecord } from '@naviforge/session'
+import type { WorkspaceRunOutcome } from './run-outcome'
 
 export type AgentStarterDeps = {
   llm: LlmConfig
@@ -45,7 +49,6 @@ export type AgentStarterDeps = {
   runTimeoutMs: number
   tokenBudget: number
   maxInputTokens: number
-  intakeMode: 'off' | 'auto' | 'always'
   hitlPolicy: 'strict' | 'balanced' | 'permissive'
   rollbackUrlDrift: boolean
   threads: AgentThread[]
@@ -74,11 +77,7 @@ export type AgentStarterDeps = {
   setAwaitingQuestion(value: string | null): void
   setBlockedQuestions(value: string[]): void
   setLastRunFailed(value: boolean): void
-  setRunOutcome(value: {
-    kind: 'success' | 'failed' | 'blocked' | 'waiting' | 'cancelled'
-    title: string
-    message: string
-  } | null): void
+  setRunOutcome(value: WorkspaceRunOutcome | null): void
   setTopVideos(value: import('./workspace-helpers').TopVideo[]): void
   setResultsMarked(value: boolean): void
   setResultsStale(value: boolean): void
@@ -118,7 +117,7 @@ export type AgentStarterDeps = {
     payload: { topic: string; text: string }
   }): void
   syncPendingTasks(tasks: QueuedTask[]): void
-  abortUnstarted(taskItem: QueuedTask, title: string, message: string): void
+  abortUnstarted(taskItem: QueuedTask, title: string, message: string, optionsSection?: string): void
   bindActiveTab(): Promise<chrome.tabs.Tab | null>
   listThreadRecords(threadId: string): Promise<import('@naviforge/session').TraceRecord[]>
 }
@@ -126,7 +125,8 @@ export type AgentStarterDeps = {
 export function createAgentStarter(deps: AgentStarterDeps) {
   async function resolveRunLlm(): Promise<LlmConfig> {
     const auth = await loadNewApiAuth()
-    if (auth.mode === 'managed') {
+    const managedFeature = await isManagedLoginEnabled()
+    if (managedFeature && auth.mode === 'managed') {
       const profilesBefore = await loadModelProfiles()
       const activeBefore = getActiveModelProfile(profilesBefore)
       const staleHttps = /^https:\/\/gpt\.sspacee\.com/i.test(activeBefore.baseURL)
@@ -143,9 +143,10 @@ export function createAgentStarter(deps: AgentStarterDeps) {
     const llm = await resolveRunLlm()
     if (!llm.apiKey.trim()) {
       const auth = await loadNewApiAuth()
+      const managedFeature = await isManagedLoginEnabled()
       const hint =
-        auth.mode === 'managed'
-          ? '请先登录 NewAPI 托管（Side Panel 会打开登录页）'
+        managedFeature && auth.mode === 'managed'
+          ? '请先登录 NewAPI 托管（设置 → 高级 → 启用托管登录）'
           : 'Settings → Models'
       deps.push(`✗ 请先在设置中配置模型 API Key（${hint}）`)
       deps.setReadinessItems([
@@ -157,13 +158,21 @@ export function createAgentStarter(deps: AgentStarterDeps) {
           blocking: true,
         },
       ])
-      deps.abortUnstarted(taskItem, '未配置模型', '请先在设置中填写 API Key')
+      deps.abortUnstarted(taskItem, '未配置模型', '请先在设置中填写 API Key', 'settings')
       return
     }
     const tab = await deps.bindActiveTab()
     if (!tab?.id) {
       deps.abortUnstarted(taskItem, '无法绑定标签', '请先打开一个普通网页标签，或点顶栏切换')
       return
+    }
+    if (!(await hasBroadHostAccess())) {
+      const granted = await requestBroadHostAccess()
+      if (!granted) {
+        deps.push('✗ 需要「访问网站」权限才能操作页面')
+        deps.abortUnstarted(taskItem, '缺少网站权限', '请在 Chrome 弹窗中允许，或到扩展详情 → 站点访问')
+        return
+      }
     }
     deps.abortRef.current?.abort()
     deps.abortRef.current = new AbortController()
@@ -211,41 +220,26 @@ export function createAgentStarter(deps: AgentStarterDeps) {
       tools: skill.manifest.permissions?.tools,
       files: skill.files,
     }))
+    const SAFE_BASE_TOOLS = [
+      'browser_observe',
+      'browser_act',
+      'skill_load',
+      'system_done',
+      'system_ask_user',
+      'system_captcha_wait',
+    ] as const
+    const permissionSources = suggested.length
+      ? suggested
+      : [{ manifest: { permissions: { tools: [...SAFE_BASE_TOOLS] } } } as Skill]
     const allowedTools = deps.enforceSkillToolAllowlist
       ? [
           ...new Set(
-            deps.enabledSkills.flatMap((skill) => skill.manifest.permissions?.tools ?? [])
+            permissionSources.flatMap(
+              (skill) => skill.manifest.permissions?.tools ?? [...SAFE_BASE_TOOLS]
+            )
           ),
         ]
       : undefined
-    const readiness = await runReadinessChecks({
-      tabId: tab.id,
-      tabUrl: tab.url,
-      tabTitle: tab.title,
-      apiKey: llm.apiKey,
-      useNetwork: deps.useNetwork,
-      skillLabel: suggested[0]?.manifest.id,
-      enforceSkillAllowlist: deps.enforceSkillToolAllowlist,
-    })
-    deps.setReadinessItems(readiness)
-    const blockers = blockingReadinessItems(readiness)
-    if (blockers.length) {
-      deps.abortUnstarted(
-        taskItem,
-        '启动检查未通过',
-        blockers.map((item) => `${item.label}: ${item.detail}`).join('\n')
-      )
-      deps.setTraceOpen(true)
-      return
-    }
-
-    if (tab.url && !/localhost:4177|127\.0\.0\.1:4177/.test(tab.url) && /测试页|Success|Go/.test(taskText)) {
-      deps.push('提示: 任务像是测 test-site，但当前活动标签不是 localhost:4177 — 请先打开测试页再 Run')
-    }
-
-    const mcp = await createHostMcpRuntime()
-    if (!mcp.ok) deps.push(`MCP: ${mcp.reason}`)
-    else if (mcp.mcpTools.length) deps.push(`mcp: ${mcp.mcpTools.length} allowlisted tools`)
     let thread = deps.threads.find((item) => item.id === deps.activeThreadId)
     if (!thread) {
       thread = await createThread(taskText)
@@ -307,6 +301,38 @@ export function createAgentStarter(deps: AgentStarterDeps) {
       const session = await createSession(taskText, thread.id, page, extras)
       deps.sessionRef.current = session.id
     }
+    const sessionAnchor = prior?.task ?? taskText
+    const networkForTask = deps.useNetwork || shouldEnableNetworkPlane(taskText, sessionAnchor)
+
+    const readiness = await runReadinessChecks({
+      tabId: tab.id,
+      tabUrl: tab.url,
+      tabTitle: tab.title,
+      apiKey: llm.apiKey,
+      useNetwork: networkForTask,
+      skillLabel: suggested[0]?.manifest.id,
+      enforceSkillAllowlist: deps.enforceSkillToolAllowlist,
+    })
+    deps.setReadinessItems(readiness)
+    const blockers = blockingReadinessItems(readiness)
+    if (blockers.length) {
+      deps.abortUnstarted(
+        taskItem,
+        '启动检查未通过',
+        blockers.map((item) => `${item.label}: ${item.detail}`).join('\n')
+      )
+      deps.setTraceOpen(true)
+      return
+    }
+
+    if (tab.url && !/localhost:4177|127\.0\.0\.1:4177/.test(tab.url) && /测试页|Success|Go/.test(taskText)) {
+      deps.push('提示: 任务像是测 test-site，但当前活动标签不是 localhost:4177 — 请先打开测试页再 Run')
+    }
+
+    const mcp = await createHostMcpRuntime()
+    if (!mcp.ok) deps.push(`MCP: ${mcp.reason}`)
+    else if (mcp.mcpTools.length) deps.push(`mcp: ${mcp.mcpTools.length} allowlisted tools`)
+
     await deps.bindLiveSession(deps.sessionRef.current)
     if (voice) {
       deps.appendLocal(
@@ -341,8 +367,17 @@ export function createAgentStarter(deps: AgentStarterDeps) {
     deps.syncPendingTasks(latestFollowUps)
     deps.queueRef.current.setFollowUps(latestFollowUps)
 
+    if (networkForTask && !deps.useNetwork) {
+      deps.recordSession({
+        type: 'run.note',
+        payload: {
+          topic: 'internal',
+          text: 'PREFLIGHT: auto-enabled network plane for in_page media/script/data task (privacy override for this run).',
+        },
+      })
+    }
     const gates = capabilityGatesFromPrivacy({
-      networkEnabled: deps.useNetwork,
+      networkEnabled: networkForTask,
       captureNetworkBodies: deps.captureNetworkBodies,
       allowDomInject: deps.allowDomInject,
       allowNetworkIntercept: deps.allowNetworkIntercept,
@@ -355,6 +390,7 @@ export function createAgentStarter(deps: AgentStarterDeps) {
         id: runId,
         sessionId: deps.sessionRef.current!,
         task: taskText,
+        taskAnchor: sessionAnchor,
         taskId: taskItem.id,
         followUpQueue: latestFollowUps,
         tabId: tab.id,
@@ -370,7 +406,6 @@ export function createAgentStarter(deps: AgentStarterDeps) {
         runTimeoutMs: deps.runTimeoutMs,
         runTokenBudget: deps.tokenBudget,
         maxInputTokens: deps.maxInputTokens,
-        intakeMode: deps.intakeMode,
         hitlPolicy: deps.hitlPolicy,
         rollbackUrlDrift: deps.rollbackUrlDrift,
         ...(image ? { imageDataUrl: image.dataUrl, imageLabel: image.label } : {}),
@@ -408,11 +443,7 @@ export type RunLifecycleDeps = {
   setStatus(value: WorkspaceRunStatus): void
   setStatusDetail(value: string | null): void
   setLiveFeed(value: string[]): void
-  setRunOutcome(value: {
-    kind: 'success' | 'failed' | 'blocked' | 'waiting' | 'cancelled'
-    title: string
-    message: string
-  } | null): void
+  setRunOutcome(value: WorkspaceRunOutcome | null): void
   setQueuePending(value: { steering: number; followUp: number }): void
   setCurrentTask(value: QueuedTask | null): void
   setPaused(value: boolean): void

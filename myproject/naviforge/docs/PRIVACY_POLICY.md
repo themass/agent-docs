@@ -1,6 +1,6 @@
 # NaviForge Privacy Policy
 
-_Last updated: 2026-08-18_
+_Last updated: 2026-09-29_
 
 NaviForge (“we”, “the extension”) is a Chrome extension that runs an AI agent in
 your browser. This policy describes what data is processed, where it stays, and what
@@ -48,6 +48,14 @@ it only communicates between your machine and the extension.
 - **Clear all local data** in Settings → Advanced removes extension storage (not
   `~/NaviForge` unless you delete that folder yourself).
 - Disabling **Store API Key** and saving privacy settings removes stored keys.
+
+## Advertising
+
+When enabled, NaviForge may show **Google AdSense** display ads in extension UI surfaces
+(side panel, settings, screenshot studio) via iframe pages hosted on our website. Google
+may use cookies or similar technologies for ad delivery; see
+[Google’s advertising policies](https://policies.google.com/technologies/ads).
+Ads are off until we configure AdSense in a release.
 
 ## Children
 

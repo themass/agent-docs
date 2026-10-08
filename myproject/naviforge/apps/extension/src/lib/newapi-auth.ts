@@ -61,7 +61,7 @@ export type PluginBootstrap = {
 }
 
 const DEFAULT_STATE: NewApiAuthState = {
-  mode: 'managed',
+  mode: 'manual',
   portalBase: NEWAPI_PORTAL_BASE,
 }
 

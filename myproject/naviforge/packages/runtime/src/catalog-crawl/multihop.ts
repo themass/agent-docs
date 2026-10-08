@@ -93,7 +93,7 @@ export async function resolveMediaWithHops(
     const nav = await dom.navigate('url', current)
     if (!nav.ok) break
     hops.push(current)
-    if (dom.wait) await dom.wait({ ms: hop === 0 ? 600 : 800 })
+    if (dom.wait) await dom.wait({ kind: 'stable', timeoutMs: hop === 0 ? 600 : 800 })
 
     const { bundle } = await hydratePageSignals({
       dom,

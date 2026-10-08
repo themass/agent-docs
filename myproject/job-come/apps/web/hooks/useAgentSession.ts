@@ -26,6 +26,7 @@ import type {
   TokenUsageTotals,
 } from "@/lib/types/agent";
 import { buildContextUsage } from "@/lib/agent-context-usage";
+import type { AgentUiContext } from "@/lib/ui-context";
 
 const STREAM_TIMEOUT_MS = 120_000;
 
@@ -331,6 +332,7 @@ export type UseAgentSessionOptions = {
   kind?: string;
   disabled?: boolean;
   onProfileUpdated?: () => void;
+  uiContext?: AgentUiContext | null;
 };
 
 export function useAgentSession({
@@ -341,6 +343,7 @@ export function useAgentSession({
   kind,
   disabled = false,
   onProfileUpdated,
+  uiContext = null,
 }: UseAgentSessionOptions) {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<AgentSessionListItem[]>([]);
@@ -362,6 +365,8 @@ export function useAgentSession({
   const sessionIdRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const drainingRef = useRef(false);
+  const uiContextRef = useRef<AgentUiContext | null>(uiContext);
+  uiContextRef.current = uiContext;
   sessionIdRef.current = sessionId;
 
   useEffect(() => {
@@ -465,10 +470,12 @@ export function useAgentSession({
       content: string,
       attachments: AgentAttachment[] = [],
       mode: "send" | "follow_up" | "steer" = "send",
+      uiContextOverride?: AgentUiContext | null,
     ) => {
       if (disabled) return;
       const text = content.trim();
       if (!text && attachments.length === 0) return;
+      const ctx = uiContextOverride === undefined ? uiContextRef.current : uiContextOverride;
 
       if (busy) {
         const queued: QueuedAgentMessage = {
@@ -476,6 +483,7 @@ export function useAgentSession({
           content: text,
           attachments,
           mode: mode === "steer" ? "steer" : "follow_up",
+          uiContext: ctx,
         };
         if (mode === "steer") {
           setSteerQueue((prev) => [...prev, queued]);
@@ -503,7 +511,12 @@ export function useAgentSession({
         const sid = await ensureSession();
         await streamAgentMessage(
           sid,
-          { content: text, attachments, reply_locale: replyLocale },
+          {
+            content: text,
+            attachments,
+            reply_locale: replyLocale,
+            ui_context: ctx ?? undefined,
+          },
           (event) => {
             if (event.type === "usage") {
               setUsage((u) => ({
@@ -570,7 +583,12 @@ export function useAgentSession({
     if (nextSteer) setSteerQueue((prev) => prev.slice(1));
     else setFollowUpQueue((prev) => prev.slice(1));
     drainingRef.current = false;
-    await sendMessage(next.content, next.attachments, next.mode === "steer" ? "steer" : "send");
+    await sendMessage(
+      next.content,
+      next.attachments,
+      next.mode === "steer" ? "steer" : "send",
+      next.uiContext,
+    );
   }, [busy, disabled, followUpQueue, sendMessage, steerQueue]);
 
   useEffect(() => {

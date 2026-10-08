@@ -9,6 +9,7 @@ import { ElevatePreviewPanel } from "@/components/resume/ElevatePreviewPanel";
 import { getProfile, type Profile } from "@/lib/api/profile";
 import { localizeProfile, type ResumeTrack } from "@/lib/api/resume";
 import type { StudioStep } from "@/lib/resume-workflow";
+import type { AgentUiContext, AgentUiFocus } from "@/lib/ui-context";
 
 type Props = {
   profile: Profile;
@@ -25,6 +26,8 @@ type Props = {
   }) => void;
   onExported: () => void;
   jobId?: string | null;
+  uiContext?: AgentUiContext | null;
+  onUiFocus?: (focus: AgentUiFocus) => void;
 };
 
 export function ResumeStudio({
@@ -38,6 +41,8 @@ export function ResumeStudio({
   onElevateLoaded,
   onExported,
   jobId = null,
+  uiContext = null,
+  onUiFocus,
 }: Props) {
   const [showEditor, setShowEditor] = useState(false);
 
@@ -66,6 +71,8 @@ export function ResumeStudio({
               />
               <ProfileOverview
                 profile={profile}
+                uiContext={uiContext}
+                onUiFocus={onUiFocus}
                 onRelocalize={(source) => {
                   void localizeProfile(profile.id, source)
                     .then(() => getProfile(profile.id))
@@ -108,7 +115,12 @@ export function ResumeStudio({
                 ) : null}
               </div>
               {showEditor ? (
-                <ProfileStudioEditor profile={profile} onSaved={onProfileChange} />
+                <ProfileStudioEditor
+                  profile={profile}
+                  onSaved={onProfileChange}
+                  focusPath={uiContext?.focus?.path}
+                  onUiFocus={onUiFocus}
+                />
               ) : null}
             </>
           ) : null}
@@ -123,6 +135,8 @@ export function ResumeStudio({
               generateTick={generateTick}
               onBusyChange={onElevateBusyChange}
               jobId={jobId}
+              focusPath={uiContext?.focus?.path}
+              onUiFocus={onUiFocus}
             />
           ) : null}
         </div>

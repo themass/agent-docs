@@ -151,7 +151,7 @@ export async function runCatalogCrawl(
           result.complete = false
           break
         }
-        if (dom.wait) await dom.wait({ ms: 700 })
+        if (dom.wait) await dom.wait({ kind: 'stable', timeoutMs: 700 })
 
         const slice = await extractListPage(
           dom,

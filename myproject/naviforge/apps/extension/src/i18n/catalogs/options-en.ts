@@ -15,13 +15,18 @@ export const optionsEn = {
     'Agent chat runs in the side panel or workspace; settings and automation live here.',
   openWorkspace: 'Open Agent workspace',
   settingsTitle: 'Settings',
-  settingsDesc: 'Models, browser permissions, local data, and Host boundaries.',
+  settingsDesc: 'Agent capabilities & models, privacy & data, Host and advanced options.',
   tab: {
-    models: 'Models',
-    permissions: 'Permissions',
-    privacy: 'Privacy',
-    host: 'Host',
-    advanced: 'Advanced',
+    agent: 'Agent & models',
+    privacy: 'Privacy & data',
+    system: 'Host & advanced',
+  },
+  agent: {
+    capabilitiesEyebrow: 'CAPABILITIES',
+    capabilitiesTitle: 'Agent capabilities',
+    capabilitiesDesc:
+      'Same presets as the side panel: daily, media/scrape, power user. Change here or in chat before Run.',
+    capabilitiesAutoSave: 'Capability presets save automatically.',
   },
   language: 'Display language',
   languageHint:
@@ -557,10 +562,12 @@ export const optionsEn = {
   },
 
   privacy: {
-    eyebrow: 'PRIVACY / 03',
+    permissionsInTabHint: 'Browser permissions declared by the extension (read-only reference).',
+    eyebrow: 'PRIVACY / 02',
     title: 'Privacy & data',
     description:
-      'Control what page data the Agent can touch and whether keys are persisted. Do not enable everything: summarizing the current page needs only the default “daily” items. Network summaries never expose cookies, Authorization, or full bodies.',
+      'Local data retention, API key storage, URL rollback, and related toggles. Save when you change items below.',
+    capabilitiesAutoSave: 'Agent capabilities moved to the “Agent & models” tab.',
     warning:
       'Do not turn on all high-risk items. “Browser permissions” is Manifest capability (already granted). This page is the gate. Click “Save privacy settings” after changes.',
     networkPlaneLabel: 'Enable Network Plane by default',
@@ -612,9 +619,10 @@ export const optionsEn = {
 
   advanced: {
     eyebrow: 'ADVANCED / 05',
-    title: 'Local data',
-    description:
-      'Reset removes models, plugins, Playbooks, activity log, and all local extension configuration.',
+    title: 'Advanced & experiments',
+    description: 'Experimental features and local data. Default is bring-your-own API key — no login required.',
+    managedLoginLabel: 'Enable NaviForge managed login (experimental)',
+    managedLoginDesc: 'Shows the Account page and NewAPI hosted models. Off by default for store builds.',
     dangerTitle: 'Danger zone',
     dangerBody:
       'This cannot be undone. Clears extension storage only — does not delete ~/NaviForge.',

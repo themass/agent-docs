@@ -31,10 +31,25 @@ assert(
   modelFacingToolIds().length === AGENT_TOOL_IDS.length,
   'model-facing tools match catalog'
 )
-assert(AGENT_TOOL_IDS.includes('dom_read'), 'dom_read in catalog')
+assert(AGENT_TOOL_IDS.includes('browser_observe'), 'browser_observe in catalog')
 assert(!AGENT_TOOL_IDS.includes('dom_read_page'), 'dom_read_page not in catalog')
 assert(AGENT_TOOL_IDS.includes('workspace'), 'workspace in catalog')
 assert(!AGENT_TOOL_IDS.includes('workspace_read'), 'workspace_read not in catalog')
+assert(modelFacingToolIds().length <= 15, 'model-facing catalog ≤15')
+assert(!AGENT_TOOL_IDS.includes('dom_click'), 'atomic dom_click is not model-facing')
+
+const workspaceSchema = builtinToolsForApi().find(
+  (tool) => tool.function.name === 'workspace'
+)?.function.parameters as { properties?: Record<string, unknown>; additionalProperties?: unknown } | undefined
+assert(workspaceSchema?.additionalProperties === false, 'workspace schema rejects unknown fields')
+for (const field of ['title', 'language', 'filename', 'id']) {
+  assert(field in (workspaceSchema?.properties ?? {}), `workspace schema exposes ${field}`)
+}
+
+const browserActSchema = builtinToolsForApi().find(
+  (tool) => tool.function.name === 'browser_act'
+)?.function.parameters as { additionalProperties?: unknown } | undefined
+assert(browserActSchema?.additionalProperties === false, 'browser_act schema rejects unknown fields')
 
 const catalogIds = new Set(AGENT_TOOL_CATALOG.map((tool) => tool.id))
 assert(catalogIds.size === AGENT_TOOL_CATALOG.length, 'catalog ids unique')

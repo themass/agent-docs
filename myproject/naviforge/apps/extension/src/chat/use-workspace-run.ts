@@ -29,6 +29,7 @@ import { persistThreadMemory as saveThreadMemory } from './thread-store'
 import { createAgentRunController, type AgentRunMessage } from './agent-run-controller'
 import { safeRuntimeSendMessage } from '../lib/extension-runtime'
 import { DEFAULT_LLM, type PickedElement, type TopVideo } from './workspace-helpers'
+import type { WorkspaceRunOutcome } from './run-outcome'
 import { createWorkspaceRecordHandler } from './workspace-record-handler'
 import {
   createWorkspaceRestore,
@@ -99,7 +100,6 @@ export type UseWorkspaceRunDeps = {
   runTimeoutMs: number
   tokenBudget: number
   maxInputTokens: number
-  intakeMode: 'off' | 'auto' | 'always'
   enforceSkillToolAllowlist: boolean
 }
 
@@ -118,11 +118,7 @@ export function useWorkspaceRun(deps: UseWorkspaceRunDeps) {
   const [blockedQuestions, setBlockedQuestions] = useState<string[]>([])
   const [lastRunFailed, setLastRunFailed] = useState(false)
   const [traceOpen, setTraceOpen] = useState(false)
-  const [runOutcome, setRunOutcome] = useState<{
-    kind: 'success' | 'failed' | 'blocked' | 'waiting' | 'cancelled'
-    title: string
-    message: string
-  } | null>(null)
+  const [runOutcome, setRunOutcome] = useState<WorkspaceRunOutcome | null>(null)
   const [topVideos, setTopVideos] = useState<TopVideo[]>([])
   const [resultsMarked, setResultsMarked] = useState(false)
   const [resultsStale, setResultsStale] = useState(false)
@@ -266,7 +262,6 @@ export function useWorkspaceRun(deps: UseWorkspaceRunDeps) {
     runTimeoutMs: deps.runTimeoutMs,
     tokenBudget: deps.tokenBudget,
     maxInputTokens: deps.maxInputTokens,
-    intakeMode: deps.intakeMode,
     hitlPolicy: deps.hitlPolicy,
     rollbackUrlDrift: deps.rollbackUrlDrift,
     threads: deps.threads,

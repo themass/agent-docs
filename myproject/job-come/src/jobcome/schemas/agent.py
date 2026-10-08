@@ -48,10 +48,27 @@ class AgentAttachment(BaseModel):
     text_preview: str | None = Field(default=None, description="Extracted text for documents")
 
 
+class AgentUiFocus(BaseModel):
+    path: str = Field(min_length=1, max_length=256)
+    kind: str = Field(default="experience", max_length=64)
+    label: str = Field(default="", max_length=256)
+    excerpt: str | None = Field(default=None, max_length=500)
+
+
+class AgentUiContext(BaseModel):
+    page: str = Field(default="resume-agent", max_length=64)
+    step: str = Field(default="review", max_length=32)
+    focus: AgentUiFocus | None = None
+
+
 class AgentMessageRequest(BaseModel):
     content: str = Field(default="", max_length=16_000)
     attachments: list[AgentAttachment] = Field(default_factory=list)
     reply_locale: str = Field(default="zh-CN", description="zh-CN | en-US；模型回复语言")
+    ui_context: AgentUiContext | None = Field(
+        default=None,
+        description="前端当前页/步骤/选中字段 path，用于定位「这块」",
+    )
 
     @model_validator(mode="after")
     def _require_content_or_attachments(self) -> AgentMessageRequest:

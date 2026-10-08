@@ -32,6 +32,7 @@ function run(): void {
       ],
     },
     stripeProfile: null,
+    usageSummary: null,
   }
 
   const norm = normalizeCursorSnapshot(raw)

@@ -57,13 +57,21 @@ async function resolveNetworkBodyId(
   if (!urlIncludes && !urlRegex) return undefined
   const listed = await network.list({
     urlIncludes: urlIncludes ?? undefined,
-    urlRegex: urlRegex ?? undefined,
     method: method ?? undefined,
     limit: num(args.limit) ?? 40,
   })
   if (!listed.ok || !Array.isArray(listed.data) || !listed.data.length) return undefined
+  let events = listed.data
+  if (urlRegex) {
+    try {
+      const re = new RegExp(urlRegex)
+      events = events.filter((event) => re.test(event.url))
+    } catch {
+      return undefined
+    }
+  }
   const status = num(args.status)
-  const matches = listed.data.filter((event) => {
+  const matches = events.filter((event) => {
     if (status != null && event.status !== status) return false
     if (urlIncludes && !event.url.includes(urlIncludes)) return false
     if (urlRegex) {
@@ -76,7 +84,7 @@ async function resolveNetworkBodyId(
     if (method && event.method.toUpperCase() !== method.toUpperCase()) return false
     return true
   })
-  return (matches.length ? matches[matches.length - 1] : listed.data[listed.data.length - 1])?.id
+  return (matches.length ? matches[matches.length - 1] : events[events.length - 1])?.id
 }
 
 const networkGetBody: BuiltinHandler = async (input) => {

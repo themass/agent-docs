@@ -787,7 +787,7 @@ export async function dispatchPageControl(
             }
           }
         },
-        onPosition: (x, y) => {
+        onPosition: (x: number, y: number) => {
           void safeRuntimeSendMessage({ type: 'BEHAVIOR_RECORDING_HUD', action: 'save_pos', x, y })
         },
       }

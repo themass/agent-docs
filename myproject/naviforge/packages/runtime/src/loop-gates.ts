@@ -17,11 +17,39 @@ export type { ThreadContext, ThreadReuse } from '@naviforge/session'
 
 const DOM_READ_DEDUPE_MODES = new Set(['body', 'list', 'dom'])
 
+function canonicalizeObservationCall(
+  tool: string,
+  args?: Record<string, unknown>
+): { tool: string; args: Record<string, unknown> } {
+  const a = args ?? {}
+  if (tool === 'dom_read_page') return { tool: 'dom_read', args: { ...a, mode: 'body' } }
+  if (tool === 'dom_extract_content') return { tool: 'dom_read', args: { ...a, mode: 'list' } }
+  if (tool === 'dom_extract_dom') return { tool: 'dom_read', args: { ...a, mode: 'dom' } }
+  if (tool === 'page_to_markdown') return { tool: 'dom_read', args: { ...a, mode: 'markdown' } }
+  if (tool === 'browser_observe') {
+    const action = a.action
+    if (action === 'js') return { tool: 'dom_execute_js', args: a }
+    if (action === 'snapshot') return { tool: 'dom_snapshot', args: a }
+    if (action === 'pdf') return { tool: 'page_to_pdf', args: a }
+    if (action === 'screenshot') return { tool: 'dom_screenshot', args: a }
+    if (action === 'read' || action === undefined) {
+      const mode = typeof a.mode === 'string' ? a.mode : 'body'
+      return { tool: 'dom_read', args: { ...a, mode } }
+    }
+  }
+  if (tool === 'tabs' && a.action === 'open') return { tool: 'tabs_open', args: a }
+  if (tool === 'browser_act' && a.action === 'scroll') return { tool: 'dom_scroll', args: a }
+  return { tool, args: a }
+}
+
 export function observationDedupeKey(
   tool: string,
   url: string,
   args?: Record<string, unknown>
 ): string | null {
+  const canon = canonicalizeObservationCall(tool, args)
+  tool = canon.tool
+  args = canon.args
   if (tool === 'dom_read') {
     const mode = typeof args?.mode === 'string' ? args.mode : 'body'
     if (!DOM_READ_DEDUPE_MODES.has(mode)) return null
@@ -68,6 +96,9 @@ export function actionLoopKey(
   args?: Record<string, unknown>
 ): string | null {
   if (!url) return null
+  const canon = canonicalizeObservationCall(tool, args)
+  tool = canon.tool
+  args = canon.args
   if (tool === 'dom_read') {
     const mode = typeof args?.mode === 'string' ? args.mode : 'body'
     if (mode === 'markdown') return `dom_read|${url}|markdown`

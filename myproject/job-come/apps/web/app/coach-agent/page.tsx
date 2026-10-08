@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { AgentWorkbench } from "@/components/agent/AgentWorkbench";
+import { CoachFlywheel } from "@/components/coach/CoachFlywheel";
 import { EmailVerificationBanner } from "@/components/auth/EmailVerificationBanner";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
@@ -13,46 +13,33 @@ function CoachAgentInner() {
   const searchParams = useSearchParams();
   const profileId = context?.active_profile_id ?? null;
   const jobId = searchParams.get("job_id");
+  const practiceQid = searchParams.get("practice");
 
   const subtitle = jobId
-    ? `已绑定岗位 ${jobId} · 模拟面试、真题归档、答题迭代`
-    : "模拟面试、真题归档、答题迭代。从定向岗位页可带 job_id 进入。";
+    ? "对着当前岗位模拟、记题、抽库再练"
+    : "从投递看板带岗进入，才能抽库和对着 JD 练";
 
   return (
-    <div className="space-y-6">
+    <div className="flex min-h-0 flex-1 flex-col space-y-3">
       <EmailVerificationBanner />
       {loading ? <p className="text-sm text-neutral-500">加载中…</p> : null}
-
       <AgentWorkbench
         pageKey={`coach-agent-${jobId ?? "general"}`}
-        title="面试辅导 Agent"
+        title="面试辅导"
         subtitle={subtitle}
         profileId={profileId}
         jobId={jobId}
         skillHint="coach-mock"
         kind="coach"
         disabled={context?.actor !== "user"}
-        placeholder="描述面试场景，或粘贴面试官问题…"
+        placeholder="回答面试官问题，或说「下一题」…"
       >
-        <div className="space-y-4 text-sm text-neutral-700">
-          <p>
-            在此进行<strong>对话式模拟面试</strong>。Agent 会根据档案与岗位上下文提问、点评答案。
-          </p>
-          {!jobId ? (
-            <p>
-              建议从{" "}
-              <Link href="/jobs" className="underline text-sky-700">
-                定向岗位
-              </Link>{" "}
-              选择目标岗位后进入，以获得 JD 与 prep 上下文。
-            </p>
-          ) : null}
-          <ul className="list-disc space-y-1 pl-5 text-neutral-600">
-            <li>右侧可查看 Skill 激活、Tool 调用与 Token 用量</li>
-            <li>支持图片/文件附件与语音输入（浏览器 ASR）</li>
-            <li>会话刷新后可从本地恢复的 session 续聊</li>
-          </ul>
-        </div>
+        <CoachFlywheel
+          profileId={profileId}
+          jobId={jobId}
+          practiceQid={practiceQid}
+          disabled={context?.actor !== "user"}
+        />
       </AgentWorkbench>
     </div>
   );

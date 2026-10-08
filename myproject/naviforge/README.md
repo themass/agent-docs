@@ -5,12 +5,15 @@ NaviForge Host。设计见 `../docs/CHROME_EXT_BROWSER_AGENT_DESIGN.md`。
 
 ## 安装 / 构建
 
+**前置：** 仓库根目录需有 [`page-agent`](../../../page-agent)（与 `docs/myproject/naviforge` 相对为 `../../../../page-agent`）。扩展通过 `file:` 依赖 `@page-agent/page-controller`。
+
 ```bash
-cd naviforge
+cd docs/myproject/naviforge   # 或你的 naviforge 根目录
 npm install
-npm run check
 npm run build    # → apps/extension/dist/chrome-mv3
 ```
+
+可选全量自检：`npm run check`（较慢）。
 
 加载：`chrome://extensions` → 开发者模式 → **重新加载** `apps/extension/dist/chrome-mv3`。
 
@@ -49,7 +52,8 @@ demos/test-site
 | P2 Instruction Skills（内嵌 + 导入 + 工具白名单） | ✅ |
 | P3 Playbook（锻造、参数化、重放、DOM 文本断言） | ✅ |
 | P4 Host/MCP（stdio Server、任务桥、外部 MCP Client） | ✅ |
-| P5 Cloud | ❌ |
+| P5 Cloud（完整订阅/计量） | ❌ |
+| 托管登录（NewAPI） | 实验；**设置 → 高级** 默认关，BYOK 首发 |
 
 ## Agent 能力摘要
 

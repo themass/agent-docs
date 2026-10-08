@@ -9,10 +9,13 @@ import {
   type ProfileExperience,
   type ProfilePayload,
 } from "@/lib/api/profile";
+import { experienceLabel, type AgentUiFocus } from "@/lib/ui-context";
 
 type Props = {
   profile: Profile;
   onSaved: (profile: Profile) => void;
+  focusPath?: string | null;
+  onUiFocus?: (focus: AgentUiFocus) => void;
 };
 
 function newExpId(): string {
@@ -39,7 +42,7 @@ function emptyEducation(): ProfileEducation {
   return { id: newEduId(), school: "", degree: null, major: null };
 }
 
-export function ProfileStudioEditor({ profile, onSaved }: Props) {
+export function ProfileStudioEditor({ profile, onSaved, focusPath = null, onUiFocus }: Props) {
   const [payload, setPayload] = useState<ProfilePayload>(profile.payload);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -194,7 +197,20 @@ export function ProfileStudioEditor({ profile, onSaved }: Props) {
             {payload.experiences.map((exp, expIndex) => (
               <div
                 key={exp.id}
-                className="rounded-xl border border-surface-border bg-slate-50/50 p-4"
+                data-path={`experiences[${expIndex}]`}
+                onClick={() =>
+                  onUiFocus?.({
+                    path: `experiences[${expIndex}]`,
+                    kind: "experience",
+                    label: experienceLabel(exp.company, exp.title),
+                  })
+                }
+                className={`rounded-xl border bg-slate-50/50 p-4 ${
+                  focusPath === `experiences[${expIndex}]` ||
+                  (focusPath?.startsWith(`experiences[${expIndex}].`) ?? false)
+                    ? "border-brand-400 ring-2 ring-brand-500"
+                    : "border-surface-border"
+                }`}
               >
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block text-sm">
@@ -250,9 +266,18 @@ export function ProfileStudioEditor({ profile, onSaved }: Props) {
                     {(exp.highlights?.length ? exp.highlights : [""]).map((hl, hlIndex) => (
                       <textarea
                         key={hlIndex}
+                        data-path={`experiences[${expIndex}].highlights[${hlIndex}]`}
                         className={`${inputClass} min-h-[4rem]`}
                         placeholder="描述职责与成果，尽量量化"
                         value={hl}
+                        onFocus={() =>
+                          onUiFocus?.({
+                            path: `experiences[${expIndex}].highlights[${hlIndex}]`,
+                            kind: "highlight",
+                            label: `${experienceLabel(exp.company, exp.title)} · 要点 ${hlIndex + 1}`,
+                            excerpt: hl,
+                          })
+                        }
                         onChange={(e) => patchHighlight(expIndex, hlIndex, e.target.value)}
                       />
                     ))}

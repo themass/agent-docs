@@ -1,0 +1,28 @@
+import type { BuiltinHandler } from './types.js';
+export declare const domHandlers: {
+    readonly dom_snapshot: BuiltinHandler;
+    readonly dom_click: BuiltinHandler;
+    readonly dom_type: BuiltinHandler;
+    readonly dom_highlight: BuiltinHandler;
+    readonly dom_mark_topn: BuiltinHandler;
+    readonly dom_extract_content: BuiltinHandler;
+    readonly dom_mark_items: BuiltinHandler;
+    readonly dom_clear_highlights: BuiltinHandler;
+    readonly dom_inject: BuiltinHandler;
+    readonly dom_execute_js: BuiltinHandler;
+    readonly dom_extract_dom: BuiltinHandler;
+    readonly dom_navigate: BuiltinHandler;
+    readonly dom_scroll: BuiltinHandler;
+    readonly dom_read_page: BuiltinHandler;
+    readonly dom_wait: BuiltinHandler;
+    readonly dom_press: BuiltinHandler;
+    readonly dom_select: BuiltinHandler;
+    readonly dom_check: BuiltinHandler;
+    readonly dom_upload: BuiltinHandler;
+    readonly dom_hover: BuiltinHandler;
+    readonly dom_drag: BuiltinHandler;
+    readonly dom_screenshot: BuiltinHandler;
+    readonly page_to_markdown: BuiltinHandler;
+    readonly page_to_pdf: BuiltinHandler;
+};
+export declare const domCatalogHandler: BuiltinHandler;

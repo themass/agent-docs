@@ -1,12 +1,119 @@
 /** Resolve public catalog tools to internal builtin handler ids. */
+
+function omit(args: Record<string, unknown>, ...keys: string[]): Record<string, unknown> {
+  const next = { ...args }
+  for (const key of keys) delete next[key]
+  return next
+}
+
 export function resolveBuiltinToolCall(
   tool: string,
   args: Record<string, unknown>
 ): { tool: string; arguments: Record<string, unknown> } {
+  const expanded = expandAgentToolCall(tool, args)
+  if (expanded.tool === 'workspace') return resolveWorkspaceToolCall(expanded.arguments)
+  if (expanded.tool === 'dom_read') return resolveDomReadToolCall(expanded.arguments)
+  if (expanded.tool === 'network_read') return resolveNetworkReadToolCall(expanded.arguments)
+  return expanded
+}
+
+/** Expand model-facing meta tools (and leftover aliases) to atomic handler ids. */
+export function expandAgentToolCall(
+  tool: string,
+  args: Record<string, unknown>
+): { tool: string; arguments: Record<string, unknown> } {
+  if (tool === 'browser_observe') return expandObserve(args)
+  if (tool === 'browser_act') return expandAct(args)
+  if (tool === 'browser_nav') return { tool: 'dom_navigate', arguments: args }
+  if (tool === 'tabs') return expandTabs(args)
+  if (tool === 'network') return expandNetwork(args)
   if (tool === 'workspace') return resolveWorkspaceToolCall(args)
   if (tool === 'dom_read') return resolveDomReadToolCall(args)
   if (tool === 'network_read') return resolveNetworkReadToolCall(args)
   return { tool, arguments: args }
+}
+
+function snapshotArgs(args: Record<string, unknown>): Record<string, unknown> {
+  const mode = args.mode
+  return mode === 'compact' || mode === 'viewport' || mode === 'full' ? { mode } : {}
+}
+
+function expandObserve(args: Record<string, unknown>): { tool: string; arguments: Record<string, unknown> } {
+  const action = args.action
+  if (action === 'read') {
+    return resolveDomReadToolCall({ ...args, mode: typeof args.mode === 'string' ? args.mode : 'body' })
+  }
+  if (action === 'extract') return { tool: 'system_extract_page', arguments: omit(args, 'action') }
+  if (action === 'screenshot') return { tool: 'dom_screenshot', arguments: {} }
+  if (action === 'pdf') return { tool: 'page_to_pdf', arguments: {} }
+  if (action === 'js') {
+    const rest = omit(args, 'action')
+    if (typeof rest.expression === 'string' && rest.code == null) {
+      rest.code = rest.expression
+      delete rest.expression
+    }
+    return { tool: 'dom_execute_js', arguments: rest }
+  }
+  if (action === 'probe') return { tool: 'dom_probe', arguments: omit(args, 'action') }
+  if (action === 'snapshot') return { tool: 'dom_snapshot', arguments: snapshotArgs(args) }
+  if (action === undefined) {
+    if (args.mode === 'body' || args.mode === 'list' || args.mode === 'dom' || args.mode === 'markdown') {
+      return resolveDomReadToolCall(args)
+    }
+    return { tool: 'dom_snapshot', arguments: snapshotArgs(args) }
+  }
+  return { tool: 'browser_observe', arguments: args }
+}
+
+const ACT_TOOLS = {
+  click: 'dom_click',
+  type: 'dom_type',
+  press: 'dom_press',
+  select: 'dom_select',
+  check: 'dom_check',
+  hover: 'dom_hover',
+  drag: 'dom_drag',
+  upload: 'dom_upload',
+  scroll: 'dom_scroll',
+  wait: 'dom_wait',
+  highlight: 'dom_highlight',
+  mark_topn: 'dom_mark_topn',
+  mark_items: 'dom_mark_items',
+  clear_highlights: 'dom_clear_highlights',
+  inject: 'dom_inject',
+} as const
+
+function expandAct(args: Record<string, unknown>): { tool: string; arguments: Record<string, unknown> } {
+  const action = args.action
+  if (typeof action !== 'string' || !(action in ACT_TOOLS)) {
+    return { tool: 'browser_act', arguments: args }
+  }
+  return { tool: ACT_TOOLS[action as keyof typeof ACT_TOOLS], arguments: omit(args, 'action') }
+}
+
+const TAB_TOOLS = {
+  list: 'tabs_list',
+  switch: 'tabs_switch',
+  close: 'tabs_close',
+  open: 'tabs_open',
+} as const
+
+function expandTabs(args: Record<string, unknown>): { tool: string; arguments: Record<string, unknown> } {
+  const action = args.action
+  if (typeof action !== 'string' || !(action in TAB_TOOLS)) {
+    return { tool: 'tabs', arguments: args }
+  }
+  return { tool: TAB_TOOLS[action as keyof typeof TAB_TOOLS], arguments: omit(args, 'action') }
+}
+
+function expandNetwork(args: Record<string, unknown>): { tool: string; arguments: Record<string, unknown> } {
+  const action = args.action
+  if (action === 'intercept') return { tool: 'network_intercept', arguments: omit(args, 'action') }
+  if (action === 'clear') return { tool: 'network_clear_intercepts', arguments: omit(args, 'action') }
+  if (action === 'read' || action === undefined || typeof args.mode === 'string') {
+    return resolveNetworkReadToolCall(omit(args, 'action'))
+  }
+  return { tool: 'network', arguments: args }
 }
 
 const NETWORK_READ_MODES = {
@@ -38,6 +145,8 @@ const WORKSPACE_ACTION_TOOLS = {
   stat: 'workspace_stat',
   glob: 'workspace_glob',
   grep: 'workspace_grep',
+  script_save: 'script_save',
+  script_download: 'script_download',
 } as const
 
 type WorkspaceAction = keyof typeof WORKSPACE_ACTION_TOOLS

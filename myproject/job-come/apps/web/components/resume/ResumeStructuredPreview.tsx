@@ -1,6 +1,7 @@
 "use client";
 
 import type { ResumeDraft } from "@/lib/api/resume";
+import { experienceLabel, type AgentUiFocus } from "@/lib/ui-context";
 
 type ExperienceBlock = {
   company?: string;
@@ -12,9 +13,11 @@ type ExperienceBlock = {
 
 type Props = {
   draft: ResumeDraft | null;
+  focusPath?: string | null;
+  onUiFocus?: (focus: AgentUiFocus) => void;
 };
 
-export function ResumeStructuredPreview({ draft }: Props) {
+export function ResumeStructuredPreview({ draft, focusPath = null, onUiFocus }: Props) {
   if (!draft) {
     return (
       <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
@@ -59,7 +62,21 @@ export function ResumeStructuredPreview({ draft }: Props) {
         {experiences.map((exp, idx) => (
           <article
             key={`${exp.company ?? "exp"}-${idx}`}
-            className="rounded-xl border border-brand-100 bg-white p-4 shadow-sm ring-1 ring-brand-50"
+            data-path={`experiences[${idx}]`}
+            role="button"
+            tabIndex={0}
+            onClick={() =>
+              onUiFocus?.({
+                path: `experiences[${idx}]`,
+                kind: "preview-experience",
+                label: experienceLabel(exp.company ?? "", exp.title ?? ""),
+              })
+            }
+            className={`cursor-pointer rounded-xl border bg-white p-4 shadow-sm ring-1 ${
+              focusPath === `experiences[${idx}]` || (focusPath?.startsWith(`experiences[${idx}].`) ?? false)
+                ? "border-brand-400 ring-brand-400"
+                : "border-brand-100 ring-brand-50"
+            }`}
           >
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
@@ -73,12 +90,30 @@ export function ResumeStructuredPreview({ draft }: Props) {
               ) : null}
             </div>
             <ul className="mt-3 space-y-2">
-              {(exp.bullets ?? []).map((bullet, bIdx) => (
-                <li key={bIdx} className="flex gap-2 text-sm leading-relaxed text-slate-700">
+              {(exp.bullets ?? []).map((bullet, bIdx) => {
+                const path = `experiences[${idx}].highlights[${bIdx}]`;
+                return (
+                <li
+                  key={bIdx}
+                  data-path={path}
+                  className={`flex cursor-pointer gap-2 rounded-md px-1 py-0.5 text-sm leading-relaxed text-slate-700 hover:bg-brand-50 ${
+                    focusPath === path ? "bg-brand-50" : ""
+                  }`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUiFocus?.({
+                      path,
+                      kind: "highlight",
+                      label: `${experienceLabel(exp.company ?? "", exp.title ?? "")} · 要点 ${bIdx + 1}`,
+                      excerpt: bullet,
+                    });
+                  }}
+                >
                   <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" />
                   <span>{bullet}</span>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           </article>
         ))}

@@ -1,6 +1,7 @@
 # Claude Agent SDK (Python) 架构与实现指南
 
-> **唯一文档** · `claude-agent-sdk` v0.2.95+ · bundled CLI v2.1.x  
+> SDK 源码导读。和闭源 CLI Loop 的整图见 [SDK_CLI_INTERACTION.md](./SDK_CLI_INTERACTION.md)。  
+> `claude-agent-sdk` v0.2.95+ · bundled CLI v2.1.x  
 > **Python 源码**: `src/claude_agent_sdk/`（本仓库可读）  
 > **CLI 源码**: **不在本仓库**（见 §0.2）  
 > **最后更新**: 2026-06-11

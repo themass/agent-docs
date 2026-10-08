@@ -161,7 +161,22 @@ function promoText(candidate: Candidate): string {
   return [candidate.label ?? '', ...candidate.texts, ...candidate.linkTexts].join(' ')
 }
 
+function isSiteNavChrome(candidate: Candidate, base?: string): boolean {
+  if (!base) return false
+  try {
+    const host = new URL(base).hostname.replace(/^www\./, '')
+    const pool = [candidate.label ?? '', ...candidate.texts].map((t) => t.replace(/^www\./, '').trim())
+    if (pool.some((t) => t === host)) return true
+    if (!candidate.href) return false
+    const path = new URL(resolveRecordHref(candidate.href, base)).pathname
+    return /^\/(home|register|login|user\/info)\/?$/i.test(path)
+  } catch {
+    return false
+  }
+}
+
 function isPromoCandidate(candidate: Candidate, base?: string): boolean {
+  if (isSiteNavChrome(candidate, base)) return true
   if (PROMO_TEXT.test(promoText(candidate))) return true
   if (!candidate.href) return false
   try {
@@ -274,6 +289,24 @@ function titleScore(text: string): number {
   return (digits / text.length > 0.6 ? -50 : 0) + text.length
 }
 
+function readingOrder(a: Candidate, b: Candidate): number {
+  const rowA = Math.round(a.rect.top / 48)
+  const rowB = Math.round(b.rect.top / 48)
+  if (rowA !== rowB) return rowA - rowB
+  if (a.rect.left !== b.rect.left) return a.rect.left - b.rect.left
+  return a.index - b.index
+}
+
+function scoreFallbackMember(candidate: Candidate): number {
+  let score = titleScore(
+    candidate.texts.map((text) => readable(text)).find(Boolean) ?? candidate.label ?? ''
+  )
+  if (candidate.texts.some((text) => classify(text) === 'duration')) score += 40
+  if (candidate.tag === 'img') score += 20
+  if (candidate.hasMedia) score += 10
+  return score
+}
+
 /** Turn an induced ancestor signature into a CSS container selector. */
 export function pathToRecordSelector(path: string): string | undefined {
   const parts = path.split('>').filter(Boolean)
@@ -294,14 +327,6 @@ export function dominantPathPrefix(paths: string[]): string | undefined {
     else break
   }
   return prefix.length ? prefix.join('>') : undefined
-}
-
-function readingOrder(a: Candidate, b: Candidate): number {
-  const rowA = Math.round(a.rect.top / 48)
-  const rowB = Math.round(b.rect.top / 48)
-  if (rowA !== rowB) return rowA - rowB
-  if (a.rect.left !== b.rect.left) return a.rect.left - b.rect.left
-  return a.index - b.index
 }
 
 function groupScore(members: Candidate[]): number {
@@ -467,8 +492,10 @@ export function extractContent(
     strategy = profile ? 'profile' : 'induced'
     reason = pattern ? `repeating record group, link shape ${pattern}` : 'repeating record group'
   } else {
-    // No repeating structure — take linked, media-bearing nodes in reading order.
-    members = pool.filter((item) => item.href && item.hasMedia)
+    // No repeating structure — prefer media-bearing records with readable titles.
+    members = pool.filter((item) => item.hasMedia && (item.href || item.tag === 'img'))
+    members.sort((a, b) => scoreFallbackMember(b) - scoreFallbackMember(a))
+    if (members.length < requested) members = pool.filter((item) => item.href && item.hasMedia)
     if (members.length < requested) members = pool.filter((item) => item.href)
     strategy = 'fallback'
     reason = 'no repeating record group — linked nodes in reading order'
@@ -630,8 +657,12 @@ export function collectCandidates(
     const queue: Array<Document | ShadowRoot> = [doc]
     while (queue.length) {
       const scope = queue.pop()!
-      for (const element of scope.querySelectorAll('a[href],[role="link"]')) {
+      for (const element of scope.querySelectorAll('a[href],[role="link"],img')) {
         if (!(element instanceof Element) || seen.has(element)) continue
+        if (element.tagName === 'IMG') {
+          const rect = element.getBoundingClientRect()
+          if (rect.width < 48 || rect.height < 48) continue
+        }
         seen.add(element)
         gathered.push(element)
       }
@@ -772,7 +803,10 @@ export function collectCandidates(
     out.push({
       index,
       tag: element.tagName.toLowerCase(),
-      href: element.getAttribute('href') ?? undefined,
+      href:
+        element.getAttribute('href') ??
+        element.closest?.('a[href]')?.getAttribute('href') ??
+        undefined,
       label:
         element.getAttribute('aria-label')?.trim() ||
         element.getAttribute('title')?.trim() ||

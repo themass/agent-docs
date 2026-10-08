@@ -42,8 +42,13 @@ export function RrwebReplayViewport({
     const replayer = replayerRef.current
     if (!stage || !host || !replayer) return
     try {
-      const meta = replayer.getMetaData()
-      const next = fitRrwebWrapper(stage, host, { width: meta.width, height: meta.height }, viewport)
+      const meta = replayer.getMetaData() as { width?: number; height?: number }
+      const next = fitRrwebWrapper(
+        stage,
+        host,
+        { width: meta.width ?? viewport.w, height: meta.height ?? viewport.h },
+        viewport
+      )
       setLayout(next)
     } catch {
       /* meta not ready */

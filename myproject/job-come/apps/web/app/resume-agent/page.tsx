@@ -14,6 +14,7 @@ import { ResumeWorkflowActions } from "@/components/resume/ResumeWorkflowActions
 import { getProfile, type Profile } from "@/lib/api/profile";
 import type { ResumeTrack } from "@/lib/api/resume";
 import { computeWorkflowSteps, type StudioStep } from "@/lib/resume-workflow";
+import type { AgentUiContext, AgentUiFocus } from "@/lib/ui-context";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
 function ResumeAgentInner() {
@@ -32,6 +33,7 @@ function ResumeAgentInner() {
     locale: ResumeTrack;
     level: "conservative" | "standard" | "elevated";
   } | null>(null);
+  const [uiFocus, setUiFocus] = useState<AgentUiFocus | null>(null);
   const jobElevateOnceRef = useRef(false);
 
   const profileId = profile?.id ?? context?.active_profile_id ?? null;
@@ -41,6 +43,7 @@ function ResumeAgentInner() {
     const id = context?.active_profile_id;
     if (!id) {
       setProfile(null);
+      setUiFocus(null);
       return;
     }
     void getProfile(id)
@@ -89,6 +92,13 @@ function ResumeAgentInner() {
     [isConfirmed],
   );
 
+  const workflowStep = !isConfirmed ? "review" : studioStep;
+  const uiContext: AgentUiContext = {
+    page: "resume-agent",
+    step: workflowStep,
+    focus: uiFocus,
+  };
+
   const studioContent = !hasProfile ? (
     <div className="flex h-full min-h-[360px] flex-col justify-center p-4 sm:p-6">
       <ProfileUploader
@@ -123,10 +133,10 @@ function ResumeAgentInner() {
       }}
       onExported={() => setHasExported(true)}
       jobId={jobId}
+      uiContext={uiContext}
+      onUiFocus={setUiFocus}
     />
   );
-
-  const workflowStep = !isConfirmed ? "review" : studioStep;
 
   return (
     <>
@@ -144,6 +154,7 @@ function ResumeAgentInner() {
           pageKey="resume-agent"
           title="简历优化"
           profileId={profileId}
+          jobId={jobId}
           skillHint="resume-coach"
           kind="resume"
           disabled={!isUser}
@@ -188,6 +199,7 @@ function ResumeAgentInner() {
             />
           }
           onProfileUpdated={reloadProfile}
+          uiContext={uiContext}
           studio={studioContent}
         />
       </div>

@@ -8,6 +8,7 @@ import { AgentHeader } from "@/components/agent/AgentHeader";
 import { AgentHistoryDrawer } from "@/components/agent/AgentHistoryDrawer";
 import { AgentTaskQueue } from "@/components/agent/AgentTaskQueue";
 import { useAgentSession } from "@/hooks/useAgentSession";
+import { formatUiFocusChip, type AgentUiContext } from "@/lib/ui-context";
 
 type Props = {
   pageKey: string;
@@ -18,6 +19,7 @@ type Props = {
   disabled?: boolean;
   placeholder?: string;
   onProfileUpdated?: () => void;
+  uiContext?: AgentUiContext | null;
 };
 
 export function AgentSidebar({
@@ -29,6 +31,7 @@ export function AgentSidebar({
   disabled = false,
   placeholder,
   onProfileUpdated,
+  uiContext = null,
 }: Props) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const agent = useAgentSession({
@@ -39,7 +42,9 @@ export function AgentSidebar({
     kind,
     disabled,
     onProfileUpdated,
+    uiContext,
   });
+  const focusChip = formatUiFocusChip(uiContext);
 
   const statusDetail =
     agent.busy
@@ -94,6 +99,11 @@ export function AgentSidebar({
                   onRemove={agent.removeQueued}
                   onClearSteer={agent.clearSteerQueue}
                 />
+                {focusChip ? (
+                  <p className="shrink-0 px-3 pb-1 text-[11px] text-brand-700">
+                    当前指向：{focusChip}
+                  </p>
+                ) : null}
                 <AgentComposerSwitch
                   variant="sidebar"
                   disabled={disabled}

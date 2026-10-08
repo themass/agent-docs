@@ -294,8 +294,8 @@ function applyState(root: HTMLElement, state: GeniusFallHudState, prefs: GeniusF
   root.classList.toggle('gf-fallen', fallen)
 
   const pct = state.percentUsed
-  const ringHost = root.querySelector('[data-gf-ring-main]')
-  const teamHost = root.querySelector('[data-gf-team-gauge]')
+  const ringHost = root.querySelector('[data-gf-ring-main]') as HTMLElement | null
+  const teamHost = root.querySelector('[data-gf-team-gauge]') as HTMLElement | null
   const pctEl = root.querySelector('[data-gf-pct]') as HTMLElement | null
   const ringBox = root.querySelector('[data-gf-ring-box]') as HTMLElement | null
   const spendEl = root.querySelector('[data-gf-spend]')

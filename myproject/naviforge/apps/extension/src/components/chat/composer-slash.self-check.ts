@@ -5,7 +5,7 @@ import {
   filterSlashCommands,
   parseSlashDraftWithRegistry,
   resolveSlashCommand,
-} from './composer-slash-registry.ts'
+} from './composer-slash-registry.js'
 
 const registry = buildSlashCommandRegistry([])
 

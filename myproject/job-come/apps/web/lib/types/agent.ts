@@ -106,4 +106,5 @@ export type QueuedAgentMessage = {
   content: string;
   attachments: AgentAttachment[];
   mode: "follow_up" | "steer";
+  uiContext?: AgentUiContext | null;
 };

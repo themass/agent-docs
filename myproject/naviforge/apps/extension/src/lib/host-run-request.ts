@@ -34,7 +34,6 @@ export function buildHostPollRunRequest(opts: {
     rollbackUrlDrift: true,
     maxSteps: normalizeMaxAgentSteps(opts.privacy.maxAgentSteps),
     maxInputTokens: opts.privacy.maxInputTokens ?? DEFAULT_MAX_INPUT_TOKENS,
-    intakeMode: opts.privacy.intakeMode ?? 'auto',
     ...gates,
   }
 }

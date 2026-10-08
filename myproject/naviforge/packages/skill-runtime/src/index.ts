@@ -3,6 +3,9 @@ export type SkillManifest = {
   version: string
   description: string
   triggers?: string[]
+  /** Hidden from L1 catalog; `skill_load` still resolves via `aliasOf`. */
+  aliasOf?: string
+  l1?: boolean
   permissions?: {
     /** Exact Agent tool names this skill may use. Empty means no additional restriction. */
     tools?: string[]
@@ -27,6 +30,10 @@ export type Skill = {
 
 const MIN_ROUTE_SCORE = 2
 
+export function isL1Skill(skill: Skill): boolean {
+  return !skill.manifest.aliasOf && skill.manifest.l1 !== false
+}
+
 function routingPositiveText(description: string): string {
   const non = description.split(/非：|不要用于|不适用/i)[0] ?? description
   return non.replace(/何时使用：|用途：|触发：/g, ' ')
@@ -50,6 +57,7 @@ export function routeSkills(task: string, skills: Skill[], limit = 3): Skill[] {
       .split(/[^a-z0-9\u4e00-\u9fff]+/)
       .filter((word) => word.length >= 2)
   const scored = skills
+    .filter(isL1Skill)
     .map((s) => {
       const exclusions = routingExclusions(s.manifest.description)
       if (exclusions.some((word) => t.includes(word))) return { s, score: 0 }
@@ -82,8 +90,9 @@ function escapeXml(value: string): string {
  * Bodies stay behind skill_load; lookup still accepts id@version.
  */
 export function formatSkillCatalog(skills: Skill[]): string {
-  if (!skills.length) return '(none installed)'
-  const items = skills
+  const visible = skills.filter(isL1Skill)
+  if (!visible.length) return '(none installed)'
+  const items = visible
     .map(
       (s) =>
         `  <skill>\n    <name>${escapeXml(s.manifest.id)}</name>\n    <description>${escapeXml(s.manifest.description)}</description>\n  </skill>`
@@ -131,8 +140,15 @@ export function findSkill(skills: Skill[], ref: string): Skill | undefined {
   const { id, version } = parseSkillRef(ref.trim())
   const matches = skills.filter((item) => item.manifest.id === ref || item.manifest.id === id)
   if (!matches.length) return undefined
-  if (version) return matches.find((item) => item.manifest.version === version) ?? matches[0]
+  if (version) return matches.find((item) => item.manifest.version === version)
   return matches[0]
+}
+
+export function resolveCanonicalSkill(skills: Skill[], ref: string): Skill | undefined {
+  const found = findSkill(skills, ref)
+  if (!found) return undefined
+  if (found.manifest.aliasOf) return findSkill(skills, found.manifest.aliasOf) ?? found
+  return found
 }
 
 export function formatSkillFiles(files: string[] | undefined): string {
@@ -148,7 +164,7 @@ export {
 } from './slash-skill.js'
 
 export function loadSkillBody(skills: Skill[], id: string): string | null {
-  const skill = findSkill(skills, id)
+  const skill = resolveCanonicalSkill(skills, id)
   if (!skill) return null
   const tools = skill.manifest.permissions?.tools
   const header = [

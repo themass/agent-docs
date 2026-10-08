@@ -9,6 +9,8 @@ export type BackgroundRunRequest = Pick<
   id: ReturnType<typeof crypto.randomUUID>
   sessionId?: string
   task: string
+  /** Session goal when `task` is a continuation cue. */
+  taskAnchor?: string
   taskId?: string
   tabId: number
   llm: LlmConfig
@@ -29,7 +31,6 @@ export type BackgroundRunRequest = Pick<
   runTimeoutMs?: number
   runTokenBudget?: number
   maxInputTokens?: number
-  intakeMode?: 'off' | 'auto' | 'always'
   hitlPolicy: 'strict' | 'balanced' | 'permissive'
   rollbackUrlDrift: boolean
   imageDataUrl?: string

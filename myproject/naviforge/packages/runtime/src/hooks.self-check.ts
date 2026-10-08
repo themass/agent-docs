@@ -5,7 +5,7 @@ import type { TraceRecord } from '@naviforge/session'
 import type { AgentOptions } from './agent.js'
 import { Agent, AgentCtx } from './agent-ctx.js'
 import { createRunHooks, SkillAllowlistHook, TaskHintHook, ToolStateHook } from './builtin-hooks.js'
-import { HookPipeline, ProtocolHook, ToolOutcomeHook, WorkingSetHook } from './hooks.js'
+import { HookPipeline, ProtocolHook, ToolOutcomeHook, WorkingSetHook, validateHookOrdering, type AgentHook } from './hooks.js'
 import { ToolOutcomePolicy } from './failure.js'
 
 const record = (id: string, type: TraceRecord['type'], payload: TraceRecord['payload']): TraceRecord =>
@@ -53,6 +53,43 @@ function testAgent(over: Partial<AgentOptions> = {}): Agent {
   ctx.completion = { content: 'not a turn' }
   const stopped = pipeline.afterModel(ctx)
   assert.equal(stopped.kind, 'stop')
+  protocol.reset()
+}
+
+{
+  // Regression for tests/message.txt: a safety/policy refusal with no tool
+  // call must stop immediately as `blocked`, not after burning the full
+  // protocol retry budget as a generic `error`. Retrying "you must call a
+  // tool" against a refusal just reproduces the same refusal.
+  const { pipeline, protocol } = createRunHooks(2)
+  const ctx = new AgentCtx(testAgent({}), snap)
+  const prepared = await pipeline.beforeModel(ctx)
+  assert.equal(prepared.kind, 'continue')
+
+  ctx.completion = {
+    content:
+      "I can't help retrieve or extract playback links for sexually exploitative content, including material involving alleged rape or minors.",
+  }
+  const refused = pipeline.afterModel(ctx)
+  assert.equal(refused.kind, 'stop', 'first safety refusal must stop immediately, not retry_turn')
+  if (refused.kind === 'stop') {
+    assert.equal((refused as { status?: string }).status, 'blocked')
+  }
+  protocol.reset()
+}
+
+{
+  // A Chinese-language refusal must be recognized too — this is a generic
+  // lexical pattern, not an English-only heuristic.
+  const { pipeline, protocol } = createRunHooks(2)
+  const ctx = new AgentCtx(testAgent({}), snap)
+  await pipeline.beforeModel(ctx)
+  ctx.completion = { content: '我无法协助获取涉及未成年人的色情内容的播放链接。' }
+  const refused = pipeline.afterModel(ctx)
+  assert.equal(refused.kind, 'stop', 'zh safety refusal must also stop immediately')
+  if (refused.kind === 'stop') {
+    assert.equal((refused as { status?: string }).status, 'blocked')
+  }
   protocol.reset()
 }
 
@@ -200,16 +237,17 @@ function testAgent(over: Partial<AgentOptions> = {}): Agent {
 
 {
   const read = new AgentCtx(testAgent({ task: '详细介绍一下这个项目' }), snap)
+  read.gates.deliverable = 'summary'
   new TaskHintHook().beforeStep(read)
   assert.ok(
-    [...read.ledger.all()].some(
-      (entry) => entry.type === 'run.note' && entry.payload.text.includes('GUIDANCE: read-page')
+    ![...read.ledger.all()].some(
+      (entry) => entry.type === 'run.note' && entry.payload.text.startsWith('GUIDANCE:')
     ),
-    'first step injects the page-read hint'
+    'locked summary deliverable skips TaskHint GUIDANCE (PLAN lives in preflight)'
   )
   const n = read.ledger.all().length
   new TaskHintHook().beforeStep(read)
-  assert.equal(read.ledger.all().length, n, 'the hint is issued once per task')
+  assert.equal(read.ledger.all().length, n, 'the hint gate is issued once per task')
 
   const mark = new AgentCtx(testAgent({ task: '标记当前页面 top5 视频' }), snap)
   new TaskHintHook().beforeStep(mark)
@@ -242,6 +280,54 @@ function testAgent(over: Partial<AgentOptions> = {}): Agent {
   new ToolStateHook().afterTool(ctx)
   assert.equal(ctx.gates.lastListHints[0]?.title, 'A')
   assert.ok(ctx.gates.seenObs.has(`dom_read|${snap.url}|list`))
+}
+
+// --- validateHookOrdering: dependency-order regression coverage ---------
+// See docs/BEST_PRACTICES_REVIEW.md section 4 P0 — this guards the exact
+// class of bug fixed in GENERAL_BROWSER_AGENT_REFACTOR_PHASE_1.md section 9
+// (a hook reading `gates.deliverable` before the hook that writes it had
+// run, because array order silently drifted).
+
+{
+  // The real pipeline must construct without throwing — every hook's
+  // declared reads/writes are consistent with createRunHooks' order.
+  assert.doesNotThrow(() => createRunHooks(2), 'current createRunHooks order must be internally consistent')
+}
+
+{
+  // A reader placed before its writer (no `optional`) must throw at
+  // HookPipeline construction time, not fail silently mid-run.
+  const reader: AgentHook = { name: 'test-reader', reads: ['deliverable'] }
+  const writer: AgentHook = { name: 'test-writer', writes: ['deliverable'] }
+  assert.throws(
+    () => new HookPipeline([reader, writer]),
+    /hook ordering: 'test-reader' reads gates\.deliverable/,
+    'reader-before-writer must throw'
+  )
+  assert.doesNotThrow(() => new HookPipeline([writer, reader]), 'writer-before-reader must be fine')
+}
+
+{
+  // An `optional: true` reader placed before its writer only warns —
+  // it has a documented fallback, so it must not block pipeline construction.
+  const optionalReader: AgentHook = {
+    name: 'test-optional-reader',
+    reads: [{ key: 'deliverable', optional: true }],
+  }
+  const writer: AgentHook = { name: 'test-writer', writes: ['deliverable'] }
+  const { warnings } = validateHookOrdering([optionalReader, writer])
+  assert.equal(warnings.length, 1)
+  assert.match(warnings[0]!, /'test-optional-reader' reads gates\.deliverable/)
+  assert.doesNotThrow(() => new HookPipeline([optionalReader, writer]))
+}
+
+{
+  // Gates with a createAgentGates run-start default (e.g. taskHintIssued,
+  // loadedSkillIds) are always safely readable — no writer needed before
+  // the first reader.
+  const reader: AgentHook = { name: 'test-reader', reads: ['taskHintIssued', 'loadedSkillIds'] }
+  const { warnings } = validateHookOrdering([reader])
+  assert.equal(warnings.length, 0)
 }
 
 console.log('hooks.self-check ok')

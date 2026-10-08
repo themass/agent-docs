@@ -33,6 +33,7 @@ import { SCREENSHOT_STUDIO_MESSAGE } from '../../modules/screenshot-studio'
 import { ModifyHeadersPanel } from './modify-headers-panel'
 import { JsonFormatDrawer } from './json-format-drawer'
 import { RunResultDrawer, type ToolkitRunResult } from './run-result-drawer'
+import { AdBanner } from '../../components/ad-banner'
 
 async function persistToolkitShot(dataUrl: string, kind: string): Promise<string> {
   const { downloadFallback, saveWorkspaceShot } = await import('../../lib/local-workspace')
@@ -579,6 +580,8 @@ export function ToolkitPanel() {
           </div>
         </article>
       </section>
+
+      <AdBanner surface="ocr" className="toolkit-ad-slot" />
 
       <details className="toolkit-shortcut-box">
         <summary>{t('options.toolkit.shortcutsSummary')}</summary>

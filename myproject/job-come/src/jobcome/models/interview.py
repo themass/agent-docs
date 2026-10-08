@@ -5,14 +5,13 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text
-
-from jobcome.db.types import JSONText
+from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from jobcome.db.base import Base
 from jobcome.db.mixins import TimestampMixin
-from jobcome.models.enums import MockSessionStatus, QuestionSource
+from jobcome.db.types import JSONText
+from jobcome.models.enums import ApplicationStatus, MockSessionStatus, QuestionSource
 
 if TYPE_CHECKING:
     from jobcome.models.profile import Profile
@@ -110,6 +109,9 @@ class MockSession(Base, TimestampMixin):
 
 class Application(Base, TimestampMixin):
     __tablename__ = "jc_application"
+    __table_args__ = (
+        UniqueConstraint("profile_id", "job_id", name="uq_jc_application_profile_job"),
+    )
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
     job_id: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
@@ -117,6 +119,10 @@ class Application(Base, TimestampMixin):
     user_id: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     resume_variant_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
     applied_at: Mapped[date | None] = mapped_column(Date, nullable=True)
+    follow_up_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(16), default=ApplicationStatus.EVALUATED, nullable=False, index=True
+    )
     user_marked: Mapped[bool] = mapped_column(default=True, nullable=False)
     note: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 

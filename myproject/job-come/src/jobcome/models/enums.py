@@ -119,6 +119,15 @@ class MockSessionStatus(StrEnum):
     CANCELLED = "cancelled"
 
 
+class ApplicationStatus(StrEnum):
+    EVALUATED = "evaluated"
+    SKIPPED = "skipped"
+    APPLIED = "applied"
+    INTERVIEWING = "interviewing"
+    REJECTED = "rejected"
+    OFFER = "offer"
+
+
 class OfferStage(StrEnum):
     PREPARING = "preparing"
     APPLIED = "applied"

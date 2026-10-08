@@ -1,19 +1,19 @@
 import { useEffect, useState } from 'react'
 
 import { ChatHeader } from '../components/chat/chat-header'
-import { AdBanner } from '../components/ad-banner'
 import { Composer } from '../components/chat/composer'
 import { useI18n } from '../i18n'
 import { CameraPage } from '../components/chat/camera-page'
 import { ContextBar } from '../components/chat/context-bar'
 import { HitlReplyModal } from '../components/chat/hitl-reply-modal'
-import { ClarificationModal } from '../modules/intake-ui'
 import { MessageList } from '../components/chat/message-list'
 import { AuthStatusBar } from '../components/auth-status-bar'
 import { TaskQueuePanel } from '../components/chat/task-queue-panel'
 import { shotAskFromText } from '../lib/image-ask'
 import { RUN_STATUS, isWorkspaceRunning } from '../lib/run-phase'
 import { openOptionsPage, openWorkspaceTab } from '../lib/surface-launch'
+import { AgentCapabilitiesSheet } from '../components/chat/agent-capabilities-sheet'
+import { privacyFromWorkspaceState } from '../components/chat/agent-capabilities-editor'
 import { HistoryDrawer } from './history-drawer'
 import { headerStatusDetail } from './live-thinking'
 import { preventImeFocusSteal } from '../lib/ime-safe-surface'
@@ -26,13 +26,10 @@ export function ChatApp({ variant = 'panel' }: { variant?: 'panel' | 'wide' }) {
   const [historyOpen, setHistoryOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [cameraOpen, setCameraOpen] = useState(false)
+  const [capabilitiesOpen, setCapabilitiesOpen] = useState(false)
 
   async function handleSubmit(): Promise<void> {
     if (hitlWaiting) return
-    if (clarifying) {
-      void ws.replyHitl()
-      return
-    }
     if (ws.awaitingQuestion) {
       void ws.replyHitl()
       return
@@ -50,10 +47,6 @@ export function ChatApp({ variant = 'panel' }: { variant?: 'panel' | 'wide' }) {
 
   function handleSteer(): void {
     if (hitlWaiting) return
-    if (clarifying) {
-      void ws.replyHitl()
-      return
-    }
     if (ws.awaitingQuestion) {
       void ws.replyHitl()
       return
@@ -66,8 +59,13 @@ export function ChatApp({ variant = 'panel' }: { variant?: 'panel' | 'wide' }) {
     ws.enqueueTask()
   }
 
-  function openSettings(): void {
+  function openAgentSettings(): void {
     void openOptionsPage('settings')
+  }
+
+  function openPrivacySettings(): void {
+    setCapabilitiesOpen(false)
+    void openOptionsPage('settings', 'agent')
   }
 
   function openWide(): void {
@@ -83,12 +81,9 @@ export function ChatApp({ variant = 'panel' }: { variant?: 'panel' | 'wide' }) {
 
   const busy = ws.running || ws.pageAskBusy
   const headerDetail = headerStatusDetail(isWorkspaceRunning(ws.status) || busy, ws.statusDetail)
-  const clarifying = Boolean(ws.intakeSession) && ws.running
   const hitlWaiting =
     ws.status === RUN_STATUS.WAITING_USER && Boolean(ws.awaitingQuestion)
-  const placeholder = clarifying
-    ? t('chat.clarify.placeholder')
-    : hitlWaiting
+  const placeholder = hitlWaiting
       ? t('chat.hitl.placeholder')
       : ws.awaitingQuestion
     ? t('chat.placeholderReply')
@@ -125,14 +120,22 @@ export function ChatApp({ variant = 'panel' }: { variant?: 'panel' | 'wide' }) {
         onNewChat={() => void ws.startNewThread()}
         onHistory={() => setHistoryOpen(true)}
         onCopy={() => void copySession()}
-        onSettings={openSettings}
+        onSettings={openAgentSettings}
         onOpenWide={wide ? undefined : openWide}
       />
 
       <ContextBar
         targetTab={ws.targetTab}
         modelName={ws.activeProfile?.name ?? ws.activeProfile?.model}
-        useNetwork={ws.useNetwork}
+        capabilityPrivacy={privacyFromWorkspaceState({
+          useNetwork: ws.useNetwork,
+          captureNetworkBodies: ws.captureNetworkBodies,
+          allowDomInject: ws.allowDomInject,
+          allowNetworkIntercept: ws.allowNetworkIntercept,
+          allowMainProbe: ws.allowMainProbe,
+          visionEnabled: ws.visionEnabled,
+        })}
+        onOpenCapabilities={() => setCapabilitiesOpen(true)}
         threadTitle={ws.activeThread?.title}
         locked={ws.running}
         wide={wide}
@@ -150,8 +153,6 @@ export function ChatApp({ variant = 'panel' }: { variant?: 'panel' | 'wide' }) {
         onClearPick={ws.clearPickedElement}
         onReplayPlaybook={() => void ws.replayThreadPlaybook()}
       />
-
-      <AdBanner surface="agent" className="mx-3 mt-2 shrink-0" />
 
       {ws.tabPickerOpen ? (
         <div className="relative z-10 mx-3 mt-2 max-h-48 overflow-y-auto rounded-lg border-2 border-primary/30 bg-primary/5 p-3 text-base shrink-0 shadow-sm">
@@ -202,7 +203,7 @@ export function ChatApp({ variant = 'panel' }: { variant?: 'panel' | 'wide' }) {
         wide={wide}
         onFocusVideo={(video) => void ws.focusMarkedVideo(video)}
         onRequeue={(intent) => ws.enqueueTask(intent)}
-        showThinking={busy && !ws.awaitingQuestion && !clarifying && !hitlWaiting}
+        showThinking={busy && !ws.awaitingQuestion && !hitlWaiting}
         thinkingDetail={headerDetail ?? ws.statusDetail}
         thinkingReasoning={ws.thinkingReasoning}
         liveFeed={ws.liveFeed}
@@ -248,7 +249,7 @@ export function ChatApp({ variant = 'panel' }: { variant?: 'panel' | 'wide' }) {
           pickingElement={ws.pickingElement}
           pickDisabled={busy && !ws.awaitingQuestion}
           actingLabel={
-            busy && !ws.awaitingQuestion && !clarifying && !hitlWaiting ? null : ws.statusDetail
+            busy && !ws.awaitingQuestion && !hitlWaiting ? null : ws.statusDetail
           }
           imageAttachment={ws.imageAttachment}
           onClearAttachment={() => ws.setImageAttachment(null)}
@@ -277,14 +278,6 @@ export function ChatApp({ variant = 'panel' }: { variant?: 'panel' | 'wide' }) {
         <AuthStatusBar variant="chat" />
       </div>
 
-      {clarifying && ws.intakeSession ? (
-        <ClarificationModal
-          session={ws.intakeSession}
-          onSubmit={(json) => void ws.replyHitl(json)}
-          onStop={ws.stop}
-        />
-      ) : null}
-
       {hitlWaiting && ws.awaitingQuestion ? (
         <HitlReplyModal
           question={ws.awaitingQuestion}
@@ -308,6 +301,21 @@ export function ChatApp({ variant = 'panel' }: { variant?: 'panel' | 'wide' }) {
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
         onResume={(payload) => void ws.resumeSession(payload)}
+      />
+
+      <AgentCapabilitiesSheet
+        open={capabilitiesOpen}
+        onClose={() => setCapabilitiesOpen(false)}
+        locked={busy}
+        workspacePrivacy={{
+          useNetwork: ws.useNetwork,
+          captureNetworkBodies: ws.captureNetworkBodies,
+          allowDomInject: ws.allowDomInject,
+          allowNetworkIntercept: ws.allowNetworkIntercept,
+          allowMainProbe: ws.allowMainProbe,
+          visionEnabled: ws.visionEnabled,
+        }}
+        onOpenFullSettings={() => openPrivacySettings()}
       />
     </div>
   )

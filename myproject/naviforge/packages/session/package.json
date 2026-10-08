@@ -14,7 +14,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "check": "tsx src/record-merge.self-check.ts && tsx src/trace-view.self-check.ts && tsx src/self-check.ts"
+    "check": "tsx src/record-merge.self-check.ts && tsx src/trace-view.self-check.ts && tsx src/thread-context.self-check.ts && tsx src/self-check.ts"
   },
   "devDependencies": {
     "tsx": "^4.20.0",

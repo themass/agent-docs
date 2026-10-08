@@ -140,9 +140,12 @@ export async function openSidePanel(): Promise<void> {
   openSidePanelWithGesture(tab.id, tab.windowId)
 }
 
-export async function openOptionsPage(section?: string): Promise<void> {
+export async function openOptionsPage(section?: string, settingsTab?: string): Promise<void> {
   if (section) {
-    await chrome.storage.local.set({ [STORAGE.openSection]: section })
+    await chrome.storage.local.set({
+      [STORAGE.openSection]: section,
+      ...(settingsTab ? { [STORAGE.openSettingsTab]: settingsTab } : {}),
+    })
   }
   const optionsUrl = chrome.runtime.getURL('options.html')
   const hashUrl = section ? `${optionsUrl}#${section}` : optionsUrl

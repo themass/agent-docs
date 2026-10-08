@@ -10,6 +10,7 @@ import type { ToolResult } from '@naviforge/shared'
 import { createTraceRecord, type TraceRecord, type TraceRecordPayload, type TraceRecordType } from '@naviforge/session'
 
 import { Agent, AgentCtx } from './agent-ctx.js'
+import { transitionCapability } from './capability-state.js'
 import type { AgentHook, HookDecision } from './hooks.js'
 import type { LlmConfig } from './llm.js'
 import { classifyFailure, isAbortError, type RecoveryPlan } from './recovery.js'
@@ -19,7 +20,8 @@ import { resolveTaskScope, type HitlPolicyMode } from '@naviforge/policy'
 import { observationDedupeKey, type ThreadContext } from './loop-gates.js'
 import { resetTurnGates } from './loop-gate-state.js'
 import { runModelTurns } from './model-turns.js'
-import { attachIntakeAnswer, runIntakeLoop } from './run-intake-loop.js'
+import { ensureAnchorTask, syncDeliverableFromTask } from './execution-task.js'
+import { attachPageState } from './pi-run-loop.js'
 import { READONLY_RUN_PROFILE, type RunProfile } from './run-profile.js'
 
 import type { RecordedDomAction } from '@naviforge/playbook'
@@ -89,6 +91,8 @@ export type HitlController = {
 
 export type AgentOptions = {
   task: string
+  /** Session goal for deliverable / routing when `task` is a continuation cue (继续, continue, …). */
+  taskAnchor?: string
   /** Assigned by the run owner before runtime starts; all records share it. */
   runId?: ReturnType<typeof crypto.randomUUID>
   /** Parent run for a bounded readonly leaf. */
@@ -188,8 +192,8 @@ export type AgentOptions = {
   workspaceThread?: { threadId: string; slug?: string; title?: string; runId?: string }
   /** UI locale for HITL / status copy and Reply language fallback (`en` | `zh-CN` | `es`). */
   locale?: string
-  /** Pre-execution clarification: off | auto (skip obvious tasks) | always. */
-  intakeMode?: import('@naviforge/intake').IntakeMode
+  /** Extension already tried CDP recovery; run continues without Network plane. */
+  networkDegradedNote?: string
   onRecord?: (record: import('@naviforge/session').TraceRecord) => void
   /** Lets a child charge model usage to its owning run. */
   onTokenUsage?: (usage: { promptTokens: number; completionTokens: number; totalTokens: number }) => void
@@ -424,10 +428,11 @@ export function createMessageQueue(): MessageQueue {
 
 export async function runAgent(opts: AgentOptions): Promise<RunAgentResult> {
   const agent = new Agent(opts)
-  return runAgentLoop(agent)
+  return runPiAgentLoop(agent)
 }
 
-async function runAgentLoop(agent: Agent): Promise<RunAgentResult> {
+/** Outer Pi loop: one task, then follow-up. Inner turns live in `runModelTurns`. */
+async function runPiAgentLoop(agent: Agent): Promise<RunAgentResult> {
   const opts = agent.opts
   const planes = agent.planes
   let runStartedAt = Date.now()
@@ -471,10 +476,15 @@ async function runAgentLoop(agent: Agent): Promise<RunAgentResult> {
   }
 
   if (planes.network && agent.profile?.manageNetwork !== false) {
-    const started = await planes.network.start()
-    if (started.ok) {
-      emitEarly('run.log', { message: 'network debugger attached' })
-      emitEarly('run.network', { attached: true, message: 'debugger attached' })
+    const digestProbe = await planes.network.digest(1)
+    if (digestProbe.ok) {
+      emitEarly('run.log', { message: 'network digest ok (skip duplicate attach)' })
+    } else {
+      const started = await planes.network.start()
+      if (started.ok) {
+        emitEarly('run.log', { message: 'network debugger attached' })
+        emitEarly('run.network', { attached: true, message: 'debugger attached' })
+      }
     }
   }
 
@@ -490,6 +500,20 @@ async function runAgentLoop(agent: Agent): Promise<RunAgentResult> {
   }
 
   const ctx = new AgentCtx(agent, first.data)
+  if (opts.networkDegradedNote?.trim()) {
+    ctx.agent.planes.network = undefined
+    ctx.runtimeState = {
+      ...ctx.runtimeState,
+      capabilities: transitionCapability(ctx.runtimeState.capabilities, 'network', 'unavailable', {
+        reason: opts.networkDegradedNote.trim(),
+        incrementAttempt: true,
+      }),
+    }
+    ctx.networkText = 'NETWORK: (degraded — DOM-only for this run)'
+    ctx.recordNote(opts.networkDegradedNote.trim())
+    ctx.syncTools()
+  }
+  await attachPageState(ctx)
   const pipeline = agent.hooks
 
   const noteUsage = (usage?: { promptTokens: number; completionTokens: number; totalTokens: number }) => {
@@ -530,7 +554,7 @@ async function runAgentLoop(agent: Agent): Promise<RunAgentResult> {
         ctx.emit(
           ctx.createRecord('run.ask', {
             question,
-            wait: ctx.metadata.runPhase === 'intake' ? 'intake' : 'user',
+            wait: 'user',
           })
         )
         return 'park'
@@ -539,16 +563,12 @@ async function runAgentLoop(agent: Agent): Promise<RunAgentResult> {
       ctx.emit(
         ctx.createRecord('run.ask', {
           question,
-          wait: ctx.metadata.runPhase === 'intake' ? 'intake' : 'user',
+          wait: 'user',
         })
       )
 
       const answer = await waiting
-      if (ctx.metadata.runPhase === 'intake') {
-        attachIntakeAnswer(ctx, answer)
-      } else {
-        ctx.recordNote(`USER ANSWER: USER ANSWER to "${question}": ${answer}`)
-      }
+      ctx.recordNote(`USER ANSWER: USER ANSWER to "${question}": ${answer}`)
       ctx.emit(ctx.createRecord('run.log', { message: `↩ hitl: ${answer}` }))
       if (stopOnCancel && /^(停止|stop|取消|cancel)\b/i.test(answer.trim())) return 'stop'
       return 'continue'
@@ -645,34 +665,27 @@ async function runAgentLoop(agent: Agent): Promise<RunAgentResult> {
     }
 
     while (true) {
+      ensureAnchorTask(ctx)
+      ctx.syncTaskContract()
+      syncDeliverableFromTask(ctx)
       ctx.taskScope = resolveTaskScope(ctx.task)
       agent.hooks.resetTask()
       let deterministicResult: string | undefined
       resetTurnGates(ctx.gates)
 
+      stopped = null
       deterministicResult = await pipeline.runTaskPreflight(ctx)
 
-      stopped = null
-
-      if (deterministicResult) {
-        ctx.emit(
-          ctx.createRecord('run.mode', {
-            mode: 'deterministic',
-            detail: '当前页列表提取可直接由 DOM 工具完成，未调用模型。',
-          })
-        )
-        ctx.emit(ctx.createRecord('run.result', { text: deterministicResult }))
-        stopped = finish(ctx, 'done', deterministicResult)
-      } else {
-        const intakeMode = agent.opts.intakeMode ?? 'auto'
-        const intakeStopped = await runIntakeLoop({
-          agent,
-          ctx,
-          mode: intakeMode,
-          hitlOutcome,
-        })
-        if (intakeStopped !== 'continue') {
-          stopped = intakeStopped
+      if (!stopped) {
+        if (deterministicResult) {
+          ctx.emit(
+            ctx.createRecord('run.mode', {
+              mode: 'deterministic',
+              detail: '当前页列表提取可直接由 DOM 工具完成，未调用模型。',
+            })
+          )
+          ctx.emit(ctx.createRecord('run.result', { text: deterministicResult }))
+          stopped = finish(ctx, 'done', deterministicResult)
         } else {
           stopped = await runModelTurns({
             agent,
@@ -712,5 +725,5 @@ async function runAgentLoop(agent: Agent): Promise<RunAgentResult> {
 }
 
 Agent.prototype.run = function (this: Agent) {
-  return runAgentLoop(this)
+  return runPiAgentLoop(this)
 }

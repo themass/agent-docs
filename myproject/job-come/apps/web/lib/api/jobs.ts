@@ -91,15 +91,40 @@ export function getCampaignStats(profileId: string) {
   return apiJson<CampaignStats>(`/campaign/profiles/${profileId}`);
 }
 
+export type ApplicationStatus =
+  | "evaluated"
+  | "skipped"
+  | "applied"
+  | "interviewing"
+  | "rejected"
+  | "offer";
+
 export type ApplicationRow = {
   id: string;
   job_id: string;
+  profile_id: string;
   company: string | null;
   title: string | null;
   applied_at: string | null;
+  follow_up_on?: string | null;
+  status?: ApplicationStatus;
   resume_variant_id: string | null;
+  note: string | null;
+  fit_score?: number | null;
+  fit_recommendation?: string | null;
 };
 
 export function listApplications(profileId: string) {
   return apiJson<ApplicationRow[]>(`/jobs/profiles/${profileId}/applications`);
+}
+
+export function patchApplication(
+  profileId: string,
+  applicationId: string,
+  body: { status?: ApplicationStatus; note?: string; follow_up_on?: string },
+) {
+  return apiJson<ApplicationRow>(`/jobs/profiles/${profileId}/applications/${applicationId}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
 }

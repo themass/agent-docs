@@ -21,7 +21,7 @@ export function frictionGuidanceNotes(report: PageFrictionReport): string[] {
   }
   if (report.kinds.includes('login') || report.kinds.includes('paywall')) {
     notes.push(
-      'CONSTRAINT: 登录/付费墙 — skill_load page-friction；用户在浏览器登录后回复；禁止伪造 cookie/token。'
+      'CONSTRAINT: 登录/付费墙 — skill_load friction；用户在浏览器登录后回复；禁止伪造 cookie/token。'
     )
   }
   if (report.kinds.includes('rate_limit')) {

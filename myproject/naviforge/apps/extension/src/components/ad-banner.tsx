@@ -5,19 +5,25 @@ import { cn } from '../lib/cn'
 export function AdBanner({
   surface,
   className,
+  size = 'default',
 }: {
   surface: AdSurface
   className?: string
+  /** compact = shorter slot for in-feed agent list */
+  size?: 'default' | 'compact'
 }) {
   const src = adEmbedUrl(surface)
   if (!src || !adsEnabled(surface)) return null
 
   return (
-    <div className={cn('ad-banner', className)} aria-label="Advertisement">
+    <div
+      className={cn('ad-banner', size === 'compact' && 'ad-banner-compact', className)}
+      aria-label="Advertisement"
+    >
       <iframe
         title="Advertisement"
         src={src}
-        className="ad-banner-frame"
+        className={cn('ad-banner-frame', size === 'compact' && 'ad-banner-frame-compact')}
         loading="lazy"
         referrerPolicy="no-referrer-when-downgrade"
       />

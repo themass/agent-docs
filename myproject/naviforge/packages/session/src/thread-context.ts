@@ -8,6 +8,13 @@ export type ThreadReuse = {
     url: string
     evidence: string
   }
+  /**
+   * Deliverable narrative established by a prior run in this thread (see
+   * `@naviforge/runtime` deliverable.ts). Lets the next run stay on the same
+   * task narrative for generic follow-ups ("继续" / "重新抓取一下" / "？？")
+   * instead of reclassifying from scratch off ambiguous wording alone.
+   */
+  lastDeliverable?: string
 }
 
 export type ThreadContext = {
@@ -94,12 +101,25 @@ function toolFields(rec: TraceRecord): { tool: string; data?: Record<string, unk
   return { tool: payload.tool, data }
 }
 
-/** Last read_page + skill.load ids in this thread. */
+const DELIVERABLE_NOTE_RE = /^DELIVERABLE:\s*(\S+)/
+
+/** Structured deliverable marker emitted by PreflightHook (see runtime deliverable.ts). */
+function deliverableFromNote(rec: TraceRecord): string | undefined {
+  if (rec.type !== 'run.note') return undefined
+  if (rec.payload.topic !== 'deliverable') return undefined
+  const match = DELIVERABLE_NOTE_RE.exec(rec.payload.text ?? '')
+  return match?.[1]
+}
+
+/** Last read_page + skill.load ids + deliverable narrative in this thread. */
 export function formatSessionReuse(messages: TraceRecord[]): ThreadReuse {
   let pageUrl = ''
   let pageText = ''
   const skillIds: string[] = []
+  let lastDeliverable: string | undefined
   for (const message of messages) {
+    const deliverable = deliverableFromNote(message)
+    if (deliverable) lastDeliverable = deliverable
     const fields = toolFields(message)
     if (!fields) continue
     if (fields.tool === 'dom_read') {
@@ -120,6 +140,7 @@ export function formatSessionReuse(messages: TraceRecord[]): ThreadReuse {
       pageUrl && pageText.trim()
         ? { url: pageUrl, evidence: pageText.trim().slice(0, PAGE_EVIDENCE_CHARS) }
         : undefined,
+    lastDeliverable,
   }
 }
 

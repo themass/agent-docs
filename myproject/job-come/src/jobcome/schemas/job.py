@@ -95,9 +95,23 @@ class ApplicationResponse(BaseModel):
     profile_id: str
     resume_variant_id: str | None
     applied_at: str | None
+    follow_up_on: str | None = None
+    status: str = "evaluated"
     note: str | None
     company: str | None = None
     title: str | None = None
+    fit_score: int | None = None
+    fit_recommendation: str | None = None
+
+
+class ApplicationPatchRequest(BaseModel):
+    status: Literal[
+        "evaluated", "skipped", "applied", "interviewing", "rejected", "offer"
+    ] | None = None
+    note: str | None = Field(default=None, max_length=1024)
+    follow_up_on: str | None = Field(
+        default=None, description="跟进日 YYYY-MM-DD；空字符串清除"
+    )
 
 
 class CampaignStatsResponse(BaseModel):

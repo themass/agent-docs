@@ -29,6 +29,7 @@ import {
 } from '../lib/settings'
 import { getActiveModelProfile, loadModelProfiles, type ModelProfilesStore } from '../lib/llm-profiles'
 import { isNewApiLoggedIn, loadNewApiAuth, shouldSyncBootstrap } from '../lib/newapi-auth'
+import { isManagedLoginEnabled } from '../lib/managed-login-feature'
 import { syncManagedProfilesFromNewApi } from '../lib/newapi-sync'
 import type { PickedElement } from './workspace-helpers'
 import { pickedLabel } from './workspace-helpers'
@@ -51,7 +52,6 @@ export function applyPrivacySettings(
     setRunTimeoutMs(value: number): void
     setTokenBudget(value: number): void
     setMaxInputTokens(value: number): void
-    setIntakeMode(value: 'off' | 'auto' | 'always'): void
   }
 ): void {
   if (!privacy) return
@@ -81,7 +81,6 @@ export function applyPrivacySettings(
       ? 0
       : normalizeMaxInputTokens(privacy.maxInputTokens ?? DEFAULT_MAX_INPUT_TOKENS)
   )
-  setters.setIntakeMode(privacy.intakeMode ?? 'auto')
 }
 
 export function useWorkspaceBootstrap(deps: {
@@ -94,7 +93,8 @@ export function useWorkspaceBootstrap(deps: {
   useEffect(() => {
     void (async () => {
       const auth = await loadNewApiAuth()
-      if (auth.mode === 'managed' && isNewApiLoggedIn(auth)) {
+      const managedFeature = await isManagedLoginEnabled()
+      if (managedFeature && auth.mode === 'managed' && isNewApiLoggedIn(auth)) {
         const profiles = await loadModelProfiles()
         const key = getActiveModelProfile(profiles).apiKey
         if (shouldSyncBootstrap(auth, { apiKeyEmpty: !key.trim() })) {

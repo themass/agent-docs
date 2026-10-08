@@ -182,39 +182,7 @@ export function createWorkspaceRecordHandler(deps: RecordHandlerDeps) {
           )
         }
         break
-      case 'intake.question':
-        if (deps.runningRef.current) {
-          deps.setStatus(RUN_STATUS.CLARIFYING)
-          deps.setStatusDetail('澄清需求')
-          deps.setAwaitingQuestion(null)
-          deps.setRunOutcome({
-            kind: 'waiting',
-            title: '澄清需求',
-            message: '请在弹窗中选择或填写，确认后继续执行。',
-          })
-        }
-        break
-      case 'intake.complete':
-        if (deps.runningRef.current) {
-          deps.setStatus(RUN_STATUS.RUNNING)
-          deps.setAwaitingQuestion(null)
-          deps.setStatusDetail('需求已确认，开始执行')
-          feed(deps, '需求已确认，开始执行')
-          deps.setRunOutcome(null)
-        }
-        break
       case 'run.ask':
-        if (e.payload.wait === 'intake') {
-          deps.setStatus(RUN_STATUS.CLARIFYING)
-          deps.setStatusDetail('澄清需求')
-          deps.setAwaitingQuestion(null)
-          deps.setRunOutcome({
-            kind: 'waiting',
-            title: '澄清需求',
-            message: '请在弹窗中选择或填写，确认后继续执行。',
-          })
-          break
-        }
         deps.setStatus(RUN_STATUS.WAITING_USER)
         deps.setStatusDetail('等待你回复')
         deps.setAwaitingQuestion(e.payload.question)

@@ -28,7 +28,7 @@ export default defineConfig({
     default_locale: 'en',
     name: '__MSG_extName__',
     description: '__MSG_extDescription__',
-    version: '0.0.1',
+    version: '0.1.0',
     permissions: [
       // ponytail: mic/camera use getUserMedia in extension pages — not packaged-app capture permissions.
       'identity',
@@ -46,8 +46,8 @@ export default defineConfig({
       'webNavigation',
       'cookies',
     ],
-    // Phase 0: optional hosts preferred later; <all_urls> for local demo speed
-    host_permissions: ['<all_urls>'],
+    // Phase 0: optional hosts preferred later; broad access requested at first Agent run
+    optional_host_permissions: ['http://*/*', 'https://*/*'],
     icons: {
       16: 'icon-16.png',
       32: 'icon-32.png',

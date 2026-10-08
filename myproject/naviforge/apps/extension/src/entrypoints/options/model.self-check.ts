@@ -150,10 +150,8 @@ assert(
   ).manifest.id === 'browser-helper',
   'GitHub SKILL.md conversion'
 )
-assert(BUILTIN_TOOL_CATALOG.some((tool) => tool.id === 'dom_navigate'), 'navigate tool catalogued')
-assert(BUILTIN_TOOL_CATALOG.some((tool) => tool.id === 'dom_screenshot'), 'screenshot tool catalogued')
-assert(BUILTIN_TOOL_CATALOG.some((tool) => tool.id === 'dom_read'), 'dom_read tool catalogued')
-assert(BUILTIN_TOOL_CATALOG.some((tool) => tool.id === 'page_to_pdf'), 'page_to_pdf catalogued')
+assert(BUILTIN_TOOL_CATALOG.some((tool) => tool.id === 'browser_nav'), 'navigate tool catalogued')
+assert(BUILTIN_TOOL_CATALOG.some((tool) => tool.id === 'browser_observe'), 'observe tool catalogued')
 assert(BUILTIN_TOOL_CATALOG.some((tool) => tool.id === 'web_search'), 'web_search tool catalogued')
 const thread = createThread('Find current-page top4')
 assert(thread.title === 'Find current-page top4' && thread.memory.goal === '', 'thread starts empty')
@@ -210,7 +208,7 @@ const merged = mergeThreadMemory(
 )
 assert(merged.facts.join(',') === 'a,b' && merged.lastOutcome === 'ok', 'thread memory merge')
 assert(formatThreadMemory(merged).includes('GOAL: top4'), 'thread memory format')
-assert(BUILTIN_TOOL_CATALOG.length >= 18, 'builtin catalog from shared')
+assert(BUILTIN_TOOL_CATALOG.length <= 15 && BUILTIN_TOOL_CATALOG.length >= 10, 'builtin catalog from shared')
 assert(buildSessionAuditExport([], []).schemaVersion === 1, 'session export schema')
 
 const legacy = migrateLegacyLlmSettings({

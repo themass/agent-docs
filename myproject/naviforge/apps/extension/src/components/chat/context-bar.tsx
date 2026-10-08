@@ -1,13 +1,16 @@
 import { Globe, X } from 'lucide-react'
 
 import { useI18n } from '../../i18n'
+import type { PrivacySettings } from '../../lib/settings'
 import { Button } from '../ui/button'
+import { CapabilityContextChip } from './agent-capabilities-sheet'
 import { PageSignalsAudit } from './page-signals-audit'
 
 export function ContextBar({
   targetTab,
   modelName,
-  useNetwork,
+  capabilityPrivacy,
+  onOpenCapabilities,
   threadTitle,
   locked,
   wide,
@@ -21,7 +24,8 @@ export function ContextBar({
 }: {
   targetTab: { id: number; url?: string; title?: string } | null
   modelName?: string
-  useNetwork: boolean
+  capabilityPrivacy: PrivacySettings
+  onOpenCapabilities: () => void
   threadTitle?: string
   locked?: boolean
   wide?: boolean
@@ -82,10 +86,10 @@ export function ContextBar({
         </div>
       ) : null}
       <PageSignalsAudit preview={pageSignalsPreview} />
-      <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-xs">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
         {threadTitle ? <span>{t('chat.thread', { title: threadTitle })}</span> : null}
         {modelName ? <span>{t('chat.model', { name: modelName })}</span> : null}
-        <span>{useNetwork ? t('chat.networkOn') : t('chat.networkOff')}</span>
+        <CapabilityContextChip privacy={capabilityPrivacy} locked={locked} onClick={onOpenCapabilities} />
         {locked ? <span className="text-sky-700">{t('chat.runningLocked')}</span> : null}
       </div>
     </div>

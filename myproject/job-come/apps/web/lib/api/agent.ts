@@ -4,6 +4,7 @@ import type {
   AgentSession,
   AgentStreamEvent,
 } from "@/lib/types/agent";
+import type { AgentUiContext } from "@/lib/ui-context";
 import { apiJson, API_BASE } from "./client";
 
 export function createAgentSession(body: {
@@ -65,7 +66,12 @@ export function cancelAgentRun(sessionId: string): Promise<{ cancelled: boolean 
 
 export async function streamAgentMessage(
   sessionId: string,
-  body: { content: string; attachments?: AgentAttachment[]; reply_locale?: string },
+  body: {
+    content: string;
+    attachments?: AgentAttachment[];
+    reply_locale?: string;
+    ui_context?: AgentUiContext | null;
+  },
   onEvent: (event: AgentStreamEvent) => void,
   options?: { signal?: AbortSignal },
 ): Promise<void> {
@@ -77,6 +83,7 @@ export async function streamAgentMessage(
       content: body.content,
       attachments: body.attachments ?? [],
       reply_locale: body.reply_locale ?? "zh-CN",
+      ui_context: body.ui_context ?? null,
     }),
     signal: options?.signal,
   });

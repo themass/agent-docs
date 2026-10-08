@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NaviForge — Third-Party Open Source Notices</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f6f7f8;
+      --card: #fff;
+      --text: #14181a;
+      --muted: #5c6570;
+      --border: #e2e6ea;
+      --link: #0b6bcb;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f1214;
+        --card: #1a1f24;
+        --text: #e8eaed;
+        --muted: #9aa3ad;
+        --border: #2a323a;
+        --link: #6eb3ff;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 32px 20px 48px;
+    }
+    article {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px 32px;
+    }
+    h1 { font-size: 1.75rem; line-height: 1.25; margin: 0 0 8px; }
+    .meta { color: var(--muted); font-size: 0.9rem; margin-bottom: 24px; }
+    p, li { margin: 0 0 12px; }
+    a { color: var(--link); }
+    code {
+      font: 0.9em ui-monospace, SFMono-Regular, Menlo, monospace;
+      background: var(--bg);
+      padding: 0.1em 0.35em;
+      border-radius: 4px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      margin: 16px 0 20px;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: var(--bg); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <main>
+    <article>
+      <h1>Third-Party Open Source Notices</h1>
+      <p class="meta">NaviForge Chrome extension · Last updated: 2026-09-29</p>
+
+      <p>
+        The NaviForge extension bundles open-source software. Licenses below apply to
+        those components only (not to unrelated projects in our source repository).
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th>License</th>
+            <th>Source</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>@page-agent/page-controller</code></td>
+            <td>MIT</td>
+            <td><a href="https://github.com/alibaba/page-agent" rel="noopener noreferrer">github.com/alibaba/page-agent</a></td>
+          </tr>
+          <tr>
+            <td><code>@mozilla/readability</code></td>
+            <td>Apache-2.0</td>
+            <td><a href="https://github.com/mozilla/readability" rel="noopener noreferrer">github.com/mozilla/readability</a></td>
+          </tr>
+          <tr>
+            <td><code>rrweb</code></td>
+            <td>MIT</td>
+            <td><a href="https://github.com/rrweb-io/rrweb" rel="noopener noreferrer">github.com/rrweb-io/rrweb</a></td>
+          </tr>
+          <tr>
+            <td>React, WXT, Vite, and other npm dependencies</td>
+            <td>MIT (typical)</td>
+            <td>See <code>package-lock.json</code> in the extension package</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>
+        Page automation in the content script uses
+        <code>@page-agent/page-controller</code> as a library (not a separate product you install).
+      </p>
+
+      <p>
+        Contact: <a href="mailto:justbegin010@gmail.com">justbegin010@gmail.com</a>
+        · <a href="http://file.ok123find.top/file/privacy_navi.html">Privacy policy</a>
+      </p>
+    </article>
+  </main>
+</body>
+</html>

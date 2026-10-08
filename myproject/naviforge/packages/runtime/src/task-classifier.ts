@@ -2,6 +2,7 @@ import type { ThreadReuse } from '@naviforge/session'
 
 import { isCatalogCrawlTask, isSiteCatalogSopTask, parseCatalogCrawlSpec } from './catalog-crawl/spec.js'
 import { MEDIA_AGENT_JUDGMENT_GUIDANCE, MEDIA_ENTRY_OUTPUT_SCHEMA } from './catalog-crawl/media-entry.js'
+import { resolveDeliverable, shouldEmitSiteCatalogGuidance } from './deliverable.js'
 
 export type TaskMode = 'in_page' | 'research' | 'general' | 'list_detail'
 
@@ -117,12 +118,14 @@ export function shouldHintParallelSubtasks(task: string): boolean {
 }
 
 export function parallelSubtaskGuidanceNotes(task: string): string[] {
+  if (resolveDeliverable(task) === 'script') return []
+  if (!shouldEmitSiteCatalogGuidance(task, resolveDeliverable(task))) return []
   if (!isSiteCatalogSopTask(task)) return []
   const mediaTask = parseCatalogCrawlSpec(task).wantsMediaUrl
   const lines = [
-    'GUIDANCE: 站点目录 SOP — 已加载或 skill_load catalog-crawl-sop。按 Phase 0→5 执行；preflight catalog-crawl 若已跑则在其结果上继续。',
-    'GUIDANCE: Phase 2 分页 + Phase 3 详情（可多跳 view→play）+ Phase 3 并行 spawn≤3；禁止列表页 execute_js 空转。',
-    'GUIDANCE: Phase 0 会话门控 — 任意页面可能出现 login/captcha/限频；看 PAGE FRICTION + skill_load page-friction；人机验证用 system_captcha_wait（真人 HITL）。',
+    'GUIDANCE: 站点目录 SOP — skill_load traverse。preflight catalog-crawl 若已跑则在其结果上继续。',
+    'GUIDANCE: 分页 + 详情可 spawn≤3；禁止列表页 js 空转。',
+    'GUIDANCE: 会话门控 — PAGE FRICTION + skill_load friction；人机用 system_captcha_wait。',
     `GUIDANCE: ${MEDIA_ENTRY_OUTPUT_SCHEMA.replace(/\n/g, ' ')}`,
   ]
   if (mediaTask) lines.push(...MEDIA_AGENT_JUDGMENT_GUIDANCE)
@@ -131,19 +134,20 @@ export function parallelSubtaskGuidanceNotes(task: string): string[] {
 
 /** Deterministic GUIDANCE notes before the model loop (shared by TaskHintHook). */
 export function taskGuidanceNotes(task: string, reuse: ThreadReuse): string[] {
+  if (resolveDeliverable(task) === 'script') return []
   const mode = resolveTaskMode(task)
   if (isSiteCatalogSopTask(task)) {
     return parallelSubtaskGuidanceNotes(task)
   }
   if (isCatalogCrawlTask(task)) {
     return [
-      'GUIDANCE: catalog-crawl 已由 preflight 尝试执行；若结果为 partial，继续 dom_navigate 未完成的分区/分页。列表项只信同源+detailShape；站外链接是广告。详情页字段用 PAGE SIGNALS / dom_read；剩余条目可 system_spawn_readonly_tasks 并行补全（每批 ≤3）。',
+      'GUIDANCE: catalog-crawl 若 partial，继续未完成分区/分页。列表项只信同源；详情用 PAGE SIGNALS / observe；剩余条目 spawn 并行补全（每批 ≤3）。',
     ]
   }
   if (/标记|高亮|框出/.test(task)) return []
   if (mode === 'research') {
     return [
-      'GUIDANCE: research: web_search → tabs_open 2–3 URLs → tabs_switch(tab_id)+dom_read body on each → system_done 对比表；子任务 children 已有证据可直接 system_done；勿反复 tabs_list；禁止对壳页 dom_snapshot 空转；可 skill_load research-compare',
+      'GUIDANCE: research: web_search → tabs open 2–3 URLs → observe read → system_done 对比；勿对壳页 snapshot 空转；可 skill_load research',
     ]
   }
   if (mode === 'general') {
@@ -153,17 +157,17 @@ export function taskGuidanceNotes(task: string, reuse: ThreadReuse): string[] {
   }
   if (isPageReadTask(task)) {
     return [
-      'GUIDANCE: read-page: use PREFLIGHT dom_read body then system_done per page-read template (结论先行、分块 bullet); no list extract, extract_page lists, or scroll-hunt',
+      'GUIDANCE: read-page: PREFLIGHT observe body then system_done（结论先行）；no list extract or scroll-hunt',
     ]
   }
   if (reuse.page) {
     return [
-      'GUIDANCE: follow-up: answer from PAGE EVIDENCE / 会话上下文; do not skill_load page-read or reuse the intro template; do not loop extract_content',
+      'GUIDANCE: follow-up: answer from PAGE EVIDENCE / 会话上下文; do not skill_load observe again; do not loop extract',
     ]
   }
   if (mode === 'list_detail') {
     return [
-      'GUIDANCE: list→detail: load skill list-then-detail → dom_read list → click index or navigate url → snapshot → summarize → system_done',
+      'GUIDANCE: list→detail: skill_load traverse → observe list → 打开第 k 条 → summarize → system_done',
     ]
   }
   return []

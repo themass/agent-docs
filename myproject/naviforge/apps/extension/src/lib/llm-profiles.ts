@@ -44,9 +44,35 @@ export type ModelProfilesStore = {
 
 export const DEFAULT_MODEL_PROFILE: Omit<ModelProfile, 'id'> = {
   name: 'Default',
+  baseURL: 'https://api.openai.com/v1',
+  model: 'gpt-4o-mini',
+  apiKey: '',
+}
+
+/** Shipped default before store BYOK / OpenAI-first (migrate when still unchanged). */
+const LEGACY_SHIPPED_DEFAULT = {
   baseURL: 'https://newapi.yuaiweiwu.com/v1',
   model: 'mt-claude-sonnet-4-6',
-  apiKey: '',
+} as const
+
+function normalizeBaseUrl(url: string): string {
+  return url.trim().replace(/\/+$/, '')
+}
+
+/** Upgrade factory default endpoint when user never set an API key (still on old shipped URL). */
+export function migrateLegacyDefaultModelProfile(profile: ModelProfile): ModelProfile {
+  if (profile.apiKey.trim()) return profile
+  if (
+    normalizeBaseUrl(profile.baseURL) === normalizeBaseUrl(LEGACY_SHIPPED_DEFAULT.baseURL) &&
+    profile.model.trim() === LEGACY_SHIPPED_DEFAULT.model
+  ) {
+    return {
+      ...profile,
+      baseURL: DEFAULT_MODEL_PROFILE.baseURL,
+      model: DEFAULT_MODEL_PROFILE.model,
+    }
+  }
+  return profile
 }
 
 function newProfileId(): string {
@@ -92,10 +118,12 @@ export function normalizeModelProfilesStore(
     version: 1,
     activeProfileId,
     ocrProfileId,
-    profiles: store.profiles.map((profile) => ({
-      ...profile,
-      thinking: normalizeThinkingMode(profile.thinking),
-    })),
+    profiles: store.profiles.map((profile) =>
+      migrateLegacyDefaultModelProfile({
+        ...profile,
+        thinking: normalizeThinkingMode(profile.thinking),
+      })
+    ),
   }
 }
 
@@ -192,7 +220,12 @@ export function stripModelProfileApiKeys(store: ModelProfilesStore): ModelProfil
 export async function loadModelProfiles(): Promise<ModelProfilesStore> {
   const disk = await readWorkspaceJson<ModelProfilesStore>(DISK_PATHS.models)
   if (disk?.version === 1 && disk.profiles?.length) {
+    const before = JSON.stringify(disk)
     const normalized = normalizeModelProfilesStore(disk)
+    if (JSON.stringify(normalized) !== before) {
+      await saveModelProfiles(normalized)
+      return normalized
+    }
     const active = getActiveModelProfile(normalized)
     await chrome.storage.local.set({
       [STORAGE.llmProfiles]: normalized,
@@ -203,7 +236,12 @@ export async function loadModelProfiles(): Promise<ModelProfilesStore> {
   const saved = await chrome.storage.local.get([STORAGE.llmProfiles, STORAGE.llm])
   const stored = saved[STORAGE.llmProfiles] as ModelProfilesStore | undefined
   if (stored?.version === 1 && stored.profiles?.length) {
+    const before = JSON.stringify(stored)
     const normalized = normalizeModelProfilesStore(stored)
+    if (JSON.stringify(normalized) !== before) {
+      await saveModelProfiles(normalized)
+      return normalized
+    }
     await writeWorkspaceJson(DISK_PATHS.models, normalized)
     return normalized
   }

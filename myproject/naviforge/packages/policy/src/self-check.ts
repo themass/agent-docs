@@ -27,5 +27,9 @@ assert(
   resolveTaskScope('有没有同类型的项目').navigation === 'allowed',
   'similar-project ask allows navigation'
 )
+assert(
+  resolveTaskScope('给我生成 python 脚本抓取列表').navigation === 'allowed',
+  'script task allows navigation'
+)
 
 console.log('policy self-check ok')

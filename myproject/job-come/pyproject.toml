@@ -27,9 +27,9 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-agentkit = { path = "../libs/agentkit", editable = true }
-deerflow-harness = { path = "../libs/agentkit/vendor/deer-flow/backend/packages/harness", editable = true }
-deerflow-extension-api = { path = "../libs/agentkit/vendor/deer-flow/backend/packages/extension-api", editable = true }
+agentkit = { path = "../../../libs/agentkit", editable = true }
+deerflow-harness = { path = "../../../libs/agentkit/vendor/deer-flow/backend/packages/harness", editable = true }
+deerflow-extension-api = { path = "../../../libs/agentkit/vendor/deer-flow/backend/packages/extension-api", editable = true }
 
 [project.optional-dependencies]
 dev = [

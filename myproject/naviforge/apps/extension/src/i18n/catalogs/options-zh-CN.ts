@@ -15,13 +15,17 @@ export const optionsZhCN = {
   sidebarFoot: 'Agent 对话在侧栏或工作台运行；设置与自动化在此全页管理。',
   openWorkspace: '打开 Agent 工作台',
   settingsTitle: '设置',
-  settingsDesc: '管理模型、浏览器权限、本地数据和 Host 运行边界。',
+  settingsDesc: '模型与 Agent 能力、隐私与本地数据、Host 与高级选项。',
   tab: {
-    models: '模型',
-    permissions: '权限',
+    agent: '模型与 Agent',
     privacy: '隐私与数据',
-    host: 'Host',
-    advanced: '高级',
+    system: 'Host 与高级',
+  },
+  agent: {
+    capabilitiesEyebrow: '能力',
+    capabilitiesTitle: 'Agent 能力',
+    capabilitiesDesc: '与侧栏相同：日常 / 视频抓取 / 深度分析。跑任务前在此或侧栏切换即可。',
+    capabilitiesAutoSave: '能力预设会自动保存。',
   },
   language: '显示语言',
   languageHint: '自动跟随 Chrome 界面语言。在本扩展内立即生效。',
@@ -427,7 +431,7 @@ export const optionsZhCN = {
       detailMeta: '详情 {detail} · 容器 {container}',
     },
     recipes: {
-      lead: '站点快捷方式由你自行保存、更新、删除。跑通一次后在这里固化，下次同站自动走固定步骤。',
+      lead: '自行保存固定模板，或在下载/媒体任务成功后自动学习快捷方式（覆盖同站同类型）。',
       quickSaveTitle: '保存当前站点',
       currentTab: '活动标签：{host}',
       noHttpTab: '请先打开目标网页（http/https）',
@@ -537,10 +541,11 @@ export const optionsZhCN = {
   },
 
   privacy: {
-    eyebrow: 'PRIVACY / 03',
+    permissionsInTabHint: '以下为扩展已声明的浏览器权限（只读说明）。',
+    eyebrow: 'PRIVACY / 02',
     title: '隐私与数据',
-    description:
-      '控制 Agent 能碰哪些页面数据、Key 是否落盘。不要全开：总结当前页只需要下面「日常」默认项。网络摘要不会暴露 Cookie、Authorization 或完整请求体。',
+    description: '本地数据、API Key 存储、URL 回滚等。修改下方选项后请点「保存隐私设置」。',
+    capabilitiesAutoSave: 'Agent 能力（Network / 视频抓取等）已合并到「模型与 Agent」标签。',
     warning:
       '不要把高风险项全打开。「浏览器权限」页是 Manifest 能力（已授予）。本页才是闸门。改完必须点「保存隐私设置」。',
     networkPlaneLabel: '默认启用 Network Plane',
@@ -590,8 +595,10 @@ export const optionsZhCN = {
 
   advanced: {
     eyebrow: 'ADVANCED / 05',
-    title: '本地数据',
-    description: '重置会删除模型、插件、Playbook、活动记录和全部本地配置。',
+    title: '高级与实验',
+    description: '实验功能与本地数据管理。默认使用自带 API Key，无需登录。',
+    managedLoginLabel: '启用 NaviForge 托管登录（实验）',
+    managedLoginDesc: '开启后显示「登录」页，可走 NewAPI 托管模型。商店首版默认关闭。',
     dangerTitle: 'Danger zone',
     dangerBody: '此操作不可撤销。只清扩展存储，不会删除 ~/NaviForge。',
     clearAllButton: '清除全部本地数据',

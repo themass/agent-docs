@@ -277,6 +277,15 @@ body.nf-popup-body #root {
   border: 0;
 }
 
+.ad-banner-compact {
+  min-height: 44px;
+}
+
+.ad-banner-frame-compact {
+  height: 60px;
+  min-height: 44px;
+}
+
 .ad-banner:empty {
   min-height: 0;
   background: transparent;

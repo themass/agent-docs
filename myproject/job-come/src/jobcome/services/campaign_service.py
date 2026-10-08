@@ -2,19 +2,21 @@
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 
 from agentkit.common.ids import new_id
-from agentkit.web.auth import Actor, UserActor
+from agentkit.web.auth import Actor
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from jobcome.models.enums import CampaignPhase, MockSessionStatus
+from jobcome.models.enums import ApplicationStatus, CampaignPhase, MockSessionStatus
 from jobcome.models.interview import InterviewRecord, MockSession
 from jobcome.models.job import Campaign, Job
 from jobcome.schemas.job import CampaignStatsResponse
 from jobcome.services.profile_service import ProfileService
+from jobcome.stores.application_store import ApplicationStore
 from jobcome.stores.campaign_store import CampaignStore
+from jobcome.stores.interview_store import InterviewStore
 
 
 class CampaignService:
@@ -41,6 +43,9 @@ class CampaignService:
         interview_count = await self._count_interviews(profile_id)
         mock_count = await self._count_mock_sessions(profile_id)
         bank_count = await InterviewStore(self._db).count_questions(profile_id)
+        skipped_count = await ApplicationStore(self._db).count_status(
+            profile_id, ApplicationStatus.SKIPPED.value
+        )
         calibration = await self._fit_calibration(profile_id)
 
         progress = dict(campaign.progress or {})
@@ -49,6 +54,7 @@ class CampaignService:
                 "real_interviews": interview_count,
                 "mock_sessions": mock_count,
                 "bank_question_count": bank_count,
+                "skipped_applications": skipped_count,
             }
         )
         campaign.progress = progress

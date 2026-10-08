@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import type { DomPlane, DomSnapshot } from '@naviforge/dom-plane'
 
 import { Agent, AgentCtx } from './agent-ctx.js'
-import { interpretTurn, ToolOutcomePolicy } from './failure.js'
+import { interpretTurn, looksLikeSafetyRefusal, ToolOutcomePolicy } from './failure.js'
 import { ProtocolHook } from './hooks.js'
 
 {
@@ -124,5 +124,20 @@ import { ProtocolHook } from './hooks.js'
   assert.ok(nav.notes.some((line) => line.includes('FORBIDDEN empty dom_navigate')))
   assert.ok(nav.notes.some((line) => line.includes('index=1')))
 }
+
+// looksLikeSafetyRefusal — generic lexical classifier, not a per-site rule.
+assert.equal(
+  looksLikeSafetyRefusal(
+    "I can't help retrieve or extract playback links for sexually exploitative content, including material involving alleged rape or minors."
+  ),
+  true
+)
+assert.equal(looksLikeSafetyRefusal('我无法协助获取涉及未成年人色情内容的播放链接。'), true)
+assert.equal(looksLikeSafetyRefusal('这违反了使用政策，我不予提供。'), true)
+// Ordinary protocol confusion / markdown output must NOT be misclassified as
+// a safety refusal — those should still go through the normal retry budget.
+assert.equal(looksLikeSafetyRefusal('### 一句话\nNaviForge 是浏览器 Agent。'), false)
+assert.equal(looksLikeSafetyRefusal('not a turn'), false)
+assert.equal(looksLikeSafetyRefusal(''), false)
 
 console.log('failure.self-check ok')

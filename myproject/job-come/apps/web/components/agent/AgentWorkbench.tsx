@@ -7,6 +7,7 @@ import { AgentSidebar } from "@/components/agent/AgentSidebar";
 import { AgentSessionPicker } from "@/components/agent/AgentSessionPicker";
 import { ResizableSplitPane } from "@/components/ui/ResizableSplitPane";
 import { useAgentSession } from "@/hooks/useAgentSession";
+import type { AgentUiContext } from "@/lib/ui-context";
 
 type Props = {
   pageKey: string;
@@ -22,8 +23,8 @@ type Props = {
   studio?: React.ReactNode;
   onProfileUpdated?: () => void;
   headerExtra?: React.ReactNode;
-  /** Resume-style: title/steps only on left; agent is a full-height sidebar. */
   layout?: "split" | "unified";
+  uiContext?: AgentUiContext | null;
 };
 
 export function AgentWorkbench({
@@ -41,6 +42,7 @@ export function AgentWorkbench({
   onProfileUpdated,
   headerExtra,
   layout = "unified",
+  uiContext = null,
 }: Props) {
   if (layout === "split") {
     return (
@@ -73,6 +75,7 @@ export function AgentWorkbench({
             disabled={disabled}
             placeholder={placeholder}
             onProfileUpdated={onProfileUpdated}
+            uiContext={uiContext}
           />
         }
       />
@@ -93,6 +96,7 @@ export function AgentWorkbench({
     studio,
     onProfileUpdated,
     headerExtra,
+    uiContext,
   }} />;
 }
 
@@ -110,6 +114,7 @@ function AgentWorkbenchUnified({
   studio,
   onProfileUpdated,
   headerExtra,
+  uiContext = null,
 }: Omit<Props, "layout">) {
   const agent = useAgentSession({
     pageKey,
@@ -119,6 +124,7 @@ function AgentWorkbenchUnified({
     kind,
     disabled,
     onProfileUpdated,
+    uiContext,
   });
 
   return (

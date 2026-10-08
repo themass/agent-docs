@@ -13,6 +13,7 @@ import {
 } from './toolkit-actions'
 import { toolkitToggleVideoSubtitles } from './video-subtitles'
 import { runToolkitOcr } from './vision-ocr'
+import { launchScreenshotStudio } from '../modules/screenshot-studio'
 import { toggleGeniusFallHudOnTab } from '../modules/genius-fall/hud-controller'
 import type { ToolkitCatalogId } from './toolkit-catalog'
 

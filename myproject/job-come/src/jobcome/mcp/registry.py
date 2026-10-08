@@ -43,6 +43,7 @@ OPENAI_TOOLS: list[dict[str, Any]] = [
                 "properties": {
                     "query": {"type": "string"},
                     "company": {"type": "string"},
+                    "job_id": {"type": "string"},
                     "limit": {"type": "integer"},
                 },
             },
@@ -179,6 +180,7 @@ OPENAI_TOOLS: list[dict[str, Any]] = [
                     "role_title": {"type": "string"},
                     "job_id": {"type": "string"},
                     "mock_session_id": {"type": "string"},
+                    "round": {"type": "string"},
                     "tags": {"type": "array", "items": {"type": "string"}},
                 },
                 "required": ["stem"],

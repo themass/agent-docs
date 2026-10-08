@@ -9,6 +9,7 @@ import {
   type ListOpenHint,
 } from './run-limits.js'
 import type { RecoveryPlan } from './recovery.js'
+import type { RunAgentResult } from './agent.js'
 import { fillCopy, uiCopy } from './ui-copy.js'
 
 /** Model-facing; CspSkipHook uses the same string. */
@@ -25,7 +26,7 @@ export type ChatCompletionLike = {
 export type LoopCommand =
   | { kind: 'proceed'; decision: ModelDecision }
   | { kind: 'retry_turn'; plan: RecoveryPlan; hint: string }
-  | { kind: 'stop'; plan: RecoveryPlan; result: string }
+  | { kind: 'stop'; plan: RecoveryPlan; result: string; status?: RunAgentResult['status'] }
 
 /** Minimal internal representation of one native model decision. */
 export type ModelDecision = { call: ToolCall; summary: string }
@@ -70,6 +71,38 @@ export function coalesceFetchTextBatch(
     },
     summary: summary.trim() || `fetch_text x${urls.length}`,
   }
+}
+
+/**
+ * Detect a model turn that is a content-safety / policy refusal rather than a
+ * protocol slip (model forgot to call a tool, malformed arguments, etc).
+ * Generic lexical patterns across zh/en — this is not a site/domain rule, it
+ * is about the *shape* of a refusal (model declines to assist, cites policy,
+ * safety, legality, or harm to a protected group) regardless of what page or
+ * task triggered it.
+ *
+ * Why this matters: ProtocolHook's job is to push the model to retry when it
+ * forgets the "exactly one tool call" protocol. Retrying a safety refusal
+ * with the same GUIDANCE text just produces the same refusal again (model
+ * will not call `system_done`/`system_ask_user` either, since from the
+ * model's perspective calling *any* tool for this request is the thing it is
+ * refusing to do). The loop must stop and surface `blocked`, not spin to
+ * `run.error` after burning the retry budget on an unwinnable retry.
+ */
+export function looksLikeSafetyRefusal(text: string): boolean {
+  if (!text.trim()) return false
+  const patterns = [
+    /\bI can('|’)t\b.{0,80}\b(help|assist|provide|retrieve|extract)\b/i,
+    /\bI (will not|won('|’)t|cannot|can not)\b.{0,80}\b(assist|help|provide)\b/i,
+    /\b(sexually exploitative|non-consensual|csam|child sexual abuse)\b/i,
+    /\bagainst (my|our) (guidelines|policy|policies)\b/i,
+    /\bI('m| am) not able to (help|assist) with\b/i,
+    /我(无法|不能|不会)(帮|协助|提供|继续)/,
+    /涉及(未成年人|色情|违法|暴力|自杀|自伤)/,
+    /违反(了)?(使用)?(政策|规范|准则)/,
+    /不予(提供|配合|协助)/,
+  ]
+  return patterns.some((re) => re.test(text))
 }
 
 /** Require exactly one native function tool call; text is never executable. */

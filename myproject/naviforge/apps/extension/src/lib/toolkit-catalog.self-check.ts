@@ -19,6 +19,6 @@ const palette = readFileSync(resolve(root, '../content/toolkit-palette.ts'), 'ut
 assert.match(palette, /搜索工具/, 'palette is searchable overlay')
 
 const background = readFileSync(resolve(root, '../entrypoints/background.ts'), 'utf8')
-assert.match(background, /openPageToolList/, 'open-toolkit opens page overlay')
+assert.match(background, /openToolkitPage/, 'open-toolkit opens options toolkit tab')
 
 console.log('toolkit-catalog self-check ok')

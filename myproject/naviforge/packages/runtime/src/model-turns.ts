@@ -8,6 +8,7 @@ import { transportAskQuestion } from './failure.js'
 import { isAbortError, retry } from './recovery.js'
 import { execTurn } from './exec-turn.js'
 import { applyPageSignalsToCtx } from './page-signals-hydrate.js'
+import { PI_LOOP_NOTE, prepareNextTurn } from './pi-run-loop.js'
 import { applyPageFrictionToCtx, shouldRefreshPageFriction } from './page-friction/index.js'
 import { resolveTaskMode } from './task-classifier.js'
 
@@ -41,7 +42,7 @@ export type ModelTurnsDeps = {
   applySkip: (decision: Extract<HookDecision, { kind: 'skip_tool' }>) => void
 }
 
-/** Model planning → tool execution loop (one task scope). */
+/** Inner Pi loop: prepareNextTurn → steering → one model tool (one task scope). */
 export async function runModelTurns(deps: ModelTurnsDeps): Promise<RunAgentResult | null> {
   const {
     agent,
@@ -59,9 +60,11 @@ export async function runModelTurns(deps: ModelTurnsDeps): Promise<RunAgentResul
   let stepsUsed = 0
   let modelModeAnnounced = false
   let stopped: RunAgentResult | null = null
+  ctx.recordNote(PI_LOOP_NOTE)
 
   for (; stepsUsed < agent.limits.maxSteps; stepsUsed++) {
     ctx.turnIndex = stepsUsed
+    await prepareNextTurn(ctx)
     agent.signal?.throwIfAborted()
     const overBudget = budgetExceeded()
     if (overBudget) {
@@ -95,7 +98,7 @@ export async function runModelTurns(deps: ModelTurnsDeps): Promise<RunAgentResul
       ctx.emit(
         ctx.createRecord('run.mode', {
           mode: 'model',
-          detail: '模型按“规划 → 执行 → 验证”循环处理任务。',
+          detail: 'Pi runLoop：prepareNextTurn 注入 PAGE STATE，再执行一个工具。',
         })
       )
       modelModeAnnounced = true
@@ -187,7 +190,7 @@ export async function runModelTurns(deps: ModelTurnsDeps): Promise<RunAgentResul
         continue
       }
       if (command.kind === 'stop') {
-        stopped = finish(ctx, 'error', command.result)
+        stopped = finish(ctx, command.status ?? 'error', command.result)
         break
       }
       decision = command.decision
@@ -327,13 +330,14 @@ export async function runModelTurns(deps: ModelTurnsDeps): Promise<RunAgentResul
     ) {
       await applyPageSignalsToCtx(ctx, { url: nextSnap.url })
     }
-    if (toolResult?.ok && shouldRefreshPageFriction(toolName)) {
+    const executed = ctx.toolResult
+    if (executed?.ok && shouldRefreshPageFriction(toolName)) {
       const bodyText =
         toolName === 'dom_read' &&
-        toolResult.data &&
-        typeof toolResult.data === 'object' &&
-        typeof (toolResult.data as { text?: unknown }).text === 'string'
-          ? (toolResult.data as { text: string }).text
+        executed.data &&
+        typeof executed.data === 'object' &&
+        typeof (executed.data as { text?: unknown }).text === 'string'
+          ? (executed.data as { text: string }).text
           : undefined
       const friction = await applyPageFrictionToCtx(ctx, {
         tool: toolName,

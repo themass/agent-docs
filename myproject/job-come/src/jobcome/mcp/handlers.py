@@ -123,6 +123,7 @@ async def bank_search_questions(
     *,
     query: str = "",
     company: str | None = None,
+    job_id: str | None = None,
     limit: int = 10,
 ) -> dict[str, Any]:
     if not ctx.profile_id:
@@ -132,6 +133,7 @@ async def bank_search_questions(
         ctx.profile_id,
         query=query,
         company=company,
+        job_id=job_id,
         limit=min(limit, 50),
     )
     return {
@@ -141,6 +143,7 @@ async def bank_search_questions(
                 "stem": q.stem,
                 "question_type": q.question_type,
                 "company": q.company,
+                "job_id": q.job_id,
                 "tags": q.tags,
                 "attempt_count": q.attempt_count,
             }
@@ -414,6 +417,7 @@ async def dispatch_tool(
             ctx,
             query=arguments.get("query", ""),
             company=arguments.get("company"),
+            job_id=arguments.get("job_id"),
             limit=int(arguments.get("limit", 10)),
         )
     if name == "jobcome_interview_save":
@@ -463,6 +467,7 @@ async def dispatch_tool(
             job_id=arguments.get("job_id"),
             mock_session_id=arguments.get("mock_session_id"),
             tags=arguments.get("tags"),
+            round=arguments.get("round"),
         )
     if name == "jobcome_resume_review":
         return await handler(

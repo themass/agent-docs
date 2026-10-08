@@ -5,7 +5,23 @@
 set -euo pipefail
 
 JOB_COME_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-MONO_ROOT="$(cd "${JOB_COME_ROOT}/.." && pwd)"
+MONO_ROOT="$(cd "${JOB_COME_ROOT}/../../.." && pwd)"
+if [[ ! -x "${MONO_ROOT}/venv/bin/python" ]]; then
+  # walk up until monorepo venv is found
+  probe="${JOB_COME_ROOT}"
+  MONO_ROOT=""
+  while [[ "${probe}" != "/" ]]; do
+    if [[ -x "${probe}/venv/bin/python" && -d "${probe}/libs/agentkit" ]]; then
+      MONO_ROOT="${probe}"
+      break
+    fi
+    probe="$(cd "${probe}/.." && pwd)"
+  done
+fi
+if [[ -z "${MONO_ROOT}" ]]; then
+  echo "Cannot find monorepo root (venv + libs/agentkit) above ${JOB_COME_ROOT}"
+  exit 1
+fi
 VENV="${MONO_ROOT}/venv"
 
 if [[ ! -x "${VENV}/bin/python" ]]; then

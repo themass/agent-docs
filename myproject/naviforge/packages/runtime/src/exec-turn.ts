@@ -1,6 +1,6 @@
 import type { DomPlane, DomSnapshot, SnapshotMode } from '@naviforge/dom-plane'
 import type { ToolCall, ToolResult } from '@naviforge/shared'
-import { isMcpQualifiedToolName } from '@naviforge/shared'
+import { isCoveredByToolAllowlist, isMcpQualifiedToolName } from '@naviforge/shared'
 import { detectUrlDrift, evaluateAskUser, isUrlMutatingTool } from '@naviforge/policy'
 import type { RecordedDomAction } from '@naviforge/playbook'
 import type { TraceRecord } from '@naviforge/session'
@@ -70,16 +70,18 @@ type ExecOut = {
 
 /** Host meta-tools — always available even under Skill hard allowlist. */
 export function isToolAllowed(tool: string, allowedTools?: ReadonlySet<string>): boolean {
+  if (!allowedTools) return true
+  // These terminal/meta tools are required to safely finish, ask, or load a declared skill.
+  // Capability-bearing tools (workspace, network, spawn, MCP) must not bypass a hard allowlist.
+  const alwaysAvailable = new Set([
+    'system_done',
+    'system_ask_user',
+    'system_captcha_wait',
+    'skill_load',
+  ])
   return (
-    !allowedTools ||
-    tool.startsWith('system_') ||
-    tool.startsWith('workspace_') ||
-    tool === 'workspace' ||
-    tool === 'network_read' ||
-    (tool.startsWith('network_') && tool !== 'network_intercept' && tool !== 'network_clear_intercepts') ||
-    tool === 'skill_load' ||
-    isMcpQualifiedToolName(tool) ||
-    allowedTools.has(tool)
+    alwaysAvailable.has(tool) ||
+    isCoveredByToolAllowlist(tool, allowedTools)
   )
 }
 

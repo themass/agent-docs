@@ -15,7 +15,7 @@ const NAV = [
   { href: "/coach-agent", label: "面试辅导" },
   { href: "/campaign", label: "战役看板" },
   { href: "/bank", label: "题库" },
-  { href: "/applications", label: "投递记录" },
+  { href: "/applications", label: "投递看板" },
   { href: "/admin/sessions", label: "会话审计" },
 ];
 

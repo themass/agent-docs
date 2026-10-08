@@ -1,0 +1,3 @@
+# 已合并
+
+全文见 **[AGENT_PROMPT_TOOL_SKILL_CATALOG.md](./AGENT_PROMPT_TOOL_SKILL_CATALOG.md)**（同内容，勿编辑本文件）。

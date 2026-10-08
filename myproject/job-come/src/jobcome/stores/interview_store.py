@@ -18,11 +18,14 @@ class InterviewStore:
         *,
         query: str = "",
         company: str | None = None,
+        job_id: str | None = None,
         limit: int = 10,
     ) -> list[InterviewQuestion]:
         stmt = select(InterviewQuestion).where(InterviewQuestion.profile_id == profile_id)
         if company:
             stmt = stmt.where(InterviewQuestion.company == company)
+        if job_id:
+            stmt = stmt.where(InterviewQuestion.job_id == job_id)
         if query.strip():
             like = f"%{query.strip()}%"
             stmt = stmt.where(
@@ -95,8 +98,20 @@ class InterviewStore:
         await self._db.flush()
         return session
 
-    async def get_mock_session(self, session_id: str) -> MockSession | None:
-        return await self._db.get(MockSession, session_id)
+    async def get_active_mock(
+        self,
+        profile_id: str,
+        *,
+        job_id: str | None = None,
+    ) -> MockSession | None:
+        stmt = select(MockSession).where(
+            MockSession.profile_id == profile_id,
+            MockSession.status == "active",
+        )
+        if job_id:
+            stmt = stmt.where(MockSession.job_id == job_id)
+        stmt = stmt.order_by(MockSession.started_at.desc()).limit(1)
+        return (await self._db.execute(stmt)).scalar_one_or_none()
 
     async def list_mock_sessions(self, profile_id: str, *, limit: int = 20) -> list[MockSession]:
         stmt = (

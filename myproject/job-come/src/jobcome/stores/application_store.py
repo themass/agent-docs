@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from jobcome.models.interview import Application
@@ -17,7 +17,29 @@ class ApplicationStore:
         await self._db.flush()
         return row
 
-    async def list_for_profile(self, profile_id: str, *, limit: int = 50) -> list[Application]:
+    async def save(self, row: Application) -> Application:
+        await self._db.flush()
+        return row
+
+    async def get_by_id(self, application_id: str) -> Application | None:
+        return await self._db.get(Application, application_id)
+
+    async def get_by_profile_job(self, profile_id: str, job_id: str) -> Application | None:
+        stmt = select(Application).where(
+            Application.profile_id == profile_id,
+            Application.job_id == job_id,
+        )
+        return (await self._db.execute(stmt)).scalar_one_or_none()
+
+    async def count_status(self, profile_id: str, status: str) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(Application)
+            .where(Application.profile_id == profile_id, Application.status == status)
+        )
+        return int((await self._db.execute(stmt)).scalar_one())
+
+    async def list_for_profile(self, profile_id: str, *, limit: int = 200) -> list[Application]:
         stmt = (
             select(Application)
             .where(Application.profile_id == profile_id)

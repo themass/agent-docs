@@ -1,5 +1,6 @@
 # Claude Code 架构与实现指南
 
+> 闭源 CLI 与扩展机制。SDK 如何驱动这里的 Loop，见 [SDK_CLI_INTERACTION.md](./SDK_CLI_INTERACTION.md)。  
 > **版本**: 对齐仓库 `main`（CHANGELOG 至 2.1.x）  
 > **分析范围**: 本 GitHub 仓库内**实际存在的文件** + 与 Agent SDK 的协议对照  
 > **最后更新**: 2026-06-12

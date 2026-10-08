@@ -7,7 +7,7 @@ import {
   SENSITIVE_TOOLS,
 } from '@naviforge/policy'
 import type { ToolResult } from '@naviforge/shared'
-import { isMcpQualifiedToolName, mcpQualifiedName } from '@naviforge/shared'
+import { isCoveredByToolAllowlist, isMcpQualifiedToolName, mcpQualifiedName } from '@naviforge/shared'
 
 import type { AgentCtx } from './agent-ctx.js'
 import { formatExtractContentTrace, formatReadPageTrace, isToolAllowed } from './exec-turn.js'
@@ -43,6 +43,8 @@ import {
   recordRunTab,
 } from './loop-gate-state.js'
 import { formatListResult } from './prompt.js'
+import { WORKING_SET } from './working-set.js'
+import { shouldSkipLoginLinkRead } from './page-state.js'
 import { applyPageSignalsToCtx, formatListPageMediaHint, formatPlaybackCandidatesForHitl, isMediaEvidenceTask, tryMediaPlaybackDeterministicResult } from './page-signals-hydrate.js'
 import { applyPageFrictionToCtx } from './page-friction/index.js'
 import { listHintsFromToolData, sameActionLoopResult } from './run-limits.js'
@@ -62,14 +64,37 @@ import {
   spawnMediaGuidance,
 } from './catalog-crawl/index.js'
 import { synthesizePreflightResult } from './preflight-synthesize.js'
-import { WORKING_SET } from './working-set.js'
+import {
+  deliverableGuidanceNotes,
+  deliverablePreflightSkill,
+  resolveDeliverable,
+  resolveDeliverableWithContinuity,
+  SCRAPER_SKILL_INLINE,
+  SCRAPER_SKILL_ID,
+  shouldEmitSiteCatalogGuidance,
+  shouldRunCatalogPreflight,
+  shouldRunMediaRecipe,
+} from './deliverable.js'
+import { attachPageState } from './pi-run-loop.js'
+import { MediaHarvestMilestoneHook, NetworkDegradedToolGateHook, NetworkPlaneHealthHook } from './media-harvest-hooks.js'
+import { tryMediaFeedDeterministicHarvest } from './media-feed-deterministic.js'
+import { tryMediaHomePreflightDone } from './media-home-harvest.js'
+import { evaluateEvidence } from './evaluator.js'
 
 function preflightLoadSkill(
   ctx: AgentCtx,
   skillId: string,
   note: string
 ): void {
-  const skill = ctx.skills.find((s) => s.id === skillId)
+  let skill = ctx.skills.find((s) => s.id === skillId)
+  if (!skill && skillId === SCRAPER_SKILL_ID) {
+    skill = {
+      id: SCRAPER_SKILL_ID,
+      version: '0.1.0',
+      description: '站点结构采样 → script_save Python 爬虫脚本',
+      instructions: SCRAPER_SKILL_INLINE,
+    }
+  }
   if (!skill || ctx.gates.loadedSkillIds.has(skillId)) return
   const header = [
     `# skill:${skill.id}@${skill.version}`,
@@ -95,58 +120,99 @@ function preflightLoadSkill(
 /** Deterministic DOM reads before the model loop (list extract, top-N mark, page read). */
 export class PreflightHook implements AgentHook {
   readonly name = 'preflight'
+  readonly writes = ['deliverable', 'taskIntent', 'recipeUsed', 'recipeId', 'loadedSkillIds', 'loadedSkillBodies'] as const
 
   async runTaskPreflight(ctx: AgentCtx): Promise<string | undefined> {
     const planes = ctx.agent.planes
     let deterministicResult: string | undefined
 
+    const previousDeliverable = ctx.reuse.lastDeliverable as
+      | ReturnType<typeof resolveDeliverable>
+      | undefined
+    const deliverable =
+      ctx.gates.deliverable ?? resolveDeliverableWithContinuity(ctx.task, previousDeliverable)
+    ctx.gates.deliverable = deliverable
+    // Structured marker (topic='deliverable') so the *next* run in this
+    // thread can read it back via ThreadReuse.lastDeliverable — see
+    // formatSessionReuse in @naviforge/session. Generic follow-ups like
+    // "继续" / "上面的内容不全，请重新抓取一下" / "？？" must not reclassify
+    // the task narrative away from what was already established.
+    ctx.emit(
+      ctx.createRecord('run.note', { text: `DELIVERABLE: ${deliverable}`, topic: 'deliverable' })
+    )
+    for (const note of deliverableGuidanceNotes(deliverable)) ctx.recordNote(note)
+
     const intent = resolveTaskIntent(ctx.task)
     ctx.gates.taskIntent = intent
-    for (const note of intentGuidanceNotes(intent)) ctx.recordNote(note)
     if (intent === 'denied') {
       return 'CONSTRAINT: 任务涉及破解/绕过加密或付费墙，无法执行。请用 system_done 说明合法替代方案。'
     }
+    if (deliverable === 'general') {
+      for (const note of intentGuidanceNotes(intent)) ctx.recordNote(note)
+    }
 
     const host = hostFromUrl(ctx.snap.url)
-    if (host && planes.recipes && (intent === 'page_download' || intent === 'media_extract')) {
+    if (host && planes.recipes && shouldRunMediaRecipe(deliverable, intent) && !ctx.networkUnavailable) {
       const recipe = await planes.recipes.find(host, intent)
       if (recipe) {
-        ctx.recordNote(`PREFLIGHT: site recipe ${recipe.id} — ${recipe.title}`)
-        const ran = await runSiteRecipe({
-          recipe,
-          dom: planes.dom,
-          network: planes.network,
-          task: ctx.task,
-          url: ctx.snap.url,
-          snap: ctx.snap,
-        })
-        ctx.emit(
-          ctx.createRecord('tool.result', {
-            tool: 'recipe_run',
-            arguments: { id: recipe.id, intent },
-            ok: ran.ok,
-            ...(ran.ok ? { data: { text: ran.text } } : { error: { code: 'recipe_failed', message: ran.error, recoverable: true } }),
-          })
-        )
-        if (ran.ok) {
-          ctx.gates.recipeUsed = true
-          ctx.gates.recipeId = recipe.id
-          void planes.recipes.bumpSuccess?.(recipe.id)
-          ctx.recordNote(`PREFLIGHT: recipe ${recipe.id} ok`)
-          return ran.text
+        const network = planes.network
+        let skipRecipe = false
+        if (network) {
+          const digestProbe = await network.digest(1).catch(() => undefined)
+          if (digestProbe?.ok) {
+            ctx.recordNote(`PREFLIGHT: skip recipe ${recipe.id} — network digest ok (avoid duplicate attach)`)
+            skipRecipe = true
+          }
         }
-        ctx.recordNote(`PREFLIGHT: recipe ${recipe.id} failed (${ran.error}) — fallback skill/LLM`)
+        if (!skipRecipe) {
+          ctx.recordNote(`PREFLIGHT: site recipe ${recipe.id} — ${recipe.title}`)
+          const ran = await runSiteRecipe({
+            recipe,
+            dom: planes.dom,
+            network: planes.network,
+            task: ctx.task,
+            url: ctx.snap.url,
+            snap: ctx.snap,
+          })
+          ctx.emit(
+            ctx.createRecord('tool.result', {
+              tool: 'recipe_run',
+              arguments: { id: recipe.id, intent },
+              ok: ran.ok,
+              ...(ran.ok ? { data: { text: ran.text } } : { error: { code: 'recipe_failed', message: ran.error, recoverable: true } }),
+            })
+          )
+          if (ran.ok) {
+            ctx.gates.recipeUsed = true
+            ctx.gates.recipeId = recipe.id
+            void planes.recipes.bumpSuccess?.(recipe.id)
+            ctx.recordNote(`PREFLIGHT: recipe ${recipe.id} ok`)
+            return ran.text
+          }
+          ctx.recordNote(`PREFLIGHT: recipe ${recipe.id} failed (${ran.error}) — fallback skill/LLM`)
+          if (deliverable === 'media' && planes.network) {
+            const feedResult = await tryMediaFeedDeterministicHarvest(ctx)
+            if (feedResult) return feedResult
+          }
+        }
       }
     }
 
-    const intentSkill = intentPreflightSkill(intent)
+    const intentSkill = deliverablePreflightSkill(deliverable) ?? intentPreflightSkill(intent)
     if (intentSkill) {
-      preflightLoadSkill(ctx, intentSkill, `PREFLIGHT: intent=${intent} skill ${intentSkill}`)
+      preflightLoadSkill(ctx, intentSkill, `PREFLIGHT: deliverable=${deliverable} skill ${intentSkill}`)
+    }
+
+    if (deliverable === 'media') {
+      const mediaEarly = await tryMediaHomePreflightDone(ctx)
+      if (mediaEarly) return mediaEarly
     }
 
     const listRequest = requestedList(ctx.task)
     if (
       listRequest &&
+      deliverable !== 'script' &&
+      deliverable !== 'media' &&
       !listRequest.mark &&
       !isCatalogCrawlTask(ctx.task) &&
       planes.dom.extractContent &&
@@ -188,7 +254,7 @@ export class PreflightHook implements AgentHook {
     }
 
     const topN = listRequest?.mark ? listRequest.n : null
-    if (topN !== null && planes.dom.markTopn) {
+    if (topN !== null && deliverable !== 'script' && deliverable !== 'media' && planes.dom.markTopn) {
       const marked = await planes.dom.markTopn(topN)
       ctx.emit(
         ctx.createRecord('tool.result', {
@@ -247,18 +313,18 @@ export class PreflightHook implements AgentHook {
           ctx.emit(ctx.createRecord('run.log', { message: `dom_read body failed: ${read.error.message}` }))
         }
       }
-      const pageRead = ctx.skills.find((s) => s.id === 'page-read')
-      if (pageRead && !ctx.gates.loadedSkillIds.has('page-read')) {
-        preflightLoadSkill(ctx, 'page-read', 'PREFLIGHT: skill page-read (READ done template)')
+      const pageRead = ctx.skills.find((s) => s.id === 'observe' || s.id === 'page-read')
+      if (pageRead && !ctx.gates.loadedSkillIds.has('observe') && !ctx.gates.loadedSkillIds.has('page-read')) {
+        preflightLoadSkill(ctx, 'observe', 'PREFLIGHT: skill observe (READ done template)')
       }
     }
 
     if (isResearchTask(ctx.task) && !isPageReadTask(ctx.task) && !isBulkMdCatalogTask(ctx.task)) {
-      preflightLoadSkill(ctx, 'research-compare', 'PREFLIGHT: skill research-compare (off-page compare)')
+      preflightLoadSkill(ctx, 'research', 'PREFLIGHT: skill research (off-page compare)')
     }
 
-    if (isSiteCatalogSopTask(ctx.task)) {
-      preflightLoadSkill(ctx, 'catalog-crawl-sop', 'PREFLIGHT: skill catalog-crawl-sop (site catalog SOP)')
+    if (shouldEmitSiteCatalogGuidance(ctx.task, deliverable)) {
+      preflightLoadSkill(ctx, 'traverse', 'PREFLIGHT: skill traverse (site catalog SOP)')
     }
 
     if (resolveTaskMode(ctx.task) === 'in_page') {
@@ -267,11 +333,11 @@ export class PreflightHook implements AgentHook {
         skipJs: !ctx.agent.policy.allowDomInject,
       })
       if (friction.report?.blocking) {
-        preflightLoadSkill(ctx, 'page-friction', 'PREFLIGHT: skill page-friction (universal session gate)')
+        preflightLoadSkill(ctx, 'friction', 'PREFLIGHT: skill friction (universal session gate)')
       }
     }
 
-    const catalogTask = isCatalogCrawlTask(ctx.task) || isSiteCatalogSopTask(ctx.task)
+    const catalogTask = shouldRunCatalogPreflight(ctx.task, deliverable)
     const spec = catalogTask ? parseCatalogCrawlSpec(ctx.task) : null
     const discover = catalogTask && planes.dom.executeJs ? await discoverCatalogPage(planes.dom) : null
 
@@ -285,7 +351,12 @@ export class PreflightHook implements AgentHook {
         )
         if (bundle) {
           const listHint = formatListPageMediaHint(bundle, ctx.task, brief)
-          if (listHint) ctx.recordNote(`GUIDANCE: ${listHint}`)
+          if (
+            listHint &&
+            (deliverable === 'general' || deliverable === 'data' || deliverable === 'media')
+          ) {
+            ctx.recordNote(`GUIDANCE: ${listHint}`)
+          }
         }
       }
 
@@ -333,7 +404,7 @@ export class PreflightHook implements AgentHook {
 
         if (catalogCrawl) {
           if (catalogCrawl.authBlocked) {
-            preflightLoadSkill(ctx, 'page-friction', 'PREFLIGHT: skill page-friction (blocked by session gate)')
+            preflightLoadSkill(ctx, 'friction', 'PREFLIGHT: skill friction (blocked by session gate)')
             ctx.recordNote(
               'EVIDENCE: PAGE_FRICTION blocked catalog-crawl — user login or system_captcha_wait required'
             )
@@ -373,12 +444,19 @@ export class PreflightHook implements AgentHook {
       )
     }
 
+    await attachPageState(ctx)
+
+    if (!deterministicResult && deliverable === 'media') {
+      deterministicResult = await tryMediaHomePreflightDone(ctx)
+    }
+
     return deterministicResult
   }
 }
 
 export class SkillAllowlistHook implements AgentHook {
   readonly name = 'skill-allowlist'
+  // No ctx.gates reads/writes — checks ctx.allowedTools only.
 
   beforeTool(ctx: AgentCtx): HookDecision {
     const tool = ctx.toolCall?.tool
@@ -398,6 +476,7 @@ export class SkillAllowlistHook implements AgentHook {
 /** Hard capability boundary for leaf runs; unlike skill allowlists, no system-tool bypass exists. */
 export class RunProfileHook implements AgentHook {
   readonly name = 'run-profile'
+  // No ctx.gates reads/writes — checks ctx.agent.profile only.
 
   beforeTool(ctx: AgentCtx): HookDecision {
     const tool = ctx.toolCall?.tool
@@ -411,7 +490,7 @@ export class RunProfileHook implements AgentHook {
           candidate.readonly &&
           tool === mcpQualifiedName(candidate.serverId, candidate.name)
       )
-    if (profile.allowedTools.includes(tool) || readonlyMcp) return CONTINUE
+    if (isCoveredByToolAllowlist(tool, profile.allowedTools) || readonlyMcp) return CONTINUE
     return {
       kind: 'skip_tool',
       note: `${tool} denied by ${profile.name} capability profile`,
@@ -425,6 +504,7 @@ export class RunProfileHook implements AgentHook {
 
 export class SensitiveToolHook implements AgentHook {
   readonly name = 'sensitive-tool'
+  // No ctx.gates reads/writes — checks ctx.ledger notes only.
 
   beforeTool(ctx: AgentCtx): HookDecision {
     const call = ctx.toolCall
@@ -452,6 +532,7 @@ export class SensitiveToolHook implements AgentHook {
 
 export class DuplicateSkillHook implements AgentHook {
   readonly name = 'duplicate-skill'
+  readonly reads = ['loadedSkillIds'] as const
 
   beforeTool(ctx: AgentCtx): HookDecision {
     const call = ctx.toolCall
@@ -470,6 +551,7 @@ export class DuplicateSkillHook implements AgentHook {
 
 export class CspSkipHook implements AgentHook {
   readonly name = 'csp-skip'
+  readonly reads = ['jsCspBlocked'] as const
 
   beforeTool(ctx: AgentCtx): HookDecision {
     const call = ctx.toolCall
@@ -493,6 +575,7 @@ export class CspSkipHook implements AgentHook {
 
 export class PageCacheHook implements AgentHook {
   readonly name = 'page-cache'
+  readonly reads = [{ key: 'taskIntent', optional: true } as const, 'pageVisits'] as const
 
   beforeTool(ctx: AgentCtx): HookDecision {
     const call = ctx.toolCall
@@ -522,11 +605,13 @@ export class PageCacheHook implements AgentHook {
       recordPageVisit(ctx.gates.pageVisits, ctx.snap.url, ctx.snap.revision)
     }
     if (tool === 'tabs_open') {
+      const tr = ctx.toolResult
       const url =
-        typeof ctx.toolResult?.data === 'object' &&
-        ctx.toolResult.data &&
-        typeof (ctx.toolResult.data as { url?: unknown }).url === 'string'
-          ? (ctx.toolResult.data as { url: string }).url
+        tr?.ok &&
+        typeof tr.data === 'object' &&
+        tr.data &&
+        typeof (tr.data as { url?: unknown }).url === 'string'
+          ? (tr.data as { url: string }).url
           : typeof ctx.toolCall?.arguments?.url === 'string'
             ? ctx.toolCall.arguments.url
             : ''
@@ -538,8 +623,158 @@ export class PageCacheHook implements AgentHook {
   }
 }
 
+export class ScriptDeliverableStepHook implements AgentHook {
+  readonly name = 'script-deliverable-step'
+  // scriptLoginAskIssued starts undefined (falsy) and this hook both reads
+  // and writes it within the same beforeStep call — safe without an earlier writer.
+  readonly reads = [{ key: 'deliverable', optional: true } as const, { key: 'scriptLoginAskIssued', optional: true } as const] as const
+  readonly writes = ['scriptLoginAskIssued'] as const
+
+  beforeStep(ctx: AgentCtx): HookDecision {
+    if (ctx.gates.deliverable !== 'script') return CONTINUE
+    if (ctx.pageState?.role !== 'login') return CONTINUE
+    if (ctx.gates.scriptLoginAskIssued) return CONTINUE
+    ctx.gates.scriptLoginAskIssued = true
+    return {
+      kind: 'ask_user',
+      question:
+        'PAGE STATE 显示登录页。请在浏览器打开可匿名浏览的分类/列表入口，或完成登录后回复「已就绪」。勿反复 dom_navigate。',
+    }
+  }
+}
+
+export class ScriptLoginNavigateHook implements AgentHook {
+  readonly name = 'script-login-navigate'
+  readonly reads = [{ key: 'deliverable', optional: true } as const] as const
+
+  beforeTool(ctx: AgentCtx): HookDecision {
+    const call = ctx.toolCall
+    if (!call || call.tool !== 'dom_navigate') return CONTINUE
+    if (ctx.gates.deliverable !== 'script') return CONTINUE
+    if (ctx.pageState?.role !== 'login') return CONTINUE
+    const url = typeof call.arguments.url === 'string' ? call.arguments.url : ''
+    return {
+      kind: 'skip_tool',
+      note: 'GUIDANCE: deliverable=script 且 PAGE STATE=login — 禁止 dom_navigate 碰运气。system_ask_user 或换用户给的公开列表 URL。',
+      log: `skip dom_navigate on login wall ${url}`,
+      result: {
+        ok: true,
+        data: { skipped: true, reason: 'script_login_navigate', url },
+      },
+    }
+  }
+}
+
+export class LoginLinkReadHook implements AgentHook {
+  readonly name = 'login-link-read'
+  // No ctx.gates reads/writes — decides from ctx.pageState / ctx.snap.url only.
+
+  beforeTool(ctx: AgentCtx): HookDecision {
+    const call = ctx.toolCall
+    if (!call) return CONTINUE
+    if (
+      !shouldSkipLoginLinkRead({
+        tool: call.tool,
+        args: call.arguments,
+        page: ctx.pageState,
+        snapUrl: ctx.snap.url,
+      })
+    ) {
+      return CONTINUE
+    }
+    return {
+      kind: 'skip_tool',
+      note: 'GUIDANCE: PAGE STATE role=login。不要再对同一登录页 dom_read links。换公开入口，或 system_ask_user。',
+      log: 'skip login link read',
+      result: {
+        ok: true,
+        data: { skipped: true, reason: 'login_page_state', url: ctx.snap.url },
+      },
+    }
+  }
+}
+
+export class DeliverableVerifyHook implements AgentHook {
+  readonly name = 'deliverable-verify'
+  readonly reads = [{ key: 'deliverable', optional: true } as const, 'scriptSaved', 'subtaskEvidenceReady'] as const
+
+  beforeTool(ctx: AgentCtx): HookDecision {
+    const call = ctx.toolCall
+    if (!call || call.tool !== 'system_done') return CONTINUE
+    const deliverable = ctx.gates.deliverable ?? resolveDeliverable(ctx.task)
+    if (deliverable === 'script' && !ctx.gates.scriptSaved) {
+      const result = typeof call.arguments.result === 'string' ? call.arguments.result : ''
+      const hasPath = /scripts?\//i.test(result) || /\.py\b/i.test(result)
+      if (!hasPath) {
+        return {
+          kind: 'skip_tool',
+          note:
+            'CONSTRAINT: deliverable=script 须先 script_save 成功，再 system_done 附 path。若缺 URL/登录/Network，用 shortfall 模板说明，禁止空完成。',
+          log: 'block system_done without script_save',
+          result: {
+            ok: false,
+            error: {
+              code: 'deliverable_verify',
+              message: 'script deliverable requires script_save before system_done',
+              recoverable: true,
+            },
+          },
+        }
+      }
+    }
+    if (deliverable === 'media') {
+      const result = typeof call.arguments.result === 'string' ? call.arguments.result : ''
+      const hasUrl = /https?:\/\//i.test(result) && /m3u8|mp4|webm|media/i.test(result)
+      const hasShortfall = /shortfall|无法|unavailable|缺少|未能|未找到|无.*源/i.test(result)
+      const sourceRequired = ctx.taskContract.capabilities.network === 'required'
+      const evaluation = evaluateEvidence(ctx.taskContract, ctx.runtimeState.evidence.records)
+      const verifiedSource = evaluation.status === 'complete' ||
+        ctx.runtimeState.evidence.records.some((item) => item.kind === 'network' && item.source === 'network_media')
+
+      // A URL-shaped string in the model's prose is not provenance.  For the
+      // strict smoke task, only Network evidence (or an explicitly structured
+      // shortfall) may cross the completion boundary.
+      if (sourceRequired && !verifiedSource && !hasShortfall) {
+        return {
+          kind: 'skip_tool',
+          note:
+            'CONSTRAINT: media source evidence is missing — model text alone cannot verify an original playback URL. Retry candidate click + Network, or return an explicit shortfall.',
+          log: 'block unverified media source completion',
+          result: {
+            ok: false,
+            error: {
+              code: 'deliverable_verify',
+              message: 'strict media task requires network_media evidence or explicit shortfall',
+              recoverable: true,
+            },
+          },
+        }
+      }
+      if (!sourceRequired && !hasUrl && !hasShortfall && !ctx.gates.subtaskEvidenceReady) {
+        return {
+          kind: 'skip_tool',
+          note:
+            'CONSTRAINT: deliverable=media — system_done 须含 mediaUrl（m3u8/mp4 等）或明确 shortfall；若仅拿到标题可先 click+network，或 script_save 骨架。',
+          log: 'block vague media system_done',
+          result: {
+            ok: false,
+            error: {
+              code: 'deliverable_verify',
+              message: 'media deliverable needs mediaUrl, spawn evidence, or explicit shortfall',
+              recoverable: true,
+            },
+          },
+        }
+      }
+    }
+    return CONTINUE
+  }
+}
+
 export class DedupeObservationHook implements AgentHook {
   readonly name = 'dedupe-observation'
+  readonly reads = ['seenObs', 'dupSkipByKey', 'lastObsByKey', { key: 'deliverable', optional: true } as const] as const
+  readonly writes = ['dupSkipByKey'] as const
 
   beforeTool(ctx: AgentCtx): HookDecision {
     const call = ctx.toolCall
@@ -553,7 +788,18 @@ export class DedupeObservationHook implements AgentHook {
     ]
     if (prior) notes.push(`EVIDENCE: ${prior.replace(/\s+/g, ' ').slice(0, WORKING_SET.evidenceChars)}`)
     if (n >= 2) {
-      notes.push('CONSTRAINT: 同一观察已跳过两次。下一步必须 system_done，禁止再调用该工具。')
+      const del = ctx.gates.deliverable
+      if (del === 'script') {
+        notes.push(
+          'CONSTRAINT: 重复观察 — 基于 PAGE STATE/EVIDENCE 调用 script_save，或 system_ask_user / shortfall；禁止空 system_done。'
+        )
+      } else if (del === 'media' || del === 'data') {
+        notes.push(
+          'CONSTRAINT: 重复观察 — 改用 browser_act click 列表/播放，或 network read mode=media|hls；system_done 须含 mediaUrl/条目或 shortfall。'
+        )
+      } else {
+        notes.push('CONSTRAINT: 同一观察已跳过两次。下一步必须 system_done，禁止再调用该工具。')
+      }
     }
     const result: ToolResult = {
       ok: true,
@@ -564,13 +810,21 @@ export class DedupeObservationHook implements AgentHook {
       },
     }
     if (n >= 3) {
+      const del = ctx.gates.deliverable
+      const stopResult =
+        del === 'script'
+          ? '重复观察已停止。请 script_save（基于已有 PAGE STATE/URL 模式）或 system_done 说明缺登录/Network/公开入口。'
+          : del === 'media' || del === 'data'
+            ? '重复观察已停止。请 browser_act click + network media/hls，或 system_done 附 shortfall（可选 workspace script_save 骨架）。'
+            : `同一页重复观察已停止空转。\n${(prior ?? '').slice(0, 2_000)}`
+      const allowContinue = del === 'script' || del === 'media' || del === 'data'
       return {
         kind: 'skip_tool',
         note: notes.join('\n'),
         log: `skip duplicate ${call.tool}`,
         result,
-        stop: true,
-        stopResult: `同一页重复观察已停止空转。\n${(prior ?? '').slice(0, 2_000)}`,
+        stop: !allowContinue,
+        stopResult,
       }
     }
     return {
@@ -584,6 +838,7 @@ export class DedupeObservationHook implements AgentHook {
 
 export class ActionLoopHook implements AgentHook {
   readonly name = 'action-loop'
+  readonly reads = ['actionLoop'] as const
 
   beforeTool(ctx: AgentCtx): HookDecision {
     const call = ctx.toolCall
@@ -627,10 +882,14 @@ export class ActionLoopHook implements AgentHook {
 
 export class TaskHintHook implements AgentHook {
   readonly name = 'task-hint'
+  readonly reads = ['taskHintIssued', { key: 'deliverable', optional: true } as const] as const
+  readonly writes = ['taskHintIssued', 'taskIntent'] as const
 
   beforeStep(ctx: AgentCtx): HookDecision {
     if (ctx.gates.taskHintIssued) return CONTINUE
     ctx.gates.taskHintIssued = true
+    const deliverable = ctx.gates.deliverable ?? resolveDeliverable(ctx.task)
+    if (deliverable !== 'general') return CONTINUE
     if (!ctx.gates.taskIntent) {
       ctx.gates.taskIntent = resolveTaskIntent(ctx.task)
     }
@@ -644,12 +903,18 @@ export class TaskHintHook implements AgentHook {
 /** Success-path memory: sticky skill, list hints, observation/action-loop counters. */
 export class ToolStateHook implements AgentHook {
   readonly name = 'tool-state'
+  readonly reads = ['actionLoop', 'tabsListProgressUsed', 'seenObs'] as const
+  readonly writes = [
+    'lastListHints', 'loadedSkillIds', 'loadedSkillBodies', 'scriptSaved', 'scriptSavePath',
+    'runTabIds', 'subtaskEvidenceReady', 'seenObs', 'lastObsByKey', 'tabsListProgressUsed',
+    'stepsWithoutNewObs', 'actionLoop',
+  ] as const
 
   afterTool(ctx: AgentCtx): void {
     const result = ctx.toolResult
     const tool = ctx.toolCall?.tool
     if (!result?.ok || !tool) return
-    if (tool === 'dom_read' || tool === 'dom_mark_topn') {
+    if (tool === 'dom_read' || tool === 'dom_extract_content' || tool === 'dom_mark_topn') {
       const hints = listHintsFromToolData(result.data)
       recordListHints(ctx.gates, hints)
     }
@@ -661,6 +926,14 @@ export class ToolStateHook implements AgentHook {
           data.id,
           typeof data.body === 'string' ? data.body : undefined
         )
+      }
+    }
+    if (tool === 'script_save') {
+      const path = (result.data as { path?: string } | undefined)?.path
+      if (path) {
+        ctx.gates.scriptSaved = true
+        ctx.gates.scriptSavePath = path
+        ctx.recordNote(`GUIDANCE: script saved at ${path} — system_done 须引用此 path。`)
       }
     }
     if (tool === 'tabs_open' || tool === 'tabs_switch') {
@@ -711,6 +984,7 @@ export class ToolStateHook implements AgentHook {
 
 export class NoProgressHook implements AgentHook {
   readonly name = 'no-progress'
+  readonly reads = ['stepsWithoutNewObs'] as const
 
   beforeTool(ctx: AgentCtx): HookDecision {
     if (ctx.gates.stepsWithoutNewObs < 4) return CONTINUE
@@ -736,24 +1010,75 @@ export function createRunHooks(
 } {
   const protocol = new ProtocolHook(protocolMaxRetries)
   const tools = new ToolOutcomeHook(new ToolOutcomePolicy(sameFailureLimit))
+
+  // Grouped by function, not by lifecycle phase (several groups mix
+  // runTaskPreflight/beforeTool/afterTool hooks). Array order inside and
+  // across groups is still the real contract — HookPipeline is first-wins
+  // per phase, and runTaskPreflight runs every hook in this order until one
+  // returns a result — so a hook that *reads* a gate must appear after
+  // whichever hook *writes* it. `validateHookOrdering` (called from
+  // `HookPipeline`'s constructor) asserts this from each hook's declared
+  // `reads`/`writes`; see docs/BEST_PRACTICES_REVIEW.md section 4 P0 for why
+  // this exists (it is a direct response to the deliverable cross-turn
+  // drift bug fixed in GENERAL_BROWSER_AGENT_REFACTOR_PHASE_1.md section 9).
+  //
+  // 1. Availability — is the network plane even usable this run.
+  const availabilityHooks: AgentHook[] = [new NetworkPlaneHealthHook()]
+
+  // 2. Task state establishment — resolve deliverable/intent once,
+  //    assemble the working-set prompt. PreflightHook here is the sole
+  //    writer of gates.deliverable; everything downstream that reads it
+  //    (directly or via the `optional: true` fallback) must stay after it.
+  const taskStateHooks: AgentHook[] = [
+    new PreflightHook(),
+    new NetworkDegradedToolGateHook(),
+    new TaskHintHook(),
+    new WorkingSetHook(),
+  ]
+
+  // 3. Protocol / error discipline — one-tool-call-per-turn enforcement,
+  //    transport error recovery, and the policy ledger for repeated tool
+  //    failures.
+  const protocolHooks: AgentHook[] = [protocol, new ModelErrorHook(), tools, new ToolStateHook()]
+
+  // 4. Permissions & safety — capability profile, skill allowlist, HITL
+  //    confirmation, duplicate-load/CSP guards. Pure gate checks, no task
+  //    narrative state.
+  const securityHooks: AgentHook[] = [
+    new RunProfileHook(),
+    new SkillAllowlistHook(),
+    new SensitiveToolHook(),
+    new DuplicateSkillHook(),
+    new CspSkipHook(),
+  ]
+
+  // 5. Task-specific execution steps — deliverable-aware guidance and
+  //    completion gating (script/media SOPs, login-wall handling).
+  const executionHooks: AgentHook[] = [
+    new PageCacheHook(),
+    new ScriptLoginNavigateHook(),
+    new LoginLinkReadHook(),
+    new ScriptDeliverableStepHook(),
+    new DeliverableVerifyHook(),
+    new MediaHarvestMilestoneHook(),
+  ]
+
+  // 6. Loop guards — last line of defense against the model repeating
+  //    itself with no new evidence.
+  const loopGuardHooks: AgentHook[] = [
+    new DedupeObservationHook(),
+    new ActionLoopHook(),
+    new NoProgressHook(),
+  ]
+
   return {
     pipeline: new HookPipeline([
-      new PreflightHook(),
-      new TaskHintHook(),
-      new WorkingSetHook(),
-      protocol,
-      new ModelErrorHook(),
-      tools,
-      new ToolStateHook(),
-      new RunProfileHook(),
-      new SkillAllowlistHook(),
-      new SensitiveToolHook(),
-      new DuplicateSkillHook(),
-      new CspSkipHook(),
-      new PageCacheHook(),
-      new DedupeObservationHook(),
-      new ActionLoopHook(),
-      new NoProgressHook(),
+      ...availabilityHooks,
+      ...taskStateHooks,
+      ...protocolHooks,
+      ...securityHooks,
+      ...executionHooks,
+      ...loopGuardHooks,
       ...extra,
     ]),
     protocol,

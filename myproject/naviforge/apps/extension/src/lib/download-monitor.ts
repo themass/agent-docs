@@ -1,9 +1,17 @@
+type DownloadState = 'in_progress' | 'interrupted' | 'complete'
+
+/** Chrome typings omit some fields present at runtime. */
+type DownloadItemExt = chrome.downloads.DownloadItem & {
+  tabId?: number
+  finalFilename?: string
+}
+
 export type TrackedDownload = {
   downloadId: number
   tabId?: number
   url: string
   filename: string
-  state: chrome.downloads.State
+  state: DownloadState
   startedAt: number
   completedAt?: number
   error?: string
@@ -12,7 +20,7 @@ export type TrackedDownload = {
 const recent: TrackedDownload[] = []
 const MAX_RECENT = 50
 
-function upsert(item: chrome.downloads.DownloadItem): TrackedDownload {
+function upsert(item: DownloadItemExt): TrackedDownload {
   const existing = recent.find((entry) => entry.downloadId === item.id)
   const entry: TrackedDownload = {
     downloadId: item.id,

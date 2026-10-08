@@ -1,4 +1,5 @@
 from jobcome.agent.resume_task import build_profile_digest, wrap_resume_coach_message
+from jobcome.schemas.agent import AgentUiContext, AgentUiFocus
 from jobcome.schemas.profile_payload import ProfileContact, ProfileExperience, ProfilePayload
 
 
@@ -32,3 +33,24 @@ def test_wrap_resume_coach_forbids_intro_and_keeps_user_text() -> None:
     assert "华为工作内容能再丰富一些么" in text
     assert "prof_1" in text
     assert "experiences[0] 华为" in text
+
+
+def test_wrap_includes_ui_focus_path() -> None:
+    ctx = AgentUiContext(
+        page="resume-agent",
+        step="review",
+        focus=AgentUiFocus(
+            path="experiences[0]",
+            kind="experience",
+            label="杭州华为 · 内核开发工程师",
+        ),
+    )
+    text = wrap_resume_coach_message(
+        "这块写具体一点",
+        profile_id="prof_1",
+        digest="experiences[0] 华为",
+        ui_context=ctx,
+    )
+    assert "path=experiences[0]" in text
+    assert "这块写具体一点" in text
+    assert "不要再问改哪一段" in text

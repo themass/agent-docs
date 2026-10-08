@@ -115,8 +115,8 @@ export async function applyPageFrictionToCtx(
     if (!ctx.gates.frictionHitlKeys.has(hitlKey)) {
       ctx.gates.frictionHitlKeys.add(hitlKey)
       forceAsk = frictionHitlQuestion(report)
-      if (!ctx.gates.loadedSkillIds.has('page-friction')) {
-        ctx.recordNote('GUIDANCE: skill_load page-friction — 通用会话/验证/限频 HITL playbook')
+      if (!ctx.gates.loadedSkillIds.has('friction') && !ctx.gates.loadedSkillIds.has('page-friction')) {
+        ctx.recordNote('GUIDANCE: skill_load friction — 通用会话/验证/限频 HITL playbook')
       }
     }
   }

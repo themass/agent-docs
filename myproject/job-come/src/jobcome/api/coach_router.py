@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import Annotated
 
+from agentkit.web.auth import Actor, UserActor
 from fastapi import APIRouter, Depends, Path, Query
 
-from agentkit.web.auth import Actor, UserActor
 from jobcome.api.deps import get_actor, get_coach_service, require_user
 from jobcome.schemas.coach import (
     AnswerAttemptRequest,
@@ -14,10 +14,12 @@ from jobcome.schemas.coach import (
     BankSearchResponse,
     InterviewSaveRequest,
     InterviewSaveResponse,
+    MockRubricResponse,
     MockSessionCreateRequest,
     MockSessionResponse,
-    MockRubricResponse,
     QuestionDetailResponse,
+    QuestionSummary,
+    QuestionUpsertRequest,
 )
 from jobcome.services.interview_service import InterviewService
 
@@ -47,12 +49,13 @@ async def search_bank(
     profile_id: Annotated[str, Path(description="档案 ID")],
     query: str = Query(default=""),
     company: str | None = Query(default=None),
+    job_id: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=50),
     actor: Actor = Depends(get_actor),
     coach: InterviewService = Depends(get_coach_service),
 ) -> BankSearchResponse:
     return await coach.search_bank(
-        profile_id, actor=actor, query=query, company=company, limit=limit
+        profile_id, actor=actor, query=query, company=company, job_id=job_id, limit=limit
     )
 
 
@@ -108,3 +111,30 @@ async def create_mock_session(
     coach: InterviewService = Depends(get_coach_service),
 ) -> MockSessionResponse:
     return await coach.create_mock_session(actor=actor, body=body)
+
+
+@router.get(
+    "/mock/sessions/{session_id}",
+    response_model=MockSessionResponse,
+    summary="读取模拟面会话（含抽库题）",
+)
+async def get_mock_session(
+    session_id: Annotated[str, Path(description="模拟会话 ID")],
+    actor: UserActor = Depends(require_user),
+    coach: InterviewService = Depends(get_coach_service),
+) -> MockSessionResponse:
+    return await coach.get_mock_session(session_id, actor=actor)
+
+
+@router.post(
+    "/profiles/{profile_id}/questions",
+    response_model=QuestionSummary,
+    summary="补记题目到个人题库",
+)
+async def log_question(
+    profile_id: Annotated[str, Path(description="档案 ID")],
+    body: QuestionUpsertRequest,
+    actor: UserActor = Depends(require_user),
+    coach: InterviewService = Depends(get_coach_service),
+) -> QuestionSummary:
+    return await coach.log_question(profile_id, actor=actor, body=body)

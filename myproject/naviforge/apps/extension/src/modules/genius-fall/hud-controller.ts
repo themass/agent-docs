@@ -68,6 +68,10 @@ async function sendTabHud(tabId: number, action: string, payload: Record<string,
   })
 }
 
+async function hideHudOnAllTabs(): Promise<void> {
+  await hideHudOnAllTabsExcept(undefined)
+}
+
 async function hideHudOnAllTabsExcept(keepTabId?: number): Promise<void> {
   const tabs = await chrome.tabs.query({})
   await Promise.all(

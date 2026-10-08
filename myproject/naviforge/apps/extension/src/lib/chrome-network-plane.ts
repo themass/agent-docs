@@ -21,6 +21,8 @@ type Msg =
   | { type: 'NETWORK'; action: 'clearIntercepts'; tabId: number }
   | { type: 'NETWORK'; action: 'getBody'; tabId: number; id: string }
   | { type: 'NETWORK'; action: 'fetch_script_bodies'; tabId: number; urls: string[] }
+  | { type: 'NETWORK'; action: 'release_run'; tabId: number }
+  | { type: 'NETWORK'; action: 'script_bodies'; tabId: number; limit?: number }
 
 function send<T>(msg: Msg): Promise<T | undefined> {
   return import('./extension-runtime.js').then(({ safeRuntimeSendMessage }) =>
@@ -36,10 +38,20 @@ export function createChromeNetworkPlane(
   const getSignal = opts?.getSignal
 
   async function attachTab(): Promise<ToolResult<{ attached: boolean }>> {
+    const tabId = getTabId()
+    const digestProbe = await send<{ ok: boolean; data?: NetworkDigest; error?: string }>({
+      type: 'NETWORK',
+      action: 'digest',
+      tabId,
+      limit: 1,
+    })
+    if (digestProbe?.ok && digestProbe.data) {
+      return { ok: true, data: { attached: true } }
+    }
     const r = await send<{ ok: boolean; attached?: boolean; error?: string }>({
       type: 'NETWORK',
       action: 'attach',
-      tabId: getTabId(),
+      tabId,
       captureBodies,
     })
     if (!r?.ok) {

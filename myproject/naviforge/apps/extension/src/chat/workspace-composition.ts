@@ -23,7 +23,6 @@ import {
 import { useWorkspacePrivacyState } from './workspace-privacy-state'
 import { useWorkspaceRun } from './use-workspace-run'
 import { latestContextBreakdown } from '@naviforge/context-metrics'
-import { latestIntakeSession } from '../modules/intake-ui'
 import { useI18n } from '../i18n'
 import { createSlashCommandRunner } from './workspace-slash'
 import { buildSlashCommandRegistry } from '../components/chat/composer-slash-registry'
@@ -54,7 +53,6 @@ export function useWorkspaceComposition() {
     runTimeoutMs,
     tokenBudget,
     maxInputTokens,
-    intakeMode,
     enforceSkillToolAllowlist,
     privacySetters,
   } = privacy
@@ -146,7 +144,6 @@ export function useWorkspaceComposition() {
     runTimeoutMs,
     tokenBudget,
     maxInputTokens,
-    intakeMode,
     enforceSkillToolAllowlist,
   })
 
@@ -154,7 +151,6 @@ export function useWorkspaceComposition() {
 
   const events = useMemo(() => sessionToChatEvents(run.records, locale), [run.records, locale])
   const contextBreakdown = useMemo(() => latestContextBreakdown(run.records), [run.records])
-  const intakeSession = useMemo(() => latestIntakeSession(run.records), [run.records])
   const thinkingReasoning = useMemo(() => latestReasoning(run.records), [run.records])
   const activeProfile = modelProfiles ? getActiveModelProfile(modelProfiles) : null
 
@@ -315,7 +311,6 @@ export function useWorkspaceComposition() {
     pageSignalsPreview: run.pageSignalsPreview,
     tokenUsage: run.tokenUsage,
     contextBreakdown,
-    intakeSession,
     runTokenBudget: tokenBudget,
     targetTab,
     tabPickerOpen,
@@ -343,6 +338,11 @@ export function useWorkspaceComposition() {
     enabledSkills: run.enabledSkills,
     playbooks,
     useNetwork,
+    captureNetworkBodies,
+    allowDomInject,
+    allowNetworkIntercept,
+    allowMainProbe,
+    visionEnabled,
     pageAskMode,
     setPageAskMode,
     pageAskBusy,

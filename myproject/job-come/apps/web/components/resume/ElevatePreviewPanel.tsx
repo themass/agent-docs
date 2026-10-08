@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { getElevatePreview, listResumeTracks, localizeProfile, type ElevatePreview, type ResumeTrack, type TrackState } from "@/lib/api/resume";
+import type { AgentUiFocus } from "@/lib/ui-context";
 
 import { ElevationChangesPanel } from "./ElevationChangesPanel";
 import { ResumeStructuredPreview } from "./ResumeStructuredPreview";
@@ -20,6 +21,8 @@ type Props = {
   generateTick?: number;
   onBusyChange?: (busy: boolean) => void;
   jobId?: string | null;
+  focusPath?: string | null;
+  onUiFocus?: (focus: AgentUiFocus) => void;
 };
 
 const LEVELS = [
@@ -51,6 +54,8 @@ export function ElevatePreviewPanel({
   generateTick = 0,
   onBusyChange,
   jobId = null,
+  focusPath = null,
+  onUiFocus,
 }: Props) {
   const [level, setLevel] = useState<"conservative" | "standard" | "elevated">("elevated");
   const [locale, setLocale] = useState<ResumeTrack>("zh-CN");
@@ -206,7 +211,11 @@ export function ElevatePreviewPanel({
       {view === "changes" ? (
         <ElevationChangesPanel draft={preview?.draft ?? null} />
       ) : view === "structured" ? (
-        <ResumeStructuredPreview draft={preview?.draft ?? null} />
+        <ResumeStructuredPreview
+          draft={preview?.draft ?? null}
+          focusPath={focusPath}
+          onUiFocus={onUiFocus}
+        />
       ) : preview ? (
         <iframe
           title="resume-preview"

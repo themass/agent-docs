@@ -72,7 +72,6 @@ UI startRun
               → recordNote(PREFLIGHT/EVIDENCE) → ledger.append(run.note)
           → TaskHintHook.beforeStep（一次）
               → recordNote(GUIDANCE: …) → run.note
-          → [若 intake] runIntakeLoop …
           → 进入热执行循环
 ```
 
@@ -148,7 +147,7 @@ for step in maxSteps:
   at: number,           // ms 时间戳
   runId: string,
   taskId?: string,
-  turn?: number,        // 模型步 0-based；preflight/intake 无 turn
+  turn?: number,        // 模型步 0-based；preflight 无 turn
   channel: 'conversation' | 'trace' | 'telemetry',
   type: TraceRecordType,
   payload: { ... }      // 按 type 判别，不用 kind/title 当 SSOT

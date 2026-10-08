@@ -2,11 +2,16 @@ import assert from 'node:assert/strict'
 
 import { intentGuidanceNotes, intentPreflightSkill, resolveTaskIntent } from './task-intent.js'
 
+const SAMPLE =
+  '分析这个网站的 视频列表，给我生成一个python 脚本，抓取每个分类下的第一页。\n页码可以定义多少页，默认值为1'
+
 assert.equal(resolveTaskIntent('帮我下载这个文档'), 'page_download')
 assert.equal(resolveTaskIntent('分析这个视频的 m3u8 播放地址'), 'media_extract')
-assert.equal(intentPreflightSkill('media_extract'), 'media-extract')
+assert.equal(resolveTaskIntent(SAMPLE), 'script_authoring')
+assert.ok(intentGuidanceNotes('script_authoring').some((line) => line.includes('intent=script')))
+assert.equal(intentPreflightSkill('media_extract'), 'harvest')
 assert.equal(resolveTaskIntent('破解页面加密'), 'denied')
-assert.ok(intentGuidanceNotes('page_download').some((line) => line.includes('dom_click')))
-assert.equal(intentPreflightSkill('page_download'), 'document-download')
+assert.ok(intentGuidanceNotes('page_download').some((line) => line.includes('persist')))
+assert.equal(intentPreflightSkill('page_download'), 'persist')
 
 console.log('task-intent self-check ok')

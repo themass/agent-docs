@@ -26,6 +26,7 @@ import { clearScripts, createChromeScriptPlane, listScripts } from '../../lib/ch
 import { clearSessions, listSessions, listThreads } from '../../lib/session-store'
 import { buildSessionAuditExport, downloadSessionAudit } from '../../lib/session-export'
 import { deleteProfile, listLearnedProfiles } from '../../lib/site-profile-store'
+import { isManagedLoginEnabled, setManagedLoginEnabled } from '../../lib/managed-login-feature'
 import type { SiteProfile } from '../../lib/content-extract'
 import {
   addModelProfile,
@@ -104,6 +105,7 @@ import { listLearnedRecipes } from '../../lib/site-recipe-store'
 import { SiteRecipesPanel } from './site-recipes-panel'
 import { ToolkitPanel } from './toolkit-panel'
 import { ModifyHeadersPrivacyToggle } from './modify-headers-privacy-toggle'
+import { AgentCapabilitiesEditor } from '../../components/chat/agent-capabilities-editor'
 import { WorkspacePanel } from './workspace-panel'
 import { GeniusFallPanel } from '../../modules/genius-fall/components/GeniusFallPanel'
 import { Tabs } from './tabs'
@@ -117,7 +119,16 @@ import {
 
 type PluginTab = 'skills' | 'mcp' | 'tools'
 type AutomationTab = 'playbooks' | 'scripts' | 'profiles' | 'recipes' | 'sessions' | 'sniff'
-type SettingsTab = 'models' | 'permissions' | 'privacy' | 'host' | 'advanced'
+type SettingsTab = 'agent' | 'privacy' | 'system'
+
+function normalizeSettingsTab(tab: string | undefined): SettingsTab | undefined {
+  if (!tab) return undefined
+  if (tab === 'agent' || tab === 'privacy' || tab === 'system') return tab
+  if (tab === 'models') return 'agent'
+  if (tab === 'permissions') return 'privacy'
+  if (tab === 'host' || tab === 'advanced') return 'system'
+  return undefined
+}
 type HostState = 'unchecked' | 'online' | 'offline'
 
 function PageTitle({
@@ -223,7 +234,7 @@ export function App() {
   const [pluginTab, setPluginTab] = useState<PluginTab>('skills')
   const [automationTab, setAutomationTab] = useState<AutomationTab>('playbooks')
   const [sniffReload, setSniffReload] = useState(0)
-  const [settingsTab, setSettingsTab] = useState<SettingsTab>('models')
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>('agent')
   const [modelProfiles, setModelProfiles] = useState<ModelProfilesStore | null>(null)
   const [editingProfileId, setEditingProfileId] = useState('')
   const [host, setHost] = useState(DEFAULT_HOST)
@@ -241,6 +252,7 @@ export function App() {
   const [sessions, setSessions] = useState<AgentSession[]>([])
   const [scripts, setScripts] = useState<ScriptArtifact[]>([])
   const [recipeCount, setRecipeCount] = useState(0)
+  const [managedLoginEnabled, setManagedLoginEnabledState] = useState(false)
   const [threads, setThreads] = useState<AgentThread[]>([])
   const [skillDraft, setSkillDraft] = useState('')
   const [githubSkillUrl, setGithubSkillUrl] = useState('')
@@ -336,16 +348,9 @@ export function App() {
       listLearnedRecipes(),
       loadDiskMcpFile(),
     ])
-    const profiles = saved[STORAGE.llmProfiles] as ModelProfilesStore | undefined
-    if (profiles?.version === 1 && profiles.profiles?.length) {
-      const normalized = profiles
-      setModelProfiles(normalized)
-      setEditingProfileId(normalized.activeProfileId)
-    } else {
-      const migrated = await loadModelProfiles()
-      setModelProfiles(migrated)
-      setEditingProfileId(migrated.activeProfileId)
-    }
+    const modelStore = await loadModelProfiles()
+    setModelProfiles(modelStore)
+    setEditingProfileId(modelStore.activeProfileId)
     setHost({ ...DEFAULT_HOST, ...(saved[STORAGE.host] as Partial<HostSettings> | undefined) })
     setVoiceUi(readVoiceUiMode(saved[STORAGE.voiceUi]))
     setSpeechLangConfig(
@@ -404,6 +409,7 @@ export function App() {
     setThreads(storedThreads)
     setSiteProfiles(storedProfiles)
     setRecipeCount(storedRecipes.length)
+    setManagedLoginEnabledState(await isManagedLoginEnabled())
   }
 
   async function refreshAutomation(): Promise<void> {
@@ -437,6 +443,13 @@ export function App() {
         window.location.hash = next
         void chrome.storage.local.remove(STORAGE.openSection)
       }
+      void chrome.storage.local.get(STORAGE.openSettingsTab).then((tabSaved) => {
+        const tab = normalizeSettingsTab(tabSaved[STORAGE.openSettingsTab] as string | undefined)
+        if (tab) {
+          setSettingsTab(tab)
+          void chrome.storage.local.remove(STORAGE.openSettingsTab)
+        }
+      })
     })
     const onStorageChange = (
       changes: Record<string, chrome.storage.StorageChange>,
@@ -485,8 +498,22 @@ export function App() {
     ) {
       setAutomationTab(tab)
     }
-    if (next === 'settings' && tab) setSettingsTab(tab as SettingsTab)
+    if (next === 'settings' && tab) {
+      const normalized = normalizeSettingsTab(tab)
+      if (normalized) setSettingsTab(normalized)
+    }
   }
+
+  const visibleNavItems = useMemo(
+    () => NAV_ITEMS.filter((item) => item.id !== 'account' || managedLoginEnabled),
+    [managedLoginEnabled]
+  )
+
+  useEffect(() => {
+    if (section === 'account' && !managedLoginEnabled) {
+      navigate('settings', 'agent')
+    }
+  }, [section, managedLoginEnabled])
 
   const allSkills = useMemo(() => mergeInstalledSkills(BUNDLED_SKILLS, customSkills), [customSkills])
   const userSkillIds = useMemo(
@@ -932,7 +959,7 @@ export function App() {
           </div>
         </div>
         <nav aria-label={t('options.navAria')}>
-          {NAV_ITEMS.map((item, index) => (
+          {visibleNavItems.map((item, index) => (
             <button
               key={item.id}
               type="button"
@@ -966,14 +993,16 @@ export function App() {
             {t('options.topbar.breadcrumbPrefix')} / {section.toUpperCase()}
           </div>
           <div className="top-status">
-            <button
-              type="button"
-              className="text-button top-login-link"
-              onClick={() => navigate('account')}
-            >
-              <i className={`status-dot ${editingProfile?.apiKey ? 'on' : 'warn'}`} />
-              {t('options.nav.account')}
-            </button>
+            {managedLoginEnabled ? (
+              <button
+                type="button"
+                className="text-button top-login-link"
+                onClick={() => navigate('account')}
+              >
+                <i className={`status-dot ${editingProfile?.apiKey ? 'on' : 'warn'}`} />
+                {t('options.nav.account')}
+              </button>
+            ) : null}
             <span>
               <i className={`status-dot ${editingProfile?.apiKey ? 'on' : 'warn'}`} />
               {t('options.topbar.modelLabel')}{' '}
@@ -1003,8 +1032,8 @@ export function App() {
             </div>
           ) : null}
 
-          {section === 'account' && (
-            <AccountLoginPage onGoToModels={() => navigate('settings', 'models')} />
+          {section === 'account' && managedLoginEnabled && (
+            <AccountLoginPage onGoToModels={() => navigate('settings', 'agent')} />
           )}
 
           {section === 'toolkit' && <ToolkitPanel />}
@@ -1491,11 +1520,9 @@ export function App() {
                 value={settingsTab}
                 onChange={setSettingsTab}
                 items={[
-                  { id: 'models', label: t('options.tab.models') },
-                  { id: 'permissions', label: t('options.tab.permissions') },
+                  { id: 'agent', label: t('options.tab.agent') },
                   { id: 'privacy', label: t('options.tab.privacy') },
-                  { id: 'host', label: t('options.tab.host') },
-                  { id: 'advanced', label: t('options.tab.advanced') },
+                  { id: 'system', label: t('options.tab.system') },
                 ]}
               />
               <Field label={t('options.language')} hint={t('options.languageHint')}>
@@ -1588,8 +1615,25 @@ export function App() {
                   </select>
                 </Field>
               )}
-              {settingsTab === 'models' && editingProfile && modelProfiles && (
+              {settingsTab === 'agent' && (
                 <>
+                  <section className="settings-layout">
+                    <div className="settings-copy">
+                      <span>{t('options.agent.capabilitiesEyebrow')}</span>
+                      <h2>{t('options.agent.capabilitiesTitle')}</h2>
+                      <p>{t('options.agent.capabilitiesDesc')}</p>
+                    </div>
+                    <div className="settings-form">
+                      <AgentCapabilitiesEditor
+                        privacy={privacy}
+                        persist
+                        onPrivacyChange={setPrivacy}
+                      />
+                      <p className="settings-hint text-xs">{t('options.agent.capabilitiesAutoSave')}</p>
+                    </div>
+                  </section>
+                  {editingProfile && modelProfiles ? (
+                  <>
                   <section className="settings-layout">
                   <div className="settings-copy">
                     <span>{t('options.models.sectionEyebrow')}</span>
@@ -1800,27 +1844,6 @@ export function App() {
                         <option value="permissive">{t('options.models.hitlPermissive')}</option>
                       </select>
                     </Field>
-                    <Field label={t('options.models.intakeLabel')} hint={t('options.models.intakeHint')}>
-                      <select
-                        value={privacy.intakeMode ?? 'auto'}
-                        onChange={(event) =>
-                          setPrivacy({
-                            ...privacy,
-                            intakeMode: event.target.value as PrivacySettings['intakeMode'],
-                          })
-                        }
-                      >
-                        <option value="auto">{t('options.models.intakeAuto')}</option>
-                        <option value="always">{t('options.models.intakeAlways')}</option>
-                        <option value="off">{t('options.models.intakeOff')}</option>
-                      </select>
-                    </Field>
-                    <Toggle
-                      checked={privacy.visionEnabled === true}
-                      onChange={(checked) => setPrivacy({ ...privacy, visionEnabled: checked })}
-                      label={t('options.models.visionToggleLabel')}
-                      description={t('options.models.visionToggleDesc')}
-                    />
                     <Field label={t('options.models.maxStepsLabel')}>
                       <input
                         type="number"
@@ -1912,13 +1935,15 @@ export function App() {
                   </div>
                 </section>
                 </>
+                  ) : null}
+                </>
               )}
-              {settingsTab === 'permissions' && (
+              {settingsTab === 'privacy' && (
                 <section className="settings-layout">
                   <div className="settings-copy">
                     <span>{t('options.permissions.eyebrow')}</span>
                     <h2>{t('options.permissions.title')}</h2>
-                    <p>{t('options.permissions.description')}</p>
+                    <p>{t('options.privacy.permissionsInTabHint')}</p>
                   </div>
                   <div className="settings-form permission-list">
                     {(
@@ -1948,10 +1973,6 @@ export function App() {
                     <p>{t('options.privacy.description')}</p>
                   </div>
                   <div className="settings-form">
-                    <p className="settings-hint">
-                      <strong>{t('options.privacy.warning')}</strong>
-                    </p>
-                    <Toggle checked={privacy.networkEnabled} onChange={(checked) => setPrivacy({ ...privacy, networkEnabled: checked })} label={t('options.privacy.networkPlaneLabel')} description={t('options.privacy.networkPlaneDesc')} />
                     <Toggle checked={privacy.storeApiKey} onChange={(checked) => setPrivacy({ ...privacy, storeApiKey: checked })} label={t('options.privacy.storeApiKeyLabel')} description={t('options.privacy.storeApiKeyDesc')} />
                     <p className="settings-hint">{t('options.privacy.captchaHint')}</p>
                     <Toggle
@@ -1960,24 +1981,7 @@ export function App() {
                       label={t('options.privacy.rollbackLabel')}
                       description={t('options.privacy.rollbackDesc')}
                     />
-                    <p className="settings-hint">
-                      <strong>{t('options.privacy.highRiskLead')}</strong>
-                    </p>
                     <ModifyHeadersPrivacyToggle />
-                    <Toggle checked={privacy.allowNetworkIntercept ?? false} onChange={(checked) => setPrivacy({ ...privacy, allowNetworkIntercept: checked })} label={t('options.privacy.interceptLabel')} description={t('options.privacy.interceptDesc')} />
-                    <Toggle checked={privacy.allowDomInject ?? false} onChange={(checked) => setPrivacy({ ...privacy, allowDomInject: checked })} label={t('options.privacy.domInjectLabel')} description={t('options.privacy.domInjectDesc')} />
-                    <Toggle
-                      checked={privacy.captureNetworkBodies === true}
-                      onChange={(checked) => setPrivacy({ ...privacy, captureNetworkBodies: checked })}
-                      label={t('options.privacy.captureBodiesLabel')}
-                      description={t('options.privacy.captureBodiesDesc')}
-                    />
-                    <Toggle
-                      checked={privacy.allowMainProbe === true}
-                      onChange={(checked) => setPrivacy({ ...privacy, allowMainProbe: checked })}
-                      label={t('options.privacy.mainProbeLabel')}
-                      description={t('options.privacy.mainProbeDesc')}
-                    />
                     <Toggle
                       checked={privacy.enforceSkillToolAllowlist === true}
                       onChange={(checked) =>
@@ -2027,7 +2031,8 @@ export function App() {
                   </div>
                 </section>
               )}
-              {settingsTab === 'host' && (
+              {settingsTab === 'system' && (
+                <>
                 <section className="settings-layout">
                   <div className="settings-copy">
                     <span>{t('options.host.eyebrow')}</span>
@@ -2048,13 +2053,24 @@ export function App() {
                     </div>
                   </div>
                 </section>
-              )}
-              {settingsTab === 'advanced' && (
-                <section className="settings-layout">
+                <section className="settings-layout settings-layout-follow">
                   <div className="settings-copy">
                     <span>{t('options.advanced.eyebrow')}</span>
                     <h2>{t('options.advanced.title')}</h2>
                     <p>{t('options.advanced.description')}</p>
+                  </div>
+                  <div className="settings-form">
+                    <Toggle
+                      checked={managedLoginEnabled}
+                      onChange={(checked) => {
+                        void setManagedLoginEnabled(checked).then(() => {
+                          setManagedLoginEnabledState(checked)
+                          flashNotice(t('options.notice.saved'))
+                        })
+                      }}
+                      label={t('options.advanced.managedLoginLabel')}
+                      description={t('options.advanced.managedLoginDesc')}
+                    />
                   </div>
                   <div className="settings-form danger-zone">
                     <strong>{t('options.advanced.dangerTitle')}</strong>
@@ -2064,6 +2080,7 @@ export function App() {
                     }}>{t('options.advanced.clearAllButton')}</button>
                   </div>
                 </section>
+                </>
               )}
             </>
           )}

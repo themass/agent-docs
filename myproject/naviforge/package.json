@@ -1,18 +1,21 @@
 {
   "name": "naviforge",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.1.0",
   "type": "module",
   "workspaces": [
     "packages/*",
     "apps/*"
   ],
   "scripts": {
-    "dev": "npm run dev -w @naviforge/extension",
-    "build": "npm run build -w @naviforge/host && npm run build -w @naviforge/extension",
+    "dev": "node scripts/build.mjs dev",
+    "prod": "node scripts/build.mjs prod",
+    "zip": "node scripts/build.mjs zip",
+    "dev:watch": "npm run dev -w @naviforge/extension",
+    "build": "npm run build -w @naviforge/host && npm run prod",
     "host": "npm run build -w @naviforge/host && npm run start -w @naviforge/host",
     "host:install": "npm run install-helper -w @naviforge/host",
-    "check": "npm run build -w @naviforge/shared && npm run check -w @naviforge/policy && npm run check -w @naviforge/media-plane && npm run check -w @naviforge/extract && npm run build -w @naviforge/session && npm run check -w @naviforge/session && npm run check -w @naviforge/context-metrics && npm run check -w @naviforge/intake && npm run check -w @naviforge/observe && npm run check -w @naviforge/playbook && npm run check -w @naviforge/runtime && npm run check -w @naviforge/shared && npm run check -w @naviforge/host && node scripts/check-boundaries.mjs && bash scripts/check-trace-kind.sh && npm run check -w @naviforge/extension",
+    "check": "npm run build -w @naviforge/shared && npm run check -w @naviforge/skill-runtime && npm run check -w @naviforge/policy && npm run check -w @naviforge/media-plane && npm run check -w @naviforge/extract && npm run build -w @naviforge/session && npm run check -w @naviforge/session && npm run check -w @naviforge/context-metrics && npm run check -w @naviforge/observe && npm run check -w @naviforge/playbook && npm run check -w @naviforge/runtime && npm run check -w @naviforge/shared && npm run check -w @naviforge/host && node scripts/check-boundaries.mjs && bash scripts/check-trace-kind.sh && npm run check -w @naviforge/extension",
     "test:e2e": "playwright test",
     "test:live:assertions": "tsx tests/live/assertions.self-check.ts",
     "test:live": "npm run build -w @naviforge/extension && NAVIFORGE_LIVE=1 playwright test -c playwright.live.config.ts",

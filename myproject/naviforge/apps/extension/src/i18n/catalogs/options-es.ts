@@ -16,13 +16,18 @@ export const optionsEs = {
     'El chat del Agent está en el panel lateral o el espacio de trabajo; ajustes y automatización se gestionan aquí.',
   openWorkspace: 'Abrir espacio de trabajo del Agent',
   settingsTitle: 'Ajustes',
-  settingsDesc: 'Modelos, permisos del navegador, datos locales y límites del Host.',
+  settingsDesc: 'Capacidades y modelos del Agent, privacidad y datos, Host y opciones avanzadas.',
   tab: {
-    models: 'Modelos',
-    permissions: 'Permisos',
-    privacy: 'Privacidad',
-    host: 'Host',
-    advanced: 'Avanzado',
+    agent: 'Agent y modelos',
+    privacy: 'Privacidad y datos',
+    system: 'Host y avanzado',
+  },
+  agent: {
+    capabilitiesEyebrow: 'CAPACIDADES',
+    capabilitiesTitle: 'Capacidades del Agent',
+    capabilitiesDesc:
+      'Mismos presets que el panel lateral: diario, media/scrape, avanzado. Cambia aquí o en el chat antes de Run.',
+    capabilitiesAutoSave: 'Los presets de capacidades se guardan solos.',
   },
   language: 'Idioma de visualización',
   languageHint:
@@ -558,10 +563,13 @@ export const optionsEs = {
   },
 
   privacy: {
-    eyebrow: 'PRIVACIDAD / 03',
+    permissionsInTabHint: 'Permisos del navegador declarados por la extensión (solo referencia).',
+    eyebrow: 'PRIVACIDAD / 02',
     title: 'Privacidad y datos',
     description:
-      'Controla qué datos de página puede tocar el Agent y si las claves se persisten. No active todo: resumir la página actual solo necesita los valores predeterminados «diarios». Los resúmenes de red nunca exponen cookies, Authorization ni cuerpos completos.',
+      'Retención local, almacenamiento de API key, rollback de URL, etc. Guarda al cambiar opciones abajo.',
+    capabilitiesAutoSave:
+      'Las capacidades del Agent están en la pestaña «Agent y modelos».',
     warning:
       'No active todos los elementos de alto riesgo. «Permisos del navegador» es capacidad del manifiesto (ya concedida). Esta página es la compuerta. Pulse «Guardar ajustes de privacidad» tras cambios.',
     networkPlaneLabel: 'Activar Network Plane por defecto',
@@ -613,9 +621,11 @@ export const optionsEs = {
 
   advanced: {
     eyebrow: 'AVANZADO / 05',
-    title: 'Datos locales',
+    title: 'Avanzado y experimentos',
     description:
-      'Restablecer elimina modelos, complementos, Playbooks, registro de actividad y toda la configuración local de la extensión.',
+      'Funciones experimentales y datos locales. Por defecto usa su propia API Key — sin inicio de sesión.',
+    managedLoginLabel: 'Activar inicio de sesión gestionado NaviForge (experimental)',
+    managedLoginDesc: 'Muestra la página Cuenta y modelos NewAPI. Desactivado por defecto en builds de tienda.',
     dangerTitle: 'Zona de peligro',
     dangerBody:
       'Esta acción no se puede deshacer. Solo borra almacenamiento de la extensión — no elimina ~/NaviForge.',

@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Path
-
 from agentkit.common.trace import get_trace_id
 from agentkit.web.auth import Actor, UserActor
+from fastapi import APIRouter, Depends, Path
+
 from jobcome.api.deps import (
     get_actor,
     get_application_service,
@@ -16,6 +16,7 @@ from jobcome.api.deps import (
     require_user,
 )
 from jobcome.schemas.job import (
+    ApplicationPatchRequest,
     ApplicationResponse,
     ApplyPipelineRequest,
     ApplyPipelineResponse,
@@ -140,3 +141,19 @@ async def list_applications(
     apps: ApplicationService = Depends(get_application_service),
 ) -> list[ApplicationResponse]:
     return await apps.list_for_profile(profile_id, actor=actor)
+
+
+@router.patch(
+    "/profiles/{profile_id}/applications/{application_id}",
+    response_model=ApplicationResponse,
+    summary="更新投递状态",
+    description="用户自行标记漏斗状态；不会向外投递。",
+)
+async def patch_application(
+    profile_id: Annotated[str, Path(description="档案 ID")],
+    application_id: Annotated[str, Path(description="投递记录 ID")],
+    body: ApplicationPatchRequest,
+    actor: UserActor = Depends(require_user),
+    apps: ApplicationService = Depends(get_application_service),
+) -> ApplicationResponse:
+    return await apps.patch(profile_id, application_id, actor=actor, body=body)

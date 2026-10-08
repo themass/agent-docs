@@ -1,0 +1,25 @@
+import type { ToolResult } from '@naviforge/shared';
+import type { WorkspacePlane } from '../../workspace-plane.js';
+import type { BuiltinHandler } from './types.js';
+export declare function workspaceFail(code: string, message: string): ToolResult;
+export type WorkspaceHandler = (args: Record<string, unknown>, workspace: WorkspacePlane) => Promise<ToolResult>;
+export declare const workspaceLs: WorkspaceHandler;
+export declare const workspaceRead: WorkspaceHandler;
+export declare const workspaceWrite: WorkspaceHandler;
+export declare const workspaceMkdir: WorkspaceHandler;
+export declare const workspaceTouch: WorkspaceHandler;
+export declare const workspaceStat: WorkspaceHandler;
+export declare const workspaceGlob: WorkspaceHandler;
+export declare const workspaceGrep: WorkspaceHandler;
+export declare function workspaceBuiltinHandler(run: WorkspaceHandler): BuiltinHandler;
+export declare const workspaceHandlers: {
+    readonly workspace_ls: BuiltinHandler;
+    readonly workspace_read: BuiltinHandler;
+    readonly workspace_write: BuiltinHandler;
+    readonly workspace_mkdir: BuiltinHandler;
+    readonly workspace_touch: BuiltinHandler;
+    readonly workspace_stat: BuiltinHandler;
+    readonly workspace_glob: BuiltinHandler;
+    readonly workspace_grep: BuiltinHandler;
+};
+export declare const workspaceCatalogHandler: BuiltinHandler;

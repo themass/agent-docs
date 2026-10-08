@@ -15,7 +15,7 @@ const structured = normalizeSpawnBriefs({
   ],
 })
 assert.ok(!('error' in structured))
-assert.ok(structured.briefs[0]?.includes('tabs_open'))
+assert.ok(structured.briefs[0]?.includes('tabs action=open'))
 assert.ok(structured.briefs[0]?.includes('Product 101'))
 
 const legacy = normalizeSpawnBriefs({ briefs: ['fetch_text https://a.com/x; system_done'] })

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, Fragment } from 'react'
 import { Sparkles } from 'lucide-react'
 
 import {
@@ -28,17 +28,14 @@ import {
   ThinkingChip,
   UserBubble,
 } from './step-card'
+import { openOptionsPage } from '../../lib/surface-launch'
+import type { WorkspaceRunOutcome } from '../../chat/run-outcome'
 import { ToolCatalogPanel } from './tool-catalog-panel'
+import { AdBanner } from '../ad-banner'
 
 type TopVideo = { label: string; index: number; title: string; url?: string }
 
-type RunOutcome = {
-  kind: 'success' | 'failed' | 'blocked' | 'cancelled' | 'waiting'
-  title: string
-  message: string
-}
-
-const OUTCOME_STYLES: Record<RunOutcome['kind'], string> = {
+const OUTCOME_STYLES: Record<WorkspaceRunOutcome['kind'], string> = {
   success: 'border-green-200 bg-green-50 text-green-900',
   failed: 'border-red-200 bg-red-50 text-red-900',
   blocked: 'border-amber-200 bg-amber-50 text-amber-900',
@@ -74,7 +71,7 @@ export function MessageList({
   resultsMarked?: boolean
   resultsStale?: boolean
   listWarnings?: { missed?: string[]; offscreen?: string[]; shortfall?: string }
-  runOutcome?: RunOutcome | null
+  runOutcome?: WorkspaceRunOutcome | null
   wide?: boolean
   onFocusVideo?: (video: TopVideo) => void
   /** Queue a turn's goal as a new task. Omit to hide the per-turn re-run affordance. */
@@ -106,6 +103,7 @@ export function MessageList({
         <p className="text-base font-medium text-foreground">{t('chat.emptyTitle')}</p>
         <p className="text-base leading-relaxed">{t('chat.emptyHint')}</p>
         {task ? <p className="text-sm opacity-60">{t('chat.emptyDraft', { text: task.slice(0, 80) })}</p> : null}
+        <AdBanner surface="agentFeed" size="compact" className="mt-4 w-full max-w-md" />
       </div>
     )
   }
@@ -128,7 +126,7 @@ export function MessageList({
         </div>
 
         <div className="space-y-2.5">
-          {turns.map((turn) => {
+          {turns.map((turn, turnIndex) => {
             const key = turn.items[0]!.id
             const answer = turnAnswer(turn.items)
             const idle = isIdleDoneTurn(turn.items)
@@ -183,7 +181,15 @@ export function MessageList({
               </div>
             )
             prevAt = turn.items.at(-1)!.at
-            return card
+            const showFeedAd = turnIndex === 0 && showAnswer && !running
+            return (
+              <Fragment key={key}>
+                {card}
+                {showFeedAd ? (
+                  <AdBanner surface="agentFeed" size="compact" className="my-1" />
+                ) : null}
+              </Fragment>
+            )
           })}
 
           {[...childrenByParent.entries()].map(([parentRunId, childEvents]) => (
@@ -268,6 +274,15 @@ export function MessageList({
             >
               <strong>{runOutcome.title}</strong>
               <CollapsibleText text={runOutcome.message} className="mt-1" />
+              {runOutcome.optionsSection ? (
+                <button
+                  type="button"
+                  className="mt-2 block text-sm font-medium underline underline-offset-2 hover:opacity-80"
+                  onClick={() => void openOptionsPage(runOutcome.optionsSection)}
+                >
+                  {t('chat.runOutcome.openSettings')}
+                </button>
+              ) : null}
             </article>
           ) : null}
 
@@ -278,6 +293,7 @@ export function MessageList({
                 reasoning={thinkingReasoning}
                 feed={liveFeed}
               />
+              <AdBanner surface="agentThinking" size="compact" className="mt-1.5" />
             </div>
           ) : null}
         </div>

@@ -1,5 +1,14 @@
 import type { MediaHint } from '@naviforge/media-plane'
 
+import {
+  collectMediaFeedTitlesFromParts,
+  isLikelyVideoEntryTitle,
+  isSiteNavChromeTitle,
+  parseIndexedSnapshotLines,
+  parseLegacySnapshotItems,
+  type SnapshotParts,
+} from './snapshot-media.js'
+
 export type PageListItem = {
   index?: number
   title: string
@@ -7,31 +16,60 @@ export type PageListItem = {
   mediaUrls: string[]
 }
 
-const LINE_ITEM = /^\[(\d+)\]\s+(\w+)(?:\s+"([^"]*)")?/
+export {
+  collectMediaFeedTitlesFromParts,
+  isLikelyVideoEntryTitle,
+  isSiteNavChromeTitle,
+  isTopicBucketSnapshotTitle,
+  parseIndexedSnapshotLines,
+  parseLegacySnapshotItems,
+} from './snapshot-media.js'
 
-/** Parse indexed snapshot lines into list items. */
+/** @deprecated use parseIndexedSnapshotLines — kept for callers expecting old name */
 export function parseSnapshotItems(content: string): Array<{ index: number; title: string }> {
-  const items: Array<{ index: number; title: string }> = []
-  for (const line of content.split('\n')) {
-    const match = LINE_ITEM.exec(line.trim())
-    if (!match) continue
-    const title = match[3]?.trim() || match[2]
-    if (!title || /button|nav|menu|logo/i.test(title) && title.length < 4) continue
-    items.push({ index: Number(match[1]), title })
-  }
-  return items.slice(0, 48)
+  const legacy = parseLegacySnapshotItems(content)
+  if (legacy.length) return legacy
+  return parseIndexedSnapshotLines(content)
 }
 
-/** Heuristic merge of DOM list + network media hints (+ optional JSON body previews). */
+function snapshotPartsFromStrings(opts: {
+  snapshotContent: string
+  snapshotHeader?: string
+  snapshotFooter?: string
+}): SnapshotParts {
+  return {
+    header: opts.snapshotHeader,
+    content: opts.snapshotContent,
+    footer: opts.snapshotFooter,
+  }
+}
+
+function mergePageItems(primary: PageListItem[], extra: PageListItem[], pageUrl?: string): PageListItem[] {
+  const out: PageListItem[] = []
+  const seen = new Set<string>()
+  for (const item of [...primary, ...extra]) {
+    if (isSiteNavChromeTitle(item.title, pageUrl ?? item.pageUrl)) continue
+    const key = (item.pageUrl ?? item.title).slice(0, 96)
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(item)
+    if (out.length >= 48) break
+  }
+  return out
+}
+
+/** Heuristic merge of snapshot list + network media hints (+ optional JSON body previews). */
 export function extractPageList(opts: {
   snapshotContent: string
+  snapshotHeader?: string
+  snapshotFooter?: string
+  pageUrl?: string
   frames?: string
   mediaHints?: MediaHint[]
   jsonPreviews?: Array<{ url: string; preview: string }>
 }): PageListItem[] {
-  const domItems = parseSnapshotItems(opts.snapshotContent)
-  const frameItems = opts.frames ? parseSnapshotItems(opts.frames) : []
-  const merged = [...domItems, ...frameItems]
+  const parts = snapshotPartsFromStrings(opts)
+  const blob = [parts.header, parts.content, parts.footer].filter(Boolean).join('\n')
   const mediaUrls = (opts.mediaHints ?? []).map((hint) => hint.url)
 
   const fromJson: PageListItem[] = []
@@ -53,16 +91,39 @@ export function extractPageList(opts: {
 
   if (fromJson.length) return attachMedia(fromJson, mediaUrls)
 
-  if (!merged.length) {
-    return mediaUrls.length
-      ? [{ title: '(media only)', mediaUrls }]
-      : []
+  const legacy = parseLegacySnapshotItems(blob)
+  const indexed = parseIndexedSnapshotLines(blob)
+  const mediaTitles = collectMediaFeedTitlesFromParts(parts, 32)
+
+  const fromSnapshot: PageListItem[] = []
+  for (const item of legacy) {
+    fromSnapshot.push({ index: item.index, title: item.title, mediaUrls: [] })
+  }
+  for (const item of indexed) {
+    if (isLikelyVideoEntryTitle(item.title)) {
+      fromSnapshot.push({ index: item.index, title: item.title.replace(/<[^>]*>/g, ' ').trim(), mediaUrls: [] })
+    }
+  }
+  for (const title of mediaTitles) {
+    fromSnapshot.push({ title, mediaUrls: [] })
   }
 
-  return attachMedia(
-    merged.map((item) => ({ index: item.index, title: item.title, mediaUrls: [] as string[] })),
-    mediaUrls
-  )
+  const frameBlob = opts.frames ?? ''
+  if (frameBlob) {
+    for (const item of parseIndexedSnapshotLines(frameBlob, 24)) {
+      if (isLikelyVideoEntryTitle(item.title)) {
+        fromSnapshot.push({ index: item.index, title: item.title, mediaUrls: [] })
+      }
+    }
+  }
+
+  const merged = mergePageItems(fromSnapshot, [], opts.pageUrl)
+
+  if (!merged.length) {
+    return mediaUrls.length ? [{ title: '(media only)', mediaUrls }] : []
+  }
+
+  return attachMedia(merged, mediaUrls)
 }
 
 function str(value: unknown): string | undefined {

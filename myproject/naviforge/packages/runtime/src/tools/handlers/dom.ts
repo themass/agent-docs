@@ -1,6 +1,5 @@
 import { resolveBuiltinToolCall } from '../builtin-tool-resolver.js'
 import { INJECT_SCRIPT_DENIED } from '@naviforge/shared'
-import { extractPageList } from '@naviforge/extract'
 import type { ToolResult } from '@naviforge/shared'
 import type { RecordedDomAction } from '@naviforge/playbook'
 import { evaluateAskUser, isLikelyNavigationClick } from '@naviforge/policy'
@@ -345,7 +344,7 @@ const dom_execute_js: BuiltinHandler = async (input) => {
     }
     return { result, snap, recorded }
   }
-  const code = str(action.arguments.code)
+  const code = str(action.arguments.code) || str(action.arguments.expression)
   if (!code) {
     result = {
       ok: false,

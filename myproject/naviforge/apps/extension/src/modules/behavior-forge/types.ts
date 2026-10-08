@@ -1,3 +1,4 @@
+import type { eventWithTime } from 'rrweb'
 import type { BehaviorNetworkDigest } from './network-summary.js'
 
 /** Relative ms from session start. */

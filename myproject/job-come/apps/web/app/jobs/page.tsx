@@ -210,6 +210,13 @@ function FitCard({ job, fit }: { job: Job; fit: FitScore | null }) {
       >
         按该岗位优化简历
       </Link>
+      <p className="text-xs text-slate-500">
+        已登录用户：该岗已进入{" "}
+        <Link href="/applications" className="underline">
+          投递看板
+        </Link>
+        「已评估」，匹配分不会挡住拔高或导出。
+      </p>
     </section>
   );
 }
