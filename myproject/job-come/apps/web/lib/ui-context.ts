@@ -17,6 +17,7 @@ export type AgentUiContext = {
   page: string;
   step: string;
   focus: AgentUiFocus | null;
+  mock_session_id?: string | null;
 };
 
 export function experienceLabel(company: string, title: string): string {

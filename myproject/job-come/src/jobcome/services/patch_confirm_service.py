@@ -92,9 +92,10 @@ async def get_pending(confirm_id: str) -> PendingPatchConfirm | None:
 
 
 async def pop_pending(confirm_id: str) -> PendingPatchConfirm | None:
-    row = await get_pending(confirm_id)
-    if row is None:
-        return None
     redis = get_redis()
-    await redis.delete(_KEY_PREFIX + confirm_id)
-    return row
+    raw = await redis.getdel(_KEY_PREFIX + confirm_id)
+    if not raw:
+        return None
+    if isinstance(raw, bytes):
+        raw = raw.decode("utf-8")
+    return _deserialize(raw)

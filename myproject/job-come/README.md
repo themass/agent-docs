@@ -24,7 +24,7 @@ JOB_COME_WEB_CLEAN=true ./scripts/dev.sh
 
 # DeerFlow harness only (see docs/DeerFlow接入.md)
 
-- **第一版（M1）功能与方案**：[docs/M1-第一版方案.md](docs/M1-第一版方案.md) ← **开工读这份**
+- **第一版（M1）功能与方案**：[docs/M1-第一版方案.md](docs/M1-第一版方案.md) （历史规划，当前范围先读 V1 发布范围）
 - **MySQL 库表（前缀 `jc_`）**：[docs/数据库设计.md](docs/数据库设计.md)
 - **TOS / CDN / LiteLLM**：[docs/基础设施与LLM.md](docs/基础设施与LLM.md)
 - **组织工程标准（可复用）**：[docs/standards/PROJECT_STANDARD.md](../docs/standards/PROJECT_STANDARD.md)
@@ -37,3 +37,10 @@ JOB_COME_WEB_CLEAN=true ./scripts/dev.sh
 - MVP 产品方案：[docs/MVP-产品方案.md](docs/MVP-产品方案.md)
 - 技术方案：[docs/技术方案.md](docs/技术方案.md)
 - MCP 配置模板：[deploy/deerflow/extensions_config.example.json](deploy/deerflow/extensions_config.example.json)
+
+## V1 发布与测试
+
+- [V1 发布范围](docs/RELEASE_SCOPE_V1.md)
+- [V1 验收记录](docs/V1_ACCEPTANCE.md)
+- [Harness 选型结论](docs/HARNESS_DECISION.md)
+- [用户测试指南](docs/USER_TEST_GUIDE.md)

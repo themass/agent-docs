@@ -57,11 +57,12 @@ if [[ -n "$EMAIL" && -n "$PASSWORD" ]]; then
   curl -sf -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
     "$BASE/campaign/profiles/${PROFILE_ID}" >/dev/null
 
-  echo "==> Apply pipeline (may fail reviewer if LLM strict — check response)"
-  curl -sf -c "$COOKIE_JAR" -b "$COOKIE_JAR" -X POST \
+  echo "==> Apply pipeline (reviewer/export failure is a test failure)"
+  PIPELINE_JSON=$(curl -sf -c "$COOKIE_JAR" -b "$COOKIE_JAR" -X POST \
     "$BASE/jobs/profiles/${PROFILE_ID}/apply-pipeline" \
     -H 'Content-Type: application/json' \
-    -d "{\"job_id\":\"$JOB_ID\",\"export_format\":\"docx\"}" || true
+    -d "{\"job_id\":\"$JOB_ID\",\"export_format\":\"docx\"}")
+  echo "$PIPELINE_JSON" | python3 -c 'import json,sys; data=json.load(sys.stdin); export=data.get("export") or {}; assert export.get("status") == "done" and not export.get("error"), data'
 else
   echo "==> Skip login flows (set JOB_COME_E2E_EMAIL/PASSWORD for full path)"
 fi

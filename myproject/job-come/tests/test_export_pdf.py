@@ -1,8 +1,6 @@
-"""Resume export regression — HTML always; PDF when Playwright available."""
+"""Release gate: HTML and PDF must both work; missing browser is a failure."""
 
 from __future__ import annotations
-
-import pytest
 
 from jobcome.services.resume_render_engine import ResumeRenderEngine
 
@@ -46,10 +44,7 @@ def test_export_html_contains_resume_keywords() -> None:
 def test_export_pdf_page_count_and_text() -> None:
     engine = ResumeRenderEngine()
     html = engine.render_html(FIXTURE_SECTIONS)
-    try:
-        pdf_bytes = engine.render_pdf(html)
-    except RuntimeError as exc:
-        pytest.skip(f"playwright unavailable: {exc}")
+    pdf_bytes = engine.render_pdf(html)
 
     import fitz
 

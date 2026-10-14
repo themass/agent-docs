@@ -37,6 +37,7 @@ class JobResponse(BaseModel):
     fit_recommendation: str | None
     fit_gaps: list
     fit_blockers: list
+    provenance: dict | None = None
     parsed: JDParseResult | None = None
     fit_summary: str | None = None
     elevate_hints: list[str] = Field(default_factory=list)
@@ -68,6 +69,7 @@ class FitScoreResponse(BaseModel):
 
 
 class ParseFromUrlRequest(BaseModel):
+    render: bool = Field(default=False, description="Isolated read-only dynamic public page")
     url: str = Field(min_length=8, max_length=1024)
     save: bool = Field(default=True)
 

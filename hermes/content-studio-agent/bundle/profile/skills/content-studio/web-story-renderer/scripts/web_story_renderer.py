@@ -29,6 +29,10 @@ VIDEO_PIPELINE_SCRIPTS = CONTENT_STUDIO_DIR / "video-pipeline" / "scripts"
 if str(VIDEO_PIPELINE_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(VIDEO_PIPELINE_SCRIPTS))
 
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+import story_content  # noqa: E402
 from daily_ranking_chart import parse_daily_overview_table  # noqa: E402
 from video_generator import (  # noqa: E402
     VideoRenderError,
@@ -50,10 +54,23 @@ class StoryProject:
     rank: int | None
     repo: str
     shortName: str
+    owner: str
     role: str
     summary: str
+    intro: str
+    highlights: list[str]
+    audience: str
+    quickstart: str
+    verdict: str
     language: str
+    category: str
     starsToday: str
+    stars: str
+    forks: str
+    license: str
+    updated: str
+    topics: list[str]
+    url: str
     screenshot: str
 
 
@@ -106,7 +123,9 @@ def _overview_by_repo(report_path: Path) -> dict[str, dict[str, str]]:
     rows = parse_daily_overview_table(report_path, limit=25)
     return {
         row.name: {
-            "language": "",
+            "language": row.language,
+            "category": row.category,
+            "url": row.url,
             "starsToday": row.stars_today,
             "summary": row.summary,
             "rank": str(row.rank),
@@ -119,20 +138,6 @@ def _timeline_json(script_path: Path) -> list[dict[str, Any]]:
     narration = extract_narration(script_path)
     estimated_seconds = max(72.0, min(150.0, len(narration) / 5.9))
     return [asdict(segment) for segment in build_media_timeline(narration, estimated_seconds)]
-
-
-def _summary_from_narration(script_path: Path) -> dict[str, Any]:
-    narration = extract_narration(script_path)
-    paragraphs = [part.strip() for part in re.split(r"\n\s*\n", narration) if part.strip()]
-    outro = paragraphs[-1] if paragraphs else narration
-    sentences = [part.strip() for part in re.split(r"[。！？!?]", outro) if part.strip()]
-    bullets = sentences[-3:] if len(sentences) >= 3 else sentences
-    if not bullets:
-        bullets = ["把热榜项目看成生产链路", "关注工具之间的组合能力", "沉淀可复用的 Agent 工作流"]
-    return {
-        "oneLine": "基座 + 网关 + 工程增强",
-        "bullets": [item[:44] for item in bullets[:3]],
-    }
 
 
 def _render_preview(index_path: Path, preview_path: Path) -> None:
@@ -364,7 +369,9 @@ def build_story(
         msg = "无法从日报和视频脚本中选择 Web Story 项目"
         raise VideoRenderError(msg)
 
-    projects: list[StoryProject] = []
+    script_is_fallback = "降级生成" in script_text or not script_projects
+    bases: list[dict[str, Any]] = []
+    facts_by_repo: dict[str, dict[str, Any]] = {}
     for index, repo in enumerate(repos):
         screenshot = github_dir / f"{repo.replace('/', '__')}-fullpage.png"
         capture_github_repo_page(repo, screenshot)
@@ -373,31 +380,97 @@ def build_story(
         rank = meta.get("rank")
         if rank is None and report_meta.get("rank"):
             rank = int(report_meta["rank"])
-        role = str(meta.get("role") or "趋势项目")
-        summary = str(meta.get("summary") or report_meta.get("summary") or "值得跟踪的 GitHub 热榜项目")
+        facts = story_content.fetch_repo_facts(repo, github_dir)
+        facts_by_repo[repo] = facts
+        bases.append(
+            {
+                "rank": rank if isinstance(rank, int) else index + 1,
+                "repo": repo,
+                "shortName": repo.split("/", 1)[-1],
+                "owner": repo.split("/", 1)[0],
+                "summary": str(meta.get("summary") or report_meta.get("summary") or ""),
+                "scriptRole": str(meta.get("role") or ""),
+                "language": report_meta.get("language", ""),
+                "category": report_meta.get("category", ""),
+                "starsToday": report_meta.get("starsToday", "-"),
+                "url": report_meta.get("url") or f"https://github.com/{repo}",
+                "screenshot": f"./github/{screenshot.name}",
+            }
+        )
+
+    # Pass 1: extractive copy (also feeds the LLM brief); pass 2: LLM-polished copy.
+    drafts = [
+        story_content.build_project_copy(base, facts_by_repo[base["repo"]], None) for base in bases
+    ]
+    llm_input = [{**base, **draft} for base, draft in zip(bases, drafts)]
+    print("✍️  Web Story 文案生成（GitHub 资料 + LLM，失败自动降级）…")
+    llm_result = story_content.llm_enrich(llm_input, date=date, profile_dir=PROFILE_DIR)
+    print("   LLM 文案: " + ("已生成" if llm_result else "不可用，使用 README 摘要降级"))
+    llm_projects = (llm_result or {}).get("projects", {})
+    if not isinstance(llm_projects, dict):
+        llm_projects = {}
+
+    projects: list[StoryProject] = []
+    for base in bases:
+        copy = story_content.build_project_copy(
+            base, facts_by_repo[base["repo"]], llm_projects.get(base["repo"])
+        )
+        role = base["scriptRole"] or copy["role"]
         projects.append(
             StoryProject(
-                rank=rank if isinstance(rank, int) else index + 1,
-                repo=repo,
-                shortName=repo.split("/", 1)[-1],
+                rank=base["rank"],
+                repo=base["repo"],
+                shortName=base["shortName"],
+                owner=base["owner"],
                 role=role,
-                summary=summary,
-                language=report_meta.get("language", "GitHub"),
-                starsToday=report_meta.get("starsToday", "-"),
-                screenshot=f"./github/{screenshot.name}",
+                summary=copy["description"],
+                intro=copy["intro"],
+                highlights=copy["highlights"],
+                audience=copy["audience"],
+                quickstart=copy["quickstart"],
+                verdict=copy["verdict"],
+                language=copy["language"],
+                category=base["category"],
+                starsToday=base["starsToday"],
+                stars=copy["stars"],
+                forks=copy["forks"],
+                license=copy["license"],
+                updated=copy["updated"],
+                topics=copy["topics"],
+                url=base["url"],
+                screenshot=base["screenshot"],
             )
         )
+    project_dicts = [asdict(project) for project in projects]
+    theme = story_content.build_theme(
+        theme, script_is_fallback, (llm_result or {}).get("theme"), project_dicts
+    )
+    summary = story_content.build_summary(project_dicts, (llm_result or {}).get("summary"))
+    ranking = [
+        {
+            "rank": row["rank"],
+            "name": name,
+            "starsToday": row["starsToday"],
+            "language": row["language"],
+            "category": row["category"],
+            "summary": row["summary"][:80],
+        }
+        for name, row in sorted(overview.items(), key=lambda pair: int(pair[1]["rank"] or 0))
+    ]
 
     story_data = {
         "date": date,
         "theme": theme,
-        "projects": [asdict(project) for project in projects],
+        "projects": project_dicts,
+        "ranking": ranking,
         "timeline": _timeline_json(script_path),
-        "summary": _summary_from_narration(script_path),
+        "summary": summary,
         "source": {
             "report": str(report_path),
             "script": str(script_path),
             "mode": "web-story-experimental",
+            "scriptIsFallback": script_is_fallback,
+            "llm": bool(llm_result),
         },
     }
     (output_dir / "story-data.json").write_text(

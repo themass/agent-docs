@@ -27,7 +27,8 @@ docs/hermes/content-studio-agent/bundle/
 | **`scripts/`** | ✅ 是 | ✅ | `content-studio.sh` 主编排器 |
 | **`config/tts-providers.example.yaml`** | ✅ 是 | ✅ | TTS 模板 |
 | **`docs/TTS_CONFIG.md`** | ✅ 是 | ✅ | TTS 文档 |
-| **`config.yaml`** | ⚙️ 环境 | ❌ 用 `config.yaml.example` | 含模型、base_url；可能有 api_key |
+| **`config.yaml`** | ⚙️ 环境 | ❌ 用 `config.yaml.example` | 含模型、base_url；由 **sync-content-studio-secrets.sh** 写入，勿手改多处 |
+| **`secrets.env`** | 🔐 密钥 | ❌ | **LLM 单一来源**（key、上游、可选 `LLM_MODEL` / `LLM_PROXY_URL`） |
 | **`secrets.env` / `.env`** | 🔐 密钥 | ❌ | 仅本机 |
 | **`config/tts-providers.yaml`** | 🔐 密钥 | ❌ | 真实 TTS key |
 | **`reports/`** | 📦 产出 | ❌ | 日报、视频、脚本（可单独备份） |
@@ -73,7 +74,7 @@ Hermes **对话时**还会读 `config.yaml` + 已安装的其它 `skills/*`，�
 | **`$HERMES_HOME/scripts/content-studio.sh`** | **内容生产** CLI（日报/视频/SOP），不是起服务 |
 | **`$HERMES_HOME/scripts/setup-cron.sh`** | 安装 Cron |
 
-起 **Hermes Gateway** 本身：`hermes gateway run`（需 `HERMES_HOME` 指向 content-studio）。
+起 **Hermes Gateway**（全机一个进程、服务所有 Profile）：`HERMES_HOME=~/.hermes hermes -p default gateway run`。Content Studio 栈脚本已按此启动；**不要**在 `content-studio` Profile 下单独起 Gateway，也**不要**设置 `gateway.standalone: true`（否则 Dashboard 只能看到当前 Profile）。若曾用过 standalone，执行一次 `hermes gateway migrate --multiplex`，并从 `profiles/content-studio/config.yaml` 删除 `gateway.standalone` 后重启 Gateway。
 
 ---
 

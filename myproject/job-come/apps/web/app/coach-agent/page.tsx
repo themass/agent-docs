@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { AgentWorkbench } from "@/components/agent/AgentWorkbench";
@@ -13,11 +13,12 @@ function CoachAgentInner() {
   const searchParams = useSearchParams();
   const profileId = context?.active_profile_id ?? null;
   const jobId = searchParams.get("job_id");
+  const [mockSessionId, setMockSessionId] = useState<string | null>(null);
   const practiceQid = searchParams.get("practice");
 
   const subtitle = jobId
     ? "对着当前岗位模拟、记题、抽库再练"
-    : "从投递看板带岗进入，才能抽库和对着 JD 练";
+    : "无 JD 也可练手；选择岗位后可进行目标岗模拟";
 
   return (
     <div className="flex min-h-0 flex-1 flex-col space-y-3">
@@ -29,6 +30,7 @@ function CoachAgentInner() {
         subtitle={subtitle}
         profileId={profileId}
         jobId={jobId}
+        uiContext={{ page: "coach-agent", step: "mock", focus: null, mock_session_id: mockSessionId }}
         skillHint="coach-mock"
         kind="coach"
         disabled={context?.actor !== "user"}
@@ -38,6 +40,7 @@ function CoachAgentInner() {
           profileId={profileId}
           jobId={jobId}
           practiceQid={practiceQid}
+          onSessionChange={setMockSessionId}
           disabled={context?.actor !== "user"}
         />
       </AgentWorkbench>

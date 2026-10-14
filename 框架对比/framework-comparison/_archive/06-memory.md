@@ -12,7 +12,7 @@
 > **Session 存储与多实例**: 见 **[06-memory.md](06-memory.md)** §Session 存储与多实例（Tier 1/2 总表 + 部署聚类 + 检查清单）  
 > **Session / Message 五平面体系**: [21-session-message-architecture.md](./21-session-message-architecture.md) · JSON 形态 [19](./19-session-message-model.md)  
 > **关联**: [06-memory.md](06-memory.md)（Session / 文件沉淀 / Skill 演进流程）· [01-overview.md](./01-overview.md)  
-> **AgentScope 权威**: [agentscope/docs/MEMORY_SYSTEM.md](../../agentscope/docs/MEMORY_SYSTEM.md)  
+> **AgentScope 权威**: [agentscope/AGENTSCOPE.md#part-memory](../../agentscope/AGENTSCOPE.md#part-memory)  
 > **历史长文**: [docs/框架对比/上下文压缩与记忆机制深度对比.md](../../docs/框架对比/上下文压缩与记忆机制深度对比.md)
 
 ---
@@ -94,7 +94,7 @@ summary: "用户要…已完成…下一步…"  （伪 UserMsg 注入）
 context: [sys, summary_msg, u3, a3, u4, a4]     ← 头部 u1/a1/u2/a2 不再进 LLM
 ```
 
-详见 [MEMORY_SYSTEM.md §4–§7](../../agentscope/docs/MEMORY_SYSTEM.md)。
+详见 [MEMORY_SYSTEM.md §4–§7](../../agentscope/AGENTSCOPE.md#part-memory)。
 
 ### 4.3 deepagents / deer-flow（S2）
 
@@ -215,7 +215,7 @@ context: [sys, summary_msg, u3, a3, u4, a4]     ← 头部 u1/a1/u2/a2 不再进
 | 文档 | 内容 |
 |------|------|
 | [01-overview.md](./01-overview.md) | 全工程总对比 §6 摘要 |
-| [agentscope/docs/MEMORY_SYSTEM.md](../../agentscope/docs/MEMORY_SYSTEM.md) | AgentScope 唯一权威 |
+| [agentscope/AGENTSCOPE.md#part-memory](../../agentscope/AGENTSCOPE.md#part-memory) | AgentScope 唯一权威 |
 | [06-memory.md](06-memory.md) | M1–M5、S1–S7 压缩策略 |
 | [06-memory.md](06-memory.md) | Session / 文件 / Skill 沉淀链 |
 | [06-memory.md](06-memory.md) | CrewAI Memory ③ 端到端 |
@@ -1408,7 +1408,7 @@ sequenceDiagram
 
 > **文档类型**: 框架对比 · 深潜文档  
 > **源码真源**: `agentscope/src/agentscope/`  
-> **官方记忆文档**: [`agentscope/docs/MEMORY_SYSTEM.md`](../../agentscope/docs/MEMORY_SYSTEM.md)
+> **官方记忆文档**: [`agentscope/AGENTSCOPE.md#part-memory`](../../agentscope/AGENTSCOPE.md#part-memory)
 
 ---
 
@@ -1897,7 +1897,7 @@ Agent 构造时扫描 `is_implemented(hook)`，仅挂载已实现钩子。
 
 | 资源 | 路径 |
 |------|------|
-| 记忆权威文档 | `agentscope/docs/MEMORY_SYSTEM.md` |
+| 记忆权威文档 | `agentscope/AGENTSCOPE.md#part-memory` |
 | 架构 Part 1 | `agentscope/docs/ARCHITECTURE_PART1.md` |
 | Agent 源码 | `agentscope/src/agentscope/agent/_agent.py` |
 | AgentState | `agentscope/src/agentscope/state/_state.py` |

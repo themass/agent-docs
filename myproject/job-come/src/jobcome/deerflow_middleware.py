@@ -37,7 +37,7 @@ def _session_context_block() -> str:
         lines.append(f"profile_id={profile_id}")
         lines.append("bound_resume=true")
         lines.append("do_not_introduce=true")
-        lines.append("never_ask_clarification=true")
+        lines.append("ask_clarification_when_facts_missing=true")
     if job_id := os.environ.get("JOB_COME_MCP_JOB_ID"):
         lines.append(f"job_id={job_id}")
     if session_id := os.environ.get("JOB_COME_MCP_SESSION_ID"):

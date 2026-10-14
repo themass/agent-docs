@@ -1,24 +1,10 @@
 import type { Metadata } from "next";
-import { Inter, Noto_Sans_SC } from "next/font/google";
 
 import { AppHeader } from "@/components/layout/AppHeader";
 import { AuthProvider } from "@/lib/auth/AuthProvider";
 import { NotificationProvider } from "@/lib/notifications/NotificationProvider";
 
 import "./globals.css";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-});
-
-const notoSansSc = Noto_Sans_SC({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-noto",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "JobCome",
@@ -27,10 +13,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="zh-CN" className={`${inter.variable} ${notoSansSc.variable} h-full`}>
+    <html lang="zh-CN" className="h-full">
       <body
         className="flex h-full min-h-screen flex-col font-sans antialiased"
-        style={{ fontFamily: "var(--font-noto), var(--font-inter), system-ui, sans-serif" }}
+        style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif' }}
       >
         <AuthProvider>
           <NotificationProvider>

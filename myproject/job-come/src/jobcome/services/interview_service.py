@@ -9,8 +9,8 @@ from agentkit.web.auth import Actor, UserActor
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from jobcome.coach.planner import select_bank_draws
-from jobcome.exceptions import NotFoundError
-from jobcome.mcp.context import McpRunContext
+from jobcome.exceptions import NotFoundError, ConflictError
+from jobcome.mcp.context import McpRunContext, require_owned_references
 from jobcome.mcp.question_upsert import question_upsert
 from jobcome.models.enums import MockSessionStatus
 from jobcome.models.interview import InterviewQuestion, InterviewRecord, MockSession
@@ -20,6 +20,8 @@ from jobcome.schemas.coach import (
     AnswerAttemptSummary,
     BankSearchResponse,
     InterviewSaveRequest,
+    InterviewSummary,
+    InterviewListResponse,
     InterviewSaveResponse,
     MockSessionCreateRequest,
     MockSessionQuestion,
@@ -101,6 +103,15 @@ class InterviewService:
             ],
         )
 
+    async def list_interviews(self, profile_id: str, *, actor: Actor) -> InterviewListResponse:
+        await self._profiles.get(profile_id, actor=actor)
+        rows = await self._store.list_interviews(profile_id)
+        return InterviewListResponse(interviews=[InterviewSummary(
+            id=r.id, company=r.company, role_title=r.role_title, interview_date=r.interview_date,
+            round=r.round, type=r.type, job_id=r.job_id, result=r.result,
+            failure_tags=r.failure_tags or [], notes=r.notes, question_ids=r.question_ids or []
+        ) for r in rows])
+
     async def save_interview(
         self,
         profile_id: str,
@@ -109,6 +120,12 @@ class InterviewService:
         body: InterviewSaveRequest,
     ) -> InterviewSaveResponse:
         await self._profiles.get(profile_id, actor=actor)
+        ctx = McpRunContext(db=self._db, user_id=getattr(actor, "user_id", None), profile_id=profile_id)
+        await require_owned_references(ctx, job_id=body.job_id)
+        for qid in body.question_ids:
+            question = await self._store.get_question(qid)
+            if question is None or question.profile_id != profile_id:
+                raise NotFoundError("Question not found")
         record = InterviewRecord(
             id=new_id("intr"),
             profile_id=profile_id,
@@ -140,7 +157,7 @@ class InterviewService:
             raise NotFoundError("Question not found")
         await self._profiles.get(question.profile_id, actor=actor)
 
-        from jobcome.mcp.context import McpRunContext
+        from jobcome.mcp.context import McpRunContext, require_owned_references
         from jobcome.mcp.handlers import answer_save_attempt
 
         user_id = actor.user_id if isinstance(actor, UserActor) else None
@@ -162,16 +179,14 @@ class InterviewService:
         body: MockSessionCreateRequest,
     ) -> MockSessionResponse:
         await self._profiles.get(body.profile_id, actor=actor)
+        ctx = McpRunContext(db=self._db, user_id=actor.user_id, profile_id=body.profile_id)
+        await require_owned_references(ctx, job_id=body.job_id)
         now = datetime.now(UTC)
         draws: list[str] = []
-        if body.job_id:
-            bank = await self._store.search_questions(
-                body.profile_id, job_id=body.job_id, limit=30
-            )
-            draws = select_bank_draws(
-                [(q.id, q.attempt_count) for q in bank],
-                n=1,
-            )
+        if body.mode == "target" and not body.job_id:
+            raise ConflictError("目标岗模拟需要先选择岗位；无 JD 可使用练手模式")
+        bank = await self._store.search_questions(body.profile_id, job_id=body.job_id, limit=30)
+        draws = select_bank_draws([(q.id, q.attempt_count) for q in bank], n=1)
         session = MockSession(
             id=new_id("mock"),
             profile_id=body.profile_id,
@@ -206,6 +221,15 @@ class InterviewService:
             raise NotFoundError("Mock session not found")
         return await self._to_mock_response(session)
 
+    async def complete_mock_session(self, session_id: str, *, actor: UserActor) -> MockSessionResponse:
+        await self.get_mock_session(session_id, actor=actor)
+        session = await self._store.get_mock_session(session_id)
+        if session.status == MockSessionStatus.ACTIVE:
+            session.status = MockSessionStatus.COMPLETED
+            session.completed_at = datetime.now(UTC)
+            await self._db.commit()
+        return await self._to_mock_response(session)
+
     async def log_question(
         self,
         profile_id: str,
@@ -224,6 +248,7 @@ class InterviewService:
             job_id=body.job_id,
             mock_session_id=body.mock_session_id,
             round=body.round,
+            source=body.source,
         )
         if body.user_answer and body.user_answer.strip():
             await self.save_attempt(

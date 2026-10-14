@@ -9,6 +9,7 @@ from agentkit.common.ids import new_id
 from agentkit.web.auth import Actor, GuestActor, UserActor
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from jobcome.exceptions import ForbiddenError, NotFoundError
 from jobcome.resume_locale import other_monolingual
 from jobcome.models.enums import OwnerKind, ParseStatus, ProfileStatus
 from jobcome.models.profile import Profile, ProfileSource

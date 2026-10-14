@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any
 
 from docx import Document
+from docx.oxml.ns import qn
+from docx.shared import Cm, Pt, RGBColor
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 _TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "templates" / "resume"
@@ -38,7 +40,8 @@ class ResumeRenderEngine:
             browser = p.chromium.launch()
             try:
                 page = browser.new_page()
-                page.set_content(html, wait_until="networkidle")
+                page.route("**/*", lambda route: route.abort())
+                page.set_content(html, wait_until="load")
                 return page.pdf(format="A4", print_background=True)
             finally:
                 browser.close()
@@ -46,17 +49,41 @@ class ResumeRenderEngine:
     def render_docx(self, sections: dict[str, Any]) -> bytes:
         if sections.get("track") == "bilingual":
             buffer = io.BytesIO()
-            doc = Document()
+            doc = self._new_docx()
             self._append_docx_locale(doc, sections.get("zh_sections") or {}, english=False)
             doc.add_page_break()
             self._append_docx_locale(doc, sections.get("en_sections") or {}, english=True)
             doc.save(buffer)
             return buffer.getvalue()
-        doc = Document()
-        self._append_docx_locale(doc, sections, english=False)
+        doc = self._new_docx()
+        self._append_docx_locale(doc, sections, english=sections.get("locale", "").startswith("en"))
         buffer = io.BytesIO()
         doc.save(buffer)
         return buffer.getvalue()
+
+    @staticmethod
+    def _new_docx():
+        doc = Document()
+        section = doc.sections[0]
+        section.page_width, section.page_height = Cm(21), Cm(29.7)
+        section.top_margin = section.bottom_margin = Cm(1.6)
+        section.left_margin = section.right_margin = Cm(1.8)
+        for name, size in [
+            ("Normal", 10),
+            ("Title", 22),
+            ("Heading 1", 12),
+            ("Heading 2", 11),
+            ("List Bullet", 10),
+        ]:
+            style = doc.styles[name]
+            style.font.name = "Arial"
+            style.font.size = Pt(size)
+            style.font.color.rgb = RGBColor(0, 0, 0)
+            # Explicit CJK family avoids theme-font resolution losing Chinese glyphs.
+            style.element.get_or_add_rPr().get_or_add_rFonts().set(qn("w:eastAsia"), "Heiti SC")
+            style.paragraph_format.space_after = Pt(5)
+            style.paragraph_format.space_before = Pt(8 if "Heading" in name else 0)
+        return doc
 
     @staticmethod
     def _append_docx_locale(doc: Document, sections: dict[str, Any], *, english: bool) -> None:
@@ -76,5 +103,27 @@ class ResumeRenderEngine:
         for exp in sections.get("experience_blocks") or []:
             doc.add_heading(f"{exp.get('company')} — {exp.get('title')}", level=2)
             doc.add_paragraph(str(exp.get("date_range", "")))
+            if exp.get("location"):
+                doc.add_paragraph(str(exp["location"]))
             for bullet in exp.get("bullets", []):
+                doc.add_paragraph(str(bullet), style="List Bullet")
+
+        if sections.get("education_blocks"):
+            doc.add_heading("Education" if english else "教育背景", level=1)
+        for education in sections.get("education_blocks") or []:
+            doc.add_heading(str(education.get("school", "")), level=2)
+            doc.add_paragraph(str(education.get("degree_line", "")))
+            doc.add_paragraph(str(education.get("date_range", "")))
+        skills = sections.get("skills_block") or {}
+        if skills.get("content"):
+            doc.add_heading(str(skills.get("title") or ("Skills" if english else "技能")), level=1)
+            doc.add_paragraph(str(skills["content"]))
+        if sections.get("project_blocks"):
+            doc.add_heading("Projects" if english else "项目经历", level=1)
+        for project in sections.get("project_blocks") or []:
+            doc.add_heading(str(project.get("name", "")), level=2)
+            for key in ("date_range", "description"):
+                if project.get(key):
+                    doc.add_paragraph(str(project[key]))
+            for bullet in project.get("bullets") or []:
                 doc.add_paragraph(str(bullet), style="List Bullet")

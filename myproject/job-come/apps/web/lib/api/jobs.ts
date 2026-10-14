@@ -34,6 +34,7 @@ export type Job = {
   elevate_hints?: string[];
   fit_dimensions?: Record<string, number>;
   legitimacy?: string | null;
+  provenance?: { final_url: string; fetched_at: string; method: string; untrusted_content: boolean } | null;
   parsed?: JDParseResult;
 };
 
@@ -44,10 +45,10 @@ export function parseJob(profileId: string, rawText: string, sourceUrl?: string)
   });
 }
 
-export function parseJobUrl(profileId: string, url: string) {
+export function parseJobUrl(profileId: string, url: string, render = false) {
   return apiJson<Job>(`/jobs/profiles/${profileId}/parse-url`, {
     method: "POST",
-    body: JSON.stringify({ url, save: true }),
+    body: JSON.stringify({ url, render, save: true }),
   });
 }
 

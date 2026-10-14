@@ -9,7 +9,16 @@ fi
 DEEPAGENTS_PYTHON_ENV_LOADED=1
 
 _DEEPAGENTS_ENV_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
-DEEPAGENTS_REPO_ROOT="${DEEPAGENTS_REPO_ROOT:-$(cd "$_DEEPAGENTS_ENV_DIR/.." && pwd)}"
+# bundle/lib → monorepo root is 5 levels up; prefer REPO_ROOT when env.sh was sourced first.
+if [[ -z "${DEEPAGENTS_REPO_ROOT:-}" ]]; then
+  if [[ -n "${REPO_ROOT:-}" ]]; then
+    DEEPAGENTS_REPO_ROOT="$REPO_ROOT"
+  elif [[ -n "${BUNDLE_ROOT:-}" ]]; then
+    DEEPAGENTS_REPO_ROOT="$(cd "$BUNDLE_ROOT/../../../.." && pwd)"
+  else
+    DEEPAGENTS_REPO_ROOT="$(cd "$_DEEPAGENTS_ENV_DIR/../../../../.." && pwd)"
+  fi
+fi
 DEEPAGENTS_VENV="${DEEPAGENTS_VENV:-$DEEPAGENTS_REPO_ROOT/venv}"
 DEEPAGENTS_PYTHON="${DEEPAGENTS_PYTHON:-$DEEPAGENTS_VENV/bin/python3}"
 

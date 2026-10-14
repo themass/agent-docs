@@ -49,5 +49,14 @@
   <h2>{{ skills_block.title }}</h2>
   <p>{{ skills_block.content }}</p>
   {% endif %}
+  {% if project_blocks %}
+  <h2>项目经历</h2>
+  {% for proj in project_blocks %}
+  <div class="exp-title">{{ proj.name }}</div>
+  <div class="exp-meta">{{ proj.date_range }}</div>
+  <p>{{ proj.description }}</p>
+  <ul>{% for bullet in proj.bullets %}<li>{{ bullet }}</li>{% endfor %}</ul>
+  {% endfor %}
+  {% endif %}
 </body>
 </html>

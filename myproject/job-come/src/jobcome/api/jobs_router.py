@@ -28,7 +28,6 @@ from jobcome.schemas.job import (
 )
 from jobcome.services.application_service import ApplicationService
 from jobcome.services.apply_pipeline_service import ApplyPipelineService
-from jobcome.services.jd_fetch_service import JdFetchService
 from jobcome.services.job_service import JobService
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
@@ -53,7 +52,7 @@ async def parse_job_description(
     "/profiles/{profile_id}/parse-url",
     response_model=JobResponse,
     summary="从招聘链接解析 JD",
-    description="抓取公开页面正文后走 JD 解析（Scout-lite，无浏览器）。",
+    description="公开只读 GET；可选隔离动态读取，不登录、不投递。",
 )
 async def parse_job_from_url(
     profile_id: Annotated[str, Path(description="档案 ID")],
@@ -61,12 +60,7 @@ async def parse_job_from_url(
     actor: Actor = Depends(get_actor),
     jobs: JobService = Depends(get_job_service),
 ) -> JobResponse:
-    text = await JdFetchService().fetch_text(body.url)
-    return await jobs.parse_jd(
-        profile_id,
-        actor=actor,
-        body=JobParseRequest(raw_text=text, source_url=body.url, save=body.save),
-    )
+    return await jobs.parse_url(profile_id, actor=actor, body=body)
 
 
 @router.post(

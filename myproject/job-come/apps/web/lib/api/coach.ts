@@ -65,6 +65,7 @@ export function logQuestion(
   profileId: string,
   body: {
     stem: string;
+    source?: "mock" | "real";
     question_type?: string;
     company?: string | null;
     role_title?: string | null;
@@ -100,4 +101,25 @@ export type QuestionDetail = {
 
 export function getQuestionDetail(questionId: string): Promise<QuestionDetail> {
   return apiJson(`/coach/questions/${questionId}`);
+}
+
+export function completeMockSession(sessionId: string): Promise<MockSession> {
+  return apiJson(`/coach/mock/sessions/${sessionId}/complete`, { method: "POST" });
+}
+
+export function saveInterview(profileId: string, body: {
+  company: string; role_title: string; interview_date: string;
+  job_id?: string | null; notes?: string; question_ids: string[];
+}): Promise<{ id: string }> {
+  return apiJson(`/coach/profiles/${profileId}/interviews`, {
+    method: "POST", body: JSON.stringify(body),
+  });
+}
+
+export type InterviewSummary = {
+  id: string; company: string; role_title: string; interview_date: string;
+  notes: string | null; question_ids: string[];
+};
+export function listInterviews(profileId: string): Promise<{ interviews: InterviewSummary[] }> {
+  return apiJson(`/coach/profiles/${profileId}/interviews`);
 }

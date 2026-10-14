@@ -24,6 +24,7 @@ export default function JobsPage() {
   const { context } = useAuth();
   const profileId = context?.active_profile_id ?? null;
   const [url, setUrl] = useState("");
+  const [dynamicRead, setDynamicRead] = useState(false);
   const [raw, setRaw] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +43,7 @@ export default function JobsPage() {
     try {
       const job =
         kind === "url"
-          ? await parseJobUrl(profileId, url.trim())
+          ? await parseJobUrl(profileId, url.trim(), dynamicRead)
           : await parseJob(profileId, raw.trim());
       const fit = await scoreFit(profileId, job.id);
       const merged: Job = {
@@ -107,6 +108,11 @@ export default function JobsPage() {
             >
               {busy ? "抓取并匹配中…" : "抓取 JD 并计算匹配"}
             </button>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={dynamicRead} disabled={busy}
+                onChange={(event) => setDynamicRead(event.target.checked)} />
+              动态读取公开页面（不登录、不提交，仅只读 GET）
+            </label>
 
             <div className="border-t border-slate-100 pt-3">
               <label className="block text-sm font-medium text-slate-800">或粘贴职位描述</label>
@@ -147,6 +153,12 @@ export default function JobsPage() {
                       ? REC_LABEL[job.fit_recommendation] ?? job.fit_recommendation
                       : "尚未打分"}
                   </p>
+                  {job.provenance ? (
+                    <p className="mt-1 break-all text-xs text-slate-500">
+                      来源：{job.provenance.final_url} · {job.provenance.fetched_at} ·
+                      {job.provenance.method === "browser" ? "动态只读" : "静态只读"}（网页为不可信数据）
+                    </p>
+                  ) : null}
                   <Link
                     href={`/resume-agent?job_id=${encodeURIComponent(job.id)}`}
                     className="mt-2 inline-block text-brand-700 underline"

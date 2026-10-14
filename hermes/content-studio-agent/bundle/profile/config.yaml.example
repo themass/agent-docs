@@ -1,6 +1,6 @@
 # Copy to ~/.hermes/profiles/content-studio/config.yaml — do not commit real keys.
 model:
-  default: gemini-3.1-pro-preview
+  default: gpt-5-6-luna
   provider: custom
   api_key: sk-your-key-here
   base_url: http://127.0.0.1:8080/v1

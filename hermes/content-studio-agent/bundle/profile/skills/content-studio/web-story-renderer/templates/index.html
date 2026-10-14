@@ -20,19 +20,26 @@
           .replaceAll(">", "&gt;")
           .replaceAll('"', "&quot;");
 
+      const chip = (label, value) =>
+        value ? `<span class="chip"><em>${esc(label)}</em>${esc(value)}</span>` : "";
+
       const projectCard = (project, index) => `
         <section class="story-section project-section">
-          <div class="section-copy">
-            <p class="eyebrow">链上角色 0${index + 1}</p>
+          <header class="project-head">
+            <p class="eyebrow">#${esc(project.rank || index + 1)} · ${esc(project.role)}</p>
             <h2>${esc(project.shortName)}</h2>
-            <p class="role">${esc(project.role)}</p>
-            <p class="summary">${esc(project.summary)}</p>
-            <div class="repo-meta">
-              <span>#${esc(project.rank || index + 1)}</span>
-              <span>${esc(project.language || "GitHub")}</span>
-              <span>${esc(project.repo)}</span>
-            </div>
+            <p class="owner">${esc(project.owner)} / ${esc(project.shortName)}</p>
+          </header>
+
+          <div class="chip-row">
+            ${chip("今日", project.starsToday)}
+            ${chip("Star", project.stars)}
+            ${chip("Fork", project.forks)}
+            ${chip("语言", project.language)}
+            ${chip("协议", project.license)}
+            ${chip("", project.updated)}
           </div>
+
           <div class="browser-frame">
             <div class="browser-top">
               <span></span><span></span><span></span>
@@ -40,14 +47,59 @@
             </div>
             <div class="github-shot-wrap">
               <div class="github-scroll-layer">
-                <img class="github-shot" src="${esc(project.screenshot)}" alt="${esc(project.repo)} GitHub screenshot" />
-                <div class="callout callout-stars">Star / Watch</div>
-                <div class="callout callout-readme">README</div>
+                <img class="github-shot" src="${esc(project.screenshot)}" alt="${esc(project.repo)} GitHub 页面截图" />
               </div>
+              <div class="scroll-hint">↓ 自动滚动浏览 README</div>
             </div>
           </div>
+
+          <div class="detail-grid">
+            <article class="detail-card wide">
+              <h4>它是什么</h4>
+              <p class="intro">${esc(project.intro)}</p>
+            </article>
+            <article class="detail-card wide">
+              <h4>核心亮点</h4>
+              <ul>${project.highlights.map((item) => `<li>${esc(item)}</li>`).join("")}</ul>
+            </article>
+            <article class="detail-card">
+              <h4>适合谁</h4>
+              <p>${esc(project.audience)}</p>
+            </article>
+            <article class="detail-card">
+              <h4>怎么上手</h4>
+              ${
+                project.quickstart
+                  ? `<p><code>${esc(project.quickstart)}</code></p>`
+                  : `<p>先读 README，再按示例跑一个最小场景。</p>`
+              }
+            </article>
+          </div>
+
+          <footer class="project-foot">
+            <strong>${esc(project.verdict)}</strong>
+            <a href="${esc(project.url)}" target="_blank" rel="noreferrer">${esc(project.url.replace("https://", ""))}</a>
+          </footer>
         </section>
       `;
+
+      const stats = data.summary.stats || {};
+      const heroChain = (data.theme.chain || []).length
+        ? `<p class="chain">${data.theme.chain.map(esc).join(" → ")}</p>`
+        : "";
+
+      const rankingTable = (data.ranking || [])
+        .map(
+          (row) => `
+            <tr>
+              <td>${esc(row.rank)}</td>
+              <td><strong>${esc(row.name)}</strong><small>${esc(row.summary)}</small></td>
+              <td>${esc(row.language)}</td>
+              <td>${esc(row.starsToday)}</td>
+            </tr>
+          `,
+        )
+        .join("");
 
       app.innerHTML = `
         <section class="story-section hero-section">
@@ -70,30 +122,85 @@
               )
               .join("")}
           </div>
-          <p class="chain">${data.theme.chain.map(esc).join(" → ")}</p>
+          ${heroChain}
         </section>
 
         ${data.projects.map(projectCard).join("")}
 
         <section class="story-section summary-section">
-          <p class="eyebrow">长期判断</p>
-          <h2>接下来的核心竞争力</h2>
-          <h3>不是模型接口，而是工程化链路</h3>
+          <p class="eyebrow">今日总结 · ${esc(data.date)}</p>
+          <h2>${esc(data.summary.oneLine)}</h2>
+          <div class="stat-strip">
+            <div><b>${esc(stats.projects)}</b><span>本期项目</span></div>
+            <div><b>${esc(stats.starsToday)}</b><span>今日新增 Star</span></div>
+            <div><b>${esc((stats.languages || []).join(" / ") || "-")}</b><span>主要语言</span></div>
+          </div>
+
           <div class="summary-grid">
-            ${data.summary.bullets
+            ${data.summary.takeaways
               .map(
-                (item, index) => `
+                (item) => `
                   <article>
-                    <b>${["趋势", "机会", "行动"][index] || "判断"}</b>
-                    <p>${esc(item)}</p>
+                    <b>${esc(item.label)}</b>
+                    <p>${esc(item.text)}</p>
                   </article>
                 `,
               )
               .join("")}
           </div>
-          <p class="summary-line">${esc(data.summary.oneLine)}</p>
+
+          <h3>怎么选</h3>
+          <div class="picks">
+            ${data.summary.picks
+              .map(
+                (pick) => `
+                  <a class="pick" href="https://github.com/${esc(pick.repo)}" target="_blank" rel="noreferrer">
+                    <span>${esc(pick.scenario)}</span>
+                    <strong>${esc(pick.shortName)}</strong>
+                    <small>${esc(pick.reason)}</small>
+                  </a>
+                `,
+              )
+              .join("")}
+          </div>
+
+          ${
+            rankingTable
+              ? `<h3>完整热榜</h3>
+                 <table class="ranking-table">
+                   <thead><tr><th>#</th><th>项目</th><th>语言</th><th>今日</th></tr></thead>
+                   <tbody>${rankingTable}</tbody>
+                 </table>`
+              : ""
+          }
         </section>
       `;
+
+      // Screenshot scrolling: derive distance from real sizes so the frame never
+      // shows empty space (short images fit exactly, long ones scroll a capped range).
+      const MAX_FRAME_HEIGHT = () => Math.min(Math.round(window.innerHeight * 0.62), 820);
+      const MAX_SCROLL = 1800;
+
+      const fitShot = (wrap) => {
+        const layer = wrap.querySelector(".github-scroll-layer");
+        const img = wrap.querySelector(".github-shot");
+        if (!img.naturalWidth) return;
+        const layerHeight = Math.round((wrap.clientWidth * img.naturalHeight) / img.naturalWidth);
+        const frameHeight = Math.max(360, Math.min(MAX_FRAME_HEIGHT(), layerHeight));
+        wrap.style.height = `${frameHeight}px`;
+        const distance = Math.max(0, Math.min(layerHeight - frameHeight, MAX_SCROLL));
+        layer.style.setProperty("--scroll-dist", `${distance}px`);
+        layer.style.setProperty("--scroll-dur", `${Math.max(8, Math.min(26, distance / 70))}s`);
+        layer.classList.toggle("is-scrolling", distance > 24);
+        wrap.querySelector(".scroll-hint").hidden = distance <= 24;
+      };
+
+      const fitAll = () => document.querySelectorAll(".github-shot-wrap").forEach(fitShot);
+      document.querySelectorAll(".github-shot").forEach((img) => {
+        if (img.complete) fitShot(img.closest(".github-shot-wrap"));
+        else img.addEventListener("load", () => fitShot(img.closest(".github-shot-wrap")));
+      });
+      window.addEventListener("resize", fitAll);
     </script>
   </body>
 </html>

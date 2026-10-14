@@ -71,8 +71,8 @@ github-daily（日报）
 |------|----------|---------------------------|
 | **Hermes Agent** | `hermes-dev/hermes-agent` | 运行时、Gateway、Skills 平台 |
 | **Hermes Workspace** | `hermes-dev/hermes-workspace` | 主控制台；Chat 被动更新见 `WORKSPACE_VS_WEBUI.md` |
-| **Open Notebook** | `open-notebook/` | `notebook-sync`、播客/研究 UI（:3001） |
-| **MoneyPrinterTurbo** | `MoneyPrinterTurbo/` | MPT 视频链路 |
+| **Open Notebook** | `../open-notebook/`（与 deepagents 同级；旧路径在仓库内） | `notebook-sync`、播客/研究 UI（:3001） |
+| **MoneyPrinterTurbo** | `../MoneyPrinterTurbo/`（与 deepagents 同级） | MPT 视频链路 |
 | **OpenInspector** | `openinspector/` | LLM 代理与 trace（:8080 / :5173） |
 | **DeepSpace Field** | `hermes-dev/deepspace-field/` | 独立 3D 科普 MVP，**非** Content Studio 主链 |
 

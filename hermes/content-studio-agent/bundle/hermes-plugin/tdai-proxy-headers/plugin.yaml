@@ -1,0 +1,4 @@
+name: tdai-proxy-headers
+version: "0.1.0"
+description: "Inject TencentDB Memory Proxy headers (team/agent/task + per-session x-conversation-id) on /hermes/ LLM requests. Install via install-tdai-proxy-headers-plugin.sh."
+author: "Content Studio / deepagents"

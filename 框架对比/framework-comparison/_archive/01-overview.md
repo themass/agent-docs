@@ -283,7 +283,7 @@ run_conversation():
 
 > **完整版**：[06-memory.md](./06-memory.md)（分层模型、压缩策略 S1–S7、Tier 2、选型）  
 > **Session / Message / Memory 分列速览**：§4 总览矩阵；消息投影见 [19-session-message-model.md](./19-session-message-model.md)  
-> AgentScope 权威：[agentscope MEMORY_SYSTEM.md](../../agentscope/docs/MEMORY_SYSTEM.md)
+> AgentScope 权威：[agentscope MEMORY_SYSTEM.md](../../agentscope/AGENTSCOPE.md#part-memory)
 
 ### 6.1 分层模型（统一语言）
 

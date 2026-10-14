@@ -48,10 +48,12 @@ def main() -> int:
         return 1
 
     updated = 0
+    has_llm_target = False
     for cred in credentials:
         provider = cred.get("provider", "")
         if provider not in targets:
             continue
+        has_llm_target = True
         name = cred.get("name", "")
         existing_base = (cred.get("base_url") or "").lower()
         # Do not overwrite TTS proxy credentials (ali-tts on :8969).
@@ -74,8 +76,31 @@ def main() -> int:
         except urllib.error.HTTPError as exc:
             print(f"skip {cred_id}: HTTP {exc.code}", file=sys.stderr)
 
+    if updated == 0 and not has_llm_target:
+        create_body = {
+            "name": "content-studio-llm",
+            "provider": "openai_compatible",
+            "modalities": ["language"],
+            "api_key": args.api_key,
+            "base_url": args.base_url,
+        }
+        try:
+            created = _request("POST", f"{api_base}/credentials", create_body)
+            cred_id = created.get("id") if isinstance(created, dict) else None
+            print(
+                f"created credential content-studio-llm ({cred_id}) → {args.base_url}"
+            )
+            updated = 1
+        except urllib.error.HTTPError as exc:
+            print(f"failed to create default credential: HTTP {exc.code}", file=sys.stderr)
+        except urllib.error.URLError as exc:
+            print(f"failed to create default credential: {exc}", file=sys.stderr)
+
     if updated == 0:
-        print("no matching credentials updated", file=sys.stderr)
+        print(
+            "no matching credentials updated (Open Notebook has LLM creds but none matched or PATCH failed)",
+            file=sys.stderr,
+        )
         return 0
     return 0
 

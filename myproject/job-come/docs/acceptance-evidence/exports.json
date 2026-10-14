@@ -1,0 +1,44 @@
+[
+  {
+    "format": "pdf",
+    "pages": 1,
+    "text_retention": 1.0,
+    "checked_fields": 18,
+    "template": "zh-one-page"
+  },
+  {
+    "format": "docx",
+    "pages": null,
+    "text_retention": 1.0,
+    "checked_fields": 18,
+    "template": "zh-one-page"
+  },
+  {
+    "format": "pdf",
+    "pages": 1,
+    "text_retention": 1.0,
+    "checked_fields": 18,
+    "template": "en-two-page"
+  },
+  {
+    "format": "docx",
+    "pages": null,
+    "text_retention": 1.0,
+    "checked_fields": 18,
+    "template": "en-two-page"
+  },
+  {
+    "format": "pdf",
+    "pages": 2,
+    "text_retention": 1.0,
+    "checked_fields": 36,
+    "template": "zh-en-bilingual"
+  },
+  {
+    "format": "docx",
+    "pages": null,
+    "text_retention": 1.0,
+    "checked_fields": 36,
+    "template": "zh-en-bilingual"
+  }
+]

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -30,8 +30,8 @@ class BankSearchResponse(BaseModel):
 
 
 class InterviewSaveRequest(BaseModel):
-    company: str
-    role_title: str
+    company: str = Field(min_length=1, max_length=256)
+    role_title: str = Field(min_length=1, max_length=256)
     interview_date: date
     round: str = "first"
     type: str = "target"
@@ -44,6 +44,14 @@ class InterviewSaveRequest(BaseModel):
 
 class InterviewSaveResponse(BaseModel):
     id: str
+
+
+class InterviewSummary(InterviewSaveRequest):
+    id: str
+
+
+class InterviewListResponse(BaseModel):
+    interviews: list[InterviewSummary]
 
 
 class AnswerAttemptRequest(BaseModel):
@@ -80,7 +88,7 @@ class QuestionDetailResponse(BaseModel):
 
 class MockSessionCreateRequest(BaseModel):
     profile_id: str
-    mode: str = "target"
+    mode: Literal["warmup", "target"] = "target"
     round: str | None = None
     job_id: str | None = None
 
@@ -106,6 +114,7 @@ class MockSessionResponse(BaseModel):
 
 
 class QuestionUpsertRequest(BaseModel):
+    source: Literal["real", "mock"] = "mock"
     stem: str = Field(min_length=4, max_length=4000)
     question_type: str = "behavioral"
     company: str | None = None

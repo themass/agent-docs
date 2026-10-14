@@ -6,9 +6,6 @@ const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: rootDir,
-  devIndicators: {
-    appIsrStatus: false,
-  },
   async rewrites() {
     return [
       {

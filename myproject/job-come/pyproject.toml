@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "agentkit",
-    "deerflow-extension-api==0.1.2",
+    "deerflow-extension-api==0.2.5",
     "deerflow-harness",
     "sqlalchemy[asyncio]>=2.0.36",
     "uvicorn[standard]>=0.32.0",
@@ -17,13 +17,15 @@ dependencies = [
     "email-validator>=2.2.0",
     "alembic>=1.14.0",
     "httpx>=0.28.0",
+    "httpcore==1.0.9",  # TCP pinning backend contract; covered by security tests
+    "anyio>=4.0,<5",
     "pymupdf>=1.24.0",
     "python-docx>=1.1.0",
     "jinja2>=3.1.0",
     "litellm>=1.55.0",
     "langgraph==1.2.9",
     "pyyaml>=6.0.0",
-    "mcp>=1.2.0,<2",
+    "mcp>=1.26,<2",
 ]
 
 [tool.uv.sources]
@@ -35,6 +37,7 @@ deerflow-extension-api = { path = "../../../libs/agentkit/vendor/deer-flow/backe
 dev = [
     "pytest>=8.3.0",
     "pytest-asyncio>=0.24.0",
+    "aiosqlite>=0.20.0",
     "ruff>=0.8.0",
     "mypy>=1.13.0",
 ]
@@ -68,3 +71,4 @@ packages = ["jobcome"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+pythonpath = ["src"]

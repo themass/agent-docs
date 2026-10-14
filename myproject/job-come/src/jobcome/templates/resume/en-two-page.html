@@ -61,6 +61,8 @@
   <h2>Projects</h2>
   {% for proj in project_blocks %}
   <div class="exp-title">{{ proj.name }}</div>
+  <div class="exp-meta">{{ proj.date_range }}</div>
+  <p>{{ proj.description }}</p>
   <ul>
     {% for bullet in proj.bullets %}<li>{{ bullet }}</li>{% endfor %}
   </ul>

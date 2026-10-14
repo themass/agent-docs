@@ -1,3 +1,5 @@
+import type { AgentUiContext } from "@/lib/ui-context";
+
 export type AgentAttachment = {
   kind: "image" | "file" | "audio";
   name: string;

@@ -1,6 +1,6 @@
 # JobCome 运行手册（RUNBOOK）
 
-JobCome 以 **本目录为项目根**；在 deepagents monorepo 内开发时 Python 用 **`../venv`**（见 `scripts/setup-venv.sh`）。
+JobCome 以 **本目录为项目根**；在 deepagents monorepo 内开发时 Python 用 **`../../../venv`**（见 `scripts/setup-venv.sh`）。
 
 ## 1. 环境准备
 
@@ -9,7 +9,7 @@ JobCome 以 **本目录为项目根**；在 deepagents monorepo 内开发时 Pyt
 | Python 3.12 | `deerflow-harness` 要求 |
 | `./scripts/setup-venv.sh` | 把依赖装进 `deepagents/venv` |
 | `cp .env.example .env` | MySQL、Redis、`YUAI_API_KEY` |
-| DeerFlow 源码 | `../libs/agentkit/vendor/deer-flow/`（脚本可同步上游） |
+| DeerFlow 源码 | `../../../libs/agentkit/vendor/deer-flow/`（脚本可同步上游） |
 
 ```bash
 cd job-come
@@ -25,7 +25,7 @@ cp .env.example .env
 
 ```bash
 set -a && source .env && set +a
-../venv/bin/uvicorn jobcome.main:app --reload --host 0.0.0.0 --port 8000
+../../../venv/bin/uvicorn jobcome.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 **前端**
@@ -50,7 +50,7 @@ JOB_COME_LLM_ROUTING_PATH=deploy/llm/routing.yaml
 ## 4. E2E
 
 ```bash
-../venv/bin/pytest tests/test_regression_fixtures.py tests/test_export_pdf.py tests/test_e2e_openapi_routes.py -q
+../../../venv/bin/pytest tests/test_regression_fixtures.py tests/test_export_pdf.py tests/test_e2e_openapi_routes.py -q
 # 或：./scripts/ci_regression.sh
 ```
 

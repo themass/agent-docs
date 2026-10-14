@@ -93,3 +93,12 @@ python3 -m http.server 8765
 - 自动联动时跳过页面录屏，避免与 `*-video.mp4` 重复。
 - 页面生成失败**不阻断**已成功的视频成片（警告即可）。
 - 复用视频脚本、日报、GitHub 截图 helpers；缺源文件时清晰报错。
+
+## 页面内容来源（v1.2）
+
+每个项目卡片包含：GitHub 截图滚动、统计 chips（今日/Star/Fork/语言/协议/更新）、**它是什么 / 核心亮点 / 适合谁 / 怎么上手 / 点评**；页尾有**今日总结**（趋势/机会/行动 + 怎么选 + 完整热榜）。
+
+- 事实数据：GitHub API（repo 元数据 + README；可设 `GITHUB_TOKEN` 避免限流；缓存在 `github/*-facts.json`）。
+- 文案：一次 LLM 调用（读取 profile `config.yaml` 的 `model.base_url` / `model.default` 与 `.env` 的 `CUSTOM_API_KEY`，即 OpenInspector 代理）；失败自动降级为 README 摘要。`CONTENT_STUDIO_WEB_STORY_SKIP_LLM=1` 可跳过。
+- 视频脚本若为「降级生成」版（无链上角色），主题与角色由 LLM 或日报分类生成，不再显示"趋势项目"。
+- 截图区高度按真实图片尺寸计算，滚动距离由 JS 写入 `--scroll-dist`（上限 1800px），不会再出现空白或黑块。

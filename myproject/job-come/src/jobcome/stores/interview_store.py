@@ -12,6 +12,11 @@ class InterviewStore:
     def __init__(self, db: AsyncSession) -> None:
         self._db = db
 
+    async def list_interviews(self, profile_id: str, *, limit: int = 50) -> list[InterviewRecord]:
+        stmt = select(InterviewRecord).where(InterviewRecord.profile_id == profile_id).order_by(
+            InterviewRecord.interview_date.desc(), InterviewRecord.created_at.desc()).limit(limit)
+        return list((await self._db.execute(stmt)).scalars().all())
+
     async def search_questions(
         self,
         profile_id: str,
@@ -97,6 +102,9 @@ class InterviewStore:
         self._db.add(session)
         await self._db.flush()
         return session
+
+    async def get_mock_session(self, session_id: str) -> MockSession | None:
+        return await self._db.get(MockSession, session_id)
 
     async def get_active_mock(
         self,

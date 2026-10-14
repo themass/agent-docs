@@ -27,6 +27,7 @@ def _env_ctx(db) -> McpRunContext:
         profile_id=os.environ.get("JOB_COME_MCP_PROFILE_ID"),
         session_id=os.environ.get("JOB_COME_MCP_SESSION_ID"),
         job_id=os.environ.get("JOB_COME_MCP_JOB_ID"),
+        mock_session_id=os.environ.get("JOB_COME_MCP_MOCK_SESSION_ID"),
     )
 
 
@@ -99,6 +100,14 @@ async def jobcome_answer_save_attempt(
 
 
 @mcp.tool()
+async def jobcome_job_fetch(url: str, render: bool = False) -> str:
+    async with AsyncSessionLocal() as db:
+        from jobcome.mcp.handlers import job_fetch
+        result = await job_fetch(_env_ctx(db), url=url, render=render)
+        return json.dumps(result, ensure_ascii=False)
+
+
+@mcp.tool()
 async def jobcome_job_parse(
     raw_text: str,
     source_url: str | None = None,
@@ -157,6 +166,9 @@ async def jobcome_question_upsert(
     role_title: str | None = None,
     job_id: str | None = None,
     mock_session_id: str | None = None,
+    tags: list[str] | None = None,
+    round: str | None = None,
+    source: str = "mock",
 ) -> str:
     async with AsyncSessionLocal() as db:
         from jobcome.mcp.question_upsert import question_upsert
@@ -169,8 +181,20 @@ async def jobcome_question_upsert(
             role_title=role_title,
             job_id=job_id,
             mock_session_id=mock_session_id,
+            tags=tags,
+            round=round,
+            source=source,
         )
         return json.dumps(result, ensure_ascii=False)
+
+
+@mcp.tool()
+async def jobcome_resume_review(draft_id: str | None = None, elevation_level: str = "elevated") -> str:
+    """Review this run's resume draft before exporting."""
+    from jobcome.mcp.handlers import resume_review
+    async with AsyncSessionLocal() as db:
+        return json.dumps(await resume_review(_env_ctx(db), draft_id=draft_id,
+                                             elevation_level=elevation_level), ensure_ascii=False)
 
 
 def main() -> None:

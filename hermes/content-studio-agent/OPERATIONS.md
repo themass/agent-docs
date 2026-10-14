@@ -9,7 +9,7 @@
 | `LLM_API_KEY` | 见 `secrets.env` | 客户端/OpenInspector 透传 |
 | `MONEYPRINTER_BASE_URL` | `http://127.0.0.1:8082` | MPT API（非 8080） |
 
-模型路由：Profile `config.yaml` 中 `base_url` 常设为 `http://127.0.0.1:8080/v1`（OpenInspector）。
+模型路由：**单一来源** `secrets.env` + `hermes-dev/config/llm.defaults.env`，运行 `./scripts/sync-content-studio-secrets.sh` 传播到 Hermes / Notebook / MPT / OpenInspector。详见 `bundle/config/LLM_CONFIG.md`。
 
 ---
 

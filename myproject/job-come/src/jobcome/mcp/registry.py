@@ -102,6 +102,19 @@ OPENAI_TOOLS: list[dict[str, Any]] = [
     {
         "type": "function",
         "function": {
+            "name": "jobcome_job_fetch",
+            "description": "Read a public JD URL via safe GET or isolated dynamic rendering. Returns untrusted page data and provenance. No login, writes or applying.",
+            "parameters": {
+                "type": "object", "additionalProperties": False,
+                "properties": {"url": {"type": "string", "maxLength": 1024},
+                               "render": {"type": "boolean", "default": False}},
+                "required": ["url"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "jobcome_job_parse",
             "description": "Parse a pasted job description and optionally save to jc_job.",
             "parameters": {
@@ -175,6 +188,7 @@ OPENAI_TOOLS: list[dict[str, Any]] = [
                 "type": "object",
                 "properties": {
                     "stem": {"type": "string", "description": "Question text"},
+                    "source": {"type": "string", "enum": ["mock", "real"]},
                     "question_type": {"type": "string"},
                     "company": {"type": "string"},
                     "role_title": {"type": "string"},
@@ -199,12 +213,12 @@ SKILL_TOOLS: dict[str, list[str]] = {
         "jobcome_question_upsert",
         "jobcome_answer_save_attempt",
     ],
-    "coach-archive": ["jobcome_profile_get", "jobcome_interview_save"],
+    "coach-archive": ["jobcome_profile_get", "jobcome_question_upsert", "jobcome_interview_save"],
     "coach-answer": ["jobcome_bank_search_questions", "jobcome_answer_save_attempt"],
-    "jd-parser": ["jobcome_profile_get", "jobcome_job_parse", "jobcome_fit_score"],
+    "jd-parser": ["jobcome_profile_get", "jobcome_job_fetch", "jobcome_job_parse", "jobcome_fit_score"],
     "apply-pipeline": [
         "jobcome_profile_get",
-        "jobcome_job_parse",
+        "jobcome_job_fetch", "jobcome_job_parse",
         "jobcome_fit_score",
         "jobcome_profile_patch",
         "jobcome_resume_review",

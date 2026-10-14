@@ -178,7 +178,7 @@
 | **C11** | 三道防线 + 结构化摘要 | Preflight 粗估 / Post-tool 精确 / 413 恢复 + 13 字段模板 | Hermes | `conversation_compression.py`、`ContextCompressor` |
 | **C12** | Session 分裂 lineage | 压缩触发新 session id，保留父子血缘 | Hermes | `SessionDB`、lineage 字段 |
 | **C13** | 标注投影 Compaction | tool 折叠 @50% budget + 截断 @80%；excluded 仍存 storage | agent-framework | `_compaction.py`、`CompactionProvider` |
-| **C14** | 去头压 summary 注入 | 旧消息进 `summary`，伪 User 消息注入 context | AgentScope v2 | `AgentState.summary`（见 `MEMORY_SYSTEM.md`） |
+| **C14** | 去头压 summary 注入 | 旧消息进 `summary`，伪 User 消息注入 context | AgentScope v2 | `AgentState.summary`（见 [AGENTSCOPE.md#part-memory](../../agentscope/AGENTSCOPE.md#part-memory)） |
 | **C15** | memory block compaction | 整理 block 内容而非简单删 messages | Letta | Letta server compaction API |
 | **C16** | Consolidator + Dream | turn 摘要归档 `history.jsonl`；Dream 更新长期 MD | nanobot | `Consolidator`、`Dream` pipeline |
 | **C17** | 压缩后 Todo re-inject | 压缩后从 DB 重注入未完成 todo | Hermes | `TodoStore.format_for_injection()` |

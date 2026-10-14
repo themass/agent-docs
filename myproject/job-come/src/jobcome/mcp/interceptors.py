@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 def _tool_basename(name: str) -> str:
-    if name.startswith("jobcome_"):
+    if name.startswith("jobcome_jobcome_"):
         return name.removeprefix("jobcome_")
     return name
 

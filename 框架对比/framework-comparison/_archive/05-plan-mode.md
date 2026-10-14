@@ -1730,7 +1730,7 @@ graph TB
 | [deer-flow middleware-execution-flow.md](../../deer-flow/backend/docs/middleware-execution-flow.md) | 中间件顺序 |
 | [OpenHarness ARCHITECTURE_PERMISSIONS_MCP.md](../ARCHITECTURE_PERMISSIONS_MCP.md) | PLAN 权限模式 |
 | [agentscope ARCHITECTURE_PART2.md §7](../../agentscope/docs/ARCHITECTURE_PART2.md) | v2 Plan 组合边界 |
-| [agentscope MEMORY_SYSTEM.md](../../agentscope/docs/MEMORY_SYSTEM.md) | Memory（与 Plan 正交） |
+| [agentscope MEMORY_SYSTEM.md](../../agentscope/AGENTSCOPE.md#part-memory) | Memory（与 Plan 正交） |
 | [docs/OPENHANDS_SDK_ARCHITECTURE_DEEP_DIVE.md](../../docs/OPENHANDS_SDK_ARCHITECTURE_DEEP_DIVE.md) | OpenHands preset |
 | [CREWAI_ARCHITECTURE_ANALYSIS.md](../../crewAI/docs/CREWAI_ARCHITECTURE_ANALYSIS.md) | CrewAI §0.7 Planning、§0.10.1 Knowledge、Process、Flow |
 | [06-memory.md](06-memory.md) | CrewAI Knowledge RAG 索引与检索 |

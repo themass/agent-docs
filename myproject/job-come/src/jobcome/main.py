@@ -47,6 +47,12 @@ register_exception_handlers(app)
 register_profile_exception_handlers(app)
 
 
+@app.exception_handler(PermissionError)
+async def permission_error_handler(_request, exc):
+    from fastapi.responses import JSONResponse
+    return JSONResponse(status_code=403, content={"detail": str(exc), "code": "forbidden"})
+
+
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}

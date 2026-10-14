@@ -19,6 +19,9 @@ from jobcome.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Embedded upstream configuration and MCP pools are process-global. Serialize
+# complete runs until a process-isolated worker transport is implemented.
+_HARNESS_RUN_LOCK = threading.Lock()
 _CLIENT_CACHE: dict[str, Any] = {}
 _THREAD_META: dict[str, AgentRunMetadata] = {}
 _SESSION_CANCEL: dict[str, threading.Event] = {}
@@ -123,6 +126,15 @@ def _jobcome_deerflow_client_class() -> type:
     class JobComeDeerFlowClient(DeerFlowClient):
         """Embedded client with JobCome defaults (no blocking human-input tools)."""
 
+        def _get_tools(self, *, model_name=None, subagent_enabled=False, mcp_plugins=None):
+            from jobcome.mcp.registry import SKILL_TOOLS
+            scope = _SKILL_SCOPE.get(self._jobcome_skill, frozenset({self._jobcome_skill}))
+            allowed = {name for skill in scope for name in SKILL_TOOLS.get(skill, [])}
+            # No host file, shell, browser or generic network tools in V1.
+            tools = super()._get_tools(model_name=model_name, subagent_enabled=False, mcp_plugins=mcp_plugins)
+            return [tool for tool in tools if tool.name.removeprefix("jobcome_") in allowed
+                    or tool.name in allowed or tool.name == "write_todos"]
+
         def _get_runnable_config(self, thread_id: str, **overrides) -> RunnableConfig:
             base = super()._get_runnable_config(thread_id, **overrides)
             configurable = dict(base.get("configurable") or {})
@@ -150,36 +162,29 @@ def _get_embedded_client(config: DeerFlowClientConfig, skill: str) -> Any:
         client_cls = _jobcome_deerflow_client_class()
         _CLIENT_CACHE[key] = client_cls(
             config_path=os.environ["DEER_FLOW_CONFIG_PATH"],
-            subagent_enabled=True,
+            subagent_enabled=False,
             plan_mode=False,
             available_skills=set(available),
         )
+    _CLIENT_CACHE[key]._jobcome_skill = skill
     return _CLIENT_CACHE[key]
 
 
 def _apply_mcp_env(metadata: AgentRunMetadata) -> None:
-    if metadata.user_id:
-        os.environ["JOB_COME_MCP_USER_ID"] = metadata.user_id
-    if metadata.profile_id:
-        os.environ["JOB_COME_MCP_PROFILE_ID"] = metadata.profile_id
-    if metadata.session_id:
-        os.environ["JOB_COME_MCP_SESSION_ID"] = metadata.session_id
-    elif "JOB_COME_MCP_SESSION_ID" in os.environ:
-        del os.environ["JOB_COME_MCP_SESSION_ID"]
-    if metadata.skill_hint:
-        os.environ["JOB_COME_AGENT_SKILL"] = metadata.skill_hint
-    elif "JOB_COME_AGENT_SKILL" in os.environ:
-        del os.environ["JOB_COME_AGENT_SKILL"]
-    job_id = metadata.extra.get("job_id")
-    if job_id:
-        os.environ["JOB_COME_MCP_JOB_ID"] = str(job_id)
-    elif "JOB_COME_MCP_JOB_ID" in os.environ:
-        del os.environ["JOB_COME_MCP_JOB_ID"]
-    reply_locale = metadata.extra.get("reply_locale")
-    if reply_locale:
-        os.environ["JOB_COME_AGENT_REPLY_LOCALE"] = str(reply_locale)
-    elif "JOB_COME_AGENT_REPLY_LOCALE" in os.environ:
-        del os.environ["JOB_COME_AGENT_REPLY_LOCALE"]
+    values = {
+        "JOB_COME_MCP_USER_ID": metadata.user_id,
+        "JOB_COME_MCP_PROFILE_ID": metadata.profile_id,
+        "JOB_COME_MCP_SESSION_ID": metadata.session_id,
+        "JOB_COME_AGENT_SKILL": metadata.skill_hint,
+        "JOB_COME_MCP_JOB_ID": metadata.extra.get("job_id"),
+        "JOB_COME_MCP_MOCK_SESSION_ID": metadata.extra.get("mock_session_id"),
+        "JOB_COME_AGENT_REPLY_LOCALE": metadata.extra.get("reply_locale"),
+    }
+    for name, value in values.items():
+        if value:
+            os.environ[name] = str(value)
+        else:
+            os.environ.pop(name, None)
 
 
 def _extract_text(content: Any) -> str:
@@ -302,6 +307,8 @@ def _stream_producer(
     loop: asyncio.AbstractEventLoop,
     queue: asyncio.Queue[tuple[str, Any]],
     cancel_event: threading.Event | None = None,
+    metadata: AgentRunMetadata | None = None,
+    config: DeerFlowClientConfig | None = None,
 ) -> None:
     try:
         asyncio.get_running_loop()
@@ -311,7 +318,20 @@ def _stream_producer(
     def _put(event: dict[str, Any]) -> None:
         loop.call_soon_threadsafe(queue.put_nowait, ("event", event))
 
+    locked = False
     try:
+        if metadata is not None:
+            while not _HARNESS_RUN_LOCK.acquire(timeout=0.1):
+                if cancel_event and cancel_event.is_set():
+                    return
+            locked = True
+            if cancel_event and cancel_event.is_set():
+                return
+            from deerflow.mcp.cache import reset_mcp_tools_cache
+            reset_mcp_tools_cache()
+            _CLIENT_CACHE.clear()
+            _apply_mcp_env(metadata)
+            client = _get_embedded_client(config, metadata.skill_hint or "resume-coach")
         seen_tool_ids: set[str] = set()
         open_tools: list[str] = []
         for raw in client.stream(message, thread_id=thread_id, **stream_kwargs):
@@ -329,6 +349,11 @@ def _stream_producer(
     except Exception as exc:  # noqa: BLE001
         loop.call_soon_threadsafe(queue.put_nowait, ("error", exc))
     finally:
+        if locked:
+            for name in list(os.environ):
+                if name.startswith("JOB_COME_MCP_") or name in {"JOB_COME_AGENT_SKILL", "JOB_COME_AGENT_REPLY_LOCALE"}:
+                    os.environ.pop(name, None)
+            _HARNESS_RUN_LOCK.release()
         loop.call_soon_threadsafe(queue.put_nowait, ("done", None))
 
 
@@ -425,11 +450,9 @@ class DeerFlowHarnessSessionClient(DeerFlowSessionClient):
         skill = meta.skill_hint or "resume-coach"
         yield {"type": "skill", "name": skill}
 
-        _apply_mcp_env(meta)
-        client = _get_embedded_client(self._config, skill)
         stream_kwargs: dict[str, Any] = {
             "user_id": meta.user_id or "default",
-            "subagent_enabled": True,
+            "subagent_enabled": False,
             "plan_mode": skill in _PLAN_MODE_SKILLS,
         }
         if meta.trace_id:
@@ -441,13 +464,15 @@ class DeerFlowHarnessSessionClient(DeerFlowSessionClient):
         cancel_event = register_session_cancel(session_key)
         worker = threading.Thread(
             target=_stream_producer,
-            args=(client, message),
+            args=(None, message),
             kwargs={
                 "thread_id": thread_id,
                 "stream_kwargs": stream_kwargs,
                 "loop": loop,
                 "queue": queue,
                 "cancel_event": cancel_event,
+                "metadata": meta,
+                "config": self._config,
             },
             daemon=True,
         )
@@ -470,4 +495,5 @@ class DeerFlowHarnessSessionClient(DeerFlowSessionClient):
                     saw_done = True
                 yield payload
         finally:
+            cancel_event.set()
             clear_session_cancel(session_key)

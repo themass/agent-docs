@@ -13,6 +13,7 @@ from jobcome.schemas.coach import (
     AnswerAttemptResponse,
     BankSearchResponse,
     InterviewSaveRequest,
+    InterviewListResponse,
     InterviewSaveResponse,
     MockRubricResponse,
     MockSessionCreateRequest,
@@ -138,3 +139,21 @@ async def log_question(
     coach: InterviewService = Depends(get_coach_service),
 ) -> QuestionSummary:
     return await coach.log_question(profile_id, actor=actor, body=body)
+
+
+@router.post("/mock/sessions/{session_id}/complete", response_model=MockSessionResponse)
+async def complete_mock_session(
+    session_id: str,
+    actor: UserActor = Depends(require_user),
+    coach: InterviewService = Depends(get_coach_service),
+) -> MockSessionResponse:
+    return await coach.complete_mock_session(session_id, actor=actor)
+
+
+@router.get("/profiles/{profile_id}/interviews", response_model=InterviewListResponse)
+async def list_interviews(
+    profile_id: str,
+    actor: UserActor = Depends(require_user),
+    coach: InterviewService = Depends(get_coach_service),
+) -> InterviewListResponse:
+    return await coach.list_interviews(profile_id, actor=actor)

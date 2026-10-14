@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from agentkit.common.ids import new_id
 
-from jobcome.mcp.context import McpRunContext
+from jobcome.mcp.context import McpRunContext, require_owned_profile, require_owned_references
 from jobcome.models.enums import QuestionSource
 from jobcome.models.interview import InterviewQuestion
 from jobcome.stores.interview_store import InterviewStore
@@ -41,9 +41,13 @@ async def question_upsert(
     mock_session_id: str | None = None,
     tags: list[str] | None = None,
     round: str | None = None,
+    source: str = "mock",
 ) -> dict:
-    if not ctx.profile_id:
-        raise ValueError("profile_id required")
+    mock_session_id = mock_session_id or ctx.mock_session_id
+    job_id = job_id or ctx.job_id
+    await require_owned_profile(ctx)
+    await require_owned_references(ctx, job_id=job_id, mock_session_id=mock_session_id)
+    source_kind = QuestionSource(source)
     text = stem.strip()
     if not text:
         raise ValueError("stem required")
@@ -74,7 +78,7 @@ async def question_upsert(
         profile_id=ctx.profile_id,
         stem=text,
         question_type=question_type,
-        source=QuestionSource.MOCK,
+        source=source_kind,
         company=company,
         role_title=role_title,
         job_id=job_id,

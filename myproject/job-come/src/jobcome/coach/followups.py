@@ -46,6 +46,20 @@ def followups_for_role(role_title: str | None = None, *, limit: int = 3) -> list
         keys.append("data")
     if any(k in title for k in ("运维", "devops", "sre")):
         keys.append("devops")
+    role_groups = {
+        "design": ("设计", "designer", "ux", "ui"),
+        "operations": ("运营", "operation", "内容", "社区"),
+        "marketing": ("市场", "marketing", "品牌", "增长"),
+        "sales": ("销售", "sales", "商务", "bd"),
+        "customer_success": ("客户成功", "customer success", "客服"),
+        "hr": ("人力", "招聘", "hr", "human resources"),
+        "finance": ("财务", "finance", "会计"),
+        "legal": ("法务", "legal", "合规"),
+        "management": ("总监", "负责人", "director", "管理"),
+    }
+    for group, aliases in role_groups.items():
+        if any(alias in title for alias in aliases):
+            keys.append(group)
     if not keys:
         keys = ["general"]
     picked: list[str] = []

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from agentkit.common.ids import new_id
@@ -185,6 +186,8 @@ class ResumeService:
         draft: ResumeDraft | None = None
         if body.draft_id:
             draft = await self._resumes.get_draft_by_id(body.draft_id)
+            if draft is None or draft.profile_id != profile_id:
+                raise NotFoundError("Resume draft not found")
         if draft is None:
             if is_bilingual_track(track):
                 draft = await self._ensure_bilingual_draft(
@@ -234,20 +237,17 @@ class ResumeService:
         try:
             html = self._renderer.render_html(draft.sections, template_id=draft.template_id)
             if body.format == ExportFormat.PDF:
-                try:
-                    content = self._renderer.render_pdf(html)
-                    ext = "pdf"
-                    content_type = "application/pdf"
-                except RuntimeError:
-                    content = html.encode("utf-8")
-                    ext = "html"
-                    content_type = "text/html; charset=utf-8"
+                content = await asyncio.to_thread(self._renderer.render_pdf, html)
+                ext = "pdf"
+                content_type = "application/pdf"
             else:
                 content = self._renderer.render_docx(draft.sections)
                 ext = "docx"
                 content_type = (
                     "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 )
+            from jobcome.services.export_quality import validate_export
+            await asyncio.to_thread(validate_export, content, ext, draft.sections)
             storage_key = f"profiles/{profile_id}/export/{job.id}.{ext}"
             self._storage.put_object(storage_key, content, content_type=content_type)
             await self._resumes.mark_export_done(job, storage_key=storage_key)
@@ -548,11 +548,14 @@ class ResumeService:
         return draft
 
     async def _review_draft(self, draft: ResumeDraft) -> dict[str, Any]:
+        from jobcome.stores.profile_store import ProfileStore
+        profile = await ProfileStore(self._db).get_by_id(draft.profile_id)
+        source_profile = profile.payload if profile else None
         if draft.locale == TRACK_BILINGUAL:
             zh_sec = draft.sections.get("zh_sections") or {}
             en_sec = draft.sections.get("en_sections") or {}
-            zh_review = await self._reviewer.review(sections=zh_sec)
-            en_review = await self._reviewer.review(sections=en_sec)
+            zh_review = await self._reviewer.review(sections=zh_sec, source_profile=source_profile)
+            en_review = await self._reviewer.review(sections=en_sec, source_profile=source_profile)
             issues = [
                 {**issue, "track": TRACK_ZH} for issue in zh_review.issues
             ] + [{**issue, "track": TRACK_EN} for issue in en_review.issues]
@@ -563,7 +566,7 @@ class ResumeService:
             notes = "；".join(n for n in [zh_review.notes, en_review.notes] if n)
             status = "passed" if can_export else "failed"
             return {"status": status, "notes": notes or None, "issues": issues, "can_export": can_export}
-        review = await self._reviewer.review(sections=draft.sections)
+        review = await self._reviewer.review(sections=draft.sections, source_profile=source_profile)
         return {
             "status": review.status.value,
             "notes": review.notes,

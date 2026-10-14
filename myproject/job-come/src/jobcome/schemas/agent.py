@@ -56,6 +56,7 @@ class AgentUiFocus(BaseModel):
 
 
 class AgentUiContext(BaseModel):
+    mock_session_id: str | None = Field(default=None, max_length=128)
     page: str = Field(default="resume-agent", max_length=64)
     step: str = Field(default="review", max_length=32)
     focus: AgentUiFocus | None = None

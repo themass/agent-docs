@@ -20,6 +20,8 @@ BUNDLE_ROOT="$(cd "$OPS_SCRIPT_DIR/../.." && pwd)"
 source "$BUNDLE_ROOT/env.sh"
 # shellcheck source=/dev/null
 source "$BUNDLE_ROOT/stack/ports.env" 2>/dev/null || true
+# shellcheck source=/dev/null
+source "$BUNDLE_ROOT/config/llm.defaults.env"
 
 SECRETS_FILE="${CONTENT_STUDIO_SECRETS:-$HERMES_HOME/secrets.env}"
 PROXY_PORT="${OPENINSPECTOR_PROXY_PORT:-8080}"
@@ -66,6 +68,19 @@ strip_v1_suffix() {
   echo "$url"
 }
 
+# Hermes Settings stores named custom providers as CUSTOM_PROVIDER_<SLUG>_KEY in .env.
+# Those override CUSTOM_API_KEY and must match the client key when using TencentDB Proxy.
+sync_named_custom_provider_keys() {
+  local file="$1"
+  [[ -f "$file" ]] || return 0
+  local line key
+  while IFS= read -r line; do
+    [[ "$line" =~ ^CUSTOM_PROVIDER_[A-Z0-9_]+_KEY= ]] || continue
+    key="${line%%=*}"
+    set_env_key "$file" "$key" "$LLM_API_KEY"
+  done <"$file"
+}
+
 init_secrets_from_profile() {
   local hermes_env="$HERMES_HOME/.env"
   local nb_env="$OPEN_NOTEBOOK_DIR/.env"
@@ -97,6 +112,7 @@ init_secrets_from_profile() {
 LLM_UPSTREAM_BASE_URL=${upstream}
 LLM_API_KEY=${key:-sk-your-key-here}
 LLM_PROXY_URL=${proxy}
+LLM_MODEL=${CONTENT_STUDIO_LLM_MODEL}
 EOF
   log "Created $SECRETS_FILE — edit LLM_API_KEY if needed, then re-run without --init"
 }
@@ -112,7 +128,7 @@ fi
 
 if [[ ! -f "$SECRETS_FILE" ]]; then
   warn "Missing $SECRETS_FILE"
-  echo "  cp $ROOT_DIR/config/secrets.env.example $SECRETS_FILE" >&2
+  echo "  cp $BUNDLE_ROOT/config/secrets.env.example $SECRETS_FILE" >&2
   echo "  # or: $0 --init" >&2
   exit 1
 fi
@@ -125,22 +141,78 @@ set +a
 : "${LLM_API_KEY:?LLM_API_KEY must be set in $SECRETS_FILE}"
 : "${LLM_UPSTREAM_BASE_URL:?LLM_UPSTREAM_BASE_URL must be set in $SECRETS_FILE}"
 
-LLM_PROXY_URL="${LLM_PROXY_URL:-http://127.0.0.1:${PROXY_PORT}/v1}"
+UPSTREAM_LLM_KEY="$LLM_API_KEY"
+
+LLM_PROXY_URL="${LLM_PROXY_URL:-${CONTENT_STUDIO_LLM_PROXY_URL:-http://127.0.0.1:${PROXY_PORT}/v1}}"
+LLM_MODEL="${LLM_MODEL:-$CONTENT_STUDIO_LLM_MODEL}"
 UPSTREAM_NO_V1="$(strip_v1_suffix "$LLM_UPSTREAM_BASE_URL")"
+
+# TencentDB Memory Proxy（CONTENT_STUDIO_LLM_VIA_TDAI_PROXY=1 + tdai-memory.env）
+HERMES_LLM_BASE_URL="$LLM_PROXY_URL"
+OPENAI_COMPAT_LLM_BASE_URL="$LLM_PROXY_URL"
+if [[ "${CONTENT_STUDIO_LLM_VIA_TDAI_PROXY:-0}" == "1" ]]; then
+  tdai_cred="${CONTENT_STUDIO_RUNTIME_DIR:-}/tdai-memory.env"
+  if [[ -f "$tdai_cred" ]]; then
+    # shellcheck disable=SC1090
+    source "$tdai_cred"
+    if [[ -n "${TDAI_USER_KEY:-}" ]]; then
+      LLM_API_KEY="$TDAI_USER_KEY"
+      HERMES_LLM_BASE_URL="${TDAI_PROXY_HERMES_BASE:-${TDAI_PROXY_URL}/hermes/${TDAI_SPACE_ID:-default}}"
+      OPENAI_COMPAT_LLM_BASE_URL="${TDAI_PROXY_URL}/codebuddy/${TDAI_SPACE_ID:-default}"
+      log "LLM client routing → TencentDB Proxy (Hermes=${HERMES_LLM_BASE_URL}, OpenAI-compat=${OPENAI_COMPAT_LLM_BASE_URL})"
+    else
+      warn "tdai-memory.env missing TDAI_USER_KEY; keep OpenInspector proxy URLs"
+    fi
+  else
+    warn "CONTENT_STUDIO_LLM_VIA_TDAI_PROXY=1 but no $tdai_cred — keep OpenInspector proxy URLs"
+  fi
+fi
 
 # ── Hermes profile .env ───────────────────────────────────────────────────
 hermes_env="$HERMES_HOME/.env"
+# Desktop local mode inherits the active profile .env. Keep TencentDB identity there too.
+tdai_ids_file="${HERMES_HOME}/tdai-hermes-ids.env"
+if [[ -f "$tdai_ids_file" ]]; then
+  # shellcheck disable=SC1090
+  source "$tdai_ids_file"
+  [[ -n "${TDAI_TEAM_ID:-}" ]] && set_env_key "$hermes_env" TDAI_TEAM_ID "$TDAI_TEAM_ID"
+  [[ -n "${TDAI_AGENT_ID:-}" ]] && set_env_key "$hermes_env" TDAI_AGENT_ID "$TDAI_AGENT_ID"
+  [[ -n "${TDAI_TASK_ID:-}" ]] && set_env_key "$hermes_env" TDAI_TASK_ID "$TDAI_TASK_ID"
+  [[ -n "${TDAI_PROXY_URL:-}" ]] && set_env_key "$hermes_env" TDAI_PROXY_URL "$TDAI_PROXY_URL"
+  [[ -n "${HERMES_LLM_BASE_URL:-}" ]] && set_env_key "$hermes_env" TDAI_PROXY_HERMES_BASE "$HERMES_LLM_BASE_URL"
+fi
 set_env_key "$hermes_env" CUSTOM_API_KEY "$LLM_API_KEY"
-set_env_key "$hermes_env" OPENROUTER_API_KEY "$LLM_API_KEY"
-log "Updated $hermes_env (CUSTOM_API_KEY, OPENROUTER_API_KEY)"
+set_env_key "$hermes_env" OPENROUTER_API_KEY "$UPSTREAM_LLM_KEY"
+sync_named_custom_provider_keys "$hermes_env"
+log "Updated $hermes_env (CUSTOM_API_KEY + named CUSTOM_PROVIDER_*; OPENROUTER=upstream)"
+
+gateway_env="${HERMES_GATEWAY_HOME:-$HOME/.hermes}/.env"
+if [[ -d "$(dirname "$gateway_env")" ]]; then
+  set_env_key "$gateway_env" CUSTOM_API_KEY "$LLM_API_KEY"
+  set_env_key "$gateway_env" OPENROUTER_API_KEY "$UPSTREAM_LLM_KEY"
+  sync_named_custom_provider_keys "$gateway_env"
+  log "Updated $gateway_env (Gateway CUSTOM_API_KEY + named CUSTOM_PROVIDER_*; OPENROUTER=upstream)"
+  tdai_ids_file="${HERMES_HOME}/tdai-hermes-ids.env"
+  if [[ -f "$tdai_ids_file" ]]; then
+    # shellcheck disable=SC1090
+    source "$tdai_ids_file"
+    [[ -n "${TDAI_TEAM_ID:-}" ]] && set_env_key "$gateway_env" TDAI_TEAM_ID "$TDAI_TEAM_ID"
+    [[ -n "${TDAI_AGENT_ID:-}" ]] && set_env_key "$gateway_env" TDAI_AGENT_ID "$TDAI_AGENT_ID"
+    [[ -n "${TDAI_TASK_ID:-}" ]] && set_env_key "$gateway_env" TDAI_TASK_ID "$TDAI_TASK_ID"
+    [[ -n "${TDAI_PROXY_URL:-}" ]] && set_env_key "$gateway_env" TDAI_PROXY_URL "$TDAI_PROXY_URL"
+    [[ -n "${HERMES_LLM_BASE_URL:-}" ]] && set_env_key "$gateway_env" TDAI_PROXY_HERMES_BASE "$HERMES_LLM_BASE_URL"
+    log "Synced TencentDB ids into $gateway_env"
+  fi
+fi
 
 # ── Open Notebook .env（走本地 Proxy，不直连上游）────────────────────────────
 nb_env="$OPEN_NOTEBOOK_DIR/.env"
 if [[ -f "$nb_env" ]]; then
   set_env_key "$nb_env" OPENAI_COMPATIBLE_API_KEY "$LLM_API_KEY"
-  set_env_key "$nb_env" OPENAI_COMPATIBLE_BASE_URL "$LLM_PROXY_URL"
+  set_env_key "$nb_env" OPENAI_COMPATIBLE_BASE_URL "$OPENAI_COMPAT_LLM_BASE_URL"
   set_env_key "$nb_env" OPENROUTER_API_KEY "$LLM_API_KEY"
-  log "Updated $nb_env → base_url=$LLM_PROXY_URL"
+  set_env_key "$nb_env" OPENAI_COMPATIBLE_MODEL "$LLM_MODEL"
+  log "Updated $nb_env → base_url=$OPENAI_COMPAT_LLM_BASE_URL model=$LLM_MODEL"
 fi
 
 # ── OpenInspector .env（只配上游 BASE_URL，key 由客户端 Authorization 透传）──
@@ -153,48 +225,79 @@ fi
 
 # ── MoneyPrinterTurbo config.toml（脚本生成视频用的 LLM）────────────────────
 mpt_cfg="$MONEYPRINTER_DIR/config.toml"
-mpt_sync="$ROOT_DIR/scripts/sync-mpt-llm-config.py"
+mpt_sync="$OPS_SCRIPT_DIR/sync-mpt-llm-config.py"
 if [[ -f "$mpt_cfg" && -f "$mpt_sync" ]]; then
   DEEPAGENTS_PYTHON="${DEEPAGENTS_PYTHON:-python3}"
-  if [[ -f "$ROOT_DIR/../scripts/deepagents-python.env.sh" ]]; then
+  if [[ -f "$REPO_ROOT/scripts/deepagents-python.env.sh" ]]; then
     # shellcheck source=/dev/null
-    source "$ROOT_DIR/../scripts/deepagents-python.env.sh"
+    source "$REPO_ROOT/scripts/deepagents-python.env.sh"
     DEEPAGENTS_PYTHON="${DEEPAGENTS_PYTHON:-python3}"
   fi
   "$DEEPAGENTS_PYTHON" "$mpt_sync" \
     --config "$mpt_cfg" \
     --api-key "$LLM_API_KEY" \
-    --base-url "$LLM_PROXY_URL" \
-    && log "Updated MPT $mpt_cfg → openai_base_url=$LLM_PROXY_URL" \
-    || warn "MPT config sync failed (is toml installed?)"
+    --base-url "$OPENAI_COMPAT_LLM_BASE_URL" \
+    --model "$LLM_MODEL" \
+    && log "Updated MPT $mpt_cfg → openai_base_url=$OPENAI_COMPAT_LLM_BASE_URL model=$LLM_MODEL" \
+    || warn "MPT config sync failed (run: uv pip install toml -p \"\$DEEPAGENTS_PYTHON\")"
 fi
 
-# ── Hermes config.yaml：确保 base_url 指向 Proxy（若存在 yq）────────────────
+# ── Hermes config.yaml：model + manifest + custom_providers → Proxy ─────────
 config_yaml="$HERMES_HOME/config.yaml"
-if [[ -f "$config_yaml" ]] && command -v yq >/dev/null 2>&1; then
-  yq -i ".model.base_url = \"${LLM_PROXY_URL}\"" "$config_yaml" 2>/dev/null || true
-  yq -i '.providers.manifest.base_url = "'"${LLM_PROXY_URL}"'"' "$config_yaml" 2>/dev/null || true
-  log "Updated $config_yaml model.base_url via yq"
+hermes_cfg_sync="$OPS_SCRIPT_DIR/sync-hermes-config-llm.py"
+if [[ -f "$config_yaml" && -f "$hermes_cfg_sync" ]]; then
+  py="${DEEPAGENTS_PYTHON:-python3}"
+  if [[ -z "${DEEPAGENTS_PYTHON:-}" && -f "$REPO_ROOT/scripts/deepagents-python.env.sh" ]]; then
+    # shellcheck source=/dev/null
+    source "$REPO_ROOT/scripts/deepagents-python.env.sh"
+    py="${DEEPAGENTS_PYTHON:-python3}"
+  fi
+  hermes_sync_args=(--config "$config_yaml" --base-url "$HERMES_LLM_BASE_URL" --model "$LLM_MODEL")
+  if [[ "$LLM_API_KEY" == sk-mem-* ]]; then
+    hermes_sync_args+=(--api-key "$LLM_API_KEY")
+  fi
+  "$py" "$hermes_cfg_sync" "${hermes_sync_args[@]}" \
+    || warn "Hermes config.yaml sync failed"
+  tdai_hdr_sync="$OPS_SCRIPT_DIR/sync-hermes-config-tdai-memory.py"
+  tdai_ids_file="${HERMES_HOME}/tdai-hermes-ids.env"
+  if [[ "${CONTENT_STUDIO_LLM_VIA_TDAI_PROXY:-0}" == "1" && -f "$tdai_hdr_sync" ]]; then
+    if [[ -f "$tdai_ids_file" ]]; then
+      "$py" "$tdai_hdr_sync" --config "$config_yaml" --ids-file "$tdai_ids_file" \
+        || warn "TencentDB Hermes header sync failed (see ${tdai_ids_file})"
+      # The multiplex Gateway/Desktop may read the root Hermes config rather than the profile.
+      gateway_config="${HERMES_GATEWAY_HOME:-$HOME/.hermes}/config.yaml"
+      if [[ -f "$gateway_config" && "$gateway_config" != "$config_yaml" ]]; then
+        gateway_sync_args=(--config "$gateway_config" --base-url "$HERMES_LLM_BASE_URL" --model "$LLM_MODEL")
+        [[ -n "${LLM_API_KEY:-}" ]] && gateway_sync_args+=(--api-key "$LLM_API_KEY")
+        "$py" "$hermes_cfg_sync" "${gateway_sync_args[@]}" \
+          || warn "Gateway Hermes config.yaml sync failed"
+        "$py" "$tdai_hdr_sync" --config "$gateway_config" --ids-file "$tdai_ids_file" \
+          || warn "Gateway TencentDB Hermes header sync failed"
+      fi
+    else
+      warn "Missing ${tdai_ids_file} — copy bundle/profile/tdai-hermes-ids.env.example and fill team/agent/task IDs"
+    fi
+  fi
 elif [[ -f "$config_yaml" ]]; then
-  log "Tip: install yq to auto-update config.yaml base_url, or set model.base_url=$LLM_PROXY_URL manually"
+  log "Tip: set model.base_url=$HERMES_LLM_BASE_URL and custom_providers[].base_url to the same proxy"
 fi
 
 # ── Open Notebook DB credentials（可选）────────────────────────────────────
 if [[ "$DO_NOTEBOOK" == "1" ]]; then
   nb_api="http://127.0.0.1:${NOTEBOOK_API_PORT}"
   if curl -fsS "${nb_api}/docs" >/dev/null 2>&1; then
-    sync_py="$ROOT_DIR/scripts/sync-notebook-llm-credentials.py"
+    sync_py="$OPS_SCRIPT_DIR/sync-notebook-llm-credentials.py"
     if [[ -f "$sync_py" ]]; then
       DEEPAGENTS_PYTHON="${DEEPAGENTS_PYTHON:-}"
-      if [[ -z "$DEEPAGENTS_PYTHON" && -f "$ROOT_DIR/../scripts/deepagents-python.env.sh" ]]; then
+      if [[ -z "$DEEPAGENTS_PYTHON" && -f "$REPO_ROOT/scripts/deepagents-python.env.sh" ]]; then
         # shellcheck source=/dev/null
-        source "$ROOT_DIR/../scripts/deepagents-python.env.sh"
+        source "$REPO_ROOT/scripts/deepagents-python.env.sh"
       fi
       py="${DEEPAGENTS_PYTHON:-python3}"
       "$py" "$sync_py" \
         --api-url "$nb_api" \
         --api-key "$LLM_API_KEY" \
-        --base-url "$LLM_PROXY_URL" \
+        --base-url "$OPENAI_COMPAT_LLM_BASE_URL" \
         && log "Patched Open Notebook credentials via API" \
         || warn "notebook credential sync failed"
     fi
@@ -203,5 +306,6 @@ if [[ "$DO_NOTEBOOK" == "1" ]]; then
   fi
 fi
 
-log "Done. LLM key/upstream: edit only $SECRETS_FILE then re-run this script."
+log "Done. LLM: edit $SECRETS_FILE (key/upstream) + optional LLM_PROXY_URL/LLM_MODEL, then re-run."
+log "Defaults: $BUNDLE_ROOT/config/llm.defaults.env — see bundle/config/LLM_CONFIG.md"
 log "TTS keys: edit $HERMES_HOME/config/tts-providers.yaml (not synced here)."

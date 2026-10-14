@@ -25,16 +25,31 @@ class JobService:
         self._fit = FitScoreService()
         self._applications = ApplicationService(db)
 
+    async def parse_url(self, profile_id: str, *, actor: Actor, body) -> JobResponse:
+        # Authorize before any outbound request. Metadata is server-produced only.
+        await self._profiles.get(profile_id, actor=actor)
+        from jobcome.services.jd_fetch_service import JdFetchService
+        page = await JdFetchService().fetch(body.url, render=body.render)
+        provenance = page.as_dict()
+        provenance.pop("text")
+        return await self.parse_jd(profile_id, actor=actor,
+            body=JobParseRequest(raw_text=page.text, source_url=page.final_url, save=body.save),
+            provenance=provenance)
+
     async def parse_jd(
         self,
         profile_id: str,
         *,
         actor: Actor,
         body: JobParseRequest,
+        provenance: dict | None = None,
     ) -> JobResponse:
         await self._profiles.get(profile_id, actor=actor)
         parsed = await self._jd.parse(raw_text=body.raw_text)
 
+        requirements = parsed.model_dump(mode="json")
+        if provenance:
+            requirements["_provenance"] = provenance
         job: Job | None = None
         if body.save:
             job = Job(
@@ -44,7 +59,7 @@ class JobService:
                 title=parsed.role_title,
                 source_url=body.source_url,
                 raw_text=body.raw_text[:50_000],
-                requirements=parsed.model_dump(mode="json"),
+                requirements=requirements,
             )
             await self._jobs.create(job)
             await self._db.commit()
@@ -55,12 +70,13 @@ class JobService:
             company=parsed.company or "待确认公司",
             title=parsed.role_title,
             source_url=body.source_url,
-            requirements=parsed.model_dump(mode="json"),
+            requirements=requirements,
             fit_score=None,
             fit_recommendation=None,
             fit_gaps=[],
             fit_blockers=[],
             parsed=parsed,
+            provenance=provenance,
         )
 
     async def fit_score(
@@ -124,6 +140,7 @@ class JobService:
             title=job.title,
             source_url=job.source_url,
             requirements=job.requirements,
+            provenance=(job.requirements or {}).get("_provenance"),
             fit_score=job.fit_score,
             fit_recommendation=job.fit_recommendation,
             fit_gaps=job.fit_gaps if isinstance(job.fit_gaps, list) else [],

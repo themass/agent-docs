@@ -2,15 +2,16 @@
   "middlewares": [
     "jobcome.deerflow_middleware:JobComeProductRulesMiddleware"
   ],
-  "mcpInterceptors": [
-    "jobcome.mcp.interceptors:build_apply_pipeline_review_interceptor"
-  ],
+  "mcpInterceptors": [],
   "mcpServers": {
     "jobcome": {
       "enabled": true,
       "type": "stdio",
       "command": "python",
-      "args": ["-m", "jobcome.mcp.server"],
+      "args": [
+        "-m",
+        "jobcome.mcp.server"
+      ],
       "env": {
         "JOB_COME_MCP_USER_ID": "$JOB_COME_MCP_USER_ID",
         "JOB_COME_MCP_PROFILE_ID": "$JOB_COME_MCP_PROFILE_ID",
@@ -24,18 +25,43 @@
       "routing": {
         "mode": "prefer",
         "priority": 100,
-        "keywords": ["简历", "档案", "profile", "面试", "题库", "JD", "岗位", "匹配"]
+        "keywords": [
+          "简历",
+          "档案",
+          "profile",
+          "面试",
+          "题库",
+          "JD",
+          "岗位",
+          "匹配"
+        ]
       }
     }
   },
   "skills": {
-    "resume-coach": { "enabled": true },
-    "resume-writer": { "enabled": true },
-    "resume-reviewer": { "enabled": true },
-    "coach-mock": { "enabled": true },
-    "coach-answer": { "enabled": true },
-    "coach-archive": { "enabled": true },
-    "jd-parser": { "enabled": true },
-    "apply-pipeline": { "enabled": true }
+    "resume-coach": {
+      "enabled": true
+    },
+    "resume-writer": {
+      "enabled": true
+    },
+    "resume-reviewer": {
+      "enabled": true
+    },
+    "coach-mock": {
+      "enabled": true
+    },
+    "coach-answer": {
+      "enabled": true
+    },
+    "coach-archive": {
+      "enabled": true
+    },
+    "jd-parser": {
+      "enabled": true
+    },
+    "apply-pipeline": {
+      "enabled": true
+    }
   }
 }

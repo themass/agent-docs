@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -10,8 +12,8 @@ from jobcome.main import app
 from jobcome.storage_client import get_object_store
 
 pytestmark = pytest.mark.skipif(
-    not settings.storage_remote_enabled,
-    reason="JOB_COME_S3_ACCESS_KEY / SECRET_KEY not set",
+    os.environ.get("JOB_COME_RUN_REMOTE_TESTS") != "1" or not settings.storage_remote_enabled,
+    reason="Requires explicit JOB_COME_RUN_REMOTE_TESTS=1 and dedicated integration resources",
 )
 
 

@@ -200,6 +200,11 @@ class AgentService:
         ui_context: AgentUiContext | None = None,
     ) -> AsyncIterator[dict]:
         session = await self._require_session(session_id, actor=actor)
+        if ui_context and ui_context.mock_session_id:
+            from jobcome.mcp.context import McpRunContext, require_owned_references
+            await require_owned_references(McpRunContext(db=self._db, user_id=actor.user_id,
+                profile_id=session.profile_id), job_id=session.job_id,
+                mock_session_id=ui_context.mock_session_id)
         attachment_list = attachments or []
         user_text = _format_user_message(content, attachment_list)
         persist_payload: dict[str, Any] | None = None
@@ -230,6 +235,7 @@ class AgentService:
             extra={
                 **({"job_id": session.job_id} if session.job_id else {}),
                 "reply_locale": reply_locale,
+                "mock_session_id": ui_context.mock_session_id if ui_context else None,
             },
         )
 
@@ -259,9 +265,8 @@ class AgentService:
             drawn_stems: list[str] = []
             if session.profile_id:
                 store = InterviewStore(self._db)
-                mock = await store.get_active_mock(
-                    session.profile_id, job_id=session.job_id
-                )
+                mock = (await store.get_mock_session(ui_context.mock_session_id)
+                        if ui_context and ui_context.mock_session_id else None)
                 if mock is not None:
                     mock_id = mock.id
                     draw_n = int(mock.bank_draw_count or 0)
@@ -339,6 +344,13 @@ class AgentService:
     ) -> AgentConfirmResponse:
         session = await self._require_session(session_id, actor=actor)
         if not body.approved:
+            from jobcome.services.patch_confirm_service import get_pending, pop_pending
+            pending = await get_pending(body.confirm_id)
+            if pending is None:
+                raise NotFoundError("Confirmation expired or already consumed")
+            if pending.user_id != actor.user_id or pending.session_id != session.id or pending.profile_id != session.profile_id:
+                raise NotFoundError("Confirmation not found")
+            await pop_pending(body.confirm_id)
             await self._messages.append(
                 message_id=new_id("agm"),
                 session_id=session.id,

@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Content Studio Web Story · HyperFrames Demo</title>
+    <style>
+      :root {
+        --bg: #020817;
+        --text: #eaf6ff;
+        --muted: #8fb7d8;
+        --cyan: #22d3ee;
+        --yellow: #facc15;
+        --line: rgba(56, 189, 248, 0.34);
+        --panel: rgba(5, 21, 48, 0.86);
+      }
+      * { box-sizing: border-box; }
+      @font-face {
+        font-family: "PingFang SC";
+        src: local("PingFang SC"), local("PingFangSC-Regular");
+      }
+      @font-face {
+        font-family: "Hiragino Sans GB";
+        src: local("Hiragino Sans GB"), local("HiraginoSansGB-W3");
+      }
+      html, body {
+        margin: 0;
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+        background: #000;
+        color: var(--text);
+        font-family: "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+      }
+      #stage {
+        position: relative;
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 55% 12%, rgba(34, 211, 238, 0.22), transparent 34rem),
+          linear-gradient(180deg, #04142b 0%, #020817 52%, #010511 100%);
+      }
+      #stage::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background-image:
+          linear-gradient(rgba(56, 189, 248, 0.14) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(56, 189, 248, 0.14) 1px, transparent 1px);
+        background-size: 96px 96px;
+        mask-image: linear-gradient(to bottom, black, transparent 90%);
+      }
+      .clip {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 96px 88px;
+      }
+      .eyebrow { margin: 0 0 24px; color: var(--muted); font-size: 28px; letter-spacing: 0.06em; }
+      h1 {
+        margin: 0;
+        font-size: 96px;
+        line-height: 1.05;
+        letter-spacing: -0.06em;
+      }
+      .thesis {
+        margin: 28px 0 0;
+        color: var(--cyan);
+        font-size: 34px;
+        font-weight: 700;
+        line-height: 1.35;
+      }
+      .tags { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 40px; }
+      .tags span, .chip {
+        border: 1px solid rgba(56, 189, 248, 0.28);
+        border-radius: 999px;
+        padding: 10px 18px;
+        background: rgba(13, 42, 82, 0.74);
+        color: #bdeaff;
+        font-size: 22px;
+      }
+      .rank-list { display: grid; gap: 16px; margin-top: 54px; }
+      .rank-row {
+        display: grid;
+        grid-template-columns: 74px 1fr 1.1fr;
+        align-items: center;
+        min-height: 76px;
+        padding: 0 22px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: rgba(5, 21, 48, 0.72);
+      }
+      .rank-row b {
+        display: inline-grid; place-items: center;
+        width: 48px; height: 40px; border-radius: 10px;
+        background: var(--yellow); color: #06111f;
+      }
+      .rank-row strong { font-size: 28px; }
+      .rank-row span { color: var(--muted); font-size: 22px; }
+      .project-title { margin: 0; font-size: 84px; letter-spacing: -0.05em; }
+      .role { margin: 18px 0 0; color: var(--cyan); font-size: 34px; font-weight: 800; }
+      .chips { display: flex; flex-wrap: wrap; gap: 12px; margin: 28px 0; }
+      .frame {
+        position: relative;
+        height: 820px;
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        overflow: hidden;
+        background: #fff;
+        box-shadow: 0 28px 80px rgba(0, 0, 0, 0.44);
+      }
+      .frame-top {
+        display: flex; align-items: center; gap: 10px;
+        height: 52px; padding: 0 22px;
+        border-bottom: 1px solid rgba(56, 189, 248, 0.14);
+        background: rgba(3, 13, 31, 0.92);
+        color: var(--muted); font-size: 18px;
+      }
+      .frame-top i { width: 13px; height: 13px; border-radius: 50%; background: #ef4444; display: inline-block; }
+      .frame-top i:nth-child(2) { background: #facc15; }
+      .frame-top i:nth-child(3) { background: #22c55e; }
+      .shot-wrap { height: calc(100% - 52px); overflow: hidden; background: #fff; }
+      .shot {
+        display: block; width: 100%; height: auto;
+        transform: translateY(0);
+        will-change: transform;
+      }
+      .intro {
+        margin: 28px 0 0;
+        color: #d6eeff;
+        font-size: 28px;
+        line-height: 1.5;
+      }
+      .summary-title {
+        margin: 0;
+        color: var(--yellow);
+        font-size: 56px;
+        line-height: 1.2;
+        letter-spacing: -0.03em;
+      }
+      .takeaways { display: grid; gap: 18px; margin-top: 48px; }
+      .takeaways article {
+        display: grid;
+        grid-template-columns: 96px 1fr;
+        gap: 22px;
+        align-items: center;
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        padding: 22px 26px;
+        background: var(--panel);
+      }
+      .takeaways b {
+        display: inline-grid; place-items: center;
+        width: 72px; height: 52px; border-radius: 14px;
+        background: #38bdf8; color: #001223; font-size: 22px;
+      }
+      .takeaways p { margin: 0; font-size: 28px; line-height: 1.45; }
+      .fade-in { opacity: 0; transform: translateY(28px); }
+    </style>
+  </head>
+  <body>
+    <!--
+      HyperFrames composition demo for Content Studio Web Story.
+      Timeline (total 14s @ 1080x1920):
+        0–3.5s  hero
+        3.5–9s  project #1 (rea) with screenshot scroll
+        9–14s   summary
+    -->
+    <div
+      id="stage"
+      data-composition-id="web-story-demo"
+      data-start="0"
+      data-duration="14"
+      data-width="1080"
+      data-height="1920"
+    >
+      <section id="scene-hero" class="clip scene" data-start="0" data-duration="3.5" data-track-index="0">
+        <p class="eyebrow fade-in" id="hero-eye">Content Studio · 2026-10-09</p>
+        <h1 class="fade-in" id="hero-title">代理工程化加速</h1>
+        <p class="thesis fade-in" id="hero-thesis">今日趋势从代理能力展示转向工程流程与工具落地</p>
+        <div class="tags fade-in" id="hero-tags">
+          <span>AI代理</span><span>代码审查</span><span>逆向工程</span><span>开发工具</span>
+        </div>
+        <div class="rank-list fade-in" id="hero-list">
+          <div class="rank-row"><b>#1</b><strong>rea</strong><span>代理驱动逆向工具</span></div>
+          <div class="rank-row"><b>#2</b><strong>AnyPS5</strong><span>PS5程序移植工具</span></div>
+        </div>
+      </section>
+
+      <section id="scene-project" class="clip scene" data-start="3.5" data-duration="5.5" data-track-index="0">
+        <p class="eyebrow fade-in" id="p1-eye">#1 · 代理驱动逆向工具</p>
+        <h2 class="project-title fade-in" id="p1-title">rea</h2>
+        <p class="role fade-in" id="p1-role">morluto / rea</p>
+        <div class="chips fade-in" id="p1-chips">
+          <span class="chip">今日 +15,335</span>
+          <span class="chip">Star 35.9k</span>
+          <span class="chip">TypeScript</span>
+        </div>
+        <div class="frame fade-in" id="p1-frame">
+          <div class="frame-top"><i></i><i></i><i></i><span>github.com/morluto/rea</span></div>
+          <div class="shot-wrap">
+            <img class="shot" id="p1-shot" src="./assets/rea.png" alt="rea GitHub" />
+          </div>
+        </div>
+        <p class="intro fade-in" id="p1-intro">
+          rea 是基于代理的逆向工程工具，覆盖从应用行为到原生二进制的分析，适合关注 AI Agent 与二进制分析的开发者。
+        </p>
+      </section>
+
+      <section id="scene-summary" class="clip scene" data-start="9" data-duration="5" data-track-index="0">
+        <p class="eyebrow fade-in" id="sum-eye">今日总结 · 2026-10-09</p>
+        <h2 class="summary-title fade-in" id="sum-title">代理工具正从尝鲜走向工程流程</h2>
+        <div class="takeaways">
+          <article class="fade-in" id="sum-1"><b>趋势</b><p>AI 代理热门项目覆盖逆向、技能编排、图表设计与代码审查。</p></article>
+          <article class="fade-in" id="sum-2"><b>机会</b><p>工程规范、可解释审查和专业领域工具，仍是落地重点。</p></article>
+          <article class="fade-in" id="sum-3"><b>行动</b><p>按团队场景评估技能、审查规则与输出质量，再逐步接入流程。</p></article>
+        </div>
+      </section>
+
+      <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+      <script>
+        const tl = gsap.timeline({ paused: true });
+
+        // Scene 1: hero
+        tl.fromTo("#hero-eye", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.45 }, 0.15);
+        tl.fromTo("#hero-title", { opacity: 0, y: 36 }, { opacity: 1, y: 0, duration: 0.55 }, 0.35);
+        tl.fromTo("#hero-thesis", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.45 }, 0.7);
+        tl.fromTo("#hero-tags", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.4 }, 1.0);
+        tl.fromTo("#hero-list", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.5 }, 1.25);
+
+        // Scene 2: project
+        tl.fromTo("#p1-eye", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.35 }, 3.6);
+        tl.fromTo("#p1-title", { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: 0.45 }, 3.75);
+        tl.fromTo("#p1-role", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.35 }, 4.0);
+        tl.fromTo("#p1-chips", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.35 }, 4.15);
+        tl.fromTo("#p1-frame", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.45 }, 4.35);
+        // Screenshot scroll: finite, seekable (no infinite CSS)
+        tl.fromTo("#p1-shot", { y: 0 }, { y: -1200, duration: 3.8, ease: "none" }, 4.8);
+        tl.fromTo("#p1-intro", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.4 }, 5.1);
+
+        // Scene 3: summary
+        tl.fromTo("#sum-eye", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.35 }, 9.15);
+        tl.fromTo("#sum-title", { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: 0.5 }, 9.35);
+        tl.fromTo("#sum-1", { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.4 }, 9.8);
+        tl.fromTo("#sum-2", { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.4 }, 10.2);
+        tl.fromTo("#sum-3", { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.4 }, 10.6);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines["web-story-demo"] = tl;
+      </script>
+    </div>
+  </body>
+</html>

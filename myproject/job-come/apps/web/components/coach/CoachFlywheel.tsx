@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import {
   createMockSession,
+  completeMockSession,
   getMockSession,
   getQuestionDetail,
   logQuestion,
@@ -25,9 +26,10 @@ type Props = {
   jobId: string | null;
   practiceQid: string | null;
   disabled: boolean;
+  onSessionChange?: (id: string | null) => void;
 };
 
-export function CoachFlywheel({ profileId, jobId, practiceQid, disabled }: Props) {
+export function CoachFlywheel({ profileId, jobId, practiceQid, disabled, onSessionChange }: Props) {
   const [job, setJob] = useState<Job | null>(null);
   const [mode, setMode] = useState<"warmup" | "target">("warmup");
   const [session, setSession] = useState<MockSession | null>(null);
@@ -71,6 +73,7 @@ export function CoachFlywheel({ profileId, jobId, practiceQid, disabled }: Props
         job_id: jobId,
       });
       setSession(next);
+      onSessionChange?.(next.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "创建失败");
     } finally {
@@ -122,44 +125,21 @@ export function CoachFlywheel({ profileId, jobId, practiceQid, disabled }: Props
     <div className="space-y-5 text-sm">
       <section className="rounded-2xl border border-surface-border bg-white p-4 shadow-card">
         <h2 className="text-sm font-semibold text-slate-900">1. 开模拟</h2>
-        {!jobId ? (
-          <p className="mt-2 text-slate-600">
-            请从{" "}
-            <Link href="/applications" className="text-brand-700 underline">
-              投递看板
-            </Link>{" "}
-            或{" "}
-            <Link href="/jobs" className="text-brand-700 underline">
-              定向岗位
-            </Link>{" "}
-            带岗进入，才能抽库和对着 JD 练。
-          </p>
-        ) : (
-          <>
-            <p className="mt-2 text-slate-700">
-              {job ? `${job.company} · ${job.title}` : `岗位 ${jobId}`}
-            </p>
-            <label className="mt-3 block text-xs text-slate-500">
-              语气
-              <select
-                className="mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
-                value={mode}
-                onChange={(e) => setMode(e.target.value as "warmup" | "target")}
-              >
-                <option value="warmup">练手（支持、给空间）</option>
-                <option value="target">目标岗（追问更紧）</option>
-              </select>
-            </label>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void onStart()}
-              className="mt-3 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-            >
-              {busy ? "创建中…" : session ? "再开一轮" : "开始本轮模拟"}
-            </button>
-          </>
-        )}
+        <p className="mt-2 text-slate-700">{job ? `${job.company} · ${job.title}` : "无 JD：从个人题库练手，或去定向岗位选择 JD。"}</p>
+        <label className="mt-3 block">模式
+          <select className="ml-2 rounded border p-2" value={mode} onChange={e => setMode(e.target.value as "warmup" | "target")}>
+            <option value="warmup">练手（支持、给空间）</option>
+            <option value="target" disabled={!jobId}>目标岗（需要 JD）</option>
+          </select>
+        </label>
+        <button disabled={busy || session?.status === "active" || (mode === "target" && !jobId)} onClick={() => void onStart()} className="mt-3 rounded bg-slate-900 px-4 py-2 text-white disabled:opacity-50">开始本轮模拟</button>
+        {session?.status === "active" ? <button disabled={busy} className="ml-2 rounded border px-4 py-2" onClick={async () => {
+          setBusy(true); setError(null);
+          try { setSession(await completeMockSession(session.id)); onSessionChange?.(null); }
+          catch (e) { setError(e instanceof Error ? e.message : "结束失败"); }
+          finally { setBusy(false); }
+        }}>结束本轮</button> : null}
+        {session?.status === "completed" ? <p className="mt-2">本轮已归档，可查看题库或再开一轮。</p> : null}
       </section>
 
       <section className="rounded-2xl border border-surface-border bg-white p-4 shadow-card">
@@ -228,7 +208,7 @@ export function CoachFlywheel({ profileId, jobId, practiceQid, disabled }: Props
             </label>
             <button
               type="button"
-              disabled={busy || stem.trim().length < 4}
+              disabled={busy || session?.status !== "active" || stem.trim().length < 4}
               onClick={() => void onLog()}
               className="mt-3 rounded-lg border border-slate-200 px-4 py-2 text-sm disabled:opacity-50"
             >

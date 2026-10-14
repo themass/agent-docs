@@ -26,7 +26,23 @@ def test_coach_mock_has_answer_save_attempt() -> None:
 
 
 @pytest.mark.asyncio
-async def test_patch_confirm_roundtrip() -> None:
+async def test_patch_confirm_roundtrip(monkeypatch) -> None:
+    from jobcome.services import patch_confirm_service
+
+    class FakeRedis:
+        def __init__(self):
+            self.data = {}
+        async def set(self, key, value, **kwargs):
+            self.data[key] = value
+        async def get(self, key):
+            return self.data.get(key)
+        async def delete(self, key):
+            return self.data.pop(key, None)
+        async def getdel(self, key):
+            return self.data.pop(key, None)
+
+    redis = FakeRedis()
+    monkeypatch.setattr(patch_confirm_service, "get_redis", lambda: redis)
     pending = await create_pending(
         session_id="agsn_test",
         user_id="usr_test",

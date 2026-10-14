@@ -1,3 +1,8 @@
+---
+name: resume-reviewer
+description: JobCome resume-reviewer business workflow.
+---
+
 # resume-reviewer
 
 Export gate: review resume draft before PDF/DOCX or apply pipeline.
