@@ -1,5 +1,32 @@
 # Hermes Atlas 社区热点整理
 
+<!-- legacy-review:start -->
+> **2026-10-15 校订导航**：生态热度资料提供什么线索，不能证明什么。\
+> **核对范围**：历史社区资料，不作为当前版本、实现完整性或产品性能证据。\
+> **适用基线**：本地源码 `60d00c5633ad`；不是最新发布版本声明。原稿版本、行号、性能数字与长代码块若未在校订范围内，仍按历史示例阅读。
+> **先读当前结论**：[当前实现导读](CURRENT_IMPLEMENTATION.md#current-evidence) · **现行分卷**：[01-platform-and-architecture.md](../../volumes/01-platform-and-architecture.md) · [具体改动与未验证项](REVIEW_AND_CHANGES.md) · [返回全目录](README.md)
+
+<!-- legacy-review:end -->
+<a id="目录"></a>
+## 目录
+
+<!-- visible-toc:start -->
+- [1. 站点概览](#section-1)
+  - [1.1 Handbook（ evergreen 指南，2 篇）](#section-1-1)
+- [2. 一、Workspaces & GUI（聊天入口热度）](#section-2)
+- [3. 二、Skills & Skill Registries（近期高热）](#section-3)
+  - [3.1 社区 / 元技能](#section-3-1)
+  - [3.2 官方 Bundled（仓库内，非 Atlas 第三方）](#section-3-2)
+- [4. 三、Memory & Context](#section-4)
+- [5. 四、Plugins & Extensions](#section-5)
+- [6. 五、Multi-agent & Orchestration（Atlas §06 摘录）](#section-6)
+- [7. 六、Curated Lists（Atlas 手册入口）](#section-7)
+- [8. 七、使用建议](#section-8)
+<!-- visible-toc:end -->
+
+
+
+
 > **来源**: [hermesatlas.com](https://hermesatlas.com/)（社区地图，每周策展）  
 > **整理日期**: 2026-08-04（站点快照）  
 > **说明**: Star /「this week」为 Atlas 展示快照，会变动；安装前请点进仓库看 README 与兼容性。  
@@ -7,14 +34,18 @@
 
 ---
 
-## 站点概览
+<a id="站点概览"></a>
+<a id="section-1"></a>
+## 1. 站点概览
 
 - **定位**: Nous Hermes Agent 生态 — tools、skills、plugins、workspaces、memory 等 **12 类**、**221** 仓库（Atlas 2026-08-04）
 - **官方核心**: [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent) — Atlas hero **~225.1k★**、47 built-in tools、16 platforms、20+ LLM providers（以 GitHub 实时为准）
 - **本周 featured（2026-08-03）**: [Eynzof/Hermes-CN-Desktop](https://github.com/Eynzof/Hermes-CN-Desktop) — 中文社区 Tauri + Rust + React 桌面客户端（Windows / macOS），~1.4k★
 - **生态叙事**: Atlas 首页「State of Hermes — July 2026」— 约 216k★ 核心仓、百万星生态、velocity → surface → reach → judgment 发版节奏
 
-### Handbook（ evergreen 指南，2 篇）
+<a id="handbook-evergreen-指南2-篇"></a>
+<a id="section-1-1"></a>
+### 1.1 Handbook（ evergreen 指南，2 篇）
 
 | 指南 | 内容 |
 |------|------|
@@ -23,7 +54,9 @@
 
 ---
 
-## 一、Workspaces & GUI（聊天入口热度）
+<a id="一workspaces--gui聊天入口热度"></a>
+<a id="section-2"></a>
+## 2. 一、Workspaces & GUI（聊天入口热度）
 
 Atlas **Workspaces & GUIs** 类目按 star 排序的代表（2026-08-04）：
 
@@ -41,9 +74,13 @@ Atlas **Workspaces & GUIs** 类目按 star 排序的代表（2026-08-04）：
 
 ---
 
-## 二、Skills & Skill Registries（近期高热）
+<a id="二skills--skill-registries近期高热"></a>
+<a id="section-3"></a>
+## 3. 二、Skills & Skill Registries（近期高热）
 
-### 社区 / 元技能
+<a id="社区--元技能"></a>
+<a id="section-3-1"></a>
+### 3.1 社区 / 元技能
 
 | 仓库 | Stars | 用途 |
 |------|-------|------|
@@ -66,13 +103,17 @@ Atlas **Workspaces & GUIs** 类目按 star 排序的代表（2026-08-04）：
 
 **与内置 skill 机制**: Agent 通过 `skill_manage` 创建/修补 skill 的规则见 [TOOLS_SYSTEM.md](TOOLS_SYSTEM.md) §11；Prompt 侧索引见 [PROMPT_SYSTEM_ARCHITECTURE.md](PROMPT_SYSTEM_ARCHITECTURE.md)。
 
-### 官方 Bundled（仓库内，非 Atlas 第三方）
+<a id="官方-bundled仓库内非-atlas-第三方"></a>
+<a id="section-3-2"></a>
+### 3.2 官方 Bundled（仓库内，非 Atlas 第三方）
 
 路径：`hermes-agent/skills/`、`website/docs/user-guide/skills/` — software-development、research、github、creative 等 **bundled** 与 **optional**。发版默认集在 v0.16 曾 **精简**（见 [VERSION_HISTORY.md](VERSION_HISTORY.md)）。
 
 ---
 
-## 三、Memory & Context
+<a id="三memory--context"></a>
+<a id="section-4"></a>
+## 4. 三、Memory & Context
 
 | 仓库 | Stars | 说明 |
 |------|-------|------|
@@ -90,7 +131,9 @@ Atlas **Workspaces & GUIs** 类目按 star 排序的代表（2026-08-04）：
 
 ---
 
-## 四、Plugins & Extensions
+<a id="四plugins--extensions"></a>
+<a id="section-5"></a>
+## 5. 四、Plugins & Extensions
 
 | 仓库 | Stars | 说明 |
 |------|-------|------|
@@ -105,7 +148,9 @@ Atlas **Workspaces & GUIs** 类目按 star 排序的代表（2026-08-04）：
 
 ---
 
-## 五、Multi-agent & Orchestration（Atlas §06 摘录）
+<a id="五multi-agent--orchestrationatlas-06-摘录"></a>
+<a id="section-6"></a>
+## 6. 五、Multi-agent & Orchestration（Atlas §06 摘录）
 
 | 仓库 | Stars | 说明 |
 |------|-------|------|
@@ -118,7 +163,9 @@ Atlas **Workspaces & GUIs** 类目按 star 排序的代表（2026-08-04）：
 
 ---
 
-## 六、Curated Lists（Atlas 手册入口）
+<a id="六curated-listsatlas-手册入口"></a>
+<a id="section-7"></a>
+## 7. 六、Curated Lists（Atlas 手册入口）
 
 站点 **6 条 Curated lists** + **2 篇 Handbook guides**（见上文），常用起步：
 
@@ -131,7 +178,9 @@ Atlas **Workspaces & GUIs** 类目按 star 排序的代表（2026-08-04）：
 
 ---
 
-## 七、使用建议
+<a id="七使用建议"></a>
+<a id="section-8"></a>
+## 8. 七、使用建议
 
 1. **先定 Hermes 版本**（`hermes version`），再看 skill/plugin README 的最低版本；Atlas 展示版本可能领先本地 monorepo 一两个 tag。  
 2. **技能安装**: 官方 `hermes skills` / Dashboard；社区 [hermeshub](https://github.com/amanning3390/hermeshub)、[skills.sh](https://skills.sh)（v0.15.1+ 集成）。  

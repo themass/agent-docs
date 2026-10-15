@@ -134,8 +134,8 @@ async def verify(base, output):
                     await route.fulfill(
                         json={
                             "llm_enabled": False,
-                            "yuai_api_key_set": False,
-                            "yuai_vision_api_key_set": False,
+                            "llm_api_key_set": False,
+                            "llm_vision_api_key_set": False,
                             "routing_path": "fixture",
                         }
                     )
@@ -206,6 +206,6 @@ async def verify(base, output):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--base", default="http://127.0.0.1:3107")
-    parser.add_argument("--output", type=Path, default=Path("/tmp/jobcome-ui-evidence"))
+    parser.add_argument("--output", type=Path, default=Path("/tmp/jc-ui-evidence"))
     args = parser.parse_args()
     asyncio.run(verify(args.base, args.output))

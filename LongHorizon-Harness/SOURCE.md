@@ -814,7 +814,7 @@ Supervisor._refresh
 
 # 当前源码校准与验证索引
 
-> **基线：** `/Users/gqli/work/deepagents/LongHorizon-Harness`，提交 `b498162fc1b96ff469146f04a698c829c89e3eab`，2026-10-15 核对。以下用于修正历史走读的遗漏和定位漂移；历史引用保留，不应把旧行号当成当前文件行号。设计缺口与建议见 [设计深化](LONGHORIZON.md#设计深化与工程边界)。
+> **基线：** `/Users/gqli/work/deepagents/LongHorizon-Harness`，提交 `b498162fc1b96ff469146f04a698c829c89e3eab`，2026-10-15 核对。以下用于修正历史走读的遗漏和定位漂移；历史引用保留，不应把旧行号当成当前文件行号。设计缺口与建议见 [架构演进与待补齐契约](LONGHORIZON.md#evolution)。
 >
 > 本次只做源码/测试静态核对，没有运行项目测试，也没有执行真实 Agent/GUI 任务。列出测试表示“已有该用例”，不表示本次验证通过。
 
@@ -1384,7 +1384,7 @@ for source_step in parse_trajectory(raw):
 
 ### C12.2 自动验证
 
-实际命令、用例数量与结果在 [README.md · 本轮验证记录](README.md#本轮验证记录) 汇总。测试关闭 pytest cache，并设置 `PYTHONDONTWRITEBYTECODE=1`，避免为文档评审向源码目录写缓存。
+实际命令、用例数量与结果在 [README.md · 历史测试记录与验证范围](README.md#源码基线与验证范围) 汇总。测试关闭 pytest cache，并设置 `PYTHONDONTWRITEBYTECODE=1`，避免为文档评审向源码目录写缓存。
 
 本次不启动真实模型、不操作桌面、不安装插件、不改全局 CLI 配置；自动测试通过也不证明实际账户可调用特定模型或任意系统的 GUI 可用。
 

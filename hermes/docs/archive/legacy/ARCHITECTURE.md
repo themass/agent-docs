@@ -1,43 +1,130 @@
 # Hermes Agent 架构全景
 
-> **文档状态**：Canonical（Agent 内核）  
-> **Hermes 版本锚点**: 发版线 0.19.0 (`v2026.7.20`)；**工作区** `__release_date__` 2026.9.24 · **核对**: 2026-10-14 · [CATALOG.md](CATALOG.md) · [STATE_AND_AUXILIARY.md](STATE_AND_AUXILIARY.md)  
-> **Surface 层（CLI/TUI/Desktop/推理流式/Skin/Widget）**: 见 [SURFACE_ARCHITECTURE.md](SURFACE_ARCHITECTURE.md) — v0.18+ 结构升级主文档  
+<!-- legacy-review:start -->
+> **2026-10-15 校订导航**：系统全景：先分清入口、引擎、能力和状态。\
+> **核对范围**：校正父/子预算默认值；保留设计原则、模块地图及旧源码导读。\
+> **适用基线**：本地源码 `60d00c5633ad`；不是最新发布版本声明。原稿版本、行号、性能数字与长代码块若未在校订范围内，仍按历史示例阅读。
+> **先读当前结论**：[当前实现导读](CURRENT_IMPLEMENTATION.md#current-boundaries) · **现行分卷**：[01-platform-and-architecture.md](../../volumes/01-platform-and-architecture.md) · [具体改动与未验证项](REVIEW_AND_CHANGES.md) · [返回全目录](README.md)
+
+<!-- legacy-review:end -->
+<a id="目录"></a>
+## 目录
+
+<!-- visible-toc:start -->
+- [1. 0.19 文档地图（先读这里）](#section-1)
+- [2. 项目概述](#section-2)
+  - [2.1 什么是 Hermes Agent？](#section-2-1)
+  - [2.2 核心价值主张](#section-2-2)
+  - [2.3 典型使用场景](#section-2-3)
+- [3. 设计思想（Why Hermes is shaped this way）](#section-3)
+  - [3.1 核心与外壳分离（Platform-agnostic core）](#section-3-1)
+  - [3.2 可观测性优先（Observable execution）](#section-3-2)
+  - [3.3 Prompt 稳定与成本（Prompt stability / cache economics）](#section-3-3)
+  - [3.4 松耦合与注册表（Loose coupling）](#section-3-4)
+  - [3.5 记忆：防混淆优于炫技（Fence > raw injection）](#section-3-5)
+  - [3.6 子代理 = 隔离执行单元（Delegation as isolation）](#section-3-6)
+  - [3.7 Profile = 一等租户（Isolation by HERMES_HOME）](#section-3-7)
+  - [3.8 明确的非目标（What Hermes deliberately does not optimize for）](#section-3-8)
+- [4. 项目能力一览（What it does）](#section-4)
+- [5. 逻辑分层](#section-5)
+  - [5.1 模块协作矩阵](#section-5-1)
+- [6. 核心流程一：单轮对话在 `AIAgent` 内如何走完](#section-6)
+  - [6.1 生命周期（每一轮工具循环）](#section-6-1)
+  - [6.2 序列图（概念）](#section-6-2)
+  - [6.3 迭代预算 `IterationBudget`（`agent/iteration_budget.py`）](#section-6-3)
+  - [6.4 工具并行策略（实现规则摘要）](#section-6-4)
+- [7. 核心流程二：Prompt 如何拼装、上下文如何被保护](#section-7)
+  - [7.1 拼装职责划分](#section-7-1)
+  - [7.2 上下文文件安全扫描（设计意图）](#section-7-2)
+  - [7.3 Skills：渐进披露](#section-7-3)
+- [8. 核心流程三：Memory 管线（何时读、何时写）](#section-8)
+  - [8.1 Memory 主模型总览](#section-8-1)
+  - [8.2 回合内顺序（概念）](#section-8-2)
+- [9. 核心流程四：工具系统与子代理](#section-9)
+  - [9.1 注册链（依赖方向）](#section-9-1)
+  - [9.2 `delegate_task` 语义（与 Crew 的差异）](#section-9-2)
+- [10. 核心流程五：Gateway（网关）](#section-10)
+  - [10.1 一条消息的路径（文字版）](#section-10-1)
+  - [10.2 与 CLI 的差异（设计）](#section-10-2)
+- [11. Cron / ACP / Batch（简述）](#section-11)
+- [12. 全项目模块地图（按目录，覆盖整仓）](#section-12)
+  - [12.1 仓库根目录：`*.py`（进程级入口与共享内核）](#section-12-1)
+  - [12.2 `agent/` — Prompt、上下文引擎、适配器、记忆、展示](#section-12-2)
+  - [12.3 `tools/` — 工具注册表与具体工具](#section-12-3)
+  - [12.4 `gateway/` — 即时通讯网关（长驻进程）](#section-12-4)
+  - [12.5 `hermes_cli/` — `hermes` 命令行全家桶](#section-12-5)
+  - [12.6 `plugins/` — 可插拔扩展](#section-12-6)
+  - [12.7 `skills/` 与 `optional-skills/`](#section-12-7)
+  - [12.8 `environments/`、`tinker-atropos`、评测与 RL](#section-12-8)
+  - [12.9 `acp_adapter/` — IDE Agent Client Protocol](#section-12-9)
+  - [12.10 `cron/`](#section-12-10)
+  - [12.11 `web/` 与 `website/`](#section-12-11)
+  - [12.12 `tests/` — 测试分层](#section-12-12)
+  - [12.13 `scripts/`、`docker/`、`nix/`、`packaging/`](#section-12-13)
+  - [12.14 `docs/`、`plans/`、杂项](#section-12-14)
+  - [12.15 与 §13「精读」的关系](#section-12-15)
+  - [12.16 `ui-tui/`、`tui_gateway/`、`apps/desktop/`（v0.18+ Surface）](#section-12-16)
+- [13. 官方设计原则表（与实现对应）](#section-13)
+- [14. 源码导读（该从哪里读起、关键实现落在哪）](#section-14)
+  - [14.1 对话主循环：`AIAgent` + `agent/conversation_loop.py`](#section-14-1)
+  - [14.2 工具注册与发现：`tools/registry.py`](#section-14-2)
+  - [14.3 记忆编排：`agent/memory_manager.py`](#section-14-3)
+  - [14.4 Prompt 拼装与安全：`agent/prompt_builder.py`](#section-14-4)
+  - [14.5 子代理：`tools/delegate_tool.py`](#section-14-5)
+  - [14.6 网关：`gateway/run.py`](#section-14-6)
+  - [14.7 贡献者约定全文](#section-14-7)
+- [15. 使用与开发最佳实践](#section-15)
+  - [15.1 运行与环境](#section-15-1)
+  - [15.2 Profile、路径与多实例](#section-15-2)
+  - [15.3 Prompt 缓存与上下文纪律（开发二次开发必读）](#section-15-3)
+  - [15.4 记忆与外部 Provider](#section-15-4)
+  - [15.5 网关与自动化](#section-15-5)
+  - [15.6 委派与子代理](#section-15-6)
+  - [15.7 新增工具（最短路径）](#section-15-7)
+  - [15.8 测试与安全](#section-15-8)
+- [16. 关键技术决策](#section-16)
+  - [16.1 为什么选择 Python？](#section-16-1)
+  - [16.2 为什么选择 Typer？](#section-16-2)
+  - [16.3 为什么选择 Rich + prompt_toolkit？](#section-16-3)
+  - [16.4 为什么使用线程池而非纯异步？](#section-16-4)
+  - [16.5 为什么限制单一外部 Memory Provider？](#section-16-5)
+- [17. 扩展性设计](#section-17)
+  - [17.1 如何添加自定义工具？](#section-17-1)
+  - [17.2 如何开发自定义 Skill？](#section-17-2)
+  - [17.3 如何开发 Memory Provider 插件？](#section-17-3)
+- [18. 部署架构](#section-18)
+  - [18.1 单机部署（CLI）](#section-18-1)
+  - [18.2 Gateway 部署（多平台）](#section-18-2)
+  - [18.3 Serverless 部署（Modal/Daytona）](#section-18-3)
+  - [18.4 混合部署](#section-18-4)
+- [19. 性能优化策略](#section-19)
+  - [19.1 Prompt 缓存优化](#section-19-1)
+  - [19.2 工具并行优化](#section-19-2)
+  - [19.3 记忆检索优化](#section-19-3)
+  - [19.4 会话持久化优化](#section-19-4)
+- [20. 推荐阅读顺序](#section-20)
+- [21. 修订记录](#section-21)
+<!-- visible-toc:end -->
+
+
+
+
+> **原稿文档状态（历史标签）**：Canonical（Agent 内核）\
+> **原稿版本锚点（历史）**: 发版线 0.19.0 (`v2026.7.20`)；**工作区** `__release_date__` 2026.9.24 · **核对**: 2026-10-14 · [CATALOG.md](../../CATALOG.md) · [STATE_AND_AUXILIARY.md](STATE_AND_AUXILIARY.md)\
+> **Surface 层（CLI/TUI/Desktop/推理流式/Skin/Widget）**: 见 [SURFACE_ARCHITECTURE.md](SURFACE_ARCHITECTURE.md) — v0.18+ 结构升级主文档\
 > **使用建议**：Agent 内核以本文件为准；呈现层与 Gateway 事件协议以 `SURFACE_ARCHITECTURE.md` 为准。
 
-> **文档角色**：面向开发者与架构读者的**中文深度总览**——说明**为何这样设计**、**一轮对话在代码里如何走动**；**§10 全项目模块地图**覆盖整仓目录；**§12** 为核心路径**行级**导读；**§13** 为使用/开发最佳实践；与官网英文专题互补。  
-> **延伸阅读**：[Architecture（站点）](../website/docs/developer-guide/architecture.md)、[Agent Loop Internals](../website/docs/developer-guide/agent-loop.md)、[Prompt Assembly](../website/docs/developer-guide/prompt-assembly.md)、[Gateway Internals](../website/docs/developer-guide/gateway-internals.md)。  
+> **文档角色**：面向开发者与架构读者的**中文深度总览**——说明**为何这样设计**、**一轮对话在代码里如何走动**；**§10 全项目模块地图**覆盖整仓目录；**§12** 为核心路径**行级**导读；**§13** 为使用/开发最佳实践；与官网英文专题互补。\
+> **延伸阅读**：[Architecture（站点）](../../volumes/01-platform-and-architecture.md)、[Agent Loop Internals](../../../../../hermes-dev/hermes-agent/website/docs/developer-guide/agent-loop.md)、[Prompt Assembly](../../../../../hermes-dev/hermes-agent/website/docs/developer-guide/prompt-assembly.md)、[Gateway Internals](../../../../../hermes-dev/hermes-agent/website/docs/developer-guide/gateway-internals.md)。\
 > **源码根目录**：`hermes-agent/`。
 
 ---
 
-## 📋 目录
+<a id="📋-目录"></a>
 
-- [0. 0.19 文档地图（先读这里）](#0-019-文档地图先读这里)
-- [1. 项目概述](#1-项目概述)
-- [2. 设计思想（Why Hermes is shaped this way）](#2-设计思想why-hermes-is-shaped-this-way)
-- [3. 项目能力一览（What it does）](#3-项目能力一览what-it-does)
-- [4. 逻辑分层](#4-逻辑分层)
-- [5. 核心流程一：单轮对话在 `AIAgent` 内如何走完](#5-核心流程一单轮对话在-aiagent-内如何走完)
-- [6. 核心流程二：Prompt 如何拼装、上下文如何被保护](#6-核心流程二prompt-如何拼装上下文如何被保护)
-- [7. 核心流程三：Memory 管线（何时读、何时写）](#7-核心流程三memory-管线何时读何时写)
-- [8. 核心流程四：工具系统与子代理](#8-核心流程四工具系统与子代理)
-- [9. 核心流程五：Gateway（网关）](#9-核心流程五gateway网关)
-- [10. Cron / ACP / Batch（简述）](#10-cron--acp--batch简述)
-- [11. 全项目模块地图（按目录，覆盖整仓）](#11-全项目模块地图按目录覆盖整仓)
-- [12. 官方设计原则表（与实现对应）](#12-官方设计原则表与实现对应)
-- [13. 源码导读（该从哪里读起、关键实现落在哪）](#13-源码导读该从哪里读起关键实现落在哪)
-- [14. 使用与开发最佳实践](#14-使用与开发最佳实践)
-- [15. 关键技术决策](#15-关键技术决策)
-- [16. 扩展性设计](#16-扩展性设计)
-- [17. 部署架构](#17-部署架构)
-- [18. 性能优化策略](#18-性能优化策略)
-- [19. 推荐阅读顺序](#19-推荐阅读顺序)
-- [20. 修订记录](#20-修订记录)
-
----
-
-## 0. 0.19 文档地图（先读这里）
+<a id="0-019-文档地图先读这里"></a>
+<a id="section-1"></a>
+## 1. 0.19 文档地图（先读这里）
 
 v0.18–v0.19 起 Hermes 的**结构变化**主要在呈现层与连接模型，而不是另写一套 Agent 内核：
 
@@ -64,9 +151,13 @@ v0.18–v0.19 起 Hermes 的**结构变化**主要在呈现层与连接模型，
 
 ---
 
-## 1. 项目概述
+<a id="1-项目概述"></a>
+<a id="section-2"></a>
+## 2. 项目概述
 
-### 1.1 什么是 Hermes Agent？
+<a id="11-什么是-hermes-agent"></a>
+<a id="section-2-1"></a>
+### 2.1 什么是 Hermes Agent？
 
 **Hermes Agent** 是由 [Nous Research](https://nousresearch.com) 开发的**自改进 AI Agent**。它是唯一内置学习循环的 Agent，能够：
 
@@ -81,7 +172,9 @@ v0.18–v0.19 起 Hermes 的**结构变化**主要在呈现层与连接模型，
 **核心理念**:
 > "The self-improving AI agent" —— 通过闭环学习持续进化
 
-### 1.2 核心价值主张
+<a id="12-核心价值主张"></a>
+<a id="section-2-2"></a>
+### 2.2 核心价值主张
 
 | 维度 | Hermes Agent | 传统 Agent 框架 |
 |------|-------------|----------------|
@@ -94,7 +187,9 @@ v0.18–v0.19 起 Hermes 的**结构变化**主要在呈现层与连接模型，
 | **技能标准** | ✅ 兼容 agentskills.io 开放标准 | ⚠️ 私有格式 |
 | **RL 训练** | ✅ Atropos 环境集成 | ❌ 无 |
 
-### 1.3 典型使用场景
+<a id="13-典型使用场景"></a>
+<a id="section-2-3"></a>
+### 2.3 典型使用场景
 
 **场景 1: 个人生产力助手**
 ```bash
@@ -131,48 +226,66 @@ def hermes_serverless(prompt: str):
 
 ---
 
-## 2. 设计思想（Why Hermes is shaped this way）
+<a id="2-设计思想why-hermes-is-shaped-this-way"></a>
+<a id="section-3"></a>
+## 3. 设计思想（Why Hermes is shaped this way）
 
 Hermes 不是「包一层 Chat API」，而是一个**以工具调用为中心、可长期运行、可多通道交付**的运行时。下面几条是贯穿代码库的判断标准，而不是口号。
 
-### 1.1 核心与外壳分离（Platform-agnostic core）
+<a id="11-核心与外壳分离platform-agnostic-core"></a>
+<a id="section-3-1"></a>
+### 3.1 核心与外壳分离（Platform-agnostic core）
 
 - **一个** `AIAgent`（`run_agent.py`）承担所有「模型 ↔ 工具 ↔ 状态」的编排；CLI、Telegram、Cron、ACP、HTTP API 只负责**如何把用户输入送进来、如何把结果展示/投递出去**。  
 - **收益**：行为一致、Bug 只修一处；新渠道只需写适配器 + 会话键策略，不必复制 Agent 逻辑。  
 - **代价**：入口层必须处理好**工作目录**（例如网关常用 `MESSAGING_CWD`）、**身份与授权**（谁可以驱动 bot）。
 
-### 1.2 可观测性优先（Observable execution）
+<a id="12-可观测性优先observable-execution"></a>
+<a id="section-3-2"></a>
+### 3.2 可观测性优先（Observable execution）
 
 - 每次工具调用都通过 **callbacks** 反映到 CLI（spinner、工具前缀输出）或网关（聊天里的进度消息）。  
 - **思想**：Agent 是「自动化操作」而非黑盒聊天；用户需要看到**正在执行什么**，才能信任终端/远程沙箱行为。
 
-### 1.3 Prompt 稳定与成本（Prompt stability / cache economics）
+<a id="13-prompt-稳定与成本prompt-stability--cache-economics"></a>
+<a id="section-3-3"></a>
+### 3.3 Prompt 稳定与成本（Prompt stability / cache economics）
 
 - **系统前缀在会话中保持稳定**：不在中途无声地换模型组合、不重载 whole skills 全文、不偷偷改写 system prompt——除非用户显式操作（如 `/model`）或走**正式的压缩管线**。  
 - **原因**：Anthropic 等前缀缓存依赖稳定前缀；频繁突变会直接转化为**账单与延迟**。  
 - Skills 采用**渐进披露**（索引进 system，正文靠 `read_file` / `skill_view`），是在「上下文长度」与「可调用的程序性知识」之间的工程折中。
 
-### 1.4 松耦合与注册表（Loose coupling）
+<a id="14-松耦合与注册表loose-coupling"></a>
+<a id="section-3-4"></a>
+### 3.4 松耦合与注册表（Loose coupling）
 
 - 工具、MCP、Memory Provider、Context Engine、插件都通过 **registry / 单例策略 / `check_fn`** 接入，而不是在 `AIAgent` 里写死 import。  
 - **收益**：可选能力缺失时降级；测试可以替换模块；社区插件不必改核心分支。
 
-### 1.5 记忆：防混淆优于炫技（Fence > raw injection）
+<a id="15-记忆防混淆优于炫技fence->-raw-injection"></a>
+<a id="section-3-5"></a>
+### 3.5 记忆：防混淆优于炫技（Fence > raw injection）
 
 - 外部检索到的记忆经 `MemoryManager` 包进 `<memory-context>`，并带系统注释：**明确告知模型这是背景材料而非用户新输入**（见 `agent/memory_manager.py`）。  
 - **单一外部 Memory Provider**：同时只允许一个外部后端 + 内置 Builtin——避免工具 schema 爆炸与写入语义冲突。
 
-### 1.6 子代理 = 隔离执行单元（Delegation as isolation）
+<a id="16-子代理-=-隔离执行单元delegation-as-isolation"></a>
+<a id="section-3-6"></a>
+### 3.6 子代理 = 隔离执行单元（Delegation as isolation）
 
 - `delegate_task` Spawn **新的** `AIAgent` 实例：干净上下文、独立 `task_id`（终端会话隔离）、受限工具集，父对话只看到**委托与摘要**。  
 - **不是**多角色 Crew 编排框架：Hermes 刻意避免「表面多 agent、实则同一上下文搅在一起」；要的是**边界清晰**与可预期的副作用范围。
 
-### 1.7 Profile = 一等租户（Isolation by HERMES_HOME）
+<a id="17-profile-=-一等租户isolation-by-hermes_home"></a>
+<a id="section-3-7"></a>
+### 3.7 Profile = 一等租户（Isolation by HERMES_HOME）
 
 - `hermes -p <name>` 切换整棵用户态目录树（配置、会话、记忆、skills、网关 PID）。  
 - 代码里**禁止**写死 `~/.hermes`，一律 `get_hermes_home()`——否则 profile 与测试隔离全部失效。
 
-### 1.8 明确的非目标（What Hermes deliberately does not optimize for）
+<a id="18-明确的非目标what-hermes-deliberately-does-not-optimize-for"></a>
+<a id="section-3-8"></a>
+### 3.8 明确的非目标（What Hermes deliberately does not optimize for）
 
 理解一个系统，不能只看它追求什么，也要看它**刻意不追求什么**。Hermes 有几条很明确的非目标：
 
@@ -191,7 +304,9 @@ Hermes 不是「包一层 Chat API」，而是一个**以工具调用为中心�
 
 ---
 
-## 3. 项目能力一览（What it does）
+<a id="3-项目能力一览what-it-does"></a>
+<a id="section-4"></a>
+## 4. 项目能力一览（What it does）
 
 | 维度 | 说明 |
 |------|------|
@@ -203,7 +318,9 @@ Hermes 不是「包一层 Chat API」，而是一个**以工具调用为中心�
 
 ---
 
-## 4. 逻辑分层
+<a id="4-逻辑分层"></a>
+<a id="section-5"></a>
+## 5. 逻辑分层
 
 v0.19 起分层是 **Surface → 入口 → 内核 → 持久化**。Surface 不重写 Agent loop，只消费 callback / WS 事件。
 
@@ -265,7 +382,9 @@ flowchart TB
 
 详述见 [SURFACE_ARCHITECTURE.md](SURFACE_ARCHITECTURE.md)。
 
-### 4.1 模块协作矩阵
+<a id="41-模块协作矩阵"></a>
+<a id="section-5-1"></a>
+### 5.1 模块协作矩阵
 
 只看目录树很容易知道“文件在哪”，但不容易知道“谁拥有决策权”。下面这张矩阵更适合用来理解职责分工：
 
@@ -286,12 +405,16 @@ flowchart TB
 
 ---
 
-## 5. 核心流程一：单轮对话在 `AIAgent` 内如何走完
+<a id="5-核心流程一单轮对话在-aiagent-内如何走完"></a>
+<a id="section-6"></a>
+## 6. 核心流程一：单轮对话在 `AIAgent` 内如何走完
 
 以下为 **`run_conversation()` 内部一轮迭代**的逻辑顺序（与官网 *Turn Lifecycle* 一致）。  
 **实现位置（v0.15+）**：`agent/conversation_loop.py`；`run_agent.AIAgent.run_conversation` 仅为薄转发。流式 reasoning / 正文 delta 在 `agent/chat_completion_helpers.py` 发射。
 
-### 5.1 生命周期（每一轮工具循环）
+<a id="51-生命周期每一轮工具循环"></a>
+<a id="section-6-1"></a>
+### 6.1 生命周期（每一轮工具循环）
 
 1. **任务标识**：若未提供 `task_id` 则生成（隔离终端会话、缓存键等）。  
 2. **用户消息写入历史**：进入 OpenAI 风格 `messages` 列表。  
@@ -310,7 +433,9 @@ flowchart TB
 
 内部消息必须满足提供商的**角色交替约束**。呈现层见 [SURFACE_ARCHITECTURE.md](SURFACE_ARCHITECTURE.md) §4。
 
-### 5.2 序列图（概念）
+<a id="52-序列图概念"></a>
+<a id="section-6-2"></a>
+### 6.2 序列图（概念）
 
 ```mermaid
 sequenceDiagram
@@ -343,13 +468,17 @@ sequenceDiagram
   E-->>U: 展示或投递
 ```
 
-### 5.3 迭代预算 `IterationBudget`（`agent/iteration_budget.py`）
+<a id="53-迭代预算-iterationbudgetagentiteration_budgetpy"></a>
+<a id="section-6-3"></a>
+### 6.3 迭代预算 `IterationBudget`（`agent/iteration_budget.py`）
 
-- **每个**代理实例（父或子）自有预算；父默认 `max_iterations`（如 90），子代理单独上限（默认 50，可由 `delegation.max_iterations` 配置）。  
+- **每个**代理实例（父或子）自有预算；父构造器 `max_iterations` 默认为 `sys.maxsize`（入口可覆盖），子代理单独上限（未配置时 250，由 `delegation.max_iterations` 配置）。\
 - **父子预算相加可以超过父的上限**——设计意图是：委派出去的工作不应简单吞噬父轮数，但也不无限；子代理仍有自己的 cap。  
 - **`execute_code` 内程序化工具循环可通过 `refund()` 退回计数**，避免「代码里帮模型多跑了几轮工具」就耗光父预算。
 
-### 5.4 工具并行策略（实现规则摘要）
+<a id="54-工具并行策略实现规则摘要"></a>
+<a id="section-6-4"></a>
+### 6.4 工具并行策略（实现规则摘要）
 
 当同一轮模型返回**多个** tool_call 时，是否并行由 `_should_parallelize_tool_batch()` 决定（简化理解）：
 
@@ -364,20 +493,28 @@ sequenceDiagram
 
 ---
 
-## 6. 核心流程二：Prompt 如何拼装、上下文如何被保护
+<a id="6-核心流程二prompt-如何拼装上下文如何被保护"></a>
+<a id="section-7"></a>
+## 7. 核心流程二：Prompt 如何拼装、上下文如何被保护
 
-### 6.1 拼装职责划分
+<a id="61-拼装职责划分"></a>
+<a id="section-7-1"></a>
+### 7.1 拼装职责划分
 
 - **`agent/prompt_builder.py`**：偏「静态与项目上下文」——人格、平台 hint、skills 索引、仓库内 `AGENTS.md` / `.hermes.md` / `SOUL.md` 等扫描结果。  
 - **`MemoryManager`**：偏「动态召回」——把检索结果包装成带围栏的块，避免与对话混淆。  
 - **`AIAgent`**：把上述部件合成最终 system，并处理 **Anthropic cache** 与**回合内 ephemeral** 层。
 
-### 6.2 上下文文件安全扫描（设计意图）
+<a id="62-上下文文件安全扫描设计意图"></a>
+<a id="section-7-2"></a>
+### 7.2 上下文文件安全扫描（设计意图）
 
 `prompt_builder` 对将注入 system 的上下文文件做 **启发式扫描**（可疑 Unicode、常见 injection 句式等），高风险内容**整块替换为 BLOCKED 提示**而非静默采纳。  
 这是「允许用户仓库驱动行为」与「防止项目文件反噬系统提示」之间的折中。
 
-### 6.3 Skills：渐进披露
+<a id="63-skills渐进披露"></a>
+<a id="section-7-3"></a>
+### 7.3 Skills：渐进披露
 
 - **索引先进模型**：列出可用 skills 与触发条件，减少无限上下文膨胀。  
 - **正文按需读取**：模型通过工具拉取 `SKILL.md`，与 Anthropic Skills 生态兼容思路一致。  
@@ -385,9 +522,13 @@ sequenceDiagram
 
 ---
 
-## 7. 核心流程三：Memory 管线（何时读、何时写）
+<a id="7-核心流程三memory-管线何时读何时写"></a>
+<a id="section-8"></a>
+## 8. 核心流程三：Memory 管线（何时读、何时写）
 
-### 7.1 Memory 主模型总览
+<a id="71-memory-主模型总览"></a>
+<a id="section-8-1"></a>
+### 8.1 Memory 主模型总览
 
 | 层级 | 载体 | 典型用途 |
 |------|------|----------|
@@ -401,7 +542,9 @@ sequenceDiagram
 
 **详细说明**: 见 [MEMORY_SYSTEM.md](MEMORY_SYSTEM.md) 与 [MEMORY_SYSTEM.md](MEMORY_SYSTEM.md)。
 
-### 7.2 回合内顺序（概念）
+<a id="72-回合内顺序概念"></a>
+<a id="section-8-2"></a>
+### 8.2 回合内顺序（概念）
 
 ```text
 prefetch_all(user_message)
@@ -416,9 +559,13 @@ sync_all(user, assistant) + queue_prefetch（若有）
 
 ---
 
-## 8. 核心流程四：工具系统与子代理
+<a id="8-核心流程四工具系统与子代理"></a>
+<a id="section-9"></a>
+## 9. 核心流程四：工具系统与子代理
 
-### 8.1 注册链（依赖方向）
+<a id="81-注册链依赖方向"></a>
+<a id="section-9-1"></a>
+### 9.1 注册链（依赖方向）
 
 ```text
 tools/registry.py  （无上游依赖）
@@ -432,7 +579,9 @@ run_agent.py       （循环、并行策略、特例拦截）
 
 **意义**：新增工具通常只需「新文件 + register + 必要时加入 toolset」，无需改 Agent 主循环。
 
-### 8.2 `delegate_task` 语义（与 Crew 的差异）
+<a id="82-delegate_task-语义与-crew-的差异"></a>
+<a id="section-9-2"></a>
+### 9.2 `delegate_task` 语义（与 Crew 的差异）
 
 - 子代理 **看不到** 父级完整推理链；父只看到**任务描述 + 返回摘要**。  
 - **阻止**：子代理再次 `delegate_task`、`clarify`、`memory` 写共享文件、`send_message` 跨渠道、`execute_code`（避免子代理变脚本生成器刷屏）——见 `DELEGATE_BLOCKED_TOOLS`。  
@@ -440,9 +589,13 @@ run_agent.py       （循环、并行策略、特例拦截）
 
 ---
 
-## 9. 核心流程五：Gateway（网关）
+<a id="9-核心流程五gateway网关"></a>
+<a id="section-10"></a>
+## 10. 核心流程五：Gateway（网关）
 
-### 9.1 一条消息的路径（文字版）
+<a id="91-一条消息的路径文字版"></a>
+<a id="section-10-1"></a>
+### 10.1 一条消息的路径（文字版）
 
 ```text
 平台 Adapter 收到消息
@@ -454,7 +607,9 @@ run_agent.py       （循环、并行策略、特例拦截）
   → Delivery：按平台限制分片、媒体、线程回复
 ```
 
-### 9.2 与 CLI 的差异（设计）
+<a id="92-与-cli-的差异设计"></a>
+<a id="section-10-2"></a>
+### 10.2 与 CLI 的差异（设计）
 
 - **身份**：网关必须解决「谁在说话」与**是否允许使用该 bot**。  
 - **并发**：多聊天并行；需 **token 锁**（`gateway.status`）防止同 bot token 多 profile 互抢。  
@@ -462,7 +617,9 @@ run_agent.py       （循环、并行策略、特例拦截）
 
 ---
 
-## 10. Cron / ACP / Batch（简述）
+<a id="10-cron--acp--batch简述"></a>
+<a id="section-11"></a>
+## 11. Cron / ACP / Batch（简述）
 
 - **Cron**：到期作业 → **新 Agent** → 执行 prompt → 投递到指定通道；适合「定时总结、巡检」。  
 - **ACP**：IDE 协议入口；`run_conversation` 在线程池跑，会话持久化在 `session_manager`。  
@@ -470,11 +627,15 @@ run_agent.py       （循环、并行策略、特例拦截）
 
 ---
 
-## 11. 全项目模块地图（按目录，覆盖整仓）
+<a id="11-全项目模块地图按目录覆盖整仓"></a>
+<a id="section-12"></a>
+## 12. 全项目模块地图（按目录，覆盖整仓）
 
-以下为 **hermes-agent 仓库全量一级/二级版图**：便于按业务域跳转源码。子目录会随版本增减，以实际 `ls` 为准。官网另有 [Directory Structure](../website/docs/developer-guide/architecture.md#directory-structure)（英文）。
+以下为 **hermes-agent 仓库全量一级/二级版图**：便于按业务域跳转源码。子目录会随版本增减，以实际 `ls` 为准。官网另有 [Directory Structure](../../volumes/01-platform-and-architecture.md)（英文）。
 
-### 11.1 仓库根目录：`*.py`（进程级入口与共享内核）
+<a id="111-仓库根目录py进程级入口与共享内核"></a>
+<a id="section-12-1"></a>
+### 12.1 仓库根目录：`*.py`（进程级入口与共享内核）
 
 | 模块 | 职责摘要 |
 |------|-----------|
@@ -494,7 +655,9 @@ run_agent.py       （循环、并行策略、特例拦截）
 | `trajectory_compressor.py` | 轨迹压缩（训练/导出管线）。 |
 | `mcp_serve.py` | 以服务端形态暴露 MCP 相关能力（与 `tools/mcp_tool.py` 客户端互补）。 |
 
-### 11.2 `agent/` — Prompt、上下文引擎、适配器、记忆、展示
+<a id="112-agent--prompt上下文引擎适配器记忆展示"></a>
+<a id="section-12-2"></a>
+### 12.2 `agent/` — Prompt、上下文引擎、适配器、记忆、展示
 
 | 分组 | 文件（节选） | 说明 |
 |------|----------------|------|
@@ -509,7 +672,9 @@ run_agent.py       （循环、并行策略、特例拦截）
 | **Auxiliary** | `auxiliary_client.py`、`auxiliary_*.py`（**~17 模块**） | 压缩/搜索/结构化输出等旁路 LLM；见 [STATE_AND_AUXILIARY.md](STATE_AND_AUXILIARY.md)。 |
 | **其它** | `insights.py`、`trajectory.py`、`conversation_loop.py` | 轨迹、**主对话循环**（~1.9k 行）。 |
 
-### 11.3 `tools/` — 工具注册表与具体工具
+<a id="113-tools--工具注册表与具体工具"></a>
+<a id="section-12-3"></a>
+### 12.3 `tools/` — 工具注册表与具体工具
 
 | 分组 | 说明 |
 |------|------|
@@ -526,7 +691,9 @@ run_agent.py       （循环、并行策略、特例拦截）
 | **安全与存储** | `tirith_security.py`、`tool_result_storage.py`。 |
 | **其它** | `todo_tool.py`、`web_tools`、`xai_http.py`、`fuzzy_match.py` 等。 |
 
-### 11.4 `gateway/` — 即时通讯网关（长驻进程）
+<a id="114-gateway--即时通讯网关长驻进程"></a>
+<a id="section-12-4"></a>
+### 12.4 `gateway/` — 即时通讯网关（长驻进程）
 
 | 模块 | 职责 |
 |------|------|
@@ -541,12 +708,16 @@ run_agent.py       （循环、并行策略、特例拦截）
 | `config.py` | 网关侧配置加载。 |
 | `platforms/*.py` | **各 IM/Web 适配器**：`telegram`、`discord`、`slack`、`whatsapp`、`signal`、`matrix`、`mattermost`、`feishu`、`wecom`、`weixin`、`sms`、`webhook`、`api_server`、`qqbot`、`bluebubbles`、`dingtalk` 等；`base.py`、`helpers.py` 提供共用基类。 |
 
-### 11.5 `hermes_cli/` — `hermes` 命令行全家桶
+<a id="115-hermes_cli--hermes-命令行全家桶"></a>
+<a id="section-12-5"></a>
+### 12.5 `hermes_cli/` — `hermes` 命令行全家桶
 
 **入口**：`main.py`（子命令分发、profile 覆盖 `_apply_profile_override`）。  
 **常用模块**：`config.py`（`DEFAULT_CONFIG`、`OPTIONAL_ENV_VARS`）、`commands.py`（`COMMAND_REGISTRY`）、`runtime_provider.py`、`auth.py`、`models.py`、`model_switch.py`、`setup.py`、`skills_config.py`/`tools_config.py`、`skills_hub.py`、`plugins.py`、`gateway.py`、`web_server.py`、`skin_engine.py`、`profiles.py`、`doctor.py`、`logs.py`、`backup.py`、`mcp_config.py` 等。
 
-### 11.6 `plugins/` — 可插拔扩展
+<a id="116-plugins--可插拔扩展"></a>
+<a id="section-12-6"></a>
+### 12.6 `plugins/` — 可插拔扩展
 
 | 路径 | 说明 |
 |------|------|
@@ -554,12 +725,16 @@ run_agent.py       （循环、并行策略、特例拦截）
 | `plugins/context_engine/*` | 替换/增强默认上下文压缩引擎（全局仅一个）。 |
 | `plugins/example-dashboard/` | 插件示例（Dashboard）。 |
 
-### 11.7 `skills/` 与 `optional-skills/`
+<a id="117-skills-与-optional-skills"></a>
+<a id="section-12-7"></a>
+### 12.7 `skills/` 与 `optional-skills/`
 
 - **`skills/`**：捆绑随发行提供的 Skills（agentskills.io 兼容）。  
 - **`optional-skills/`**：按需安装的大量官方可选技能（研究、DevOps、安全、MLOps、创意、区块链、邮件、通信等子目录）；**不参与核心运行时**，由用户或 CLI 安装拉取。
 
-### 11.8 `environments/`、`tinker-atropos`、评测与 RL
+<a id="118-environmentstinker-atropos评测与-rl"></a>
+<a id="section-12-8"></a>
+### 12.8 `environments/`、`tinker-atropos`、评测与 RL
 
 | 路径 | 说明 |
 |------|------|
@@ -567,47 +742,63 @@ run_agent.py       （循环、并行策略、特例拦截）
 | `tinker-atropos/` | 与 Atropos 等训练链路集成相关代码（名称以仓库为准）。 |
 | `batch_runner.py`、`rl_cli.py`、`trajectory_compressor.py` | 批量任务、RL CLI、轨迹压缩，服务数据生成与实验。 |
 
-### 11.9 `acp_adapter/` — IDE Agent Client Protocol
+<a id="119-acp_adapter--ide-agent-client-protocol"></a>
+<a id="section-12-9"></a>
+### 12.9 `acp_adapter/` — IDE Agent Client Protocol
 
 | 文件 | 说明 |
 |------|------|
 | `server.py` | ACP 服务端：会话、`run_conversation` 线程池执行、消息回写。 |
 | `session.py`、`tools.py`、`events.py`、`permissions.py`、`auth.py`、`entry.py` | 会话持久化、工具暴露、事件与权限。 |
 
-### 11.10 `cron/`
+<a id="1110-cron"></a>
+<a id="section-12-10"></a>
+### 12.10 `cron/`
 
 - `scheduler.py`、`jobs.py`：定时作业调度与作业存储（JSON），到期创建 Agent 并投递。
 
-### 11.11 `web/` 与 `website/`
+<a id="1111-web-与-website"></a>
+<a id="section-12-11"></a>
+### 12.11 `web/` 与 `website/`
 
 - **`web/`**：自带 Web 控制台/前端（`src/` 组件、页面、主题、i18n）；与网关/API 能力配合使用。  
 - **`website/`**：**Docusaurus** 文档站点源码（`docs/` 下用户指南、开发者指南、参考手册）；对外文档以构建站点为准。
 
-### 11.12 `tests/` — 测试分层
+<a id="1112-tests--测试分层"></a>
+<a id="section-12-12"></a>
+### 12.12 `tests/` — 测试分层
 
 - **`tests/conftest.py`**：`HERMES_HOME` 隔离等全局 fixture。  
 - **子目录**：`agent/`、`cli/`、`gateway/`、`hermes_cli/`、`run_agent/`、`plugins/`、`integration/`、`e2e/`、`environments/`、`skills/`、`acp/` 等，镜像源码结构。新增功能应在对应子目录补测试。
 
-### 11.13 `scripts/`、`docker/`、`nix/`、`packaging/`
+<a id="1113-scriptsdockernixpackaging"></a>
+<a id="section-12-13"></a>
+### 12.13 `scripts/`、`docker/`、`nix/`、`packaging/`
 
 - **`scripts/`**：`install.sh`、`run_tests.sh`、发布与辅助脚本。  
 - **`docker/`**：容器化定义。  
 - **`nix/`**：Nix 开发/安装路径。  
 - **`packaging/`**：如 `homebrew` 等发行打包资源。
 
-### 11.14 `docs/`、`plans/`、杂项
+<a id="1114-docsplans杂项"></a>
+<a id="section-12-14"></a>
+### 12.14 `docs/`、`plans/`、杂项
 
 - **`docs/`**：本文件等**仓库内**开发者文档；与 `website/docs` 区分（后者为站点源）。  
 - **`plans/`**：内部计划/草案。  
 - **根目录其它**：`SECURITY.md`、`LICENSE`、资产图、`build_skills_index.py` 等维护脚本。
 
-### 11.15 与 §13「精读」的关系
+<a id="1115-与-13精读的关系"></a>
+<a id="section-12-15"></a>
+### 12.15 与 §13「精读」的关系
 
 - **§11**：全仓**索引**——知道「功能在哪一目录」。  
 - **§13**：**最小精读路径**——第一次读代码从 `run_agent.py` → `model_tools.py` → `tools/registry.py` → `gateway/run.py` 深入。  
 - 某一子域（仅网关 / 仅 MCP / 仅 Honcho）可在 §11 定位目录后，再结合官网专题纵深阅读。
 
-### 11.16 `ui-tui/`、`tui_gateway/`、`apps/desktop/`（v0.18+ Surface）
+<a id="1116-ui-tuitui_gatewayappsdesktopv018+-surface"></a>
+<a id="section-12-16"></a>
+### 12.16 `ui-tui/`、`tui_gateway/`、`apps/desktop/`（v0.18+ Surface）
 
 > **详述**：[SURFACE_ARCHITECTURE.md](SURFACE_ARCHITECTURE.md)（Canonical，勿在本节重复实现细节）
 
@@ -623,7 +814,9 @@ run_agent.py       （循环、并行策略、特例拦截）
 
 ---
 
-## 12. 官方设计原则表（与实现对应）
+<a id="12-官方设计原则表与实现对应"></a>
+<a id="section-13"></a>
+## 13. 官方设计原则表（与实现对应）
 
 | 原则 | 在代码中的体现 |
 |------|----------------|
@@ -636,11 +829,15 @@ run_agent.py       （循环、并行策略、特例拦截）
 
 ---
 
-## 13. 源码导读（该从哪里读起、关键实现落在哪）
+<a id="13-源码导读该从哪里读起关键实现落在哪"></a>
+<a id="section-14"></a>
+## 14. 源码导读（该从哪里读起、关键实现落在哪）
 
 **全仓目录索引见 §11。** 下面按 **「第一次读 Hermes 核心路径」** 给出锚点；行号随版本可能漂移，请以仓库当前文件为准。
 
-### 13.1 对话主循环：`AIAgent` + `agent/conversation_loop.py`
+<a id="131-对话主循环aiagent-+-agentconversation_looppy"></a>
+<a id="section-14-1"></a>
+### 14.1 对话主循环：`AIAgent` + `agent/conversation_loop.py`
 
 > **v0.15.0+**：`run_conversation` 实现已迁至 `agent/conversation_loop.py`；`run_agent.AIAgent.run_conversation` 为薄转发。
 
@@ -680,7 +877,9 @@ def run_conversation(
 
 **阅读建议**：精读 `agent/conversation_loop.py`（~4.5k 行）分段搜索 `_api_call`、`compress`、`handle_function_call`；`run_agent.py`（~5.5k 行）侧重构造与转发，不必按 v0.14 前「单文件 13k 行」方式通读。
 
-### 13.2 工具注册与发现：`tools/registry.py`
+<a id="132-工具注册与发现toolsregistrypy"></a>
+<a id="section-14-2"></a>
+### 14.2 工具注册与发现：`tools/registry.py`
 
 - **设计**：各 `tools/*.py` 在模块顶层调用 `registry.register(...)`；`discover_builtin_tools()` 用 AST 判断模块是否包含顶层 `registry.register`，再动态 import，避免手写工具清单。
 
@@ -700,7 +899,9 @@ def discover_builtin_tools(tools_dir: Optional[Path] = None) -> List[str]:
 
 - **分发**：`model_tools.py` 中 `handle_function_call()`（及 schema 聚合）是唯一对外分发入口；新增工具优先读现有 `tools/*.py` 中的 `registry.register(...)` 样板。
 
-### 13.3 记忆编排：`agent/memory_manager.py`
+<a id="133-记忆编排agentmemory_managerpy"></a>
+<a id="section-14-3"></a>
+### 14.3 记忆编排：`agent/memory_manager.py`
 
 - **`MemoryManager`**：内置 Provider 固定存在；**第二个外部 Provider 会被拒绝并打日志**，避免工具名冲突与双倍写入语义。
 
@@ -721,7 +922,9 @@ class MemoryManager:
 
 - **`prefetch_all` / `sync_all`**（下文略去行号，见同文件）：回合前召回、回合后同步；单 Provider 失败不阻塞其它 Provider（见 docstring «Failures in one provider don't block others»）。
 
-### 13.4 Prompt 拼装与安全：`agent/prompt_builder.py`
+<a id="134-prompt-拼装与安全agentprompt_builderpy"></a>
+<a id="section-14-4"></a>
+### 14.4 Prompt 拼装与安全：`agent/prompt_builder.py`
 
 - **上下文注入扫描**：`_CONTEXT_THREAT_PATTERNS`、`_scan_context_content()` —— 将写入 system 的项目文件先做启发式扫描，可疑内容整块替换为 `[BLOCKED: ...]`，降低仓库内恶意/误触 prompt injection 面。
 
@@ -739,74 +942,102 @@ def _scan_context_content(content: str, filename: str) -> str:
     ...
 ```
 
-### 13.5 子代理：`tools/delegate_tool.py`
+<a id="135-子代理toolsdelegate_toolpy"></a>
+<a id="section-14-5"></a>
+### 14.5 子代理：`tools/delegate_tool.py`
 
 - 文件头文档说明子 `AIAgent` 的隔离语义与 `DELEGATE_BLOCKED_TOOLS`；修改委派行为应从此文件与 `run_agent.py` 中对 `delegate_task` 的拦截逻辑入手。
 
-### 13.6 网关：`gateway/run.py`
+<a id="136-网关gatewayrunpy"></a>
+<a id="section-14-6"></a>
+### 14.6 网关：`gateway/run.py`
 
 - **`GatewayRunner`**（类定义行号随版本变化）：消息路由、slash 命令、与 `AIAgent` 的衔接；读网关应配合 `gateway/session.py`、具体 `platforms/*.py` 适配器。
 
-### 13.7 贡献者约定全文
+<a id="137-贡献者约定全文"></a>
+<a id="section-14-7"></a>
+### 14.7 贡献者约定全文
 
 仓库根目录 **`AGENTS.md`** 含 slash 命令注册三步、新工具模板、配置迁移、`get_hermes_home()` 纪律、**Prompt 缓存不可破坏**、网关背景任务通知、**不要在工具 schema 里静态互引其它工具名** 等——与本文「最佳实践」互为补充。
 
 ---
 
-## 14. 使用与开发最佳实践
+<a id="14-使用与开发最佳实践"></a>
+<a id="section-15"></a>
+## 15. 使用与开发最佳实践
 
 以下为 **运维 / 集成 / 二次开发** 可执行清单；条款与 `AGENTS.md`、官网指南一致处不再重复英文原文。
 
-### 14.1 运行与环境
+<a id="141-运行与环境"></a>
+<a id="section-15-1"></a>
+### 15.1 运行与环境
 
 - **虚拟环境**：开发时始终 `source venv/bin/activate` 再跑 Python（见 `AGENTS.md`），避免系统 Python 与依赖漂移。  
 - **配置分离**：敏感密钥放 `~/.hermes/.env`，结构化选项放 `config.yaml`；网关可能单独加载 YAML——修改网关行为时确认读的是哪套 loader（CLI `load_cli_config` vs 网关内直接读配置）。
 
-### 14.2 Profile、路径与多实例
+<a id="142-profile路径与多实例"></a>
+<a id="section-15-2"></a>
+### 15.2 Profile、路径与多实例
 
 - **禁止写死 `~/.hermes`**：任何持久化路径使用 `hermes_constants.get_hermes_home()`；对用户展示用 `display_hermes_home()`。  
 - **多租户 / 多机器人**：不同用途使用 `hermes -p <profile>`，每个 profile 独立 `HERMES_HOME`、会话与网关进程。  
 - **网关 Bot Token**：适配器连接时使用 `gateway.status` 的 **scoped lock**（见 `AGENTS.md` / Telegram 范式），避免两个 profile 抢同一 token。
 
-### 14.3 Prompt 缓存与上下文纪律（开发二次开发必读）
+<a id="143-prompt-缓存与上下文纪律开发二次开发必读"></a>
+<a id="section-15-3"></a>
+### 15.3 Prompt 缓存与上下文纪律（开发二次开发必读）
 
 - **不要**在中途静默修改：历史 system 前缀、toolset、整包重载记忆——否则会击穿 Anthropic 等前缀缓存，成本与延迟激增。  
 - **Slash skills**：以 **user 消息**注入技能命令（而非改 system），有利于缓存稳定（见 `AGENTS.md` CLI 一节）。  
 - **工具 schema 文案**：不要在描述里硬编码「请调用某某工具」指向**可能未启用**的工具；若必须交叉引用，在 `model_tools.get_tool_definitions()` 里做动态拼接（见 `AGENTS.md` Known Pitfalls）。
 
-### 14.4 记忆与外部 Provider
+<a id="144-记忆与外部-provider"></a>
+<a id="section-15-4"></a>
+### 15.4 记忆与外部 Provider
 
 - **全局仅启用一个外部 Memory Provider**（`memory.provider`）；第二个会被 `MemoryManager.add_provider` 拒绝。  
 - builtin 与外部并存时，一侧 prefetch 失败**不应**拖死整轮对话——设计上允许单侧失败（见 `prefetch_all` 的非致命日志）。
 
-### 14.5 网关与自动化
+<a id="145-网关与自动化"></a>
+<a id="section-15-5"></a>
+### 15.5 网关与自动化
 
 - **授权**：生产环境务必配置 allowlist / DM **配对**，避免任意陌生人驱动你的 Agent。  
 - **工作目录**：网关场景留意 **`MESSAGING_CWD`**（默认常为家目录）；需要代理操作特定仓库时显式设置或引导用户 `cd`。  
 - **后台终端**：`terminal(background=true)` 时通过 `display.background_process_notifications`（或 `HERMES_BACKGROUND_NOTIFICATIONS`）控制是否刷屏推送。
 
-### 14.6 委派与子代理
+<a id="146-委派与子代理"></a>
+<a id="section-15-6"></a>
+### 15.6 委派与子代理
 
 - 为子代理单独配置 **`delegation.max_iterations`**，避免复杂子任务耗尽父轮次却又无声失败。  
 - 委派用于**任务隔离**（并行研究、独立沙箱），不适合替代清晰的产品内工作流引擎；避免层层嵌套委派（深度上限见 `delegate_tool.py`）。
 
-### 14.7 新增工具（最短路径）
+<a id="147-新增工具最短路径"></a>
+<a id="section-15-7"></a>
+### 15.7 新增工具（最短路径）
 
 1. 新建 `tools/your_tool.py`，顶层 `registry.register(...)`，`handler` **必须返回 JSON 字符串**。  
 2. 在 `toolsets.py` 把工具加入合适 toolset（或核心列表）。  
 3. 涉及路径/schema 文案时用 **`display_hermes_home()`** 做 profile 感知。  
 4. 状态文件写入 **`get_hermes_home()`** 下，勿写 `Path.home() / ".hermes"`。
 
-### 14.8 测试与安全
+<a id="148-测试与安全"></a>
+<a id="section-15-8"></a>
+### 15.8 测试与安全
 
 - 测试使用 `tests/conftest.py` 对 `HERMES_HOME` 的隔离 fixture，**勿**往真实 `~/.hermes` 写数据。  
 - **终端/UI**：不要用 `simple_term_menu`（tmux 重影）；展示循环避免 `\033[K` 与 `prompt_toolkit` 冲突（见 `AGENTS.md`）。
 
 ---
 
-## 15. 关键技术决策
+<a id="15-关键技术决策"></a>
+<a id="section-16"></a>
+## 16. 关键技术决策
 
-### 15.1 为什么选择 Python？
+<a id="151-为什么选择-python"></a>
+<a id="section-16-1"></a>
+### 16.1 为什么选择 Python？
 
 **理由**:
 - ✅ 丰富的 AI/ML 生态（LangChain、LlamaIndex）
@@ -818,7 +1049,9 @@ def _scan_context_content(content: str, filename: str) -> str:
 - ⚠️ 性能不如 Go/Rust
 - ⚠️ GIL 限制（但通过线程池缓解）
 
-### 15.2 为什么选择 Typer？
+<a id="152-为什么选择-typer"></a>
+<a id="section-16-2"></a>
+### 16.2 为什么选择 Typer？
 
 **理由**:
 - ✅ 类型提示自动生成 CLI
@@ -829,7 +1062,9 @@ def _scan_context_content(content: str, filename: str) -> str:
 - vs Click: Typer 更现代、类型安全
 - vs argparse: Typer 更简洁
 
-### 15.3 为什么选择 Rich + prompt_toolkit？
+<a id="153-为什么选择-rich-+-prompt_toolkit"></a>
+<a id="section-16-3"></a>
+### 16.3 为什么选择 Rich + prompt_toolkit？
 
 **理由**:
 - ✅ Rich: 美观的终端输出（spinner、表格）
@@ -838,7 +1073,9 @@ def _scan_context_content(content: str, filename: str) -> str:
 **权衡**:
 - ⚠️ 两者结合需注意兼容性（见 AGENTS.md）
 
-### 15.4 为什么使用线程池而非纯异步？
+<a id="154-为什么使用线程池而非纯异步"></a>
+<a id="section-16-4"></a>
+### 16.4 为什么使用线程池而非纯异步？
 
 **理由**:
 - ✅ 工具执行多为 I/O 阻塞（文件、网络）
@@ -857,7 +1094,9 @@ tool_result = await loop.run_in_executor(
 )
 ```
 
-### 15.5 为什么限制单一外部 Memory Provider？
+<a id="155-为什么限制单一外部-memory-provider"></a>
+<a id="section-16-5"></a>
+### 16.5 为什么限制单一外部 Memory Provider？
 
 **理由**:
 - ✅ 避免工具 schema 爆炸（每个 Provider 暴露不同工具）
@@ -876,9 +1115,13 @@ def add_provider(self, provider: MemoryProvider):
 
 ---
 
-## 16. 扩展性设计
+<a id="16-扩展性设计"></a>
+<a id="section-17"></a>
+## 17. 扩展性设计
 
-### 16.1 如何添加自定义工具？
+<a id="161-如何添加自定义工具"></a>
+<a id="section-17-1"></a>
+### 17.1 如何添加自定义工具？
 
 **步骤**:
 1. 新建 `tools/my_tool.py`
@@ -914,7 +1157,9 @@ registry.register(
 
 ---
 
-### 16.2 如何开发自定义 Skill？
+<a id="162-如何开发自定义-skill"></a>
+<a id="section-17-2"></a>
+### 17.2 如何开发自定义 Skill？
 
 **步骤**:
 1. 创建 Skill 目录 `skills/my-skill/`
@@ -939,7 +1184,9 @@ Instructions for using this skill...
 
 ---
 
-### 16.3 如何开发 Memory Provider 插件？
+<a id="163-如何开发-memory-provider-插件"></a>
+<a id="section-17-3"></a>
+### 17.3 如何开发 Memory Provider 插件？
 
 **步骤**:
 1. 创建插件目录 `plugins/memory/my-provider/`
@@ -966,9 +1213,13 @@ class MyProvider(MemoryProvider):
 
 ---
 
-## 17. 部署架构
+<a id="17-部署架构"></a>
+<a id="section-18"></a>
+## 18. 部署架构
 
-### 17.1 单机部署（CLI）
+<a id="171-单机部署cli"></a>
+<a id="section-18-1"></a>
+### 18.1 单机部署（CLI）
 
 **适用场景**:
 - 个人使用
@@ -988,7 +1239,9 @@ class MyProvider(MemoryProvider):
 
 ---
 
-### 17.2 Gateway 部署（多平台）
+<a id="172-gateway-部署多平台"></a>
+<a id="section-18-2"></a>
+### 18.2 Gateway 部署（多平台）
 
 **适用场景**:
 - 团队使用
@@ -1012,7 +1265,9 @@ Telegram/Discord/Slack → Gateway → AIAgent → LLM
 
 ---
 
-### 17.3 Serverless 部署（Modal/Daytona）
+<a id="173-serverless-部署modaldaytona"></a>
+<a id="section-18-3"></a>
+### 18.3 Serverless 部署（Modal/Daytona）
 
 **适用场景**:
 - 低频使用
@@ -1041,7 +1296,9 @@ def hermes_endpoint(prompt: str):
 
 ---
 
-### 17.4 混合部署
+<a id="174-混合部署"></a>
+<a id="section-18-4"></a>
+### 18.4 混合部署
 
 **架构**:
 ```
@@ -1058,9 +1315,13 @@ Serverless (生产 API)
 
 ---
 
-## 18. 性能优化策略
+<a id="18-性能优化策略"></a>
+<a id="section-19"></a>
+## 19. 性能优化策略
 
-### 18.1 Prompt 缓存优化
+<a id="181-prompt-缓存优化"></a>
+<a id="section-19-1"></a>
+### 19.1 Prompt 缓存优化
 
 **策略**:
 - ✅ 保持 system prefix 稳定
@@ -1073,7 +1334,9 @@ Serverless (生产 API)
 
 ---
 
-### 18.2 工具并行优化
+<a id="182-工具并行优化"></a>
+<a id="section-19-2"></a>
+### 19.2 工具并行优化
 
 **策略**:
 - ✅ 智能并行判定（_should_parallelize_tool_batch）
@@ -1085,7 +1348,9 @@ Serverless (生产 API)
 
 ---
 
-### 18.3 记忆检索优化
+<a id="183-记忆检索优化"></a>
+<a id="section-19-3"></a>
+### 19.3 记忆检索优化
 
 **策略**:
 - ✅ FTS5 全文搜索（SQLite）
@@ -1098,7 +1363,9 @@ Serverless (生产 API)
 
 ---
 
-### 18.4 会话持久化优化
+<a id="184-会话持久化优化"></a>
+<a id="section-19-4"></a>
+### 19.4 会话持久化优化
 
 **策略**:
 - ✅ 异步写入 SessionDB
@@ -1111,24 +1378,28 @@ Serverless (生产 API)
 
 ---
 
-## 19. 推荐阅读顺序
+<a id="19-推荐阅读顺序"></a>
+<a id="section-20"></a>
+## 20. 推荐阅读顺序
 
 1. **[SURFACE_ARCHITECTURE.md](SURFACE_ARCHITECTURE.md)** — v0.18+ 呈现层（必读）  
 2. **本文 §0 + §4 + §5 + §11.16** — 内核与 Surface 如何接缝  
 3. **`AGENTS.md`**（仓库根目录）  
 4. [AGENT_LOOP_ARCHITECTURE.md](AGENT_LOOP_ARCHITECTURE.md)（含 §10 压缩/路由/推理流）  
-5. [Agent Loop Internals](../website/docs/developer-guide/agent-loop.md)（英文）  
-6. [Prompt Assembly](../website/docs/developer-guide/prompt-assembly.md)  
-7. [Provider Runtime](../website/docs/developer-guide/provider-runtime.md)  
-8. [Tools Runtime](../website/docs/developer-guide/tools-runtime.md)  
-9. [Session Storage](../website/docs/developer-guide/session-storage.md)  
-10. [Gateway Internals](../website/docs/developer-guide/gateway-internals.md)  
-11. [Memory Provider Plugin](../website/docs/developer-guide/memory-provider-plugin.md)  
+5. [Agent Loop Internals](../../../../../hermes-dev/hermes-agent/website/docs/developer-guide/agent-loop.md)（英文）\
+6. [Prompt Assembly](../../../../../hermes-dev/hermes-agent/website/docs/developer-guide/prompt-assembly.md)\
+7. [Provider Runtime](../../../../../hermes-dev/hermes-agent/website/docs/developer-guide/provider-runtime.md)\
+8. [Tools Runtime](../../../../../hermes-dev/hermes-agent/website/docs/developer-guide/tools-runtime.md)\
+9. [Session Storage](../../../../../hermes-dev/hermes-agent/website/docs/developer-guide/session-storage.md)\
+10. [Gateway Internals](../../../../../hermes-dev/hermes-agent/website/docs/developer-guide/gateway-internals.md)\
+11. [Memory Provider Plugin](../../../../../hermes-dev/hermes-agent/website/docs/developer-guide/memory-provider-plugin.md)\
 12. [VERSION_HISTORY.md](VERSION_HISTORY.md)  
 
 ---
 
-## 20. 修订记录
+<a id="20-修订记录"></a>
+<a id="section-21"></a>
+## 21. 修订记录
 
 | 日期 | 说明 |
 |------|------|

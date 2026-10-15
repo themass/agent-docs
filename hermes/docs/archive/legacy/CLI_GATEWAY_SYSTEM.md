@@ -1,41 +1,87 @@
 # CLI / Gateway 与其它入口（Canonical）
 
-> **文档状态**: Canonical（合并版 · 勿再拆平行文档）  
+<!-- legacy-review:start -->
+> **2026-10-15 校订导航**：入口怎样收发消息、维持会话和驱动 Agent。\
+> **核对范围**：修复已合并/删除入口链接；当前 channel 生命周期与 followup 详见卷六，旧长代码保留为教程。\
+> **适用基线**：本地源码 `60d00c5633ad`；不是最新发布版本声明。原稿版本、行号、性能数字与长代码块若未在校订范围内，仍按历史示例阅读。
+> **先读当前结论**：[当前实现导读](CURRENT_IMPLEMENTATION.md#current-boundaries) · **现行分卷**：[06-gateways-channels-and-hitl.md](../../volumes/06-gateways-channels-and-hitl.md) · [具体改动与未验证项](REVIEW_AND_CHANGES.md) · [返回全目录](README.md)
+
+<!-- legacy-review:end -->
+<a id="目录"></a>
+## 目录
+
+<!-- visible-toc:start -->
+- [1. 一句话](#section-1)
+- [2. 全入口地图（不止 CLI / Gateway）](#section-2)
+- [3. CLI vs Gateway IM（深写对照）](#section-3)
+- [4. 启动与线程模型（CLI / Gateway 深写）](#section-4)
+  - [4.1 总图](#section-4-1)
+  - [4.2 CLI 启动链](#section-4-2)
+  - [4.3 Gateway 启动链](#section-4-3)
+  - [4.4 子 Agent（对照，非入口）](#section-4-4)
+- [5. 共享内核](#section-5)
+- [6. CLI：入口、TUI、Session](#section-6)
+  - [6.1 分层（简）](#section-6-1)
+  - [6.2 Profile / 配置](#section-6-2)
+  - [6.3 Slash 与子命令](#section-6-3)
+  - [6.4 Session](#section-6-4)
+  - [6.5 TUI ↔ ReAct](#section-6-5)
+  - [6.6 SOUL.md](#section-6-6)
+- [7. Gateway 深写：启动 · 实体 · 入站 · 出站](#section-7)
+  - [7.1 启动流程（类构造 + 时序）](#section-7-1)
+  - [7.2 实体设计与引用关系（类图）](#section-7-2)
+  - [7.3 入站流程（细节）](#section-7-3)
+  - [7.4 出站流程（细节）](#section-7-4)
+  - [7.5 Agent 缓存](#section-7-5)
+  - [7.6 `tui_gateway` / Desktop（并列，非 IM）](#section-7-6)
+- [8. Cron + ACP](#section-8)
+  - [8.1 Cron](#section-8-1)
+  - [8.2 ACP（IDE）](#section-8-2)
+- [9. Kanban worker](#section-9)
+  - [9.1 实体](#section-9-1)
+  - [9.2 调度 → spawn 时序](#section-9-2)
+  - [9.3 Worker 启动要点](#section-9-3)
+  - [9.4 对比](#section-9-4)
+- [10. 认证 · Token 锁 · 部署](#section-10)
+  - [10.1 认证](#section-10-1)
+  - [10.2 Token 锁](#section-10-2)
+  - [10.3 部署速查](#section-10-3)
+- [11. 命令面速查](#section-11)
+  - [11.1 顶层（摘）](#section-11-1)
+  - [11.2 Gateway 子命令（摘）](#section-11-2)
+  - [11.3 会话内 Slash（摘）](#section-11-3)
+- [12. 与其它文档的边界](#section-12)
+- [13. 源码锚点](#section-13)
+- [14. 变更摘要](#section-14)
+<!-- visible-toc:end -->
+
+
+
+
+> **原稿文档状态（历史标签）**: Canonical（合并版 · 勿再拆平行文档）\
 > **合并日期**: 2026-08-03 · [DOC_MAINTENANCE.md](DOC_MAINTENANCE.md)  
 > **来源**: `CLI_SYSTEM.md` + `GATEWAY_SYSTEM.md`（含原 COMPLETE Part）去重收敛；**2026-08-03 补全入口地图**  
-> **Hermes 版本锚点**: 0.19.0  
+> **原稿版本锚点（历史）**: 0.19.0\
 > **相关**: [HITL_APPROVAL_FLOW.md](HITL_APPROVAL_FLOW.md) · [SURFACE_ARCHITECTURE.md](SURFACE_ARCHITECTURE.md) · [AGENT_LOOP_ARCHITECTURE.md](AGENT_LOOP_ARCHITECTURE.md) · [ARCHITECTURE.md](ARCHITECTURE.md)  
 > **源码**: `cli.py` · `hermes_cli/` · `gateway/run.py` · `gateway/platforms/` · `acp_adapter/` · `cron/` · `tui_gateway/` · `hermes_cli/web_server.py`
 
-旧路径 [`CLI_SYSTEM.md`](CLI_SYSTEM.md) / [`GATEWAY_SYSTEM.md`](GATEWAY_SYSTEM.md) 仅为跳转 stub。
+旧路径 [`CLI_SYSTEM.md`](CLI_GATEWAY_SYSTEM.md) / [`GATEWAY_SYSTEM.md`](CLI_GATEWAY_SYSTEM.md) 仅为跳转 stub。
 
 **文档职责**：入口层「谁把输入送进 `AIAgent`、谁把结果送出」。本文 **深写 CLI + Gateway IM**；其余入口给对照表 + 链出（避免与 SURFACE / ARCHITECTURE 再复制一遍）。
 
 ---
 
-## 目录
-
-0. [一句话](#0-一句话) · [全入口地图](#01-全入口地图不止-cli--gateway)
-1. [启动与线程模型（CLI / Gateway）](#1-启动与线程模型cli--gateway-深写)
-2. [共享内核](#2-共享内核)
-3. [CLI](#3-cli入口tui-session)
-4. [Gateway 深写：启动 · 实体 · 入站 · 出站](#4-gateway-深写启动--实体--入站--出站)
-5. [Cron + ACP](#5-cron--acp)
-6. [Kanban worker](#6-kanban-worker)
-7. [认证 / Token 锁 / 部署](#7-认证--token-锁--部署)
-8. [命令面速查](#8-命令面速查)
-9. [与其它文档的边界](#9-与其它文档的边界)
-10. [源码锚点](#10-源码锚点)
-
----
-
-## 0. 一句话
+<a id="0-一句话"></a>
+<a id="section-1"></a>
+## 1. 一句话
 
 **同一 `AIAgent.run_conversation`；入口只负责 I/O 与身份。** CLI / Gateway 是最常见的两条人机面，但不是全部。
 
 ---
 
-## 0.1 全入口地图（不止 CLI / Gateway）
+<a id="01-全入口地图不止-cli--gateway"></a>
+<a id="section-2"></a>
+## 2. 全入口地图（不止 CLI / Gateway）
 
 分层（与 [ARCHITECTURE.md](ARCHITECTURE.md) 一致）：
 
@@ -83,7 +129,9 @@ Surface（怎么看）     CLI · Ink TUI · Desktop · WebUI/Dashboard
 
 ---
 
-## 0.2 CLI vs Gateway IM（深写对照）
+<a id="02-cli-vs-gateway-im深写对照"></a>
+<a id="section-3"></a>
+## 3. CLI vs Gateway IM（深写对照）
 
 | | **CLI / TUI** | **Gateway IM** |
 |--|---------------|----------------|
@@ -100,9 +148,13 @@ HITL **不**重建 system prompt。详见 [HITL_APPROVAL_FLOW.md](HITL_APPROVAL_
 
 ---
 
-## 1. 启动与线程模型（CLI / Gateway 深写）
+<a id="1-启动与线程模型cli--gateway-深写"></a>
+<a id="section-4"></a>
+## 4. 启动与线程模型（CLI / Gateway 深写）
 
-### 1.1 总图
+<a id="11-总图"></a>
+<a id="section-4-1"></a>
+### 4.1 总图
 
 ```text
 ┌─────────────────────────── 进程 ───────────────────────────┐
@@ -129,7 +181,9 @@ HITL **不**重建 system prompt。详见 [HITL_APPROVAL_FLOW.md](HITL_APPROVAL_
 | 子线程 / 协程 / 进程？ | 这两条入口里是 **OS 线程**。`run_conversation` 同步。Kanban/部分作业才是 **子进程** |
 | 为何单独线程？ | UI/IM 事件循环不能被 LLM/tool/HITL 阻塞 |
 
-### 1.2 CLI 启动链
+<a id="12-cli-启动链"></a>
+<a id="section-4-2"></a>
+### 4.2 CLI 启动链
 
 ```text
 hermes / hermes chat
@@ -154,7 +208,9 @@ hermes / hermes chat
 - HITL：agent 线程 `response_queue.get()` 阻塞；主线程 `_handle_approval_selection` → `put(choice)`。  
   **继续 loop = 当前 tool 返回**，不是另起 agent、也不重建 prompt。
 
-### 1.3 Gateway 启动链
+<a id="13-gateway-启动链"></a>
+<a id="section-4-3"></a>
+### 4.3 Gateway 启动链
 
 ```text
 hermes gateway run  （或 systemd / docker）
@@ -206,13 +262,17 @@ sequenceDiagram
 
 细节步骤、实体、入/出站见 **§4**。Cron / ACP / Kanban 见 **§5–§6**（不再用「一笔带过」）。
 
-### 1.4 子 Agent（对照，非入口）
+<a id="14-子-agent对照非入口"></a>
+<a id="section-4-4"></a>
+### 4.4 子 Agent（对照，非入口）
 
 `delegate_task` 在**当前入口进程内**再开线程池工人跑 **新的** `AIAgent`（one-shot）。见 [MULTI_AGENT_ARCHITECTURE.md](MULTI_AGENT_ARCHITECTURE.md)。
 
 ---
 
-## 2. 共享内核
+<a id="2-共享内核"></a>
+<a id="section-5"></a>
+## 5. 共享内核
 
 两边最终都进：
 
@@ -233,9 +293,13 @@ AIAgent.run_conversation
 
 ---
 
-## 3. CLI：入口、TUI、Session
+<a id="3-cli入口tuisession"></a>
+<a id="section-6"></a>
+## 6. CLI：入口、TUI、Session
 
-### 3.1 分层（简）
+<a id="31-分层简"></a>
+<a id="section-6-1"></a>
+### 6.1 分层（简）
 
 ```text
 用户: hermes | hermes <subcommand>
@@ -247,24 +311,32 @@ AIAgent.run_conversation
 
 技术栈：Typer/argparse 子命令面 + Rich + prompt_toolkit；推理流式与 Skin 以 SURFACE 为准。
 
-### 3.2 Profile / 配置
+<a id="32-profile--配置"></a>
+<a id="section-6-2"></a>
+### 6.2 Profile / 配置
 
 - Profile：`hermes_cli/profiles.py`；隔离 skills / plugins / cron / memories。
 - 配置优先级：环境变量 / `.env` → `~/.hermes/config.yaml`（及 profile 覆盖）→ 默认值。
 - `.env`：API keys、gateway tokens、memory provider 等。
 
-### 3.3 Slash 与子命令
+<a id="33-slash-与子命令"></a>
+<a id="section-6-3"></a>
+### 6.3 Slash 与子命令
 
 - **进程外**：`hermes gateway|skills|model|doctor|sessions|…`
 - **会话内**：`/model` `/yolo` `/new` `/approve`（Gateway）等——完整表以 `hermes_cli/commands.py` 为准。
 
-### 3.4 Session
+<a id="34-session"></a>
+<a id="section-6-4"></a>
+### 6.4 Session
 
 - CLI 持有 `session_id`；Agent 侧 `_flush_messages_to_session_db` 增量写。
 - 多终端 = 多进程多 session；`hermes sessions` 列表/恢复。
 - `/new`：新 session + 常 `invalidate_system_prompt`（与 HITL 无关）。
 
-### 3.5 TUI ↔ ReAct
+<a id="35-tui-↔-react"></a>
+<a id="section-6-5"></a>
+### 6.5 TUI ↔ ReAct
 
 ```text
 用户输入
@@ -275,19 +347,27 @@ AIAgent.run_conversation
 
 会话内复用 `_cached_system_prompt`；压缩/`/new` 才重建。
 
-### 3.6 SOUL.md
+<a id="36-soulmd"></a>
+<a id="section-6-6"></a>
+### 6.6 SOUL.md
 
 人设在 prompt 构建路径；写法见 Prompt / Memory。CLI 提供编辑与 profile 隔离入口。
 
 ---
 
-## 4. Gateway 深写：启动 · 实体 · 入站 · 出站
+<a id="4-gateway-深写启动--实体--入站--出站"></a>
+<a id="section-7"></a>
+## 7. Gateway 深写：启动 · 实体 · 入站 · 出站
 
-### 4.0 启动流程（类构造 + 时序）
+<a id="40-启动流程类构造-+-时序"></a>
+<a id="section-7-1"></a>
+### 7.1 启动流程（类构造 + 时序）
 
 分两段：**构造**（同步，拿到对象图）与 **`start()`**（async，接上平台）。
 
-#### 4.0.1 构造阶段时序
+<a id="401-构造阶段时序"></a>
+<a id="section-7-1-1"></a>
+#### 7.1.1 构造阶段时序
 
 ```mermaid
 sequenceDiagram
@@ -307,7 +387,9 @@ sequenceDiagram
     Note over GR: constructed not listening yet
 ```
 
-#### 4.0.2 `start()` → 可收消息时序
+<a id="402-start-→-可收消息时序"></a>
+<a id="section-7-1-2"></a>
+#### 7.1.2 `start()` → 可收消息时序
 
 ```mermaid
 sequenceDiagram
@@ -335,7 +417,9 @@ sequenceDiagram
     Note over GR: stop later unregister notify release lock drain adapters
 ```
 
-#### 4.0.3 步骤对照（与上图一一对应）
+<a id="403-步骤对照与上图一一对应"></a>
+<a id="section-7-1-3"></a>
+#### 7.1.3 步骤对照（与上图一一对应）
 
 | 步 | 动作 |
 |----|------|
@@ -351,9 +435,13 @@ sequenceDiagram
 
 ---
 
-### 4.1 实体设计与引用关系（类图）
+<a id="41-实体设计与引用关系类图"></a>
+<a id="section-7-2"></a>
+### 7.2 实体设计与引用关系（类图）
 
-#### 4.1.1 核心类图
+<a id="411-核心类图"></a>
+<a id="section-7-2-1"></a>
+#### 7.2.1 核心类图
 
 ```mermaid
 classDiagram
@@ -442,7 +530,9 @@ classDiagram
     GatewayRunner ..> DeliveryRouter : cron send_message
 ```
 
-#### 4.1.2 运行时对象引用（谁指向谁）
+<a id="412-运行时对象引用谁指向谁"></a>
+<a id="section-7-2-2"></a>
+#### 7.2.2 运行时对象引用（谁指向谁）
 
 ```mermaid
 classDiagram
@@ -478,7 +568,9 @@ classDiagram
 
 `sessions.json` / SessionStore ≠ transcript；正文只在 SessionDB。
 
-#### 4.1.3 职责表
+<a id="413-职责表"></a>
+<a id="section-7-2-3"></a>
+#### 7.2.3 职责表
 
 | 实体 | 定义位置 | 职责 |
 |------|----------|------|
@@ -502,7 +594,9 @@ classDiagram
 3. 历史：**Gateway 侧加载**后注入 Agent。  
 4. `sessions.json` ≠ transcript；transcript 在 **SessionDB**。
 
-#### 4.1.4 `_message_handler` 详解 · 频繁消息 / 排队 / 插队
+<a id="414-_message_handler-详解--频繁消息--排队--插队"></a>
+<a id="section-7-2-4"></a>
+#### 7.2.4 `_message_handler` 详解 · 频繁消息 / 排队 / 插队
 
 **是什么**
 
@@ -568,7 +662,9 @@ Adapter 侧还有：
 
 ---
 
-#### 4.1.5 `DeliveryRouter` / `delivery_ledger` 是什么？有没有「消息管理器」？
+<a id="415-deliveryrouter--delivery_ledger-是什么有没有消息管理器"></a>
+<a id="section-7-2-5"></a>
+#### 7.2.5 `DeliveryRouter` / `delivery_ledger` 是什么？有没有「消息管理器」？
 
 **有入站总控，但不是这两个名字。**
 
@@ -598,7 +694,9 @@ Adapter 侧还有：
 
 ---
 
-### 4.2 入站流程（细节）
+<a id="42-入站流程细节"></a>
+<a id="section-7-3"></a>
+### 7.3 入站流程（细节）
 
 ```text
 1. 平台 SDK 回调 / poll
@@ -651,9 +749,13 @@ sequenceDiagram
 
 忙会话：同 `session_key` 上已有 in-flight Agent 时，按 `_busy_input_mode` / `_busy_text_mode`（interrupt 注入 / 排队等）处理，避免双开打穿状态。
 
-### 4.3 出站流程（细节）
+<a id="43-出站流程细节"></a>
+<a id="section-7-4"></a>
+### 7.4 出站流程（细节）
 
-#### 路径 A — 对话最终回复（最常见）
+<a id="路径-a--对话最终回复最常见"></a>
+<a id="section-7-4-1"></a>
+#### 7.4.1 路径 A — 对话最终回复（最常见）
 
 这里的 **handler** = Gateway 启动时挂上的回调：
 
@@ -685,7 +787,9 @@ Adapter.handle_message
        可选：图片/文件/语音 API；post_delivery_callback
 ```
 
-#### 路径 B — DeliveryRouter
+<a id="路径-b--deliveryrouter"></a>
+<a id="section-7-4-2"></a>
+#### 7.4.2 路径 B — DeliveryRouter
 
 ```text
 cron / send_message / 显式多目标
@@ -716,7 +820,9 @@ sequenceDiagram
     R->>P: deliver to resolved targets
 ```
 
-#### 账本状态（重启可恢复）
+<a id="账本状态重启可恢复"></a>
+<a id="section-7-4-3"></a>
+#### 7.4.3 账本状态（重启可恢复）
 
 | 状态 | 含义 |
 |------|------|
@@ -726,7 +832,9 @@ sequenceDiagram
 
 账本失败 **不得** 阻塞真实发送。启动 `sweep_recoverable()`。
 
-### 4.4 Agent 缓存
+<a id="44-agent-缓存"></a>
+<a id="section-7-5"></a>
+### 7.5 Agent 缓存
 
 ```text
 _agent_cache: OrderedDict[session_key → (AIAgent, config_signature)]
@@ -734,15 +842,21 @@ _agent_cache: OrderedDict[session_key → (AIAgent, config_signature)]
 配置变 / LRU 满 / idle TTL → evict 或新建
 ```
 
-### 4.5 `tui_gateway` / Desktop（并列，非 IM）
+<a id="45-tui_gateway--desktop并列非-im"></a>
+<a id="section-7-6"></a>
+### 7.6 `tui_gateway` / Desktop（并列，非 IM）
 
 WS 事件桥 + Desktop/SSH serve。见 [SURFACE_ARCHITECTURE.md](SURFACE_ARCHITECTURE.md)。
 
 ---
 
-## 5. Cron + ACP
+<a id="5-cron-+-acp"></a>
+<a id="section-8"></a>
+## 8. Cron + ACP
 
-### 5.1 Cron
+<a id="51-cron"></a>
+<a id="section-8-1"></a>
+### 8.1 Cron
 
 **入口**：`hermes cron …` 调度；到期调用 `cron/scheduler.py::run_job`。
 
@@ -782,7 +896,9 @@ sequenceDiagram
 | 投递 | **路径 B**，不是 Adapter 回程栈 |
 | 与 Gateway | 可同机；Gateway 提供平台连接，cron 复用投递目标解析 |
 
-### 5.2 ACP（IDE）
+<a id="52-acpide"></a>
+<a id="section-8-2"></a>
+### 8.2 ACP（IDE）
 
 **入口**：`hermes acp` → `acp_adapter/server.py`。
 
@@ -804,13 +920,17 @@ IDE ↔ ACP JSON-RPC/stdio
 
 ---
 
-## 6. Kanban worker
+<a id="6-kanban-worker"></a>
+<a id="section-9"></a>
+## 9. Kanban worker
 
 Kanban 是 **看板任务编排**，不是第三条「聊天入口」；worker 最终仍走 **headless CLI**（`chat -q`）。
 
 完整状态机 / 熔断见 [KANBAN_MULTIAGENT_DEEP_ANALYSIS.md](KANBAN_MULTIAGENT_DEEP_ANALYSIS.md)。此处只钉启动与引用。
 
-### 6.1 实体
+<a id="61-实体"></a>
+<a id="section-9-1"></a>
+### 9.1 实体
 
 | 实体 | 说明 |
 |------|------|
@@ -819,7 +939,9 @@ Kanban 是 **看板任务编排**，不是第三条「聊天入口」；worker �
 | **Worker** | **子进程**：`hermes -p <profile> chat -q "work kanban task …"` |
 | **claim_lock / run_id / worker_pid** | 认领、尝试次数、崩溃检测 |
 
-### 6.2 调度 → spawn 时序
+<a id="62-调度-→-spawn-时序"></a>
+<a id="section-9-2"></a>
+### 9.2 调度 → spawn 时序
 
 ```mermaid
 sequenceDiagram
@@ -839,7 +961,9 @@ sequenceDiagram
     Note over Disp: next tick sees terminal state
 ```
 
-### 6.3 Worker 启动要点
+<a id="63-worker-启动要点"></a>
+<a id="section-9-3"></a>
+### 9.3 Worker 启动要点
 
 ```text
 cmd: hermes -p <assignee_profile> [--skills kanban-worker …] chat -q "<prompt>"
@@ -851,7 +975,9 @@ start_new_session=True  → 脱离 TTY；日志进 logs/
 - **HITL**：headless，无 PT 面板；危险命令按非交互/deny 策略。  
 - **Hooks**：`kanban_task_claimed` 在 **dispatcher**；`completed`/`blocked` 常在 **worker**（见 Plugins）。
 
-### 6.4 对比
+<a id="64-对比"></a>
+<a id="section-9-4"></a>
+### 9.4 对比
 
 | | `delegate_task` | Kanban worker |
 |--|-----------------|---------------|
@@ -861,19 +987,27 @@ start_new_session=True  → 脱离 TTY；日志进 logs/
 
 ---
 
-## 7. 认证 · Token 锁 · 部署
+<a id="7-认证--token-锁--部署"></a>
+<a id="section-10"></a>
+## 10. 认证 · Token 锁 · 部署
 
-### 7.1 认证
+<a id="71-认证"></a>
+<a id="section-10-1"></a>
+### 10.1 认证
 
 - **Allowlist**：配置中的用户/chat 白名单。  
 - **DM Pairing**：未知用户配对码 → 写入授权。  
 CLI / ACP 本机或 IDE 信任模型，不走同一套 IM pairing。
 
-### 7.2 Token 锁
+<a id="72-token-锁"></a>
+<a id="section-10-2"></a>
+### 10.2 Token 锁
 
 多 Gateway 实例同 bot token 会互踢。启动抢 **scoped lock**，退出释放（`gateway/status.py` 等）。
 
-### 7.3 部署速查
+<a id="73-部署速查"></a>
+<a id="section-10-3"></a>
+### 10.3 部署速查
 
 ```bash
 hermes gateway run
@@ -886,17 +1020,25 @@ Health：`/api/status`（无 secret）。Unit/Docker 以 `hermes gateway install
 
 ---
 
-## 8. 命令面速查
+<a id="8-命令面速查"></a>
+<a id="section-11"></a>
+## 11. 命令面速查
 
-### 8.1 顶层（摘）
+<a id="81-顶层摘"></a>
+<a id="section-11-1"></a>
+### 11.1 顶层（摘）
 
 `hermes` / `chat` · `model` · `gateway` · `cron` · `acp` · `setup` · `doctor` · `sessions` · `skills` · `plugins` · `kanban` · …
 
-### 8.2 Gateway 子命令（摘）
+<a id="82-gateway-子命令摘"></a>
+<a id="section-11-2"></a>
+### 11.2 Gateway 子命令（摘）
 
 `hermes gateway run|start|stop|status|install|…`
 
-### 8.3 会话内 Slash（摘）
+<a id="83-会话内-slash摘"></a>
+<a id="section-11-3"></a>
+### 11.3 会话内 Slash（摘）
 
 | 类 | 例 |
 |----|-----|
@@ -906,7 +1048,9 @@ Health：`/api/status`（无 secret）。Unit/Docker 以 `hermes gateway install
 
 ---
 
-## 9. 与其它文档的边界
+<a id="9-与其它文档的边界"></a>
+<a id="section-12"></a>
+## 12. 与其它文档的边界
 
 | 主题 | 写哪里 |
 |------|--------|
@@ -919,7 +1063,9 @@ Health：`/api/status`（无 secret）。Unit/Docker 以 `hermes gateway install
 
 ---
 
-## 10. 源码锚点
+<a id="10-源码锚点"></a>
+<a id="section-13"></a>
+## 13. 源码锚点
 
 | 符号 / 路径 | 说明 |
 |-------------|------|
@@ -939,10 +1085,11 @@ Health：`/api/status`（无 secret）。Unit/Docker 以 `hermes gateway install
 
 ---
 
-## 变更摘要
+<a id="变更摘要"></a>
+<a id="section-14"></a>
+## 14. 变更摘要
 
 - 2026-08-03：合并 CLI+Gateway；补 Agent 线程；**全入口地图**。  
 - 同日补强：Gateway **启动时序**、**实体引用**、**入/出站时序**；独立 **Cron+ACP**、**Kanban worker** 节。  
-- 旧 Part2 长抄录已去重：教学向伪代码见 [appendices/GATEWAY_RUNNER_WALKTHROUGH.md](appendices/GATEWAY_RUNNER_WALKTHROUGH.md)；实现以 **§4** 为准。  
+- 旧 Part2 长抄录已去重：教学向伪代码见 [appendices/GATEWAY_RUNNER_WALKTHROUGH.md](../../volumes/06-gateways-channels-and-hitl.md)；实现以 **§4** 为准。\
 - Kanban 状态机细节仍以 `KANBAN_MULTIAGENT_DEEP_ANALYSIS.md` 为准。
-

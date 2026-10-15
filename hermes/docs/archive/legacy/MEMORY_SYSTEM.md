@@ -1,32 +1,116 @@
 # Memory 系统
 
+<!-- legacy-review:start -->
+> **2026-10-15 校订导航**：什么长期保存，什么时候加载，怎样与会话检索协作。\
+> **核对范围**：明确 Profile memory、Session Search、外部 Provider 与压缩的边界；旧适配器代码未全量复核。\
+> **适用基线**：本地源码 `60d00c5633ad`；不是最新发布版本声明。原稿版本、行号、性能数字与长代码块若未在校订范围内，仍按历史示例阅读。
+> **先读当前结论**：[当前实现导读](CURRENT_IMPLEMENTATION.md#current-extensions) · **现行分卷**：[05-capabilities-extensions.md](../../volumes/05-capabilities-extensions.md) · [具体改动与未验证项](REVIEW_AND_CHANGES.md) · [返回全目录](README.md)
+
+<!-- legacy-review:end -->
+<a id="目录"></a>
+## 目录
+
+<!-- visible-toc:start -->
+- [1. 结论：三层主模型](#section-1)
+  - [1.1 先说结论](#section-1-1)
+  - [1.2 为什么不再把“六层”当主模型](#section-1-2)
+  - [1.3 三层主模型](#section-1-3)
+- [2. 术语约定](#section-2)
+  - [2.1 本套文档的术语约定](#section-2-1)
+  - [2.2 一页对比表](#section-2-2)
+- [3. Layer A — Persistent Memory](#section-3)
+  - [3.1 Built-in Persistent Memory](#section-3-1)
+  - [3.2 载体与路径](#section-3-2)
+  - [3.3 存什么](#section-3-3)
+  - [3.4 不存什么](#section-3-4)
+  - [3.5 字符上限与设计动机](#section-3-5)
+  - [3.6 冻结快照模式](#section-3-6)
+  - [3.7 为什么要冻结](#section-3-7)
+  - [3.8 写入安全](#section-3-8)
+  - [3.9 `memory` tool 行为](#section-3-9)
+  - [3.10 去重与文件锁](#section-3-10)
+  - [3.11 built-in memory 生命周期](#section-3-11)
+- [4. Layer B — Session Search](#section-4)
+  - [4.1 它解决什么问题](#section-4-1)
+  - [4.2 存储载体](#section-4-2)
+  - [4.3 运行时角色](#section-4-3)
+  - [4.4 `session_search` 的工作方式](#section-4-4)
+  - [4.5 和 built-in memory 的分工](#section-4-5)
+  - [4.6 常见失败模式与边界](#section-4-6)
+- [5. session_search：历史检索与辅助模型执行](#section-5)
+  - [5.1 session_search - 会话搜索工具](#section-5-1)
+- [6. Layer C — Optional External Provider（运行时契约）](#section-6)
+  - [6.1 它是什么](#section-6-1)
+  - [6.2 为什么只允许一个](#section-6-2)
+  - [6.3 生命周期](#section-6-3)
+  - [6.4 注入与同步时机](#section-6-4)
+  - [6.5 built-in 与 provider 的桥接](#section-6-5)
+  - [6.6 外部存储写入策略：只写问答，不写过程](#section-6-6)
+  - [6.7 为什么 external provider 仍然不应喧宾夺主](#section-6-7)
+  - [6.8 Prompt 注入与上下文边界](#section-6-8)
+  - [6.9 built-in memory 注入点](#section-6-9)
+  - [6.10 recalled context 注入点](#section-6-10)
+  - [6.11 为什么这很重要](#section-6-11)
+- [7. 协作、数据流与架构](#section-7)
+  - [7.1 设计目标与非目标](#section-7-1)
+  - [7.2 MemoryManager 与协作矩阵](#section-7-2)
+  - [7.3 完整数据流向（含压缩、沉淀与第二轮拉取）](#section-7-3)
+  - [7.4 当前实现真正的「层级」与易误判点](#section-7-4)
+- [8. 使用指南](#section-8)
+  - [8.1 日常使用只需要记住三件事](#section-8-1)
+  - [8.2 `memory` 工具到底应该怎么用](#section-8-2)
+  - [8.3 什么时候该存 memory](#section-8-3)
+  - [8.4 `session_search` 什么时候用](#section-8-4)
+  - [8.5 memory vs session_search vs skills](#section-8-5)
+  - [8.6 capacity management](#section-8-6)
+  - [8.7 当前 session 中途写 memory 会发生什么](#section-8-7)
+  - [8.8 为什么不热更新 built-in memory](#section-8-8)
+  - [8.9 external provider 怎么影响日常使用](#section-8-9)
+  - [8.10 典型使用模式](#section-8-10)
+  - [8.11 给 prompt / policy 作者的建议](#section-8-11)
+  - [8.12 常见误区](#section-8-12)
+  - [8.13 实战口诀](#section-8-13)
+- [9. 外部 Provider 参考](#section-9)
+  - [9.1 MemoryProvider 接口与生命周期](#section-9-1)
+  - [9.2 官方插件详解](#section-9-2)
+  - [9.3 Mem0 Provider 深度解析](#section-9-3)
+  - [9.4 Honcho Provider 深度解析](#section-9-4)
+  - [9.5 Supermemory Provider 深度解析](#section-9-5)
+  - [9.6 Provider 对比总结](#section-9-6)
+  - [9.7 配置示例](#section-9-7)
+  - [9.8 开发自定义 Provider](#section-9-8)
+  - [9.9 最佳实践](#section-9-9)
+- [10. 扩展机制（非 memory 主模型）](#section-10)
+  - [10.1 本节范围](#section-10-1)
+  - [10.2 Hermes 的"进化"不是单一路径](#section-10-2)
+  - [10.3 进化路径三：Skills](#section-10-3)
+- [11. 附录 A：六层扩展视角](#section-11)
+  - [11.1 六层扩展视角（架构分析用 · 非官方主模型）](#section-11-1)
+  - [11.2 三层主模型 vs 六层扩展](#section-11-2)
+- [12. 附录 B：演进表述与时序](#section-12)
+  - [12.1 一个更准确的演化时序图](#section-12-1)
+  - [12.2 对“Hermes 会自我进化”的准确表述](#section-12-2)
+  - [12.3 最后给架构对比使用者的结论](#section-12-3)
+<!-- visible-toc:end -->
+
+
+
+
 > **文档状态**: **归档** — 与卷冲突时以 **卷 + 源码** 为准。  
 > **卷内权威**: 运行时三层 → [卷三第6章](../../volumes/03-runtime-session-and-loop.md#sec-ch6)；工具入口 → [卷五 §4.4](../../volumes/05-capabilities-extensions.md#44-记忆)；**§7 使用指南 + §8 Provider 参考** → [卷五附录 Memory](../../volumes/05-memory-system-reference.md)（自本文件迁入）。  
 > **§6 协作 + §9 进化 + 附录六层**: [卷五附录 B](../../volumes/05-memory-architecture-and-evolution.md)。卷内摘要：[卷三 6.8](../../volumes/03-runtime-session-and-loop.md#sec-6-8)、[卷五 §4.3](../../volumes/05-capabilities-extensions.md#43-skills)。  
-> **Hermes 版本锚点**: 0.19.0 · **核对**: 2026-07-31 · [DOC_MAINTENANCE.md](DOC_MAINTENANCE.md)  
+> **原稿版本锚点（历史）**: 0.19.0 · **核对**: 2026-07-31 · [DOC_MAINTENANCE.md](DOC_MAINTENANCE.md)\
 > **源码入口**: `tools/memory_tool.py`, `tools/session_search_tool.py`, `agent/memory_manager.py`, `agent/memory_provider.py`, `hermes_state.py`
 
 ---
 
-## 目录
-
-1. [结论：三层主模型](#1-结论三层主模型)
-2. [术语约定](#2-术语约定)
-3. [Layer A — Persistent Memory](#3-layer-a--persistent-memory)
-4. [Layer B — Session Search](#4-layer-b--session-search)
-5. [Layer C — Optional External Provider（运行时契约）](#5-layer-c--optional-external-provider运行时契约)
-6. [协作、数据流与架构](#6-协作数据流与架构)
-7. [使用指南](#7-使用指南)
-8. [外部 Provider 参考](#8-外部-provider-参考)
-9. [扩展机制（非 memory 主模型）](#9-扩展机制非-memory-主模型)
-10. [附录 A：六层扩展视角](#10-附录-a六层扩展视角)
-11. [附录 B：演进表述与时序](#11-附录-b演进表述与时序)
-
----
-
+<a id="1-结论三层主模型"></a>
+<a id="section-1"></a>
 ## 1. 结论：三层主模型
 
-#### 1. 先说结论
+<a id="1-先说结论"></a>
+<a id="section-1-1"></a>
+### 1.1 先说结论
 
 当前 Hermes Agent 的 memory 主模型，最适合用 **三层结构** 来理解：
 
@@ -52,7 +136,9 @@
 
 ---
 
-#### 2. 为什么不再把“六层”当主模型
+<a id="2-为什么不再把六层当主模型"></a>
+<a id="section-1-2"></a>
+### 1.2 为什么不再把“六层”当主模型
 
 过去把 skills、trajectory、compressor、fine-tuning 数据也一起纳入“六层记忆”有分析价值，但它有两个问题：
 
@@ -68,9 +154,13 @@
 
 ---
 
-#### 3. 三层主模型
+<a id="3-三层主模型"></a>
+<a id="section-1-3"></a>
+### 1.3 三层主模型
 
-##### 3.1 Layer A: Persistent Memory
+<a id="31-layer-a-persistent-memory"></a>
+<a id="section-1-3-1"></a>
+#### 1.3.1 Layer A: Persistent Memory
 
 Persistent Memory 是 Hermes 最核心、最稳定的长期记忆层（文档与源码中的 **built-in memory** 即指本层）。
 
@@ -115,7 +205,9 @@ Layer A **不在** `finalize_turn` 里批量写入。落盘发生在：
 
 这层的设计目标不是“存一切”，而是“把最值得一直在线的事实放进上下文”。
 
-##### 3.2 Layer B: Session Search
+<a id="32-layer-b-session-search"></a>
+<a id="section-1-3-2"></a>
+#### 1.3.2 Layer B: Session Search
 
 Session Search 解决的是另一类问题：不是“什么要永远在线”，而是“我们以前有没有聊过这件事”。
 
@@ -137,7 +229,9 @@ Persistent Memory 和 Session Search 的关系：
 - 前者是**精编长期记忆**
 - 后者是**完整会话档案库**
 
-##### 3.3 Layer C: Optional External Provider
+<a id="33-layer-c-optional-external-provider"></a>
+<a id="section-1-3-3"></a>
+#### 1.3.3 Layer C: Optional External Provider
 
 外部 provider 不是对 built-in memory 的替代，而是附加增强。
 
@@ -154,9 +248,13 @@ Persistent Memory 和 Session Search 的关系：
 - 更深的 profile / relation / conclusion 抽取
 - 第三方持久化与知识图谱
 
+<a id="2-术语约定"></a>
+<a id="section-2"></a>
 ## 2. 术语约定
 
-#### 8. 本套文档的术语约定
+<a id="8-本套文档的术语约定"></a>
+<a id="section-2-1"></a>
+### 2.1 本套文档的术语约定
 
 为避免后续文档继续混乱，统一采用以下术语：
 
@@ -169,7 +267,9 @@ Persistent Memory 和 Session Search 的关系：
 
 后续章节如果再出现“六层”，默认都表示**扩展分析视角**，不是 Hermes 当前对外主模型。
 
-### 一页对比表
+<a id="一页对比表"></a>
+<a id="section-2-2"></a>
+### 2.2 一页对比表
 
 
 | 维度 | Persistent Memory | Session Search | External Provider |
@@ -183,13 +283,19 @@ Persistent Memory 和 Session Search 的关系：
 | **当前会话中途写入是否立刻可见** | ❌ 不更新 frozen prompt | ✅ 再查即可取到 | 取决于 provider |
 | **设计风险** | 容量有限，需精编 | 检索与摘要有额外成本 | 外部依赖、网络延迟、隐私出站 |
 
+<a id="3-layer-a--persistent-memory"></a>
+<a id="section-3"></a>
 ## 3. Layer A — Persistent Memory
 
 > 实现真相源。字符上限、冻结快照、`memory` tool API 以本节为准。
 
-### 3. Built-in Persistent Memory
+<a id="3-built-in-persistent-memory"></a>
+<a id="section-3-1"></a>
+### 3.1 Built-in Persistent Memory
 
-#### 3.1 载体与路径
+<a id="31-载体与路径"></a>
+<a id="section-3-1-1"></a>
+#### 3.1.1 载体与路径
 
 当前 built-in persistent memory 的真实载体是：
 
@@ -204,7 +310,9 @@ Persistent Memory 和 Session Search 的关系：
 
 这些旧路径需要视为历史表述，不再作为当前实现结论。
 
-#### 3.2 存什么
+<a id="32-存什么"></a>
+<a id="section-3-1-2"></a>
+#### 3.1.2 存什么
 
 `MEMORY.md` 用来存：
 
@@ -222,7 +330,9 @@ Persistent Memory 和 Session Search 的关系：
 - 技术水平
 - 讨厌什么、希望避免什么
 
-#### 3.3 不存什么
+<a id="33-不存什么"></a>
+<a id="section-3-1-3"></a>
+#### 3.1.3 不存什么
 
 源码里已经把边界写得很明确：
 
@@ -233,7 +343,9 @@ Persistent Memory 和 Session Search 的关系：
 
 这些内容应该留给 `session_search`，或者沉淀成 skill。
 
-#### 3.4 字符上限与设计动机
+<a id="34-字符上限与设计动机"></a>
+<a id="section-3-1-4"></a>
+#### 3.1.4 字符上限与设计动机
 
 默认配置：
 
@@ -244,7 +356,9 @@ Persistent Memory 和 Session Search 的关系：
 
 Hermes 这里刻意使用 **字符上限** 而不是 token 上限，因为字符数对模型无关，配置和判断都更稳定。
 
-#### 3.5 冻结快照模式
+<a id="35-冻结快照模式"></a>
+<a id="section-3-1-5"></a>
+#### 3.1.5 冻结快照模式
 
 Hermes built-in memory 的关键实现不是“自动热更新”，而是 **frozen snapshot**。
 
@@ -267,7 +381,9 @@ Hermes built-in memory 的关键实现不是“自动热更新”，而是 **fro
 
 这是 Hermes 和很多“边写边注入”系统最本质的差异。
 
-#### 3.6 为什么要冻结
+<a id="36-为什么要冻结"></a>
+<a id="section-3-1-6"></a>
+#### 3.1.6 为什么要冻结
 
 两个主要原因：
 
@@ -276,7 +392,9 @@ Hermes built-in memory 的关键实现不是“自动热更新”，而是 **fro
 
 这让 memory 变成了“下一次会话的 durable context”，而不是“当前回合的 mutable scratchpad”。
 
-#### 3.7 写入安全
+<a id="37-写入安全"></a>
+<a id="section-3-1-7"></a>
+#### 3.1.7 写入安全
 
 由于 built-in memory 会进入 system prompt，所以 Hermes 对写入做了轻量安全扫描。
 
@@ -290,7 +408,9 @@ Hermes built-in memory 的关键实现不是“自动热更新”，而是 **fro
 
 这不是一个完整的 DLP/安全网关，但足够说明 Hermes 已经把“记忆是 prompt 注入面”当作真实风险来处理。
 
-#### 3.8 `memory` tool 行为
+<a id="38-memory-tool-行为"></a>
+<a id="section-3-1-8"></a>
+#### 3.1.8 `memory` tool 行为
 
 当前 `memory` tool 支持：
 
@@ -312,7 +432,9 @@ Hermes built-in memory 的关键实现不是“自动热更新”，而是 **fro
 
 - 如果子串命中多个条目，会报错，要求更具体
 
-#### 3.9 去重与文件锁
+<a id="39-去重与文件锁"></a>
+<a id="section-3-1-9"></a>
+#### 3.1.9 去重与文件锁
 
 built-in memory 不是“随便改文本文件”，而是做了几层实用保护：
 
@@ -323,7 +445,9 @@ built-in memory 不是“随便改文本文件”，而是做了几层实用保�
 
 这些细节决定了 Hermes built-in memory 不是一个 demo 功能，而是一个可以长期跑的工程实现。
 
-#### 3.10 built-in memory 生命周期
+<a id="310-built-in-memory-生命周期"></a>
+<a id="section-3-1-10"></a>
+#### 3.1.10 built-in memory 生命周期
 
 把 built-in memory 的生命周期拆开看，会更容易理解 frozen snapshot 的真实作用：
 
@@ -358,7 +482,9 @@ sequenceDiagram
 - prompt 生效是延迟到下一个 session 的
 
 这并不是实现不完整，而是刻意的架构决策。
-### 3.1 载体与路径
+<a id="31-载体与路径-1"></a>
+<a id="section-3-2"></a>
+### 3.2 载体与路径
 
 当前 built-in persistent memory 的真实载体是：
 
@@ -373,7 +499,9 @@ sequenceDiagram
 
 这些旧路径需要视为历史表述，不再作为当前实现结论。
 
-### 3.2 存什么
+<a id="32-存什么-1"></a>
+<a id="section-3-3"></a>
+### 3.3 存什么
 
 `MEMORY.md` 用来存：
 
@@ -391,7 +519,9 @@ sequenceDiagram
 - 技术水平
 - 讨厌什么、希望避免什么
 
-### 3.3 不存什么
+<a id="33-不存什么-1"></a>
+<a id="section-3-4"></a>
+### 3.4 不存什么
 
 源码里已经把边界写得很明确：
 
@@ -402,7 +532,9 @@ sequenceDiagram
 
 这些内容应该留给 `session_search`，或者沉淀成 skill。
 
-### 3.4 字符上限与设计动机
+<a id="34-字符上限与设计动机-1"></a>
+<a id="section-3-5"></a>
+### 3.5 字符上限与设计动机
 
 默认配置：
 
@@ -413,7 +545,9 @@ sequenceDiagram
 
 Hermes 这里刻意使用 **字符上限** 而不是 token 上限，因为字符数对模型无关，配置和判断都更稳定。
 
-### 3.5 冻结快照模式
+<a id="35-冻结快照模式-1"></a>
+<a id="section-3-6"></a>
+### 3.6 冻结快照模式
 
 Hermes built-in memory 的关键实现不是“自动热更新”，而是 **frozen snapshot**。
 
@@ -436,7 +570,9 @@ Hermes built-in memory 的关键实现不是“自动热更新”，而是 **fro
 
 这是 Hermes 和很多“边写边注入”系统最本质的差异。
 
-### 3.6 为什么要冻结
+<a id="36-为什么要冻结-1"></a>
+<a id="section-3-7"></a>
+### 3.7 为什么要冻结
 
 两个主要原因：
 
@@ -445,7 +581,9 @@ Hermes built-in memory 的关键实现不是“自动热更新”，而是 **fro
 
 这让 memory 变成了“下一次会话的 durable context”，而不是“当前回合的 mutable scratchpad”。
 
-### 3.7 写入安全
+<a id="37-写入安全-1"></a>
+<a id="section-3-8"></a>
+### 3.8 写入安全
 
 由于 built-in memory 会进入 system prompt，所以 Hermes 对写入做了轻量安全扫描。
 
@@ -459,7 +597,9 @@ Hermes built-in memory 的关键实现不是“自动热更新”，而是 **fro
 
 这不是一个完整的 DLP/安全网关，但足够说明 Hermes 已经把“记忆是 prompt 注入面”当作真实风险来处理。
 
-### 3.8 `memory` tool 行为
+<a id="38-memory-tool-行为-1"></a>
+<a id="section-3-9"></a>
+### 3.9 `memory` tool 行为
 
 当前 `memory` tool 支持：
 
@@ -481,7 +621,9 @@ Hermes built-in memory 的关键实现不是“自动热更新”，而是 **fro
 
 - 如果子串命中多个条目，会报错，要求更具体
 
-### 3.9 去重与文件锁
+<a id="39-去重与文件锁-1"></a>
+<a id="section-3-10"></a>
+### 3.10 去重与文件锁
 
 built-in memory 不是“随便改文本文件”，而是做了几层实用保护：
 
@@ -492,7 +634,9 @@ built-in memory 不是“随便改文本文件”，而是做了几层实用保�
 
 这些细节决定了 Hermes built-in memory 不是一个 demo 功能，而是一个可以长期跑的工程实现。
 
-### 3.10 built-in memory 生命周期
+<a id="310-built-in-memory-生命周期-1"></a>
+<a id="section-3-11"></a>
+### 3.11 built-in memory 生命周期
 
 把 built-in memory 的生命周期拆开看，会更容易理解 frozen snapshot 的真实作用：
 
@@ -528,8 +672,12 @@ sequenceDiagram
 
 这并不是实现不完整，而是刻意的架构决策。
 
+<a id="4-layer-b--session-search"></a>
+<a id="section-4"></a>
 ## 4. Layer B — Session Search
 
+<a id="41-它解决什么问题"></a>
+<a id="section-4-1"></a>
 ### 4.1 它解决什么问题
 
 Persistent Memory 解决的是“什么值得一直在线”。
@@ -542,6 +690,8 @@ Session Search 解决的是：
 
 这是一套“完整档案 + 按需召回”机制。
 
+<a id="42-存储载体"></a>
+<a id="section-4-2"></a>
 ### 4.2 存储载体
 
 当前会话归档存在：
@@ -556,6 +706,8 @@ Session Search 解决的是：
 
 不是旧文档中写的 `hermes_sessions.db`。
 
+<a id="43-运行时角色"></a>
+<a id="section-4-3"></a>
 ### 4.3 运行时角色
 
 SessionDB 主要做三件事：
@@ -566,6 +718,8 @@ SessionDB 主要做三件事：
 
 对 Hermes 来说，它既是 history store，也是 `session_search` 的底座。
 
+<a id="44-session_search-的工作方式"></a>
+<a id="section-4-4"></a>
 ### 4.4 `session_search` 的工作方式
 
 `session_search()` 的核心流程大致是：
@@ -583,6 +737,8 @@ SessionDB 主要做三件事：
 
 因此它更像“历史会话 recall tool”，而不是“原始数据库 search dump”。
 
+<a id="45-和-built-in-memory-的分工"></a>
+<a id="section-4-5"></a>
 ### 4.5 和 built-in memory 的分工
 
 一个简单判断规则：
@@ -597,6 +753,8 @@ SessionDB 主要做三件事：
 - “上周修过某个 auth bug，具体在第几轮怎么定位” -> `session_search`
 - “今天刚跑完一次临时迁移脚本” -> `session_search`
 
+<a id="46-常见失败模式与边界"></a>
+<a id="section-4-6"></a>
 ### 4.6 常见失败模式与边界
 
 Session Search 虽然很强，但它不是魔法层。常见的边界和失败模式包括：
@@ -612,11 +770,395 @@ Session Search 虽然很强，但它不是魔法层。常见的边界和失败�
 
 理解这些边界，比记住“它能搜历史会话”更重要。
 
-## 5. Layer C — Optional External Provider（运行时契约）
+<a id="session-search-design"></a>
+<a id="session_search历史检索与辅助模型执行"></a>
+<a id="section-5"></a>
+## 5. session_search：历史检索与辅助模型执行
+
+> **主题归位**：本节从 `TOOLS_SYSTEM.md` 的「12. 深潜：session_search」迁入；保留原有图表、示例和讨论。
+
+<a id="22-session_search---会话搜索工具"></a>
+<a id="section-5-1"></a>
+### 5.1 session_search - 会话搜索工具
+
+**文件**: `tools/session_search_tool.py`\
+**行号**: L325-538\
+**作用**: 搜索历史会话，使用FTS5全文检索+LLM摘要生成，帮助Agent回忆过去的对话
+
+<a id="221-功能概览"></a>
+<a id="section-5-1-1"></a>
+#### 5.1.1 功能概览
+
+```python
+def session_search(
+    query: str,                    # 搜索查询词
+    role_filter: str = None,       # 角色过滤: "user", "assistant", "tool"
+    limit: int = 3,                # 返回结果数量 (1-5)
+    db=None,                       # SessionDB实例 (可选)
+    current_session_id: str = None,# 当前会话ID (排除自身)
+) -> str:
+    """
+    Search past sessions and return focused summaries.
+
+    Flow:
+      1. FTS5 search finds matching messages
+      2. Groups by session, takes top N unique sessions
+      3. Loads each session's conversation
+      4. Truncates to ~100k chars centered on matches
+      5. Summarizes using auxiliary session_search model
+      6. Returns per-session summaries with metadata
+    """
+```
+
+<a id="222-实现逻辑详解"></a>
+<a id="section-5-1-2"></a>
+#### 5.1.2 实现逻辑详解
+
+<a id="1-最近会话模式-空查询"></a>
+<a id="section-5-1-2-1"></a>
+##### 5.1.2.1 (1) 最近会话模式 (空查询)
+
+```python
+## 当query为空时，返回最近会话的元数据 (无需LLM调用)
+if not query or not query.strip():
+    return _list_recent_sessions(db, limit, current_session_id)
+```
+
+**用途**: Agent可以浏览最近的会话，了解上下文
+
+<a id="2-fts5全文检索"></a>
+<a id="section-5-1-2-2"></a>
+##### 5.1.2.2 (2) FTS5全文检索
+
+```python
+## FTS5 search -- get matches ranked by relevance
+raw_results = db.search_messages(
+    query=query,
+    role_filter=role_list,
+    exclude_sources=list(_HIDDEN_SESSION_SOURCES),
+    limit=50,  # 获取更多匹配以找到唯一会话
+    offset=0,
+)
+```
+
+**关键技术**:
+- SQLite FTS5虚拟表提供高性能全文检索
+- 按相关性排序 (BM25算法)
+- 支持角色过滤 (只搜索用户消息或助手消息)
+
+<a id="3-会话去重与父会话解析"></a>
+<a id="section-5-1-2-3"></a>
+##### 5.1.2.3 (3) 会话去重与父会话解析
+
+```python
+def _resolve_to_parent(session_id: str) -> str:
+    """Walk delegation chain to find the root parent session ID."""
+    visited = set()
+    sid = session_id
+    while sid and sid not in visited:
+        visited.add(sid)
+        try:
+            session = db.get_session(sid)
+            if not session:
+                break
+            parent = session.get("parent_session_id")
+            if parent:
+                sid = parent  # 递归查找父会话
+            else:
+                break
+        except Exception as e:
+            logging.debug("Error resolving parent for session %s: %s", sid, e)
+            break
+    return sid
+
+## 解析当前会话的根父会话
+current_lineage_root = (
+    _resolve_to_parent(current_session_id) if current_session_id else None
+)
+
+## 分组去重，跳过当前会话谱系
+seen_sessions = {}
+for result in raw_results:
+    raw_sid = result["session_id"]
+    resolved_sid = _resolve_to_parent(raw_sid)
+
+    # 跳过当前会话及其子会话
+    if current_lineage_root and resolved_sid == current_lineage_root:
+        continue
+    if current_session_id and raw_sid == current_session_id:
+        continue
+
+    if resolved_sid not in seen_sessions:
+        result = dict(result)
+        result["session_id"] = resolved_sid
+        seen_sessions[resolved_sid] = result
+
+    if len(seen_sessions) >= limit:
+        break
+```
+
+**关键设计**:
+- ✅ **委托链解析**: 子会话的内容归属于父会话 (用户关心的是主对话)
+- ✅ **去重**: 同一会话的多个匹配合并为一个结果
+- ✅ **排除当前会话**: Agent已有当前上下文，不需要重复
+
+<a id="4-并行摘要生成"></a>
+<a id="section-5-1-2-4"></a>
+##### 5.1.2.4 (4) 并行摘要生成
+
+```python
+## 准备所有会话的摘要任务
+tasks = []
+for session_id, match_info in seen_sessions.items():
+    try:
+        messages = db.get_messages_as_conversation(session_id)
+        if not messages:
+            continue
+        session_meta = db.get_session(session_id) or {}
+        conversation_text = _format_conversation(messages)
+        # 截断到匹配区域周围 (~100k字符)
+        conversation_text = _truncate_around_matches(conversation_text, query)
+        tasks.append((session_id, match_info, conversation_text, session_meta))
+    except Exception as e:
+        logging.warning("Failed to prepare session %s: %s", session_id, e)
+
+## 并行摘要所有会话 (带并发限制)
+async def _summarize_all() -> List[Union[str, Exception]]:
+    """Summarize all sessions with bounded concurrency."""
+    max_concurrency = min(_get_session_search_max_concurrency(), max(1, len(tasks)))
+    semaphore = asyncio.Semaphore(max_concurrency)
+
+    async def _bounded_summary(text: str, meta: Dict[str, Any]) -> Optional[str]:
+        async with semaphore:
+            return await _summarize_session(text, query, meta)
+
+    coros = [_bounded_summary(text, meta) for _, _, text, meta in tasks]
+    return await asyncio.gather(*coros, return_exceptions=True)
+
+## 使用_run_async()管理事件循环 (适配CLI/gateway/worker线程)
+from model_tools import _run_async
+results = _run_async(_summarize_all())
+```
+
+**性能优化**:
+- ✅ **并发控制**: `auxiliary.session_search.max_concurrency` (默认3)
+- ✅ **异步IO**: 避免阻塞等待LLM响应
+- ✅ **超时保护**: 60秒超时防止无限等待
+
+<a id="5-智能截断策略"></a>
+<a id="section-5-1-2-5"></a>
+##### 5.1.2.5 (5) 智能截断策略
+
+```python
+def _truncate_around_matches(
+    full_text: str,
+    query: str,
+    max_chars: int = 100_000
+) -> str:
+    """
+    Truncate conversation to max_chars, choosing window that maximizes
+    coverage of positions where query actually appears.
+
+    Strategy (in priority order):
+    1. Try to find full query as phrase (case-insensitive)
+    2. If no phrase hit, look for co-occurrence of all terms within 200 chars
+    3. Fall back to individual term positions
+    """
+    if len(full_text) <= max_chars:
+        return full_text
+
+    text_lower = full_text.lower()
+    query_lower = query.lower().strip()
+    match_positions = []
+
+    # 1. 完整短语匹配
+    phrase_pat = re.compile(re.escape(query_lower))
+    match_positions = [m.start() for m in phrase_pat.finditer(text_lower)]
+
+    # 2.  proximity共现 (所有术语在200字符内)
+    if not match_positions:
+        terms = query_lower.split()
+        if len(terms) > 1:
+            term_positions = {}
+            for t in terms:
+                term_positions[t] = [
+                    m.start() for m in re.finditer(re.escape(t), text_lower)
+                ]
+            rarest = min(terms, key=lambda t: len(term_positions.get(t, [])))
+            for pos in term_positions.get(rarest, []):
+                if all(
+                    any(abs(p - pos) < 200 for p in term_positions.get(t, []))
+                    for t in terms if t != rarest
+                ):
+                    match_positions.append(pos)
+
+    # 3. 单个术语位置 (最后手段)
+    if not match_positions:
+        terms = query_lower.split()
+        for t in terms:
+            for m in re.finditer(re.escape(t), text_lower):
+                match_positions.append(m.start())
+
+    if not match_positions:
+        # 完全无匹配，从头截取
+        truncated = full_text[:max_chars]
+        suffix = "\n\n...[later conversation truncated]..." if max_chars < len(full_text) else ""
+        return truncated + suffix
+
+    # 选择覆盖最多匹配位置的窗口
+    match_positions.sort()
+    best_start = 0
+    best_count = 0
+    for candidate in match_positions:
+        ws = max(0, candidate - max_chars // 4)  # 偏置: 25%在前，75%在后
+        we = ws + max_chars
+        if we > len(full_text):
+            ws = max(0, len(full_text) - max_chars)
+            we = len(full_text)
+        count = sum(1 for p in match_positions if ws <= p < we)
+        if count > best_count:
+            best_count = count
+            best_start = ws
+
+    start = best_start
+    end = min(len(full_text), start + max_chars)
+    truncated = full_text[start:end]
+    prefix = "...[earlier conversation truncated]...\n\n" if start > 0 else ""
+    suffix = "\n\n...[later conversation truncated]..." if end < len(full_text) else ""
+    return prefix + truncated + suffix
+```
+
+**智能之处**:
+- ✅ **多级匹配**: 短语 > 共现 > 单术语
+- ✅ **偏置窗口**: 25%前置上下文 + 75%后置内容
+- ✅ **最优覆盖**: 选择能覆盖最多匹配的窗口起始点
+
+<a id="6-结果组装"></a>
+<a id="section-5-1-2-6"></a>
+##### 5.1.2.6 (6) 结果组装
+
+```python
+summaries = []
+for (session_id, match_info, conversation_text, session_meta), result in zip(tasks, results):
+    if isinstance(result, Exception):
+        logging.warning("Failed to summarize session %s: %s", session_id, result)
+        result = None
+
+    # 优先使用解析后的父会话元数据
+    entry = {
+        "session_id": session_id,
+        "when": _format_timestamp(
+            session_meta.get("started_at") or match_info.get("session_started")
+        ),
+        "source": session_meta.get("source") or match_info.get("source", "unknown"),
+        "model": session_meta.get("model") or match_info.get("model"),
+    }
+
+    if result:
+        entry["summary"] = result
+    else:
+        # 降级: 返回原始预览 (当摘要模型不可用时)
+        preview = (conversation_text[:500] + "\n…[truncated]") if conversation_text else "No preview available."
+        entry["summary"] = f"[Raw preview — summarization unavailable]\n{preview}"
+
+    summaries.append(entry)
+
+return json.dumps({
+    "success": True,
+    "query": query,
+    "results": summaries,
+    "count": len(summaries),
+    "sessions_searched": len(seen_sessions),
+}, ensure_ascii=False)
+```
+
+<a id="223-辅助模型配置"></a>
+<a id="section-5-1-3"></a>
+#### 5.1.3 辅助模型配置
+
+```yaml
+## ~/.hermes/config.yaml
+auxiliary:
+  session_search:
+    provider: openai          # 可选: anthropic/openai/google/etc.
+    model: gpt-4o-mini        # 专用摘要模型 (便宜快速)
+    max_concurrency: 3        # 并行摘要的会话数量
+```
+
+**默认行为**: 未配置时使用主聊天模型的provider/model
+
+<a id="224-使用示例"></a>
+<a id="section-5-1-4"></a>
+#### 5.1.4 使用示例
+
+**示例1: 搜索特定主题**
+
+```python
+## 搜索过去关于"async/await"的讨论
+session_search(
+    query="async/await patterns in FastAPI",
+    limit=3
+)
+```
+
+**返回结果**:
+```json
+{
+  "success": true,
+  "query": "async/await patterns in FastAPI",
+  "results": [
+    {
+      "session_id": "sess-abc123",
+      "when": "May 5, 2026 at 03:45 PM",
+      "source": "cli",
+      "model": "claude-sonnet-4",
+      "summary": "讨论了FastAPI中的异步模式，包括:\n- 使用async def定义端点\n- asyncio.gather并行请求\n- 异步数据库查询最佳实践\n- 常见陷阱: 阻塞同步调用"
+    },
+    {
+      "session_id": "sess-def456",
+      "when": "April 28, 2026 at 10:20 AM",
+      "source": "telegram",
+      "model": "gpt-4-turbo",
+      "summary": "对比了三种并发模型:\n- threading: 适合IO密集型\n- multiprocessing: CPU密集型\n- asyncio: 高并发IO场景\n推荐: FastAPI默认使用asyncio"
+    }
+  ],
+  "count": 2,
+  "sessions_searched": 2
+}
+```
+
+**示例2: 按角色过滤**
+
+```python
+## 只搜索用户消息
+session_search(
+    query="database migration",
+    role_filter="user",
+    limit=2
+)
+```
+
+**示例3: 浏览最近会话**
+
+```python
+## 空查询返回最近会话列表
+session_search(
+    query="",
+    limit=5
+)
+```
+
+---
+
+<a id="5-layer-c--optional-external-provider运行时契约"></a>
+<a id="section-6"></a>
+## 6. Layer C — Optional External Provider（运行时契约）
 
 > 插件细节、配置与自定义见 [§8](#8-外部-provider-参考)。本节只保留与 Agent 运行时的契约。
 
-### 5.1 它是什么
+<a id="51-它是什么"></a>
+<a id="section-6-1"></a>
+### 6.1 它是什么
 
 external provider 是 Hermes memory 的第三层，不替代 built-in，只做增强。
 
@@ -625,7 +1167,9 @@ external provider 是 Hermes memory 的第三层，不替代 built-in，只做�
 - built-in memory 始终存在
 - external provider 最多一个
 
-### 5.2 为什么只允许一个
+<a id="52-为什么只允许一个"></a>
+<a id="section-6-2"></a>
+### 6.2 为什么只允许一个
 
 源码里这个限制很明确，原因也很务实：
 
@@ -635,7 +1179,9 @@ external provider 是 Hermes memory 的第三层，不替代 built-in，只做�
 
 所以 Hermes 不是“把所有 provider 全开”，而是“1 个 curated 本地层 + 1 个增强层”。
 
-### 5.3 生命周期
+<a id="53-生命周期"></a>
+<a id="section-6-3"></a>
+### 6.3 生命周期
 
 provider 生命周期由 `MemoryManager` 统一编排：
 
@@ -656,7 +1202,9 @@ provider 生命周期由 `MemoryManager` 统一编排：
 - `on_memory_write`
 - `on_delegation`
 
-### 5.4 注入与同步时机
+<a id="54-注入与同步时机"></a>
+<a id="section-6-4"></a>
+### 6.4 注入与同步时机
 
 在 `run_agent.py` 中，相关时序大致是：
 
@@ -674,7 +1222,9 @@ provider 生命周期由 `MemoryManager` 统一编排：
 - end-of-session 提炼
 - session-aware user modeling
 
-### 5.5 built-in 与 provider 的桥接
+<a id="55-built-in-与-provider-的桥接"></a>
+<a id="section-6-5"></a>
+### 6.5 built-in 与 provider 的桥接
 
 一个容易忽略但很重要的细节：
 
@@ -685,7 +1235,9 @@ provider 生命周期由 `MemoryManager` 统一编排：
 - built-in memory 不是完全孤立的
 - provider 可以选择镜像或吸收这类 durable write
 
-### 5.6 外部存储写入策略：只写问答，不写过程
+<a id="56-外部存储写入策略只写问答不写过程"></a>
+<a id="section-6-6"></a>
+### 6.6 外部存储写入策略：只写问答，不写过程
 
 External Provider 的 `sync_all()` 机制遵循**“最小化语义暴露”**原则。它写入外部存储的内容非常精简：
 
@@ -697,7 +1249,9 @@ External Provider 的 `sync_all()` 机制遵循**“最小化语义暴露”**�
 
 这种设计让 External Provider 专注于**语义召回**和**用户建模**，而不是成为另一个日志存储库。
 
-### 5.7 为什么 external provider 仍然不应喧宾夺主
+<a id="57-为什么-external-provider-仍然不应喧宾夺主"></a>
+<a id="section-6-7"></a>
+### 6.7 为什么 external provider 仍然不应喧宾夺主
 
 从产品视角看，external provider 往往最“高级”，因为它带来了：
 
@@ -722,9 +1276,13 @@ External Provider 的 `sync_all()` 机制遵循**“最小化语义暴露”**�
 
 ---
 
-### 6. Prompt 注入与上下文边界
+<a id="6-prompt-注入与上下文边界"></a>
+<a id="section-6-8"></a>
+### 6.8 Prompt 注入与上下文边界
 
-### 6.1 built-in memory 注入点
+<a id="61-built-in-memory-注入点"></a>
+<a id="section-6-9"></a>
+### 6.9 built-in memory 注入点
 
 built-in memory 在 system prompt 组装阶段直接注入：
 
@@ -733,7 +1291,9 @@ built-in memory 在 system prompt 组装阶段直接注入：
 
 这是稳定、低延迟、固定成本的上下文。
 
-### 6.2 recalled context 注入点
+<a id="62-recalled-context-注入点"></a>
+<a id="section-6-10"></a>
+### 6.10 recalled context 注入点
 
 external provider 的 prefetch 结果不会直接伪装成用户输入，而是经过：
 
@@ -747,7 +1307,9 @@ external provider 的 prefetch 结果不会直接伪装成用户输入，而是�
 - 不让模型误把 recall context 当成新的 user instruction
 - 降低 provider 输出再次污染 prompt 的风险
 
-### 6.3 为什么这很重要
+<a id="63-为什么这很重要"></a>
+<a id="section-6-11"></a>
+### 6.11 为什么这很重要
 
 Hermes memory 的核心安全设计，不只是扫描写入内容，还包括：
 
@@ -756,11 +1318,17 @@ Hermes memory 的核心安全设计，不只是扫描写入内容，还包括：
 
 这也是 Hermes 相比“把所有记忆直接拼到 prompt 里”的系统更稳的地方。
 
-## 6. 协作、数据流与架构
+<a id="6-协作数据流与架构"></a>
+<a id="section-7"></a>
+## 7. 协作、数据流与架构
 
-### 设计目标与非目标
+<a id="设计目标与非目标"></a>
+<a id="section-7-1"></a>
+### 7.1 设计目标与非目标
 
-#### 1.1 设计目标
+<a id="11-设计目标"></a>
+<a id="section-7-1-1"></a>
+#### 7.1.1 设计目标
 
 如果只看功能名称，Hermes memory 很容易被误解成“多加几个存储后端”。但从源码上看，它追求的是下面几个更具体的目标：
 
@@ -775,7 +1343,9 @@ Hermes memory 的核心安全设计，不只是扫描写入内容，还包括：
 - **不让 memory 侵占全部系统复杂度**
   memory 重要，但它必须和 skills、tool loop、gateway、delegation 保持边界。
 
-#### 1.2 非目标
+<a id="12-非目标"></a>
+<a id="section-7-1-2"></a>
+#### 7.1.2 非目标
 
 同样重要的是，Hermes 当前**不追求**下面这些事情：
 
@@ -788,9 +1358,13 @@ Hermes memory 的核心安全设计，不只是扫描写入内容，还包括：
 - **不把 skill / trajectory 强行当成 memory 主层**
   它们相关，但角色不同。
 
-### MemoryManager 与协作矩阵
+<a id="memorymanager-与协作矩阵"></a>
+<a id="section-7-2"></a>
+### 7.2 MemoryManager 与协作矩阵
 
-#### 2.3 协作矩阵
+<a id="23-协作矩阵"></a>
+<a id="section-7-2-1"></a>
+#### 7.2.1 协作矩阵
 
 这套系统最容易误判的地方,是把所有“看起来像记忆”的东西混在一起。下面这张协作矩阵用来区分谁负责什么:
 
@@ -807,7 +1381,9 @@ Hermes memory 的核心安全设计，不只是扫描写入内容，还包括：
 
 > Hermes 不是一个“统一大 memory 仓库”,而是几套边界清晰、用途不同的记忆机制并行存在。
 
-#### 2.4 MemoryManager 内部架构
+<a id="24-memorymanager-内部架构"></a>
+<a id="section-7-2-2"></a>
+#### 7.2.2 MemoryManager 内部架构
 
 ```mermaid
 classDiagram
@@ -875,7 +1451,9 @@ classDiagram
 - ✅ 单 Provider 失败不阻塞其他 Provider
 - ✅ Tool name 冲突检测与警告
 
-### 完整数据流向（含压缩、沉淀与第二轮拉取）
+<a id="完整数据流向含压缩沉淀与第二轮拉取"></a>
+<a id="section-7-3"></a>
+### 7.3 完整数据流向（含压缩、沉淀与第二轮拉取）
 
 
 ```mermaid
@@ -1034,9 +1612,13 @@ sequenceDiagram
 6. **预取是异步的** - `queue_prefetch_all` 在后台 daemon thread 中预热下一轮上下文
 7. **缓存是优化的** - Anthropic prefix cache 通过复用 stored system_prompt 保持命中
 
-### 当前实现真正的「层级」与易误判点
+<a id="当前实现真正的层级与易误判点"></a>
+<a id="section-7-4"></a>
+### 7.4 当前实现真正的「层级」与易误判点
 
-#### 7. 当前实现真正的“层级”
+<a id="7-当前实现真正的层级"></a>
+<a id="section-7-4-1"></a>
+#### 7.4.1 当前实现真正的“层级”
 
 如果一定要讲层级，我建议用下面这组更贴近现实的维度，而不是旧的六层官方口径：
 
@@ -1053,9 +1635,13 @@ sequenceDiagram
 
 ---
 
-#### 8. 设计优劣势
+<a id="8-设计优劣势"></a>
+<a id="section-7-4-2"></a>
+#### 7.4.2 设计优劣势
 
-##### 8.1 优势
+<a id="81-优势"></a>
+<a id="section-7-4-2-1"></a>
+##### 7.4.2.1 优势
 
 - 主层清晰：built-in memory 和 session archive 职责不同
 - 本地优先：没有外部 provider 也能工作
@@ -1063,7 +1649,9 @@ sequenceDiagram
 - 安全意识较强：写入扫描 + fenced recall
 - 可扩展：provider interface 很清楚
 
-##### 8.2 代价
+<a id="82-代价"></a>
+<a id="section-7-4-2-2"></a>
+##### 7.4.2.2 代价
 
 - built-in memory 不会在当前 session 热更新
 - 长期记忆容量刻意受限，需要持续精编
@@ -1072,9 +1660,13 @@ sequenceDiagram
 
 ---
 
-#### 9. 读源码时最容易误判的点
+<a id="9-读源码时最容易误判的点"></a>
+<a id="section-7-4-3"></a>
+#### 7.4.3 读源码时最容易误判的点
 
-##### 9.1 不要把 `MemoryManager` 当成 built-in memory 本体
+<a id="91-不要把-memorymanager-当成-built-in-memory-本体"></a>
+<a id="section-7-4-3-1"></a>
+##### 7.4.3.1 不要把 `MemoryManager` 当成 built-in memory 本体
 
 当前 `MemoryManager` 主要是 external provider 编排器。
 
@@ -1083,19 +1675,27 @@ built-in persistent memory 的核心实现其实是：
 - `MemoryStore`
 - `memory` tool
 
-##### 9.2 不要把 `session_search` 当成 provider
+<a id="92-不要把-session_search-当成-provider"></a>
+<a id="section-7-4-3-2"></a>
+##### 7.4.3.2 不要把 `session_search` 当成 provider
 
 `session_search` 是 Hermes 核心工具，不属于 external provider 插件体系。
 
-##### 9.3 不要把 skills 当成 built-in memory
+<a id="93-不要把-skills-当成-built-in-memory"></a>
+<a id="section-7-4-3-3"></a>
+##### 7.4.3.3 不要把 skills 当成 built-in memory
 
 skills 可以沉淀经验，但它们不是 `MEMORY.md` / `USER.md` 那套持久记忆文件。
 
 ---
 
-## 7. 使用指南
+<a id="7-使用指南"></a>
+<a id="section-8"></a>
+## 8. 使用指南
 
-### 1. 日常使用只需要记住三件事
+<a id="1-日常使用只需要记住三件事"></a>
+<a id="section-8-1"></a>
+### 8.1 日常使用只需要记住三件事
 
 1. **长期稳定事实** 存到 `memory`
 2. **历史任务和讨论细节** 用 `session_search`
@@ -1105,9 +1705,13 @@ skills 可以沉淀经验，但它们不是 `MEMORY.md` / `USER.md` 那套持久
 
 ---
 
-### 2. `memory` 工具到底应该怎么用
+<a id="2-memory-工具到底应该怎么用"></a>
+<a id="section-8-2"></a>
+### 8.2 `memory` 工具到底应该怎么用
 
-#### 2.1 两个 target
+<a id="21-两个-target"></a>
+<a id="section-8-2-1"></a>
+#### 8.2.1 两个 target
 
 `memory` 工具只操作两个目标：
 
@@ -1119,7 +1723,9 @@ skills 可以沉淀经验，但它们不是 `MEMORY.md` / `USER.md` 那套持久
 - `memory`: 你的环境、项目、惯例、教训
 - `user`: 用户是谁、怎么沟通、喜欢什么、讨厌什么
 
-#### 2.2 三个 action
+<a id="22-三个-action"></a>
+<a id="section-8-2-2"></a>
+#### 8.2.2 三个 action
 
 当前稳定 action 只有三个：
 
@@ -1133,7 +1739,9 @@ skills 可以沉淀经验，但它们不是 `MEMORY.md` / `USER.md` 那套持久
 - `remove` 需要 `old_text`
 - `old_text` 是唯一子串，不是完整条目 ID
 
-#### 2.3 最佳实践
+<a id="23-最佳实践"></a>
+<a id="section-8-2-3"></a>
+#### 8.2.3 最佳实践
 
 好的 memory entry 应该满足：
 
@@ -1156,9 +1764,13 @@ skills 可以沉淀经验，但它们不是 `MEMORY.md` / `USER.md` 那套持久
 
 ---
 
-### 3. 什么时候该存 memory
+<a id="3-什么时候该存-memory"></a>
+<a id="section-8-3"></a>
+### 8.3 什么时候该存 memory
 
-#### 3.1 应主动保存的内容
+<a id="31-应主动保存的内容"></a>
+<a id="section-8-3-1"></a>
+#### 8.3.1 应主动保存的内容
 
 - 用户表达了稳定偏好
 - 用户纠正了 agent
@@ -1166,7 +1778,9 @@ skills 可以沉淀经验，但它们不是 `MEMORY.md` / `USER.md` 那套持久
 - agent 学到项目约定
 - agent 发现了将来还会反复踩到的工具 quirks
 
-#### 3.2 不该存进 memory 的内容
+<a id="32-不该存进-memory-的内容"></a>
+<a id="section-8-3-2"></a>
+#### 8.3.2 不该存进 memory 的内容
 
 - 临时进度
 - 当前任务的中间状态
@@ -1174,7 +1788,9 @@ skills 可以沉淀经验，但它们不是 `MEMORY.md` / `USER.md` 那套持久
 - 大段日志
 - 已经很容易重新发现的公开事实
 
-#### 3.3 一个简单判断标准
+<a id="33-一个简单判断标准"></a>
+<a id="section-8-3-3"></a>
+#### 8.3.3 一个简单判断标准
 
 问自己：
 
@@ -1184,7 +1800,9 @@ skills 可以沉淀经验，但它们不是 `MEMORY.md` / `USER.md` 那套持久
 
 ---
 
-### 4. `session_search` 什么时候用
+<a id="4-session_search-什么时候用"></a>
+<a id="section-8-4"></a>
+### 8.4 `session_search` 什么时候用
 
 `session_search` 是 Hermes 的“长时会话回忆”，不是 built-in memory 的补丁。
 
@@ -1202,7 +1820,9 @@ skills 可以沉淀经验，但它们不是 `MEMORY.md` / `USER.md` 那套持久
 
 ---
 
-### 5. memory vs session_search vs skills
+<a id="5-memory-vs-session_search-vs-skills"></a>
+<a id="section-8-5"></a>
+### 8.5 memory vs session_search vs skills
 
 | 需求 | 该用什么 | 原因 |
 |------|----------|------|
@@ -1216,9 +1836,13 @@ skills 可以沉淀经验，但它们不是 `MEMORY.md` / `USER.md` 那套持久
 
 ---
 
-### 6. capacity management
+<a id="6-capacity-management"></a>
+<a id="section-8-6"></a>
+### 8.6 capacity management
 
-#### 6.1 为什么要小而精
+<a id="61-为什么要小而精"></a>
+<a id="section-8-6-1"></a>
+#### 8.6.1 为什么要小而精
 
 Hermes 的 built-in memory 是 system prompt 成本的一部分。
 
@@ -1228,7 +1852,9 @@ Hermes 的 built-in memory 是 system prompt 成本的一部分。
 - 稳
 - 准
 
-#### 6.2 容量满了怎么办
+<a id="62-容量满了怎么办"></a>
+<a id="section-8-6-2"></a>
+#### 8.6.2 容量满了怎么办
 
 Hermes 当前实现不是自动无限扩容，而是要求 agent 或用户：
 
@@ -1239,7 +1865,9 @@ Hermes 当前实现不是自动无限扩容，而是要求 agent 或用户：
 
 这意味着 memory 本质上是 curated memory，不是 append-only log。
 
-#### 6.3 推荐写法
+<a id="63-推荐写法"></a>
+<a id="section-8-6-3"></a>
+#### 8.6.3 推荐写法
 
 优先写“密度高”的句子，而不是碎片化条目。
 
@@ -1260,16 +1888,22 @@ Hermes 当前实现不是自动无限扩容，而是要求 agent 或用户：
 
 ---
 
-### 7. 当前 session 中途写 memory 会发生什么
+<a id="7-当前-session-中途写-memory-会发生什么"></a>
+<a id="section-8-7"></a>
+### 8.7 当前 session 中途写 memory 会发生什么
 
 磁盘立即更新；**当前会话 system prompt 不刷新**（tool result 可见新内容）。机制见 [§3 Frozen Snapshot](#35-冻结快照模式)。
 
-### 8. 为什么不热更新 built-in memory
+<a id="8-为什么不热更新-built-in-memory"></a>
+<a id="section-8-8"></a>
+### 8.8 为什么不热更新 built-in memory
 
 为了 prefix cache 稳定、避免 mid-session prompt 漂移。built-in memory 是 **next-session-oriented**，不是 live scratchpad。细节见 §3。
 
 
-### 9. external provider 怎么影响日常使用
+<a id="9-external-provider-怎么影响日常使用"></a>
+<a id="section-8-9"></a>
+### 8.9 external provider 怎么影响日常使用
 
 如果启用了外部 provider：
 
@@ -1287,21 +1921,29 @@ Hermes 当前实现不是自动无限扩容，而是要求 agent 或用户：
 
 ---
 
-### 10. 典型使用模式
+<a id="10-典型使用模式"></a>
+<a id="section-8-10"></a>
+### 8.10 典型使用模式
 
-#### 10.1 个人开发者
+<a id="101-个人开发者"></a>
+<a id="section-8-10-1"></a>
+#### 8.10.1 个人开发者
 
 - 长期偏好和项目规则进 `memory`
 - 历史 debug 与 task 详情交给 `session_search`
 - 常做的任务沉淀成 skill
 
-#### 10.2 长期助手
+<a id="102-长期助手"></a>
+<a id="section-8-10-2"></a>
+#### 8.10.2 长期助手
 
 - `USER.md` 记录沟通风格和偏好
 - external provider 负责更深用户建模
 - `session_search` 负责完整时序追溯
 
-#### 10.3 团队 / 多入口会话
+<a id="103-团队--多入口会话"></a>
+<a id="section-8-10-3"></a>
+#### 8.10.3 团队 / 多入口会话
 
 - `state.db` 提供统一会话归档
 - built-in memory 保持稳定共同背景
@@ -1309,7 +1951,9 @@ Hermes 当前实现不是自动无限扩容，而是要求 agent 或用户：
 
 ---
 
-### 11. 给 prompt / policy 作者的建议
+<a id="11-给-prompt--policy-作者的建议"></a>
+<a id="section-8-11"></a>
+### 8.11 给 prompt / policy 作者的建议
 
 如果你在写 Hermes 的系统提示、agent policy 或技能说明，应该遵守下面的分流规则：
 
@@ -1322,9 +1966,13 @@ Hermes 当前实现不是自动无限扩容，而是要求 agent 或用户：
 
 ---
 
-### 12. 常见误区
+<a id="12-常见误区"></a>
+<a id="section-8-12"></a>
+### 8.12 常见误区
 
-#### 12.1 “memory 就是所有长期上下文”
+<a id="121-memory-就是所有长期上下文"></a>
+<a id="section-8-12-1"></a>
+#### 8.12.1 “memory 就是所有长期上下文”
 
 不对。Hermes 的长期上下文至少分成：
 
@@ -1332,27 +1980,39 @@ Hermes 当前实现不是自动无限扩容，而是要求 agent 或用户：
 - session archive
 - optional external provider
 
-#### 12.2 “session_search 可以代替 memory”
+<a id="122-session_search-可以代替-memory"></a>
+<a id="section-8-12-2"></a>
+#### 8.12.2 “session_search 可以代替 memory”
 
 也不对。`session_search` 是按需 recall，不是始终在线 context。
 
-#### 12.3 “skill 就是另一种 memory”
+<a id="123-skill-就是另一种-memory"></a>
+<a id="section-8-12-3"></a>
+#### 8.12.3 “skill 就是另一种 memory”
 
 部分重叠，但角色不同。skill 是方法论资产，不是用户画像或项目背景。
 
 ---
 
-### 13. 实战口诀
+<a id="13-实战口诀"></a>
+<a id="section-8-13"></a>
+### 8.13 实战口诀
 
 最后浓缩成一句话：
 
 > **偏好和约定进 memory，历史细节查 session_search，做法沉淀成 skill。**
 
-## 8. 外部 Provider 参考
+<a id="8-外部-provider-参考"></a>
+<a id="section-9"></a>
+## 9. 外部 Provider 参考
 
-### MemoryProvider 接口与生命周期
+<a id="memoryprovider-接口与生命周期"></a>
+<a id="section-9-1"></a>
+### 9.1 MemoryProvider 接口与生命周期
 
-#### 1.1 设计哲学
+<a id="11-设计哲学"></a>
+<a id="section-9-1-1"></a>
+#### 9.1.1 设计哲学
 
 Hermes 的外部记忆系统采用**插件化架构**,通过 `MemoryProvider` 抽象基类定义统一契约,支持多种后端实现:
 
@@ -1406,7 +2066,9 @@ graph LR
     C -->|会话结束| H[shutdown]
 ```
 
-#### 1.2 单一 Provider 限制
+<a id="12-单一-provider-限制"></a>
+<a id="section-9-1-2"></a>
+#### 9.1.2 单一 Provider 限制
 
 ```python
 ## agent/memory_manager.py
@@ -1427,7 +2089,9 @@ class MemoryManager:
 - ✅ 简化配置与调试(明确的故障边界)
 - ✅ 降低 Token 消耗(只注入一个 Provider 的上下文)
 
-### 2. 官方插件详解
+<a id="2-官方插件详解"></a>
+<a id="section-9-2"></a>
+### 9.2 官方插件详解
 
 | Provider | 类型 | 存储后端 | 核心能力 | 适用场景 |
 |----------|------|---------|---------|----------|
@@ -1441,9 +2105,13 @@ class MemoryManager:
 
 ---
 
-### 3. Mem0 Provider 深度解析
+<a id="3-mem0-provider-深度解析"></a>
+<a id="section-9-3"></a>
+### 9.3 Mem0 Provider 深度解析
 
-#### 3.1 存储什么?
+<a id="31-存储什么"></a>
+<a id="section-9-3-1"></a>
+#### 9.3.1 存储什么?
 
 Mem0 采用**服务端 LLM 提取**策略,不是简单存储原始对话:
 
@@ -1475,7 +2143,9 @@ facts = [
 }
 ```
 
-#### 3.2 如何存?
+<a id="32-如何存"></a>
+<a id="section-9-3-2"></a>
+#### 9.3.2 如何存?
 
 **自动同步(sync_turn)** - 每轮对话后异步发送:
 ```python
@@ -1507,7 +2177,9 @@ client.add(
 )
 ```
 
-#### 3.3 如何取?
+<a id="33-如何取"></a>
+<a id="section-9-3-3"></a>
+#### 9.3.3 如何取?
 
 **三种召回方式**:
 
@@ -1553,7 +2225,9 @@ if tool_name == "mem0_search":
     return json.dumps({"results": items, "count": len(items)})
 ```
 
-#### 3.4 性能优化
+<a id="34-性能优化"></a>
+<a id="section-9-3-4"></a>
+#### 9.3.4 性能优化
 
 **电路断路器(Circuit Breaker)**:
 ```python
@@ -1573,9 +2247,13 @@ def _is_breaker_open(self) -> bool:
 
 ---
 
-### 4. Honcho Provider 深度解析
+<a id="4-honcho-provider-深度解析"></a>
+<a id="section-9-4"></a>
+### 9.4 Honcho Provider 深度解析
 
-#### 4.1 存储什么?
+<a id="41-存储什么"></a>
+<a id="section-9-4-1"></a>
+#### 9.4.1 存储什么?
 
 Honcho 采用**AI 原生用户建模**,不只是存储事实,而是构建用户的**Peer Card**(同伴卡片):
 
@@ -1598,7 +2276,9 @@ peer_card = {
 - Mem0: 存储离散的事实片段 → 语义搜索
 - Honcho: 构建连贯的用户画像 → 方言推理(Dialectic Reasoning)
 
-#### 4.2 如何存?
+<a id="42-如何存"></a>
+<a id="section-9-4-2"></a>
+#### 9.4.2 如何存?
 
 **三层存储策略**:
 
@@ -1631,7 +2311,9 @@ def handle_tool_call(self, tool_name: str, args: dict, **kwargs) -> str:
         return json.dumps({"result": "Conclusion stored."})
 ```
 
-#### 4.3 如何取?
+<a id="43-如何取"></a>
+<a id="section-9-4-3"></a>
+#### 9.4.3 如何取?
 
 **四种召回模式**(recall_mode 配置决定):
 
@@ -1755,7 +2437,9 @@ honcho_context(peer="user")
 }
 ```
 
-#### 4.4 成本优化
+<a id="44-成本优化"></a>
+<a id="section-9-4-4"></a>
+#### 9.4.4 成本优化
 
 **Cadence 控制**(减少 API 调用频率):
 ```python
@@ -1781,9 +2465,13 @@ def _apply_reasoning_heuristic(self, base: str, query: str) -> str:
 
 ---
 
-### 5. Supermemory Provider 深度解析
+<a id="5-supermemory-provider-深度解析"></a>
+<a id="section-9-5"></a>
+### 9.5 Supermemory Provider 深度解析
 
-#### 5.1 存储什么?
+<a id="51-存储什么"></a>
+<a id="section-9-5-1"></a>
+#### 9.5.1 存储什么?
 
 Supermemory 采用**容器化(Container Tags)**组织记忆,支持多维度分类:
 
@@ -1808,7 +2496,9 @@ memory_item = {
 - `tech-stack`: 技术栈偏好
 - `project-notes`: 项目笔记
 
-#### 5.2 如何存?
+<a id="52-如何存"></a>
+<a id="section-9-5-2"></a>
+#### 9.5.2 如何存?
 
 **三种写入方式**:
 
@@ -1882,7 +2572,9 @@ def _tool_store(self, args: dict) -> str:
     return json.dumps({"saved": True, "id": result["id"]})
 ```
 
-#### 5.3 如何取?
+<a id="53-如何取"></a>
+<a id="section-9-5-3"></a>
+#### 9.5.3 如何取?
 
 **Profile Recall(配置文件召回)** - 自动召回:
 ```python
@@ -1958,7 +2650,9 @@ supermemory_forget(id="doc_abc123")
 supermemory_forget(query="过时的项目信息")
 ```
 
-#### 5.4 多容器管理
+<a id="54-多容器管理"></a>
+<a id="section-9-5-4"></a>
+#### 9.5.4 多容器管理
 
 **启用自定义容器**:
 ```json
@@ -1987,7 +2681,9 @@ supermemory_search(
 
 ---
 
-### 6. Provider 对比总结
+<a id="6-provider-对比总结"></a>
+<a id="section-9-6"></a>
+### 9.6 Provider 对比总结
 
 | 维度 | Mem0 | Honcho | Supermemory |
 |------|------|--------|-------------|
@@ -2002,9 +2698,13 @@ supermemory_search(
 
 ---
 
-### 7. 配置示例
+<a id="7-配置示例"></a>
+<a id="section-9-7"></a>
+### 9.7 配置示例
 
-#### Mem0 配置
+<a id="mem0-配置"></a>
+<a id="section-9-7-1"></a>
+#### 9.7.1 Mem0 配置
 
 ```yaml
 ## ~/.hermes/config.yaml
@@ -2020,7 +2720,9 @@ memory:
 }
 ```
 
-#### Honcho 配置
+<a id="honcho-配置"></a>
+<a id="section-9-7-2"></a>
+#### 9.7.2 Honcho 配置
 
 ```yaml
 ## ~/.hermes/config.yaml
@@ -2040,7 +2742,9 @@ memory:
 }
 ```
 
-#### Supermemory 配置
+<a id="supermemory-配置"></a>
+<a id="section-9-7-3"></a>
+#### 9.7.3 Supermemory 配置
 
 ```yaml
 ## ~/.hermes/config.yaml
@@ -2066,16 +2770,22 @@ memory:
 
 ---
 
-### 8. 开发自定义 Provider
+<a id="8-开发自定义-provider"></a>
+<a id="section-9-8"></a>
+### 9.8 开发自定义 Provider
 
-#### 步骤 1: 创建插件目录
+<a id="步骤-1-创建插件目录"></a>
+<a id="section-9-8-1"></a>
+#### 9.8.1 步骤 1: 创建插件目录
 
 ```bash
 mkdir -p plugins/memory/my-provider
 touch plugins/memory/my-provider/__init__.py
 ```
 
-#### 步骤 2: 实现 MemoryProvider 接口
+<a id="步骤-2-实现-memoryprovider-接口"></a>
+<a id="section-9-8-2"></a>
+#### 9.8.2 步骤 2: 实现 MemoryProvider 接口
 
 ```python
 ## plugins/memory/my-provider/__init__.py
@@ -2175,7 +2885,9 @@ def register(ctx) -> None:
     ctx.register_memory_provider(MyProvider())
 ```
 
-#### 步骤 3: 激活 Provider
+<a id="步骤-3-激活-provider"></a>
+<a id="section-9-8-3"></a>
+#### 9.8.3 步骤 3: 激活 Provider
 
 ```yaml
 ## ~/.hermes/config.yaml
@@ -2185,9 +2897,13 @@ memory:
 
 ---
 
-### 9. 最佳实践
+<a id="9-最佳实践"></a>
+<a id="section-9-9"></a>
+### 9.9 最佳实践
 
-#### 9.1 选择合适的 Provider
+<a id="91-选择合适的-provider"></a>
+<a id="section-9-9-1"></a>
+#### 9.9.1 选择合适的 Provider
 
 **场景 1: 个人使用,注重隐私**
 - ✅ 推荐: Builtin Memory + SessionDB
@@ -2205,7 +2921,9 @@ memory:
 - ✅ 推荐: Mem0 (服务端提取 + 语义搜索)
 - ✅ 优势: 配置简单,开箱即用
 
-#### 9.2 控制记忆大小
+<a id="92-控制记忆大小"></a>
+<a id="section-9-9-2"></a>
+#### 9.9.2 控制记忆大小
 
 **建议**:
 - SessionDB: 定期清理旧会话(>30天)
@@ -2217,7 +2935,9 @@ memory:
 hermes cleanup --older-than 30d
 ```
 
-#### 9.3 监控记忆质量
+<a id="93-监控记忆质量"></a>
+<a id="section-9-9-3"></a>
+#### 9.9.3 监控记忆质量
 
 ```bash
 ## 查看记忆统计
@@ -2229,7 +2949,9 @@ hermes memory stats
 ## External: honcho (567 memories)
 ```
 
-#### 9.4 调试记忆问题
+<a id="94-调试记忆问题"></a>
+<a id="section-9-9-4"></a>
+#### 9.9.4 调试记忆问题
 
 **检查记忆是否正确注入**:
 ```bash
@@ -2245,13 +2967,17 @@ grep "<memory-context>" ~/.hermes/logs/latest.log
 - ❌ 记忆混淆 → 检查 `<memory-context>` 标签是否完整
 - ❌ Provider 失败 → 查看日志中的错误信息
 
-## 9. 扩展机制（非 memory 主模型）
+<a id="9-扩展机制非-memory-主模型"></a>
+<a id="section-10"></a>
+## 10. 扩展机制（非 memory 主模型）
 
 > Skills、Curator、Trajectory **不是** Persistent Memory 的子类型。  
 > 主模型仍是三层；本节描述与 memory **协同**的进化/沉淀机制。  
 > 已删除旧稿中错误的 `memory(action="write")` /「<5KB」示例（与 §3 API 冲突）。
 
-### 本节范围
+<a id="本节范围"></a>
+<a id="section-10-1"></a>
+### 10.1 本节范围
 
 本文只回答：
 
@@ -2261,7 +2987,9 @@ grep "<memory-context>" ~/.hermes/logs/latest.log
 
 ---
 
-### 2. Hermes 的"进化"不是单一路径
+<a id="2-hermes-的进化不是单一路径"></a>
+<a id="section-10-2"></a>
+### 10.2 Hermes 的"进化"不是单一路径
 
 Hermes 所谓进化，至少有四条不同路径：
 
@@ -2287,9 +3015,13 @@ Hermes 所谓进化，至少有四条不同路径：
 
 所以"进化"不是一个按钮，而是多个沉淀面并行发生。
 
-### 5. 进化路径三：Skills
+<a id="5-进化路径三skills"></a>
+<a id="section-10-3"></a>
+### 10.3 进化路径三：Skills
 
-#### 5.1 为什么 skill 不应被混同为 memory
+<a id="51-为什么-skill-不应被混同为-memory"></a>
+<a id="section-10-3-1"></a>
+#### 10.3.1 为什么 skill 不应被混同为 memory
 
 memory 解决的是：
 
@@ -2301,7 +3033,9 @@ skill 解决的是：
 
 这两者显然相关，但不是一回事。
 
-#### 5.2 Hermes 当前的工程策略
+<a id="52-hermes-当前的工程策略"></a>
+<a id="section-10-3-2"></a>
+#### 10.3.2 Hermes 当前的工程策略
 
 Hermes 的主线不是“自动无限生成 skills 并自我改写一切”，而是：
 
@@ -2318,7 +3052,9 @@ Hermes 的主线不是“自动无限生成 skills 并自我改写一切”，�
 
 而不是一个黑箱式“自动学习引擎”。
 
-#### 5.3 什么时候该沉淀成 skill
+<a id="53-什么时候该沉淀成-skill"></a>
+<a id="section-10-3-3"></a>
+#### 10.3.3 什么时候该沉淀成 skill
 
 适合 skill 的内容：
 
@@ -2335,7 +3071,9 @@ Hermes 的主线不是“自动无限生成 skills 并自我改写一切”，�
 
 ---
 
-#### 5.4 Skill Telemetry 系统（底层实现）
+<a id="54-skill-telemetry-系统底层实现"></a>
+<a id="section-10-3-4"></a>
+#### 10.3.4 Skill Telemetry 系统（底层实现）
 
 **存储位置**: `~/.hermes/skills/.usage.json`
 
@@ -2434,7 +3172,9 @@ def save_usage(data: Dict[str, Dict[str, Any]]) -> None:
 
 ---
 
-#### 5.5 写入时机与执行流程
+<a id="55-写入时机与执行流程"></a>
+<a id="section-10-3-5"></a>
+#### 10.3.5 写入时机与执行流程
 
 **触发位置**: 同样在主循环的工具调用分支中（[run_agent.py#L9323](file:///Users/gqli/work/deepagents/hermes-agent/run_agent.py#L9323)）
 
@@ -2532,7 +3272,9 @@ LLM: "我已将此调试方法保存为技能 'debug-python-import'，下次遇�
 
 ---
 
-#### 5.6 Skill 沉淀决策流程
+<a id="56-skill-沉淀决策流程"></a>
+<a id="section-10-3-6"></a>
+#### 10.3.6 Skill 沉淀决策流程
 
 ```mermaid
 graph TD
@@ -2578,7 +3320,9 @@ graph TD
 
 ---
 
-#### 5.7 Skill 沉淀时序图
+<a id="57-skill-沉淀时序图"></a>
+<a id="section-10-3-7"></a>
+#### 10.3.7 Skill 沉淀时序图
 
 ```mermaid
 sequenceDiagram
@@ -2650,7 +3394,9 @@ sequenceDiagram
 
 ---
 
-#### 5.8 Skill vs Memory 对比表
+<a id="58-skill-vs-memory-对比表"></a>
+<a id="section-10-3-8"></a>
+#### 10.3.8 Skill vs Memory 对比表
 
 | 维度 | Skill | Memory |
 |------|-------|--------|
@@ -2676,7 +3422,9 @@ sequenceDiagram
 
 ---
 
-#### 5.9 所有进化机制的触发时机对比
+<a id="59-所有进化机制的触发时机对比"></a>
+<a id="section-10-3-9"></a>
+#### 10.3.9 所有进化机制的触发时机对比
 
 | 机制 | 中文含义 | 主要作用 | 效果 | 触发位置 | 是否阻塞主循环 | 触发者 | 代码行号 |
 |------|---------|---------|------|---------|--------------|--------|----------|
@@ -2708,7 +3456,9 @@ sequenceDiagram
 - ✅ **用户体验**: 会后操作不阻塞响应
 - ✅ **系统稳定性**: 后台任务不影响前台交互
 
-#### 5.7 Curator 自动生命周期管理
+<a id="57-curator-自动生命周期管理"></a>
+<a id="section-10-3-10"></a>
+#### 10.3.10 Curator 自动生命周期管理
 
 **配置文件**: `~/.hermes/config.yaml`
 
@@ -2835,7 +3585,9 @@ mv ~/.hermes/skills/.archive/<skill-name> ~/.hermes/skills/<skill-name>
 - ✅ **可逆操作**: 归档不是删除，可以随时恢复
 - ✅ **渐进式降级**: Active → Stale → Archived，给用户多次机会
 
-#### 5.10 三种进化机制的生命周期管理对比
+<a id="510-三种进化机制的生命周期管理对比"></a>
+<a id="section-10-3-11"></a>
+#### 10.3.11 三种进化机制的生命周期管理对比
 
 | 机制 | 是否需要过期 | 是否需要错误更正 | 管理方式 |
 |------|------------|----------------|---------|
@@ -2857,7 +3609,9 @@ mv ~/.hermes/skills/.archive/<skill-name> ~/.hermes/skills/<skill-name>
    - 原因：容量有限（<5KB），需要保持高信噪比
    - 解决：Agent 主动更新 + 用户手动编辑，不依赖自动化
 
-#### 6.1 它属于什么层
+<a id="61-它属于什么层"></a>
+<a id="section-10-3-12"></a>
+#### 10.3.12 它属于什么层
 
 Trajectory（轨迹）是训练和研究资产，不是在线 recall memory。
 
@@ -2866,7 +3620,9 @@ Trajectory（轨迹）是训练和研究资产，不是在线 recall memory。
 - 生成可分析的对话轨迹
 - 为 RL / fine-tuning / evaluation 准备数据
 
-#### 6.2 为什么它不该算进 memory 主模型
+<a id="62-为什么它不该算进-memory-主模型"></a>
+<a id="section-10-3-13"></a>
+#### 10.3.13 为什么它不该算进 memory 主模型
 
 因为它既不参与日常 prompt 注入，也不承担用户级 recall。
 
@@ -2878,7 +3634,9 @@ Trajectory（轨迹）是训练和研究资产，不是在线 recall memory。
 
 把它硬塞进“memory 层级”会导致概念膨胀。
 
-#### 6.3 但为什么仍值得放在这里讲
+<a id="63-但为什么仍值得放在这里讲"></a>
+<a id="section-10-3-14"></a>
+#### 10.3.14 但为什么仍值得放在这里讲
 
 因为 Hermes 的品牌叙事不是“有记忆就够了”，而是：
 
@@ -2891,7 +3649,9 @@ Trajectory（轨迹）是训练和研究资产，不是在线 recall memory。
 
 ---
 
-#### 6.4 Trajectory 导出的底层实现
+<a id="64-trajectory-导出的底层实现"></a>
+<a id="section-10-3-15"></a>
+#### 10.3.15 Trajectory 导出的底层实现
 
 **存储格式**: JSONL（每行一个完整的会话）
 
@@ -3042,7 +3802,9 @@ def convert_scratchpad_to_think(content: str) -> str:
 
 ---
 
-#### 7.1 Curator Review（策展人审查）机制（LLM 驱动的技能整合）
+<a id="71-curator-review策展人审查机制llm-驱动的技能整合"></a>
+<a id="section-10-3-16"></a>
+#### 10.3.16 Curator Review（策展人审查）机制（LLM 驱动的技能整合）
 
 **触发位置**: ❌ **完全独立，不在主循环中**
 
@@ -3233,11 +3995,15 @@ def _classify_removed_skills(
 
 ---
 
-## 10. 附录 A：六层扩展视角
+<a id="10-附录-a六层扩展视角"></a>
+<a id="section-11"></a>
+## 11. 附录 A：六层扩展视角
 
 > **非官方主模型。** 仅用于架构对比；对外叙事请用三层。
 
-### 2.1 六层扩展视角（架构分析用 · 非官方主模型）
+<a id="21-六层扩展视角架构分析用--非官方主模型"></a>
+<a id="section-11-1"></a>
+### 11.1 六层扩展视角（架构分析用 · 非官方主模型）
 
 > ⚠️ 下图将 skills、compression、trajectory 与 runtime memory **画在同一塔里**，便于和 OpenHarness / deer-flow 对比。**运行时主 API 仍以 §2.2 三层为准。**
 
@@ -3316,15 +4082,21 @@ graph TB
 | **L6 训练数据** | ShareGPT JSONL | 批量导出 | 模型微调、RL 训练 | `trajectory_compressor.py` |
 | **External** | Honcho/Mem0 API | 每轮 prefetch/sync | 语义召回、深度用户建模 | 向量数据库检索 |
 
-### 2.2 三层主模型 vs 六层扩展
+<a id="22-三层主模型-vs-六层扩展"></a>
+<a id="section-11-2"></a>
+### 11.2 三层主模型 vs 六层扩展
 
 > **重要澄清**: 正文 §1–§6 聚焦**三层主模型**(Persistent Memory + Session Search + External Provider),这是 Hermes memory 的核心运行时。
 >
 > L1/L5/L6 属于**扩展沉淀机制**,与 skills/trajectory/compression 专题交叉,在 [§9 扩展机制](#9-扩展机制非-memory-主模型) 中详述。
 
-## 11. 附录 B：演进表述与时序
+<a id="11-附录-b演进表述与时序"></a>
+<a id="section-12"></a>
+## 12. 附录 B：演进表述与时序
 
-### 8. 一个更准确的演化时序图
+<a id="8-一个更准确的演化时序图"></a>
+<a id="section-12-1"></a>
+### 12.1 一个更准确的演化时序图
 
 ```mermaid
 graph TD
@@ -3347,7 +4119,9 @@ graph TD
 
 ---
 
-### 9. 对“Hermes 会自我进化”的准确表述
+<a id="9-对hermes-会自我进化的准确表述"></a>
+<a id="section-12-2"></a>
+### 12.2 对“Hermes 会自我进化”的准确表述
 
 建议把这个说法写得更稳一些。
 
@@ -3366,7 +4140,9 @@ graph TD
 ---
 
 
-### 11. 最后给架构对比使用者的结论
+<a id="11-最后给架构对比使用者的结论"></a>
+<a id="section-12-3"></a>
+### 12.3 最后给架构对比使用者的结论
 
 如果你在跨框架对比 Hermes memory，最稳妥的说法应该是：
 
@@ -3376,4 +4152,3 @@ graph TD
   skills（技能）、curator review（策展人审查 / 后台审查）、trajectory/training assets（轨迹 / 训练资产）
 
 这个表述既能保住 Hermes 的优势，也更经得起源码核对。
-

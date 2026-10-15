@@ -9,8 +9,34 @@
 
 ## 📋 目录
 
+<!-- channel-questions:start -->
+### Channel 设计按问题查找
+
+| 我想知道…… | 直接看这里 |
+|---|---|
+| Channel 模块有哪些层，为什么不让平台 SDK 直接调用 Agent？ | [2.1 职责与架构](#sec-channel-design) |
+| Adapter、事件、来源、回执是什么关系？ | [2.2 类图与核心对象](#sec-channel-classes) |
+| 启动时先连接还是先装 handler？失败如何处理？ | [2.3 启动时序](#sec-channel-start) |
+| 停止时怎样保证先收尾再断连？SDK 卡住怎么办？ | [2.4 停止时序](#sec-channel-stop) |
+| 新消息如何进入会话？忙时与审批回复怎么分流？ | [2.5 入站时序](#sec-channel-receive) |
+| Follow-up、pending、/queue、steer 分别放在哪里，怎样消费？ | [2.8 Follow-up 与队列](#sec-channel-queues) |
+| Channel 领域还有哪些不能漏掉的能力？ | [2.9 完整能力清单](#sec-channel-capabilities) |
+| 最终回复谁发？先发送还是先登记账本？ | [2.6 出站时序](#sec-channel-send) |
+| 接新平台需要实现与验证哪些契约？ | [2.7 扩展与源码入口](#sec-channel-source) |
+
+<!-- channel-questions:end -->
+
 - [第1章：两个网关与本卷范围](#sec-g1)
 - [第2章：启动与连接](#sec-g2)
+  - [2.1 Channel 模块职责与整体架构图](#sec-channel-design)
+  - [2.2 核心对象、类图与两层会话守卫](#sec-channel-classes)
+  - [2.3 启动：回调装配、并发连接与失败恢复时序](#sec-channel-start)
+  - [2.4 停止：排空、取消任务、断连与退出时序](#sec-channel-stop)
+  - [2.5 收消息：事件转换、后台调度与忙时分流时序](#sec-channel-receive)
+  - [2.6 发消息：最终回复、交付账本与发送回执时序](#sec-channel-send)
+  - [2.7 扩展约束与源码入口](#sec-channel-source)
+  - [2.8 Follow-up、busy queue、steer 与 pending](#sec-channel-queues)
+  - [2.9 Channel/Gateway 完整能力清单](#sec-channel-capabilities)
 - [第3章：会话键、活跃槽、Agent 缓存](#sec-g3)
 - [第4章：入站一条消息（完整）](#sec-g4)
 - [第5章：忙时 `busy_input_mode`](#sec-g5)
@@ -47,6 +73,8 @@ IM **不会** `import` Gateway 循环。启动时 Gateway **把 handler 登记�
 
 ## 第2章：启动与连接
 
+> **概览图阅读说明**：本章下方原始启动简图保留为历史概览，包含职责/函数型参与者；精确对象及调用归属以 §2.1–2.8 重整后的实体图为准。
+
 入口：`gateway/run.py` 的 `start_gateway(config, …)` → 构造 `GatewayRunner` → `run_startup` 拉适配器、cron、看板 watcher。
 
 ```mermaid
@@ -81,6 +109,531 @@ sequenceDiagram
 关机：`run_shutdown.py`、`run_shutdown_session_end.py` — 活跃 turn 收尾，ledger 未完成义务尽量送出。
 
 ---
+
+<!-- channel-design:start -->
+<a id="sec-channel-design"></a>
+### 2.1 Channel 是什么：独立的平台适配层，不是另一套 Agent
+
+本书的 **Channel 模块**指 `gateway/platforms/` 的适配器接口、公共消息生命周期及各平台实现，并通过 `platform_registry.py` 接入内置或插件平台。源码没有要求每个平台继承一个名为 `Channel` 的类：共同抽象是 **`BasePlatformAdapter`**。“channel”也可能只是 Slack 的频道或 `SessionSource.chat_type="channel"`，不要把两种含义混为一谈。
+
+它的设计重点是：**平台差异下沉，共同消息生命周期上收，Agent 执行通过回调反转控制。** 平台 SDK 不需要了解 `AIAgent.run_conversation()`；Gateway 在连接前安装 handler，适配器把统一事件交给 handler，再完成平台侧的交付与收尾。
+
+| 层 | 负责什么 | 不应误解成什么 |
+|---|---|---|
+| 注册与工厂 | 平台名到工厂；依赖/配置检查；插件平台与内置后备入口 | 不是一个平台对应一个独立进程 |
+| 具体 Adapter | SDK、polling/SSE/WebSocket/webhook、原始事件转换、格式/媒体与平台错误处理 | 不是 Agent 或持久化会话的所有者 |
+| BasePlatformAdapter | 公共入站调度、会话 guard、忙时槽、typing、响应交付、重试与任务收尾 | 不是薄薄一层 `send()` 接口 |
+| GatewayRunner | 鉴权与路由、会话身份、命令、busy 策略、Agent 缓存与推理、全局启停 | 不是平台 SDK 的替代品 |
+| 交付账本 / SessionStore | 回复义务及恢复 / 会话状态与历史 | 不是 Adapter 内存队列的另一种名字 |
+
+**部署边界**：这些 Python 对象在同一个 Gateway 进程内协作；SDK 可能自带线程，某些平台还依赖外部服务（如 Signal 的 signal-cli daemon），因此“没有独立 Channel worker”不等于“绝对没有外部进程”。
+
+```mermaid
+flowchart LR
+    EXT["signal-cli daemon<br/>外部 Signal 服务"]
+    subgraph GW[Gateway Python 进程]
+        REG["platform_registry: PlatformRegistry"]
+        ENT["PlatformEntry.adapter_factory"]
+        GR["runner: GatewayRunner<br/>生命周期、入站与 follow-up 编排"]
+        AD["adapter: SignalAdapter<br/>继承 BasePlatformAdapter"]
+        TR["turn_runner: TurnRunner<br/>单轮执行协作者"]
+        CT["ctx: TurnContext"]
+        AG["agent: AIAgent"]
+        ST["runner.session_store: SessionStore"]
+        LED["gateway.delivery_ledger<br/>模块函数，不是类实例"]
+        GR -->|_create_adapter / registry lookup| REG
+        REG -->|create_adapter| ENT
+        ENT -->|创建| AD
+        GR -->|_wire_adapter_handlers| AD
+        AD -->|_message_handler event 回调| GR
+        GR -->|创建并交给执行器 run_sync| TR
+        TR -->|_ctx| CT
+        TR -->|run_conversation| AG
+        GR -->|会话与历史| ST
+        AD -->|record_obligation / finalize helpers| LED
+    end
+    EXT -->|SSE 入站| AD
+    AD -->|HTTP 发送，返回 SendResult| EXT
+```
+
+图中的具体 Adapter 与 Base 是同一个适配器实例的不同职责层，不是通过网络互调的两个服务。图中 ledger 是普通最终回复的可靠性交付旁路，不表示每个 typing、草稿或临时控制消息都走相同账本流程。
+
+<a id="sec-channel-classes"></a>
+### 2.2 核心对象与类图：协议、来源、会话和发送结果
+
+```mermaid
+classDiagram
+    class GatewayRunner {
+        adapters
+        _profile_adapters
+        session_store
+    }
+    class GatewayStartupMixin {
+        start()
+        _start_prefilter_platforms()
+        _start_connect_pending()
+        _start_aggregate_connect_results()
+    }
+    class GatewayAdapterLifecycleMixin {
+        _create_adapter()
+        _wire_adapter_handlers()
+        _bounded_adapter_teardown()
+    }
+    class GatewayShutdownMixin {
+        stop()
+        _stop_impl()
+        _stop_finalize_agents_and_adapters()
+    }
+    class GatewayInboundMixin {
+        _handle_message()
+    }
+    class GatewayBusySessionMixin {
+        _enqueue_fifo()
+        _promote_queued_event()
+    }
+    class GatewayTurnMixin {
+        _handle_message_with_agent()
+        _run_agent()
+        _run_agent_drain_pending()
+        _run_agent_queued_followup()
+    }
+    class BasePlatformAdapter {
+        <<abstract>>
+        gateway_runner
+        _message_handler
+        _pending_messages
+        handle_message()
+        _process_message_background()
+        send_final_ledgered()
+        cancel_background_tasks()
+        connect()
+        disconnect()
+        send()
+    }
+    class SignalAdapter {
+        client
+        _sse_task
+        connect()
+        disconnect()
+        _handle_sse_line()
+        send()
+    }
+    class TurnRunner {
+        _runner
+        _ctx
+        run_sync()
+        _run_conversation_with_approval()
+    }
+    class TurnContext {
+        source
+        session_key
+        history
+        result_holder
+    }
+    class AIAgent {
+        run_conversation()
+    }
+    class SessionState {
+        turn
+        conversation
+        persistent
+    }
+    class ConversationState {
+        queued_events
+    }
+    class SessionStore {
+        resolve_session_id_for_key()
+    }
+    class PlatformRegistry {
+        create_adapter()
+        register_deferred()
+    }
+    class PlatformEntry {
+        name
+        adapter_factory
+        check_fn
+        validate_config
+    }
+    class MessageEvent {
+        text
+        source
+        message_id
+        ledger_message_id
+    }
+    class SessionSource {
+        platform
+        chat_id
+        thread_id
+        profile
+    }
+    class SendResult {
+        success
+        message_id
+        retryable
+        retry_after
+        error_kind
+    }
+    GatewayStartupMixin <|-- GatewayRunner
+    GatewayAdapterLifecycleMixin <|-- GatewayRunner
+    GatewayShutdownMixin <|-- GatewayRunner
+    GatewayInboundMixin <|-- GatewayRunner
+    GatewayBusySessionMixin <|-- GatewayRunner
+    GatewayTurnMixin <|-- GatewayRunner
+    BasePlatformAdapter <|-- SignalAdapter
+    GatewayRunner o-- BasePlatformAdapter : adapters / profile adapters
+    BasePlatformAdapter --> GatewayRunner : gateway_runner / handler
+    GatewayRunner ..> TurnRunner : 创建每轮协作者
+    TurnRunner --> GatewayRunner : _runner
+    TurnRunner --> TurnContext : _ctx
+    TurnRunner ..> AIAgent : run_conversation
+    GatewayRunner --> SessionStore : session_store
+    GatewayRunner --> SessionState : session key 对应状态
+    SessionState *-- ConversationState : conversation
+    ConversationState o-- MessageEvent : queued_events FIFO
+    BasePlatformAdapter o-- MessageEvent : pending slot
+    MessageEvent --> SessionSource : source
+    BasePlatformAdapter ..> SendResult : 回执
+    PlatformRegistry o-- PlatformEntry : 注册条目
+    PlatformEntry ..> BasePlatformAdapter : adapter_factory
+    GatewayRunner ..> PlatformRegistry : 创建入口
+```
+
+
+#### 图例与实体对照：后续所有时序图使用同一组对象
+
+- `runner: GatewayRunner` 是运行时对象；`GatewayStartupMixin`、`GatewayShutdownMixin`、`GatewayTurnMixin` 等是它继承的方法提供者，**不是各自独立运行的服务或实例**。
+- `adapter: SignalAdapter` 同时执行子类协议方法和继承自 `BasePlatformAdapter` 的公共生命周期。时序图用自调用表示进入基类方法，不画成 Adapter 与 Base 两个对象互发消息。
+- `turn_runner: TurnRunner` 是每轮创建的协作者，负责执行器中的 `run_sync()`、回调和 `AIAgent.run_conversation()`；**不是 follow-up 队列的所有者**。
+- `state: SessionState` 是数据容器；`conversation: ConversationState` 的 `queued_events` 保存溢出事件，队列调度方法在 Runner 的 `GatewayBusySessionMixin`。
+- `gateway.delivery_ledger` 是模块函数集合，不存在图中虚构的 `DeliveryLedger` 类；`signal-cli daemon` 是外部系统，不强行画成 Python 类。
+- 图中采用 Signal 作为具体协议实例，便于逐个对照真实字段与方法；并不宣称所有平台都使用 SSE 或 HTTP。启动中的注册表路径及失败分支是框架级路径，具体实例来源取决于实际注册配置。
+
+| 图中实体 | 定义文件 | 真实作用 / 方法归属 |
+|---|---|---|
+| `GatewayRunner` | `gateway/run.py` | 聚合各 Mixin，持有 Adapter、会话状态，协调运行 |
+| `GatewayStartupMixin` / `GatewayAdapterLifecycleMixin` | `run_startup.py` / `run_adapters.py` | start、连接、装配与有界拆除 |
+| `GatewayShutdownMixin` | `run_shutdown.py` | stop 与各清理阶段 |
+| `GatewayInboundMixin` / `GatewayBusySessionMixin` | `run_inbound.py` / `run_busy.py` | handler 与忙时排队策略 |
+| `GatewayTurnMixin` | `run_turn.py` | `_run_agent`、pending drain 与 queued follow-up |
+| `TurnRunner` / `TurnContext` | `run_turn_runner.py` / `turn_context.py` | 单轮执行协作者 / 单轮数据 |
+| `SignalAdapter` / `BasePlatformAdapter` | `platforms/signal.py` / `platforms/base.py` | 平台协议实现 / 继承的公共消息生命周期 |
+| `PlatformRegistry` / `PlatformEntry` | `platform_registry.py` | 注册与工厂元数据 |
+| `SessionState` / `ConversationState` | `session_state.py` | 按 session key 的状态 / 对话范围状态 |
+| `MessageEvent` / `SessionSource` / `SendResult` | `platforms/event.py` / `session.py` / `platforms/base.py` | 入站信封 / 路由坐标 / 出站回执 |
+
+**关系约定**：类图空心三角表示继承，实线箭头表示对象持有/引用，虚线表示调用依赖。图只展开本专题相关 Mixin，不是 GatewayRunner 的全部基类清单。时序箭头优先标实际方法；解释性步骤会明确写成说明，不伪造同名 API。
+
+这里以当前内置 `SignalAdapter` 展示真实继承关系和实例调用链，不要求所有平台采用同一种传输。Mixin 的方法均在 `runner: GatewayRunner` 上执行，类图显示定义归属，时序图显示运行对象。
+
+- **`MessageEvent` 是入站信封**：除文本外，保留来源、原消息、消息 ID、回复锚点、媒体与元数据；它不是 LLM 的 `role/content` 消息。
+- **`SessionSource` 是路由坐标**：平台、聊天、用户、线程、Profile 等参与会话定位。不是只靠 `chat_id` 就能隔离所有会话。
+- **`SendResult` 是出站回执**：`success`、平台消息 ID、`retryable`、`retry_after`、`error_kind`。拆包发送还可携带 continuation IDs；“调用 send 没抛错”不能替代检查结果。
+- **两层 `_active_sessions` 不可混淆**：Adapter guard 防止同 key 并行启动处理任务，Runner 活跃槽协调真实 Agent 轮次和 busy 策略。名字相近，不代表同一个字典。
+
+<a id="sec-channel-start"></a>
+### 2.3 启动流程：先装配回调，再并发连接，再发布可用实例
+
+实际主链为 `GatewayStartupMixin.start()` → `_start_prefilter_platforms()` → `_start_connect_pending()` → `_start_aggregate_connect_results()`，随后完成服务与 watcher 装配。第2章开头简图的 `loop connect` 表示“每个平台都要连接”，**不表示串行等待所有平台**。
+
+```mermaid
+sequenceDiagram
+    participant G as runner: GatewayRunner
+    participant R as platform_registry: PlatformRegistry
+    participant A as adapter: SignalAdapter
+    participant C as client: httpx.AsyncClient
+    participant P as signal-cli daemon [外部]
+    Note over G: start 属于 GatewayStartupMixin；Mixin 不另建实例
+    G->>G: _start_prefilter_platforms()
+    G->>G: _create_adapter(platform, config)
+    G->>R: is_registered / create_adapter（注册路径）
+    R-->>G: adapter_factory(config) 返回 adapter
+    Note over G,R: 无注册项时使用内置工厂；失败分支见正文
+    G->>A: gateway_runner = runner；_wire_adapter_handlers()
+    Note over G,A: 设置 _message_handler 等回调，不启动 SDK
+    G->>G: _start_connect_pending()：并发连接各平台
+    G->>A: _connect_initial_adapter_with_timeout → connect()
+    A->>A: _acquire_platform_lock()
+    A->>C: 创建 HTTP client
+    A->>C: get /api/v1/check
+    C->>P: HTTP 健康检查
+    P-->>C: HTTP response
+    alt 健康检查通过
+        A->>A: create_task(_sse_listener / _health_monitor)
+        A-->>G: True
+        G->>G: _start_aggregate_connect_results → publish
+    else 失败或超时
+        A->>C: _close_client()（Signal 失败清理）
+        A-->>G: False 或异常
+        G->>G: 清理部分资源，判定 retrying / fatal
+    end
+```
+
+装配不是只有 `set_message_handler()`：还包括 fatal-error handler、session store、busy handler、鉴权、平台事件、topic recovery，以及 debounce/人类化延迟参数。多 Profile 适配器还要先声明 owner，再绑定带 Profile 作用域的 handler，避免第一条消息就落错会话命名空间。
+
+**注册表不是无限制后备链**：`_instantiate_adapter()` 优先查已注册平台；若已注册但创建失败，不再偷偷回退成另一个内置实例。没有注册项时才继续内置工厂路径。注册表支持 deferred loader，避免只查看平台列表就导入全部重型 SDK。
+
+**连接成功不等于完全健康**：源码允许 connect 返回 True 但接收链路仍 degraded，聚合阶段检查 `send_path_degraded` 再决定状态；不要把“启动函数返回成功”当成端到端收发证明。启动中收到停止请求也有 abort 路径，取消连接并拆除已建资源。
+
+<a id="sec-channel-stop"></a>
+### 2.4 停止流程：先排空工作，再取消任务和断开协议资源
+
+`stop()` 复用 `_stop_task`，重复调用等待同一次停止，不重复跑全套拆除。**不能一收到 SIGTERM 就先断开全部 Adapter**，否则正在收尾的 turn 和通知没有发送通道。
+
+```mermaid
+sequenceDiagram
+    participant G as runner: GatewayRunner
+    participant A as adapter: SignalAdapter
+    participant C as client: httpx.AsyncClient
+    Note over G: stop / _stop_impl 属于 GatewayShutdownMixin
+    G->>G: stop()：复用 _stop_task
+    G->>G: _stop_begin_teardown()
+    G->>G: _stop_drain_active_work(timeout, ctx)
+    alt 排空超时
+        G->>G: _stop_interrupt_remaining_work(ctx)
+    end
+    G->>G: _finalize_shutdown_agents / idle cache cleanup
+    Note over G: 清理 helper 收尾活跃和缓存 AIAgent 的资源
+    G->>G: settle completion batch tasks
+    loop 主及次级 Profile 的各 Adapter
+        G->>G: _bounded_adapter_teardown(adapter, platform)
+        G->>A: cancel_background_tasks() [Base 实现，限时]
+        A->>A: 取消处理 task，执行 finally，flush pending
+        G->>A: disconnect() [Signal 实现，限时]
+        A->>A: 取消 SSE、health monitor、typing task
+        A->>C: aclose()
+        A->>A: _release_platform_lock()
+    end
+    G->>G: _stop_release_runtime_state()
+    G->>G: _stop_quiesce_and_close_session_dbs()
+    Note over G: 执行器静默后关闭 SessionDB；非调用 SessionStore.disconnect
+    G->>G: _stop_persist_exit_state()
+```
+
+这是有界的 best-effort 清理，不是“所有消息必然发出”的保证。单个平台取消任务或断开卡住，Runner 记录超时后继续，不让一个半死 SDK 阻塞整个进程；线程级 shutdown watchdog 是事件循环卡死时的最后兜底。未完成交付应依赖账本及恢复机制，内存 pending 槽不是持久化消息队列。
+
+**Signal 的具体例子**：`disconnect()` 设置 `_running=False`，取消 SSE listener 和 health monitor，取消 typing 任务，关闭 HTTP client，释放账号锁。其他平台应对应清理自身的 WebSocket、polling、webhook listener 或 SDK 线程；不能把 Signal 的资源表套给全部平台。
+
+<a id="sec-channel-receive"></a>
+### 2.5 收消息流程：标准化事件、会话 guard、回调与忙时分流
+
+```mermaid
+sequenceDiagram
+    participant P as signal-cli daemon [外部]
+    participant A as adapter: SignalAdapter
+    participant G as runner: GatewayRunner
+    participant T as turn_runner: TurnRunner
+    participant AG as agent: AIAgent
+    P-->>A: SSE 行，进入 _handle_sse_line()
+    A->>A: 解析 envelope → event: MessageEvent
+    A->>A: handle_message(event) [BasePlatformAdapter]
+    A->>A: _event_session_key / 检查 _active_sessions
+    alt 空闲
+        A->>A: _start_session_processing()：先占 guard 再 create_task
+        Note over A: handle_message 快速返回；后台 task 继续
+        A->>A: _process_message_background()，启动 typing
+        A->>G: _message_handler(event) → _handle_message()
+        Note over G: GatewayInboundMixin：鉴权、命令、busy 与会话编排
+        G->>G: _handle_message_with_agent() / _run_agent()
+        G->>T: 执行器中 run_sync()
+        T->>AG: _run_conversation_with_approval → run_conversation()
+        AG-->>T: result
+        T-->>G: 结果与 history
+        G-->>A: response 或 None
+        A->>A: 交付后 finally：typing / callback / guard
+    else 忙碌
+        A->>A: _handle_message_while_active()
+        alt 控制命令
+            A->>G: inline _message_handler(event)
+        else 普通输入
+            A->>G: _busy_session_handler(event, session_key)
+            G->>G: queue / interrupt / steer 分支
+        end
+    end
+```
+
+关键是 `_start_session_processing()` **在创建 task 前同步占位**，第二条消息不能利用调度间隙再启动一个 owner。`event._gateway_accepted` 是接纳协作标记，不是平台已收回执或回复已成功送达的证明。
+
+忙时有 Adapter 与 Runner 两道守卫。`/approve`、`/deny` 等控制消息必须穿过两道守卫并 inline 处理，否则会排在等待审批的 Agent 后面形成死锁；`/new` 也不能当普通文本漏入下一轮。具体 `busy_input_mode` 策略见第5章。
+
+`_pending_messages` 是按 session key 存放的事件槽，支持合并；文本还有 debounce 批次。因此它不是一个保证逐条 FIFO、永不合并的 durable queue。后台处理结束时会停止 typing、执行 post-delivery callback、刷新 debounce 并交还 guard，后续事件再排空。
+
+<a id="sec-channel-send"></a>
+### 2.6 发消息流程：回复由谁发送，发送前后如何记账？
+
+**普通非流式文本最终回复**通常由 Runner handler 返回，Base 的 `_process_message_background()` 再负责发出。不是所有消息都由 `run_turn.py` 直接调用一个通用 Delivery 对象；`DeliveryRouter` 还服务 cron 等主动出站，流式与媒体另有分支。
+
+```mermaid
+sequenceDiagram
+    participant G as runner: GatewayRunner
+    participant A as adapter: SignalAdapter
+    participant L as gateway.delivery_ledger [模块]
+    participant D as delivery_adapter: SignalAdapter
+    participant C as client: httpx.AsyncClient
+    participant P as signal-cli daemon [外部]
+    G-->>A: _message_handler 返回普通最终文本
+    A->>A: _send_final_text → send_final_ledgered()
+    A->>A: _final_delivery_adapter(event.source)
+    Note over A,D: 通常 A 与 D 是同一实例；重连后可能不同
+    A->>A: _record_delivery_obligation()
+    opt ledger 启用且适用于该回复
+        A->>L: record_obligation() / mark_attempting() [to_thread]
+        L-->>A: obligation_id
+        A->>A: _release_turn_marker()
+    end
+    A->>D: _send_with_retry()
+    D->>D: send(chat_id, content, reply_to, metadata)
+    D->>C: HTTP 发送请求
+    C->>P: Signal 发送 API
+    P-->>C: 发送结果
+    D-->>A: result: SendResult
+    opt 有 obligation_id
+        A->>A: _finalize_delivery_obligation()
+        A->>L: mark_delivered / mark_failed 等结果处理
+    end
+    A->>A: typing 与处理任务收尾
+```
+
+`send_final_ledgered()` 先选择**当前** delivery adapter，登记义务后才发送；若获得义务 ID，才把原 turn marker 的恢复责任交给 ledger。这样发送失败仍有可恢复记录。返回值包括 `SendResult` 和实际发送的 Adapter：平台消息 ID 归该 transport 所有，临时消息删除等后续操作不能随意改用另一个实例。
+
+`_send_with_retry()` 根据回执中的可重试信息处理短暂失败；长时间平台限流不能无限占住协程，交由账本恢复。发送成功回执不是“人类已经阅读”的保证，也不是全局 exactly-once；失败、崩溃与平台确认边界仍有不确定性。
+
+**流式发送不是“每个 token 调一次普通 send”**：stream consumer 按能力选择 draft/edit/native stream。`draft_stream_is_message=True` 时，流本身就是最终消息，不能再无条件补发一份；最终文本必须由 consumer 的完成路径确认。媒体、审批卡、短命回复、主动通知都可能走不同接口。第4章旧图的 `deliver → send → record_obligation` 仅为角色概览；可靠性先后顺序以本节为准。
+
+<a id="sec-channel-source"></a>
+### 2.7 设计价值、扩展约束与源码阅读入口
+
+这个模块值得独立理解，不只是因为“支持很多 IM”，而是因为它把**协议差异、公共会话生命周期、业务推理与交付恢复**分开：接新平台主要实现协议与能力接口，公共调度和 Runner 编排可以复用。代价是 Base 已承载较多生命周期逻辑，新增平台不能绕开其 guard、finally 与回执契约。
+
+新增适配器至少需要检查：
+
+1. 先查 `gateway/platforms/ADDING_A_PLATFORM.md`，按当前平台注册机制提供工厂、依赖检查及配置约束；不只在 Runner 里追加平台分支。
+2. `connect()` 在 handler 装配后建立监听，失败释放部分资源；`disconnect()` 处理重复或部分初始化后的清理。
+3. 入站构造完整 `SessionSource` 和 `MessageEvent`，经公共 `handle_message()` 接纳，不直接从 SDK callback 启动 Agent。
+4. `send()` 等出站接口遵守 `SendResult` 契约；明确文本限制、回复锚点、线程、媒体、edit 与 streaming 能力。
+5. 控制消息穿过双守卫；连接替换、Profile 隔离、取消与最终回复避免重复，都需要单独验证。
+
+本节依据本地源码快照，不宣称远端最新。以下路径相对 Hermes 源码根 `hermes-dev/hermes-agent/`，可按符号搜索；未导入或运行目标服务。
+
+| 文件 | 关键符号 | 阅读目的 |
+|---|---|---|
+| `gateway/platform_registry.py` | `PlatformEntry`、`PlatformRegistry.create_adapter`、`register_deferred` | 可插拔工厂与惰性加载 |
+| `gateway/run_adapters.py` | `_create_adapter`、`_instantiate_adapter`、`_wire_adapter_handlers` | 实例绑定、注册优先级、回调装配 |
+| `gateway/run_startup.py` | `start`、`_start_prefilter_platforms`、`_start_connect_pending`、`_start_aggregate_connect_results` | 有界并发启动与结果发布 |
+| `gateway/run_shutdown.py` | `stop`、`_stop_impl`、`_stop_finalize_agents_and_adapters` | 停止阶段、幂等等待与清理顺序 |
+| `gateway/run_adapters.py` | `_bounded_adapter_teardown` | 先取消公共任务，再断开平台连接 |
+| `gateway/platforms/base.py` | `BasePlatformAdapter`、`handle_message`、`_process_message_background`、`send_final_ledgered`、`SendResult` | 公共入站、任务、交付与回执 |
+| `gateway/platforms/event.py` / `gateway/session.py` | `MessageEvent` / `SessionSource` | 入站信封与路由身份 |
+| `gateway/platforms/signal.py` | `SignalAdapter.connect`、`disconnect`、`_handle_sse_line`、`send` | 一个真实的 SSE + HTTP 实现 |
+| `gateway/delivery.py` | `DeliveryRouter`、`DeliveryTransport` | 主动出站与普通回复链路的区别 |
+
+<!-- channel-design:end -->
+
+<!-- channel-followup:start -->
+<a id="sec-channel-queues"></a>
+### 2.8 Follow-up、busy queue、steer 与 pending：四种“后续消息”不能混为一谈
+
+Channel 领域最容易漏掉的不是 `send()`，而是**一轮推理还没结束时新消息怎样存放、何时变成下一轮、重启时是否还能找回**。Hermes 至少有以下四个相邻但不同的机制：
+
+| 机制 | 典型存放位置 | 谁消费 | 是否自然成为下一轮 | 重启语义 |
+|---|---|---|---|---|
+| Base Adapter pending slot | `adapter._pending_messages[session_key]` | Adapter/Runner 的忙时处理与 post-turn drain | 通常是 | 内存槽；关机时另行 spool |
+| `/queue` overflow FIFO | `SessionState.conversation.queued_events` | `_promote_queued_event()` 逐个提升 | 是，保持到达顺序 | `queue` / `steer` 模式在 drain 期间可保留并 flush |
+| runner-drained follow-up | 当前 turn 内的 `pending` / `pending_event` | `run_turn.py` 的 `_run_agent_queued_followup()` 递归启动下一轮 | 是，直接复用更新后的 history | 不是独立 durable 队列；崩溃依赖 shutdown/recovery 路径 |
+| steer | busy 输入分支生成的可控后续文本/事件 | 当前轮合适边界或下一轮 | 取决于出口；请求前注入与普通后续轮不是同一件事 | `steer` drain 期间可保留；具体注入见卷四 §4.10 |
+
+`_pending_messages` 是 adapter 级的**头槽**，`queued_events` 是其后面的 FIFO **溢出链**；不能只看某一个字段就得出队列为空。源码在普通文字连续到达时避免覆盖已有头槽，达到上限会丢弃并记录告警；相同安全上下文的照片 burst 才允许合并，voice/audio/video/document 等不能一概合并。
+
+<a id="follow-up-的完整时序不是重新回到平台入口"></a>
+#### Follow-up 的完整时序：GatewayRunner 调度，TurnRunner 执行
+
+```mermaid
+sequenceDiagram
+    participant A as adapter: SignalAdapter
+    participant G as runner: GatewayRunner
+    participant S as state: SessionState
+    participant T as turn_runner: TurnRunner
+    participant AG as agent: AIAgent
+    Note over A,AG: 已有一轮在运行，新 MessageEvent 到达
+    A->>G: busy handler(event, session_key)
+    G->>G: _queue_or_replace_pending_event() → _enqueue_fifo()
+    alt pending 头槽为空
+        G->>A: _pending_messages[session_key] = event
+    else 已有头槽
+        G->>S: conversation.queued_events.append(event)
+    end
+    AG-->>T: 当前 run_conversation 结束
+    T-->>G: result
+    G->>G: _run_agent_drain_pending()
+    G->>A: _dequeue_pending_event：取走头槽
+    G->>S: _promote_queued_event：pop FIFO 后继
+    G->>A: 后继事件放入 pending 头槽
+    G->>G: _run_agent_queued_followup()
+    Note over G: 两个方法均属于 GatewayTurnMixin，不属于 TurnRunner
+    G->>A: 清除 interrupt Event；调用适用的 processing-start Hook
+    G->>G: 准备 next_source / next_message / updated_history
+    G->>G: 递归 _run_agent()，检查深度上限
+    G->>T: 新一轮 TurnRunner.run_sync()
+    T->>AG: run_conversation(next_message, conversation_history)
+    AG-->>T: followup result
+    T-->>G: 结果
+    G->>A: 适用的 processing-complete Hook
+    G->>G: 保留 history_offset 与末轮 ledger 身份
+    Note over G: 剩余 steer、合并、拒绝接纳等分支详见正文
+```
+
+这条链路不会把 follow-up 再伪装成一次全新的平台 callback：它在GatewayRunner 的 GatewayTurnMixin 方法内消费，因而需要显式补齐 `on_processing_start` / `on_processing_complete` 等 Adapter 生命周期 Hook，否则 Slack/Telegram 等平台的回执或 typing 状态会漏记。合并后的 follow-up 仍须以自己的入站消息 ID 区分交付账本义务，不能只按文本或 reply anchor 去重。
+
+#### 三种 busy 模式及拒绝接纳的边界
+
+- **queue**：后续消息作为独立 FIFO turn 排队；照片 burst 是有限的合并例外。
+- **interrupt**：打断当前 Agent；当前响应可能被丢弃，follow-up 在清理后运行；递归深度到上限后重新排队，避免失败消息造成无限递归。
+- **steer**：把消息作为对当前工作的引导，具体是当前轮注入、下一轮文本，还是独立用户行，要看出口；不要等同于 `/queue`。
+- **拒绝接纳不是第四种 busy 模式**：身份/权限不匹配、队列达到容量上限等可以导致消息不被接纳；不能因此假设存在 `drop` / `ignore` 配置值，也不能把 Adapter pending 当永久队列。
+
+**控制消息例外**：`/stop`、`/new`、`/queue`、`/status`、`/approve`、`/deny` 及某些澄清回复需要绕过普通 busy 排队 inline 处理。否则 `/approve` 可能排在等待审批的 Agent 后面形成死锁，`/new` 也会被当作普通用户文本。
+
+#### 轮尾剩余 steer 与 FIFO 的优先级
+
+`_run_agent_drain_pending()` 不只读取 Adapter 头槽：它会提升 overflow，再检查 Agent 返回的 `pending_steer`。若两者同时存在，剩余 steer 可作为下一轮优先输入，刚取出的 queued event 放回头部，已经提升的后继项退回 overflow 前部，避免丢失或插队。这不是一条全局“所有来源都 FIFO”的队列；是保留用户引导优先级的分流规则。已运行中的 steer 注入详见卷四，不能与此轮尾降级路径混为一谈。
+
+源码入口：`gateway/run_busy.py` 的 `_enqueue_fifo`、`_promote_queued_event`、`_rescue_orphaned_overflow`、`_queue_or_replace_pending_event`；`gateway/run_turn.py` 的 `_run_agent_drain_pending`、`_run_agent_queued_followup`；`gateway/run_turn_followup_ack.py` 的 `_followup_processing_hooks_apply`；`gateway/shutdown_flush.py` 的 `recover_pending_spool` / `recover_gateway_pending`。队列因异常或边界变更未被正常提升时，还有 orphan overflow rescue 路径，新输入不能直接越过遗留旧项。
+
+#### 重启、关机与恢复
+
+```mermaid
+flowchart TD
+    A[当前 Adapter pending 头槽] -->|shutdown flush| S[本地 pending spool]
+    Q[SessionState queued_events 溢出 FIFO] -->|shutdown flush| S
+    S -->|下次启动先 recover_gateway_pending| DB[SessionDB / pending 恢复记录]
+    DB --> R[恢复历史，保留未处理输入的可追溯性]
+    M[持久化的 interrupted / resume 标记] --> F[独立 auto-resume 流程]
+    F --> R
+    T[restart + busy_input_mode=interrupt] --> X[未持久化的后续消息可能丢弃]
+```
+
+`run_shutdown` 在清理 session state 前分别 flush Adapter pending 和 overflow FIFO；启动恢复阶段先 replay pending spool，再安排 restart-interrupted session 的 auto-resume。这里的 **pending spool、SessionDB transcript、delivery ledger、内存 pending slot** 是四套不同东西：spool 可保留 pending 入站及未成功落库的 transcript，ledger 保留尚未确认的出站义务，不能互相替代。**recover_gateway_pending 是将 spool 经 append_message 恢复到 DB，不是自动把每个旧事件重新入 FIFO 并执行一次**；是否继续运行由独立 resume 标记和恢复策略决定。
+
+<a id="sec-channel-capabilities"></a>
+### 2.9 Channel/Gateway 领域覆盖清单：避免只整理“连接和 send”
+
+阅读 `gateway/` 时，至少要覆盖下面这些横切能力；它们不是每个平台都实现一遍，而是 Adapter、Runner、Session、Delivery 和后台 worker 的组合契约：
+
+1. **平台注册与能力探测**：内置/插件 Adapter、deferred loader、依赖安装、配置校验、连接状态与 degraded 状态。
+2. **入站规范化**：原始 SDK/webhook/SSE → `MessageEvent` + `SessionSource`，媒体下载、回复锚点、线程/topic、Profile、来源身份与机器人消息过滤。
+3. **路由与访问控制**：allow/deny、配对、角色授权、DM/group/thread session key、命令权限和 topic recovery。
+4. **并发与忙时控制**：Adapter guard、Runner 活跃槽、跨进程 turn lease、queue/interrupt/steer、pending 头槽、overflow FIFO、debounce 与合并上限。
+5. **Agent 运行交接**：Agent cache、消息到 Agent 输入的投影、压缩/重启后的 session 恢复、queued follow-up 的 history offset 与生命周期 Hook。
+6. **出站可靠性**：文本分段、markup 降级、媒体/TTS、typing、draft/stream/edit、retry/backoff、当前 transport 选择、delivery ledger 与重复发送防护。
+7. **控制面与 HITL**：审批卡、approve/deny、clarify、stop/new/reset、slash command 表、控制消息双守卫与回执。
+8. **失败恢复与生命周期**：启动恢复、pending spool、ledger redelivery、自动 resume、连接替换、有限 shutdown drain、watchdog、未完成任务和资源清理。
+9. **主动事件入口**：cron、后台进程完成通知、heartbeat/wake、hosted room、kanban watcher、内部事件接纳 receipt；这些可能不经过普通 `_handle_message`。
+10. **扩展和观测**：平台插件注册、Profile 多实例、事件 Hook、运行状态、健康检查、结构化日志、会话与交付诊断。
+
+**覆盖状态**：§2.1–2.8 已展开模块生命周期和 follow-up；第3–8章覆盖会话、忙时、交付、平台差异与 HITL，第9–11章介绍主动任务入口。这份清单是源码阅读索引，不代表每项都已完成同等深度的设计走读；特别是后台完成通知、heartbeat/wake、跨进程租约、Profile 热变更与内部事件接纳仍需独立专题。
+
+后续读某个平台时，按这张清单逐项检查，而不是只搜索 `connect()` / `send()`；平台有些能力是继承来的，有些由 Gateway runner 统一完成，有些在 `delivery.py` 或 session/recovery 模块完成。
+
+<!-- channel-followup:end -->
 
 <a id="sec-g3"></a>
 

@@ -1,5 +1,54 @@
 # Prompt 系统架构（Canonical）
 
+<!-- legacy-review:start -->
+> **2026-10-15 校订导航**：模型最终收到什么：system、user context 与投影。\
+> **核对范围**：校正真实拼装顺序、插件围栏范围和 api_content 持久化；旧完整 Prompt 层数不是永久协议。\
+> **适用基线**：本地源码 `60d00c5633ad`；不是最新发布版本声明。原稿版本、行号、性能数字与长代码块若未在校订范围内，仍按历史示例阅读。
+> **先读当前结论**：[当前实现导读](CURRENT_IMPLEMENTATION.md#current-context) · **现行分卷**：[04-prompt-and-context.md](../../volumes/04-prompt-and-context.md) · [具体改动与未验证项](REVIEW_AND_CHANGES.md) · [返回全目录](README.md)
+
+<!-- legacy-review:end -->
+<a id="目录"></a>
+## 目录
+
+<!-- visible-toc:start -->
+- [1. 概述与设计原则](#section-1)
+- [2. 两条构建路径与 API 拼接](#section-2)
+- [3. 层 / Slot 清单（组装顺序）](#section-3)
+- [4. 组装引擎与缓存](#section-4)
+- [5. Skills：渐进披露、三级缓存、skill_manage](#section-5)
+  - [5.1 渐进披露](#section-5-1)
+  - [5.2 三级缓存（概念）](#section-5-2)
+  - [5.3 `SKILLS_GUIDANCE` + `skill_manage`](#section-5-3)
+- [6. Context Files 安全扫描](#section-6)
+- [7. Anthropic / 前缀缓存优化](#section-7)
+- [8. Memory 注入（围栏与顺序）](#section-8)
+- [9. 上下文压缩 Prompt 工程](#section-9)
+- [10. 特殊场景 Prompt](#section-10)
+- [11. 扩展：Ephemeral 与 `pre_llm_call`](#section-11)
+  - [11.1 Ephemeral system](#section-11-1)
+  - [11.2 Plugin `pre_llm_call`](#section-11-2)
+- [12. 主 / Leaf / Orchestrator](#section-12)
+- [13. 主代理与子代理的 Prompt 组装差异](#section-13)
+  - [13.1 5b.1 区分原理](#section-13-1)
+  - [13.2 5b.2 两阶段拼接](#section-13-2)
+  - [13.3 5b.3 子 Agent 的 ephemeral_system_prompt 内容](#section-13-3)
+  - [13.4 5b.4 与缓存优化的关系](#section-13-4)
+- [14. Batch · Blocked Tools · 深度限制 · 权衡](#section-14)
+  - [14.1 Batch 分派](#section-14-1)
+  - [14.2 Blocked tools（子 Agent）](#section-14-2)
+  - [14.3 深度限制](#section-14-3)
+  - [14.4 权衡（保留结论）](#section-14-4)
+- [15. 框架对比与最佳实践](#section-15)
+  - [15.1 对比（直觉）](#section-15-1)
+  - [15.2 最佳实践](#section-15-2)
+- [16. 调试要点](#section-16)
+- [17. 源码锚点](#section-17)
+- [18. 合并说明（相对旧 Parts）](#section-18)
+<!-- visible-toc:end -->
+
+
+
+
 > **文档状态**: **归档** — 卷内权威：[卷四正文](../../volumes/04-prompt-and-context.md)（机制/槽位）、[Prompt 原文库](../../volumes/04-prompt-corpus.md)（长文与接线样例）、[子 Agent 样例](../../volumes/04-prompt-corpus.md#3-子-agent-leaf-英文样例路径-ab)。  
 > **合并**: 2026-08-03 · 原 Part 1–4 去重收敛  
 > **Hermes**: 0.19.0 · [DOC_MAINTENANCE.md](DOC_MAINTENANCE.md)  
@@ -10,28 +59,8 @@
 
 ---
 
-## 目录
-
-1. [概述与设计原则](#1-概述与设计原则)
-2. [两条构建路径与 API 拼接](#2-两条构建路径与-api-拼接)
-3. [层 / Slot 清单（组装顺序）](#3-层--slot-清单组装顺序)
-4. [组装引擎与缓存](#4-组装引擎与缓存)
-5. [Skills：渐进披露、三级缓存、skill_manage](#5-skills渐进披露三级缓存skill_manage)
-6. [Context Files 安全扫描](#6-context-files-安全扫描)
-7. [Anthropic / 前缀缓存优化](#7-anthropic--前缀缓存优化)
-8. [Memory 注入（围栏与顺序）](#8-memory-注入围栏与顺序)
-9. [上下文压缩 Prompt 工程](#9-上下文压缩-prompt-工程)
-10. [特殊场景 Prompt](#10-特殊场景-prompt)
-11. [扩展：Ephemeral 与 `pre_llm_call`](#11-扩展ephemeral-与-pre_llm_call)
-12. [主 / Leaf / Orchestrator](#12-主--leaf--orchestrator)
-13. [Batch · Blocked Tools · 深度限制 · 权衡](#13-batch--blocked-tools--深度限制--权衡)
-14. [框架对比与最佳实践](#14-框架对比与最佳实践)
-15. [调试要点](#15-调试要点)
-16. [源码锚点](#16-源码锚点)
-17. [合并说明（相对旧 Parts）](#17-合并说明相对旧-parts)
-
----
-
+<a id="1-概述与设计原则"></a>
+<a id="section-1"></a>
 ## 1. 概述与设计原则
 
 **Prompt 系统** = 在每次/每会话需要时，把身份、记忆、技能索引、项目上下文、平台提示等 **按稳定顺序** 拼成 system（+ 可选 ephemeral），并在 API 侧与 user 消息（含插件/记忆预取）会合。
@@ -62,6 +91,8 @@ API messages =
 
 ---
 
+<a id="2-两条构建路径与-api-拼接"></a>
+<a id="section-2"></a>
 ## 2. 两条构建路径与 API 拼接
 
 | 路径 | 函数 | 产物 | 谁用 |
@@ -84,6 +115,8 @@ if ephemeral_system_prompt:
 
 ---
 
+<a id="3-层--slot-清单组装顺序"></a>
+<a id="section-3"></a>
 ## 3. 层 / Slot 清单（组装顺序）
 
 下列顺序对齐 `_build_system_prompt` / `build_system_prompt_parts` 的条件 `append`（名称以源码常量为准；行号易漂移）。
@@ -109,6 +142,8 @@ if ephemeral_system_prompt:
 
 ---
 
+<a id="4-组装引擎与缓存"></a>
+<a id="section-4"></a>
 ## 4. 组装引擎与缓存
 
 ```text
@@ -130,8 +165,12 @@ invalidate_system_prompt
 
 ---
 
+<a id="5-skills渐进披露三级缓存skill_manage"></a>
+<a id="section-5"></a>
 ## 5. Skills：渐进披露、三级缓存、skill_manage
 
+<a id="51-渐进披露"></a>
+<a id="section-5-1"></a>
 ### 5.1 渐进披露
 
 ```text
@@ -141,6 +180,8 @@ System:  <available_skills> 短索引（名 + 一句话）
 
 索引进 prompt；**全文不进** system（Token 与缓存友好）。产品面见 [SKILLS_SYSTEM.md](SKILLS_SYSTEM.md)。
 
+<a id="52-三级缓存概念"></a>
+<a id="section-5-2"></a>
 ### 5.2 三级缓存（概念）
 
 1. **进程内存** — 当前索引字符串  
@@ -149,6 +190,8 @@ System:  <available_skills> 短索引（名 + 一句话）
 
 另有平台过滤与 SKILL.md frontmatter 条件（os/arch 等）。
 
+<a id="53-skills_guidance-+-skill_manage"></a>
+<a id="section-5-3"></a>
 ### 5.3 `SKILLS_GUIDANCE` + `skill_manage`
 
 当 `"skill_manage" in valid_tool_names` 时注入指导：复杂任务后沉淀技能；过时立即 `patch`；pinned 技能禁写。
@@ -161,6 +204,8 @@ System:  <available_skills> 短索引（名 + 一句话）
 
 ---
 
+<a id="6-context-files-安全扫描"></a>
+<a id="section-6"></a>
 ## 6. Context Files 安全扫描
 
 对 `AGENTS.md` 等项目上下文做 **启发式** 扫描（指令覆盖、忽略系统、泄露密钥、异常角色切换等模式），再决定截断/告警/注入策略。
@@ -169,6 +214,8 @@ System:  <available_skills> 短索引（名 + 一句话）
 
 ---
 
+<a id="7-anthropic--前缀缓存优化"></a>
+<a id="section-7"></a>
 ## 7. Anthropic / 前缀缓存优化
 
 | 做法 | 作用 |
@@ -182,6 +229,8 @@ System:  <available_skills> 短索引（名 + 一句话）
 
 ---
 
+<a id="8-memory-注入围栏与顺序"></a>
+<a id="section-8"></a>
 ## 8. Memory 注入（围栏与顺序）
 
 **Built-in（MEMORY.md / USER.md）** → 多在 **system** 冻结快照（§3 层 8）；会话中途写盘 **不热更新** system（下轮/压缩再建）。
@@ -195,11 +244,13 @@ System:  <available_skills> 短索引（名 + 一句话）
 </memory-context>
 ```
 
-同轮 user 注入顺序（概念）：记忆预取围栏 → 插件 `pre_llm_call` context → 用户原文。  
+当前字符串 user 的组装顺序：**用户原文 → `<memory-context>` 包裹的外部记忆预取 → 插件 `pre_llm_call` context**。插件 context 不会被 composer 自动放进该围栏；插件自带标签不等于框架统一包裹。\
 存储与 provider 见 [MEMORY_SYSTEM.md](MEMORY_SYSTEM.md)。
 
 ---
 
+<a id="9-上下文压缩-prompt-工程"></a>
+<a id="section-9"></a>
 ## 9. 上下文压缩 Prompt 工程
 
 循环侧触发/阈值见 [AGENT_LOOP_ARCHITECTURE.md](AGENT_LOOP_ARCHITECTURE.md)。本文只钉 **摘要 Prompt 设计**：
@@ -216,6 +267,8 @@ System:  <available_skills> 短索引（名 + 一句话）
 
 ---
 
+<a id="10-特殊场景-prompt"></a>
+<a id="section-10"></a>
 ## 10. 特殊场景 Prompt
 
 | 场景 | Prompt 侧行为 |
@@ -227,26 +280,35 @@ System:  <available_skills> 短索引（名 + 一句话）
 
 ---
 
+<a id="11-扩展ephemeral-与-pre_llm_call"></a>
+<a id="section-11"></a>
 ## 11. 扩展：Ephemeral 与 `pre_llm_call`
 
+<a id="111-ephemeral-system"></a>
+<a id="section-11-1"></a>
 ### 11.1 Ephemeral system
 
 - 子 Agent：`ephemeral_system_prompt=child_prompt`  
 - 其它临时指令可挂 ephemeral 列表，**拼进 API system，但不污染父缓存键、默认不进 SessionDB 的「永久 system」语义**
 
+<a id="112-plugin-pre_llm_call"></a>
+<a id="section-11-2"></a>
 ### 11.2 Plugin `pre_llm_call`
 
 ```text
 invoke_hook("pre_llm_call", …)
   → 返回 {"context": "..."} 或 str
   → 追加到本轮 user（API 侧），不改 _cached_system_prompt
-  → 不持久化为用户原文（ephemeral）
+  → 原始 content 保留；组合后的 api_content 可挂在工作区消息上并持久化以稳定回放
+  → 多模态 user 使用可持久化 text part；不能笼统称为“完全不写内存 / DB”
 ```
 
 详见 [PLUGINS_SYSTEM.md](PLUGINS_SYSTEM.md)。**未实现** 的 PromptMiddleware 提案不收入 Canonical。
 
 ---
 
+<a id="12-主--leaf--orchestrator"></a>
+<a id="section-12"></a>
 ## 12. 主 / Leaf / Orchestrator
 
 | | 主 Agent | Leaf 子 Agent | Orchestrator 子 Agent |
@@ -268,17 +330,113 @@ invoke_hook("pre_llm_call", …)
 
 ---
 
-## 13. Batch · Blocked Tools · 深度限制 · 权衡
+<a id="parent-child-prompt"></a>
+<a id="主代理与子代理的-prompt-组装差异"></a>
+<a id="section-13"></a>
+## 13. 主代理与子代理的 Prompt 组装差异
 
-### 13.1 Batch 分派
+> **主题归位**：本节从 `AGENT_LOOP_ARCHITECTURE.md` 的「5b. 主/子 Agent Prompt 区分机制」迁入；保留原有图表、示例和讨论。
+
+> `AIAgent` 类被主 Agent 和子 Agent **共用**，Prompt 的差异完全通过构造参数和运行时追加实现。
+
+<a id="5b1-区分原理"></a>
+<a id="section-13-1"></a>
+### 13.1 5b.1 区分原理
+
+子 Agent 创建时（`delegate_tool.py:_build_child_agent()`），通过**3 个开关**精简 `_build_system_prompt()` 的输出，再通过 **1 个追加字段**注入聚焦任务描述：
+
+| 控制参数 | 主 Agent | 子 Agent | 对 System Prompt 的影响 |
+|---------|---------|---------|----------------------|
+| `skip_context_files` | `False` | `True` | 跳过 AGENTS.md / .cursorrules / SOUL.md 加载 |
+| `skip_memory` | `False` | `True` | 跳过 MemoryManager 初始化、记忆召回注入 |
+| `load_soul_identity` | 自动检测 | `False` | 即使 context_files 被跳过也不会加载 SOUL |
+| `ephemeral_system_prompt` | `None` | 由 `_build_child_system_prompt()` 生成 | API 调用时追加到末尾 |
+
+<a id="5b2-两阶段拼接"></a>
+<a id="section-13-2"></a>
+### 13.2 5b.2 两阶段拼接
+
+```
+阶段 1: _build_system_prompt() — 构造时执行一次,缓存
+
+  主 Agent: SOUL + Guidance + Skills Index + Memory + Context Files + Env
+  子 Agent: DEFAULT_IDENTITY + Guidance + Skills Index + Env (精简版)
+
+阶段 2: API 调用时 — 每次 LLM 调用前动态拼接
+
+  effective_system = _cached_system_prompt
+  if self.ephemeral_system_prompt:        # 仅子 Agent 非空
+      effective_system += "\n\n" + ephemeral_system_prompt
+```
+
+**为什么分两阶段？**
+- `_cached_system_prompt` 是 Anthropic **前缀缓存的锚点**，保持不变 → 命中率 100%
+- `ephemeral_system_prompt` 是一次性的任务描述，不参与缓存，不写入 SessionDB
+
+<a id="5b3-子-agent-的-ephemeral_system_prompt-内容"></a>
+<a id="section-13-3"></a>
+### 13.3 5b.3 子 Agent 的 ephemeral_system_prompt 内容
+
+由 `_build_child_system_prompt(goal, context, ...)` 生成:
+
+```
+You are a focused subagent working on a specific delegated task.
+
+YOUR TASK:
+{goal}
+
+CONTEXT:
+{parent 提供的上下文}
+
+WORKSPACE PATH:
+{工作目录}
+
+Complete this task using the tools available...
+```
+
+对于 `orchestrator` 角色，额外追加委派能力说明块。
+
+<a id="5b4-与缓存优化的关系"></a>
+<a id="section-13-4"></a>
+### 13.4 5b.4 与缓存优化的关系
+
+本节内容是 **5.1 System Prompt 缓存策略** 的直接延伸:
+
+```
+                   主 Agent                          子 Agent
+                   ┌──────────────┐                  ┌──────────────┐
+Cache 锚点 →       │ _cached_sys  │                  │ _cached_sys  │ ← 更短,但同样缓存
+                   │  (完整版)     │                  │  (精简版)     │
+                   └──────┬───────┘                  └──────┬───────┘
+                          │                                 │
+API 调用时:               │ 直接使用                         │ + ephemeral 追加
+                          ↓                                 ↓
+                   [system prompt]                    [system prompt + task]
+```
+
+这确保主/子 Agent 的 System Prompt 在各自的会话中都是**稳定不变**的（对 Anthropic cache 来说），ephemeral 追加的部分仅增加了一小段（通常 <500 tokens），不会严重影响缓存命中。
+
+---
+
+<a id="13-batch--blocked-tools--深度限制--权衡"></a>
+<a id="section-14"></a>
+## 14. Batch · Blocked Tools · 深度限制 · 权衡
+
+<a id="131-batch-分派"></a>
+<a id="section-14-1"></a>
+### 14.1 Batch 分派
 
 父/Orchestrator 可一次并行多个 `delegate_task`（实现侧并发上限）；子 Agent 仍各建实例。优势：独立上下文、失败隔离。
 
-### 13.2 Blocked tools（子 Agent）
+<a id="132-blocked-tools子-agent"></a>
+<a id="section-14-2"></a>
+### 14.2 Blocked tools（子 Agent）
 
 `DELEGATE_BLOCKED_TOOLS` / toolset 过滤：典型去掉 messaging、部分危险网关面等；**skills / session_search 等常保留**（以 `delegate_tool` 为准）。父通过摘要看见结果，而不是让子 Agent 直接对用户 IM 发言。
 
-### 13.3 深度限制
+<a id="133-深度限制"></a>
+<a id="section-14-3"></a>
+### 14.3 深度限制
 
 ```text
 config: 最大委派深度（如 delegation.max_depth）
@@ -288,7 +446,9 @@ config: 最大委派深度（如 delegation.max_depth）
 
 防委派炸弹与无限扇出。
 
-### 13.4 权衡（保留结论）
+<a id="134-权衡保留结论"></a>
+<a id="section-14-4"></a>
+### 14.4 权衡（保留结论）
 
 | 决策 | 原因 |
 |------|------|
@@ -299,9 +459,13 @@ config: 最大委派深度（如 delegation.max_depth）
 
 ---
 
-## 14. 框架对比与最佳实践
+<a id="14-框架对比与最佳实践"></a>
+<a id="section-15"></a>
+## 15. 框架对比与最佳实践
 
-### 14.1 对比（直觉）
+<a id="141-对比直觉"></a>
+<a id="section-15-1"></a>
+### 15.1 对比（直觉）
 
 | | Hermes | 常见单文件 system | 纯 RAG 塞 system |
 |--|--------|-------------------|------------------|
@@ -310,7 +474,9 @@ config: 最大委派深度（如 delegation.max_depth）
 | 缓存友好 | ✅ 显式 | 弱 | 差（常改 system） |
 | 子 Agent | ephemeral + skip | 常共享污染 | — |
 
-### 14.2 最佳实践
+<a id="142-最佳实践"></a>
+<a id="section-15-2"></a>
+### 15.2 最佳实践
 
 1. **不要中途改 system 字节** 刷「人格」——用 user/steer/下一会话。  
 2. Slash skills 以 **user 消息** 注入，保 system 前缀。  
@@ -320,7 +486,9 @@ config: 最大委派深度（如 delegation.max_depth）
 
 ---
 
-## 15. 调试要点
+<a id="15-调试要点"></a>
+<a id="section-16"></a>
+## 16. 调试要点
 
 - 打印或落盘 `_cached_system_prompt` + ephemeral 边界  
 - 确认 `skip_*`、`valid_tool_names` 是否导致某层缺失  
@@ -332,7 +500,9 @@ config: 最大委派深度（如 delegation.max_depth）
 
 ---
 
-## 16. 源码锚点
+<a id="16-源码锚点"></a>
+<a id="section-17"></a>
+## 17. 源码锚点
 
 | 符号 | 位置 |
 |------|------|
@@ -348,7 +518,9 @@ config: 最大委派深度（如 delegation.max_depth）
 
 ---
 
-## 17. 合并说明（相对旧 Parts）
+<a id="17-合并说明相对旧-parts"></a>
+<a id="section-18"></a>
+## 18. 合并说明（相对旧 Parts）
 
 | 旧内容 | 处理 |
 |--------|------|

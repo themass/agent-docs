@@ -1,12 +1,57 @@
 # Hermes 多 Surface 架构与流式推理
 
-> **文档状态**：Canonical（v0.18+ 新增）  
+<!-- legacy-review:start -->
+> **2026-10-15 校订导航**：CLI、TUI、Desktop 与桥接层分别负责什么。\
+> **核对范围**：保留模块视角并补齐章节导航；UI 私有事件、版本和全部路径未作运行验证。\
+> **适用基线**：本地源码 `60d00c5633ad`；不是最新发布版本声明。原稿版本、行号、性能数字与长代码块若未在校订范围内，仍按历史示例阅读。
+> **先读当前结论**：[当前实现导读](CURRENT_IMPLEMENTATION.md#current-boundaries) · **现行分卷**：[02-surface-and-presentation.md](../../volumes/02-surface-and-presentation.md) · [具体改动与未验证项](REVIEW_AND_CHANGES.md) · [返回全目录](README.md)
+
+<!-- legacy-review:end -->
+<a id="目录"></a>
+## 目录
+
+<!-- visible-toc:start -->
+- [1. 为何需要本篇](#section-1)
+- [2. 四 Surface 逻辑分层](#section-2)
+- [3. Gateway 事件总线（Surface 共用协议）](#section-3)
+- [4. 推理流式与「思考回写」](#section-4)
+  - [4.1 端到端路径](#section-4-1)
+  - [4.2 TUI 回写（`ui-tui/src/app/turnController.ts`）](#section-4-2)
+  - [4.3 Desktop 回写（`apps/desktop/.../use-message-stream/index.ts`）](#section-4-3)
+  - [4.4 CLI 展示（`cli.py`）](#section-4-4)
+  - [4.5 API 回合-trip（多轮 tool call）](#section-4-5)
+  - [4.6 配置键](#section-4-6)
+  - [4.7 「首包快」指什么](#section-4-7)
+- [5. 跨 Surface 主题（Skin）系统](#section-5)
+  - [5.1 数据模型](#section-5-1)
+  - [5.2 元素 token（v0.19+ HEAD）](#section-5-2)
+  - [5.3 热更新（Skin Watcher）](#section-5-3)
+- [6. TUI Widget 平台](#section-6)
+  - [6.1 架构](#section-6-1)
+  - [6.2 用户扩展](#section-6-2)
+- [7. Desktop 远程后端（Desktop SSH）](#section-7)
+- [8. 模型切换与压缩：Surface 和运行时的分工](#section-8)
+- [9. 模块地图（Surface 专用）](#section-9)
+  - [9.1 `ui-tui/`](#section-9-1)
+  - [9.2 `tui_gateway/`](#section-9-2)
+  - [9.3 `apps/desktop/`](#section-9-3)
+  - [9.4 `hermes_cli/`（Surface 相关）](#section-9-4)
+- [10. 与其它文档的关系](#section-10)
+- [11. 修订记录](#section-11)
+<!-- visible-toc:end -->
+
+
+
+
+> **原稿文档状态（历史标签）**：Canonical（v0.18+ 新增）\
 > **Hermes 版本锚点**：`0.19.0`（`v2026.7.20`）· **核对**：2026-07-22  
 > **HEAD 领先 tag**：主题 / Widget / Desktop SSH 等见 [VERSION_HISTORY.md](VERSION_HISTORY.md)「未发版」  
 > **关联**：[ARCHITECTURE.md](ARCHITECTURE.md) §11、[WORKSPACE_VS_WEBUI.md](WORKSPACE_VS_WEBUI.md)、[CLI_GATEWAY_SYSTEM.md](CLI_GATEWAY_SYSTEM.md)
 
 ---
 
+<a id="1-为何需要本篇"></a>
+<a id="section-1"></a>
 ## 1. 为何需要本篇
 
 `ARCHITECTURE.md` 以 **Agent 内核**（`run_agent` → `conversation_loop` → `tools`）为主轴，写于 v0.17 时代。  
@@ -25,6 +70,8 @@ v0.18–v0.19 起，Hermes 在 **呈现层** 发生结构升级：
 
 ---
 
+<a id="2-四-surface-逻辑分层"></a>
+<a id="section-2"></a>
 ## 2. 四 Surface 逻辑分层
 
 ```text
@@ -56,6 +103,8 @@ v0.18–v0.19 起，Hermes 在 **呈现层** 发生结构升级：
 
 ---
 
+<a id="3-gateway-事件总线surface-共用协议"></a>
+<a id="section-3"></a>
 ## 3. Gateway 事件总线（Surface 共用协议）
 
 `tui_gateway/server.py` 的 `_agent_cbs(sid)` 把 Agent callback 映射为 WS 事件：
@@ -74,8 +123,12 @@ TUI 与 Desktop 均订阅同一事件集（`gatewayTypes.ts` / `gateway-event.ts
 
 ---
 
+<a id="4-推理流式与思考回写"></a>
+<a id="section-4"></a>
 ## 4. 推理流式与「思考回写」
 
+<a id="41-端到端路径"></a>
+<a id="section-4-1"></a>
 ### 4.1 端到端路径
 
 ```text
@@ -96,27 +149,37 @@ if reasoning_text:
     agent._fire_reasoning_delta(reasoning_text)
 ```
 
+<a id="42-tui-回写ui-tuisrcappturncontrollerts"></a>
+<a id="section-4-2"></a>
 ### 4.2 TUI 回写（`ui-tui/src/app/turnController.ts`）
 
 - `recordReasoningDelta(text)`：累积 `reasoningText` / `activeReasoningText`
 - `syncReasoningSegment()`：把当前推理写入 segment 消息的 `thinking` 字段（原地更新，非每 token 新建行）
 - `message.complete` 后：流过的 reasoning 作为 **completed thinking panel** 留在 transcript（见 `createGatewayEventHandler.test.ts`）
 
+<a id="43-desktop-回写appsdesktopuse-message-streamindexts"></a>
+<a id="section-4-3"></a>
 ### 4.3 Desktop 回写（`apps/desktop/.../use-message-stream/index.ts`）
 
 - `appendReasoningDelta(sessionId, delta)`：写入 message parts 的 `reasoning` part
 - `queueDelta` 批处理 + `flushQueuedDeltas`：工具事件前 flush，保证顺序
 
+<a id="44-cli-展示clipy"></a>
+<a id="section-4-4"></a>
 ### 4.4 CLI 展示（`cli.py`）
 
 - `display.show_reasoning`（默认 `true`）：开启 `_stream_reasoning_delta`
 - 首个 reasoning token 打开 **Reasoning box**；**80 字符**强制 flush（无换行也先画）
 - 正文 response box 沿用同样 partial-line flush（TTFT 感知优化）
 
+<a id="45-api-回合-trip多轮-tool-call"></a>
+<a id="section-4-5"></a>
 ### 4.5 API 回合-trip（多轮 tool call）
 
 对 Moonshot / DeepSeek 等需要 `reasoning_content` 的 provider，`conversation_loop.py` 在下一轮 API 前通过 `_copy_reasoning_content_for_api` 把 thinking 写回 message——否则多轮 tool 链断裂。
 
+<a id="46-配置键"></a>
+<a id="section-4-6"></a>
 ### 4.6 配置键
 
 | 键 | 默认 | 说明 |
@@ -124,6 +187,8 @@ if reasoning_text:
 | `display.show_reasoning` | `true` | 关闭则 TUI/Desktop 不展示推理（verbose reasoning 仍可走 `reasoning.delta` + `verbose: true`） |
 | `display.reasoning_full` | `false` | CLI 结束后是否展开完整 reasoning recap |
 
+<a id="47-首包快指什么"></a>
+<a id="section-4-7"></a>
 ### 4.7 「首包快」指什么
 
 不是模型更快，而是 **感知 TTFT** 优化：
@@ -136,8 +201,12 @@ if reasoning_text:
 
 ---
 
+<a id="5-跨-surface-主题skin系统"></a>
+<a id="section-5"></a>
 ## 5. 跨 Surface 主题（Skin）系统
 
+<a id="51-数据模型"></a>
+<a id="section-5-1"></a>
 ### 5.1 数据模型
 
 - 皮肤文件：`~/.hermes/skins/<name>.yaml`（或 profile 对应 home）
@@ -145,6 +214,8 @@ if reasoning_text:
 - 激活：`display.skin` in `config.yaml` 或 `hermes config set display.skin <name>`
 - 细调：`hermes skin set <token> <#rrggbb>`（`hermes_cli/skin_cmd.py`）——只改一个颜色，内置皮肤会 fork 为 `<name>-custom`
 
+<a id="52-元素-tokenv019+-head"></a>
+<a id="section-5-2"></a>
 ### 5.2 元素 token（v0.19+ HEAD）
 
 | Token | 用途 |
@@ -156,6 +227,8 @@ if reasoning_text:
 
 TUI：`ui-tui/src/theme.ts` 的 `fromSkin()`；Desktop：`apps/shared/src/skin.ts`。
 
+<a id="53-热更新skin-watcher"></a>
+<a id="section-5-3"></a>
 ### 5.3 热更新（Skin Watcher）
 
 `tui_gateway/server.py::_ensure_skin_watcher()`：
@@ -168,8 +241,12 @@ Agent 可通过 `skills/hermes-themes/SKILL.md` 编写并激活皮肤。
 
 ---
 
+<a id="6-tui-widget-平台"></a>
+<a id="section-6"></a>
 ## 6. TUI Widget 平台
 
+<a id="61-架构"></a>
+<a id="section-6-1"></a>
 ### 6.1 架构
 
 ```text
@@ -187,6 +264,8 @@ ui-tui/src/sdk/
 - `ambient`：dock 区常驻，`zone` 指定位置；再次 launch 同 id 则 toggle 关闭
 - Registry **即 catalog**：slash 命令与 `/` 补全从 `listWidgetApps()` 派生，无硬编码
 
+<a id="62-用户扩展"></a>
+<a id="section-6-2"></a>
 ### 6.2 用户扩展
 
 1. 在 `$HERMES_HOME/tui-widgets/` 放置 `<name>.mjs`
@@ -197,6 +276,8 @@ ui-tui/src/sdk/
 
 ---
 
+<a id="7-desktop-远程后端desktop-ssh"></a>
+<a id="section-7"></a>
 ## 7. Desktop 远程后端（Desktop SSH）
 
 第三种连接模式，与 Local / Cloud 并列：
@@ -217,22 +298,23 @@ Desktop SSH transport
 
 ---
 
-## 8. 压缩与 Route 作用域（v0.19+ 稳定性）
+<a id="8-压缩与-route-作用域v019+-稳定性"></a>
+<a id="8-模型切换与压缩surface-和运行时的分工"></a>
+<a id="section-8"></a>
+## 8. 模型切换与压缩：Surface 和运行时的分工
 
-`model.context_length` 描述**配置默认模型**的窗口。切换 `/model` 或 fallback 后若 pin 未清除，压缩阈值会算错并触发 **stale-budget retry loop**。
+Surface 接收 `/model` 等操作并展示压缩进度；route 切换后上下文窗口如何失效、压缩预算如何重算属于运行时职责。
 
-| 模块 | 职责 |
-|------|------|
-| `hermes_cli/route_identity.py` | `normalize_route_base_url()`、`should_clear_context_pin()` |
-| `agent/agent_init.py` | 启动时 route-scope context pin |
-| `agent/context_compressor.py` | handoff summary 作为 protected head；压缩后注入 MEMORY.md 权威提示 |
-
-详见 `agent/conversation_loop.py` 与 `tests/run_agent/test_switch_model_context.py`。
+完整设计、图表与代码解读已移至 [模型 Route 与压缩预算：切换模型后的窗口作用域](AGENT_LOOP_ARCHITECTURE.md#route-compaction-scope)。本处只保留与本篇主题直接相关的边界。
 
 ---
 
+<a id="9-模块地图surface-专用"></a>
+<a id="section-9"></a>
 ## 9. 模块地图（Surface 专用）
 
+<a id="91-ui-tui"></a>
+<a id="section-9-1"></a>
 ### 9.1 `ui-tui/`
 
 | 路径 | 说明 |
@@ -243,6 +325,8 @@ Desktop SSH transport
 | `src/sdk/` | Widget SDK |
 | `packages/hermes-ink/` | Ink fork |
 
+<a id="92-tui_gateway"></a>
+<a id="section-9-2"></a>
 ### 9.2 `tui_gateway/`
 
 | 路径 | 说明 |
@@ -251,6 +335,8 @@ Desktop SSH transport
 | `ws.py` | WebSocket 协议 |
 | `entry.py` | TUI 进程入口 |
 
+<a id="93-appsdesktop"></a>
+<a id="section-9-3"></a>
 ### 9.3 `apps/desktop/`
 
 | 路径 | 说明 |
@@ -260,6 +346,8 @@ Desktop SSH transport
 | `src/store/` | Zustand stores（projects、connection） |
 | `AGENTS.md` | Desktop 工程准则（state 权威、切换语义） |
 
+<a id="94-hermes_clisurface-相关"></a>
+<a id="section-9-4"></a>
 ### 9.4 `hermes_cli/`（Surface 相关）
 
 | 路径 | 说明 |
@@ -270,6 +358,8 @@ Desktop SSH transport
 
 ---
 
+<a id="10-与其它文档的关系"></a>
+<a id="section-10"></a>
 ## 10. 与其它文档的关系
 
 | 主题 | Canonical | 本篇覆盖 |
@@ -282,6 +372,8 @@ Desktop SSH transport
 
 ---
 
+<a id="11-修订记录"></a>
+<a id="section-11"></a>
 ## 11. 修订记录
 
 | 日期 | 说明 |

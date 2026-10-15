@@ -15,13 +15,13 @@ from agentkit.common.crypto import hash_password
 from agentkit.common.ids import new_id
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from jobcome.config import settings
-from jobcome.models.enums import OwnerKind, ProfileStatus, UserStatus
-from jobcome.models.profile import Profile
-from jobcome.models.user import User, UserMeta
+from jc.config import settings
+from jc.models.enums import OwnerKind, ProfileStatus, UserStatus
+from jc.models.profile import Profile
+from jc.models.user import User, UserMeta
 
-DEMO_EMAIL = os.environ.get("JOB_COME_DEMO_EMAIL", "demo@jobcome.local")
-DEMO_PASSWORD = os.environ.get("JOB_COME_DEMO_PASSWORD", "Demo1234!")
+DEMO_EMAIL = os.environ.get("JC_DEMO_EMAIL", "demo@jc.local")
+DEMO_PASSWORD = os.environ.get("JC_DEMO_PASSWORD", "Demo1234!")
 
 
 async def main() -> None:
@@ -54,7 +54,7 @@ async def main() -> None:
             contact_name="演示候选人",
             summary_text="5 年后端开发经验，熟悉 Go / Java / 云原生。",
             payload={
-                "contact": {"name": "演示候选人", "email": "demo@jobcome.local"},
+                "contact": {"name": "演示候选人", "email": "demo@jc.local"},
                 "summary": "5 年后端开发经验，熟悉 Go / Java / 云原生。",
                 "experiences": [
                     {

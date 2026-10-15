@@ -1,11 +1,38 @@
 # Workspace Chat 为何感觉慢？与 WebUI 怎么选
 
+<!-- legacy-review:start -->
+> **2026-10-15 校订导航**：不同聊天产品的历史体验差异，不是运行时 message 模型。\
+> **核对范围**：将开头推荐限定为历史判断；旧轮询间隔、接口与星数未重测，不再当作当前选择建议。\
+> **适用基线**：本地源码 `60d00c5633ad`；不是最新发布版本声明。原稿版本、行号、性能数字与长代码块若未在校订范围内，仍按历史示例阅读。
+> **先读当前结论**：[当前实现导读](CURRENT_IMPLEMENTATION.md#current-evidence) · **现行分卷**：[01-platform-and-architecture.md](../../volumes/01-platform-and-architecture.md) · [具体改动与未验证项](REVIEW_AND_CHANGES.md) · [返回全目录](README.md)
+
+<!-- legacy-review:end -->
+<a id="目录"></a>
+## 目录
+
+<!-- visible-toc:start -->
+- [1. 一句话对比](#section-1)
+- [2. Workspace `/chat` 慢的根本原因](#section-2)
+  - [2.1 自己发消息（通常还行）](#section-2-1)
+  - [2.2 被动更新（慢的主因）](#section-2-2)
+  - [2.3 架构示意](#section-2-3)
+- [3. hermes-webui 为什么更「跟手」](#section-3)
+- [4. 选型建议](#section-4)
+- [5. 修复方向（给开发者）](#section-5)
+- [6. 本地端口（Content Studio 栈）](#section-6)
+<!-- visible-toc:end -->
+
+
+
+
 > **核对日期**: 2026-07-22  
 > **Surface 架构**: [SURFACE_ARCHITECTURE.md](SURFACE_ARCHITECTURE.md)  
-> **结论**: **纯聊天体验** 优先 **hermes-webui** 或 **ui-tui**；**Workspace** 适合多面板编排（Swarm、文件、Conductor、Content Studio），主 Chat 页被动更新偏慢是 **已知架构缺口**，不是 Gateway 本身慢。
+> **历史判断（2026-07-22；本次未重测产品）**: **纯聊天体验** 优先 **hermes-webui** 或 **ui-tui**；**Workspace** 适合多面板编排（Swarm、文件、Conductor、Content Studio），主 Chat 页被动更新偏慢是 **已知架构缺口**，不是 Gateway 本身慢。
 
 ---
 
+<a id="1-一句话对比"></a>
+<a id="section-1"></a>
 ## 1. 一句话对比
 
 | 产品 | 路径 | 定位 | 聊天实时性 |
@@ -19,8 +46,12 @@ Atlas 社区数据（2026-05）：**nesquena/hermes-webui ~15.2k★** vs **outso
 
 ---
 
+<a id="2-workspace-chat-慢的根本原因"></a>
+<a id="section-2"></a>
 ## 2. Workspace `/chat` 慢的根本原因
 
+<a id="21-自己发消息通常还行"></a>
+<a id="section-2-1"></a>
 ### 2.1 自己发消息（通常还行）
 
 ```text
@@ -32,6 +63,8 @@ Atlas 社区数据（2026-05）：**nesquena/hermes-webui ~15.2k★** vs **outso
 
 主动发送走 **真 SSE**；但 UI 还有 rAF 文本平滑、50ms 逐字揭示，观感略慢于原始 token。
 
+<a id="22-被动更新慢的主因"></a>
+<a id="section-2-2"></a>
 ### 2.2 被动更新（慢的主因）
 
 | 机制 | 现状 |
@@ -49,6 +82,8 @@ Atlas 社区数据（2026-05）：**nesquena/hermes-webui ~15.2k★** vs **outso
 - `hermes-workspace/src/screens/chat/chat-screen.tsx` — `historyRefetchInterval: 5_000`
 - `hermes-workspace/src/routes/api/chat-events.ts` — **已实现**，但 Gateway 子面板用，**主 Chat 未订阅**
 
+<a id="23-架构示意"></a>
+<a id="section-2-3"></a>
 ### 2.3 架构示意
 
 ```mermaid
@@ -66,6 +101,8 @@ flowchart LR
 
 ---
 
+<a id="3-hermes-webui-为什么更跟手"></a>
+<a id="section-3"></a>
 ## 3. hermes-webui 为什么更「跟手」
 
 - 每轮 `EventSource('api/chat/stream?stream_id=…')`
@@ -75,6 +112,8 @@ flowchart LR
 
 ---
 
+<a id="4-选型建议"></a>
+<a id="section-4"></a>
 ## 4. 选型建议
 
 | 你的目标 | 推荐 |
@@ -87,6 +126,8 @@ flowchart LR
 
 ---
 
+<a id="5-修复方向给开发者"></a>
+<a id="section-5"></a>
 ## 5. 修复方向（给开发者）
 
 若要让 Workspace Chat 追上 WebUI：
@@ -100,6 +141,8 @@ flowchart LR
 
 ---
 
+<a id="6-本地端口content-studio-栈"></a>
+<a id="section-6"></a>
 ## 6. 本地端口（Content Studio 栈）
 
 见 `hermes-dev/PORTS.md`：Gateway `8642`、Dashboard `9119`、Workspace `3000`。

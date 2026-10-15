@@ -13,16 +13,18 @@ import sys
 import tempfile
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+SERVER_ROOT = PROJECT_ROOT / "backend" / "server"
+sys.path.insert(0, str(SERVER_ROOT / "src"))
 
 import fitz
 from docx import Document
 
-from jobcome.services.document_extractor import DocumentExtractor
+from jc.services.document_extractor import DocumentExtractor
 
 
 def samples(directory):
-    root = Path(__file__).resolve().parents[1]
+    root = SERVER_ROOT
     cases = []
     for file in sorted((root / "tests/regression_assets/resumes").glob("*.txt")):
         text = file.read_text()
@@ -78,7 +80,7 @@ def evaluate(output):
     md = MarkItDown(enable_plugins=False)
     native = DocumentExtractor()
     rows = []
-    with tempfile.TemporaryDirectory(prefix="jobcome-docs-") as directory:
+    with tempfile.TemporaryDirectory(prefix="jc-docs-") as directory:
         for path, anchors, scan in samples(Path(directory)):
             for engine in ["native", "markitdown"]:
                 try:
@@ -148,5 +150,5 @@ def evaluate(output):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output", type=Path, default=Path("docs/DOCUMENT_EVALUATION.json"))
+    parser.add_argument("--output", type=Path, default=Path("docs/evidence/document-evaluation.json"))
     evaluate(parser.parse_args().output)

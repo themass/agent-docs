@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
-# JobCome E2E smoke — run against a live API (staging/local).
+# JC E2E smoke — run against a live API (staging/local).
 # Usage:
-#   export JOB_COME_E2E_BASE=http://127.0.0.1:8000/api/v1
-#   export JOB_COME_E2E_EMAIL=e2e@example.com
-#   export JOB_COME_E2E_PASSWORD='your-password'
+#   export JC_E2E_BASE=http://127.0.0.1:8000/api/v1
+#   export JC_E2E_EMAIL=e2e@example.com
+#   export JC_E2E_PASSWORD='your-password'
 #   ./scripts/e2e_smoke.sh
 set -euo pipefail
 
-BASE="${JOB_COME_E2E_BASE:-http://127.0.0.1:8000/api/v1}"
-EMAIL="${JOB_COME_E2E_EMAIL:-}"
-PASSWORD="${JOB_COME_E2E_PASSWORD:-}"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SERVER_ROOT="$ROOT/backend/server"
+
+BASE="${JC_E2E_BASE:-http://127.0.0.1:8000/api/v1}"
+EMAIL="${JC_E2E_EMAIL:-}"
+PASSWORD="${JC_E2E_PASSWORD:-}"
 COOKIE_JAR="$(mktemp)"
 trap 'rm -f "$COOKIE_JAR"' EXIT
 
@@ -20,7 +23,7 @@ echo "==> Guest context"
 curl -sf -c "$COOKIE_JAR" -b "$COOKIE_JAR" "$BASE/auth/context" >/dev/null
 
 echo "==> Upload resume fixture"
-RESUME_FILE="${JOB_COME_E2E_RESUME:-tests/regression_assets/resumes/sample_backend_zh.txt}"
+RESUME_FILE="${JC_E2E_RESUME:-${SERVER_ROOT}/tests/regression_assets/resumes/sample_backend_zh.txt}"
 PROFILE_JSON=$(curl -sf -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
   -F "file=@${RESUME_FILE};filename=resume.txt;type=text/plain" \
   "$BASE/profiles/upload")
@@ -36,7 +39,7 @@ if [[ -n "$EMAIL" && -n "$PASSWORD" ]]; then
     -H 'Content-Type: application/json' \
     -d "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}" >/dev/null
 
-  JD_FILE="${JOB_COME_E2E_JD:-tests/regression_assets/jds/jd_backend_bytedance.txt}"
+  JD_FILE="${JC_E2E_JD:-${SERVER_ROOT}/tests/regression_assets/jds/jd_backend_bytedance.txt}"
   JD_TEXT=$(python3 -c "import json,pathlib; print(json.dumps(pathlib.Path('$JD_FILE').read_text()))")
 
   echo "==> Parse JD"
@@ -63,8 +66,19 @@ if [[ -n "$EMAIL" && -n "$PASSWORD" ]]; then
     -H 'Content-Type: application/json' \
     -d "{\"job_id\":\"$JOB_ID\",\"export_format\":\"docx\"}")
   echo "$PIPELINE_JSON" | python3 -c 'import json,sys; data=json.load(sys.stdin); export=data.get("export") or {}; assert export.get("status") == "done" and not export.get("error"), data'
+
+  echo "==> PDF export"
+  curl -sf -c "$COOKIE_JAR" -b "$COOKIE_JAR" -X POST \
+    "$BASE/resumes/profiles/${PROFILE_ID}/elevate" \
+    -H 'Content-Type: application/json' \
+    -d '{"elevation_level":"elevated"}' >/dev/null
+  PDF_EXPORT_JSON=$(curl -sf -c "$COOKIE_JAR" -b "$COOKIE_JAR" -X POST \
+    "$BASE/resumes/profiles/${PROFILE_ID}/export" \
+    -H 'Content-Type: application/json' \
+    -d '{"format":"pdf","elevation_level":"elevated"}')
+  echo "$PDF_EXPORT_JSON" | python3 -c 'import json,sys; data=json.load(sys.stdin); assert data.get("status") == "done" and data.get("id") and not data.get("error"), data; print("    export_id=", data["id"])'
 else
-  echo "==> Skip login flows (set JOB_COME_E2E_EMAIL/PASSWORD for full path)"
+  echo "==> Skip login flows (set JC_E2E_EMAIL/PASSWORD for full path)"
 fi
 
 echo "==> E2E smoke done"

@@ -2,8 +2,14 @@
 # Sync AgentKit vendor deer-flow with bytedance/deer-flow upstream.
 set -euo pipefail
 
-JOB_COME_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-DF="${JOB_COME_ROOT}/../libs/agentkit/vendor/deer-flow"
+JC_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=lib/project_paths.sh
+source "${JC_ROOT}/scripts/lib/project_paths.sh"
+MONO_ROOT="$(jc_monorepo_root "$JC_ROOT")" || {
+  echo "Cannot find monorepo root (venv + libs/agentkit) above ${JC_ROOT}" >&2
+  exit 1
+}
+DF="${MONO_ROOT}/libs/agentkit/vendor/deer-flow"
 
 if [[ ! -d "${DF}/.git" ]]; then
   echo "Missing ${DF}"
@@ -23,7 +29,7 @@ if [[ "${BEHIND}" -gt 0 ]]; then
   git log --oneline HEAD..origin/main | head -15
   echo ""
   echo "Merge: cd ${DF} && git merge --ff-only origin/main"
-  echo "Then: ${JOB_COME_ROOT}/scripts/setup-venv.sh"
+  echo "Then: ${JC_ROOT}/scripts/setup-venv.sh"
 else
   echo "Already up to date with origin/main."
 fi

@@ -1,20 +1,23 @@
 #!/usr/bin/env bash
 # Agent harness E2E — session create, SSE stream, message persistence.
 # Usage:
-#   export JOB_COME_E2E_BASE=http://127.0.0.1:8000/api/v1
-#   export JOB_COME_E2E_EMAIL=e2e@example.com
-#   export JOB_COME_E2E_PASSWORD='your-password'
+#   export JC_E2E_BASE=http://127.0.0.1:8000/api/v1
+#   export JC_E2E_EMAIL=e2e@example.com
+#   export JC_E2E_PASSWORD='your-password'
 #   ./scripts/agent_e2e.sh
 set -euo pipefail
 
-BASE="${JOB_COME_E2E_BASE:-http://127.0.0.1:8000/api/v1}"
-EMAIL="${JOB_COME_E2E_EMAIL:-}"
-PASSWORD="${JOB_COME_E2E_PASSWORD:-}"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SERVER_ROOT="$ROOT/backend/server"
+
+BASE="${JC_E2E_BASE:-http://127.0.0.1:8000/api/v1}"
+EMAIL="${JC_E2E_EMAIL:-}"
+PASSWORD="${JC_E2E_PASSWORD:-}"
 COOKIE_JAR="$(mktemp)"
 trap 'rm -f "$COOKIE_JAR"' EXIT
 
 if [[ -z "$EMAIL" || -z "$PASSWORD" ]]; then
-  echo "Set JOB_COME_E2E_EMAIL and JOB_COME_E2E_PASSWORD for agent E2E."
+  echo "Set JC_E2E_EMAIL and JC_E2E_PASSWORD for agent E2E."
   exit 1
 fi
 
@@ -26,7 +29,7 @@ curl -sf -c "$COOKIE_JAR" -b "$COOKIE_JAR" -X POST "$BASE/auth/login" \
 CTX=$(curl -sf -c "$COOKIE_JAR" -b "$COOKIE_JAR" "$BASE/auth/context")
 PROFILE_ID=$(echo "$CTX" | python3 -c "import sys,json; print(json.load(sys.stdin).get('active_profile_id') or '')")
 if [[ -z "$PROFILE_ID" ]]; then
-  RESUME_FILE="${JOB_COME_E2E_RESUME:-tests/regression_assets/resumes/sample_backend_zh.txt}"
+  RESUME_FILE="${JC_E2E_RESUME:-${SERVER_ROOT}/tests/regression_assets/resumes/sample_backend_zh.txt}"
   PROFILE_JSON=$(curl -sf -c "$COOKIE_JAR" -b "$COOKIE_JAR" \
     -F "file=@${RESUME_FILE};filename=resume.txt;type=text/plain" \
     "$BASE/profiles/upload")

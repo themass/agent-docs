@@ -1,21 +1,56 @@
 # VideoAgent / VibeVoice / Pixelle-Video 项目设计方案分析
 
+<!-- legacy-review:start -->
+> **2026-10-15 校订导航**：视频项目的设计比较，哪些是参考而不是 Hermes 代码。\
+> **核对范围**：保留历史参考项目分析；项目热度、产品能力、实测性能未重新核验。\
+> **适用基线**：本地源码 `60d00c5633ad`；不是最新发布版本声明。原稿版本、行号、性能数字与长代码块若未在校订范围内，仍按历史示例阅读。
+> **先读当前结论**：[当前实现导读](CURRENT_IMPLEMENTATION.md#current-evidence) · **现行分卷**：[09-reference-history-and-versions.md](../../volumes/09-reference-history-and-versions.md) · [具体改动与未验证项](REVIEW_AND_CHANGES.md) · [返回全目录](README.md)
+
+<!-- legacy-review:end -->
+<a id="目录"></a>
+## 目录
+
+<!-- visible-toc:start -->
+- [1. 三项目总览对比](#section-1)
+- [2. VideoAgent — 多模态视频智能 Agent](#section-2)
+  - [2.1 项目概述](#section-2-1)
+  - [2.2 分层架构](#section-2-2)
+  - [2.3 核心执行流程](#section-2-3)
+  - [2.4 模块设计](#section-2-4)
+  - [2.5 关键设计特点](#section-2-5)
+- [3. VibeVoice — 前沿语音 AI 模型](#section-3)
+  - [3.1 项目概述](#section-3-1)
+  - [3.2 模型架构](#section-3-2)
+  - [3.3 三条产品线的架构差异](#section-3-3)
+  - [3.4 TTS Pipeline 流程](#section-3-4)
+  - [3.5 ASR Pipeline 流程](#section-3-5)
+  - [3.6 核心模块设计](#section-3-6)
+  - [3.7 vLLM 推理插件](#section-3-7)
+- [4. Pixelle-Video — AI 短视频生成引擎](#section-4)
+  - [4.1 项目概述](#section-4-1)
+  - [4.2 分层架构](#section-4-2)
+  - [4.3 标准 Pipeline 流程](#section-4-3)
+  - [4.4 API 设计](#section-4-4)
+  - [4.5 模板系统](#section-4-5)
+  - [4.6 配置系统](#section-4-6)
+- [5. 三项目架构对比图](#section-5)
+  - [5.1 架构风格对比](#section-5-1)
+  - [5.2 技术栈对比](#section-5-2)
+  - [5.3 数据流对比](#section-5-3)
+  - [5.4 适用场景](#section-5-4)
+<!-- visible-toc:end -->
+
+
+
+
 > **文档状态**: Deep / Historical · 正文可能含旧行号
 > **Canonical 导航**: [ARCHITECTURE.md](ARCHITECTURE.md) · [SURFACE_ARCHITECTURE.md](SURFACE_ARCHITECTURE.md) · [AGENT_LOOP_ARCHITECTURE.md](AGENT_LOOP_ARCHITECTURE.md)
-> **版本核对**: 0.19.0 / 2026-07-22（本文件未全量重写）
+> **原稿版本核对（历史）**: 0.19.0 / 2026-07-22（本文件未全量重写）
 
 
 > **文档状态**: 外部项目对比 · **非 Hermes 规范** · 核对 2026-07-22
-## 目录
-
-1. [三项目总览对比](#1-三项目总览对比)
-2. [VideoAgent — 多模态视频智能 Agent](#2-videoagent--多模态视频智能-agent)
-3. [VibeVoice — 前沿语音 AI 模型](#3-vibevoice--前沿语音-ai-模型)
-4. [Pixelle-Video — AI 短视频生成引擎](#4-pixelle-video--ai-短视频生成引擎)
-5. [三项目架构对比图](#5-三项目架构对比图)
-
----
-
+<a id="1-三项目总览对比"></a>
+<a id="section-1"></a>
 ## 1. 三项目总览对比
 
 | 维度 | VideoAgent | VibeVoice | Pixelle-Video |
@@ -30,8 +65,12 @@
 
 ---
 
+<a id="2-videoagent--多模态视频智能-agent"></a>
+<a id="section-2"></a>
 ## 2. VideoAgent — 多模态视频智能 Agent
 
+<a id="21-项目概述"></a>
+<a id="section-2-1"></a>
 ### 2.1 项目概述
 
 VideoAgent 是一个**多模态视频智能框架**，用户通过自然语言描述目标，系统自动：
@@ -39,6 +78,8 @@ VideoAgent 是一个**多模态视频智能框架**，用户通过自然语言�
 - **编辑**视频（裁剪、拼接、节奏剪辑）
 - **重混/创作**（配音、解说、新闻播报、相声改编、MV 风格）
 
+<a id="22-分层架构"></a>
+<a id="section-2-2"></a>
 ### 2.2 分层架构
 
 ```mermaid
@@ -106,6 +147,8 @@ graph TB
     MA --> LLMLayer
 ```
 
+<a id="23-核心执行流程"></a>
+<a id="section-2-3"></a>
 ### 2.3 核心执行流程
 
 ```mermaid
@@ -145,6 +188,8 @@ sequenceDiagram
     MA-->>User: 返回最终结果
 ```
 
+<a id="24-模块设计"></a>
+<a id="section-2-4"></a>
 ### 2.4 模块设计
 
 ```mermaid
@@ -184,6 +229,8 @@ graph LR
     MULTI --> FREG
 ```
 
+<a id="25-关键设计特点"></a>
+<a id="section-2-5"></a>
 ### 2.5 关键设计特点
 
 | 设计点 | 实现方式 |
@@ -197,8 +244,12 @@ graph LR
 
 ---
 
+<a id="3-vibevoice--前沿语音-ai-模型"></a>
+<a id="section-3"></a>
 ## 3. VibeVoice — 前沿语音 AI 模型
 
+<a id="31-项目概述"></a>
+<a id="section-3-1"></a>
 ### 3.1 项目概述
 
 VibeVoice 是 Microsoft 开发的**开源语音 AI 模型系列**，包含三条产品线：
@@ -211,6 +262,8 @@ VibeVoice 是 Microsoft 开发的**开源语音 AI 模型系列**，包含三条
 
 > 注意：TTS 生成代码因滥用问题已从仓库移除，仅保留权重和文档。
 
+<a id="32-模型架构"></a>
+<a id="section-3-2"></a>
 ### 3.2 模型架构
 
 ```mermaid
@@ -263,6 +316,8 @@ graph TB
     style Tokenizers fill:#e3f2fd
 ```
 
+<a id="33-三条产品线的架构差异"></a>
+<a id="section-3-3"></a>
 ### 3.3 三条产品线的架构差异
 
 ```mermaid
@@ -312,6 +367,8 @@ graph LR
 | 上下文长度 | 64K | 32K | 8K |
 | 流式支持 | 否 | 否 | 是（窗口式） |
 
+<a id="34-tts-pipeline-流程"></a>
+<a id="section-3-4"></a>
 ### 3.4 TTS Pipeline 流程
 
 ```mermaid
@@ -327,6 +384,8 @@ flowchart LR
     style G fill:#c8e6c9
 ```
 
+<a id="35-asr-pipeline-流程"></a>
+<a id="section-3-5"></a>
 ### 3.5 ASR Pipeline 流程
 
 ```mermaid
@@ -344,6 +403,8 @@ flowchart LR
     style H fill:#c8e6c9
 ```
 
+<a id="36-核心模块设计"></a>
+<a id="section-3-6"></a>
 ### 3.6 核心模块设计
 
 ```mermaid
@@ -399,6 +460,8 @@ classDiagram
     VibeVoiceStreamingModel *-- SpeechTokenizer
 ```
 
+<a id="37-vllm-推理插件"></a>
+<a id="section-3-7"></a>
 ### 3.7 vLLM 推理插件
 
 ```mermaid
@@ -430,8 +493,12 @@ flowchart TD
 
 ---
 
+<a id="4-pixelle-video--ai-短视频生成引擎"></a>
+<a id="section-4"></a>
 ## 4. Pixelle-Video — AI 短视频生成引擎
 
+<a id="41-项目概述"></a>
+<a id="section-4-1"></a>
 ### 4.1 项目概述
 
 Pixelle-Video 是一个 **AI 短视频自动化生成引擎**：用户提供主题或脚本，系统自动完成：
@@ -441,6 +508,8 @@ Pixelle-Video 是一个 **AI 短视频自动化生成引擎**：用户提供主�
 - **HTML 模板渲染**（Playwright）
 - **视频拼接+BGM 混合**（ffmpeg/MoviePy）
 
+<a id="42-分层架构"></a>
+<a id="section-4-2"></a>
 ### 4.2 分层架构
 
 ```mermaid
@@ -490,6 +559,8 @@ graph TB
     FRAME --> PW
 ```
 
+<a id="43-标准-pipeline-流程"></a>
+<a id="section-4-3"></a>
 ### 4.3 标准 Pipeline 流程
 
 ```mermaid
@@ -525,6 +596,8 @@ flowchart TD
     style J fill:#c8e6c9
 ```
 
+<a id="44-api-设计"></a>
+<a id="section-4-4"></a>
 ### 4.4 API 设计
 
 ```mermaid
@@ -553,6 +626,8 @@ graph LR
     end
 ```
 
+<a id="45-模板系统"></a>
+<a id="section-4-5"></a>
 ### 4.5 模板系统
 
 ```mermaid
@@ -582,6 +657,8 @@ flowchart TD
     Templates --> T --> P --> PW
 ```
 
+<a id="46-配置系统"></a>
+<a id="section-4-6"></a>
 ### 4.6 配置系统
 
 ```mermaid
@@ -625,8 +702,12 @@ classDiagram
 
 ---
 
+<a id="5-三项目架构对比图"></a>
+<a id="section-5"></a>
 ## 5. 三项目架构对比图
 
+<a id="51-架构风格对比"></a>
+<a id="section-5-1"></a>
 ### 5.1 架构风格对比
 
 ```mermaid
@@ -653,6 +734,8 @@ graph TB
     style PV fill:#fff3e0
 ```
 
+<a id="52-技术栈对比"></a>
+<a id="section-5-2"></a>
 ### 5.2 技术栈对比
 
 | 维度 | VideoAgent | VibeVoice | Pixelle-Video |
@@ -666,6 +749,8 @@ graph TB
 | **配置** | YAML (`config.yml`) | JSON (`configs/`) | YAML (`config.yaml`) |
 | **并发** | 串行执行 chain | vLLM 批量推理 | AsyncIO + TaskManager |
 
+<a id="53-数据流对比"></a>
+<a id="section-5-3"></a>
 ### 5.3 数据流对比
 
 ```mermaid
@@ -692,6 +777,8 @@ flowchart LR
     end
 ```
 
+<a id="54-适用场景"></a>
+<a id="section-5-4"></a>
 ### 5.4 适用场景
 
 | 场景 | 推荐项目 | 原因 |

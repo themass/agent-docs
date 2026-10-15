@@ -1,37 +1,102 @@
 # 多 Agent 架构
 
-> **文档状态**: Canonical（合并去重版）  
-> **Hermes 版本锚点**: 0.19.0 · **核对**: 2026-07-31 · [DOC_MAINTENANCE.md](DOC_MAINTENANCE.md)  
+<!-- legacy-review:start -->
+> **2026-10-15 校订导航**：同一引擎怎样生成独立子代理。\
+> **核对范围**：校正独立预算、构造默认与 delegation 的 250 默认；旧性能/token 数仅为样例。\
+> **适用基线**：本地源码 `60d00c5633ad`；不是最新发布版本声明。原稿版本、行号、性能数字与长代码块若未在校订范围内，仍按历史示例阅读。
+> **先读当前结论**：[当前实现导读](CURRENT_IMPLEMENTATION.md#current-delegation) · **现行分卷**：[07-multi-agent-and-kanban.md](../../volumes/07-multi-agent-and-kanban.md) · [具体改动与未验证项](REVIEW_AND_CHANGES.md) · [返回全目录](README.md)
+
+<!-- legacy-review:end -->
+<a id="目录"></a>
+## 目录
+
+<!-- visible-toc:start -->
+- [1. 概述](#section-1)
+  - [1.1 为什么需要多 Agent 架构?](#section-1-1)
+  - [1.2 核心概念](#section-1-2)
+- [2. 主代理 vs 子代理对比](#section-2)
+  - [2.1 完整对比表](#section-2-1)
+  - [2.2 关键差异总结](#section-2-2)
+- [3. Agentic Loop 共享机制](#section-3)
+  - [3.1 核心设计原则](#section-3-1)
+  - [3.2 架构示意图](#section-3-2)
+  - [3.3 为什么这样设计？](#section-3-3)
+  - [3.4 隔离机制详解](#section-3-4)
+  - [3.5 执行流程对比](#section-3-5)
+  - [3.6 并行执行模型](#section-3-6)
+  - [3.7 设计哲学总结](#section-3-7)
+- [4. 子代理创建流程](#section-4)
+  - [4.1 完整时序图](#section-4-1)
+  - [4.2 关键代码片段](#section-4-2)
+- [5. delegate_task：创建、调度、执行与结果回收](#section-5)
+  - [5.1 delegate_task - 任务委派工具](#section-5-1)
+- [6. Prompt 差异详解](#section-6)
+  - [6.1 主代理 System Prompt 结构](#section-6-1)
+  - [6.2 子代理 System Prompt 结构 (双路径)](#section-6-2)
+  - [6.3 设计哲学](#section-6-3)
+- [7. 工具集隔离机制](#section-7)
+  - [7.1 Blocked Toolsets](#section-7-1)
+  - [7.2 默认子代理工具集](#section-7-2)
+  - [7.3 Orchestrator 特权](#section-7-3)
+  - [7.4 工具集对比表](#section-7-4)
+- [8. 迭代预算系统](#section-8)
+  - [8.1 预算对比](#section-8-1)
+  - [8.2 关键设计](#section-8-2)
+  - [8.3 Refund 机制](#section-8-3)
+- [9. 会话持久化](#section-9)
+  - [9.1 Session ID 层次结构](#section-9-1)
+  - [9.2 数据库查询](#section-9-2)
+  - [9.3 持久化对比](#section-9-3)
+- [10. 回调中继机制](#section-10)
+  - [10.1 Progress Callback 中继](#section-10-1)
+  - [10.2 CLI 输出示例](#section-10-2)
+  - [10.3 线程间通信机制详解](#section-10-3)
+  - [10.4 TUI 集成](#section-10-4)
+- [11. 深度限制与角色控制](#section-11)
+  - [11.1 深度限制机制](#section-11-1)
+  - [11.2 Role 语义](#section-11-2)
+  - [11.3 使用示例](#section-11-3)
+- [12. 并行执行模型](#section-12)
+  - [12.1 Batch Mode 实现](#section-12-1)
+  - [12.2 性能对比](#section-12-2)
+  - [12.3 活跃子代理注册表](#section-12-3)
+- [13. 中断与 Human-in-the-Loop](#section-13)
+  - [13.1 概念：Interrupt vs HITL](#section-13-1)
+  - [13.2 Hermes 多层中断](#section-13-2)
+  - [13.3 HITL：审批（Approval）](#section-13-3)
+  - [13.4 HITL：澄清（Clarify）](#section-13-4)
+  - [13.5 与 §9 反向控制的衔接](#section-13-5)
+- [14. 设计哲学与实践](#section-14)
+  - [14.1 设计哲学](#section-14-1)
+  - [14.2 最佳实践](#section-14-2)
+  - [14.3 故障排查](#section-14-3)
+- [15. 子代理与通用压缩的边界](#section-15)
+- [16. 0.19 增量：Live-viewable 子 Agent transcript](#section-16)
+- [17. 附录：跨框架中断 / HITL 对照](#section-17)
+  - [17.1 总览表](#section-17-1)
+  - [17.2 Hermes 在对比中的位置（摘要）](#section-17-2)
+  - [17.3 实践原则（摘录）](#section-17-3)
+  - [17.4 HITL设计模式](#section-17-4)
+<!-- visible-toc:end -->
+
+
+
+
+> **原稿文档状态（历史标签）**: Canonical（合并去重版）\
+> **原稿版本锚点（历史）**: 0.19.0 · **核对**: 2026-07-31 · [DOC_MAINTENANCE.md](DOC_MAINTENANCE.md)\
 > **合并自**: `MULTI_AGENT_ARCHITECTURE.md`（Part 1）+ `SUBAGENT_INTERRUPT_AND_HITL_COMPARISON.md`  
 > **已删除**: 历史 Part 2 伪代码（`coordinator/` / `AgentScheduler` 等非源码）；跨框架长代码 dump 改为摘要表。  
 > **源码**: `tools/delegate_tool.py`, `run_agent.py` / `agent/conversation_loop.py`, `tools/approval.py`, `tools/clarify_tool.py`
 
 ---
 
-## 目录
-
-1. [概述](#1-概述)
-2. [主代理 vs 子代理](#2-主代理-vs-子代理对比)
-3. [Agentic Loop 共享](#3-agentic-loop-共享机制)
-4. [子代理创建流程](#4-子代理创建流程)
-5. [Prompt 差异](#5-prompt-差异详解)
-6. [工具集隔离](#6-工具集隔离机制)
-7. [迭代预算](#7-迭代预算系统)
-8. [会话持久化](#8-会话持久化)
-9. [回调中继与反向控制](#9-回调中继机制)
-10. [深度限制与角色](#10-深度限制与角色控制)
-11. [并行执行](#11-并行执行模型)
-12. [中断与 Human-in-the-Loop](#12-中断与-human-in-the-loop)
-13. [设计哲学与实践](#13-设计哲学与实践)
-14. [上下文压缩（多 Agent）](#14-上下文压缩完整流程)
-15. [Live-viewable 子 Agent](#15-019-增量live-viewable-子-agent-transcript)
-16. [附录：跨框架中断 / HITL 对照](#16-附录跨框架中断--hitl-对照)
-
----
-
+<a id="1-概述"></a>
+<a id="section-1"></a>
 ## 1. 概述
 
-#### 1.1 为什么需要多 Agent 架构?
+<a id="11-为什么需要多-agent-架构"></a>
+<a id="section-1-1"></a>
+### 1.1 为什么需要多 Agent 架构?
 
 **问题空间**:
 
@@ -50,7 +115,9 @@
 - ✅ **受限工具集** (防止滥用)
 - ✅ **进度中继** (父代理可见子代理活动)
 
-#### 1.2 核心概念
+<a id="12-核心概念"></a>
+<a id="section-1-2"></a>
+### 1.2 核心概念
 
 **delegate_task 工具**:
 ```python
@@ -72,9 +139,13 @@ def delegate_task(
 
 ---
 
+<a id="2-主代理-vs-子代理对比"></a>
+<a id="section-2"></a>
 ## 2. 主代理 vs 子代理对比
 
-#### 2.1 完整对比表
+<a id="21-完整对比表"></a>
+<a id="section-2-1"></a>
+### 2.1 完整对比表
 
 | 维度 | 主代理 (Parent) | Leaf 子代理 | Orchestrator 子代理 |
 |------|----------------|------------|-------------------|
@@ -88,14 +159,16 @@ def delegate_task(
 | **clarify 工具** | ✅ | ❌ blocked | ❌ blocked |
 | **execute_code** | ✅ | ❌ blocked | ❌ blocked |
 | **delegate_task** | ✅ | ❌ blocked | ✅ (重新添加) |
-| **迭代预算** | 90 (默认) | 50 (config.yaml) | 50 (config.yaml) |
+| **迭代预算** | 构造器默认 `sys.maxsize`，入口可覆盖 | 独立；delegation 未配置时 250 | 独立；delegation 未配置时 250 |
 | **Session ID** | `sess-abc123` | `sess-abc123:sub:uuid` | `sess-abc123:sub:uuid` |
 | **Parent Session ID** | N/A | `sess-abc123` | `sess-abc123` |
 | **Memory Sync** | ✅ sync_all() | ❌ | ❌ |
 | **quiet_mode** | False (CLI 显示) | True (静默) | True (静默) |
 | **Progress Callback** | CLI spinner / Gateway | 中继到父代理 | 中继到父代理 |
 
-#### 2.2 关键差异总结
+<a id="22-关键差异总结"></a>
+<a id="section-2-2"></a>
+### 2.2 关键差异总结
 
 **Prompt 差异**:
 - 主代理: ~2000-5000 tokens (完整14层: 人格 + Skills索引 + 项目知识 + Memory + 环境)
@@ -109,8 +182,8 @@ def delegate_task(
 - 子代理: 受限工具集 (blocked: delegation/clarify/memory/code_execution; 保留: skills/session_search 等)
 
 **预算差异**:
-- 主代理: 90 轮 (默认)
-- 子代理: 50 轮 (独立,不与父共享)
+- 主代理: 构造器默认 `sys.maxsize`，实际入口可覆盖
+- 子代理: 未配置时 250 轮 (独立,不与父共享)
 
 **记忆差异**:
 - 主代理: 读写 MEMORY.md,预取外部记忆
@@ -118,9 +191,13 @@ def delegate_task(
 
 ---
 
+<a id="3-agentic-loop-共享机制"></a>
+<a id="section-3"></a>
 ## 3. Agentic Loop 共享机制
 
-#### 3.1 核心设计原则
+<a id="31-核心设计原则"></a>
+<a id="section-3-1"></a>
+### 3.1 核心设计原则
 
 **关键发现**: **子 Agent 和主 Agent 共用同一套 `run_conversation` 实现**（`agent/conversation_loop.py`；`AIAgent.run_conversation` 为转发）。
 
@@ -136,7 +213,9 @@ def _run_with_thread_capture():
     )
 ```
 
-#### 3.2 架构示意图
+<a id="32-架构示意图"></a>
+<a id="section-3-2"></a>
+### 3.2 架构示意图
 
 ```mermaid
 graph TB
@@ -171,16 +250,22 @@ graph TB
 - 🟡 黄色：子 Agent 实例（受限配置）
 - 🟢 绿色：相同的 Agentic Loop 逻辑
 
-#### 3.3 为什么这样设计？
+<a id="33-为什么这样设计"></a>
+<a id="section-3-3"></a>
+### 3.3 为什么这样设计？
 
-##### **优势对比**
+<a id="优势对比"></a>
+<a id="section-3-3-1"></a>
+#### 3.3.1 **优势对比**
 
 | 方案 | 优点 | 缺点 |
 |------|------|------|
 | **共享 Loop + 配置隔离**<br/>(当前方案) | ✅ 代码复用<br/>✅ 行为一致<br/>✅ 易于维护<br/>✅ 简化调试 | - |
 | **独立 Loop 实现**<br/>(替代方案) | - | ❌ 代码重复<br/>❌ 行为不一致<br/>❌ 维护成本高<br/>❌ 容易出 bug |
 
-##### **核心优势**
+<a id="核心优势"></a>
+<a id="section-3-3-2"></a>
+#### 3.3.2 **核心优势**
 
 **1. 代码复用**
 
@@ -216,11 +301,15 @@ child = AIAgent(
     # 日志格式统一，便于追踪
 ```
 
-#### 3.4 隔离机制详解
+<a id="34-隔离机制详解"></a>
+<a id="section-3-4"></a>
+### 3.4 隔离机制详解
 
 虽然使用同一个 `run_conversation`，但通过以下配置实现隔离：
 
-##### **A. System Prompt 隔离 (双路径机制)**
+<a id="a-system-prompt-隔离-双路径机制"></a>
+<a id="section-3-4-1"></a>
+#### 3.4.1 **A. System Prompt 隔离 (双路径机制)**
 
 子 Agent 的有效 system prompt 由两部分组成:
 
@@ -278,7 +367,9 @@ child_prompt = _build_child_system_prompt(
     # """
 ```
 
-##### **B. 工具集隔离 (Toolset 级别过滤)**
+<a id="b-工具集隔离-toolset-级别过滤"></a>
+<a id="section-3-4-2"></a>
+#### 3.4.2 **B. 工具集隔离 (Toolset 级别过滤)**
 
 ```python
     # 主 Agent: 全部 toolsets
@@ -304,7 +395,9 @@ if role == "orchestrator":
         child_toolsets.append("delegation")
 ```
 
-##### **C. 记忆系统隔离**
+<a id="c-记忆系统隔离"></a>
+<a id="section-3-4-3"></a>
+#### 3.4.3 **C. 记忆系统隔离**
 
 ```python
     # 主 Agent: 完整记忆访问
@@ -326,7 +419,9 @@ child = AIAgent(
     # → 不调用 sync_all()
 ```
 
-##### **D. 上下文文件隔离**
+<a id="d-上下文文件隔离"></a>
+<a id="section-3-4-4"></a>
+#### 3.4.4 **D. 上下文文件隔离**
 
 ```python
     # 主 Agent: 加载项目知识
@@ -346,7 +441,9 @@ child = AIAgent(
     # → 保持 prompt 简洁
 ```
 
-##### **E. 会话 ID 隔离**
+<a id="e-会话-id-隔离"></a>
+<a id="section-3-4-5"></a>
+#### 3.4.5 **E. 会话 ID 隔离**
 
 ```python
     # 主 Agent: 主会话 ID
@@ -362,22 +459,26 @@ child_session_id = f"{parent.session_id}:sub:{uuid.uuid4().hex[:8]}"
     # 3. 独立的终端会话 (task_id)
 ```
 
-##### **F. 迭代预算隔离**
+<a id="f-迭代预算隔离"></a>
+<a id="section-3-4-6"></a>
+#### 3.4.6 **F. 迭代预算隔离**
 
 ```python
-    # 主 Agent: 默认 90 轮
-parent.iteration_budget = 90
+    # 示意：父预算是对象，不是直接赋值为整数
+parent.iteration_budget = IterationBudget(parent_max_iterations)
 
-    # 子 Agent: 默认 50 轮 (config.yaml 配置)
+    # 子 Agent: 独立预算，读取 delegation 配置
 child_max_iterations = config.get("delegation", {}).get(
-    "max_iterations", 50
+    "max_iterations", 250
 )
 
     # 关键：子代理的预算是独立的，不会吞噬父代理的预算
     # 父代理调用 delegate_task 后，自己的 iteration_budget 不变
 ```
 
-##### **G. 用户交互隔离**
+<a id="g-用户交互隔离"></a>
+<a id="section-3-4-7"></a>
+#### 3.4.7 **G. 用户交互隔离**
 
 ```python
     # 主 Agent: 支持澄清问题
@@ -393,7 +494,9 @@ child = AIAgent(
     # → 必须自主决策
 ```
 
-##### **H. 静默模式**
+<a id="h-静默模式"></a>
+<a id="section-3-4-8"></a>
+#### 3.4.8 **H. 静默模式**
 
 ```python
     # 主 Agent: CLI 显示输出
@@ -409,7 +512,9 @@ child = AIAgent(
     # → 通过 progress callback 中继到父代理
 ```
 
-#### 3.5 执行流程对比
+<a id="35-执行流程对比"></a>
+<a id="section-3-5"></a>
+### 3.5 执行流程对比
 
 ```python
     # ===== 主 Agent 执行 =====
@@ -445,7 +550,9 @@ result = child.run_conversation(  # ← 调用同一个方法
     # 8. 不调用 sync_all()
 ```
 
-#### 3.6 并行执行模型
+<a id="36-并行执行模型"></a>
+<a id="section-3-6"></a>
+### 3.6 并行执行模型
 
 子 Agent 在 **ThreadPoolExecutor** 中并行执行：
 
@@ -486,7 +593,9 @@ with ThreadPoolExecutor(max_workers=max_concurrent) as executor:
 - ✅ 通过 `_active_subagents_lock` 保护共享状态
 - ✅ 文件状态通过 `file_state` 模块隔离
 
-#### 3.7 设计哲学总结
+<a id="37-设计哲学总结"></a>
+<a id="section-3-7"></a>
+### 3.7 设计哲学总结
 
 > **“用配置而非代码分支来实现差异化”**
 
@@ -501,9 +610,13 @@ with ThreadPoolExecutor(max_workers=max_concurrent) as executor:
 ---
 
 
+<a id="4-子代理创建流程"></a>
+<a id="section-4"></a>
 ## 4. 子代理创建流程
 
-#### 3.1 完整时序图
+<a id="31-完整时序图"></a>
+<a id="section-4-1"></a>
+### 4.1 完整时序图
 
 ```mermaid
 sequenceDiagram
@@ -554,7 +667,7 @@ sequenceDiagram
     Delegate->>Child: child.run_conversation(goal, task_id=subagent_id)
     
     Note over Child: 子代理独立执行
-    Child->>Child: 自己的 iteration_budget (默认 50)
+    Child->>Child: 自己的 iteration_budget (未配置时 250)
     Child->>Child: 自己的 messages 列表 (干净上下文)
     Child->>Child: 受限的工具集 (blocked tools 移除)
     
@@ -569,7 +682,9 @@ sequenceDiagram
     Delegate-->>Parent: JSON result
 ```
 
-#### 3.2 关键代码片段
+<a id="32-关键代码片段"></a>
+<a id="section-4-2"></a>
+### 4.2 关键代码片段
 
 **_build_child_agent 核心逻辑**:
 
@@ -652,9 +767,745 @@ def _build_child_agent(
 
 ---
 
-## 5. Prompt 差异详解
+<a id="delegate-task-design"></a>
+<a id="delegate_task创建调度执行与结果回收"></a>
+<a id="section-5"></a>
+## 5. delegate_task：创建、调度、执行与结果回收
 
-#### 4.1 主代理 System Prompt 结构
+> **主题归位**：本节从 `TOOLS_SYSTEM.md` 的「13. 深潜：delegate_task」迁入；保留原有图表、示例和讨论。
+
+<a id="23-delegate_task---任务委派工具"></a>
+<a id="section-5-1"></a>
+### 5.1 delegate_task - 任务委派工具
+
+**文件**: `tools/delegate_tool.py`\
+**行号**: L1898-2289\
+**作用**:  spawn子Agent并行处理任务，支持Leaf和Orchestrator两种角色
+
+<a id="231-功能概览"></a>
+<a id="section-5-1-1"></a>
+#### 5.1.1 功能概览
+
+```python
+def delegate_task(
+    goal: Optional[str] = None,           # 单个任务目标
+    context: Optional[str] = None,        # 任务上下文
+    toolsets: Optional[List[str]] = None, # 自定义工具集
+    tasks: Optional[List[Dict]] = None,   # 批量任务列表
+    max_iterations: Optional[int] = None, # 最大迭代次数 (被忽略，使用config值)
+    acp_command: Optional[str] = None,    # ACP命令 (可选)
+    acp_args: Optional[List[str]] = None, # ACP参数 (可选)
+    role: Optional[str] = None,           # 角色: "leaf"或"orchestrator"
+    parent_agent=None,                    # 父Agent实例 (必需)
+) -> str:
+    """
+    Spawn one or more child agents to handle delegated tasks.
+
+    Supports two modes:
+      - Single: provide goal (+ optional context, toolsets, role)
+      - Batch:  provide tasks array [{goal, context, toolsets, role}, ...]
+
+    The 'role' parameter controls whether a child can further delegate:
+    'leaf' (default) cannot; 'orchestrator' retains delegation toolset.
+
+    Returns JSON with results array, one entry per task.
+    """
+```
+
+<a id="232-实现逻辑详解"></a>
+<a id="section-5-1-2"></a>
+#### 5.1.2 实现逻辑详解
+
+<a id="1-暂停标志检查"></a>
+<a id="section-5-1-2-1"></a>
+##### 5.1.2.1 (1) 暂停标志检查
+
+```python
+if parent_agent is None:
+    return tool_error("delegate_task requires a parent agent context.")
+
+## Operator-controlled kill switch
+if is_spawn_paused():
+    return tool_error(
+        "Delegation spawning is paused. Clear the pause via the TUI "
+        "(`p` in /agents) or the `delegation.pause` RPC before retrying."
+    )
+```
+
+**用途**: TUI检测到失控的委派树时，可以暂停新的spawn
+
+<a id="2-深度限制检查"></a>
+<a id="section-5-1-2-2"></a>
+##### 5.1.2.2 (2) 深度限制检查
+
+```python
+## Normalise the top-level role once
+top_role = _normalize_role(role)
+
+## Depth limit — configurable via delegation.max_spawn_depth
+depth = getattr(parent_agent, "_delegate_depth", 0)
+max_spawn = _get_max_spawn_depth()  # 从config.yaml读取，默认1
+if depth >= max_spawn:
+    return json.dumps({
+        "error": (
+            f"Delegation depth limit reached (depth={depth}, "
+            f"max_spawn_depth={max_spawn}). Raise "
+            f"delegation.max_spawn_depth in config.yaml if deeper "
+            f"nesting is required (cap: {_MAX_SPAWN_DEPTH_CAP})."
+        )
+    })
+```
+
+**配置**:
+```yaml
+delegation:
+  max_spawn_depth: 1  # 1=flat, 2=orchestrator→leaf, 3=three-level
+  orchestrator_enabled: true  # 全局开关
+```
+
+<a id="3-凭证解析"></a>
+<a id="section-5-1-2-3"></a>
+##### 5.1.2.3 (3) 凭证解析
+
+```python
+## Load config
+cfg = _load_config()
+default_max_iter = cfg.get("max_iterations", DEFAULT_MAX_ITERATIONS)
+
+## Model-supplied max_iterations is ignored — config value is authoritative
+if max_iterations is not None and max_iterations != default_max_iter:
+    logger.debug(
+        "delegate_task: ignoring caller-supplied max_iterations=%s; "
+        "using delegation.max_iterations=%s from config",
+        max_iterations, default_max_iter,
+    )
+effective_max_iter = default_max_iter
+
+## Resolve delegation credentials (provider:model pair)
+try:
+    creds = _resolve_delegation_credentials(cfg, parent_agent)
+except ValueError as exc:
+    return tool_error(str(exc))
+```
+
+**关键设计**:
+- ✅ **配置驱动**: max_iterations由config.yaml控制，模型无法覆盖
+- ✅ **独立凭证**: 子Agent可以使用不同的provider/model
+
+<a id="4-任务列表标准化"></a>
+<a id="section-5-1-2-4"></a>
+##### 5.1.2.4 (4) 任务列表标准化
+
+```python
+## Normalize to task list
+max_children = _get_max_concurrent_children()  # 默认3
+recovered_tasks, tasks_error = _recover_tasks_from_json_string(tasks)
+if tasks_error:
+    return tool_error(tasks_error)
+if recovered_tasks is not None:
+    tasks = recovered_tasks
+
+if tasks and isinstance(tasks, list):
+    if len(tasks) > max_children:
+        return tool_error(
+            f"Too many tasks: {len(tasks)} provided, but "
+            f"max_concurrent_children is {max_children}. "
+            f"Either reduce the task count, split into multiple "
+            f"delegate_task calls, or increase "
+            f"delegation.max_concurrent_children in config.yaml."
+        )
+    task_list = tasks
+elif goal and isinstance(goal, str) and goal.strip():
+    task_list = [
+        {"goal": goal, "context": context, "toolsets": toolsets, "role": top_role}
+    ]
+else:
+    return tool_error("Provide either 'goal' (single task) or 'tasks' (batch).")
+
+## Validate each task has a goal
+for i, task in enumerate(task_list):
+    if not isinstance(task, dict):
+        return tool_error(f"Task {i} must be an object, got {type(task).__name__}.")
+    if not task.get("goal", "").strip():
+        return tool_error(f"Task {i} is missing a 'goal'.")
+```
+
+<a id="5-保存父agent工具名"></a>
+<a id="section-5-1-2-5"></a>
+##### 5.1.2.5 (5) 保存父Agent工具名
+
+```python
+overall_start = time.monotonic()
+results = []
+
+n_tasks = len(task_list)
+task_labels = [t["goal"][:40] for t in task_list]
+
+## Save parent tool names BEFORE any child construction mutates the global
+import model_tools as _model_tools
+_parent_tool_names = list(_model_tools._last_resolved_tool_names)
+```
+
+**关键修复**: `_build_child_agent()`会修改全局`_last_resolved_tool_names`，必须在构建子Agent前保存
+
+<a id="6-构建子agent"></a>
+<a id="section-5-1-2-6"></a>
+##### 5.1.2.6 (6) 构建子Agent
+
+```python
+## Build all child agents on the main thread (thread-safe construction)
+children = []
+try:
+    for i, t in enumerate(task_list):
+        task_acp_args = t.get("acp_args") if "acp_args" in t else None
+        # Per-task role beats top-level
+        effective_role = _normalize_role(t.get("role") or top_role)
+        child = _build_child_agent(
+            task_index=i,
+            goal=t["goal"],
+            context=t.get("context"),
+            toolsets=t.get("toolsets") or toolsets,
+            model=creds["model"],
+            max_iterations=effective_max_iter,
+            task_count=n_tasks,
+            parent_agent=parent_agent,
+            override_provider=creds["provider"],
+            override_base_url=creds["base_url"],
+            override_api_key=creds["api_key"],
+            override_api_mode=creds["api_mode"],
+            override_acp_command=t.get("acp_command") or acp_command or creds.get("command"),
+            override_acp_args=(
+                task_acp_args
+                if task_acp_args is not None
+                else (acp_args if acp_args is not None else creds.get("args"))
+            ),
+            role=effective_role,
+        )
+        # Override with correct parent tool names
+        child._delegate_saved_tool_names = _parent_tool_names
+        children.append((i, t, child))
+finally:
+    # Authoritative restore: reset global to parent's tool names
+    _model_tools._last_resolved_tool_names = _parent_tool_names
+```
+
+**线程安全**:
+- ✅ **主线程构建**: 避免多线程并发修改全局状态
+- ✅ **try/finally保证恢复**: 即使构建失败也能恢复全局状态
+
+<a id="7-单任务直接执行"></a>
+<a id="section-5-1-2-7"></a>
+##### 5.1.2.7 (7) 单任务直接执行
+
+```python
+if n_tasks == 1:
+    # Single task -- run directly (no thread pool overhead)
+    _i, _t, child = children[0]
+    result = _run_single_child(0, _t["goal"], child, parent_agent)
+    results.append(result)
+```
+
+**性能优化**: 单任务无需线程池，减少开销
+
+<a id="8-批量并行执行"></a>
+<a id="section-5-1-2-8"></a>
+##### 5.1.2.8 (8) 批量并行执行
+
+```python
+else:
+    # Batch -- run in parallel with per-task progress lines
+    completed_count = 0
+    spinner_ref = getattr(parent_agent, "_delegate_spinner", None)
+
+    with ThreadPoolExecutor(max_workers=max_children) as executor:
+        futures = {}
+        for i, t, child in children:
+            future = executor.submit(
+                _run_single_child,
+                task_index=i,
+                goal=t["goal"],
+                child=child,
+                parent_agent=parent_agent,
+            )
+            futures[future] = i
+
+        # Poll futures with interrupt checking
+        _child_by_index = {i: child for (i, _, child) in children}
+        pending = set(futures.keys())
+
+        while pending:
+            # 检查父Agent中断
+            if getattr(parent_agent, "_interrupt_requested", False) is True:
+                # Parent interrupted — collect finished, abandon rest
+                for f in pending:
+                    idx = futures[f]
+                    if f.done():
+                        try:
+                            entry = f.result()
+                        except Exception as exc:
+                            entry = {
+                                "task_index": idx,
+                                "status": "error",
+                                "summary": None,
+                                "error": str(exc),
+                                "api_calls": 0,
+                                "duration_seconds": 0,
+                                "_child_role": getattr(
+                                    _child_by_index.get(idx), "_delegate_role", None
+                                ),
+                            }
+                    else:
+                        entry = {
+                            "task_index": idx,
+                            "status": "interrupted",
+                            "summary": None,
+                            "error": "Parent agent interrupted — child did not finish in time",
+                            "api_calls": 0,
+                            "duration_seconds": 0,
+                            "_child_role": getattr(
+                                _child_by_index.get(idx), "_delegate_role", None
+                            ),
+                        }
+                    results.append(entry)
+                    completed_count += 1
+                break
+
+            # Wait with timeout for interrupt responsiveness
+            from concurrent.futures import wait as _cf_wait, FIRST_COMPLETED
+            done, pending = _cf_wait(
+                pending, timeout=0.5, return_when=FIRST_COMPLETED
+            )
+
+            for future in done:
+                try:
+                    entry = future.result()
+                except Exception as exc:
+                    idx = futures[future]
+                    entry = {
+                        "task_index": idx,
+                        "status": "error",
+                        "summary": None,
+                        "error": str(exc),
+                        "api_calls": 0,
+                        "duration_seconds": 0,
+                        "_child_role": getattr(
+                            _child_by_index.get(idx), "_delegate_role", None
+                        ),
+                    }
+
+                results.append(entry)
+                completed_count += 1
+
+                # Print per-task completion line above the spinner
+                idx = entry["task_index"]
+                label = task_labels[idx] if idx < len(task_labels) else f"Task {idx}"
+                dur = entry.get("duration_seconds", 0)
+                status = entry.get("status", "?")
+                icon = "✓" if status == "completed" else "✗"
+                remaining = n_tasks - completed_count
+                completion_line = f"{icon} [{idx+1}/{n_tasks}] {label}  ({dur}s)"
+
+                if spinner_ref:
+                    try:
+                        spinner_ref.print_above(completion_line)
+                    except Exception:
+                        print(f"  {completion_line}")
+                else:
+                    print(f"  {completion_line}")
+
+                # Update spinner text to show remaining count
+                if spinner_ref and remaining > 0:
+                    try:
+                        spinner_ref.update_text(
+                            f"🔀 {remaining} task{'s' if remaining != 1 else ''} remaining"
+                        )
+                    except Exception as e:
+                        logger.debug("Spinner update_text failed: %s", e)
+
+    # Sort by task_index so results match input order
+    results.sort(key=lambda r: r["task_index"])
+```
+
+**关键特性**:
+- ✅ **中断传播**: 父Agent中断时，收集已完成的结果，放弃未完成的
+- ✅ **进度显示**: 实时更新spinner显示剩余任务数
+- ✅ **非阻塞等待**: 使用`wait(timeout=0.5)`而非`as_completed()`，确保及时响应中断
+
+<a id="85-子-agent-执行机制详解"></a>
+<a id="section-5-1-2-9"></a>
+##### 5.1.2.9 (8.5) 子 Agent 执行机制详解
+
+**问题 1：子 Agent 创建是在独立线程中执行么？**
+
+**❌ 不是！** 子 Agent 的**创建**（construction）是在**主线程**中串行完成的：
+
+```python
+## delegate_tool.py:L2031-2069
+## Build all child agents on the main thread (thread-safe construction)
+children = []
+try:
+    for i, t in enumerate(task_list):
+        child = _build_child_agent(...)  # 在主线程中构建
+        children.append((i, t, child))
+finally:
+    # 恢复全局状态
+    _model_tools._last_resolved_tool_names = _parent_tool_names
+```
+
+**原因**：
+- `_build_child_agent()` 会调用 `AIAgent()` 构造函数
+- 这会触发 `get_tool_definitions()`，修改全局变量 `_last_resolved_tool_names`
+- 如果在多线程中并发构建，会导致全局状态竞争
+- 所以采用 **try/finally** 保证即使构建失败也能恢复全局状态
+
+---
+
+**问题 2：创建完成之后执行子 Agent，并同步等待么？**
+
+这取决于任务数量：
+
+**情况 A：单个任务（n_tasks == 1）**
+
+**✅ 同步执行，阻塞等待**
+
+```python
+## delegate_tool.py:L2071-2075
+if n_tasks == 1:
+    # Single task -- run directly (no thread pool overhead)
+    _i, _t, child = children[0]
+    result = _run_single_child(0, _t["goal"], child, parent_agent)
+    results.append(result)
+```
+
+- 直接在当前线程调用 `_run_single_child()`
+- **阻塞等待**子 Agent 完成
+- 无额外线程开销
+
+---
+
+**情况 B：批量任务（n_tasks > 1）**
+
+**✅ 并行执行 + 同步等待所有结果**
+
+```python
+## delegate_tool.py:L2081-2193
+else:
+    # Batch -- run in parallel with per-task progress lines
+    with ThreadPoolExecutor(max_workers=max_children) as executor:
+        futures = {}
+        for i, t, child in children:
+            future = executor.submit(
+                _run_single_child,  # 提交到线程池
+                task_index=i,
+                goal=t["goal"],
+                child=child,
+                parent_agent=parent_agent,
+            )
+            futures[future] = i
+
+        # 轮询等待，支持中断检查
+        pending = set(futures.keys())
+        while pending:
+            # 检查父 Agent 是否被中断
+            if getattr(parent_agent, "_interrupt_requested", False):
+                break  # 收集中断信号前的结果，放弃未完成的
+
+            # 非阻塞等待：每 0.5 秒检查一次
+            done, pending = _cf_wait(pending, timeout=0.5, return_when=FIRST_COMPLETED)
+
+            # 处理已完成的任务
+            for future in done:
+                entry = future.result()  # 获取结果
+                results.append(entry)
+```
+
+**关键特性**：
+1. **并行执行**：使用 `ThreadPoolExecutor`，最多 `max_children` 个线程（默认 3）
+2. **同步等待**：父 Agent **阻塞**直到所有子 Agent 完成或被中断
+3. **非阻塞轮询**：使用 `wait(timeout=0.5)` 而非 `as_completed()`，确保及时响应中断
+4. **中断传播**：父 Agent 被中断时，立即停止等待，收集已完成的结果
+
+---
+
+**子 Agent 内部执行机制**
+
+每个子 Agent 在 `_run_single_child()` 中还有一个**内部的超时保护线程**：
+
+```python
+## delegate_tool.py:L1476-1498
+_timeout_executor = ThreadPoolExecutor(max_workers=1)
+
+def _run_with_thread_capture():
+    _worker_thread_holder["t"] = threading.current_thread()
+    return child.run_conversation(
+        user_message=goal,
+        task_id=child_task_id,
+    )
+
+_child_future = _timeout_executor.submit(_run_with_thread_capture)
+result = _child_future.result(timeout=child_timeout)  # 硬超时保护
+```
+
+**作用**：
+- 防止子 Agent 的 API 调用或工具执行无限挂起
+- 默认超时时间由 `delegation.child_timeout_seconds` 配置（默认 300 秒）
+- 超时后会调用 `child.interrupt()` 强制终止
+
+---
+
+**总结表**：
+
+| 阶段 | 执行方式 | 线程模型 | 是否阻塞 |
+|------|---------|---------|----------|
+| **创建子 Agent** | 主线程串行构建 | 单线程 | ✅ 是 |
+| **执行单个任务** | 直接调用 `_run_single_child()` | 当前线程 | ✅ 是 |
+| **执行批量任务** | `ThreadPoolExecutor` 并行 | 多线程（最多 `max_children`） | ✅ 是（等待所有完成） |
+| **子 Agent 内部** | 额外的超时保护线程 | 每个子 Agent 1 个 worker 线程 | - |
+
+**核心设计原则**：
+1. **创建串行化**：避免全局状态竞争
+2. **执行并行化**：提高吞吐量
+3. **等待同步化**：简化父 Agent 的逻辑，确保结果完整性
+4. **中断可响应**：通过短超时轮询实现优雅中断
+
+<a id="9-通知记忆提供者"></a>
+<a id="section-5-1-2-10"></a>
+##### 5.1.2.10 (9) 通知记忆提供者
+
+```python
+## Notify parent's memory provider of delegation outcomes
+if (
+    parent_agent
+    and hasattr(parent_agent, "_memory_manager")
+    and parent_agent._memory_manager
+):
+    for entry in results:
+        try:
+            _task_goal = (
+                task_list[entry["task_index"]]["goal"]
+                if entry["task_index"] < len(task_list)
+                else ""
+            )
+            parent_agent._memory_manager.on_delegation(
+                task=_task_goal,
+                result=entry.get("summary", "") or "",
+                child_session_id=(
+                    getattr(children[entry["task_index"]][2], "session_id", "")
+                    if entry["task_index"] < len(children)
+                    else ""
+                ),
+            )
+        except Exception:
+            pass
+```
+
+**用途**: 外部记忆系统 (如Honcho/Mem0) 可以记录委派历史
+
+<a id="10-触发subagent_stop钩子"></a>
+<a id="section-5-1-2-11"></a>
+##### 5.1.2.11 (10) 触发subagent_stop钩子
+
+```python
+## Fire subagent_stop hooks once per child
+_parent_session_id = getattr(parent_agent, "session_id", None)
+try:
+    from hermes_cli.plugins import invoke_hook as _invoke_hook
+except Exception:
+    _invoke_hook = None
+
+_children_cost_total = 0.0
+for entry in results:
+    child_role = entry.pop("_child_role", None)
+    child_cost = entry.pop("_child_cost_usd", 0.0)
+
+    try:
+        if child_cost:
+            _children_cost_total += float(child_cost)
+    except (TypeError, ValueError):
+        pass
+
+    if _invoke_hook is None:
+        continue
+
+    try:
+        _invoke_hook(
+            "subagent_stop",
+            parent_session_id=_parent_session_id,
+            child_role=child_role,
+            child_summary=entry.get("summary"),
+            child_status=entry.get("status"),
+            duration_ms=int((entry.get("duration_seconds") or 0) * 1000),
+        )
+    except Exception:
+        logger.debug("subagent_stop hook invocation failed", exc_info=True)
+```
+
+**插件集成**: Python插件和shell钩子可以监听子Agent完成事件
+
+<a id="11-成本汇总"></a>
+<a id="section-5-1-2-12"></a>
+##### 5.1.2.12 (11) 成本汇总
+
+```python
+## Fold the aggregated child cost into the parent's session total
+if _children_cost_total > 0.0:
+    try:
+        current = float(getattr(parent_agent, "session_estimated_cost_usd", 0.0) or 0.0)
+        parent_agent.session_estimated_cost_usd = current + _children_cost_total
+
+        # Upgrade the cost_source so UI doesn't label as "none"
+        if getattr(parent_agent, "session_cost_source", "none") in (None, "", "none"):
+            parent_agent.session_cost_source = "subagent"
+        if getattr(parent_agent, "session_cost_status", "unknown") in (None, "", "unknown"):
+            parent_agent.session_cost_status = "estimated"
+    except Exception:
+        logger.debug("Subagent cost rollup failed", exc_info=True)
+
+total_duration = round(time.monotonic() - overall_start, 2)
+
+return json.dumps({
+    "results": results,
+    "total_duration_seconds": total_duration,
+}, ensure_ascii=False)
+```
+
+**成本追踪**: 子Agent的成本累加到父Agent，嵌套委派自然rollup
+
+<a id="233-blocked-tools"></a>
+<a id="section-5-1-3"></a>
+#### 5.1.3 Blocked Tools
+
+```python
+DELEGATE_BLOCKED_TOOLS = frozenset([
+    "delegate_task",   # 禁止递归委派
+    "clarify",         # 禁止向用户提问
+    "memory",          # 禁止写入共享记忆
+    "send_message",    # 禁止跨平台副作用
+    "execute_code",    # 子Agent应逐步推理，不写脚本
+])
+```
+
+**阻止原因**:
+- ✅ **防止无限递归**: delegate_task被block
+- ✅ **用户体验**: 子Agent不应直接与用户交互 (clarify被block)
+- ✅ **数据竞争**: 多个子Agent并发写入MEMORY.md会导致冲突
+- ✅ **安全风险**: 防止向Telegram/Slack发送垃圾消息
+- ✅ **可审计性**: 子Agent应逐步推理，而非直接执行代码
+
+<a id="234-角色机制"></a>
+<a id="section-5-1-4"></a>
+#### 5.1.4 角色机制
+
+**Leaf角色** (默认):
+- ❌ 不能再次委派 (delegate_task被block)
+- ✅ 专注执行单一任务
+- ✅ 适用于研究、代码编写等
+
+**Orchestrator角色**:
+- ✅ 可以再次委派 (重新添加delegation toolset)
+- ✅ 协调多个worker + 合成结果
+- ✅ 受`max_spawn_depth`限制
+
+```python
+## Orchestrator特殊处理: 重新添加delegation
+if effective_role == "orchestrator" and "delegation" not in child_toolsets:
+    child_toolsets.append("delegation")
+```
+
+<a id="235-使用示例"></a>
+<a id="section-5-1-5"></a>
+#### 5.1.5 使用示例
+
+**示例1: 单个Leaf任务**
+
+```python
+## 委派一个简单的研究任务
+delegate_task(
+    goal="Research Python async/await patterns for FastAPI",
+    context="Focus on practical implementation, not theory",
+    role="leaf"
+)
+```
+
+**返回结果**:
+```json
+{
+  "results": [
+    {
+      "task_index": 0,
+      "status": "completed",
+      "summary": "研究了FastAPI中的async模式:\n- 使用async def定义端点\n- asyncio.gather并行请求\n- 异步数据库查询\n- 常见陷阱: 阻塞同步调用",
+      "error": null,
+      "api_calls": 12,
+      "duration_seconds": 45.3
+    }
+  ],
+  "total_duration_seconds": 45.3
+}
+```
+
+**示例2: 批量并行任务**
+
+```python
+## 并行执行3个研究任务
+delegate_task(
+    tasks=[
+        {
+            "goal": "Research async/await patterns",
+            "role": "leaf",
+            "context": "Focus on FastAPI use cases"
+        },
+        {
+            "goal": "Research concurrency models",
+            "role": "leaf",
+            "context": "Compare threading vs multiprocessing vs asyncio"
+        },
+        {
+            "goal": "Synthesize findings from both research tasks",
+            "role": "orchestrator",
+            "context": "Combine insights and provide recommendations"
+        }
+    ]
+)
+```
+
+**执行流程**:
+```
+Depth 0: Parent Agent
+├─ Depth 1: Task 1 (leaf) - Research async/await
+├─ Depth 1: Task 2 (leaf) - Research concurrency
+└─ Depth 1: Task 3 (orchestrator)
+   ├─ Depth 2: Worker 1 (leaf) - Analyze Task 1 result
+   └─ Depth 2: Worker 2 (leaf) - Analyze Task 2 result
+   └─ Synthesize → Parent
+```
+
+**示例3: Orchestrator模式**
+
+```python
+## 委派一个复杂任务，需要进一步分解
+delegate_task(
+    goal="Analyze entire codebase architecture and propose improvements",
+    role="orchestrator",
+    context="Break down into: API layer, DB layer, business logic, tests"
+)
+```
+
+**Orchestrator的职责**:
+1. 分析任务，识别可并行的子任务
+2. 调用`delegate_task` spawn workers
+3. 等待所有workers完成
+4. 合成结果，返回给父Agent
+
+---
+
+<a id="5-prompt-差异详解"></a>
+<a id="section-6"></a>
+## 6. Prompt 差异详解
+
+<a id="41-主代理-system-prompt-结构"></a>
+<a id="section-6-1"></a>
+### 6.1 主代理 System Prompt 结构
 
 主代理的 `_build_system_prompt()` 按条件逐层拼接 ~14 个层:
 
@@ -684,7 +1535,9 @@ if has_skills_tools:
     # Layer 10: Nous subscription prompt (如适用)
 ```
 
-#### 4.2 子代理 System Prompt 结构 (双路径)
+<a id="42-子代理-system-prompt-结构-双路径"></a>
+<a id="section-6-2"></a>
+### 6.2 子代理 System Prompt 结构 (双路径)
 
 子代理的有效 system prompt = `_cached_system_prompt` + `ephemeral_system_prompt`
 
@@ -788,7 +1641,9 @@ max_spawn_depth=2. Your own children MUST be leaves (cannot delegate
 further) because they would be at the depth floor.
 ```
 
-#### 4.3 设计哲学
+<a id="43-设计哲学"></a>
+<a id="section-6-3"></a>
+### 6.3 设计哲学
 
 **为什么这样设计?**
 
@@ -802,9 +1657,13 @@ further) because they would be at the depth floor.
 
 ---
 
-## 6. 工具集隔离机制
+<a id="6-工具集隔离机制"></a>
+<a id="section-7"></a>
+## 7. 工具集隔离机制
 
-#### 5.1 Blocked Toolsets
+<a id="51-blocked-toolsets"></a>
+<a id="section-7-1"></a>
+### 7.1 Blocked Toolsets
 
 注意: 实际过滤是在 **toolset 级别** (`_strip_blocked_tools`)，不是单个工具名。
 
@@ -829,7 +1688,9 @@ def _strip_blocked_tools(toolsets: List[str]) -> List[str]:
 | `memory` | memory 管理工具 | 数据竞争/污染 | 多个子代理同时写 MEMORY.md |
 | `code_execution` | `execute_code` | 安全风险/刷屏 | 子代理生成并执行任意代码 |
 
-#### 5.2 默认子代理工具集
+<a id="52-默认子代理工具集"></a>
+<a id="section-7-2"></a>
+### 7.2 默认子代理工具集
 
 ```python
     # 从父代理的 toolsets 中移除 blocked toolsets 后, 保留的工具集包括:
@@ -863,7 +1724,9 @@ def _strip_blocked_tools(toolsets: List[str]) -> List[str]:
     return [t for t in toolsets if t not in blocked_toolset_names]
 ```
 
-#### 5.3 Orchestrator 特权
+<a id="53-orchestrator-特权"></a>
+<a id="section-7-3"></a>
+### 7.3 Orchestrator 特权
 
 ```python
 if effective_role == "orchestrator" and "delegation" not in child_toolsets:
@@ -875,7 +1738,9 @@ if effective_role == "orchestrator" and "delegation" not in child_toolsets:
 - ✅ 额外添加 `delegate_task`
 - ❌ 仍然不能访问 `clarify/memory/send_message/execute_code`
 
-#### 5.4 工具集对比表
+<a id="54-工具集对比表"></a>
+<a id="section-7-4"></a>
+### 7.4 工具集对比表
 
 | 工具类别 | 主代理 | Leaf 子代理 | Orchestrator 子代理 |
 |---------|--------|------------|-------------------|
@@ -893,19 +1758,25 @@ if effective_role == "orchestrator" and "delegation" not in child_toolsets:
 
 ---
 
-## 7. 迭代预算系统
+<a id="7-迭代预算系统"></a>
+<a id="section-8"></a>
+## 8. 迭代预算系统
 
-#### 6.1 预算对比
+<a id="61-预算对比"></a>
+<a id="section-8-1"></a>
+### 8.1 预算对比
 
 | 属性 | 主代理 | 子代理 |
 |------|--------|--------|
-| **默认上限** | `max_iterations=90` | `delegation.max_iterations=50` |
+| **默认上限** | 构造器 `sys.maxsize`；入口可覆盖 | delegation 未配置时 250 |
 | **独立性** | 独立预算 | 独立预算 (不与父共享) |
 | **总迭代数** | 90 | 可以是 90 + 50*N (N=子代理数) |
 | **Refund 机制** | ✅ execute_code 退款 | ✅ 同样支持 |
 | **Grace Call** | ✅ 预算耗尽时最后一次机会 | ✅ 同样支持 |
 
-#### 6.2 关键设计
+<a id="62-关键设计"></a>
+<a id="section-8-2"></a>
+### 8.2 关键设计
 
 **父子预算相加可以超过父的上限**:
 
@@ -927,7 +1798,9 @@ delegation:
   max_concurrent_children: 3 # 最大并发子代理数
 ```
 
-#### 6.3 Refund 机制
+<a id="63-refund-机制"></a>
+<a id="section-8-3"></a>
+### 8.3 Refund 机制
 
 **用途**: `execute_code` 内部可能有程序化工具循环,这些循环不应该消耗主迭代预算。
 
@@ -959,9 +1832,13 @@ def execute_code(code: str, ...):
 
 ---
 
-## 8. 会话持久化
+<a id="8-会话持久化"></a>
+<a id="section-9"></a>
+## 9. 会话持久化
 
-#### 7.1 Session ID 层次结构
+<a id="71-session-id-层次结构"></a>
+<a id="section-9-1"></a>
+### 9.1 Session ID 层次结构
 
 ```
 sess-parent-001 (parent_session_id=null)
@@ -971,7 +1848,9 @@ sess-parent-001 (parent_session_id=null)
 └─ sess-parent-001:sub:uuid-2 (parent_session_id=sess-parent-001)
 ```
 
-#### 7.2 数据库查询
+<a id="72-数据库查询"></a>
+<a id="section-9-2"></a>
+### 9.2 数据库查询
 
 ```sql
 -- 查找所有子会话
@@ -985,7 +1864,9 @@ WHERE parent_session_id LIKE '%:sub:%:sub:%';
 SELECT COUNT(*) FROM sessions WHERE parent_session_id IS NOT NULL;
 ```
 
-#### 7.3 持久化对比
+<a id="73-持久化对比"></a>
+<a id="section-9-3"></a>
+### 9.3 持久化对比
 
 | 特性 | 主代理 | 子代理 |
 |------|--------|--------|
@@ -998,9 +1879,13 @@ SELECT COUNT(*) FROM sessions WHERE parent_session_id IS NOT NULL;
 
 ---
 
-## 9. 回调中继机制
+<a id="9-回调中继机制"></a>
+<a id="section-10"></a>
+## 10. 回调中继机制
 
-#### 8.1 Progress Callback 中继
+<a id="81-progress-callback-中继"></a>
+<a id="section-10-1"></a>
+### 10.1 Progress Callback 中继
 
 **问题**: 子代理在独立线程中运行,父代理如何知道进度?
 
@@ -1035,7 +1920,9 @@ def _build_child_progress_callback(task_index, goal, parent_agent, ...):
     return _callback
 ```
 
-#### 8.2 CLI 输出示例
+<a id="82-cli-输出示例"></a>
+<a id="section-10-2"></a>
+### 10.2 CLI 输出示例
 
 ```
 🤖 正在分析代码库...
@@ -1049,13 +1936,17 @@ def _build_child_progress_callback(task_index, goal, parent_agent, ...):
  ✓ delegate_task completed (2 subagents, 12s)
 ```
 
-#### 8.3 线程间通信机制详解
+<a id="83-线程间通信机制详解"></a>
+<a id="section-10-3"></a>
+### 10.3 线程间通信机制详解
 
 子Agent 在独立的工作线程 (`ThreadPoolExecutor`) 中运行，主Agent 在主线程中阻塞等待。
 进度上报本质上是一个**线程间通信**问题。Hermes 采用了最轻量的方式：**闭包捕获 + 共享可变引用**，
 不依赖消息队列、事件总线或序列化。
 
-##### 8.3.1 机制原理
+<a id="831-机制原理"></a>
+<a id="section-10-3-1"></a>
+#### 10.3.1 机制原理
 
 ```
 主线程 (创建阶段)                          工作线程 (运行阶段)
@@ -1075,7 +1966,9 @@ def _build_child_progress_callback(task_index, goal, parent_agent, ...):
 核心思路：在主线程中创建闭包时，捕获父Agent的 `spinner` 和 `parent_cb` **对象引用**（不是拷贝）。
 闭包注入子Agent后，子Agent 在工作线程中调用它，实际操作的是同一块内存中的父对象。
 
-##### 8.3.2 实现三步走
+<a id="832-实现三步走"></a>
+<a id="section-10-3-2"></a>
+#### 10.3.2 实现三步走
 
 **Step 1: 创建闭包，捕获父对象引用** (主线程)
 
@@ -1128,7 +2021,9 @@ if self.tool_progress_callback:
     #   跨线程直接调用，无需序列化或消息传递
 ```
 
-##### 8.3.3 线程安全分析
+<a id="833-线程安全分析"></a>
+<a id="section-10-3-3"></a>
+#### 10.3.3 线程安全分析
 
 | 操作 | 安全性 | 原因 |
 |------|--------|------|
@@ -1160,7 +2055,9 @@ with _active_subagents_lock:
         rec["last_tool"] = tool_name
 ```
 
-##### 8.3.4 反向控制通道 (主→子)
+<a id="834-反向控制通道-主→子"></a>
+<a id="section-10-3-4"></a>
+#### 10.3.4 反向控制通道 (主→子)
 
 进度上报是子→父方向，但主Agent也需要**反向控制**子Agent（如中断）。
 实现方式是通过 `_active_subagents` 注册表持有子Agent的实例引用：
@@ -1190,7 +2087,9 @@ def interrupt_subagent(subagent_id: str) -> bool:
     return False
 ```
 
-##### 8.3.5 同步原语总结
+<a id="835-同步原语总结"></a>
+<a id="section-10-3-5"></a>
+#### 10.3.5 同步原语总结
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -1211,7 +2110,9 @@ def interrupt_subagent(subagent_id: str) -> bool:
 └─────────────────────────────────────────────────────┘
 ```
 
-#### 8.4 TUI 集成
+<a id="84-tui-集成"></a>
+<a id="section-10-4"></a>
+### 10.4 TUI 集成
 
 - `/agents` 命令显示活跃子代理树 (通过 `list_active_subagents()` 读取注册表快照)
 - `p` 键暂停新子代理生成 (通过 `toggle_spawn_pause()` 设置 `_spawn_paused` 标志)
@@ -1220,9 +2121,13 @@ def interrupt_subagent(subagent_id: str) -> bool:
 
 ---
 
-## 10. 深度限制与角色控制
+<a id="10-深度限制与角色控制"></a>
+<a id="section-11"></a>
+## 11. 深度限制与角色控制
 
-#### 9.1 深度限制机制
+<a id="91-深度限制机制"></a>
+<a id="section-11-1"></a>
+### 11.1 深度限制机制
 
 ```python
 MAX_DEPTH = 1  # 默认扁平: parent(0) -> child(1)
@@ -1255,7 +2160,9 @@ Depth 0: Parent (max_spawn_depth=2)
 └─ Depth 1: Child (role='leaf')
 ```
 
-#### 9.2 Role 语义
+<a id="92-role-语义"></a>
+<a id="section-11-2"></a>
+### 11.2 Role 语义
 
 **Leaf 角色 (默认)**:
 - ❌ 不能调用 `delegate_task`
@@ -1269,7 +2176,9 @@ Depth 0: Parent (max_spawn_depth=2)
 - ✅ 协调多个 worker 的结果
 - ✅ 负责最终总结 (不是 workers)
 
-#### 9.3 使用示例
+<a id="93-使用示例"></a>
+<a id="section-11-3"></a>
+### 11.3 使用示例
 
 ```python
     # Single mode - leaf (默认)
@@ -1296,9 +2205,13 @@ delegate_task(
 
 ---
 
-## 11. 并行执行模型
+<a id="11-并行执行模型"></a>
+<a id="section-12"></a>
+## 12. 并行执行模型
 
-#### 10.1 Batch Mode 实现
+<a id="101-batch-mode-实现"></a>
+<a id="section-12-1"></a>
+### 12.1 Batch Mode 实现
 
 ```python
 def delegate_task(tasks: List[Dict], ...):
@@ -1347,13 +2260,17 @@ def delegate_task(tasks: List[Dict], ...):
     })
 ```
 
-#### 10.2 性能对比
+<a id="102-性能对比"></a>
+<a id="section-12-2"></a>
+### 12.2 性能对比
 
 - 串行执行 3 个子任务: ~30秒 (假设每个 10秒)
 - 并行执行 3 个子任务: ~12秒 (overhead + 最长任务)
 - **加速比**: ~2.5x
 
-#### 10.3 活跃子代理注册表
+<a id="103-活跃子代理注册表"></a>
+<a id="section-12-3"></a>
+### 12.3 活跃子代理注册表
 
 ```python
     # delegate_tool.py 模块级状态
@@ -1383,12 +2300,16 @@ def interrupt_subagent(subagent_id: str) -> bool:
 
 ---
 
-## 12. 中断与 Human-in-the-Loop
+<a id="12-中断与-human-in-the-loop"></a>
+<a id="section-13"></a>
+## 13. 中断与 Human-in-the-Loop
 
 > 与 Agent 循环级 interrupt 的关系见 [AGENT_LOOP_ARCHITECTURE.md](AGENT_LOOP_ARCHITECTURE.md)。  
 > **危险命令 / 插件审批的源码级时序与闸门**见 [HITL_APPROVAL_FLOW.md](HITL_APPROVAL_FLOW.md)（Canonical）。本节保留 interrupt vs HITL 概念与子 Agent 反向控制。
 
-### 12.1 概念：Interrupt vs HITL
+<a id="121-概念interrupt-vs-hitl"></a>
+<a id="section-13-1"></a>
+### 13.1 概念：Interrupt vs HITL
 
 这两个概念虽然相关，但解决的是不同层面的问题：
 
@@ -1401,29 +2322,39 @@ def interrupt_subagent(subagent_id: str) -> bool:
 | **恢复策略** | 冷启动恢复、状态回滚 | 继续执行、参数调整后重试 |
 | **典型场景** | 任务失控、方向错误、紧急停止 | 敏感操作审批、不确定性澄清、质量检查 |
 
-#### 1.2 中断的层次分类
+<a id="12-中断的层次分类"></a>
+<a id="section-13-1-1"></a>
+#### 13.1.1 中断的层次分类
 
 根据中断发生的粒度和位置，可以分为：
 
-##### L1 - 会话级中断
+<a id="l1---会话级中断"></a>
+<a id="section-13-1-1-1"></a>
+##### 13.1.1.1 L1 - 会话级中断
 - **粒度**: 整个Agent会话
 - **实现**: 设置全局标志位 `_interrupt_requested`
 - **恢复**: 通常无法精确恢复，需要重新开始或从checkpoint恢复
 - **代表**: hermes-agent, OpenHands
 
-##### L2 - 工具级中断
+<a id="l2---工具级中断"></a>
+<a id="section-13-1-1-2"></a>
+##### 13.1.1.2 L2 - 工具级中断
 - **粒度**: 单个工具调用
 - **实现**: 在工具执行前后检查中断标志
 - **恢复**: 可以重试失败的工具调用
 - **代表**: hermes-agent的tool execution循环
 
-##### L3 - 迭代级中断
+<a id="l3---迭代级中断"></a>
+<a id="section-13-1-1-3"></a>
+##### 13.1.1.3 L3 - 迭代级中断
 - **粒度**: ReAct循环的单次迭代
 - **实现**: 在主循环开始/结束时检查中断标志
 - **恢复**: 可以从下一个迭代继续
 - **代表**: hermes-agent, AutoGen
 
-##### L4 - 代码执行级中断
+<a id="l4---代码执行级中断"></a>
+<a id="section-13-1-1-4"></a>
+##### 13.1.1.4 L4 - 代码执行级中断
 - **粒度**: 代码块执行过程中的中断
 - **实现**: Jupyter kernel中断、进程信号
 - **恢复**: 部分执行状态可能丢失
@@ -1431,9 +2362,13 @@ def interrupt_subagent(subagent_id: str) -> bool:
 
 ---
 
-### 12.2 Hermes 多层中断
+<a id="122-hermes-多层中断"></a>
+<a id="section-13-2"></a>
+### 13.2 Hermes 多层中断
 
-#### 3.1 多层中断检测架构
+<a id="31-多层中断检测架构"></a>
+<a id="section-13-2-1"></a>
+#### 13.2.1 多层中断检测架构
 
 Hermes Agent实现了多层次的中断检测机制：
 
@@ -1486,7 +2421,9 @@ async def execute_code_in_isolated_env(self, code):
     return await self.kernel_manager.get_result(session_id)
 ```
 
-#### 3.2 中断传播机制
+<a id="32-中断传播机制"></a>
+<a id="section-13-2-2"></a>
+#### 13.2.2 中断传播机制
 
 ```mermaid
 sequenceDiagram
@@ -1517,7 +2454,9 @@ sequenceDiagram
     MainThread->>User: Show interrupted status
 ```
 
-#### 3.3 资源清理策略
+<a id="33-资源清理策略"></a>
+<a id="section-13-2-3"></a>
+#### 13.2.3 资源清理策略
 
 ```python
 def interrupt(self, message: str = None) -> None:
@@ -1556,7 +2495,9 @@ def interrupt(self, message: str = None) -> None:
         logger.warning(f"Interrupt reason: {message}")
 ```
 
-#### 3.4 子Agent中断的特殊处理
+<a id="34-子agent中断的特殊处理"></a>
+<a id="section-13-2-4"></a>
+#### 13.2.4 子Agent中断的特殊处理
 
 ```python
 # delegate_tool.py:_run_single_child
@@ -1601,9 +2542,13 @@ def _run_single_child(task_index, goal, child, parent_agent):
 ---
 
 
-### 12.3 HITL：审批（Approval）
+<a id="123-hitl审批approval"></a>
+<a id="section-13-3"></a>
+### 13.3 HITL：审批（Approval）
 
-##### 4.1.1 工具级审批（Hermes Agent）
+<a id="411-工具级审批hermes-agent"></a>
+<a id="section-13-3-1"></a>
+#### 13.3.1 工具级审批（Hermes Agent）
 
 ```python
 # tools/approval.py
@@ -1675,7 +2620,9 @@ approval:
   interactive_mode: true  # false for batch/cron jobs
 ```
 
-##### 4.1.2 工作流级审批（LangGraph）
+<a id="412-工作流级审批langgraph"></a>
+<a id="section-13-3-2"></a>
+#### 13.3.2 工作流级审批（LangGraph）
 
 ```python
 # langgraph workflow with human approval
@@ -1735,8 +2682,11 @@ app = workflow.compile()
 ```
 
 
-### 12.4 HITL：澄清（Clarify）
+<a id="124-hitl澄清clarify"></a>
+<a id="section-13-4"></a>
+### 13.4 HITL：澄清（Clarify）
 
+```python
 # tools/clarify_tool.py
 async def clarify(question: str, options: list = None) -> str:
     """
@@ -1799,18 +2749,23 @@ async def handle_ambiguous_task(self, task: str):
     return await self.execute(task)
 ```
 
-### 12.5 与 §9 反向控制的衔接
+<a id="125-与-9-反向控制的衔接"></a>
+<a id="section-13-5"></a>
+### 13.5 与 §9 反向控制的衔接
 
 父→子中断通道（`_active_subagents` / `interrupt_subagent`）见 [§9](#9-回调中继机制)。Approval 回调经 `initializer=_set_subagent_approval_cb` 注入子进程/线程。Steer ≠ interrupt：转向注入下轮用户消息，不设中断标志。
 
+<a id="13-设计哲学与实践"></a>
+<a id="section-14"></a>
+## 14. 设计哲学与实践
 
-```
+<a id="设计哲学"></a>
+<a id="section-14-1"></a>
+### 14.1 设计哲学
 
-## 13. 设计哲学与实践
-
-### 设计哲学
-
-#### 11.1 为什么 Blocked Tools 这样设计?
+<a id="111-为什么-blocked-tools-这样设计"></a>
+<a id="section-14-1-1"></a>
+#### 14.1.1 为什么 Blocked Tools 这样设计?
 
 | Blocked Tool | 原因 | 风险 |
 |-------------|------|------|
@@ -1822,7 +2777,9 @@ async def handle_ambiguous_task(self, task: str):
 
 **例外**: `role='orchestrator'` 重新添加 `delegate_task`,允许有限嵌套
 
-#### 11.2 为什么 skip_memory 和 skip_context_files?
+<a id="112-为什么-skip_memory-和-skip_context_files"></a>
+<a id="section-14-1-2"></a>
+#### 14.1.2 为什么 skip_memory 和 skip_context_files?
 
 **skip_memory=True**:
 - ✅ 避免子代理写入父代理的 MEMORY.md
@@ -1839,7 +2796,9 @@ async def handle_ambiguous_task(self, task: str):
 - ❌ 子代理无法利用长期记忆 (MEMORY.md)
 - ✅ 但可以通过 `context` 参数手动传递必要信息
 
-#### 11.3 为什么默认 MAX_DEPTH=1?
+<a id="113-为什么默认-max_depth=1"></a>
+<a id="section-14-1-3"></a>
+#### 14.1.3 为什么默认 MAX_DEPTH=1?
 
 **设计哲学**: **扁平优于嵌套**
 
@@ -1853,7 +2812,9 @@ async def handle_ambiguous_task(self, task: str):
 - 需要更深嵌套时,提高 `delegation.max_spawn_depth` (上限 3)
 - 使用 `role='orchestrator'` 显式声明需要再委派
 
-#### 11.4 为什么子代理使用 ephemeral_system_prompt?
+<a id="114-为什么子代理使用-ephemeral_system_prompt"></a>
+<a id="section-14-1-4"></a>
+#### 14.1.4 为什么子代理使用 ephemeral_system_prompt?
 
 ```python
 child = AIAgent(
@@ -1871,9 +2832,13 @@ child = AIAgent(
 
 ---
 
-### 最佳实践
+<a id="最佳实践"></a>
+<a id="section-14-2"></a>
+### 14.2 最佳实践
 
-#### ✅ 推荐做法
+<a id="✅-推荐做法"></a>
+<a id="section-14-2-1"></a>
+#### 14.2.1 推荐做法
 
 1. **明确任务边界**: 每个子代理应该有清晰、独立的目标
 2. **使用 Batch Mode**: 多个独立子任务用 `tasks` 数组并行
@@ -1882,7 +2847,8 @@ child = AIAgent(
 5. **监控进度**: 使用 TUI `/agents` 查看活跃子代理树
 6. **设置合理预算**: `delegation.max_iterations=50` 通常足够
 
-#### ❌ 避免做法
+<a id="section-14-2-2"></a>
+#### 14.2.2 ❌ 避免做法
 
 1. **不要过度委派**: 简单任务直接执行,不要拆分成子代理
 2. **不要透传整个目标**: 委派应该添加价值 (分解/并行/隔离)
@@ -1890,7 +2856,9 @@ child = AIAgent(
 4. **不要在子代理中写记忆**: 使用 `context` 返回结果给父代理
 5. **不要假设工作区路径**: 子代理需要通过 `context` 或工具发现路径
 
-#### 📝 示例模式
+<a id="📝-示例模式"></a>
+<a id="section-14-2-3"></a>
+#### 14.2.3 示例模式
 
 **模式 1: 并行研究**
 ```python
@@ -1935,9 +2903,13 @@ delegate_task(
 
 ---
 
-### 故障排查
+<a id="故障排查"></a>
+<a id="section-14-3"></a>
+### 14.3 故障排查
 
-#### 常见问题
+<a id="常见问题"></a>
+<a id="section-14-3-1"></a>
+#### 14.3.1 常见问题
 
 **Q1: 子代理立即失败,返回 "Depth limit reached"**
 
@@ -1991,516 +2963,34 @@ delegate_task(
 
 ---
 
-## 14. 上下文压缩完整流程
+<a id="14-上下文压缩完整流程"></a>
+<a id="141-压缩触发时机"></a>
+<a id="142-完整压缩时序图"></a>
+<a id="143-压缩策略详解"></a>
+<a id="144-与其他框架对比"></a>
+<a id="145-最佳实践"></a>
+<a id="146-故障排查"></a>
+<a id="1四层渐进压缩"></a>
+<a id="2会话分裂机制"></a>
+<a id="3双层记忆同步"></a>
+<a id="4todo-注入机制"></a>
+<a id="5异步预取优化"></a>
+<a id="✅-推荐配置"></a>
+<a id="❌-避免做法"></a>
+<a id="📊-监控指标"></a>
+<a id="14-子代理与通用压缩的边界"></a>
+<a id="section-15"></a>
+## 15. 子代理与通用压缩的边界
 
-> 多 Agent 场景下的压缩行为；通用压缩深潜见 OpenHarness / AGENT_LOOP 相关文档。
+子代理复用运行时压缩能力，不拥有另一套通用压缩引擎。多代理篇只关心子任务目标、上下文隔离和结果回收；通用压缩与旧设计对照放到运行时篇。
 
-#### 14.1 压缩触发时机
-
-**关键发现**: hermes-agent 的压缩不是在对话开始前检查，而是在**每轮对话结束后立即触发**。
-
-```python
-    # run_agent.py → agent/conversation_loop.py: run_conversation()（v0.15+ 实现已迁出）
-
-    # 执行完当前轮次后
-if self._should_compress():
-    # 1. 通知 Memory Manager 准备压缩
-    self.memory_manager.notify_compression_start()
-    
-    # 2. 执行压缩（可能分裂 Session）
-    await self._execute_compression()
-    
-    # 3. 重建 Prompt（注入 Todo + 新系统提示）
-    await self._rebuild_system_prompt()
-    
-    # 4. 启动下一轮的异步预取
-    self._start_prefetch_next_turn()
-```
-
-**触发条件**:
-
-| 条件 | 说明 | 配置项 |
-|------|------|--------|
-| **消息数阈值** | 当前会话消息数 > `max_messages_before_compact` | `session.max_messages_before_compact=50` |
-| **Token 阈值** | 当前上下文 token 数 > `context_window * 0.8` | 自动计算 |
-| **手动触发** | 用户调用 `/compact` 命令 | N/A |
-| **强制压缩** | 子代理创建前清理父上下文 | 内部逻辑 |
+完整设计、图表与代码解读已移至 [历史压缩设计与现行链路对照（非当前执行合约）](AGENT_LOOP_ARCHITECTURE.md#historical-compaction-design)。本处只保留与本篇主题直接相关的边界。
 
 ---
 
-#### 14.2 完整压缩时序图
-
-```mermaid
-sequenceDiagram
-    participant User as 用户
-    participant Agent as AIAgent (父)
-    participant RL as ReAct Loop
-    participant Compressor as ContextCompressor
-    participant Memory as MemoryManager
-    participant SessionDB as SessionDB (SQLite)
-    participant ExtProvider as External Provider (Honcho/Mem0)
-    participant LLM as Compression LLM
-    
-    Note over Agent,LLM: === 第 N 轮对话结束 ===
-    
-    User->>Agent: 发送消息
-    Agent->>RL: run_conversation()
-    RL->>RL: 执行工具调用
-    RL->>RL: 获取 LLM 响应
-    RL->>User: 返回结果
-    
-    Note over RL: === 压缩检查阶段 ===
-    RL->>RL: _should_compress()
-    alt 达到压缩阈值
-        RL->>Compressor: notify_compression_start()
-        Compressor->>Memory: 暂停记忆同步
-        
-        Note over Compressor: === 阶段 1: 提取待压缩消息 ===
-        Compressor->>SessionDB: get_messages(session_id)
-        SessionDB-->>Compressor: 返回 50 条消息
-        
-        Compressor->>Compressor: 分离可压缩消息
-        Note right of Compressor: 保留最近 10 条<br/>标记中间 40 条为待压缩
-        
-        Note over Compressor: === 阶段 2: 调用 LLM 生成摘要 ===
-        Compressor->>LLM: 调用压缩模型
-        Note right of LLM: Prompt:<br/>"请总结以下对话的关键信息..."
-        LLM-->>Compressor: 返回结构化摘要 JSON
-        
-        Note over Compressor: === 阶段 3: 会话分裂 ===
-        Compressor->>SessionDB: create_child_session()
-        SessionDB->>SessionDB: INSERT INTO sessions<br/>(parent_session_id, ...)
-        SessionDB-->>Compressor: new_session_id = "sess-xxx:sub:uuid"
-        
-        Compressor->>SessionDB: move_messages_to_new_session()
-        SessionDB->>SessionDB: UPDATE messages<br/>SET session_id = new_session_id<br/>WHERE id IN (compressed_ids)
-        
-        Note over Compressor: === 阶段 4: 记忆提取 ===
-        Compressor->>Memory: commit_memory_session(old_session_id)
-        Memory->>ExtProvider: extract_facts_from_session()
-        ExtProvider->>ExtProvider: 向量化存储对话片段
-        ExtProvider-->>Memory: 确认写入
-        
-        Note over Compressor: === 阶段 5: 状态保持 ===
-        Compressor->>Compressor: save_todo_list()
-        Compressor->>Compressor: save_file_cache()
-        Compressor->>Compressor: save_tool_state()
-        
-        Note over Compressor: === 阶段 6: 重建 Prompt ===
-        Compressor->>Agent: rebuild_system_prompt()
-        Agent->>Memory: get_memory_context(new_session_id)
-        Memory->>ExtProvider: prefetch_memories(query)
-        ExtProvider-->>Memory: 返回相关记忆
-        Memory-->>Agent: 组装系统提示（含 Todo + 记忆）
-        
-        Note over Compressor: === 阶段 7: 异步预取 ===
-        Compressor->>ExtProvider: start_background_prefetch()
-        Note right of ExtProvider: 后台线程查询<br/>缓存到 next_turn_cache
-        
-        Compressor-->>RL: 压缩完成
-        RL->>RL: 继续下一轮对话
-        
-    else 未达到阈值
-        RL-->>RL: 跳过压缩
-    end
-    
-    RL->>User: 等待下一条消息
-```
-
----
-
-#### 14.3 压缩策略详解
-
-##### （1）四层渐进压缩
-
-hermes-agent 采用 **L0-L4 五层压缩架构**：
-
-| 层级 | 策略 | 触发时机 | 压缩率 | 成本 |
-|------|------|---------|--------|------|
-| **L0: 规则截断** | 移除冗余空格、空行 | 每次 API 调用前 | 5-10% | $0 |
-| **L1: 微压缩** | 清空工具输出正文，保留元数据 | Token > 80% 窗口 | 30-40% | $0 |
-| **L2: 滑动窗口** | 保留最近 N 轮，丢弃早期消息 | Token > 90% 窗口 | 50-60% | $0 |
-| **L3: LLM 摘要** | 调用 LLM 生成智能摘要 | 消息数 > 50 | 70-80% | $0.01-0.05 |
-| **L4: Offload** | 卸载到文件系统/数据库 | 会话结束 | 90%+ | $0 |
-
-**实际案例**（128K 窗口）：
-
-```
-初始状态: 120K tokens (93% 使用率)
-
-Step 1 - L0 规则截断:
-  120K → 115K (节省 5K, 4%)
-  
-Step 2 - L1 微压缩:
-  115K → 75K (节省 40K, 35%)
-  操作: 清空 CmdOutputObservation.content，只保留 exit_code
-  
-Step 3 - L2 滑动窗口:
-  75K → 45K (节省 30K, 40%)
-  操作: 保留最近 15 轮，丢弃更早的消息
-  
-Step 4 - L3 LLM 摘要:
-  45K → 25K (节省 20K, 44%)
-  操作: 对丢弃的 30 轮生成结构化摘要
-  
-最终: 25K tokens (19% 使用率)
-总节省: 95K tokens (79%)
-```
-
----
-
-##### （2）会话分裂机制
-
-**为什么需要分裂 Session？**
-
-1. **保持 lineage 链**: `parent_session_id` 形成追溯链
-2. **隔离压缩前后**: 旧消息归档到新 session，当前 session 保持干净
-3. **支持回溯**: 用户可以查看历史压缩前的完整对话
-
-**数据结构**：
-
-```sql
--- SessionDB schema
-CREATE TABLE sessions (
-    session_id TEXT PRIMARY KEY,
-    parent_session_id TEXT,  -- ← 关键：指向父会话
-    created_at TIMESTAMP,
-    ended_at TIMESTAMP,
-    end_reason TEXT,  -- 'compression', 'user_exit', 'error'
-    message_count INTEGER,
-    metadata JSON
-);
-
--- 压缩后的 lineage 链
-sess-abc123                    (parent=null, messages=50)
-  └─ sess-abc123:sub:uuid-1   (parent=sess-abc123, messages=40) ← 压缩出的旧消息
-     └─ sess-abc123:sub:uuid-1:sub:uuid-2  (depth=2)
-```
-
-**代码实现**：
-
-```python
-    # run_agent.py Line ~8108-8136
-
-async def _split_session_on_compression(self):
-    """压缩时分裂会话，建立 lineage 链"""
-    
-    # 1. 创建子会话
-    new_session_id = f"{self.session_id}:sub:{uuid.uuid4()}"
-    
-    await self.session_db.execute(
-        """
-        INSERT INTO sessions (session_id, parent_session_id, created_at)
-        VALUES (?, ?, ?)
-        """,
-        (new_session_id, self.session_id, datetime.now())
-    )
-    
-    # 2. 移动待压缩消息到新会话
-    compressed_msg_ids = self._get_compressed_message_ids()
-    
-    await self.session_db.execute(
-        """
-        UPDATE messages 
-        SET session_id = ?
-        WHERE id IN ({})
-        """.format(','.join(['?'] * len(compressed_msg_ids))),
-        [new_session_id] + list(compressed_msg_ids)
-    )
-    
-    # 3. 更新当前会话元数据
-    await self.session_db.execute(
-        """
-        UPDATE sessions 
-        SET end_reason = 'compression',
-            ended_at = ?,
-            child_session_id = ?
-        WHERE session_id = ?
-        """,
-        (datetime.now(), new_session_id, self.session_id)
-    )
-    
-    logger.info(
-        "Session split: %s -> %s (moved %d messages)",
-        self.session_id,
-        new_session_id,
-        len(compressed_msg_ids)
-    )
-    
-    return new_session_id
-```
-
----
-
-##### （3）双层记忆同步
-
-**问题**: 压缩会丢失细节，如何保证重要信息不丢失？
-
-**解决方案**: **实时同步 + 批量提取**
-
-```python
-    # 实时同步（每轮对话）
-async def sync_turn(self, messages: List[Message]):
-    """External Provider 每轮自动保存"""
-    for provider in self.external_providers:
-        # 异步写入，不阻塞主流程
-        asyncio.create_task(
-            provider.save_messages(messages)
-        )
-
-    # 批量提取（压缩时）
-async def commit_memory_session(self, session_id: str):
-    """从即将归档的会话中提取 facts"""
-    messages = await self.session_db.get_messages(session_id)
-    
-    for provider in self.external_providers:
-        # 提取高置信度 facts
-        facts = await provider.extract_facts(messages)
-        
-        # 向量化存储
-        await provider.store_facts(facts)
-        
-        logger.info(
-            "Extracted %d facts from session %s",
-            len(facts),
-            session_id
-        )
-```
-
-**优势**：
-- ✅ **低延迟**: 实时同步保证最新信息立即可用
-- ✅ **完整性**: 压缩时批量提取确保历史知识不丢失
-- ✅ **去重**: External Provider 自动合并相似 facts
-
----
-
-##### （4）Todo 注入机制
-
-**问题**: 压缩后，Agent 如何知道下一步该做什么？
-
-**解决方案**: **TodoListMiddleware 自动注入**
-
-```python
-    # middleware/todo_list_middleware.py
-
-class TodoListMiddleware:
-    """在压缩后自动注入待办事项到系统提示"""
-    
-    async def post_compress_hook(self, agent: AIAgent):
-        # 1. 保存当前 Todo 列表
-        todo_snapshot = agent.todo_list.export()
-        
-        # 2. 压缩完成后，重建系统提示
-        system_prompt = await self._build_system_prompt_with_todo(
-            base_prompt=agent.base_system_prompt,
-            todo_list=todo_snapshot
-        )
-        
-        # 3. 更新 agent 的系统提示
-        agent.update_system_prompt(system_prompt)
-        
-        logger.info("Injected %d todos into system prompt", len(todo_snapshot))
-    
-    async def _build_system_prompt_with_todo(
-        self, 
-        base_prompt: str, 
-        todo_list: List[Dict]
-    ) -> str:
-        todo_section = "\n\n## Current TODO List\n"
-        for i, todo in enumerate(todo_list, 1):
-            status_icon = {
-                'pending': '⏳',
-                'in_progress': '🔄',
-                'completed': '✅'
-            }.get(todo['status'], '❓')
-            
-            todo_section += f"{status_icon} {i}. {todo['description']}\n"
-        
-        return base_prompt + todo_section
-```
-
-**效果**：
-
-```markdown
-You are Hermes, a helpful AI assistant...
-
-### Current TODO List
-✅ 1. 分析代码库结构
-🔄 2. 编写单元测试
-⏳ 3. 优化性能瓶颈
-⏳ 4. 编写文档
-```
-
----
-
-##### （5）异步预取优化
-
-**问题**: 压缩后下一轮对话需要重新召回记忆，导致延迟增加。
-
-**解决方案**: **压缩后立即启动后台预取**
-
-```python
-    # memory_manager.py
-
-async def _execute_compression(self):
-    """执行压缩流程"""
-    
-    # ... 压缩逻辑 ...
-    
-    # 压缩完成后，立即启动下一轮的预取
-    self._start_prefetch_next_turn()
-
-async def _start_prefetch_next_turn(self):
-    """后台线程预取下一轮可能需要的记忆"""
-    
-    def background_prefetch():
-        # 1. 基于当前对话上下文构建查询
-        query = self._build_search_query()
-        
-        # 2. 并行查询所有 External Providers
-        results = asyncio.run(
-            asyncio.gather(
-                *[provider.search(query, top_k=5) 
-                  for provider in self.external_providers]
-            )
-        )
-        
-        # 3. 缓存到 next_turn_cache
-        self.next_turn_cache = self._merge_results(results)
-        
-        logger.info(
-            "Prefetched %d memories for next turn",
-            len(self.next_turn_cache)
-        )
-    
-    # 在后台线程中执行，不阻塞主流程
-    threading.Thread(target=background_prefetch, daemon=True).start()
-```
-
-**性能提升**：
-
-| 场景 | 无预取 | 有预取 | 提升 |
-|------|--------|--------|------|
-| **首次召回延迟** | 500ms | 50ms | **10x** |
-| **用户感知延迟** | 高 | 低 | **显著改善** |
-| **命中率** | 70% | 85% | **+15%** |
-
----
-
-#### 14.4 与其他框架对比
-
-| 维度 | hermes-agent | deepagents | deer-flow | OpenHands V1 |
-|------|-------------|-----------|----------|-------------|
-| **压缩触发** | 每轮结束后检查 | Token 阈值 | Token 阈值 + 防抖 | 事件数阈值 |
-| **压缩策略** | L0-L4 五层渐进 | LLM 摘要 + Offload | LLM 摘要 | LLMSummarizingCondenser |
-| **会话管理** | ✅ SessionDB + lineage | ❌ 单一会话 | ❌ 单一会话 | ❌ 单一会话 |
-| **记忆提取** | ✅ 压缩时批量提取 | ❌ 无 | ✅ 防抖批处理 | ❌ 无 |
-| **状态保持** | ✅ Todo + 文件缓存 | ❌ 无 | ❌ 无 | ❌ 无 |
-| **异步预取** | ✅ 压缩后立即预取 | ❌ 无 | ❌ 无 | ❌ 无 |
-| **可回溯性** | ✅ 完整 lineage 链 | ⚠️ 文件存档 | ❌ 不可回溯 | ❌ 不可回溯 |
-| **配置复杂度** | ⚠️ 中等 | ✅ 简单 | ⚠️ 中等 | ✅ 最简单 |
-
-**关键差异**：
-
-1. **hermes-agent 是唯一实现 SessionDB lineage 的框架**
-   - 支持完整的会话历史追溯
-   - 压缩不会丢失原始数据
-
-2. **hermes-agent 是唯一实现异步预取的框架**
-   - 显著降低用户感知延迟
-   - 提高记忆召回命中率
-
-3. **hermes-agent 的状态保持最完善**
-   - Todo 列表自动注入
-   - 文件缓存、工具状态保持
-
----
-
-#### 14.5 最佳实践
-
-##### ✅ 推荐配置
-
-```yaml
-    # config.yaml
-
-session:
-  max_messages_before_compact: 50  # 超过 50 条消息触发压缩
-  auto_save_interval: 5            # 每 5 轮保存到 SessionDB
-
-compression:
-  enable_layers: ["L0", "L1", "L2", "L3"]  # 启用 L0-L3
-  l3_model: "gpt-4o-mini"                   # 使用便宜模型做摘要
-  keep_recent_rounds: 10                    # 保留最近 10 轮
-  summary_max_tokens: 500                   # 摘要最大 token 数
-
-memory:
-  provider: honcho                          # 外部 Provider
-  sync_interval: 1                          # 每轮同步
-  prefetch_enabled: true                    # 启用异步预取
-  prefetch_top_k: 5                         # 预取 5 条相关记忆
-```
-
-##### ❌ 避免做法
-
-1. **不要禁用 SessionDB**: 失去 lineage 追溯能力
-2. **不要跳过 L1/L2**: 直接跳到 L3 成本过高
-3. **不要设置过低的 keep_recent**: 导致上下文断裂
-4. **不要忘记启用预取**: 用户体验显著下降
-
-##### 📊 监控指标
-
-```python
-    # 关键监控指标
-metrics = {
-    "compression_triggered": True,          # 是否触发压缩
-    "original_tokens": 120000,              # 压缩前 token 数
-    "compressed_tokens": 25000,             # 压缩后 token 数
-    "compression_ratio": 0.79,              # 压缩率 79%
-    "session_split": True,                  # 是否分裂会话
-    "facts_extracted": 15,                  # 提取的 facts 数量
-    "prefetch_latency_ms": 45,              # 预取延迟
-    "prefetch_hit_rate": 0.85,              # 预取命中率
-}
-```
-
----
-
-#### 14.6 故障排查
-
-**Q1: 压缩后 Todo 列表丢失**
-
-**A**: 检查 TodoListMiddleware 是否正确注册：
-```python
-agent.register_middleware(TodoListMiddleware())
-```
-
-**Q2: 预取未生效，延迟仍然很高**
-
-**A**: 检查后台线程是否正常启动：
-```python
-logger.debug("Background prefetch thread started: %s", thread.name)
-```
-
-**Q3: SessionDB 中找不到 parent_session_id**
-
-**A**: 确认压缩时调用了 `_split_session_on_compression()`：
-```python
-    # 应该看到日志
-logger.info("Session split: %s -> %s", old_id, new_id)
-```
-
-**Q4: External Provider 写入失败**
-
-**A**: 检查 API key 和网络连接：
-```yaml
-honcho:
-  api_key: ${HONCHO_API_KEY}  # 确保环境变量已设置
-  mode: cloud
-```
-
----
-
-## 15. 0.19 增量：Live-viewable 子 Agent transcript
+<a id="15-019-增量live-viewable-子-agent-transcript"></a>
+<a id="section-16"></a>
+## 16. 0.19 增量：Live-viewable 子 Agent transcript
 
 父会话可在子 Agent 运行时 **tail** 其实况（不再只等 `delegate_task` 最终 summary）：
 
@@ -2512,9 +3002,13 @@ honcho:
 
 ---
 
-## 16. 附录：跨框架中断 / HITL 对照
+<a id="16-附录跨框架中断--hitl-对照"></a>
+<a id="section-17"></a>
+## 17. 附录：跨框架中断 / HITL 对照
 
-### 总览表
+<a id="总览表"></a>
+<a id="section-17-1"></a>
+### 17.1 总览表
 
 | 框架 | 中断支持 | HITL支持 | 中断粒度 | 恢复机制 | 实现复杂度 |
 |------|---------|----------|---------|---------|-----------|
@@ -2527,15 +3021,21 @@ honcho:
 | **AgentScope** | ⚠️ 基础 | ⚠️ 基础 | 会话级 | Memory回放 | 中 |
 
 
-### Hermes 在对比中的位置（摘要）
+<a id="hermes-在对比中的位置摘要"></a>
+<a id="section-17-2"></a>
+### 17.2 Hermes 在对比中的位置（摘要）
 
 - **中断**: 主循环 + 工具前后 + 子 Agent 注册表 fan-out；冷停为主，checkpoint 非一等公民。
 - **HITL**: `tools/approval.py` 危险命令门闩；`clarify` 交互澄清；无 LangGraph 式图内 `interrupt()` 工作流原语。
 - **选型提示**: 要图状态机式人工审核 → LangGraph；要 IDE 安全策略网 → OpenHands；要本地优先委托子 Agent → Hermes。
 
-### 实践原则（摘录）
+<a id="实践原则摘录"></a>
+<a id="section-17-3"></a>
+### 17.3 实践原则（摘录）
 
-#### 多层检测点
+<a id="多层检测点"></a>
+<a id="section-17-3-1"></a>
+#### 17.3.1 多层检测点
 
 **不要依赖单一的中断检查点**，在关键位置都要设置检测：
 
@@ -2570,7 +3070,9 @@ async def run(self):
 - 网络请求的超时回调
 - 文件I/O操作间隙
 
-#### 原则2: 优雅降级（Graceful Degradation）
+<a id="原则2-优雅降级graceful-degradation"></a>
+<a id="section-17-3-2"></a>
+#### 17.3.2 原则2: 优雅降级（Graceful Degradation）
 
 中断时尽量保存已完成的工作：
 
@@ -2606,7 +3108,9 @@ async def execute_with_graceful_interrupt(self, tasks):
     }
 ```
 
-#### 原则3: 资源清理（Resource Cleanup）
+<a id="原则3-资源清理resource-cleanup"></a>
+<a id="section-17-3-3"></a>
+#### 17.3.3 原则3: 资源清理（Resource Cleanup）
 
 确保中断时释放所有占用的资源：
 
@@ -2631,9 +3135,13 @@ async def cleanup_on_interrupt(self):
             logger.error(f"Cleanup task {i} failed: {result}")
 ```
 
-### 6.2 HITL设计模式
+<a id="62-hitl设计模式"></a>
+<a id="section-17-4"></a>
+### 17.4 HITL设计模式
 
-#### 模式1: 预防式HITL（Preventive HITL）
+<a id="模式1-预防式hitlpreventive-hitl"></a>
+<a id="section-17-4-1"></a>
+#### 17.4.1 模式1: 预防式HITL（Preventive HITL）
 
 在执行危险操作**之前**请求审批：
 
@@ -2675,7 +3183,9 @@ class PreventiveHITL:
 - 执行高风险命令
 - 发送敏感信息
 
-#### 模式2: 检查点式HITL（Checkpoint HITL）
+<a id="模式2-检查点式hitlcheckpoint-hitl"></a>
+<a id="section-17-4-2"></a>
+#### 17.4.2 模式2: 检查点式HITL（Checkpoint HITL）
 
 在任务的关键阶段设置审查点：
 
@@ -2734,7 +3244,9 @@ class CheckpointHITL:
 - 需要质量保证的关键任务
 - 合规性要求的流程
 
-#### 模式3: 按需式HITL（On-Demand HITL）
+<a id="模式3-按需式hitlon-demand-hitl"></a>
+<a id="section-17-4-3"></a>
+#### 17.4.3 模式3: 按需式HITL（On-Demand HITL）
 
 Agent主动请求人类帮助：
 
@@ -2765,3 +3277,8 @@ class OnDemandHITL:
 ```
 
 ```
+
+<!-- 旧目录与迁移章节锚点兼容；完整内容入口见文首目录及主题迁移表。 -->
+<a id="toolsclarify_toolpy"></a>
+<a id="usage-in-agent"></a>
+<a id="❌-避免做法-1"></a>

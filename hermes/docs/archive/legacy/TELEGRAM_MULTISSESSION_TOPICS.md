@@ -1,28 +1,106 @@
-# Hermes Agent Telegram 看板多Agent协作指南
+# Telegram Topics 多会话：路由、绑定与上下文隔离
+
+<!-- legacy-review:start -->
+> **2026-10-15 校订导航**：Topic 如何路由会话，与 Kanban 和共享记忆有何区别。\
+> **核对范围**：纠正 Topic=看板、独立记忆/完全隔离表述；更新插件路径；外部协议年代与全部命令行为未重测。\
+> **适用基线**：本地源码 `60d00c5633ad`；不是最新发布版本声明。原稿版本、行号、性能数字与长代码块若未在校订范围内，仍按历史示例阅读。
+> **先读当前结论**：[当前实现导读](CURRENT_IMPLEMENTATION.md#current-extensions) · **现行分卷**：[06-gateways-channels-and-hitl.md](../../volumes/06-gateways-channels-and-hitl.md) · [具体改动与未验证项](REVIEW_AND_CHANGES.md) · [返回全目录](README.md)
+
+<!-- legacy-review:end -->
+<a id="目录"></a>
+## 目录
+
+<!-- visible-toc:start -->
+- [1. 概述](#section-1)
+- [2. 核心概念](#section-2)
+  - [2.1 什么是Telegram Topics？](#section-2-1)
+  - [2.2 系统架构](#section-2-2)
+- [3. 快速开始](#section-3)
+  - [3.1 步骤1: 激活多会话模式](#section-3-1)
+  - [3.2 步骤2: 创建新的Topic会话](#section-3-2)
+  - [3.3 步骤3: 并行工作](#section-3-3)
+- [4. 命令参考](#section-4)
+  - [4.1 `/topic` - 在主聊天中](#section-4-1)
+  - [4.2 `/topic` - 在Topic中（无参数）](#section-4-2)
+  - [4.3 `/topic <session_id>` - 在Topic中](#section-4-3)
+  - [4.4 `/new` - 在主聊天中（激活后）](#section-4-4)
+  - [4.5 `/new` - 在Topic中](#section-4-5)
+  - [4.6 普通文本消息 - 在主聊天中（激活后）](#section-4-6)
+  - [4.7 普通文本消息 - 在Topic中](#section-4-7)
+- [5. 💾 数据存储](#section-5)
+  - [5.1 SQLite表结构](#section-5-1)
+  - [5.2 迁移机制](#section-5-2)
+- [6. 配置](#section-6)
+- [7. 🎨 使用场景](#section-7)
+  - [7.1 场景1: 多项目并行开发](#section-7-1)
+  - [7.2 场景2: 学习与研究](#section-7-2)
+  - [7.3 场景3: 团队协作模拟](#section-7-3)
+  - [7.4 场景4: 长期项目管理](#section-7-4)
+- [8. ⚙️ 高级功能](#section-8)
+  - [8.1 恢复旧会话](#section-8-1)
+  - [8.2 会话管理模式](#section-8-2)
+  - [8.3 系统大厅命令](#section-8-3)
+- [9. 注意事项](#section-9)
+  - [9.1 不要滥用`/new`](#section-9-1)
+  - [9.2 会话唯一性](#section-9-2)
+  - [9.3 主题命名](#section-9-3)
+  - [9.4 数据持久化](#section-9-4)
+  - [9.5 性能考虑](#section-9-5)
+- [10. 故障排查](#section-10)
+  - [10.1 问题1: `/topic`命令返回错误](#section-10-1)
+  - [10.2 问题2: 创建Topic后没有响应](#section-10-2)
+  - [10.3 问题3: 无法恢复旧会话](#section-10-3)
+  - [10.4 问题4: Topic中的消息发送到错误的会话](#section-10-4)
+- [11. 监控与管理](#section-11)
+  - [11.1 查看所有Topic绑定](#section-11-1)
+  - [11.2 查看Topic模式状态](#section-11-2)
+  - [11.3 清理未使用的绑定](#section-11-3)
+- [12. 未来规划](#section-12)
+  - [12.1 计划中的功能](#section-12-1)
+  - [12.2 可能的改进](#section-12-2)
+- [13. 相关文档](#section-13)
+- [14. 最佳实践](#section-14)
+  - [14.1 组织你的Topics](#section-14-1)
+  - [14.2 定期清理](#section-14-2)
+  - [14.3 命名规范](#section-14-3)
+  - [14.4 会话隔离](#section-14-4)
+- [15. 🎉 总结](#section-15)
+<!-- visible-toc:end -->
+
+
+
 
 > **文档状态**: Deep / Historical · 正文可能含旧行号
 > **Canonical 导航**: [ARCHITECTURE.md](ARCHITECTURE.md) · [SURFACE_ARCHITECTURE.md](SURFACE_ARCHITECTURE.md) · [AGENT_LOOP_ARCHITECTURE.md](AGENT_LOOP_ARCHITECTURE.md)
-> **版本核对**: 0.19.0 / 2026-07-22（本文件未全量重写）
+> **原稿版本核对（历史）**: 0.19.0 / 2026-07-22（本文件未全量重写）
 
 
-> **Hermes 版本锚点**: 0.19.0 · **核对**: 2026-07-22 · [DOC_MAINTENANCE.md](DOC_MAINTENANCE.md)  
-## 📋 概述
+> **原稿版本锚点（历史）**: 0.19.0 · **核对**: 2026-07-22 · [DOC_MAINTENANCE.md](DOC_MAINTENANCE.md)\
+<a id="📋-概述"></a>
+<a id="section-1"></a>
+## 1. 概述
 
-Hermes Agent 新版本引入了基于 **Telegram Topics（话题/看板）** 的多Agent协作能力，允许用户在单个Telegram Bot中通过创建不同的Topic来管理多个并行的Agent会话。每个Topic都是一个独立的Hermes会话通道，可以同时处理不同的任务。
+Hermes 使用 **Telegram Topics（话题）** 区分消息路由与会话绑定。同一 Bot 可以承载多个会话，但 Topic 不是 Kanban Board / Task，也不会自动提供持久任务调度。本文先讲路由，再讲会话绑定、收发与限制。
 
 ---
 
-## 🎯 核心概念
+<a id="🎯-核心概念"></a>
+<a id="section-2"></a>
+## 2. 核心概念
 
-### 1. 什么是Telegram Topics？
+<a id="1-什么是telegram-topics"></a>
+<a id="section-2-1"></a>
+### 2.1 什么是Telegram Topics？
 
-Telegram Topics是Telegram Bot API 9.4+引入的功能，允许在私聊中创建类似"频道"或"看板"的话题分区。Hermes利用这一特性实现：
+Telegram 的论坛话题与私聊话题有不同能力及路由字段，不能用一个未经核对的 Bot API 版本号概括。当前 Hermes 实现入口是 `plugins/platforms/telegram/adapter.py::TelegramAdapter`。其路由能力包括：
 
 - **并行会话**：每个Topic对应一个独立的Hermes Agent会话
-- **任务隔离**：不同Topic中的任务互不干扰
-- **上下文分离**：每个Topic维护自己的对话历史和记忆
+- **会话路由隔离**：不同 Topic 可以绑定不同 Session；不等于进程、文件或凭据的安全隔离
+- **上下文分离**：独立 Session 的对话历史分开；同一 Profile 的 built-in memory 仍可共享
 
-### 2. 系统架构
+<a id="2-系统架构"></a>
+<a id="section-2-2"></a>
+### 2.2 系统架构
 
 ```
 Telegram DM (Root/Main Chat)
@@ -34,25 +112,29 @@ Telegram DM (Root/Main Chat)
 │
 ├── Topic 1: "Research Project" → Session A
 │   ├── 独立对话历史
-│   ├── 独立记忆
+│   ├── 会话历史独立；Profile 记忆不保证独立
 │   └── 独立Agent状态
 │
 ├── Topic 2: "Code Review" → Session B
 │   ├── 独立对话历史
-│   ├── 独立记忆
+│   ├── 会话历史独立；Profile 记忆不保证独立
 │   └── 独立Agent状态
 │
 └── Topic 3: "Data Analysis" → Session C
     ├── 独立对话历史
-    ├── 独立记忆
+    ├── 会话历史独立；Profile 记忆不保证独立
     └── 独立Agent状态
 ```
 
 ---
 
-## 🚀 快速开始
+<a id="🚀-快速开始"></a>
+<a id="section-3"></a>
+## 3. 快速开始
 
-### 步骤1: 激活多会话模式
+<a id="步骤1-激活多会话模式"></a>
+<a id="section-3-1"></a>
+### 3.1 步骤1: 激活多会话模式
 
 在Telegram中与Hermes Bot的根聊天（主DM）发送：
 
@@ -84,7 +166,9 @@ To restore an old session:
 3. Send /topic <session_id> inside that topic.
 ```
 
-### 步骤2: 创建新的Topic会话
+<a id="步骤2-创建新的topic会话"></a>
+<a id="section-3-2"></a>
+### 3.2 步骤2: 创建新的Topic会话
 
 在Telegram Bot界面中：
 1. 点击 **"+" 按钮**创建新Topic
@@ -97,7 +181,9 @@ Hermes会自动：
 - 建立Topic到会话的绑定关系
 - 在该Topic的会话上下文中运行Agent
 
-### 步骤3: 并行工作
+<a id="步骤3-并行工作"></a>
+<a id="section-3-3"></a>
+### 3.3 步骤3: 并行工作
 
 现在你可以：
 - 在**Topic 1**中讨论项目A的设计
@@ -108,9 +194,13 @@ Hermes会自动：
 
 ---
 
-## 📖 命令参考
+<a id="📖-命令参考"></a>
+<a id="section-4"></a>
+## 4. 命令参考
 
-### `/topic` - 在主聊天中
+<a id="topic---在主聊天中"></a>
+<a id="section-4-1"></a>
+### 4.1 `/topic` - 在主聊天中
 
 **用途**：查看多会话模式状态和未关联的旧会话
 
@@ -131,7 +221,9 @@ To restore one:
 3. Send /topic <id>
 ```
 
-### `/topic` - 在Topic中（无参数）
+<a id="topic---在topic中无参数"></a>
+<a id="section-4-2"></a>
+### 4.2 `/topic` - 在Topic中（无参数）
 
 **用途**：查看当前Topic绑定的会话信息
 
@@ -145,7 +237,9 @@ Use /new to replace this topic with a fresh session.
 For parallel work, create another topic with the + button.
 ```
 
-### `/topic <session_id>` - 在Topic中
+<a id="topic-<session_id>---在topic中"></a>
+<a id="section-4-3"></a>
+### 4.3 `/topic <session_id>` - 在Topic中
 
 **用途**：将旧的/未关联的会话恢复到当前Topic
 
@@ -163,7 +257,9 @@ Last Hermes message:
 [显示该会话的最后一条Assistant消息]
 ```
 
-### `/new` - 在主聊天中（激活后）
+<a id="new---在主聊天中激活后"></a>
+<a id="section-4-4"></a>
+### 4.4 `/new` - 在主聊天中（激活后）
 
 **行为**：拒绝创建新会话，提示使用"+"按钮
 
@@ -176,7 +272,9 @@ Each topic is an independent Hermes session. Use /new inside
 a topic only if you want to replace that topic's current session.
 ```
 
-### `/new` - 在Topic中
+<a id="new---在topic中"></a>
+<a id="section-4-5"></a>
+### 4.5 `/new` - 在Topic中
 
 **行为**：在当前Topic中创建新会话（替换现有会话）
 
@@ -189,7 +287,9 @@ instead of using /new here. /new replaces the session attached
 to the current topic.
 ```
 
-### 普通文本消息 - 在主聊天中（激活后）
+<a id="普通文本消息---在主聊天中激活后"></a>
+<a id="section-4-6"></a>
+### 4.6 普通文本消息 - 在主聊天中（激活后）
 
 **行为**：拒绝进入Agent循环，提示使用Topic
 
@@ -202,19 +302,27 @@ in this bot interface. Each topic works as an independent
 Hermes session.
 ```
 
-### 普通文本消息 - 在Topic中
+<a id="普通文本消息---在topic中"></a>
+<a id="section-4-7"></a>
+### 4.7 普通文本消息 - 在Topic中
 
 **行为**：正常的Hermes Agent流程，在该Topic的会话上下文中运行
 
 ---
 
-## 💾 数据存储
+<a id="💾-数据存储"></a>
+<a id="section-5"></a>
+## 5. 💾 数据存储
 
-### SQLite表结构
+<a id="sqlite表结构"></a>
+<a id="section-5-1"></a>
+### 5.1 SQLite表结构
 
 Hermes使用两个专门的SQLite表来管理Telegram Topic模式：
 
-#### 1. `telegram_dm_topic_mode` - Topic模式激活状态
+<a id="1-telegram_dm_topic_mode---topic模式激活状态"></a>
+<a id="section-5-1-1"></a>
+#### 5.1.1 `telegram_dm_topic_mode` - Topic模式激活状态
 
 存储每个用户/聊天的激活状态：
 
@@ -243,7 +351,9 @@ CREATE TABLE telegram_dm_topic_mode (
 - `intro_message_id`: 引导消息ID
 - `pinned_message_id`: 固定的引导消息ID
 
-#### 2. `telegram_dm_topic_bindings` - Topic到会话的绑定
+<a id="2-telegram_dm_topic_bindings---topic到会话的绑定"></a>
+<a id="section-5-1-2"></a>
+#### 5.1.2 `telegram_dm_topic_bindings` - Topic到会话的绑定
 
 存储Telegram Topic与Hermes会话的映射关系：
 
@@ -285,7 +395,9 @@ ON telegram_dm_topic_bindings(user_id, chat_id);
 - 唯一索引：`session_id` - MVP中一个会话只能链接到一个Topic
 - 索引：`(user_id, chat_id)` - 加速用户查询
 
-### 迁移机制
+<a id="迁移机制"></a>
+<a id="section-5-2"></a>
+### 5.2 迁移机制
 
 Topic模式的表结构采用**显式迁移**策略：
 
@@ -296,7 +408,9 @@ Topic模式的表结构采用**显式迁移**策略：
 
 ---
 
-## 🔧 配置
+<a id="🔧-配置"></a>
+<a id="section-6"></a>
+## 6. 配置
 
 在`config.yaml`中配置Telegram平台：
 
@@ -318,9 +432,13 @@ platforms:
 
 ---
 
-## 🎨 使用场景
+<a id="🎨-使用场景"></a>
+<a id="section-7"></a>
+## 7. 🎨 使用场景
 
-### 场景1: 多项目并行开发
+<a id="场景1-多项目并行开发"></a>
+<a id="section-7-1"></a>
+### 7.1 场景1: 多项目并行开发
 
 ```
 Topic 1: "Frontend Redesign"
@@ -339,7 +457,9 @@ Topic 3: "DevOps Pipeline"
   - Kubernetes部署策略
 ```
 
-### 场景2: 学习与研究
+<a id="场景2-学习与研究"></a>
+<a id="section-7-2"></a>
+### 7.2 场景2: 学习与研究
 
 ```
 Topic 1: "Python Learning"
@@ -358,7 +478,9 @@ Topic 3: "System Design"
   - 设计决策讨论
 ```
 
-### 场景3: 团队协作模拟
+<a id="场景3-团队协作模拟"></a>
+<a id="section-7-3"></a>
+### 7.3 场景3: 团队协作模拟
 
 虽然目前只支持单用户，但可以用Topics模拟团队角色：
 
@@ -379,7 +501,9 @@ Topic 3: "QA Engineer"
   - 质量保障策略
 ```
 
-### 场景4: 长期项目管理
+<a id="场景4-长期项目管理"></a>
+<a id="section-7-4"></a>
+### 7.4 场景4: 长期项目管理
 
 ```
 Topic 1: "Project Alpha - Sprint 1"
@@ -397,9 +521,13 @@ Topic 3: "Project Alpha - Retrospective"
 
 ---
 
-## ⚙️ 高级功能
+<a id="⚙️-高级功能"></a>
+<a id="section-8"></a>
+## 8. ⚙️ 高级功能
 
-### 恢复旧会话
+<a id="恢复旧会话"></a>
+<a id="section-8-1"></a>
+### 8.1 恢复旧会话
 
 如果你有之前创建的Telegram会话（在启用Topic模式之前），可以将它们恢复到新的Topic中：
 
@@ -413,7 +541,9 @@ Topic 3: "Project Alpha - Retrospective"
 - MVP中一个会话不能同时链接到多个Topic
 - 恢复后会发送确认消息和最后一条Hermes回复
 
-### 会话管理模式
+<a id="会话管理模式"></a>
+<a id="section-8-2"></a>
+### 8.2 会话管理模式
 
 `managed_mode`字段标识Topic是如何与会话关联的：
 
@@ -423,7 +553,9 @@ Topic 3: "Project Alpha - Retrospective"
 
 这有助于追踪会话的来源和管理历史。
 
-### 系统大厅命令
+<a id="系统大厅命令"></a>
+<a id="section-8-3"></a>
+### 8.3 系统大厅命令
 
 激活Topic模式后，主聊天变为系统大厅，支持的命令包括：
 
@@ -438,32 +570,44 @@ Topic 3: "Project Alpha - Retrospective"
 
 ---
 
-## ⚠️ 注意事项
+<a id="⚠️-注意事项"></a>
+<a id="section-9"></a>
+## 9. 注意事项
 
-### 1. 不要滥用`/new`
+<a id="1-不要滥用new"></a>
+<a id="section-9-1"></a>
+### 9.1 不要滥用`/new`
 
 在Topic中使用`/new`会**替换**当前Topic的会话，而不是创建并行会话。如果需要并行工作，应该：
 - ✅ 使用"+"按钮创建新Topic
 - ❌ 避免在同一个Topic中频繁使用`/new`
 
-### 2. 会话唯一性
+<a id="2-会话唯一性"></a>
+<a id="section-9-2"></a>
+### 9.2 会话唯一性
 
 MVP中，一个Hermes会话只能链接到一个Telegram Topic。如果你尝试将已链接的会话恢复到另一个Topic，会被拒绝。
 
-### 3. 主题命名
+<a id="3-主题命名"></a>
+<a id="section-9-3"></a>
+### 9.3 主题命名
 
 虽然Hermes不强制要求特定的Topic命名规范，但建议使用清晰的名称：
 - ✅ "Project Alpha - Backend"
 - ✅ "Learning - Python Basics"
 - ❌ "Test 1", "asdf", ""
 
-### 4. 数据持久化
+<a id="4-数据持久化"></a>
+<a id="section-9-4"></a>
+### 9.4 数据持久化
 
 - Topic绑定信息存储在SQLite数据库中
 - 即使重启Hermes Gateway，绑定关系也会保留
 - 删除会话时，相关的Topic绑定会通过外键级联删除
 
-### 5. 性能考虑
+<a id="5-性能考虑"></a>
+<a id="section-9-5"></a>
+### 9.5 性能考虑
 
 - 每个Topic都是独立的会话，有自己的上下文和记忆
 - 大量并行的Topic会增加内存使用
@@ -471,9 +615,13 @@ MVP中，一个Hermes会话只能链接到一个Telegram Topic。如果你尝试
 
 ---
 
-## 🔍 故障排查
+<a id="🔍-故障排查"></a>
+<a id="section-10"></a>
+## 10. 故障排查
 
-### 问题1: `/topic`命令返回错误
+<a id="问题1-topic命令返回错误"></a>
+<a id="section-10-1"></a>
+### 10.1 问题1: `/topic`命令返回错误
 
 **可能原因**：
 - Telegram Bot未启用Topics功能
@@ -484,7 +632,9 @@ MVP中，一个Hermes会话只能链接到一个Telegram Topic。如果你尝试
 2. 确保启用了"Topics"或"Forum"功能
 3. 更新python-telegram-bot库到最新版本
 
-### 问题2: 创建Topic后没有响应
+<a id="问题2-创建topic后没有响应"></a>
+<a id="section-10-2"></a>
+### 10.2 问题2: 创建Topic后没有响应
 
 **可能原因**：
 - `message_thread_id`未被正确识别
@@ -495,7 +645,9 @@ MVP中，一个Hermes会话只能链接到一个Telegram Topic。如果你尝试
 2. 确认Telegram消息包含`message_thread_id`字段
 3. 验证数据库迁移是否成功执行
 
-### 问题3: 无法恢复旧会话
+<a id="问题3-无法恢复旧会话"></a>
+<a id="section-10-3"></a>
+### 10.3 问题3: 无法恢复旧会话
 
 **可能原因**：
 - 会话不属于当前用户
@@ -506,7 +658,9 @@ MVP中，一个Hermes会话只能链接到一个Telegram Topic。如果你尝试
 2. 检查会话是否已在其他Topic中活跃
 3. 如需移动会话，先在原Topic中使用`/new`释放它
 
-### 问题4: Topic中的消息发送到错误的会话
+<a id="问题4-topic中的消息发送到错误的会话"></a>
+<a id="section-10-4"></a>
+### 10.4 问题4: Topic中的消息发送到错误的会话
 
 **可能原因**：
 - 绑定关系混乱
@@ -519,9 +673,13 @@ MVP中，一个Hermes会话只能链接到一个Telegram Topic。如果你尝试
 
 ---
 
-## 📊 监控与管理
+<a id="📊-监控与管理"></a>
+<a id="section-11"></a>
+## 11. 监控与管理
 
-### 查看所有Topic绑定
+<a id="查看所有topic绑定"></a>
+<a id="section-11-1"></a>
+### 11.1 查看所有Topic绑定
 
 可以通过直接查询SQLite数据库来查看所有Topic绑定：
 
@@ -529,13 +687,17 @@ MVP中，一个Hermes会话只能链接到一个Telegram Topic。如果你尝试
 sqlite3 state.db "SELECT * FROM telegram_dm_topic_bindings;"
 ```
 
-### 查看Topic模式状态
+<a id="查看topic模式状态"></a>
+<a id="section-11-2"></a>
+### 11.2 查看Topic模式状态
 
 ```bash
 sqlite3 state.db "SELECT * FROM telegram_dm_topic_mode;"
 ```
 
-### 清理未使用的绑定
+<a id="清理未使用的绑定"></a>
+<a id="section-11-3"></a>
+### 11.3 清理未使用的绑定
 
 如果某些Topic已被删除但绑定仍存在，可以手动清理：
 
@@ -546,9 +708,13 @@ sqlite3 state.db "DELETE FROM telegram_dm_topic_bindings WHERE chat_id = 'YOUR_C
 
 ---
 
-## 🔄 未来规划
+<a id="🔄-未来规划"></a>
+<a id="section-12"></a>
+## 12. 未来规划
 
-### 计划中的功能
+<a id="计划中的功能"></a>
+<a id="section-12-1"></a>
+### 12.1 计划中的功能
 
 1. **Live Status Suffixes**：在Topic标题中显示实时状态（如"🟢 Active"、"⏸️ Paused"）
 2. **Topic Title Sync**：自动同步Topic标题与会话名称
@@ -557,7 +723,9 @@ sqlite3 state.db "DELETE FROM telegram_dm_topic_bindings WHERE chat_id = 'YOUR_C
 5. **批量管理**：批量创建、删除、归档Topic
 6. **权限管理**：在多用户场景中支持Topic级别的权限控制
 
-### 可能的改进
+<a id="可能的改进"></a>
+<a id="section-12-2"></a>
+### 12.2 可能的改进
 
 1. **智能Topic建议**：根据对话内容自动建议Topic分类
 2. **Topic合并**：将相关的Topic合并为一个
@@ -566,18 +734,24 @@ sqlite3 state.db "DELETE FROM telegram_dm_topic_bindings WHERE chat_id = 'YOUR_C
 
 ---
 
-## 📚 相关文档
+<a id="📚-相关文档"></a>
+<a id="section-13"></a>
+## 13. 相关文档
 
 - [Hermes Agent 架构文档](./ARCHITECTURE.md)
 - [会话管理系统](./MEMORY_SYSTEM.md)
-- [Telegram平台集成](../gateway/platforms/telegram.py)
-- [SessionDB实现](../hermes_state.py)
+- [Telegram平台集成](../../../../../hermes-dev/hermes-agent/plugins/platforms/telegram/adapter.py)
+- [SessionDB实现](../../../../../hermes-dev/hermes-agent/hermes_state.py)
 
 ---
 
-## 💡 最佳实践
+<a id="💡-最佳实践"></a>
+<a id="section-14"></a>
+## 14. 最佳实践
 
-### 1. 组织你的Topics
+<a id="1-组织你的topics"></a>
+<a id="section-14-1"></a>
+### 14.1 组织你的Topics
 
 ```
 推荐结构：
@@ -587,13 +761,17 @@ sqlite3 state.db "DELETE FROM telegram_dm_topic_bindings WHERE chat_id = 'YOUR_C
 - 按角色分：PM-Perspective, Dev-Perspective, QA-Perspective
 ```
 
-### 2. 定期清理
+<a id="2-定期清理"></a>
+<a id="section-14-2"></a>
+### 14.2 定期清理
 
 - 完成的项目Topic可以归档或删除
 - 使用`/new`重置不再需要的Topic
 - 定期运行`/topic`检查未关联的会话
 
-### 3. 命名规范
+<a id="3-命名规范"></a>
+<a id="section-14-3"></a>
+### 14.3 命名规范
 
 ```
 好的命名：
@@ -607,7 +785,9 @@ sqlite3 state.db "DELETE FROM telegram_dm_topic_bindings WHERE chat_id = 'YOUR_C
 ❌ "123"
 ```
 
-### 4. 会话隔离
+<a id="4-会话隔离"></a>
+<a id="section-14-4"></a>
+### 14.4 会话隔离
 
 - 不要在同一个Topic中混合完全不同的任务
 - 为每个主要任务创建专用的Topic
@@ -615,7 +795,9 @@ sqlite3 state.db "DELETE FROM telegram_dm_topic_bindings WHERE chat_id = 'YOUR_C
 
 ---
 
-## 🎉 总结
+<a id="🎉-总结"></a>
+<a id="section-15"></a>
+## 15. 🎉 总结
 
 Hermes Agent的Telegram看板多Agent协作功能为你提供了：
 
@@ -631,3 +813,6 @@ Hermes Agent的Telegram看板多Agent协作功能为你提供了：
 3. 开始并行工作！
 
 享受高效的多任务Agent协作体验！🚀
+
+<!-- 旧章节锚点兼容：对应内容已校订，见文首导航。 -->
+<a id="hermes-agent-telegram-看板多agent协作指南"></a>

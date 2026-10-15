@@ -1,35 +1,82 @@
 # MCP 集成
 
-> **文档状态**: Canonical（去重重构版）  
-> **Hermes 版本锚点**: 0.19.0 · **核对**: 2026-07-31 · [DOC_MAINTENANCE.md](DOC_MAINTENANCE.md)  
-> **重构说明**: 删除重复的 Handler 教程 / 双份「最佳实践」/ stub 动态发现；保留命名、Schema、事件循环、OAuth、Sampling、错误模型各一份。  
+<!-- legacy-review:start -->
+> **2026-10-15 校订导航**：远端能力怎样发现、注册、鉴权和执行。\
+> **核对范围**：修复 OAuth 目录定位；协议能力、Hermes 已实现子集及历史示例不能混称为完整支持。\
+> **适用基线**：本地源码 `60d00c5633ad`；不是最新发布版本声明。原稿版本、行号、性能数字与长代码块若未在校订范围内，仍按历史示例阅读。
+> **先读当前结论**：[当前实现导读](CURRENT_IMPLEMENTATION.md#current-extensions) · **现行分卷**：[05-capabilities-extensions.md](../../volumes/05-capabilities-extensions.md) · [具体改动与未验证项](REVIEW_AND_CHANGES.md) · [返回全目录](README.md)
+
+<!-- legacy-review:end -->
+<a id="目录"></a>
+## 目录
+
+<!-- visible-toc:start -->
+- [1. 概述](#section-1)
+  - [1.1 什么是 MCP?](#section-1-1)
+  - [1.2 Hermes MCP 集成价值](#section-1-2)
+- [2. MCP 协议简介](#section-2)
+  - [2.1 核心概念](#section-2-1)
+  - [2.2 支持的 Transports](#section-2-2)
+  - [2.3 Hermes MCP 实现架构](#section-2-3)
+- [3. Hermes MCP 客户端](#section-3)
+  - [3.1 MCP 工具注册流程](#section-3-1)
+  - [3.2 工具描述（Schema）转换](#section-3-2)
+  - [3.3 工具 Handler 工厂](#section-3-3)
+  - [3.4 后台事件循环架构](#section-3-4)
+  - [3.5 动态工具发现（notifications/tools/list_changed）](#section-3-5)
+  - [3.6 服务器配置](#section-3-6)
+  - [3.7 OAuth 管理器](#section-3-7)
+- [4. MCP 服务器集成流程](#section-4)
+  - [4.1 添加新 MCP Server](#section-4-1)
+- [5. MCP 工具调用](#section-5)
+  - [5.1 调用流程详解](#section-5-1)
+  - [5.2 错误处理机制](#section-5-2)
+  - [5.3 图片内容支持](#section-5-3)
+  - [5.4 结构化内容（structuredContent）](#section-5-4)
+- [6. 与原生工具对比](#section-6)
+  - [6.1 对比矩阵](#section-6-1)
+  - [6.2 选择建议](#section-6-2)
+- [7. MCP Sampling 支持](#section-7)
+  - [7.1 什么是 MCP Sampling?](#section-7-1)
+  - [7.2 Sampling 配置](#section-7-2)
+  - [7.3 Sampling 流程](#section-7-3)
+  - [7.4 安全机制](#section-7-4)
+- [8. 性能优化与监控](#section-8)
+  - [8.1 连接复用](#section-8-1)
+  - [8.2 自动重连](#section-8-2)
+  - [8.3 错误消息脱敏](#section-8-3)
+  - [8.4 监控指标](#section-8-4)
+- [9. 最佳实践](#section-9)
+  - [9.1 配置管理](#section-9-1)
+  - [9.2 超时设置](#section-9-2)
+  - [9.3 错误处理](#section-9-3)
+  - [9.4 性能优化](#section-9-4)
+  - [9.5 安全考虑](#section-9-5)
+- [10. 总结](#section-10)
+<!-- visible-toc:end -->
+
+
+
+
+> **原稿文档状态（历史标签）**: Canonical（去重重构版）\
+> **原稿版本锚点（历史）**: 0.19.0 · **核对**: 2026-07-31 · [DOC_MAINTENANCE.md](DOC_MAINTENANCE.md)\
+> **重构说明**: 删除重复的 Handler 教程 / 双份「最佳实践」/ stub 动态发现；保留命名、Schema、事件循环、OAuth、Sampling、错误模型各一份。\
 > **源码**: `tools/mcp_tool.py`
 
 ---
 
-## 目录
-
-1. [概述](#1-概述)
-2. [MCP 协议简介](#2-mcp-协议简介)
-3. [Hermes MCP 客户端](#3-hermes-mcp-客户端)
-4. [OAuth](#4-mcp-oauth-认证)
-5. [添加 MCP Server](#5-mcp-服务器集成流程)
-6. [工具调用](#6-mcp-工具调用)
-7. [与原生工具对比](#7-与原生工具对比)
-8. [Sampling](#8-mcp-sampling-支持)
-9. [性能与监控](#9-性能优化与监控)
-10. [最佳实践](#10-最佳实践)
-11. [总结](#总结)
-
----
-
-
+<a id="1-概述"></a>
+<a id="section-1"></a>
 ## 1. 概述
 
+<a id="11-什么是-mcp"></a>
+<a id="section-1-1"></a>
 ### 1.1 什么是 MCP?
 
 **MCP (Model Context Protocol)** 是一个开放协议,允许 AI 模型通过标准化接口访问外部数据源和工具。由 Anthropic 提出,旨在解决"AI 模型如何安全访问外部资源"的问题。
 
+<a id="12-hermes-mcp-集成价值"></a>
+<a id="section-1-2"></a>
 ### 1.2 Hermes MCP 集成价值
 
 | 价值 | 说明 |
@@ -42,8 +89,12 @@
 
 ---
 
+<a id="2-mcp-协议简介"></a>
+<a id="section-2"></a>
 ## 2. MCP 协议简介
 
+<a id="21-核心概念"></a>
+<a id="section-2-1"></a>
 ### 2.1 核心概念
 
 ```mermaid
@@ -64,6 +115,8 @@ graph LR
 - **Resources**: 数据源(文件、数据库记录等)
 - **Prompts**: 预定义模板
 
+<a id="22-支持的-transports"></a>
+<a id="section-2-2"></a>
 ### 2.2 支持的 Transports
 
 | Transport | 适用场景 | 示例 |
@@ -74,11 +127,15 @@ graph LR
 
 ---
 
+<a id="23-hermes-mcp-实现架构"></a>
+<a id="section-2-3"></a>
 ### 2.3 Hermes MCP 实现架构
 
 Hermes Agent 采用**混合架构**：底层使用官方 MCP Python SDK，上层进行大量工程化封装。
 
-#### **架构分层**
+<a id="架构分层"></a>
+<a id="section-2-3-1"></a>
+#### 2.3.1 **架构分层**
 
 ```mermaid
 graph TB
@@ -131,7 +188,9 @@ graph TB
     C5 --> D3
 ```
 
-#### **职责划分**
+<a id="职责划分"></a>
+<a id="section-2-3-2"></a>
+#### 2.3.2 **职责划分**
 
 | 层级 | 功能 | 实现方式 |
 |------|------|----------|
@@ -142,20 +201,28 @@ graph TB
 | **业务层** | 工具注册、熔断器、OAuth恢复、动态发现 | 🔧 Hermes 自研 |
 | **增强层** | Schema标准化、图片缓存、安全过滤 | 🔧 Hermes 自研 |
 
-#### **为什么需要封装？**
+<a id="为什么需要封装"></a>
+<a id="section-2-3-3"></a>
+#### 2.3.3 **为什么需要封装？**
 
 **问题 1: 同步 vs 异步** — Hermes 主循环是同步的，MCP SDK 是异步的，必须经后台事件循环桥接（见 [§3.5](#35-后台事件循环架构) / 下文事件循环节）。
 
 其余封装动机（熔断、OAuth、Schema 标准化、动态发现）见本章后续小节与 [§6.3 错误处理](#63-错误处理机制)。
 
+<a id="3-hermes-mcp-客户端"></a>
+<a id="section-3"></a>
 ## 3. Hermes MCP 客户端
 
 
+<a id="31-mcp-工具注册流程"></a>
+<a id="section-3-1"></a>
 ### 3.1 MCP 工具注册流程
 
 Hermes Agent **不会**将 MCP 工具直接注册为 `mcp_call`，而是**自动发现并注册每个 MCP 服务器的具体工具**。
 
-#### **完整注册流程**
+<a id="完整注册流程"></a>
+<a id="section-3-1-1"></a>
+#### 3.1.1 **完整注册流程**
 
 ```mermaid
 sequenceDiagram
@@ -184,7 +251,9 @@ sequenceDiagram
     Server->>Registry: registry.register_toolset_alias(server_name, toolset_name)
 ```
 
-#### **关键步骤详解**
+<a id="关键步骤详解"></a>
+<a id="section-3-1-2"></a>
+#### 3.1.2 **关键步骤详解**
 
 **步骤 1：加载配置**
 
@@ -314,9 +383,13 @@ registry.register(name="mcp_gitlab_list_repositories", ...)    # ✓
 
 ---
 
-### 3.3 工具描述（Schema）转换
+<a id="33-工具描述schema转换"></a>
+<a id="section-3-2"></a>
+### 3.2 工具描述（Schema）转换
 
-#### **输入 Schema 标准化**
+<a id="输入-schema-标准化"></a>
+<a id="section-3-2-1"></a>
+#### 3.2.1 **输入 Schema 标准化**
 
 ```python
 # tools/mcp_tool.py:L2569-2674
@@ -417,9 +490,13 @@ def _normalize_mcp_input_schema(schema: dict | None) -> dict:
 ---
 
 
-### 3.4 工具 Handler 工厂
+<a id="34-工具-handler-工厂"></a>
+<a id="section-3-3"></a>
+### 3.3 工具 Handler 工厂
 
-#### **什么是工厂函数？**
+<a id="什么是工厂函数"></a>
+<a id="section-3-3-1"></a>
+#### 3.3.1 **什么是工厂函数？**
 
 `_make_tool_handler` 是一个**工厂函数**（Factory Function），它的作用是**动态生成**一个工具调用处理器。
 
@@ -457,7 +534,9 @@ filesystem_read_handler = _make_tool_handler("filesystem", "read_file", 60)
 
 ---
 
-#### **核心概念：闭包（Closure）**
+<a id="核心概念闭包closure"></a>
+<a id="section-3-3-2"></a>
+#### 3.3.2 **核心概念：闭包（Closure）**
 
 ```python
 def _make_tool_handler(server_name: str, tool_name: str, tool_timeout: float):
@@ -507,7 +586,9 @@ result2 = handler2({"owner": "..."})
 
 ---
 
-#### **完整执行流程详解**
+<a id="完整执行流程详解"></a>
+<a id="section-3-3-3"></a>
+#### 3.3.3 **完整执行流程详解**
 
 让我们用一个实际例子来跟踪整个执行过程：
 
@@ -741,9 +822,13 @@ result = check_fn()
 ---
 
 
-### 3.5 后台事件循环架构
+<a id="35-后台事件循环架构"></a>
+<a id="section-3-4"></a>
+### 3.4 后台事件循环架构
 
-#### **为什么需要后台事件循环？**
+<a id="为什么需要后台事件循环"></a>
+<a id="section-3-4-1"></a>
+#### 3.4.1 **为什么需要后台事件循环？**
 
 Hermes Agent 的主循环是**同步的** (`run_conversation`)，但 MCP SDK 基于 **asyncio**。解决方案：
 
@@ -855,7 +940,9 @@ print("Reusing existing MCP event loop")
 
 **为什么不用 async/await 重构整个 Agent？**
 
-### 3.6 动态工具发现（notifications/tools/list_changed）
+<a id="36-动态工具发现notificationstoolslist_changed"></a>
+<a id="section-3-5"></a>
+### 3.5 动态工具发现（notifications/tools/list_changed）
 
 MCP 服务器可以在运行时动态添加/删除工具，Hermes 通过**通知机制**自动同步：
 
@@ -922,7 +1009,9 @@ async def _refresh_tools(self):
 **实际运行示例**：
 
 
-### 3.7 服务器配置
+<a id="37-服务器配置"></a>
+<a id="section-3-6"></a>
+### 3.6 服务器配置
 
 
 ```yaml
@@ -981,7 +1070,9 @@ sequenceDiagram
     H->>U: 保存配置
 ```
 
-### 4.2 OAuth 管理器
+<a id="42-oauth-管理器"></a>
+<a id="section-3-7"></a>
+### 3.7 OAuth 管理器
 
 ```python
 # tools/mcp_oauth_manager.py
@@ -1055,9 +1146,13 @@ class MCPOAuthManager:
 ---
 
 
-## 5. MCP 服务器集成流程
+<a id="5-mcp-服务器集成流程"></a>
+<a id="section-4"></a>
+## 4. MCP 服务器集成流程
 
-### 5.1 添加新 MCP Server
+<a id="51-添加新-mcp-server"></a>
+<a id="section-4-1"></a>
+### 4.1 添加新 MCP Server
 
 **步骤 1**: 安装服务器
 ```bash
@@ -1100,9 +1195,13 @@ hermes mcp test github
 ```
 
 
-## 6. MCP 工具调用
+<a id="6-mcp-工具调用"></a>
+<a id="section-5"></a>
+## 5. MCP 工具调用
 
-### 6.1 调用流程详解
+<a id="61-调用流程详解"></a>
+<a id="section-5-1"></a>
+### 5.1 调用流程详解
 
 当 Agent 决定调用一个 MCP 工具时，完整的执行链路如下：
 
@@ -1150,9 +1249,13 @@ sequenceDiagram
 ```
 
 
-### 6.3 错误处理机制
+<a id="63-错误处理机制"></a>
+<a id="section-5-2"></a>
+### 5.2 错误处理机制
 
-#### **1. 熔断器（Circuit Breaker）**
+<a id="1-熔断器circuit-breaker"></a>
+<a id="section-5-2-1"></a>
+#### 5.2.1 **1. 熔断器（Circuit Breaker）**
 
 ```python
 # tools/mcp_tool.py:L2176-2189
@@ -1189,7 +1292,9 @@ if _server_error_counts.get(server_name, 0) >= _CIRCUIT_BREAKER_THRESHOLD:
                                   失败 → 重新进入熔断
 ```
 
-#### **2. OAuth 认证恢复**
+<a id="2-oauth-认证恢复"></a>
+<a id="section-5-2-2"></a>
+#### 5.2.2 **2. OAuth 认证恢复**
 
 ```python
 # tools/mcp_tool.py:L1725-1832
@@ -1236,7 +1341,9 @@ def _handle_auth_error_and_retry(server_name, exc, retry_call, op_description):
     })
 ```
 
-#### **3. Session 过期恢复**
+<a id="3-session-过期恢复"></a>
+<a id="section-5-2-3"></a>
+#### 5.2.3 **3. Session 过期恢复**
 
 ```python
 # tools/mcp_tool.py:L1881-1961
@@ -1296,7 +1403,9 @@ def _is_session_expired_error(exc):
     return any(marker in msg for marker in _SESSION_EXPIRED_MARKERS)
 ```
 
-#### **4. 凭证脱敏**
+<a id="4-凭证脱敏"></a>
+<a id="section-5-2-4"></a>
+#### 5.2.4 **4. 凭证脱敏**
 
 ```python
 # tools/mcp_tool.py:L268-280, L306-312
@@ -1331,7 +1440,9 @@ sanitized = _sanitize_error(error)
 
 ---
 
-### 6.4 图片内容支持
+<a id="64-图片内容支持"></a>
+<a id="section-5-3"></a>
+### 5.3 图片内容支持
 
 MCP 工具可以返回图片（如截图、图表），Hermes 通过 **MEDIA 标签**自动渲染：
 
@@ -1392,7 +1503,9 @@ result.content = [
 
 ---
 
-### 6.5 结构化内容（structuredContent）
+<a id="65-结构化内容structuredcontent"></a>
+<a id="section-5-4"></a>
+### 5.4 结构化内容（structuredContent）
 
 MCP 协议支持同时返回**文本内容**和**结构化数据**：
 
@@ -1441,9 +1554,13 @@ CallToolResult(
 
 ---
 
-## 7. 与原生工具对比
+<a id="7-与原生工具对比"></a>
+<a id="section-6"></a>
+## 6. 与原生工具对比
 
-### 7.1 对比矩阵
+<a id="71-对比矩阵"></a>
+<a id="section-6-1"></a>
+### 6.1 对比矩阵
 
 | 特性 | MCP 工具 | 原生工具 |
 |------|---------|---------|
@@ -1455,7 +1572,9 @@ CallToolResult(
 | **安全性** | ✅ OAuth 支持 | ⚠️ API keys |
 | **适用场景** | 第三方服务集成 | 核心功能 |
 
-### 7.2 选择建议
+<a id="72-选择建议"></a>
+<a id="section-6-2"></a>
+### 6.2 选择建议
 
 **使用 MCP 工具当**:
 - ✅ 需要集成第三方服务(GitHub、Slack、Notion等)
@@ -1470,9 +1589,13 @@ CallToolResult(
 ---
 
 
-## 8. MCP Sampling 支持
+<a id="8-mcp-sampling-支持"></a>
+<a id="section-7"></a>
+## 7. MCP Sampling 支持
 
-### 8.1 什么是 MCP Sampling?
+<a id="81-什么是-mcp-sampling"></a>
+<a id="section-7-1"></a>
+### 7.1 什么是 MCP Sampling?
 
 **MCP Sampling** 允许 MCP Server 主动向 Client (Hermes Agent) 请求 LLM 补全,实现双向交互:
 
@@ -1486,7 +1609,9 @@ Sampling模式: MCP Server → Hermes (请求 LLM 推理)
 - MCP Server 需要生成自然语言回复 (例如: Slack 智能回复)
 - MCP Server 需要决策下一步操作 (例如: 数据库查询优化建议)
 
-### 8.2 Sampling 配置
+<a id="82-sampling-配置"></a>
+<a id="section-7-2"></a>
+### 7.2 Sampling 配置
 
 ```yaml
 # ~/.hermes/config.yaml
@@ -1510,7 +1635,9 @@ mcp_servers:
       log_level: "info"          # 审计日志级别
 ```
 
-### 8.3 Sampling 流程
+<a id="83-sampling-流程"></a>
+<a id="section-7-3"></a>
+### 7.3 Sampling 流程
 
 ```mermaid
 sequenceDiagram
@@ -1532,7 +1659,9 @@ sequenceDiagram
     end
 ```
 
-### 8.4 安全机制
+<a id="84-安全机制"></a>
+<a id="section-7-4"></a>
+### 7.4 安全机制
 
 **1. 权限控制**:
 
@@ -1606,9 +1735,13 @@ def _enforce_token_cap(self, server_name: str, prompt_tokens: int):
 
 ---
 
-## 9. 性能优化与监控
+<a id="9-性能优化与监控"></a>
+<a id="section-8"></a>
+## 8. 性能优化与监控
 
-### 9.1 连接复用
+<a id="91-连接复用"></a>
+<a id="section-8-1"></a>
+### 8.1 连接复用
 
 **问题**: 每次工具调用都重新连接 MCP Server 会导致:
 - ❌ 启动延迟 (~500ms-2s)
@@ -1652,7 +1785,9 @@ class MCPServerManager:
         return session
 ```
 
-### 9.2 自动重连
+<a id="92-自动重连"></a>
+<a id="section-8-2"></a>
+### 8.2 自动重连
 
 ```python
 async def _connect_with_retry(self, server_name: str, max_retries: int = 5):
@@ -1680,7 +1815,9 @@ async def _connect_with_retry(self, server_name: str, max_retries: int = 5):
     )
 ```
 
-### 9.3 错误消息脱敏
+<a id="93-错误消息脱敏"></a>
+<a id="section-8-3"></a>
+### 8.3 错误消息脱敏
 
 **问题**: MCP Server 的错误消息可能包含敏感信息 (API Keys、路径等)
 
@@ -1705,7 +1842,9 @@ def _sanitize_error_message(self, error: str, server_name: str) -> str:
     return error
 ```
 
-### 9.4 监控指标
+<a id="94-监控指标"></a>
+<a id="section-8-4"></a>
+### 8.4 监控指标
 
 ```python
 class MCPMetrics:
@@ -1755,9 +1894,13 @@ hermes mcp stats
 ---
 
 
-## 10. 最佳实践
+<a id="10-最佳实践"></a>
+<a id="section-9"></a>
+## 9. 最佳实践
 
-### 10.1 配置管理
+<a id="101-配置管理"></a>
+<a id="section-9-1"></a>
+### 9.1 配置管理
 
 **✅ 推荐**: 使用环境变量注入敏感信息
 
@@ -1788,7 +1931,9 @@ mcp_servers:
       GITHUB_TOKEN: "ghp_abc123..."  # 泄露风险!
 ```
 
-### 10.2 超时设置
+<a id="102-超时设置"></a>
+<a id="section-9-2"></a>
+### 9.2 超时设置
 
 根据服务器类型调整超时:
 
@@ -1810,7 +1955,9 @@ mcp_servers:
     connect_timeout: 30  # 30s
 ```
 
-### 10.3 错误处理
+<a id="103-错误处理"></a>
+<a id="section-9-3"></a>
+### 9.3 错误处理
 
 **在 Agent Prompt 中说明 MCP 限制**:
 
@@ -1835,7 +1982,9 @@ When using MCP tools:
    can take up to 5 minutes. Be patient and inform the user.
 ```
 
-### 10.4 性能优化
+<a id="104-性能优化"></a>
+<a id="section-9-4"></a>
+### 9.4 性能优化
 
 **1. 批量操作**:
 
@@ -1880,7 +2029,9 @@ async def fetch_all():
     return {"github": github_result, "slack": slack_result}
 ```
 
-### 10.5 安全考虑
+<a id="105-安全考虑"></a>
+<a id="section-9-5"></a>
+### 9.5 安全考虑
 
 **1. 最小权限原则**:
 
@@ -1929,7 +2080,9 @@ tail -f ~/.hermes/logs/mcp-audit.log
 
 ---
 
-## 总结
+<a id="总结"></a>
+<a id="section-10"></a>
+## 10. 总结
 
 Hermes MCP 集成的核心优势:
 

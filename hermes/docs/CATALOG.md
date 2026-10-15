@@ -1,7 +1,7 @@
 # Hermes 文档分类与合订本映射
 
 > **合订本（按章合并）**：[`volumes/MANIFEST.md`](volumes/MANIFEST.md)  
-> **核对**：2026-10-14 · 重建：`python3 _merge/build_volumes.py`
+> **维护核对**：2026-10-15 · 现行分卷直接编辑；不要用归档覆盖手工增补。
 
 ---
 
@@ -16,10 +16,10 @@
 | **五** | [05-capabilities-extensions.md](volumes/05-capabilities-extensions.md) | MEMORY · TOOLS · SKILLS · MCP · PLUGINS |
 | **六** | [06-gateways-channels-and-hitl.md](volumes/06-gateways-channels-and-hitl.md) | CLI_GATEWAY · HITL · TELEGRAM · Gateway 附录 |
 | **七** | [07-multi-agent-and-kanban.md](volumes/07-multi-agent-and-kanban.md) | MULTI_AGENT · KANBAN 深潜 |
-| **八** | [08-security-and-governance.md](volumes/08-security-and-governance.md) | SECURITY（含原 Background Review Part B） |
+| **八** | [08-security-and-governance.md](volumes/08-security-and-governance.md) | SECURITY（早期合卷含 Background Review；legacy 正文现归 Skills 篇） |
 | **九** | [09-reference-history-and-versions.md](volumes/09-reference-history-and-versions.md) | VERSION_HISTORY · DOC_MAINTENANCE · LANGGRAPH · VIDEO |
 
-**现行正文**：`volumes/*.md`。**编辑源**：`archive/legacy/*.md`（合并前单篇归档）。
+**现行正文**：`volumes/*.md`。**独立教程与历史脉络**：`archive/legacy/*.md`（已开始按源码校订，不是自动回填分卷的唯一编辑源）。
 
 ---
 
@@ -34,10 +34,10 @@
 
 ## 维护流程
 
-1. 编辑 `archive/legacy/<原文件名>.md`（`EXECUTION_FLOW` 可与 `archive/EXECUTION_FLOW_ANALYSIS.md` 同步）  
-2. `python3 _merge/build_volumes.py`  
-3. 对照 `volumes/MANIFEST.md` 与卷首统计表  
-4. 更新卷九「版本演进」若发版
+1. 日常更新直接修改对应 `volumes/` 分卷，按文末维护规范执行校验。
+2. 校订旧教程时修改 `archive/legacy/`，同步其目录与核对记录；需要同步分卷的结论单独人工审阅。
+3. `_merge/build_volumes.py` 只保留早期合卷用途，**不要作为日常维护步骤**，以免覆盖现有增补。
+4. 版本史只记录已核实的版本身份，不把旧 tag 或 `__release_date__` 当成当前安装版本。
 
 ---
 

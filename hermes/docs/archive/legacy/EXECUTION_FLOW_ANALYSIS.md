@@ -1,7 +1,81 @@
 # Hermes Agent 完整执行流程分析
 
+<!-- legacy-review:start -->
+> **2026-10-15 校订导航**：沿一次执行串起模块：历史长示例怎么读。\
+> **核对范围**：保留旧长链路与代码样例；旧内联源码、行号和运行参数未逐段认证，请结合当前链路阅读。\
+> **适用基线**：本地源码 `60d00c5633ad`；不是最新发布版本声明。原稿版本、行号、性能数字与长代码块若未在校订范围内，仍按历史示例阅读。
+> **先读当前结论**：[当前实现导读](CURRENT_IMPLEMENTATION.md#current-flush) · **现行分卷**：[03-runtime-session-and-loop.md](../../volumes/03-runtime-session-and-loop.md) · [具体改动与未验证项](REVIEW_AND_CHANGES.md) · [返回全目录](README.md)
+
+<!-- legacy-review:end -->
+<a id="目录"></a>
+## 目录
+
+<!-- visible-toc:start -->
+- [1. 项目概述](#section-1)
+  - [1.1 什么是 Hermes Agent？](#section-1-1)
+  - [1.2 核心特性对比](#section-1-2)
+  - [1.3 项目结构](#section-1-3)
+- [2. 核心架构](#section-2)
+  - [2.1 分层架构图](#section-2-1)
+  - [2.2 核心组件职责](#section-2-2)
+- [3. Agent Loop 执行流程](#section-3)
+  - [3.1 核心循环架构](#section-3-1)
+  - [3.2 详细的执行步骤](#section-3-2)
+  - [3.3 完整的 Agent Loop 时序图](#section-3-3)
+  - [3.4 性能优化](#section-3-4)
+- [4. Prompt 构建机制](#section-4)
+  - [4.1 Prompt 的组成结构](#section-4-1)
+  - [4.2 核心组件详解](#section-4-2)
+  - [4.3 完整的 Prompt 组装流程](#section-4-3)
+  - [4.4 Prompt 缓存策略](#section-4-4)
+- [5. Skills 系统](#section-5)
+  - [5.1 Skills 架构设计](#section-5-1)
+  - [5.2 Skills 目录结构](#section-5-2)
+- [6. Conventional Commit Types](#section-6)
+- [7. Examples](#section-7)
+- [8. Related Resources](#section-8)
+  - [8.1 Skills 工具实现](#section-8-1)
+  - [8.2 Skills 自改进机制](#section-8-2)
+- [9. Rollback Procedure](#section-9)
+- [10. Safety Checks](#section-10)
+  - [10.1 Skills 缓存策略](#section-10-1)
+- [11. Memory 系统设计](#section-11)
+  - [11.1 Memory 架构概览](#section-11-1)
+  - [11.2 MemoryManager 与 built-in memory](#section-11-2)
+  - [11.3 Builtin Memory Provider](#section-11-3)
+  - [11.4 Memory 在流程中的作用](#section-11-4)
+  - [11.5 Session Search（跨会话搜索）](#section-11-5)
+  - [11.6 Memory 安全机制](#section-11-6)
+  - [11.7 Memory 最佳实践](#section-11-7)
+- [12. Gateway 消息网关系统](#section-12)
+  - [12.1 Gateway 架构概览](#section-12-1)
+  - [12.2 Gateway Runner 核心流程](#section-12-2)
+  - [12.3 Platform Adapter 基类设计](#section-12-3)
+  - [12.4 Telegram Adapter 实现示例](#section-12-4)
+  - [12.5 Session Manager 会话管理](#section-12-5)
+  - [12.6 动态 System Prompt 注入](#section-12-6)
+  - [12.7 Delivery Manager 消息投递](#section-12-7)
+  - [12.8 Hooks 钩子系统](#section-12-8)
+  - [12.9 完整的消息流转时序图](#section-12-9)
+  - [12.10 配置示例](#section-12-10)
+- [13. 多终端后端系统 (Terminal Backends)](#section-13)
+  - [13.1 架构概览](#section-13-1)
+  - [13.2 Terminal Tool 统一接口](#section-13-2)
+  - [13.3 Backend Executor 基类](#section-13-3)
+  - [13.4 Local Backend 本地执行](#section-13-4)
+  - [13.5 Docker Backend 容器执行](#section-13-5)
+  - [13.6 Modal Backend 云沙箱](#section-13-6)
+  - [13.7 SSH Backend 远程执行](#section-13-7)
+  - [13.8 后端选择逻辑](#section-13-8)
+  - [13.9 安全性考虑](#section-13-9)
+- [14. 总结](#section-14)
+<!-- visible-toc:end -->
+
+
+
+
 > **文档状态**: Deep dive / source archaeology · **Historical**  
-> **Hermes 版本锚点**: 核对 2026-06-10 · 正文多为 2026-04 考古  
+> **原稿版本锚点（历史）**: 核对 2026-06-10 · 正文多为 2026-04 考古\
 > **使用建议**: 超细执行路径与旧术语残留。请与 [ARCHITECTURE.md](ARCHITECTURE.md)、[AGENT_LOOP_ARCHITECTURE.md](AGENT_LOOP_ARCHITECTURE.md)、[MEMORY_SYSTEM.md](MEMORY_SYSTEM.md)、[DOC_MAINTENANCE.md](DOC_MAINTENANCE.md) 交叉校验。  
 
 > **版本**: v1.0  
@@ -11,21 +85,14 @@
 
 ---
 
-## 📋 目录
+<a id="📋-目录"></a>
 
-- [1. 项目概述](#1-项目概述)
-- [2. 核心架构](#2-核心架构)
-- [3. Agent Loop 执行流程](#3-agent-loop-执行流程)
-- [4. Prompt 构建机制](#4-prompt-构建机制)
-- [5. Skills 系统](#5-skills-系统)
-- [6. Memory 系统](#6-memory-系统)
-- [7. 多终端后端](#7-多终端后端)
-- [8. 关键代码路径](#8-关键代码路径)
-
----
-
+<a id="1-项目概述"></a>
+<a id="section-1"></a>
 ## 1. 项目概述
 
+<a id="11-什么是-hermes-agent"></a>
+<a id="section-1-1"></a>
 ### 1.1 什么是 Hermes Agent？
 
 **Hermes Agent** 是由 [Nous Research](https://nousresearch.com) 开发的**自改进 AI Agent**。它是唯一内置学习循环的 Agent，能够：
@@ -40,6 +107,8 @@
 **核心理念**：
 > "The self-improving AI agent" —— 通过闭环学习持续进化
 
+<a id="12-核心特性对比"></a>
+<a id="section-1-2"></a>
 ### 1.2 核心特性对比
 
 | 特性 | Hermes Agent | 其他 Agent 框架 |
@@ -52,6 +121,8 @@
 | **技能标准** | ✅ 兼容 agentskills.io 开放标准 | ⚠️ 私有格式 |
 | **RL 训练** | ✅ Atropos 环境集成 | ❌ 无 |
 
+<a id="13-项目结构"></a>
+<a id="section-1-3"></a>
 ### 1.3 项目结构
 
 ```
@@ -84,8 +155,12 @@ hermes-agent/
 
 ---
 
+<a id="2-核心架构"></a>
+<a id="section-2"></a>
 ## 2. 核心架构
 
+<a id="21-分层架构图"></a>
+<a id="section-2-1"></a>
 ### 2.1 分层架构图
 
 ```mermaid
@@ -145,6 +220,8 @@ graph TB
     AgentLoop --> LLM
 ```
 
+<a id="22-核心组件职责"></a>
+<a id="section-2-2"></a>
 ### 2.2 核心组件职责
 
 | 组件 | 文件路径 | 职责 |
@@ -163,8 +240,12 @@ graph TB
 
 ---
 
+<a id="3-agent-loop-执行流程"></a>
+<a id="section-3"></a>
 ## 3. Agent Loop 执行流程
 
+<a id="31-核心循环架构"></a>
+<a id="section-3-1"></a>
 ### 3.1 核心循环架构
 
 Hermes Agent 的核心是 **ReAct (Reasoning + Acting) 循环**，实现在 `environments/agent_loop.py` 中的 `HermesAgentLoop` 类。
@@ -199,9 +280,13 @@ graph TB
     ReturnError --> Return
 ```
 
+<a id="32-详细的执行步骤"></a>
+<a id="section-3-2"></a>
 ### 3.2 详细的执行步骤
 
-#### 步骤 1: 初始化
+<a id="步骤-1-初始化"></a>
+<a id="section-3-2-1"></a>
+#### 3.2.1 步骤 1: 初始化
 
 ```python
 # environments/agent_loop.py:175-200
@@ -261,7 +346,9 @@ class AgentResult:
 
 ---
 
-#### 步骤 2: 主循环 - 调用 LLM
+<a id="步骤-2-主循环---调用-llm"></a>
+<a id="section-3-2-2"></a>
+#### 3.2.2 步骤 2: 主循环 - 调用 LLM
 
 ```python
 # environments/agent_loop.py:204-260
@@ -335,7 +422,9 @@ for turn in range(self.max_turns):
 
 ---
 
-#### 步骤 3: 提取推理内容
+<a id="步骤-3-提取推理内容"></a>
+<a id="section-3-2-3"></a>
+#### 3.2.3 步骤 3: 提取推理内容
 
 ```python
 # environments/agent_loop.py:81-116
@@ -380,7 +469,9 @@ reasoning_per_turn.append(reasoning)
 
 ---
 
-#### 步骤 4: 检测工具调用
+<a id="步骤-4-检测工具调用"></a>
+<a id="section-3-2-4"></a>
+#### 3.2.4 步骤 4: 检测工具调用
 
 ```python
 # environments/agent_loop.py:268-326
@@ -463,7 +554,9 @@ if (
 
 ---
 
-#### 步骤 5: 执行工具调用
+<a id="步骤-5-执行工具调用"></a>
+<a id="section-3-2-5"></a>
+#### 3.2.5 步骤 5: 执行工具调用
 
 ```python
 # environments/agent_loop.py:329-480
@@ -592,7 +685,9 @@ for tc in assistant_msg.tool_calls:
 
 ---
 
-#### 步骤 6: 检查结果并继续
+<a id="步骤-6-检查结果并继续"></a>
+<a id="section-3-2-6"></a>
+#### 3.2.6 步骤 6: 检查结果并继续
 
 ```python
 # environments/agent_loop.py:450-535
@@ -636,6 +731,8 @@ return AgentResult(
 
 ---
 
+<a id="33-完整的-agent-loop-时序图"></a>
+<a id="section-3-3"></a>
 ### 3.3 完整的 Agent Loop 时序图
 
 ```mermaid
@@ -689,9 +786,13 @@ sequenceDiagram
 
 ---
 
+<a id="34-性能优化"></a>
+<a id="section-3-4"></a>
 ### 3.4 性能优化
 
-#### 1. 线程池配置
+<a id="1-线程池配置"></a>
+<a id="section-3-4-1"></a>
+#### 3.4.1 线程池配置
 
 ```python
 # environments/agent_loop.py:33
@@ -712,7 +813,9 @@ def resize_tool_pool(max_workers: int):
 - 并发评估任务（如 89 个 TB2 任务同时运行）
 - 避免线程池饥饿导致任务排队数分钟
 
-#### 2. 工具结果持久化预算
+<a id="2-工具结果持久化预算"></a>
+<a id="section-3-4-2"></a>
+#### 3.4.2 工具结果持久化预算
 
 ```python
 # tools/budget_config.py
@@ -730,7 +833,9 @@ class BudgetConfig:
 - ✅ 自动将大结果持久化到磁盘
 - ✅ 只保留预览在消息中
 
-#### 3. Reasoning 内容提取
+<a id="3-reasoning-内容提取"></a>
+<a id="section-3-4-3"></a>
+#### 3.4.3 Reasoning 内容提取
 
 支持多种 Provider 的推理字段，统一提取格式，便于后续分析和 RL 训练。
 
@@ -740,8 +845,12 @@ class BudgetConfig:
 
 ---
 
+<a id="4-prompt-构建机制"></a>
+<a id="section-4"></a>
 ## 4. Prompt 构建机制
 
+<a id="41-prompt-的组成结构"></a>
+<a id="section-4-1"></a>
 ### 4.1 Prompt 的组成结构
 
 Hermes Agent 的 System Prompt 由多个动态部分拼接而成，实现在 `agent/prompt_builder.py` 中。
@@ -757,9 +866,13 @@ graph TB
     EphemeralPrompts --> FinalPrompt[最终 Prompt]
 ```
 
+<a id="42-核心组件详解"></a>
+<a id="section-4-2"></a>
 ### 4.2 核心组件详解
 
-#### 1. Agent Identity（角色定义）
+<a id="1-agent-identity角色定义"></a>
+<a id="section-4-2-1"></a>
+#### 4.2.1 Agent Identity（角色定义）
 
 ```python
 # agent/prompt_builder.py:134-142
@@ -782,7 +895,9 @@ DEFAULT_AGENT_IDENTITY = (
 
 ---
 
-#### 2. Platform Hints（平台特定提示）
+<a id="2-platform-hints平台特定提示"></a>
+<a id="section-4-2-2"></a>
+#### 4.2.2 Platform Hints（平台特定提示）
 
 根据用户使用的平台（CLI、Telegram、Discord 等），注入不同的提示：
 
@@ -823,7 +938,9 @@ PLATFORM_HINTS = {
 
 ---
 
-#### 3. Skills Index（技能索引）
+<a id="3-skills-index技能索引"></a>
+<a id="section-4-2-3"></a>
+#### 4.2.3 Skills Index（技能索引）
 
 这是 Hermes Agent 的核心特性之一：**动态加载 Skills 元数据**。
 
@@ -947,7 +1064,9 @@ The following skills extend your capabilities. Use the skill tool to load a skil
 
 ---
 
-#### 4. Context Files（项目上下文）
+<a id="4-context-files项目上下文"></a>
+<a id="section-4-2-4"></a>
+#### 4.2.4 Context Files（项目上下文）
 
 自动发现并注入项目特定的上下文文件：
 
@@ -1052,7 +1171,9 @@ def _scan_context_content(content: str, filename: str) -> str:
 
 ---
 
-#### 5. Memory Prompt（持久化记忆）
+<a id="5-memory-prompt持久化记忆"></a>
+<a id="section-4-2-5"></a>
+#### 4.2.5 Memory Prompt（持久化记忆）
 
 ```python
 # agent/prompt_builder.py:144-156
@@ -1080,7 +1201,9 @@ MEMORY_GUIDANCE = (
 
 ---
 
-#### 6. Tool-Use Enforcement（工具使用强制）
+<a id="6-tool-use-enforcement工具使用强制"></a>
+<a id="section-4-2-6"></a>
+#### 4.2.6 Tool-Use Enforcement（工具使用强制）
 
 针对某些模型（如 GPT 系列）容易“空谈不行动”的问题，添加强制性指令：
 
@@ -1117,6 +1240,8 @@ def should_enforce_tool_use(model_name: str) -> bool:
 
 ---
 
+<a id="43-完整的-prompt-组装流程"></a>
+<a id="section-4-3"></a>
 ### 4.3 完整的 Prompt 组装流程
 
 ```python
@@ -1186,11 +1311,15 @@ def _build_system_prompt(
 
 ---
 
+<a id="44-prompt-缓存策略"></a>
+<a id="section-4-4"></a>
 ### 4.4 Prompt 缓存策略
 
 为了提升性能，Hermes Agent 实现了多层缓存：
 
-#### 1. Skills Prompt 缓存
+<a id="1-skills-prompt-缓存"></a>
+<a id="section-4-4-1"></a>
+#### 4.4.1 Skills Prompt 缓存
 
 ```python
 # agent/prompt_builder.py:378-381
@@ -1206,7 +1335,9 @@ _SKILLS_PROMPT_CACHE_LOCK = threading.Lock()
 - LRU（最近最少使用）
 - 基于 mtime/size manifest 检测文件变化
 
-#### 2. 磁盘快照
+<a id="2-磁盘快照"></a>
+<a id="section-4-4-2"></a>
+#### 4.4.2 磁盘快照
 
 ```python
 # agent/prompt_builder.py:412-427
@@ -1241,8 +1372,12 @@ def _load_skills_snapshot(skills_dir: Path) -> Optional[dict]:
 
 ---
 
+<a id="5-skills-系统"></a>
+<a id="section-5"></a>
 ## 5. Skills 系统
 
+<a id="51-skills-架构设计"></a>
+<a id="section-5-1"></a>
 ### 5.1 Skills 架构设计
 
 Hermes Agent 的 Skills 系统采用**渐进式披露（Progressive Disclosure）**架构，灵感来自 Anthropic Claude Skills。
@@ -1278,6 +1413,8 @@ graph TB
 
 ---
 
+<a id="52-skills-目录结构"></a>
+<a id="section-5-2"></a>
 ### 5.2 Skills 目录结构
 
 ```
@@ -1371,7 +1508,9 @@ Use this skill when:
    git log -1
    ```
 
-## Conventional Commit Types
+<a id="conventional-commit-types"></a>
+<a id="section-6"></a>
+## 6. Conventional Commit Types
 
 - `feat`: New feature
 - `fix`: Bug fix
@@ -1381,20 +1520,28 @@ Use this skill when:
 - `test`: Adding or updating tests
 - `chore`: Maintenance tasks
 
-## Examples
+<a id="examples"></a>
+<a id="section-7"></a>
+## 7. Examples
 
-See [templates/commit-message.md](templates/commit-message.md) for examples.
+See templates/commit-message.md（历史引用：`templates/commit-message.md`，当前归档未附该文件） for examples.
 
-## Related Resources
+<a id="related-resources"></a>
+<a id="section-8"></a>
+## 8. Related Resources
 
-- [Conventional Commits Spec](references/conventional-commits.md)
-- [Git Best Practices](references/git-best-practices.md)
+- Conventional Commits Spec（历史引用：`references/conventional-commits.md`，当前归档未附该文件）
+- Git Best Practices（历史引用：`references/git-best-practices.md`，当前归档未附该文件）
 
 ---
 
-### 5.3 Skills 工具实现
+<a id="53-skills-工具实现"></a>
+<a id="section-8-1"></a>
+### 8.1 Skills 工具实现
 
-#### 工具 1: skills_list - 列出所有 Skills
+<a id="工具-1-skills_list---列出所有-skills"></a>
+<a id="section-8-1-1"></a>
+#### 8.1.1 工具 1: skills_list - 列出所有 Skills
 
 ```python
 # tools/skills_tool.py:500-700
@@ -1493,7 +1640,9 @@ def skills_list(category: Optional[str] = None) -> str:
 
 ---
 
-#### 工具 2: skill_view - 加载 Skill 完整内容
+<a id="工具-2-skill_view---加载-skill-完整内容"></a>
+<a id="section-8-1-2"></a>
+#### 8.1.2 工具 2: skill_view - 加载 Skill 完整内容
 
 ```python
 # tools/skills_tool.py:700-900
@@ -1573,11 +1722,15 @@ result = skill_view("commit", "templates/commit-message.md")
 
 ---
 
-### 5.4 Skills 自改进机制
+<a id="54-skills-自改进机制"></a>
+<a id="section-8-2"></a>
+### 8.2 Skills 自改进机制
 
 Hermes Agent 的核心特性：**Agent 可以自动创建和改进 Skills**。
 
-#### 技能管理工具
+<a id="技能管理工具"></a>
+<a id="section-8-2-1"></a>
+#### 8.2.1 技能管理工具
 
 ```python
 # tools/skill_manager_tool.py
@@ -1619,7 +1772,9 @@ def skill_manage(
         return json.dumps({"error": f"Unknown action: {action}"})
 ```
 
-#### 自动创建 Skills
+<a id="自动创建-skills"></a>
+<a id="section-8-2-2"></a>
+#### 8.2.2 自动创建 Skills
 
 当 Agent 完成复杂任务后，会提示创建 Skill：
 
@@ -1732,7 +1887,9 @@ with automatic rollback support.
    - Check data integrity
    - Monitor error logs
 
-## Rollback Procedure
+<a id="rollback-procedure"></a>
+<a id="section-9"></a>
+## 9. Rollback Procedure
 
 If something goes wrong:
 ```bash
@@ -1740,7 +1897,9 @@ alembic downgrade -1
 psql mydb < backup_YYYYMMDD.sql
 ```
 
-## Safety Checks
+<a id="safety-checks"></a>
+<a id="section-10"></a>
+## 10. Safety Checks
 
 - Always backup before migrating
 - Test on staging first
@@ -1750,7 +1909,9 @@ psql mydb < backup_YYYYMMDD.sql
 
 ---
 
-### 5.5 Skills 缓存策略
+<a id="55-skills-缓存策略"></a>
+<a id="section-10-1"></a>
+### 10.1 Skills 缓存策略
 
 为了提升性能，Skills 系统实现了多层缓存：
 
@@ -1820,9 +1981,13 @@ def _write_skills_snapshot(
 
 ---
 
-## 6. Memory 系统设计
+<a id="6-memory-系统设计"></a>
+<a id="section-11"></a>
+## 11. Memory 系统设计
 
-### 6.1 Memory 架构概览
+<a id="61-memory-架构概览"></a>
+<a id="section-11-1"></a>
+### 11.1 Memory 架构概览
 
 Hermes Agent 的 Memory 系统采用**built-in persistent memory + session archive + optional external provider** 架构。
 
@@ -1869,7 +2034,9 @@ graph TB
 
 ---
 
-### 6.2 MemoryManager 与 built-in memory
+<a id="62-memorymanager-与-built-in-memory"></a>
+<a id="section-11-2"></a>
+### 11.2 MemoryManager 与 built-in memory
 
 ```python
 # agent/memory_manager.py:72-130
@@ -1948,9 +2115,13 @@ self._memory_manager.sync_all(user_msg, assistant_response)
 
 ---
 
-### 6.3 Builtin Memory Provider
+<a id="63-builtin-memory-provider"></a>
+<a id="section-11-3"></a>
+### 11.3 Builtin Memory Provider
 
-#### 双文件存储
+<a id="双文件存储"></a>
+<a id="section-11-3-1"></a>
+#### 11.3.1 双文件存储
 
 ```python
 # tools/memory_tool.py:100-140
@@ -2047,7 +2218,9 @@ User's timezone is CST (UTC+8)
 
 ---
 
-#### Memory 工具实现
+<a id="memory-工具实现"></a>
+<a id="section-11-3-2"></a>
+#### 11.3.2 Memory 工具实现
 
 ```python
 # tools/memory_tool.py:198-350
@@ -2191,9 +2364,13 @@ def _handle_replace(
 
 ---
 
-### 6.4 Memory 在流程中的作用
+<a id="64-memory-在流程中的作用"></a>
+<a id="section-11-4"></a>
+### 11.4 Memory 在流程中的作用
 
-#### 位置 1: System Prompt 注入
+<a id="位置-1-system-prompt-注入"></a>
+<a id="section-11-4-1"></a>
+#### 11.4.1 位置 1: System Prompt 注入
 
 ```python
 # agent/__init__.py (AIAgent._build_system_prompt)
@@ -2239,7 +2416,9 @@ You have persistent memory across sessions. Save durable facts using the memory 
 
 ---
 
-#### 位置 2: 每轮对话前预取
+<a id="位置-2-每轮对话前预取"></a>
+<a id="section-11-4-2"></a>
+#### 11.4.2 位置 2: 每轮对话前预取
 
 ```python
 # run_agent.py
@@ -2310,7 +2489,9 @@ Based on your question about database migrations, here's relevant context:
 
 ---
 
-#### 位置 3: 每轮对话后同步
+<a id="位置-3-每轮对话后同步"></a>
+<a id="section-11-4-3"></a>
+#### 11.4.3 位置 3: 每轮对话后同步
 
 ```python
 # run_agent.py
@@ -2357,7 +2538,9 @@ def sync_all(
 
 ---
 
-### 6.5 Session Search（跨会话搜索）
+<a id="65-session-search跨会话搜索"></a>
+<a id="section-11-5"></a>
+### 11.5 Session Search（跨会话搜索）
 
 Hermes Agent 的另一个核心特性：**FTS5 全文搜索历史会话**。
 
@@ -2469,9 +2652,13 @@ result = session_search("authentication timezone fix")
 
 ---
 
-### 6.6 Memory 安全机制
+<a id="66-memory-安全机制"></a>
+<a id="section-11-6"></a>
+### 11.6 Memory 安全机制
 
-#### 注入攻击防护
+<a id="注入攻击防护"></a>
+<a id="section-11-6-1"></a>
+#### 11.6.1 注入攻击防护
 
 ```python
 # tools/memory_tool.py:60-97
@@ -2531,9 +2718,13 @@ memory(action="add", target="memory", content="Project uses Python 3.11 with uv"
 
 ---
 
-### 6.7 Memory 最佳实践
+<a id="67-memory-最佳实践"></a>
+<a id="section-11-7"></a>
+### 11.7 Memory 最佳实践
 
-#### 应该保存到 Memory 的内容
+<a id="应该保存到-memory-的内容"></a>
+<a id="section-11-7-1"></a>
+#### 11.7.1 应该保存到 Memory 的内容
 
 ✅ **持久性事实**：
 - 用户偏好（语言、代码风格、工具偏好）
@@ -2546,7 +2737,9 @@ memory(action="add", target="memory", content="Project uses Python 3.11 with uv"
 - 用户的工作流程习惯
 - 常见的错误和解决方案
 
-#### 不应该保存到 Memory 的内容
+<a id="不应该保存到-memory-的内容"></a>
+<a id="section-11-7-2"></a>
+#### 11.7.2 不应该保存到 Memory 的内容
 
 ❌ **临时状态**：
 - 任务进度
@@ -2566,9 +2759,13 @@ memory(action="add", target="memory", content="Project uses Python 3.11 with uv"
 
 ---
 
-## 7. Gateway 消息网关系统
+<a id="7-gateway-消息网关系统"></a>
+<a id="section-12"></a>
+## 12. Gateway 消息网关系统
 
-### 7.1 Gateway 架构概览
+<a id="71-gateway-架构概览"></a>
+<a id="section-12-1"></a>
+### 12.1 Gateway 架构概览
 
 Hermes Agent 的 **Gateway** 是一个多平台消息网关，支持从多个 messaging 平台接收和发送消息。
 
@@ -2639,7 +2836,9 @@ graph TB
 
 ---
 
-### 7.2 Gateway Runner 核心流程
+<a id="72-gateway-runner-核心流程"></a>
+<a id="section-12-2"></a>
+### 12.2 Gateway Runner 核心流程
 
 ```python
 # gateway/run.py:200-500
@@ -2747,7 +2946,9 @@ class GatewayRunner:
 
 ---
 
-### 7.3 Platform Adapter 基类设计
+<a id="73-platform-adapter-基类设计"></a>
+<a id="section-12-3"></a>
+### 12.3 Platform Adapter 基类设计
 
 所有平台适配器都继承自 `BasePlatformAdapter`：
 
@@ -2886,7 +3087,9 @@ class BasePlatformAdapter:
 
 ---
 
-### 7.4 Telegram Adapter 实现示例
+<a id="74-telegram-adapter-实现示例"></a>
+<a id="section-12-4"></a>
+### 12.4 Telegram Adapter 实现示例
 
 ```python
 # gateway/platforms/telegram.py:100-400
@@ -3037,9 +3240,13 @@ class TelegramAdapter(BasePlatformAdapter):
 
 ---
 
-### 7.5 Session Manager 会话管理
+<a id="75-session-manager-会话管理"></a>
+<a id="section-12-5"></a>
+### 12.5 Session Manager 会话管理
 
-#### 会话键生成
+<a id="会话键生成"></a>
+<a id="section-12-5-1"></a>
+#### 12.5.1 会话键生成
 
 ```python
 # gateway/session.py:200-350
@@ -3122,7 +3329,9 @@ class SessionManager:
             return f"{platform}:chat:{source.chat_id}"
 ```
 
-#### 会话历史持久化
+<a id="会话历史持久化"></a>
+<a id="section-12-5-2"></a>
+#### 12.5.2 会话历史持久化
 
 ```python
 # gateway/session.py:400-550
@@ -3170,7 +3379,9 @@ def save_conversation_turn(
 
 ---
 
-### 7.6 动态 System Prompt 注入
+<a id="76-动态-system-prompt-注入"></a>
+<a id="section-12-6"></a>
+### 12.6 动态 System Prompt 注入
 
 Gateway 会根据会话来源动态注入上下文到 System Prompt：
 
@@ -3258,7 +3469,9 @@ You are on Telegram communicating with your user. You can send media files nativ
 
 ---
 
-### 7.7 Delivery Manager 消息投递
+<a id="77-delivery-manager-消息投递"></a>
+<a id="section-12-7"></a>
+### 12.7 Delivery Manager 消息投递
 
 ```python
 # gateway/delivery.py:100-300
@@ -3360,7 +3573,9 @@ class DeliveryManager:
 
 ---
 
-### 7.8 Hooks 钩子系统
+<a id="78-hooks-钩子系统"></a>
+<a id="section-12-8"></a>
+### 12.8 Hooks 钩子系统
 
 Gateway 提供可扩展的钩子系统：
 
@@ -3451,7 +3666,9 @@ async def log_response_hook(
 
 ---
 
-### 7.9 完整的消息流转时序图
+<a id="79-完整的消息流转时序图"></a>
+<a id="section-12-9"></a>
+### 12.9 完整的消息流转时序图
 
 ```mermaid
 sequenceDiagram
@@ -3506,7 +3723,9 @@ sequenceDiagram
 
 ---
 
-### 7.10 配置示例
+<a id="710-配置示例"></a>
+<a id="section-12-10"></a>
+### 12.10 配置示例
 
 ```yaml
 # ~/.hermes/config.yaml
@@ -3573,9 +3792,13 @@ gateway:
 
 ---
 
-## 8. 多终端后端系统 (Terminal Backends)
+<a id="8-多终端后端系统-terminal-backends"></a>
+<a id="section-13"></a>
+## 13. 多终端后端系统 (Terminal Backends)
 
-### 8.1 架构概览
+<a id="81-架构概览"></a>
+<a id="section-13-1"></a>
+### 13.1 架构概览
 
 Hermes Agent 支持 **6 种执行后端**，允许 Agent 在不同的环境中执行命令。
 
@@ -3627,7 +3850,9 @@ graph TB
 
 ---
 
-### 8.2 Terminal Tool 统一接口
+<a id="82-terminal-tool-统一接口"></a>
+<a id="section-13-2"></a>
+### 13.2 Terminal Tool 统一接口
 
 ```python
 # tools/terminal_tool.py:200-400
@@ -3701,7 +3926,9 @@ def terminal_tool(
 
 ---
 
-### 8.3 Backend Executor 基类
+<a id="83-backend-executor-基类"></a>
+<a id="section-13-3"></a>
+### 13.3 Backend Executor 基类
 
 ```python
 # tools/environments/base.py:50-200
@@ -3771,7 +3998,9 @@ class ExecutionResult:
 
 ---
 
-### 8.4 Local Backend 本地执行
+<a id="84-local-backend-本地执行"></a>
+<a id="section-13-4"></a>
+### 13.4 Local Backend 本地执行
 
 ```python
 # tools/environments/local.py:50-150
@@ -3871,7 +4100,9 @@ class LocalExecutor(BaseExecutor):
 
 ---
 
-### 8.5 Docker Backend 容器执行
+<a id="85-docker-backend-容器执行"></a>
+<a id="section-13-5"></a>
+### 13.5 Docker Backend 容器执行
 
 ```python
 # tools/environments/docker.py:50-250
@@ -4046,7 +4277,9 @@ class DockerExecutor(BaseExecutor):
 
 ---
 
-### 8.6 Modal Backend 云沙箱
+<a id="86-modal-backend-云沙箱"></a>
+<a id="section-13-6"></a>
+### 13.6 Modal Backend 云沙箱
 
 ```python
 # tools/environments/modal.py:50-200
@@ -4149,7 +4382,9 @@ class ModalExecutor(BaseExecutor):
 
 ---
 
-### 8.7 SSH Backend 远程执行
+<a id="87-ssh-backend-远程执行"></a>
+<a id="section-13-7"></a>
+### 13.7 SSH Backend 远程执行
 
 ```python
 # tools/environments/ssh.py:50-150
@@ -4247,7 +4482,9 @@ class SSHExecutor(BaseExecutor):
 
 ---
 
-### 8.8 后端选择逻辑
+<a id="88-后端选择逻辑"></a>
+<a id="section-13-8"></a>
+### 13.8 后端选择逻辑
 
 ```python
 # tools/terminal_tool.py:400-500
@@ -4357,7 +4594,9 @@ result = terminal_tool("ls -la")
 }
 ```
 
-#### 示例 2: Docker 隔离执行
+<a id="示例-2-docker-隔离执行"></a>
+<a id="section-13-8-1"></a>
+#### 13.8.1 示例 2: Docker 隔离执行
 
 ```python
 # 切换到 Docker 后端
@@ -4378,7 +4617,9 @@ result = terminal_tool("rm -rf /")
 }
 ```
 
-#### 示例 3: SSH 远程部署
+<a id="示例-3-ssh-远程部署"></a>
+<a id="section-13-8-2"></a>
+#### 13.8.2 示例 3: SSH 远程部署
 
 ```python
 # 切换到 SSH 后端
@@ -4402,7 +4643,9 @@ result = terminal_tool(
 }
 ```
 
-#### 示例 4: Modal 云端 GPU 计算
+<a id="示例-4-modal-云端-gpu-计算"></a>
+<a id="section-13-8-3"></a>
+#### 13.8.3 示例 4: Modal 云端 GPU 计算
 
 ```python
 # 切换到 Modal 后端
@@ -4429,9 +4672,13 @@ result = terminal_tool(
 
 ---
 
-### 8.10 安全性考虑
+<a id="810-安全性考虑"></a>
+<a id="section-13-9"></a>
+### 13.9 安全性考虑
 
-#### 危险命令检测
+<a id="危险命令检测"></a>
+<a id="section-13-9-1"></a>
+#### 13.9.1 危险命令检测
 
 ```python
 # tools/approval.py:50-150
@@ -4468,7 +4715,9 @@ def check_dangerous_command(command: str) -> Dict[str, Any]:
     return {"approved": True}
 ```
 
-#### 资源限制
+<a id="资源限制"></a>
+<a id="section-13-9-2"></a>
+#### 13.9.2 资源限制
 
 ```yaml
 # ~/.hermes/config.yaml
@@ -4496,7 +4745,9 @@ terminal:
 
 ---
 
-## 总结
+<a id="总结"></a>
+<a id="section-14"></a>
+## 14. 总结
 
 本文档详细分析了 Hermes Agent 的 **8 大核心模块**：
 

@@ -1,14 +1,61 @@
 # HITL 审批流程（源码级）
 
+<!-- legacy-review:start -->
+> **2026-10-15 校订导航**：为什么要确认、等待卡在哪、确认后怎样继续。\
+> **核对范围**：校正完整 guard 入口、容器/deny 顺序、CLI 方法位置和唯一闸门说法；保留 Queue/Event 教学。\
+> **适用基线**：本地源码 `60d00c5633ad`；不是最新发布版本声明。原稿版本、行号、性能数字与长代码块若未在校订范围内，仍按历史示例阅读。
+> **先读当前结论**：[当前实现导读](CURRENT_IMPLEMENTATION.md#current-approval) · **现行分卷**：[08-security-and-governance.md](../../volumes/08-security-and-governance.md) · [具体改动与未验证项](REVIEW_AND_CHANGES.md) · [返回全目录](README.md)
+
+<!-- legacy-review:end -->
+<a id="目录"></a>
+## 目录
+
+<!-- visible-toc:start -->
+- [1. 一句话 + 一张总图（人机审批全流程）](#section-1)
+- [2. CLI：进程没有 pause——是「Agent 线程堵在 Queue 上」](#section-2)
+  - [2.1 暂停卡在哪？](#section-2-1)
+  - [2.2 「继续 loop」不是另起炉灶](#section-2-2)
+- [3. 概念边界](#section-3)
+- [4. 参与者与入口](#section-4)
+- [5. 决策优先级（命令路径）](#section-5)
+- [6. 共享闸门 `_run_approval_gate`](#section-6)
+- [7. 时序：CLI / TUI（从工具调用开始 · 含线程与 Queue）](#section-7)
+  - [7.1 检测在哪？中间件还是工具内？](#section-7-1)
+  - [7.2 完整调用栈（路径 A：terminal 危险命令）](#section-7-2)
+  - [7.3 Queue：谁生产、谁消费？](#section-7-3)
+  - [7.4 如何「继续 loop」？](#section-7-4)
+  - [7.5 时序图（双线程 + 路径 A）](#section-7-5)
+  - [7.6 路径 B（中间件插件 approve）差别](#section-7-6)
+- [8. 时序：Gateway（阻塞式）](#section-8)
+  - [8.1 和 CLI 同一心智模型，换了同步原语](#section-8-1)
+  - [8.2 交互步骤](#section-8-2)
+  - [8.3 时序图](#section-8-3)
+- [9. 时序：Gateway（pending）](#section-9)
+- [10. 用户选择与持久化](#section-10)
+- [11. Smart / YOLO / Cron / 容器跳过](#section-11)
+- [12. Plugin `request_tool_approval`](#section-12)
+- [13. 子 Agent 上的审批回调](#section-13)
+- [14. Clarify：另一类 HITL](#section-14)
+- [15. Deny 之后](#section-15)
+- [16. 与其它 Agent 项目的 HITL 对比](#section-16)
+- [17. 配置速查](#section-17)
+- [18. 源码锚点](#section-18)
+<!-- visible-toc:end -->
+
+
+
+
 > **文档状态**: **归档** — 卷内权威：[卷八 §2](../../volumes/08-security-and-governance.md#2-端到端危险终端命令cli--im)（闸门/CLI）、[卷六第8章](../../volumes/06-gateways-channels-and-hitl.md#sec-g8)（IM 卡/pending/slash）、[卷三 6.3](../../volumes/03-runtime-session-and-loop.md#sec-6-3)（与 interrupt/clarify）。本文件保留完整线程图与 LangGraph 对比。  
-> **Hermes 版本锚点**: 0.19.0 · **核对**: 2026-08-03 · [DOC_MAINTENANCE.md](DOC_MAINTENANCE.md)  
-> **源码**: `tools/approval.py`（决策核心）、`tools/terminal_tool.py`（命令入口）、`cli.py`（TUI 回调）、`gateway/run.py`（IM `/approve`/`/deny`）、`tools/clarify_tool.py`（澄清 · 另一类 HITL）  
+> **原稿版本锚点（历史）**: 0.19.0 · **核对**: 2026-08-03 · [DOC_MAINTENANCE.md](DOC_MAINTENANCE.md)\
+> **源码**: `tools/approval.py`（决策核心）、`tools/terminal_tool.py`（命令入口）、`hermes_cli/cli_modal_mixin.py`（TUI 回调）、`gateway/run.py`（IM `/approve`/`/deny`）、`tools/clarify_tool.py`（澄清 · 另一类 HITL）\
 > **相关**: [MULTI_AGENT_ARCHITECTURE.md](MULTI_AGENT_ARCHITECTURE.md) §12 · [AGENT_LOOP_ARCHITECTURE.md](AGENT_LOOP_ARCHITECTURE.md)（interrupt ≠ approval） · [CLI_GATEWAY_SYSTEM.md](CLI_GATEWAY_SYSTEM.md)（CLI 线程 / Gateway executor）  
 > **Mermaid 注意**: participant 勿命名为 `Loop`（与 `loop` 关键字冲突）；消息勿含 `()` / `|` / `<br/>`。
 
 ---
 
-## 0. 一句话 + 一张总图（人机审批全流程）
+<a id="0-一句话-+-一张总图人机审批全流程"></a>
+<a id="section-1"></a>
+## 1. 一句话 + 一张总图（人机审批全流程）
 
 **Agent 要执行被判为危险的动作时，工具线程停住问人；人答完再继续执行，或把拒绝写回 tool result。Deny 不结束 turn（那是 interrupt）。**
 
@@ -23,9 +70,9 @@ sequenceDiagram
 
     Model->>Exec: tool_call terminal
     Exec->>Term: run command
-    Term->>Gate: check_dangerous_command
+    Term->>Gate: check_all_command_guards
     Note over Gate: hardline deny yolo allowlist detect
-    Gate->>Gate: _run_approval_gate
+    Gate->>Gate: floor / mode / pattern / _human_decision
     Gate->>Surface: ask human once/session/always/deny
     Note over Term,Gate: tool thread BLOCKED here
     Human->>Surface: choose
@@ -42,7 +89,7 @@ sequenceDiagram
     end
 ```
 
-两条真人交互面（**同一闸门** `_run_approval_gate`，不同 UI）：
+两条真人交互面（终端完整入口为 `check_all_command_guards`，共享审批决策设施，不同 UI）：
 
 | 面 | 人怎么答 | 工具线程 |
 |----|----------|----------|
@@ -51,7 +98,9 @@ sequenceDiagram
 
 ---
 
-## 0.1 CLI：进程没有 pause——是「Agent 线程堵在 Queue 上」
+<a id="01-cli进程没有-pause是agent-线程堵在-queue-上"></a>
+<a id="section-2"></a>
+## 2. CLI：进程没有 pause——是「Agent 线程堵在 Queue 上」
 
 **一句话确认（心智模型）：**
 
@@ -74,8 +123,8 @@ sequenceDiagram
 pt app.run() 一直转
   画屏 / 读键盘
                                     LLM → tool_call(terminal)
-                                    check_dangerous_command
-                                    _run_approval_gate
+                                    check_all_command_guards
+                                    _human_decision / 审批通道
                                     _approval_callback():
                                       _approval_state = {..., queue}
                                       _paint_now()          ──► 主线程 refresh 画出模态
@@ -92,10 +141,12 @@ pt app.run() 一直转
                                     下一轮 LLM（同一 run_conversation）
 ```
 
-### 暂停卡在哪？
+<a id="暂停卡在哪"></a>
+<a id="section-2-1"></a>
+### 2.1 暂停卡在哪？
 
 ```python
-# cli.py · _approval_callback（Agent 线程）
+# hermes_cli/cli_modal_mixin.py · _approval_callback（Agent 线程）
 response_queue = queue.Queue()
 self._approval_state = {..., "response_queue": response_queue}
 self._paint_now()
@@ -105,7 +156,7 @@ while True:
 ```
 
 ```python
-# cli.py · Enter（主线程 / pt 回调）
+# hermes_cli/cli_modal_mixin.py · Enter（主线程 / pt 回调）
 if self._approval_state:
     self._handle_approval_selection()
     # 内部: state["response_queue"].put(chosen)
@@ -115,7 +166,9 @@ if self._approval_state:
 - Agent loop 的**同步调用栈**堵在 tool → gate → callback → `Queue.get`；UI 线程照常转。  
 - 用户选完 → `put` → `get` 返回 → **同一条调用栈往下走**：要么 `env.execute`，要么 blocked JSON → tool_executor 写回 ToolMessage → conversation loop **自然进入下一轮 LLM**。
 
-### 「继续 loop」不是另起炉灶
+<a id="继续-loop不是另起炉灶"></a>
+<a id="section-2-2"></a>
+### 2.2 「继续 loop」不是另起炉灶
 
 ```text
 run_conversation 迭代 N:
@@ -133,27 +186,9 @@ run_conversation 迭代 N:
 
 ---
 
-## 目录
-
-0. [总图](#0-一句话--一张总图人机审批全流程) · [CLI 线程阻塞详解](#01-cli进程没有-pause是agent-线程堵在-queue-上)
-1. [概念边界](#1-概念边界)
-2. [参与者与入口](#2-参与者与入口)
-3. [决策优先级（命令路径）](#3-决策优先级命令路径)
-4. [共享闸门 `_run_approval_gate`](#4-共享闸门-_run_approval_gate)
-5. [时序：CLI / TUI](#5-时序cli--tui从工具调用开始--含线程与-queue)
-6. [时序：Gateway（阻塞式）](#6-时序gateway阻塞式)
-7. [时序：Gateway（pending）](#7-时序gatewaypending)
-8. [用户选择与持久化](#8-用户选择与持久化)
-9. [Smart / YOLO / Cron / 容器跳过](#9-smart--yolo--cron--容器跳过)
-10. [Plugin `request_tool_approval`](#10-plugin-request_tool_approval)
-11. [子 Agent 上的审批回调](#11-子-agent-上的审批回调)
-12. [Clarify：另一类 HITL](#12-clarify另一类-hitl)
-13. [Deny 之后](#13-deny-之后)
-14. [与其它 Agent 项目的 HITL 对比](#14-与其它-agent-项目的-hitl-对比)
-
----
-
-## 1. 概念边界
+<a id="1-概念边界"></a>
+<a id="section-3"></a>
+## 3. 概念边界
 
 | | **Approval（审批）** | **Interrupt（中断）** | **Clarify（澄清）** |
 |--|--|--|--|
@@ -164,7 +199,9 @@ run_conversation 迭代 N:
 
 ---
 
-## 2. 参与者与入口
+<a id="2-参与者与入口"></a>
+<a id="section-4"></a>
+## 4. 参与者与入口
 
 ```text
 LLM tool_call(terminal / 任意工具)
@@ -172,16 +209,16 @@ LLM tool_call(terminal / 任意工具)
         v
  tool_executor
         |
-        +-- terminal --> check_dangerous_command --> _run_approval_gate
+        +-- terminal --> check_all_command_guards --> _human_decision / 审批通道
         +-- plugin {action: approve} --> request_tool_approval --> 同一 gate
         +-- MCP elicitation --> 同类 prompt
 ```
 
 | 符号 | 职责 |
 |------|------|
-| `check_dangerous_command` | hardline → deny 规则 → yolo → permanent → detect → gate |
-| `check_all_command_guards` | tirith + dangerous 合并一次问人 |
-| `_run_approval_gate` | **唯一**人机闸门 |
+| `check_dangerous_command` | 危险模式检查路径；容器分支仍保留用户 deny，非容器先 floor 再可恢复策略 |
+| `check_all_command_guards` | 终端完整 guard 入口：容器/deny、floor、prepared 决策、mode、allowlist、交互与危险检测 |
+| `_run_approval_gate` | 模式/通用工具审批共享 helper 之一；不是所有安全路径唯一入口 |
 | `prompt_dangerous_approval` | CLI 回调或 input |
 | `_await_gateway_decision` | Gateway 推送 + Event.wait |
 | `resolve_gateway_approval` | `/approve` `/deny` 解阻塞 |
@@ -189,13 +226,17 @@ LLM tool_call(terminal / 任意工具)
 
 ---
 
-## 3. 决策优先级（命令路径）
+<a id="3-决策优先级命令路径"></a>
+<a id="section-5"></a>
+## 5. 决策优先级（命令路径）
 
 ```mermaid
 flowchart TD
   A[terminal about to run] --> B{isolated container no host bind?}
-  B -->|yes| Skip[approved skip gate]
-  B -->|no| C{hardline?}
+  B -->|yes| IsolatedDeny{approvals.deny 命中?}
+  IsolatedDeny -->|是| H2[BLOCKED]
+  IsolatedDeny -->|否| Skip[approved skip remaining guards]
+  B -->|no| C{hardline / runtime self-delete / sudo stdin?}
   C -->|yes| H[BLOCKED even under yolo]
   C -->|no| D{approvals.deny rule?}
   D -->|hit| H2[BLOCKED]
@@ -205,12 +246,14 @@ flowchart TD
   F -->|yes| OK
   F -->|no| G{dangerous pattern?}
   G -->|no| OK
-  G -->|yes| Gate[_run_approval_gate]
+  G -->|yes| Gate[_human_decision 交互审批]
 ```
 
 ---
 
-## 4. 共享闸门 `_run_approval_gate`
+<a id="4-共享闸门-_run_approval_gate"></a>
+<a id="section-6"></a>
+## 6. 共享闸门 `_run_approval_gate`
 
 ```mermaid
 flowchart TD
@@ -238,18 +281,22 @@ flowchart TD
 
 ---
 
-## 5. 时序：CLI / TUI（从工具调用开始 · 含线程与 Queue）
+<a id="5-时序cli--tui从工具调用开始--含线程与-queue"></a>
+<a id="section-7"></a>
+## 7. 时序：CLI / TUI（从工具调用开始 · 含线程与 Queue）
 
-### 5.0 检测在哪？中间件还是工具内？
+<a id="50-检测在哪中间件还是工具内"></a>
+<a id="section-7-1"></a>
+### 7.1 检测在哪？中间件还是工具内？
 
 **两条入口，别混：**
 
 | 路径 | 谁触发检测 | 调用点 | 典型场景 |
 |------|------------|--------|----------|
-| **A. 工具内（最常见）** | `terminal_tool` 调 `_check_all_guards` → `check_dangerous_command` | **handler 内部**、真正 `env.execute` **之前** | shell 危险命令 pattern |
+| **A. 工具内（最常见）** | `terminal_tool` 调 `_check_all_guards` → `check_all_command_guards` | **handler 内部**、真正 `env.execute` **之前** | shell 危险命令 pattern |
 | **B. 中间件 / 插件** | `resolve_pre_tool_block`：plugin `pre_tool_call` 返回 `{action: "approve"}` → `request_tool_approval` | `tool_executor._authorized_dispatch` 里，**还没进** handler | 插件要求任意工具先问人 |
 
-两条最终都进 **`_run_approval_gate`**，CLI 上都进同一个 `_approval_callback` + `Queue`。
+两条复用人机审批设施，但完整 terminal guards 不应简化成必经 `_run_approval_gate`；CLI 等待仍通过 `_approval_callback` 与 `Queue`。具体规则见 [当前 guard 流程](CURRENT_IMPLEMENTATION.md#current-approval)。
 
 中间件栈（简化）：
 
@@ -264,7 +311,9 @@ execute_tool_calls
 
 所以：**危险 shell 检测默认不在中间件**；中间件只负责插件 escalate。下面默认画路径 A；路径 B 见 §5.5。
 
-### 5.1 完整调用栈（路径 A：terminal 危险命令）
+<a id="51-完整调用栈路径-aterminal-危险命令"></a>
+<a id="section-7-2"></a>
+### 7.2 完整调用栈（路径 A：terminal 危险命令）
 
 ```text
 [Agent 线程]
@@ -288,7 +337,9 @@ run_conversation
   → 下一轮 LLM
 ```
 
-### 5.2 Queue：谁生产、谁消费？
+<a id="52-queue谁生产谁消费"></a>
+<a id="section-7-3"></a>
+### 7.3 Queue：谁生产、谁消费？
 
 这是 **线程间交还用户选择** 的队列，不是 tool_call 任务队列。
 
@@ -310,7 +361,9 @@ run_conversation
                v                                      v
 ```
 
-### 5.3 如何「继续 loop」？
+<a id="53-如何继续-loop"></a>
+<a id="section-7-4"></a>
+### 7.4 如何「继续 loop」？
 
 没有单独的 resume。Agent 线程的调用栈从未拆开：
 
@@ -327,7 +380,9 @@ get() 返回
 
 **继续 loop = 堵在 `get()` 上的那次 tool 调用终于返回了**，外层 for/while 自然往下跑。
 
-### 5.4 时序图（双线程 + 路径 A）
+<a id="54-时序图双线程-+-路径-a"></a>
+<a id="section-7-5"></a>
+### 7.5 时序图（双线程 + 路径 A）
 
 ```mermaid
 sequenceDiagram
@@ -343,7 +398,7 @@ sequenceDiagram
     Mid->>Mid: resolve_pre_tool_block usually None
     Mid->>Term: dispatch handler
     Note over Term: detection INSIDE tool not middleware
-    Term->>Gate: check_dangerous_command
+    Term->>Gate: check_all_command_guards
     Gate->>Agent: _approval_callback on agent thread
     Agent->>Agent: create Queue set _approval_state
     Agent->>UI: _paint_now
@@ -364,7 +419,9 @@ sequenceDiagram
     end
 ```
 
-### 5.5 路径 B（中间件插件 approve）差别
+<a id="55-路径-b中间件插件-approve差别"></a>
+<a id="section-7-6"></a>
+### 7.6 路径 B（中间件插件 approve）差别
 
 ```text
 _authorized_dispatch
@@ -385,9 +442,13 @@ _authorized_dispatch
 
 ---
 
-## 6. 时序：Gateway（阻塞式）
+<a id="6-时序gateway阻塞式"></a>
+<a id="section-8"></a>
+## 8. 时序：Gateway（阻塞式）
 
-### 6.0 和 CLI 同一心智模型，换了同步原语
+<a id="60-和-cli-同一心智模型换了同步原语"></a>
+<a id="section-8-1"></a>
+### 8.1 和 CLI 同一心智模型，换了同步原语
 
 | | CLI / TUI | Gateway（阻塞式） |
 |--|-----------|-------------------|
@@ -399,7 +460,9 @@ _authorized_dispatch
 
 没有「暂停整个 Gateway 进程」。Gateway 的 async 事件循环继续收消息；**堵的是执行 tool 的那条同步线程**。
 
-### 6.1 交互步骤
+<a id="61-交互步骤"></a>
+<a id="section-8-2"></a>
+### 8.2 交互步骤
 
 ```text
 session 启动
@@ -421,7 +484,9 @@ Agent 线程被唤醒
   → ToolMessage → run_conversation 下一轮
 ```
 
-### 6.2 时序图
+<a id="62-时序图"></a>
+<a id="section-8-3"></a>
+### 8.3 时序图
 
 ```mermaid
 sequenceDiagram
@@ -434,8 +499,8 @@ sequenceDiagram
 
     Note over GW: register_gateway_notify at session start
     Model->>Term: terminal dangerous cmd
-    Term->>Gate: check_dangerous_command
-    Gate->>Gate: _run_approval_gate
+    Term->>Gate: check_all_command_guards
+    Gate->>Gate: floor / mode / pattern / _human_decision
     Gate->>Q: append ApprovalEntry
     Gate->>GW: notify_cb push card
     Note over Gate: agent thread Event.wait
@@ -455,7 +520,9 @@ sequenceDiagram
 
 ---
 
-## 7. 时序：Gateway（pending）
+<a id="7-时序gatewaypending"></a>
+<a id="section-9"></a>
+## 9. 时序：Gateway（pending）
 
 **无** `register_gateway_notify`（或 notify 失败）时：不能堵线程等人（IM 可能永远收不到卡），改为 **非阻塞 pending**：
 
@@ -481,7 +548,9 @@ sequenceDiagram
 
 ---
 
-## 8. 用户选择与持久化
+<a id="8-用户选择与持久化"></a>
+<a id="section-10"></a>
+## 10. 用户选择与持久化
 
 | 选择 | 含义 | 状态 |
 |------|------|------|
@@ -492,7 +561,9 @@ sequenceDiagram
 
 ---
 
-## 9. Smart / YOLO / Cron / 容器跳过
+<a id="9-smart--yolo--cron--容器跳过"></a>
+<a id="section-11"></a>
+## 11. Smart / YOLO / Cron / 容器跳过
 
 | 机制 | 行为 |
 |------|------|
@@ -500,19 +571,23 @@ sequenceDiagram
 | `mode: smart` | 可先 LLM 再决定是否问人 |
 | `mode: off` / yolo | 跳过可恢复层；**不**跳过 hardline / deny 规则 |
 | `cron_mode` | cron 无真人 deny 或 auto-approve |
-| 隔离容器无 host bind | 跳过 |
+| 隔离容器无 host bind | 当前 command guard 先保留用户 deny，再豁免其余该路径检查；不是绕过所有安全层 |
 | Docker + host bind | 不跳过 |
 
 ---
 
-## 10. Plugin `request_tool_approval`
+<a id="10-plugin-request_tool_approval"></a>
+<a id="section-12"></a>
+## 12. Plugin `request_tool_approval`
 
 `pre_tool_call` → `{action: "approve"}` → 同一 `_run_approval_gate`。  
 非交互非 gateway：**fail-closed**。
 
 ---
 
-## 11. 子 Agent 上的审批回调
+<a id="11-子-agent-上的审批回调"></a>
+<a id="section-13"></a>
+## 13. 子 Agent 上的审批回调
 
 ```text
 delegate_tool 子线程 initializer = set_approval_callback(parent_cb)
@@ -522,13 +597,17 @@ delegate_tool 子线程 initializer = set_approval_callback(parent_cb)
 
 ---
 
-## 12. Clarify：另一类 HITL
+<a id="12-clarify另一类-hitl"></a>
+<a id="section-14"></a>
+## 14. Clarify：另一类 HITL
 
 模型主动提问，**不经过** `_run_approval_gate`。
 
 ---
 
-## 13. Deny 之后
+<a id="13-deny-之后"></a>
+<a id="section-15"></a>
+## 15. Deny 之后
 
 ```text
 tool result BLOCKED → 追加 ToolMessage → 下一轮 LLM 换方案
@@ -537,7 +616,9 @@ tool result BLOCKED → 追加 ToolMessage → 下一轮 LLM 换方案
 
 ---
 
-## 14. 与其它 Agent 项目的 HITL 对比
+<a id="14-与其它-agent-项目的-hitl-对比"></a>
+<a id="section-16"></a>
+## 16. 与其它 Agent 项目的 HITL 对比
 
 Hermes 的审批是 **工具调用栈内同步阻塞**（CLI=`Queue`，Gateway=`Event`），人答完同一帧继续 execute。其它常见做法：
 
@@ -563,7 +644,9 @@ LangGraph:  node → interrupt() → checkpoint → (later) resume → continue 
 
 ---
 
-## 配置速查
+<a id="配置速查"></a>
+<a id="section-17"></a>
+## 17. 配置速查
 
 ```yaml
 approvals:
@@ -577,7 +660,9 @@ approvals:
 
 ---
 
-## 源码锚点
+<a id="源码锚点"></a>
+<a id="section-18"></a>
+## 18. 源码锚点
 
 | 符号 | 文件 |
 |------|------|

@@ -1,60 +1,63 @@
-# SayAgain（产品探讨）
+# SayAgain 文档中心
 
-C 端英语学习 App 的产品讨论与设计探索，包含数字人带学、闪卡、句子闯关与口语练习，**非运行时代码目录**。历史纪要中的跟读工具定位不代表最新完整产品方向。
+SayAgain 是面向全年龄段学习者的主题化英语教学产品。当前首发先验证“主题学词”教学闭环：原创风格化 3D 动漫学习伙伴 Milo 通过情境、指向、动作、听说读写练习、亲子陪伴和受控挑战，帮助学习者从理解和识别逐步走向简单使用。
 
-| 文档 | 说明 |
-|------|------|
-| [百词斩静态研究报告](./research/baicizhan/逆向分析报告-v0.1.md) | 7.10.22 APK 的内容结构、题型与学习状态线索，以及首发借鉴边界 |
-| [research/baicizhan/](./research/baicizhan/) | 百词斩 APK 静态分析材料（摘要、字段元数据、只读脚本） |
-| [词汇首发设计与竞品逆向计划-v1.1.md](./词汇首发设计与竞品逆向计划-v1.1.md) | 最新首发范围：单词与固定搭配；教学方法、闪卡、更新路线及 APK 拆解计划 |
-| [首发能力地图-v0.1.md](./首发能力地图-v0.1.md) | 首发模块边界、依赖方向和建设顺序 |
-| [产品需求文档-Android首发-v0.1.md](./产品需求文档-Android首发-v0.1.md) | Android 首发产品需求、学习闭环、页面形态、验收标准与待决策项 |
-| [产品整体设计-v1.0.md](./产品整体设计-v1.0.md) | 长期整体设计：学习领域、目标与评估、课程结构、信息架构、版本路线 |
-| [产品设计探索-v0.3-数字人学习产品.md](./产品设计探索-v0.3-数字人学习产品.md) | 本轮产品方向：多玩法学习、数字人教学、商业与开源参考 |
-| [产品设计探索-v0.2.md](./产品设计探索-v0.2.md) | 上轮口语方向探索；整体定位已修正，保留反馈与流程思考 |
-| [android项目.md](./android项目.md) | 既有 Android 学习类及开发参考项目清单 |
-| [产品探讨纪要.md](./产品探讨纪要.md) | 对话整理：市场定位、底座选型、开源调研 |
-| [agent-research/SAYAGAIN.md](../../../agent-research/SAYAGAIN.md) | 历史跟读产品探索；不代表当前首发范围 |
+> 本目录是产品、教学、设计和研究文档，不是运行时代码目录。
 
-## 当前产品设计交付物
+## 先读这三份
 
-- `产品需求文档-Android首发-v0.1.md`：定义首发做什么、学习闭环和验收范围。
-- `Android原型设计-v0.1.md`：低保真页面、导航、用户流程、状态和交互。
-- `DESIGN.md`：视觉方向、设计 token、组件和可访问性规范。
-- `产品结构与课程体系-v0.1.md`：定义课程入口、主题/年级/教材/考试的统一内容模型，以及数字人教学策略。
-- `prototype/index.html`：可点击的精致移动端核心流程原型（Android/iOS 共用交互方向）。
+1. [当前决策](./00-overview/DECISIONS.md)：已经确认的产品边界，防止历史讨论干扰当前判断。
+2. [教学框架](./01-education/EDU-TEACHING-FRAMEWORK-v0.2.md)：能力分层、教学原则、Milo 职责、亲子和 PK 边界。
+3. [移动端 MVP PRD](./02-product/PRD-MOBILE-MVP-v0.2.md)：首发产品范围、流程、功能和验收标准。
 
-当前阶段：**教学框架评审；既有 PRD 与 HTML 原型是早期草稿，需要按教学目标重构，尚不能作为冻结开发基线。**
+## 文档地图
 
-推荐顺序：
+| 目录 | 类型 | 当前用途 |
+|---|---|---|
+| `00-overview/` | 总览/决策/路线 | 产品方向、版本路线、决策记录 |
+| `01-education/` | 教学/课程 | 教学方法、能力层、课程大纲、单元脚本 |
+| `02-product/` | 产品/PRD | 产品结构、需求和内容模型 |
+| `03-design/` | 设计/原型 | UI 规范、原型说明、可点击原型 |
+| `04-engineering/` | 技术 | 当前预留；教研和试学通过后建立技术方案 |
+| `05-research/` | 研究 | 竞品、APK 静态研究和开源参考 |
+| `06-planning/` | 计划 | 阶段计划、交付顺序和责任 |
+| `99-templates/` | 模板 | 新增课程单元和活动的模板 |
+| `90-archive/` | 历史 | 闲聊、探索稿和旧 PRD，不作为当前基线 |
 
-```text
-产品评审 → 原型确认 → 技术选型 → 技术方案 → 开发任务 → 实现 → 测试 → 内测上线
-```
+## 当前有效文档
 
-- `产品需求文档-移动端首发-v0.2.md`：依据教学框架重写的 Android/iOS 首发 PRD，明确目标、课程、方法、活动和证据。
+### 教学与课程
 
-## 教学设计基线（优先阅读）
+- [教学总纲](./01-education/EDU-TEACHING-FRAMEWORK-v0.2.md)
+- [课程框架](./01-education/EDU-CURRICULUM-FRAMEWORK-v0.1.md)
+- [教学方法论研究](./01-education/EDU-TEACHING-RESEARCH-v0.1.md)
+- [课程路线图](./01-education/EDU-CURRICULUM-ROADMAP-v0.1.md)
+- [A0《我的脸》教案](./01-education/units/UNIT-BODY-FACE-SCRIPT-v0.1.md)
+- [A0 内容对象](./01-education/units/UNIT-BODY-FACE-CONTENT-v0.1.md)
+- [A0 资产清单](./01-education/units/UNIT-BODY-FACE-ASSETS-v0.1.md)
 
-- `教学产品框架与课程大纲-v0.1.md`：目标、能力地图、内容大纲、教学方法、活动库、证据模型和扩展规则。
-- `curriculum/templates/单元设计模板.md`：新增主题单元与正式教学脚本的统一模板。
-- `curriculum/templates/教学活动模板.md`：新增闪卡、场景任务、亲子、挑战等形式的教学契约。
+### 产品与设计
 
-先框架评审，再完成首发单元脚本、同步 PRD 与原型、试学，之后进入技术方案。
+- [移动端 MVP PRD](./02-product/PRD-MOBILE-MVP-v0.2.md)
+- [产品结构](./02-product/PRODUCT-STRUCTURE-v0.1.md)
+- [原型规格](./03-design/DESIGN-PROTOTYPE-SPEC-v0.1.md)
+- [设计系统](./03-design/DESIGN-SYSTEM-v0.1.md)
+- [可点击原型](./03-design/prototype/index.html)
 
-- `教学方法论研究与开源参考-v0.1.md`：官方教学依据、开源参考与儿童场景适配边界（2026-10-13）。
+### 研究与计划
 
-## 教学产品建设计划（2026-10-14）
+- [百词斩静态研究](./05-research/baicizhan/RESEARCH-BAICIZHAN-REVERSE-ANALYSIS-v0.1.md)
+- [开源 Android 参考](./05-research/RESEARCH-OPEN-SOURCE-ANDROID-v0.1.md)
+- [教学产品实施计划](./06-planning/PLAN-DELIVERY-v0.1.md)
 
-- `教学产品总纲与能力分层-v0.2.md`：全年龄段能力层、体验带、Milo 教学职责和互动/PK 分层。
-- `课程内容路线图-v0.1.md`：优先主题“我和我的身体”“动物园里的人和动物”与首发试学单元。
-- `planning/教学产品实施计划-v0.1.md`：从教学总纲到单元、原型、试学和技术方案的执行顺序与分工。
+## 下一步
 
+先评审 A0《我的脸》和教学框架，再编写 B1《找一找动物》；两者通过后重做原型，组织家庭试学，最后进入技术选型和方案设计。
 
-## 当前 W1 首发课程单元
+## 命名规范
 
-- `curriculum/units/U-body-face-v0.1.md`：`《我的脸》`两节短课、亲子任务、延迟复习和教学证据。
-- `curriculum/units/U-body-face-content-v0.1.md`：词、指令、句块、内容关系和活动配置。
-- `curriculum/units/U-body-face-assets-v0.1.md`：Milo 动作、场景、音频、UI 资产和降级方案。
+新文档使用：`TYPE-DESCRIPTIVE-NAME-vX.Y.md`。
 
-下一评审点：先评审《我的脸》，再制作非身体主题 `B1《找一找动物》`，验证框架是否可复用。
+- `EDU` 教学；`PRD` 需求；`PRODUCT` 产品结构；`DESIGN` 设计；`ENG` 技术；`RESEARCH` 研究；`PLAN` 计划；`DISCUSSION` 讨论。
+- `v0.x` 草稿/评审；`v1.0` 冻结基线；文档正文使用中文，文件名使用英文和稳定 ASCII。
+- 每份主文档开头标注状态、日期、上游文档和是否为当前事实源。

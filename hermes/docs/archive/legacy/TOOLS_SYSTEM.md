@@ -1,37 +1,67 @@
 # Tools 系统
 
-> **文档状态**: Canonical（去重重构版 · 勿再拆 Parts）  
-> **Hermes 版本锚点**: 0.19.0 · **核对**: 2026-07-31 · [DOC_MAINTENANCE.md](DOC_MAINTENANCE.md)  
-> **重构说明**: 合并原 Overview / DEEP / COMPLETE Parts；Registry / 并行 / 预算以深度实现为准；`skill_manage` / `session_search` / `delegate_task` 各保留一份深潜。  
+<!-- legacy-review:start -->
+> **2026-10-15 校订导航**：工具从注册、暴露、执行到大结果回收怎样串起来。\
+> **核对范围**：修正旧 50KB 阈值表述；全部工具列表和示例实现不视为当前 API 合约。\
+> **适用基线**：本地源码 `60d00c5633ad`；不是最新发布版本声明。原稿版本、行号、性能数字与长代码块若未在校订范围内，仍按历史示例阅读。
+> **先读当前结论**：[当前实现导读](CURRENT_IMPLEMENTATION.md#current-flush) · **现行分卷**：[05-capabilities-extensions.md](../../volumes/05-capabilities-extensions.md) · [具体改动与未验证项](REVIEW_AND_CHANGES.md) · [返回全目录](README.md)
+
+<!-- legacy-review:end -->
+<a id="目录"></a>
+## 目录
+
+<!-- visible-toc:start -->
+- [1. 概述](#section-1)
+  - [1.1 什么是 Tools?](#section-1-1)
+  - [1.2 核心设计原则](#section-1-2)
+  - [1.3 Tools vs Skills 对比](#section-1-3)
+- [2. Registry 与发现](#section-2)
+  - [2.1 工具注册表架构](#section-2-1)
+  - [2.2 AST 扫描发现机制](#section-2-2)
+- [3. Toolsets](#section-3)
+  - [3.1 Toolset 管理系统](#section-3-1)
+  - [3.2 子 Agent 的 toolset 过滤](#section-3-2)
+- [4. 工具目录](#section-4)
+  - [4.1 核心工具分类](#section-4-1)
+- [5. 终端后端](#section-5)
+  - [5.1 多终端后端](#section-5-1)
+- [6. 并行执行](#section-6)
+  - [6.1 工具并行策略详解](#section-6-1)
+- [7. 分发与异步桥](#section-7)
+  - [7.1 执行链路与分发](#section-7-1)
+  - [7.2 异步桥接机制](#section-7-2)
+- [8. 结果持久化与回合预算](#section-8)
+  - [8.1 工具结果持久化](#section-8-1)
+- [9. MCP 动态工具](#section-9)
+  - [9.1 MCP 动态工具](#section-9-1)
+- [10. 自定义工具](#section-10)
+  - [10.1 开发自定义工具](#section-10-1)
+- [11. 领域工具接入边界](#section-11)
+  - [11.1 skill_manage 调用边界（详见 Skills）](#section-11-1)
+  - [11.2 session_search 调用边界（详见 Memory）](#section-11-2)
+  - [11.3 delegate_task 调用边界（详见多 Agent）](#section-11-3)
+- [12. 性能实践](#section-12)
+  - [12.1 性能优化最佳实践](#section-12-1)
+<!-- visible-toc:end -->
+
+
+
+
+> **原稿文档状态（历史标签）**: Canonical（去重重构版 · 勿再拆 Parts）\
+> **原稿版本锚点（历史）**: 0.19.0 · **核对**: 2026-07-31 · [DOC_MAINTENANCE.md](DOC_MAINTENANCE.md)\
+> **重构说明**: 合并原 Overview / DEEP / COMPLETE Parts；Registry / 并行 / 预算以深度实现为准；`skill_manage` / `session_search` / `delegate_task` 深解分别归入 Skills / Memory / 多 Agent 篇；本篇保留统一调用边界。\
 > **源码**: `tools/registry.py`, `model_tools.py`, `toolsets.py`, `tools/budget_config.py`
 
 ---
 
-## 目录
-
-1. [概述](#1-概述)
-2. [Registry 与发现](#2-registry-与发现)
-3. [Toolsets](#3-toolsets)
-4. [工具目录](#4-工具目录)
-5. [终端后端](#5-终端后端)
-6. [并行执行](#6-并行执行)
-7. [分发与异步桥](#7-分发与异步桥)
-8. [结果持久化与回合预算](#8-结果持久化与回合预算)
-9. [MCP 动态工具](#9-mcp-动态工具)
-10. [自定义工具](#10-自定义工具)
-11. [深潜：skill_manage](#11-深潜skill_manage)
-12. [深潜：session_search](#12-深潜session_search)
-13. [深潜：delegate_task](#13-深潜delegate_task)
-14. [性能实践](#14-性能实践)
-
----
-
+<a id="1-概述"></a>
+<a id="section-1"></a>
 ## 1. 概述
 
 
-### 1. 概述
-
-#### 1.1 什么是 Tools?
+<a id="11-什么是-tools"></a>
+<a id="section-1-1"></a>
+### 1.1 什么是 Tools?
 
 **Tools** 是 Hermes Agent 的**可执行能力扩展**,允许模型通过函数调用执行具体操作。每个 Tool 包含:
 
@@ -40,7 +70,9 @@
 - ✅ Toolset - 所属工具集(core/web/memory等)
 - ✅ Check Function - 可用性检查(可选)
 
-#### 1.2 核心设计原则
+<a id="12-核心设计原则"></a>
+<a id="section-1-2"></a>
+### 1.2 核心设计原则
 
 | 原则 | 说明 |
 |------|------|
@@ -50,7 +82,9 @@
 | **Parallel-safe** | 智能并行判定 |
 | **Budget-controlled** | 结果大小预算控制 |
 
-#### 1.3 Tools vs Skills 对比
+<a id="13-tools-vs-skills-对比"></a>
+<a id="section-1-3"></a>
+### 1.3 Tools vs Skills 对比
 
 | 特性 | Tools | Skills |
 |------|-------|--------|
@@ -63,14 +97,20 @@
 ---
 
 
+<a id="2-registry-与发现"></a>
+<a id="section-2"></a>
 ## 2. Registry 与发现
 
 > 注册 API 为 `registry.register(..., toolset=..., handler=...)`（单数 `toolset`）。**没有**装饰器方案；`discover_builtin_tools()` 负责 import 触发顶层 `register`。
 
 
-### 1. 工具注册表架构
+<a id="1-工具注册表架构"></a>
+<a id="section-2-1"></a>
+### 2.1 工具注册表架构
 
-#### 1.1 注册表设计全景
+<a id="11-注册表设计全景"></a>
+<a id="section-2-1-1"></a>
+#### 2.1.1 注册表设计全景
 
 ```mermaid
 classDiagram
@@ -118,7 +158,9 @@ classDiagram
 - ✅ **自注册机制** - 工具文件顶层调用 `registry.register()`
 - ✅ **动态发现** - AST 扫描避免手动维护清单
 
-#### 1.2 注册流程
+<a id="12-注册流程"></a>
+<a id="section-2-1-2"></a>
+#### 2.1.2 注册流程
 
 > **没有装饰器 API。** `registry.register(...)` 是普通函数调用，在模块顶层显式传入 `handler=`。文档旧稿里的 `@registry.register` 写法是错误的，与源码不一致，且 AST discover 只认顶层 `registry.register(...)` 语句，不认装饰器节点。
 
@@ -169,9 +211,13 @@ discover_builtin_tools()
 
 ---
 
-### 2. AST 扫描发现机制
+<a id="2-ast-扫描发现机制"></a>
+<a id="section-2-2"></a>
+### 2.2 AST 扫描发现机制
 
-#### 2.1 为什么用 AST?
+<a id="21-为什么用-ast"></a>
+<a id="section-2-2-1"></a>
+#### 2.2.1 为什么用 AST?
 
 传统方法需要手动维护工具清单:
 ```python
@@ -193,7 +239,9 @@ def discover_builtin_tools(tools_dir: Path):
             importlib.import_module(f"tools.{py_file.stem}")
 ```
 
-#### 2.2 AST 扫描实现
+<a id="22-ast-扫描实现"></a>
+<a id="section-2-2-2"></a>
+#### 2.2.2 AST 扫描实现
 
 ```python
 import ast
@@ -259,12 +307,18 @@ def discover_builtin_tools(tools_dir: Path = None) -> List[str]:
 ---
 
 
+<a id="3-toolsets"></a>
+<a id="section-3"></a>
 ## 3. Toolsets
 
 
-### 7. Toolset 管理系统
+<a id="7-toolset-管理系统"></a>
+<a id="section-3-1"></a>
+### 3.1 Toolset 管理系统
 
-#### 7.1 Toolset 定义
+<a id="71-toolset-定义"></a>
+<a id="section-3-1-1"></a>
+#### 3.1.1 Toolset 定义
 
 ```python
 ## toolsets.py
@@ -295,7 +349,9 @@ TOOLSETS = {
 }
 ```
 
-#### 7.2 启用/禁用逻辑
+<a id="72-启用禁用逻辑"></a>
+<a id="section-3-1-2"></a>
+#### 3.1.2 启用/禁用逻辑
 
 ```python
 def resolve_toolsets(
@@ -328,10 +384,14 @@ def resolve_toolsets(
 ---
 
 
-### 子 Agent 的 toolset 过滤
+<a id="子-agent-的-toolset-过滤"></a>
+<a id="section-3-2"></a>
+### 3.2 子 Agent 的 toolset 过滤
 
 
-#### 4.3 子Agent的Toolset过滤
+<a id="43-子agent的toolset过滤"></a>
+<a id="section-3-2-1"></a>
+#### 3.2.1 子Agent的Toolset过滤
 
 ```python
 ## delegate_tool.py
@@ -353,12 +413,18 @@ if effective_role == "orchestrator" and "delegation" not in child_toolsets:
 ---
 
 
+<a id="4-工具目录"></a>
+<a id="section-4"></a>
 ## 4. 工具目录
 
 
-### 5. 核心工具分类
+<a id="5-核心工具分类"></a>
+<a id="section-4-1"></a>
+### 4.1 核心工具分类
 
-#### 5.1 文件操作工具
+<a id="51-文件操作工具"></a>
+<a id="section-4-1-1"></a>
+#### 4.1.1 文件操作工具
 
 | 工具 | 功能 | 并行安全 |
 |------|------|---------|
@@ -384,7 +450,9 @@ if effective_role == "orchestrator" and "delegation" not in child_toolsets:
 
 ---
 
-#### 5.2 终端执行工具
+<a id="52-终端执行工具"></a>
+<a id="section-4-1-2"></a>
+#### 4.1.2 终端执行工具
 
 | 工具 | 功能 | 后端 |
 |------|------|------|
@@ -440,7 +508,9 @@ terminal:
 
 ---
 
-#### 5.3 Web 访问工具
+<a id="53-web-访问工具"></a>
+<a id="section-4-1-3"></a>
+#### 4.1.3 Web 访问工具
 
 | 工具 | 功能 |
 |------|------|
@@ -451,7 +521,9 @@ terminal:
 
 ---
 
-#### 5.4 记忆管理工具
+<a id="54-记忆管理工具"></a>
+<a id="section-4-1-4"></a>
+#### 4.1.4 记忆管理工具
 
 | 工具 | 功能 |
 |------|------|
@@ -460,7 +532,9 @@ terminal:
 
 ---
 
-#### 5.5 Skills 管理工具
+<a id="55-skills-管理工具"></a>
+<a id="section-4-1-5"></a>
+#### 4.1.5 Skills 管理工具
 
 | 工具 | 功能 |
 |------|------|
@@ -469,7 +543,9 @@ terminal:
 
 ---
 
-#### 5.6 委派任务工具
+<a id="56-委派任务工具"></a>
+<a id="section-4-1-6"></a>
+#### 4.1.6 委派任务工具
 
 | 工具 | 功能 |
 |------|------|
@@ -482,7 +558,9 @@ terminal:
 
 ---
 
-#### 5.7 MCP 集成工具
+<a id="57-mcp-集成工具"></a>
+<a id="section-4-1-7"></a>
+#### 4.1.7 MCP 集成工具
 
 | 工具 | 功能 |
 |------|------|
@@ -491,12 +569,18 @@ terminal:
 ---
 
 
+<a id="5-终端后端"></a>
+<a id="section-5"></a>
 ## 5. 终端后端
 
 
-### 6. 多终端后端
+<a id="6-多终端后端"></a>
+<a id="section-5-1"></a>
+### 5.1 多终端后端
 
-#### 6.1 后端对比
+<a id="61-后端对比"></a>
+<a id="section-5-1-1"></a>
+#### 5.1.1 后端对比
 
 | 后端 | 适用场景 | 隔离性 | 成本 |
 |------|---------|--------|------|
@@ -507,7 +591,9 @@ terminal:
 | **Daytona** | 云沙箱 | ✅ 高 | 订阅制 |
 | **Singularity** | HPC 集群 | ✅ 高 | 集群费用 |
 
-#### 6.2 后端选择策略
+<a id="62-后端选择策略"></a>
+<a id="section-5-1-2"></a>
+#### 5.1.2 后端选择策略
 
 ```python
 def select_backend(config: dict) -> TerminalBackend:
@@ -533,12 +619,18 @@ def select_backend(config: dict) -> TerminalBackend:
 ---
 
 
+<a id="6-并行执行"></a>
+<a id="section-6"></a>
 ## 6. 并行执行
 
 
-### 3. 工具并行策略详解
+<a id="3-工具并行策略详解"></a>
+<a id="section-6-1"></a>
+### 6.1 工具并行策略详解
 
-#### 3.1 并行决策树
+<a id="31-并行决策树"></a>
+<a id="section-6-1-1"></a>
+#### 6.1.1 并行决策树
 
 ```mermaid
 flowchart TD
@@ -564,7 +656,9 @@ flowchart TD
     SerialExec --> SequentialLoop[按序执行]
 ```
 
-#### 3.2 并行规则定义
+<a id="32-并行规则定义"></a>
+<a id="section-6-1-2"></a>
+#### 6.1.2 并行规则定义
 
 ```python
 ## run_agent.py
@@ -601,7 +695,9 @@ _PATH_SCOPED_TOOLS = frozenset({
 _MAX_TOOL_WORKERS = 8  # 并发上限
 ```
 
-#### 3.3 并行判定实现
+<a id="33-并行判定实现"></a>
+<a id="section-6-1-3"></a>
+#### 6.1.3 并行判定实现
 
 ```python
 def _should_parallelize_tool_batch(tool_calls: List[Dict]) -> bool:
@@ -659,7 +755,9 @@ def _should_parallelize_tool_batch(tool_calls: List[Dict]) -> bool:
     return False
 ```
 
-#### 3.4 破坏性命令检测
+<a id="34-破坏性命令检测"></a>
+<a id="section-6-1-4"></a>
+#### 6.1.4 破坏性命令检测
 
 ```python
 _DESTRUCTIVE_PATTERNS = [
@@ -678,7 +776,9 @@ def _is_destructive_command(cmd: str) -> bool:
 
 **影响**: 破坏性命令不与文件类工具并行,避免竞态条件
 
-#### 3.5 并行执行实现
+<a id="35-并行执行实现"></a>
+<a id="section-6-1-5"></a>
+#### 6.1.5 并行执行实现
 
 ```python
 def _execute_tool_calls_parallel(self, tool_calls, messages, task_id):
@@ -735,12 +835,18 @@ def _execute_tool_calls_parallel(self, tool_calls, messages, task_id):
 ---
 
 
+<a id="7-分发与异步桥"></a>
+<a id="section-7"></a>
 ## 7. 分发与异步桥
 
 
-### 4. 执行链路与分发
+<a id="4-执行链路与分发"></a>
+<a id="section-7-1"></a>
+### 7.1 执行链路与分发
 
-#### 4.1 完整执行链路
+<a id="41-完整执行链路"></a>
+<a id="section-7-1-1"></a>
+#### 7.1.1 完整执行链路
 
 ```mermaid
 sequenceDiagram
@@ -790,7 +896,9 @@ sequenceDiagram
     Agent->>Model: 下一轮 API 调用
 ```
 
-#### 4.2 工具分发逻辑
+<a id="42-工具分发逻辑"></a>
+<a id="section-7-1-2"></a>
+#### 7.1.2 工具分发逻辑
 
 ```python
 ## model_tools.py
@@ -853,9 +961,13 @@ def handle_function_call(
 
 ---
 
-### 5. 异步桥接机制
+<a id="5-异步桥接机制"></a>
+<a id="section-7-2"></a>
+### 7.2 异步桥接机制
 
-#### 5.1 为什么需要桥接?
+<a id="51-为什么需要桥接"></a>
+<a id="section-7-2-1"></a>
+#### 7.2.1 为什么需要桥接?
 
 Hermes 的工具执行在**同步上下文**中 (`run_conversation` 是同步函数),但部分工具需要异步操作 (如 HTTP 请求)。
 
@@ -865,7 +977,9 @@ Hermes 的工具执行在**同步上下文**中 (`run_conversation` 是同步函
 
 **解决方案**: 持久化事件循环
 
-#### 5.2 桥接实现
+<a id="52-桥接实现"></a>
+<a id="section-7-2-2"></a>
+#### 7.2.2 桥接实现
 
 ```python
 ## model_tools.py
@@ -948,14 +1062,20 @@ registry.register(
 ---
 
 
+<a id="8-结果持久化与回合预算"></a>
+<a id="section-8"></a>
 ## 8. 结果持久化与回合预算
 
 > 默认阈值以 `tools/budget_config.py` 为准：`DEFAULT_RESULT_SIZE_CHARS=100_000`，`DEFAULT_TURN_BUDGET_CHARS=200_000`。下文若仍写「50KB」视为旧稿残留，以源码为准。
 
 
-### 6. 工具结果持久化
+<a id="6-工具结果持久化"></a>
+<a id="section-8-1"></a>
+### 8.1 工具结果持久化
 
-#### 6.1 为什么需要持久化？
+<a id="61-为什么需要持久化"></a>
+<a id="section-8-1-1"></a>
+#### 8.1.1 为什么需要持久化？
 
 **核心问题**：LLM 上下文窗口有限（GPT-4: 128K tokens ≈ 384KB），大工具结果会快速耗尽空间。
 
@@ -981,7 +1101,9 @@ messages.append({"role": "tool", "content": persisted_msg})
 
 ---
 
-#### 6.2 三层防御机制
+<a id="62-三层防御机制"></a>
+<a id="section-8-1-2"></a>
+#### 8.1.2 三层防御机制
 
 ```mermaid
 graph LR
@@ -1009,9 +1131,13 @@ graph LR
 
 ---
 
-#### 6.3 `maybe_persist_tool_result()` - 单结果持久化
+<a id="63-maybe_persist_tool_result---单结果持久化"></a>
+<a id="section-8-1-3"></a>
+#### 8.1.3 `maybe_persist_tool_result()` - 单结果持久化
 
-##### **调用时机**
+<a id="调用时机"></a>
+<a id="section-8-1-3-1"></a>
+##### 8.1.3.1 **调用时机**
 
 **位置**：每个工具执行完成后立即调用
 
@@ -1027,14 +1153,18 @@ function_result = maybe_persist_tool_result(
 ## run_agent.py:L10718（串行执行路径，类似逻辑）
 ```
 
-##### **触发条件**
+<a id="触发条件"></a>
+<a id="section-8-1-3-2"></a>
+##### 8.1.3.2 **触发条件**
 
 - ✅ **每个工具执行完成后自动调用**
-- ✅ 如果结果超过阈值（默认 50KB），保存到沙盒临时文件
+- ✅ 如果结果超过当前字符阈值（`DEFAULT_RESULT_SIZE_CHARS=100_000`，不是 50KB），保存到沙盒临时文件
 - ✅ 返回 `<persisted-output>` 标签 + 预览 + 文件路径
 - ❌ 多模态结果（图片等）跳过此处理
 
-##### **工作流程**
+<a id="工作流程"></a>
+<a id="section-8-1-3-3"></a>
+##### 8.1.3.3 **工作流程**
 
 ```python
 ## tools/tool_result_storage.py:L122-178
@@ -1073,7 +1203,9 @@ def maybe_persist_tool_result(
     return f"{preview}\n\n[Truncated: tool response was {len(content):,} chars.]"
 ```
 
-##### **返回格式**
+<a id="返回格式"></a>
+<a id="section-8-1-3-4"></a>
+##### 8.1.3.4 **返回格式**
 
 ```xml
 <persisted-output>
@@ -1099,9 +1231,13 @@ file2.py: class World(): ...
 
 ---
 
-#### 6.4 `enforce_turn_budget()` - 聚合预算控制
+<a id="64-enforce_turn_budget---聚合预算控制"></a>
+<a id="section-8-1-4"></a>
+#### 8.1.4 `enforce_turn_budget()` - 聚合预算控制
 
-##### **调用时机**
+<a id="调用时机-1"></a>
+<a id="section-8-1-4-1"></a>
+##### 8.1.4.1 **调用时机**
 
 **位置**：一轮工具调用全部执行完成后
 
@@ -1116,14 +1252,18 @@ if num_tools > 0:
 ## 串行执行路径也有类似的调用（未显示）
 ```
 
-##### **触发条件**
+<a id="触发条件-1"></a>
+<a id="section-8-1-4-2"></a>
+##### 8.1.4.2 **触发条件**
 
 - ✅ **每轮工具调用结束后自动调用**
 - ✅ 如果该轮所有工具结果的总大小超过预算（默认 200KB）
 - ✅ 按大小降序，逐个持久化最大的结果，直到总大小低于预算
 - ✅ 已经持久化的结果跳过（避免重复处理）
 
-##### **工作流程**
+<a id="工作流程-1"></a>
+<a id="section-8-1-4-3"></a>
+##### 8.1.4.3 **工作流程**
 
 ```python
 ## tools/tool_result_storage.py:L181-232
@@ -1179,7 +1319,9 @@ def enforce_turn_budget(
     return tool_messages
 ```
 
-##### **实际场景示例**
+<a id="实际场景示例"></a>
+<a id="section-8-1-4-4"></a>
+##### 8.1.4.4 **实际场景示例**
 
 **场景**：Agent 同时调用 5 个工具，每个返回 60KB
 
@@ -1204,9 +1346,13 @@ total_size = 60KB * 5 = 300KB  # 超过 200KB 预算
 
 ---
 
-#### 6.5 实际效果对比
+<a id="65-实际效果对比"></a>
+<a id="section-8-1-5"></a>
+#### 8.1.5 实际效果对比
 
-##### **场景：Agent 搜索代码库中的 Python 文件**
+<a id="场景agent-搜索代码库中的-python-文件"></a>
+<a id="section-8-1-5-1"></a>
+##### 8.1.5.1 **场景：Agent 搜索代码库中的 Python 文件**
 
 **不持久化（传统方式）**：
 ```
@@ -1251,16 +1397,22 @@ Round 3:
 
 ---
 
-#### 6.6 关键设计洞察
+<a id="66-关键设计洞察"></a>
+<a id="section-8-1-6"></a>
+#### 8.1.6 关键设计洞察
 
-##### **1. LLM 不需要一次性看到全部内容**
+<a id="1-llm-不需要一次性看到全部内容"></a>
+<a id="section-8-1-6-1"></a>
+##### 8.1.6.1 **1. LLM 不需要一次性看到全部内容**
 
 大多数情况下，Agent 只需要：
 - 🔍 **预览**：判断哪些部分相关（2KB）
 - 📖 **局部读取**：只读取关心的片段（5-10KB）
 - ❌ **忽略无关部分**：永远不会加载
 
-##### **2. `read_file` 支持分页读取**
+<a id="2-read_file-支持分页读取"></a>
+<a id="section-8-1-6-2"></a>
+##### 8.1.6.2 **2. `read_file` 支持分页读取**
 
 ```python
 ## Agent 可以分段读取大文件
@@ -1270,7 +1422,9 @@ read_file(path="/tmp/abc123.txt", offset=10000, limit=10000) # 第 10-20K 字符
 
 这样每次只加载需要的部分，而不是整个 500KB。
 
-##### **3. 统计数据**
+<a id="3-统计数据"></a>
+<a id="section-8-1-6-3"></a>
+##### 8.1.6.3 **3. 统计数据**
 
 根据 Hermes 的实际运行数据：
 - **平均工具结果大小**：~30KB
@@ -1281,9 +1435,13 @@ read_file(path="/tmp/abc123.txt", offset=10000, limit=10000) # 第 10-20K 字符
 
 ---
 
-#### 6.7 清理策略
+<a id="67-清理策略"></a>
+<a id="section-8-1-7"></a>
+#### 8.1.7 清理策略
 
-##### **当前状态**
+<a id="当前状态"></a>
+<a id="section-8-1-7-1"></a>
+##### 8.1.7.1 **当前状态**
 
 文档中提到的 `cleanup_old_results()` 函数**在实际代码中未被调用**。它只是一个示例清理策略，展示如何清理过期的工具结果文件。
 
@@ -1292,7 +1450,9 @@ read_file(path="/tmp/abc123.txt", offset=10000, limit=10000) # 第 10-20K 字符
 2. 或者依赖外部 cron job / 手动清理
 3. 或者计划在后续版本中实现
 
-##### **示例实现**（未启用）
+<a id="示例实现未启用"></a>
+<a id="section-8-1-7-2"></a>
+##### 8.1.7.2 **示例实现**（未启用）
 
 ```python
 ## tools/tool_result_storage.py（示例，未实际使用）
@@ -1335,7 +1495,9 @@ def cleanup_old_results(max_age_hours: int = 24, max_total_size_mb: int = 500):
 
 ---
 
-#### 6.8 总结
+<a id="68-总结"></a>
+<a id="section-8-1-8"></a>
+#### 8.1.8 总结
 
 **核心价值**：
 1. ✅ **大幅节省上下文**：99.5% 的节省率（对大结果）
@@ -1352,14 +1514,20 @@ def cleanup_old_results(max_age_hours: int = 24, max_total_size_mb: int = 500):
 ---
 
 
+<a id="9-mcp-动态工具"></a>
+<a id="section-9"></a>
 ## 9. MCP 动态工具
 
 > 完整 MCP 协议 / OAuth / Sampling 见 [MCP_INTEGRATION.md](MCP_INTEGRATION.md)。
 
 
-### 8. MCP 动态工具
+<a id="8-mcp-动态工具"></a>
+<a id="section-9-1"></a>
+### 9.1 MCP 动态工具
 
-#### 8.1 MCP 工具发现
+<a id="81-mcp-工具发现"></a>
+<a id="section-9-1-1"></a>
+#### 9.1.1 MCP 工具发现
 
 ```python
 ## tools/mcp_tool.py
@@ -1394,7 +1562,9 @@ def discover_mcp_tools():
                         server_name, e)
 ```
 
-#### 8.2 动态刷新
+<a id="82-动态刷新"></a>
+<a id="section-9-1-2"></a>
+#### 9.1.2 动态刷新
 
 ```python
 def refresh_mcp_tools(server_name: str):
@@ -1416,12 +1586,18 @@ def refresh_mcp_tools(server_name: str):
 ---
 
 
+<a id="10-自定义工具"></a>
+<a id="section-10"></a>
 ## 10. 自定义工具
 
 
-### 9. 开发自定义工具
+<a id="9-开发自定义工具"></a>
+<a id="section-10-1"></a>
+### 10.1 开发自定义工具
 
-#### 9.1 快速开始
+<a id="91-快速开始"></a>
+<a id="section-10-1-1"></a>
+#### 10.1.1 快速开始
 
 **步骤 1**: 创建工具文件
 ```bash
@@ -1481,7 +1657,9 @@ TOOLSETS["custom"] = {
 hermes "Use my_custom_tool with param1='hello' and param2=42"
 ```
 
-#### 9.2 最佳实践
+<a id="92-最佳实践"></a>
+<a id="section-10-1-2"></a>
+#### 10.1.2 最佳实践
 
 **✅ 推荐**:
 - 返回 **JSON 字符串** (不是 dict)
@@ -1499,1597 +1677,101 @@ hermes "Use my_custom_tool with param1='hello' and param2=42"
 ---
 
 
-## 11. 深潜：skill_manage
-
-
-#### 2.1 skill_manage - 技能管理工具
-
-**文件**: `tools/skill_manager_tool.py`  
-**行号**: L713-790  
-**作用**: 允许Agent创建、编辑、修补、删除技能，实现技能的自我进化
-
-##### 2.1.1 功能概览
-
-```python
-def skill_manage(
-    action: str,              # 操作类型: create/edit/patch/delete/write_file/remove_file
-    name: str,                # 技能名称
-    content: str = None,      # SKILL.md的完整内容 (create/edit需要)
-    category: str = None,     # 可选的分类目录
-    file_path: str = None,    # 支持文件路径 (write_file/remove_file需要)
-    file_content: str = None, # 支持文件内容 (write_file需要)
-    old_string: str = None,   # 要查找的文本 (patch需要)
-    new_string: str = None,   # 替换后的文本 (patch需要)
-    replace_all: bool = False,# 是否全局替换 (patch可选)
-    absorbed_into: str = None,# 吸收目标技能 (delete可选)
-) -> str:
-    """Manage user-created skills."""
-```
-
-##### 2.1.2 支持的Actions
-
-| Action | 用途 | 必需参数 | 典型场景 |
-|--------|------|---------|---------|
-| **create** | 创建新技能 | `name`, `content` | Agent发现新工作流后保存为技能 |
-| **edit** | 完整重写SKILL.md | `name`, `content` | 大规模重构技能内容 |
-| **patch** | 局部查找替换 | `name`, `old_string`, `new_string` | 修复技能中的错误或过时信息 |
-| **delete** | 删除技能 | `name` | 清理无用或重复的技能 |
-| **write_file** | 添加/更新支持文件 | `name`, `file_path`, `file_content` | 添加references/templates/scripts/assets |
-| **remove_file** | 删除支持文件 | `name`, `file_path` | 清理过时的参考文件 |
-
-##### 2.1.3 实现逻辑详解
-
-###### (1) Action分发器
-
-```python
-if action == "create":
-    if not content:
-        return tool_error("content is required for 'create'.")
-    result = _create_skill(name, content, category)
-
-elif action == "edit":
-    if not content:
-        return tool_error("content is required for 'edit'.")
-    result = _edit_skill(name, content)
-
-elif action == "patch":
-    if not old_string:
-        return tool_error("old_string is required for 'patch'.")
-    if new_string is None:
-        return tool_error("new_string is required for 'patch'.")
-    result = _patch_skill(name, old_string, new_string, file_path, replace_all)
-
-elif action == "delete":
-    result = _delete_skill(name, absorbed_into=absorbed_into)
-
-elif action == "write_file":
-    if not file_path:
-        return tool_error("file_path is required for 'write_file'.")
-    if file_content is None:
-        return tool_error("file_content is required for 'write_file'.")
-    result = _write_file(name, file_path, file_content)
-
-elif action == "remove_file":
-    if not file_path:
-        return tool_error("file_path is required for 'remove_file'.")
-    result = _remove_file(name, file_path)
-
-else:
-    result = {"success": False, "error": f"Unknown action '{action}'."}
-```
-
-###### (2) 成功后的缓存清理
-
-```python
-if result.get("success"):
-    # 清除Skills索引缓存，确保下次加载时获取最新列表
-    try:
-        from agent.prompt_builder import clear_skills_system_prompt_cache
-        clear_skills_system_prompt_cache(clear_snapshot=True)
-    except Exception:
-        pass
-```
-
-###### (3) Curator遥测数据更新
-
-```python
-try:
-    from tools.skill_usage import bump_patch, forget, mark_agent_created
-    from tools.skill_provenance import is_background_review
-    
-    if action == "create":
-        # 仅当后台自我改进审查创建时才标记为agent-created
-        if is_background_review():
-            mark_agent_created(name)
-    elif action in ("patch", "edit", "write_file", "remove_file"):
-        # 修改现有技能时增加patch_count
-        bump_patch(name)
-    elif action == "delete":
-        # 删除技能时忘记遥测记录
-        forget(name)
-except Exception:
-    pass
-```
-
-**关键设计**:
-- ✅ **区分用户创建和Agent创建**: 前台`skill_manage(create)`是用户指令，不标记为agent-created
-- ✅ **Patch计数**: 跟踪技能的维护频率，用于Curator的自动归档决策
-- ✅ **容错性**: 遥测失败不影响工具本身的成功返回
-
-##### 2.1.4 技能目录结构
-
-```
-~/.hermes/skills/
-├── my-skill/
-│   ├── SKILL.md                    # 主技能文件 (YAML frontmatter + Markdown body)
-│   ├── references/                 # 参考文档 (可选)
-│   │   └── api-guide.md
-│   ├── templates/                  # 模板文件 (可选)
-│   │   └── code-template.py
-│   ├── scripts/                    # 脚本文件 (可选)
-│   │   └── helper.py
-│   └── assets/                     # 资源文件 (可选)
-│       └── diagram.png
-└── category-name/                  # 可选的分类子目录
-    └── another-skill/
-        └── SKILL.md
-```
-
-##### 2.1.5 SKILL.md格式
-
-```markdown
----
-name: my-skill
-description: 简短描述技能用途
-category: development
-version: 1.0.0
----
-
-## My Skill Title
-
-### When to Use This Skill
-
-描述何时应该加载此技能。
-
-### Step-by-Step Instructions
-
-1. 第一步
-2. 第二步
-3. 第三步
-
-### Common Pitfalls
-
-- 陷阱1及避免方法
-- 陷阱2及避免方法
-
-### Examples
-
-提供实际使用示例。
-```
-
-##### 2.1.6 安全扫描机制
-
-```python
-def _security_scan_skill(skill_dir: Path) -> Optional[str]:
-    """Scan a skill directory after write. Returns error string if blocked."""
-    if not _GUARD_AVAILABLE:
-        return None
-    if not _guard_agent_created_enabled():
-        return None  # 默认关闭，避免冗余检查
-    try:
-        result = scan_skill(skill_dir, source="agent-created")
-        allowed, reason = should_allow_install(result)
-        if allowed is False:
-            report = format_scan_report(result)
-            return f"Security scan blocked this skill ({reason}):\n{report}"
-    except Exception as e:
-        logger.warning("Security scan failed for %s: %s", skill_dir, e)
-    return None
-```
-
-**配置项**: `skills.guard_agent_created` (默认False)
-
-##### 2.1.7 调用触发机制
-
-**`skill_manage` 被大模型调用的两种场景：**
-
-###### (1) 用户显式指令（前台交互）
-
-用户在对话中直接要求创建或修改技能：
-
-```
-用户: "帮我创建一个 FastAPI 调试工作流的技能"
-用户: "把刚才的解决方案保存为技能，名字叫 'docker-deploy-guide'"
-用户: "更新 'python-debugging' 技能，添加 pytest 的使用示例"
-```
-
-**触发条件**：
-- ✅ 用户明确使用 "创建技能"、"保存为技能"、"更新技能" 等关键词
-- ✅ Agent 识别到这是**用户指令**，而非自主决策
-- ❌ **不会**标记为 `agent-created`（因为是人类要求的）
-
-###### (2) Agent 自主决策（后台自我进化）
-
-Hermes Agent 的核心特性：Agent 在以下情况下会**主动**调用 `skill_manage(create)`：
-
-**场景 A：发现重复性工作流**
-
-当 Agent 意识到某个任务模式已经出现过多次，且可以抽象为标准化流程时：
-
-```
-思考过程:
-1. "我发现自己已经在处理类似的 FastAPI async/await 问题"
-2. "这个问题有固定的排查步骤：检查日志 → 启用DEBUG → 添加中间件"
-3. "我应该把这个工作流保存为技能，下次可以直接加载"
-4. 调用: skill_manage(action="create", name="fastapi-async-debug", ...)
-```
-
-**触发信号**：
-- Agent 内部检测到相似的任务模式（通过会话搜索或记忆系统）
-- 当前解决方案具有**通用性**，不仅适用于本次任务
-- 工作流包含**明确的步骤**和**常见陷阱**
-
-**场景 B：Curator 后台审查（Background Review）**
-
-Hermes Agent 有一个独立的 **Curator 进程**，定期审查 Agent 的历史行为：
-
-```python
-## tools/skill_provenance.py
-def is_background_review() -> bool:
-    """Check if we're running in background review mode."""
-    return os.environ.get("HERMES_BACKGROUND_REVIEW") == "1"
-```
-
-**Curator 的工作流程**：
-1. 扫描最近的会话记录
-2. 识别成功的任务完成模式
-3. 评估是否具有复用价值
-4. 如果值得保存，调用 `skill_manage(create)`
-5. ✅ **标记为 `agent-created`**（因为是 AI 自主发现的）
-
-**配置项**：
-```yaml
-## ~/.hermes/config.yaml
-skills:
-  curator_enabled: true          # 启用 Curator
-  curator_interval_hours: 24     # 每24小时审查一次
-  auto_save_threshold: 3         # 相似模式出现3次后自动保存
-```
-
-**场景 C：技能修补（Self-Healing）**
-
-当 Agent 发现已有技能存在错误或过时信息时：
-
-```
-场景: Agent 加载了 'docker-deploy' 技能，但发现其中的命令已废弃
-思考过程:
-1. "这个技能中的 'docker build -t' 命令在新版本中已改为 'docker compose build'"
-2. "我需要修补这个技能，避免未来出错"
-3. 调用: skill_manage(action="patch", name="docker-deploy", 
-                     old_string="docker build -t", 
-                     new_string="docker compose build")
-```
-
-**触发条件**：
-- 技能执行失败或产生警告
-- Agent 从外部来源（如官方文档）获取到更新信息
-- 用户反馈技能内容有误
-
-###### (3) 大模型的自主决策逻辑（CREATE vs PATCH）
-
-Hermes Agent 通过**两个层级**的 Prompt 指引，指导大模型在用户交互过程中如何选择 action：
-
-**层级 1：System Prompt 中的高层指引**（`agent/prompt_builder.py:L179-186`）
-
-```python
-SKILLS_GUIDANCE = (
-    "After completing a complex task (5+ tool calls), fixing a tricky error, "
-    "or discovering a non-trivial workflow, save the approach as a "
-    "skill with skill_manage so you can reuse it next time.\n"
-    "When using a skill and finding it outdated, incomplete, or wrong, "
-    "patch it immediately with skill_manage(action='patch') — don't wait to be asked. "
-    "Skills that aren't maintained become liabilities."
-)
-```
-
-**注入位置**：`run_agent.py:L5294` → `tool_guidance.append(SKILLS_GUIDANCE)`
-
-**核心规则**：
-- ✅ **CREATE 时机**：完成复杂任务（5+ 次工具调用）、修复棘手错误、发现非平凡工作流
-- ✅ **PATCH 时机**：使用技能时发现过时/不完整/错误，**立即修补，不要等待被要求**
-- ⚠️ **警告**："Skills that aren't maintained become liabilities"（不维护的技能会成为负担）
+<a id="1-action分发器"></a>
+<a id="1-用户显式指令前台交互"></a>
+<a id="11-深潜skill_manage"></a>
+<a id="2-agent-自主决策后台自我进化"></a>
+<a id="2-成功后的缓存清理"></a>
+<a id="21-skill_manage---技能管理工具"></a>
+<a id="211-功能概览"></a>
+<a id="212-支持的actions"></a>
+<a id="213-实现逻辑详解"></a>
+<a id="214-技能目录结构"></a>
+<a id="215-skillmd格式"></a>
+<a id="216-安全扫描机制"></a>
+<a id="217-调用触发机制"></a>
+<a id="218-使用示例"></a>
+<a id="3-curator遥测数据更新"></a>
+<a id="3-大模型的自主决策逻辑create-vs-patch"></a>
+<a id="4-决策流程图"></a>
+<a id="5-关键设计原则"></a>
+<a id="11-领域工具接入边界"></a>
+<a id="section-11"></a>
+## 11. 领域工具接入边界
+
+<a id="skill_manage-调用边界详见-skills"></a>
+<a id="section-11-1"></a>
+### 11.1 skill_manage 调用边界（详见 Skills）
+
+`skill_manage` 在工具系统中负责暴露 schema、接收参数并分发 handler；技能文件的创建、修改、删除与保护规则属于 Skills 模块。
+
+完整设计、图表与代码解读已移至 [skill_manage：技能写入、校验与管理](SKILLS_SYSTEM.md#skill-manage-design)。本处只保留与本篇主题直接相关的边界。
 
 ---
 
-**层级 2：Tool Description 中的详细操作规则**（`tools/skill_manager_tool.py:L814-819`）
+<a id="1-最近会话模式-空查询"></a>
+<a id="12-深潜session_search"></a>
+<a id="2-fts5全文检索"></a>
+<a id="22-session_search---会话搜索工具"></a>
+<a id="221-功能概览"></a>
+<a id="222-实现逻辑详解"></a>
+<a id="223-辅助模型配置"></a>
+<a id="224-使用示例"></a>
+<a id="3-会话去重与父会话解析"></a>
+<a id="4-并行摘要生成"></a>
+<a id="5-智能截断策略"></a>
+<a id="6-结果组装"></a>
+<a id="session_search-调用边界详见-memory"></a>
+<a id="section-11-2"></a>
+### 11.2 session_search 调用边界（详见 Memory）
 
-```markdown
-Create when:
-- Complex task succeeded (5+ API calls)
-- Errors overcome through iteration
-- User-corrected approach worked
-- Non-trivial workflow discovered
-- Or user asks you to remember a procedure
+`session_search` 是一个可调用工具，但检索对象、召回/摘要流程和历史会话边界属于 Memory 的 Session Search 层。
 
-Update when:
-- Instructions stale/wrong
-- OS-specific failures encountered
-- Missing steps or pitfalls found during use
-
-⭐ Critical rule: If you used a skill and hit issues not covered by it, 
-  patch it immediately.
-```
-
-**作用**：作为工具的 docstring，在每次调用 `skill_manage` 时发送给 LLM，提供具体的决策依据。
-
-**决策流程图**：
-
-```mermaid
-graph TD
-    A[Agent 需要管理技能] --> B{技能是否存在?}
-    B -->|❌ 不存在| C[必须使用 create]
-    B -->|✅ 已存在| D{修改类型?}
-    
-    D -->|小改动| E[优先使用 patch]
-    D -->|大重构| F[使用 edit]
-    
-    E --> G{具体场景?}
-    G -->|拼写错误/过时命令| H[patch: old_string/new_string]
-    G -->|缺失步骤/新陷阱| H
-    G -->|小幅澄清| H
-    
-    F --> I{是否需要 >3 处修改?}
-    I -->|是| J[考虑用多个 patch 代替]
-    I -->|否| K[edit: 完整重写 SKILL.md]
-    
-    C --> L{触发原因?}
-    L -->|复杂任务完成 5+ 次调用| M[create 新技能]
-    L -->|克服错误/发现工作流| M
-    L -->|用户明确要求保存| M
-    
-    style E fill:#90EE90
-    style F fill:#FFB6C1
-    style H fill:#90EE90
-```
-
-**实际交互示例**：
-
-**场景 1：首次完成任务 → CREATE**
-```
-用户: "帮我配置 Docker 部署"
-Agent: [执行了 8 次 API 调用，经过多次调试后成功]
-Agent 思考: "这个 Docker 部署流程很复杂，涉及多个步骤，
-             下次可能还会用到。我应该保存为技能。"
-Agent 调用: skill_manage(action="create", name="docker-deploy", ...)
-```
-
-**场景 2：使用技能时发现问题 → PATCH**
-```
-用户: "按照 'docker-deploy' 技能部署应用"
-Agent: [加载技能，执行步骤]
-Agent: [发现技能中的命令 'docker build -t' 在新版本中已废弃]
-Agent 思考: "我刚刚使用了 docker-deploy 技能，但发现其中的命令已过时。
-             根据规则 'If you used a skill and hit issues not covered by it, 
-             patch it immediately'，我应该立即修补它。"
-Agent 调用: skill_manage(
-    action="patch",
-    name="docker-deploy",
-    old_string="docker build -t myapp .",
-    new_string="docker compose build myapp"
-)
-```
-
-**场景 3：用户反馈错误 → PATCH**
-```
-用户: "你给的 'python-debugging' 技能里的 pytest 命令不对"
-Agent: [检查技能内容，确认错误]
-Agent 思考: "用户指出了技能中的错误，这是一个 targeted fix，
-             应该用 patch 而不是 edit。"
-Agent 调用: skill_manage(
-    action="patch",
-    name="python-debugging",
-    old_string="pytest tests/ --verbose",
-    new_string="pytest tests/ -v --tb=short"
-)
-```
-
-**关键原则**：
-1. **Patch 是首选方法**：Tool Description 明确标注 "patch — preferred for fixes"
-2. **立即修补原则**：使用技能时遇到问题，**立即** patch，不要等到下次
-3. **最小改动原则**：能用 patch 解决的，不要用 edit
-4. **Edit 仅用于大重构**：只有当需要 >3 处独立修改或结构调整时才用 edit
-
-###### (4) 决策流程图
-
-```mermaid
-graph TD
-    A[Agent 完成任务] --> B{是否可复用?}
-    B -->|否| C[不保存]
-    B -->|是| D{谁发起的?}
-    D -->|用户明确要求| E[skill_manage create<br/>不标记 agent-created]
-    D -->|Agent 自主决定| F{是否在后台审查模式?}
-    F -->|是| G[skill_manage create<br/>标记 agent-created]
-    F -->|否| H[询问用户: 是否保存为技能?]
-    H -->|用户同意| E
-    H -->|用户拒绝| C
-    
-    I[发现技能错误] --> J[skill_manage patch]
-    K[需要大规模重构] --> L[skill_manage edit]
-    M[删除无用技能] --> N[skill_manage delete]
-```
-
-###### (5) 关键设计原则
-
-1. **透明性**: Agent 在自主保存技能前，通常会告知用户（除非在后台审查模式）
-2. **质量控制**: 技能必须包含清晰的步骤、示例和陷阱说明
-3. **去重机制**: Curator 会检查是否存在相似技能，避免冗余
-4. **用户控制**: 用户可以通过配置禁用自动保存：
-   ```yaml
-   skills:
-     auto_save_enabled: false  # 禁用自动保存，仅响应用户指令
-   ```
+完整设计、图表与代码解读已移至 [session_search：历史检索与辅助模型执行](MEMORY_SYSTEM.md#session-search-design)。本处只保留与本篇主题直接相关的边界。
 
 ---
 
-##### 2.1.8 使用示例
+<a id="1-暂停标志检查"></a>
+<a id="10-触发subagent_stop钩子"></a>
+<a id="11-成本汇总"></a>
+<a id="13-深潜delegate_task"></a>
+<a id="2-深度限制检查"></a>
+<a id="23-delegate_task---任务委派工具"></a>
+<a id="231-功能概览"></a>
+<a id="232-实现逻辑详解"></a>
+<a id="233-blocked-tools"></a>
+<a id="234-角色机制"></a>
+<a id="235-使用示例"></a>
+<a id="3-凭证解析"></a>
+<a id="4-任务列表标准化"></a>
+<a id="5-保存父agent工具名"></a>
+<a id="6-构建子agent"></a>
+<a id="7-单任务直接执行"></a>
+<a id="8-批量并行执行"></a>
+<a id="85-子-agent-执行机制详解"></a>
+<a id="9-通知记忆提供者"></a>
+<a id="delegate_task-调用边界详见多-agent"></a>
+<a id="section-11-3"></a>
+### 11.3 delegate_task 调用边界（详见多 Agent）
 
-**示例1: 用户显式请求**
+`delegate_task` 经统一工具分发进入子代理系统；子代理的生命周期、角色/工具隔离和结果回传应在多 Agent 篇一起阅读。
 
-```python
-## Agent完成复杂任务后，决定保存为技能
-skill_manage(
-    action="create",
-    name="fastapi-debug-workflow",
-    category="development",
-    content="""---
-name: fastapi-debug-workflow
-description: Systematic debugging workflow for FastAPI applications
-category: development
----
-
-## FastAPI Debugging Workflow
-
-### When to Use
-
-When encountering runtime errors, performance issues, or unexpected behavior in FastAPI apps.
-
-### Steps
-
-1. Check server logs: `tail -f logs/server.log`
-2. Enable debug mode: Set `DEBUG=true` in `.env`
-3. Inspect request/response: Add logging middleware
-4. Database queries: Use `SQLALCHEMY_ECHO=true`
-5. Profile endpoints: Use `py-spy record -o profile.svg -- python main.py`
-
-### Common Issues
-
-- Async/await mismatch causing blocking
-- Missing database migrations
-- CORS configuration errors
-"""
-)
-```
-
-**示例2: Agent 自主保存（后台审查模式）**
-
-```python
-## Curator 进程检测到重复模式后自动保存
-import os
-os.environ["HERMES_BACKGROUND_REVIEW"] = "1"
-
-skill_manage(
-    action="create",
-    name="fastapi-debug-workflow",
-    category="development",
-    content="""---
-name: fastapi-debug-workflow
-description: Systematic debugging workflow for FastAPI applications
-category: development
-version: 1.0.0
----
-
-## FastAPI Debugging Workflow
-
-### When to Use
-
-When encountering runtime errors, performance issues, or unexpected behavior in FastAPI apps.
-
-### Steps
-
-1. Check server logs: `tail -f logs/server.log`
-2. Enable debug mode: Set `DEBUG=true` in `.env`
-3. Inspect request/response: Add logging middleware
-4. Database queries: Use `SQLALCHEMY_ECHO=true`
-5. Profile endpoints: Use `py-spy record -o profile.svg -- python main.py`
-
-### Common Pitfalls
-
-- Async/await mismatch causing blocking
-- Missing database migrations
-- CORS configuration errors
-"""
-)
-## 此时会调用 mark_agent_created("fastapi-debug-workflow")
-```
-
-**示例4: 添加参考文档**
-skill_manage(
-    action="write_file",
-    name="fastapi-debug-workflow",
-    file_path="references/api-endpoints.md",
-    file_content="""# API Endpoints Reference
-
-### Health Check
-GET /health
-
-### User Management
-GET /api/users
-POST /api/users
-PUT /api/users/{id}
-DELETE /api/users/{id}
-"""
-)
-```
+完整设计、图表与代码解读已移至 [delegate_task：创建、调度、执行与结果回收](MULTI_AGENT_ARCHITECTURE.md#delegate-task-design)。本处只保留与本篇主题直接相关的边界。
 
 ---
 
+<a id="14-性能实践"></a>
+<a id="section-12"></a>
+## 12. 性能实践
 
-```
 
-## 12. 深潜：session_search
+<a id="10-性能优化最佳实践"></a>
+<a id="section-12-1"></a>
+### 12.1 性能优化最佳实践
 
-
-#### 2.2 session_search - 会话搜索工具
-
-**文件**: `tools/session_search_tool.py`  
-**行号**: L325-538  
-**作用**: 搜索历史会话，使用FTS5全文检索+LLM摘要生成，帮助Agent回忆过去的对话
-
-##### 2.2.1 功能概览
-
-```python
-def session_search(
-    query: str,                    # 搜索查询词
-    role_filter: str = None,       # 角色过滤: "user", "assistant", "tool"
-    limit: int = 3,                # 返回结果数量 (1-5)
-    db=None,                       # SessionDB实例 (可选)
-    current_session_id: str = None,# 当前会话ID (排除自身)
-) -> str:
-    """
-    Search past sessions and return focused summaries.
-    
-    Flow:
-      1. FTS5 search finds matching messages
-      2. Groups by session, takes top N unique sessions
-      3. Loads each session's conversation
-      4. Truncates to ~100k chars centered on matches
-      5. Summarizes using auxiliary session_search model
-      6. Returns per-session summaries with metadata
-    """
-```
-
-##### 2.2.2 实现逻辑详解
-
-###### (1) 最近会话模式 (空查询)
-
-```python
-## 当query为空时，返回最近会话的元数据 (无需LLM调用)
-if not query or not query.strip():
-    return _list_recent_sessions(db, limit, current_session_id)
-```
-
-**用途**: Agent可以浏览最近的会话，了解上下文
-
-###### (2) FTS5全文检索
-
-```python
-## FTS5 search -- get matches ranked by relevance
-raw_results = db.search_messages(
-    query=query,
-    role_filter=role_list,
-    exclude_sources=list(_HIDDEN_SESSION_SOURCES),
-    limit=50,  # 获取更多匹配以找到唯一会话
-    offset=0,
-)
-```
-
-**关键技术**:
-- SQLite FTS5虚拟表提供高性能全文检索
-- 按相关性排序 (BM25算法)
-- 支持角色过滤 (只搜索用户消息或助手消息)
-
-###### (3) 会话去重与父会话解析
-
-```python
-def _resolve_to_parent(session_id: str) -> str:
-    """Walk delegation chain to find the root parent session ID."""
-    visited = set()
-    sid = session_id
-    while sid and sid not in visited:
-        visited.add(sid)
-        try:
-            session = db.get_session(sid)
-            if not session:
-                break
-            parent = session.get("parent_session_id")
-            if parent:
-                sid = parent  # 递归查找父会话
-            else:
-                break
-        except Exception as e:
-            logging.debug("Error resolving parent for session %s: %s", sid, e)
-            break
-    return sid
-
-## 解析当前会话的根父会话
-current_lineage_root = (
-    _resolve_to_parent(current_session_id) if current_session_id else None
-)
-
-## 分组去重，跳过当前会话谱系
-seen_sessions = {}
-for result in raw_results:
-    raw_sid = result["session_id"]
-    resolved_sid = _resolve_to_parent(raw_sid)
-    
-    # 跳过当前会话及其子会话
-    if current_lineage_root and resolved_sid == current_lineage_root:
-        continue
-    if current_session_id and raw_sid == current_session_id:
-        continue
-    
-    if resolved_sid not in seen_sessions:
-        result = dict(result)
-        result["session_id"] = resolved_sid
-        seen_sessions[resolved_sid] = result
-    
-    if len(seen_sessions) >= limit:
-        break
-```
-
-**关键设计**:
-- ✅ **委托链解析**: 子会话的内容归属于父会话 (用户关心的是主对话)
-- ✅ **去重**: 同一会话的多个匹配合并为一个结果
-- ✅ **排除当前会话**: Agent已有当前上下文，不需要重复
-
-###### (4) 并行摘要生成
-
-```python
-## 准备所有会话的摘要任务
-tasks = []
-for session_id, match_info in seen_sessions.items():
-    try:
-        messages = db.get_messages_as_conversation(session_id)
-        if not messages:
-            continue
-        session_meta = db.get_session(session_id) or {}
-        conversation_text = _format_conversation(messages)
-        # 截断到匹配区域周围 (~100k字符)
-        conversation_text = _truncate_around_matches(conversation_text, query)
-        tasks.append((session_id, match_info, conversation_text, session_meta))
-    except Exception as e:
-        logging.warning("Failed to prepare session %s: %s", session_id, e)
-
-## 并行摘要所有会话 (带并发限制)
-async def _summarize_all() -> List[Union[str, Exception]]:
-    """Summarize all sessions with bounded concurrency."""
-    max_concurrency = min(_get_session_search_max_concurrency(), max(1, len(tasks)))
-    semaphore = asyncio.Semaphore(max_concurrency)
-    
-    async def _bounded_summary(text: str, meta: Dict[str, Any]) -> Optional[str]:
-        async with semaphore:
-            return await _summarize_session(text, query, meta)
-    
-    coros = [_bounded_summary(text, meta) for _, _, text, meta in tasks]
-    return await asyncio.gather(*coros, return_exceptions=True)
-
-## 使用_run_async()管理事件循环 (适配CLI/gateway/worker线程)
-from model_tools import _run_async
-results = _run_async(_summarize_all())
-```
-
-**性能优化**:
-- ✅ **并发控制**: `auxiliary.session_search.max_concurrency` (默认3)
-- ✅ **异步IO**: 避免阻塞等待LLM响应
-- ✅ **超时保护**: 60秒超时防止无限等待
-
-###### (5) 智能截断策略
-
-```python
-def _truncate_around_matches(
-    full_text: str, 
-    query: str, 
-    max_chars: int = 100_000
-) -> str:
-    """
-    Truncate conversation to max_chars, choosing window that maximizes
-    coverage of positions where query actually appears.
-    
-    Strategy (in priority order):
-    1. Try to find full query as phrase (case-insensitive)
-    2. If no phrase hit, look for co-occurrence of all terms within 200 chars
-    3. Fall back to individual term positions
-    """
-    if len(full_text) <= max_chars:
-        return full_text
-    
-    text_lower = full_text.lower()
-    query_lower = query.lower().strip()
-    match_positions = []
-    
-    # 1. 完整短语匹配
-    phrase_pat = re.compile(re.escape(query_lower))
-    match_positions = [m.start() for m in phrase_pat.finditer(text_lower)]
-    
-    # 2.  proximity共现 (所有术语在200字符内)
-    if not match_positions:
-        terms = query_lower.split()
-        if len(terms) > 1:
-            term_positions = {}
-            for t in terms:
-                term_positions[t] = [
-                    m.start() for m in re.finditer(re.escape(t), text_lower)
-                ]
-            rarest = min(terms, key=lambda t: len(term_positions.get(t, [])))
-            for pos in term_positions.get(rarest, []):
-                if all(
-                    any(abs(p - pos) < 200 for p in term_positions.get(t, []))
-                    for t in terms if t != rarest
-                ):
-                    match_positions.append(pos)
-    
-    # 3. 单个术语位置 (最后手段)
-    if not match_positions:
-        terms = query_lower.split()
-        for t in terms:
-            for m in re.finditer(re.escape(t), text_lower):
-                match_positions.append(m.start())
-    
-    if not match_positions:
-        # 完全无匹配，从头截取
-        truncated = full_text[:max_chars]
-        suffix = "\n\n...[later conversation truncated]..." if max_chars < len(full_text) else ""
-        return truncated + suffix
-    
-    # 选择覆盖最多匹配位置的窗口
-    match_positions.sort()
-    best_start = 0
-    best_count = 0
-    for candidate in match_positions:
-        ws = max(0, candidate - max_chars // 4)  # 偏置: 25%在前，75%在后
-        we = ws + max_chars
-        if we > len(full_text):
-            ws = max(0, len(full_text) - max_chars)
-            we = len(full_text)
-        count = sum(1 for p in match_positions if ws <= p < we)
-        if count > best_count:
-            best_count = count
-            best_start = ws
-    
-    start = best_start
-    end = min(len(full_text), start + max_chars)
-    truncated = full_text[start:end]
-    prefix = "...[earlier conversation truncated]...\n\n" if start > 0 else ""
-    suffix = "\n\n...[later conversation truncated]..." if end < len(full_text) else ""
-    return prefix + truncated + suffix
-```
-
-**智能之处**:
-- ✅ **多级匹配**: 短语 > 共现 > 单术语
-- ✅ **偏置窗口**: 25%前置上下文 + 75%后置内容
-- ✅ **最优覆盖**: 选择能覆盖最多匹配的窗口起始点
-
-###### (6) 结果组装
-
-```python
-summaries = []
-for (session_id, match_info, conversation_text, session_meta), result in zip(tasks, results):
-    if isinstance(result, Exception):
-        logging.warning("Failed to summarize session %s: %s", session_id, result)
-        result = None
-    
-    # 优先使用解析后的父会话元数据
-    entry = {
-        "session_id": session_id,
-        "when": _format_timestamp(
-            session_meta.get("started_at") or match_info.get("session_started")
-        ),
-        "source": session_meta.get("source") or match_info.get("source", "unknown"),
-        "model": session_meta.get("model") or match_info.get("model"),
-    }
-    
-    if result:
-        entry["summary"] = result
-    else:
-        # 降级: 返回原始预览 (当摘要模型不可用时)
-        preview = (conversation_text[:500] + "\n…[truncated]") if conversation_text else "No preview available."
-        entry["summary"] = f"[Raw preview — summarization unavailable]\n{preview}"
-    
-    summaries.append(entry)
-
-return json.dumps({
-    "success": True,
-    "query": query,
-    "results": summaries,
-    "count": len(summaries),
-    "sessions_searched": len(seen_sessions),
-}, ensure_ascii=False)
-```
-
-##### 2.2.3 辅助模型配置
-
-```yaml
-## ~/.hermes/config.yaml
-auxiliary:
-  session_search:
-    provider: openai          # 可选: anthropic/openai/google/etc.
-    model: gpt-4o-mini        # 专用摘要模型 (便宜快速)
-    max_concurrency: 3        # 并行摘要的会话数量
-```
-
-**默认行为**: 未配置时使用主聊天模型的provider/model
-
-##### 2.2.4 使用示例
-
-**示例1: 搜索特定主题**
-
-```python
-## 搜索过去关于"async/await"的讨论
-session_search(
-    query="async/await patterns in FastAPI",
-    limit=3
-)
-```
-
-**返回结果**:
-```json
-{
-  "success": true,
-  "query": "async/await patterns in FastAPI",
-  "results": [
-    {
-      "session_id": "sess-abc123",
-      "when": "May 5, 2026 at 03:45 PM",
-      "source": "cli",
-      "model": "claude-sonnet-4",
-      "summary": "讨论了FastAPI中的异步模式，包括:\n- 使用async def定义端点\n- asyncio.gather并行请求\n- 异步数据库查询最佳实践\n- 常见陷阱: 阻塞同步调用"
-    },
-    {
-      "session_id": "sess-def456",
-      "when": "April 28, 2026 at 10:20 AM",
-      "source": "telegram",
-      "model": "gpt-4-turbo",
-      "summary": "对比了三种并发模型:\n- threading: 适合IO密集型\n- multiprocessing: CPU密集型\n- asyncio: 高并发IO场景\n推荐: FastAPI默认使用asyncio"
-    }
-  ],
-  "count": 2,
-  "sessions_searched": 2
-}
-```
-
-**示例2: 按角色过滤**
-
-```python
-## 只搜索用户消息
-session_search(
-    query="database migration",
-    role_filter="user",
-    limit=2
-)
-```
-
-**示例3: 浏览最近会话**
-
-```python
-## 空查询返回最近会话列表
-session_search(
-    query="",
-    limit=5
-)
-```
-
----
-
-
-## 13. 深潜：delegate_task
-
-
-#### 2.3 delegate_task - 任务委派工具
-
-**文件**: `tools/delegate_tool.py`  
-**行号**: L1898-2289  
-**作用**:  spawn子Agent并行处理任务，支持Leaf和Orchestrator两种角色
-
-##### 2.3.1 功能概览
-
-```python
-def delegate_task(
-    goal: Optional[str] = None,           # 单个任务目标
-    context: Optional[str] = None,        # 任务上下文
-    toolsets: Optional[List[str]] = None, # 自定义工具集
-    tasks: Optional[List[Dict]] = None,   # 批量任务列表
-    max_iterations: Optional[int] = None, # 最大迭代次数 (被忽略，使用config值)
-    acp_command: Optional[str] = None,    # ACP命令 (可选)
-    acp_args: Optional[List[str]] = None, # ACP参数 (可选)
-    role: Optional[str] = None,           # 角色: "leaf"或"orchestrator"
-    parent_agent=None,                    # 父Agent实例 (必需)
-) -> str:
-    """
-    Spawn one or more child agents to handle delegated tasks.
-    
-    Supports two modes:
-      - Single: provide goal (+ optional context, toolsets, role)
-      - Batch:  provide tasks array [{goal, context, toolsets, role}, ...]
-    
-    The 'role' parameter controls whether a child can further delegate:
-    'leaf' (default) cannot; 'orchestrator' retains delegation toolset.
-    
-    Returns JSON with results array, one entry per task.
-    """
-```
-
-##### 2.3.2 实现逻辑详解
-
-###### (1) 暂停标志检查
-
-```python
-if parent_agent is None:
-    return tool_error("delegate_task requires a parent agent context.")
-
-## Operator-controlled kill switch
-if is_spawn_paused():
-    return tool_error(
-        "Delegation spawning is paused. Clear the pause via the TUI "
-        "(`p` in /agents) or the `delegation.pause` RPC before retrying."
-    )
-```
-
-**用途**: TUI检测到失控的委派树时，可以暂停新的spawn
-
-###### (2) 深度限制检查
-
-```python
-## Normalise the top-level role once
-top_role = _normalize_role(role)
-
-## Depth limit — configurable via delegation.max_spawn_depth
-depth = getattr(parent_agent, "_delegate_depth", 0)
-max_spawn = _get_max_spawn_depth()  # 从config.yaml读取，默认1
-if depth >= max_spawn:
-    return json.dumps({
-        "error": (
-            f"Delegation depth limit reached (depth={depth}, "
-            f"max_spawn_depth={max_spawn}). Raise "
-            f"delegation.max_spawn_depth in config.yaml if deeper "
-            f"nesting is required (cap: {_MAX_SPAWN_DEPTH_CAP})."
-        )
-    })
-```
-
-**配置**:
-```yaml
-delegation:
-  max_spawn_depth: 1  # 1=flat, 2=orchestrator→leaf, 3=three-level
-  orchestrator_enabled: true  # 全局开关
-```
-
-###### (3) 凭证解析
-
-```python
-## Load config
-cfg = _load_config()
-default_max_iter = cfg.get("max_iterations", DEFAULT_MAX_ITERATIONS)
-
-## Model-supplied max_iterations is ignored — config value is authoritative
-if max_iterations is not None and max_iterations != default_max_iter:
-    logger.debug(
-        "delegate_task: ignoring caller-supplied max_iterations=%s; "
-        "using delegation.max_iterations=%s from config",
-        max_iterations, default_max_iter,
-    )
-effective_max_iter = default_max_iter
-
-## Resolve delegation credentials (provider:model pair)
-try:
-    creds = _resolve_delegation_credentials(cfg, parent_agent)
-except ValueError as exc:
-    return tool_error(str(exc))
-```
-
-**关键设计**:
-- ✅ **配置驱动**: max_iterations由config.yaml控制，模型无法覆盖
-- ✅ **独立凭证**: 子Agent可以使用不同的provider/model
-
-###### (4) 任务列表标准化
-
-```python
-## Normalize to task list
-max_children = _get_max_concurrent_children()  # 默认3
-recovered_tasks, tasks_error = _recover_tasks_from_json_string(tasks)
-if tasks_error:
-    return tool_error(tasks_error)
-if recovered_tasks is not None:
-    tasks = recovered_tasks
-
-if tasks and isinstance(tasks, list):
-    if len(tasks) > max_children:
-        return tool_error(
-            f"Too many tasks: {len(tasks)} provided, but "
-            f"max_concurrent_children is {max_children}. "
-            f"Either reduce the task count, split into multiple "
-            f"delegate_task calls, or increase "
-            f"delegation.max_concurrent_children in config.yaml."
-        )
-    task_list = tasks
-elif goal and isinstance(goal, str) and goal.strip():
-    task_list = [
-        {"goal": goal, "context": context, "toolsets": toolsets, "role": top_role}
-    ]
-else:
-    return tool_error("Provide either 'goal' (single task) or 'tasks' (batch).")
-
-## Validate each task has a goal
-for i, task in enumerate(task_list):
-    if not isinstance(task, dict):
-        return tool_error(f"Task {i} must be an object, got {type(task).__name__}.")
-    if not task.get("goal", "").strip():
-        return tool_error(f"Task {i} is missing a 'goal'.")
-```
-
-###### (5) 保存父Agent工具名
-
-```python
-overall_start = time.monotonic()
-results = []
-
-n_tasks = len(task_list)
-task_labels = [t["goal"][:40] for t in task_list]
-
-## Save parent tool names BEFORE any child construction mutates the global
-import model_tools as _model_tools
-_parent_tool_names = list(_model_tools._last_resolved_tool_names)
-```
-
-**关键修复**: `_build_child_agent()`会修改全局`_last_resolved_tool_names`，必须在构建子Agent前保存
-
-###### (6) 构建子Agent
-
-```python
-## Build all child agents on the main thread (thread-safe construction)
-children = []
-try:
-    for i, t in enumerate(task_list):
-        task_acp_args = t.get("acp_args") if "acp_args" in t else None
-        # Per-task role beats top-level
-        effective_role = _normalize_role(t.get("role") or top_role)
-        child = _build_child_agent(
-            task_index=i,
-            goal=t["goal"],
-            context=t.get("context"),
-            toolsets=t.get("toolsets") or toolsets,
-            model=creds["model"],
-            max_iterations=effective_max_iter,
-            task_count=n_tasks,
-            parent_agent=parent_agent,
-            override_provider=creds["provider"],
-            override_base_url=creds["base_url"],
-            override_api_key=creds["api_key"],
-            override_api_mode=creds["api_mode"],
-            override_acp_command=t.get("acp_command") or acp_command or creds.get("command"),
-            override_acp_args=(
-                task_acp_args
-                if task_acp_args is not None
-                else (acp_args if acp_args is not None else creds.get("args"))
-            ),
-            role=effective_role,
-        )
-        # Override with correct parent tool names
-        child._delegate_saved_tool_names = _parent_tool_names
-        children.append((i, t, child))
-finally:
-    # Authoritative restore: reset global to parent's tool names
-    _model_tools._last_resolved_tool_names = _parent_tool_names
-```
-
-**线程安全**:
-- ✅ **主线程构建**: 避免多线程并发修改全局状态
-- ✅ **try/finally保证恢复**: 即使构建失败也能恢复全局状态
-
-###### (7) 单任务直接执行
-
-```python
-if n_tasks == 1:
-    # Single task -- run directly (no thread pool overhead)
-    _i, _t, child = children[0]
-    result = _run_single_child(0, _t["goal"], child, parent_agent)
-    results.append(result)
-```
-
-**性能优化**: 单任务无需线程池，减少开销
-
-###### (8) 批量并行执行
-
-```python
-else:
-    # Batch -- run in parallel with per-task progress lines
-    completed_count = 0
-    spinner_ref = getattr(parent_agent, "_delegate_spinner", None)
-    
-    with ThreadPoolExecutor(max_workers=max_children) as executor:
-        futures = {}
-        for i, t, child in children:
-            future = executor.submit(
-                _run_single_child,
-                task_index=i,
-                goal=t["goal"],
-                child=child,
-                parent_agent=parent_agent,
-            )
-            futures[future] = i
-        
-        # Poll futures with interrupt checking
-        _child_by_index = {i: child for (i, _, child) in children}
-        pending = set(futures.keys())
-        
-        while pending:
-            # 检查父Agent中断
-            if getattr(parent_agent, "_interrupt_requested", False) is True:
-                # Parent interrupted — collect finished, abandon rest
-                for f in pending:
-                    idx = futures[f]
-                    if f.done():
-                        try:
-                            entry = f.result()
-                        except Exception as exc:
-                            entry = {
-                                "task_index": idx,
-                                "status": "error",
-                                "summary": None,
-                                "error": str(exc),
-                                "api_calls": 0,
-                                "duration_seconds": 0,
-                                "_child_role": getattr(
-                                    _child_by_index.get(idx), "_delegate_role", None
-                                ),
-                            }
-                    else:
-                        entry = {
-                            "task_index": idx,
-                            "status": "interrupted",
-                            "summary": None,
-                            "error": "Parent agent interrupted — child did not finish in time",
-                            "api_calls": 0,
-                            "duration_seconds": 0,
-                            "_child_role": getattr(
-                                _child_by_index.get(idx), "_delegate_role", None
-                            ),
-                        }
-                    results.append(entry)
-                    completed_count += 1
-                break
-            
-            # Wait with timeout for interrupt responsiveness
-            from concurrent.futures import wait as _cf_wait, FIRST_COMPLETED
-            done, pending = _cf_wait(
-                pending, timeout=0.5, return_when=FIRST_COMPLETED
-            )
-            
-            for future in done:
-                try:
-                    entry = future.result()
-                except Exception as exc:
-                    idx = futures[future]
-                    entry = {
-                        "task_index": idx,
-                        "status": "error",
-                        "summary": None,
-                        "error": str(exc),
-                        "api_calls": 0,
-                        "duration_seconds": 0,
-                        "_child_role": getattr(
-                            _child_by_index.get(idx), "_delegate_role", None
-                        ),
-                    }
-                
-                results.append(entry)
-                completed_count += 1
-                
-                # Print per-task completion line above the spinner
-                idx = entry["task_index"]
-                label = task_labels[idx] if idx < len(task_labels) else f"Task {idx}"
-                dur = entry.get("duration_seconds", 0)
-                status = entry.get("status", "?")
-                icon = "✓" if status == "completed" else "✗"
-                remaining = n_tasks - completed_count
-                completion_line = f"{icon} [{idx+1}/{n_tasks}] {label}  ({dur}s)"
-                
-                if spinner_ref:
-                    try:
-                        spinner_ref.print_above(completion_line)
-                    except Exception:
-                        print(f"  {completion_line}")
-                else:
-                    print(f"  {completion_line}")
-                
-                # Update spinner text to show remaining count
-                if spinner_ref and remaining > 0:
-                    try:
-                        spinner_ref.update_text(
-                            f"🔀 {remaining} task{'s' if remaining != 1 else ''} remaining"
-                        )
-                    except Exception as e:
-                        logger.debug("Spinner update_text failed: %s", e)
-    
-    # Sort by task_index so results match input order
-    results.sort(key=lambda r: r["task_index"])
-```
-
-**关键特性**:
-- ✅ **中断传播**: 父Agent中断时，收集已完成的结果，放弃未完成的
-- ✅ **进度显示**: 实时更新spinner显示剩余任务数
-- ✅ **非阻塞等待**: 使用`wait(timeout=0.5)`而非`as_completed()`，确保及时响应中断
-
-###### (8.5) 子 Agent 执行机制详解
-
-**问题 1：子 Agent 创建是在独立线程中执行么？**
-
-**❌ 不是！** 子 Agent 的**创建**（construction）是在**主线程**中串行完成的：
-
-```python
-## delegate_tool.py:L2031-2069
-## Build all child agents on the main thread (thread-safe construction)
-children = []
-try:
-    for i, t in enumerate(task_list):
-        child = _build_child_agent(...)  # 在主线程中构建
-        children.append((i, t, child))
-finally:
-    # 恢复全局状态
-    _model_tools._last_resolved_tool_names = _parent_tool_names
-```
-
-**原因**：
-- `_build_child_agent()` 会调用 `AIAgent()` 构造函数
-- 这会触发 `get_tool_definitions()`，修改全局变量 `_last_resolved_tool_names`
-- 如果在多线程中并发构建，会导致全局状态竞争
-- 所以采用 **try/finally** 保证即使构建失败也能恢复全局状态
-
----
-
-**问题 2：创建完成之后执行子 Agent，并同步等待么？**
-
-这取决于任务数量：
-
-**情况 A：单个任务（n_tasks == 1）**
-
-**✅ 同步执行，阻塞等待**
-
-```python
-## delegate_tool.py:L2071-2075
-if n_tasks == 1:
-    # Single task -- run directly (no thread pool overhead)
-    _i, _t, child = children[0]
-    result = _run_single_child(0, _t["goal"], child, parent_agent)
-    results.append(result)
-```
-
-- 直接在当前线程调用 `_run_single_child()`
-- **阻塞等待**子 Agent 完成
-- 无额外线程开销
-
----
-
-**情况 B：批量任务（n_tasks > 1）**
-
-**✅ 并行执行 + 同步等待所有结果**
-
-```python
-## delegate_tool.py:L2081-2193
-else:
-    # Batch -- run in parallel with per-task progress lines
-    with ThreadPoolExecutor(max_workers=max_children) as executor:
-        futures = {}
-        for i, t, child in children:
-            future = executor.submit(
-                _run_single_child,  # 提交到线程池
-                task_index=i,
-                goal=t["goal"],
-                child=child,
-                parent_agent=parent_agent,
-            )
-            futures[future] = i
-        
-        # 轮询等待，支持中断检查
-        pending = set(futures.keys())
-        while pending:
-            # 检查父 Agent 是否被中断
-            if getattr(parent_agent, "_interrupt_requested", False):
-                break  # 收集中断信号前的结果，放弃未完成的
-            
-            # 非阻塞等待：每 0.5 秒检查一次
-            done, pending = _cf_wait(pending, timeout=0.5, return_when=FIRST_COMPLETED)
-            
-            # 处理已完成的任务
-            for future in done:
-                entry = future.result()  # 获取结果
-                results.append(entry)
-```
-
-**关键特性**：
-1. **并行执行**：使用 `ThreadPoolExecutor`，最多 `max_children` 个线程（默认 3）
-2. **同步等待**：父 Agent **阻塞**直到所有子 Agent 完成或被中断
-3. **非阻塞轮询**：使用 `wait(timeout=0.5)` 而非 `as_completed()`，确保及时响应中断
-4. **中断传播**：父 Agent 被中断时，立即停止等待，收集已完成的结果
-
----
-
-**子 Agent 内部执行机制**
-
-每个子 Agent 在 `_run_single_child()` 中还有一个**内部的超时保护线程**：
-
-```python
-## delegate_tool.py:L1476-1498
-_timeout_executor = ThreadPoolExecutor(max_workers=1)
-
-def _run_with_thread_capture():
-    _worker_thread_holder["t"] = threading.current_thread()
-    return child.run_conversation(
-        user_message=goal,
-        task_id=child_task_id,
-    )
-
-_child_future = _timeout_executor.submit(_run_with_thread_capture)
-result = _child_future.result(timeout=child_timeout)  # 硬超时保护
-```
-
-**作用**：
-- 防止子 Agent 的 API 调用或工具执行无限挂起
-- 默认超时时间由 `delegation.child_timeout_seconds` 配置（默认 300 秒）
-- 超时后会调用 `child.interrupt()` 强制终止
-
----
-
-**总结表**：
-
-| 阶段 | 执行方式 | 线程模型 | 是否阻塞 |
-|------|---------|---------|----------|
-| **创建子 Agent** | 主线程串行构建 | 单线程 | ✅ 是 |
-| **执行单个任务** | 直接调用 `_run_single_child()` | 当前线程 | ✅ 是 |
-| **执行批量任务** | `ThreadPoolExecutor` 并行 | 多线程（最多 `max_children`） | ✅ 是（等待所有完成） |
-| **子 Agent 内部** | 额外的超时保护线程 | 每个子 Agent 1 个 worker 线程 | - |
-
-**核心设计原则**：
-1. **创建串行化**：避免全局状态竞争
-2. **执行并行化**：提高吞吐量
-3. **等待同步化**：简化父 Agent 的逻辑，确保结果完整性
-4. **中断可响应**：通过短超时轮询实现优雅中断
-
-###### (9) 通知记忆提供者
-
-```python
-## Notify parent's memory provider of delegation outcomes
-if (
-    parent_agent
-    and hasattr(parent_agent, "_memory_manager")
-    and parent_agent._memory_manager
-):
-    for entry in results:
-        try:
-            _task_goal = (
-                task_list[entry["task_index"]]["goal"]
-                if entry["task_index"] < len(task_list)
-                else ""
-            )
-            parent_agent._memory_manager.on_delegation(
-                task=_task_goal,
-                result=entry.get("summary", "") or "",
-                child_session_id=(
-                    getattr(children[entry["task_index"]][2], "session_id", "")
-                    if entry["task_index"] < len(children)
-                    else ""
-                ),
-            )
-        except Exception:
-            pass
-```
-
-**用途**: 外部记忆系统 (如Honcho/Mem0) 可以记录委派历史
-
-###### (10) 触发subagent_stop钩子
-
-```python
-## Fire subagent_stop hooks once per child
-_parent_session_id = getattr(parent_agent, "session_id", None)
-try:
-    from hermes_cli.plugins import invoke_hook as _invoke_hook
-except Exception:
-    _invoke_hook = None
-
-_children_cost_total = 0.0
-for entry in results:
-    child_role = entry.pop("_child_role", None)
-    child_cost = entry.pop("_child_cost_usd", 0.0)
-    
-    try:
-        if child_cost:
-            _children_cost_total += float(child_cost)
-    except (TypeError, ValueError):
-        pass
-    
-    if _invoke_hook is None:
-        continue
-    
-    try:
-        _invoke_hook(
-            "subagent_stop",
-            parent_session_id=_parent_session_id,
-            child_role=child_role,
-            child_summary=entry.get("summary"),
-            child_status=entry.get("status"),
-            duration_ms=int((entry.get("duration_seconds") or 0) * 1000),
-        )
-    except Exception:
-        logger.debug("subagent_stop hook invocation failed", exc_info=True)
-```
-
-**插件集成**: Python插件和shell钩子可以监听子Agent完成事件
-
-###### (11) 成本汇总
-
-```python
-## Fold the aggregated child cost into the parent's session total
-if _children_cost_total > 0.0:
-    try:
-        current = float(getattr(parent_agent, "session_estimated_cost_usd", 0.0) or 0.0)
-        parent_agent.session_estimated_cost_usd = current + _children_cost_total
-        
-        # Upgrade the cost_source so UI doesn't label as "none"
-        if getattr(parent_agent, "session_cost_source", "none") in (None, "", "none"):
-            parent_agent.session_cost_source = "subagent"
-        if getattr(parent_agent, "session_cost_status", "unknown") in (None, "", "unknown"):
-            parent_agent.session_cost_status = "estimated"
-    except Exception:
-        logger.debug("Subagent cost rollup failed", exc_info=True)
-
-total_duration = round(time.monotonic() - overall_start, 2)
-
-return json.dumps({
-    "results": results,
-    "total_duration_seconds": total_duration,
-}, ensure_ascii=False)
-```
-
-**成本追踪**: 子Agent的成本累加到父Agent，嵌套委派自然rollup
-
-##### 2.3.3 Blocked Tools
-
-```python
-DELEGATE_BLOCKED_TOOLS = frozenset([
-    "delegate_task",   # 禁止递归委派
-    "clarify",         # 禁止向用户提问
-    "memory",          # 禁止写入共享记忆
-    "send_message",    # 禁止跨平台副作用
-    "execute_code",    # 子Agent应逐步推理，不写脚本
-])
-```
-
-**阻止原因**:
-- ✅ **防止无限递归**: delegate_task被block
-- ✅ **用户体验**: 子Agent不应直接与用户交互 (clarify被block)
-- ✅ **数据竞争**: 多个子Agent并发写入MEMORY.md会导致冲突
-- ✅ **安全风险**: 防止向Telegram/Slack发送垃圾消息
-- ✅ **可审计性**: 子Agent应逐步推理，而非直接执行代码
-
-##### 2.3.4 角色机制
-
-**Leaf角色** (默认):
-- ❌ 不能再次委派 (delegate_task被block)
-- ✅ 专注执行单一任务
-- ✅ 适用于研究、代码编写等
-
-**Orchestrator角色**:
-- ✅ 可以再次委派 (重新添加delegation toolset)
-- ✅ 协调多个worker + 合成结果
-- ✅ 受`max_spawn_depth`限制
-
-```python
-## Orchestrator特殊处理: 重新添加delegation
-if effective_role == "orchestrator" and "delegation" not in child_toolsets:
-    child_toolsets.append("delegation")
-```
-
-##### 2.3.5 使用示例
-
-**示例1: 单个Leaf任务**
-
-```python
-## 委派一个简单的研究任务
-delegate_task(
-    goal="Research Python async/await patterns for FastAPI",
-    context="Focus on practical implementation, not theory",
-    role="leaf"
-)
-```
-
-**返回结果**:
-```json
-{
-  "results": [
-    {
-      "task_index": 0,
-      "status": "completed",
-      "summary": "研究了FastAPI中的async模式:\n- 使用async def定义端点\n- asyncio.gather并行请求\n- 异步数据库查询\n- 常见陷阱: 阻塞同步调用",
-      "error": null,
-      "api_calls": 12,
-      "duration_seconds": 45.3
-    }
-  ],
-  "total_duration_seconds": 45.3
-}
-```
-
-**示例2: 批量并行任务**
-
-```python
-## 并行执行3个研究任务
-delegate_task(
-    tasks=[
-        {
-            "goal": "Research async/await patterns",
-            "role": "leaf",
-            "context": "Focus on FastAPI use cases"
-        },
-        {
-            "goal": "Research concurrency models",
-            "role": "leaf",
-            "context": "Compare threading vs multiprocessing vs asyncio"
-        },
-        {
-            "goal": "Synthesize findings from both research tasks",
-            "role": "orchestrator",
-            "context": "Combine insights and provide recommendations"
-        }
-    ]
-)
-```
-
-**执行流程**:
-```
-Depth 0: Parent Agent
-├─ Depth 1: Task 1 (leaf) - Research async/await
-├─ Depth 1: Task 2 (leaf) - Research concurrency
-└─ Depth 1: Task 3 (orchestrator)
-   ├─ Depth 2: Worker 1 (leaf) - Analyze Task 1 result
-   └─ Depth 2: Worker 2 (leaf) - Analyze Task 2 result
-   └─ Synthesize → Parent
-```
-
-**示例3: Orchestrator模式**
-
-```python
-## 委派一个复杂任务，需要进一步分解
-delegate_task(
-    goal="Analyze entire codebase architecture and propose improvements",
-    role="orchestrator",
-    context="Break down into: API layer, DB layer, business logic, tests"
-)
-```
-
-**Orchestrator的职责**:
-1. 分析任务，识别可并行的子任务
-2. 调用`delegate_task` spawn workers
-3. 等待所有workers完成
-4. 合成结果，返回给父Agent
-
----
-
-
-## 14. 性能实践
-
-
-### 10. 性能优化最佳实践
-
-#### 10.1 缓存策略
+<a id="101-缓存策略"></a>
+<a id="section-12-1-1"></a>
+#### 12.1.1 缓存策略
 
 ```python
 ## 缓存频繁调用的工具结果
@@ -3101,7 +1783,9 @@ def cached_read_file(path: str, mtime: float) -> str:
     return Path(path).read_text(encoding='utf-8')
 ```
 
-#### 10.2 批量操作
+<a id="102-批量操作"></a>
+<a id="section-12-1-2"></a>
+#### 12.1.2 批量操作
 
 ```python
 ## 批量读取多个文件
@@ -3116,7 +1800,9 @@ def batch_read_files(paths: List[str]) -> str:
     return json.dumps(results)
 ```
 
-#### 10.3 懒加载
+<a id="103-懒加载"></a>
+<a id="section-12-1-3"></a>
+#### 12.1.3 懒加载
 
 ```python
 ## 延迟初始化重型依赖
@@ -3135,3 +1821,8 @@ def get_browser_client():
 ---
 
 *相关文档: [MEMORY_SYSTEM.md](MEMORY_SYSTEM.md) · [MCP_INTEGRATION.md](MCP_INTEGRATION.md) · [SKILLS_SYSTEM.md](SKILLS_SYSTEM.md)*
+
+<!-- 旧目录与迁移章节锚点兼容；完整内容入口见文首目录及主题迁移表。 -->
+<a id="1-概述-1"></a>
+<a id="health-check"></a>
+<a id="user-management"></a>

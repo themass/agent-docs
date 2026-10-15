@@ -1,33 +1,100 @@
-# Hermes 安全扫描与后台治理（Canonical）
+# Hermes 安全扫描与纵深防御
 
-> **文档状态**: Canonical — **Part A** 三层安全扫描 · **Part B** Background Review（原 `BACKGROUND_REVIEW_DEEP_ANALYSIS.md`）  
-> **版本核对**: 工作区 `hermes-dev/hermes-agent` · `__release_date__` 2026.9.24（见 [VERSION_HISTORY.md](VERSION_HISTORY.md)）  
-> **导航**: [ARCHITECTURE.md](ARCHITECTURE.md) · [AGENT_LOOP_ARCHITECTURE.md](AGENT_LOOP_ARCHITECTURE.md) · [CATALOG.md](CATALOG.md)
+<!-- legacy-review:start -->
+> **2026-10-15 校订导航**：输入从安装、加载到执行，分别经过哪些防线。\
+> **核对范围**：增加当前命令 guard 导航与适用范围；旧 scanner 正则、信任名单、行号未全量重新认证。\
+> **适用基线**：本地源码 `60d00c5633ad`；不是最新发布版本声明。原稿版本、行号、性能数字与长代码块若未在校订范围内，仍按历史示例阅读。
+> **先读当前结论**：[当前实现导读](CURRENT_IMPLEMENTATION.md#current-approval) · **现行分卷**：[08-security-and-governance.md](../../volumes/08-security-and-governance.md) · [具体改动与未验证项](REVIEW_AND_CHANGES.md) · [返回全目录](README.md)
+
+<!-- legacy-review:end -->
+<a id="目录"></a>
+## 目录
+
+<!-- visible-toc:start -->
+- [1. 架构概览](#section-1)
+  - [1.1 三层防御体系](#section-1-1)
+  - [1.2 核心组件职责](#section-1-2)
+- [2. 纵深防御全景：Agent、工具与运行环境的检查边界](#section-2)
+  - [2.1 安全全景图](#section-2-1)
+  - [2.2 安全维度总览](#section-2-2)
+  - [2.3 Agent Loop 中的安全触发时序](#section-2-3)
+  - [2.4 关键安全边界详解](#section-2-4)
+  - [2.5 容器环境豁免](#section-2-5)
+  - [2.6 设计哲学](#section-2-6)
+- [3. 第一层：Skills Guard（技能安装前扫描）](#section-3)
+  - [3.1 设计哲学](#section-3-1)
+  - [3.2 扫描流程详解](#section-3-2)
+  - [3.3 策略决策矩阵](#section-3-3)
+  - [3.4 集成到安装流程](#section-3-4)
+- [4. 第二层：Context Scanner（上下文文件加载时扫描）](#section-4)
+  - [4.1 设计目标](#section-4-1)
+  - [4.2 扫描实现](#section-4-2)
+  - [4.3 调用链路](#section-4-3)
+  - [4.4 阻断效果](#section-4-4)
+- [5. 第三层：Runtime Injection Detection（运行时注入检测）](#section-5)
+  - [5.1 设计理念](#section-5-1)
+  - [5.2 实现细节](#section-5-2)
+  - [5.3 与其他层的对比](#section-5-3)
+- [6. 威胁模式库详解](#section-6)
+  - [6.1 模式统计](#section-6-1)
+  - [6.2 模式质量评估](#section-6-2)
+- [7. 信任模型与策略决策](#section-7)
+  - [7.1 信任级别设计](#section-7-1)
+  - [7.2 策略合理性分析](#section-7-2)
+  - [7.3 决策矩阵评估](#section-7-3)
+- [8. 关键代码路径追踪](#section-8)
+  - [8.1 外部技能安装流程](#section-8-1)
+  - [8.2 Agent 创建技能流程](#section-8-2)
+  - [8.3 Prompt 构建流程](#section-8-3)
+- [9. 安全设计原则评估](#section-9)
+  - [9.1 符合的安全原则](#section-9-1)
+  - [9.2 潜在弱点](#section-9-2)
+  - [9.3 与其他项目的对比](#section-9-3)
+- [10. 最佳实践建议](#section-10)
+  - [10.1 对于技能开发者](#section-10-1)
+  - [10.2 对于用户](#section-10-2)
+  - [10.3 对于安全研究人员](#section-10-3)
+- [11. 未来改进方向](#section-11)
+  - [11.1 短期改进（1-3 个月）](#section-11-1)
+  - [11.2 中期改进（3-6 个月）](#section-11-2)
+  - [11.3 长期愿景（6-12 个月）](#section-11-3)
+- [12. 总结](#section-12)
+  - [12.1 核心优势](#section-12-1)
+  - [12.2 关键设计决策](#section-12-2)
+  - [12.3 适用场景](#section-12-3)
+  - [12.4 最终评价](#section-12-4)
+- [13. 附录](#section-13)
+  - [13.1 A. 完整的威胁模式列表](#section-13-1)
+  - [13.2 B. 配置文件示例](#section-13-2)
+  - [13.3 C. 常见问题解答](#section-13-3)
+  - [13.4 D. 参考文献](#section-13-4)
+- [14. 后台学习的安全边界（详见 Skills）](#section-14)
+<!-- visible-toc:end -->
 
 
-> **Hermes 版本锚点**: 0.19.0 · **核对**: 2026-07-22 · [DOC_MAINTENANCE.md](DOC_MAINTENANCE.md)  
-> **文档状态**: Deep dive / security analysis  
-> **版本**: v1.0  
-> **创建时间**: 2026-05-13  
+
+
+> **原稿文档状态（历史标签）**: 三层安全扫描与纵深防御；Background Review 完整设计已移至 Skills 篇\
+> **原稿版本核对（历史）**: 工作区 `hermes-dev/hermes-agent` · `__release_date__` 2026.9.24（见 [VERSION_HISTORY.md](VERSION_HISTORY.md)）\
+> **导航**: [ARCHITECTURE.md](ARCHITECTURE.md) · [AGENT_LOOP_ARCHITECTURE.md](AGENT_LOOP_ARCHITECTURE.md) · [CATALOG.md](../../CATALOG.md)
+
+
+> **原稿版本锚点（历史）**: 0.19.0 · **核对**: 2026-07-22 · [DOC_MAINTENANCE.md](DOC_MAINTENANCE.md)\
+> **文档状态**: Deep dive / security analysis\
+> **版本**: v1.0\
+> **创建时间**: 2026-05-13\
 > **主题**: Skills Guard、Context Scanner、Injection Detection 三层防护体系详解
 
 ---
 
-## 📋 目录
+<a id="📋-目录"></a>
 
-- [1. 架构概览](#1-架构概览)
-- [2. 第一层：Skills Guard（技能安装前扫描）](#2-第一层-skills-guard技能安装前扫描)
-- [3. 第二层：Context Scanner（上下文文件加载时扫描）](#3-第二层-context-scanner上下文文件加载时扫描)
-- [4. 第三层：Runtime Injection Detection（运行时注入检测）](#4-第三层-runtime-injection-detection运行时注入检测)
-- [5. 威胁模式库详解](#5-威胁模式库详解)
-- [6. 信任模型与策略决策](#6-信任模型与策略决策)
-- [7. 关键代码路径追踪](#7-关键代码路径追踪)
-- [8. 安全设计原则评估](#8-安全设计原则评估)
-
----
-
+<a id="1-架构概览"></a>
+<a id="section-1"></a>
 ## 1. 架构概览
 
+<a id="11-三层防御体系"></a>
+<a id="section-1-1"></a>
 ### 1.1 三层防御体系
 
 Hermes Agent 采用了**纵深防御（Defense in Depth）**策略，在三个关键时间点执行安全检查：
@@ -74,6 +141,8 @@ graph TB
     W --> CC[Normal Operation]
 ```
 
+<a id="12-核心组件职责"></a>
+<a id="section-1-2"></a>
 ### 1.2 核心组件职责
 
 | 组件 | 文件路径 | 触发时机 | 阻断能力 |
@@ -84,15 +153,224 @@ graph TB
 
 ---
 
-## 2. 第一层：Skills Guard（技能安装前扫描）
+<a id="defense-boundaries"></a>
+<a id="纵深防御全景agent工具与运行环境的检查边界"></a>
+<a id="section-2"></a>
+## 2. 纵深防御全景：Agent、工具与运行环境的检查边界
 
-### 2.1 设计哲学
+> **主题归位**：本节从 `AGENT_LOOP_ARCHITECTURE.md` 的「5.5 安全与权限体系（12 维度纵深防御）」迁入；保留原有图表、示例和讨论。这是原稿的分层设计视角；其中审批执行顺序以 [当前审批链路](CURRENT_IMPLEMENTATION.md#current-approval) 与 [HITL 专篇](HITL_APPROVAL_FLOW.md) 为准，不以“12 维度”顺序推断调用顺序。
+
+> 安全不是「统一网关」，而是 **12 个维度的分布式纵深防御** — 每个攻击面有专门的检查逻辑。\
+> （原 `AIAgent_ARCHITECTURE.md` §8c 已并入本节，勿再开平行文档。）
+
+<a id="550-安全全景图"></a>
+<a id="section-2-1"></a>
+### 2.1 安全全景图
+
+```
+                        ┌─────────────────────────────────────┐
+                        │     Dimension 1: Agent Loop 控制     │
+                        │  IterationBudget / max_iterations    │
+                        │  破坏性命令禁止并行执行                │
+                        └──────────────┬──────────────────────┘
+                                       ↓
+┌──────────────────────────────────────────────────────────────────────┐
+│                   Dimension 2: 公共 Pre-execution                    │
+│  ① Plugin Hook: get_pre_tool_call_block_message()                    │
+│  ② Tool Loop Guardrail: before_call() → 循环失败检测                  │
+└──────────────────────────┬───────────────────────────────────────────┘
+                           ↓
+          ┌────────────────┼────────────────┬──────────────────┐
+          ↓                ↓                ↓                  ↓
+  ┌───────────────┐ ┌───────────────┐ ┌──────────────┐ ┌────────────────┐
+  │ Dim 3: 终端    │ │ Dim 4: 文件    │ │ Dim 5: 网络   │ │ Dim 6: MCP     │
+  │ Command Guards │ │ 路径+写入安全  │ │ URL/SSRF 防护 │ │ 恶意软件+注入   │
+  └───────────────┘ └───────────────┘ └──────────────┘ └────────────────┘
+          ↓                ↓                ↓                  ↓
+  ┌───────────────┐ ┌───────────────┐ ┌──────────────┐ ┌────────────────┐
+  │ Dim 7: 桌面    │ │ Dim 8: 沙箱   │ │ Dim 9: Skills │ │ Dim 10: Cron   │
+  │ Computer-Use  │ │ Env 清洗+隔离  │ │ Guard 静态扫描│ │ 注入+路径围栏   │
+  └───────────────┘ └───────────────┘ └──────────────┘ └────────────────┘
+                           ↓
+          ┌────────────────┼────────────────┐
+          ↓                ↓                ↓
+  ┌───────────────┐ ┌───────────────┐ ┌──────────────┐
+  │ Dim 11: 输出   │ │ Dim 12: Prompt│ │ 容器环境豁免   │
+  │ 脱敏+围栏      │ │ 注入防护      │ │ Docker/Modal  │
+  └───────────────┘ └───────────────┘ └──────────────┘
+                           ↓
+                  ┌────────────────────┐
+                  │ Provider Guardrails │
+                  └────────────────────┘
+```
+
+<a id="551-安全维度总览"></a>
+<a id="section-2-2"></a>
+### 2.2 安全维度总览
+
+| 维度 | 防御对象 | 关键文件 | 可否绕过 |
+|------|---------|---------|---------|
+| **D1: Agent Loop 控制** | 无限循环 / 并行竞态 | `run_agent.py` (`IterationBudget`, `_is_destructive_command`) | 硬上限不可绕过 |
+| **D2: 公共 Pre/Post** | 循环失败 / 插件拦截 | `run_agent.py` / `agent/tool_guardrails.py` | 插件可选 |
+| **D3: 终端命令** | 危险 shell 命令 | `tools/approval.py` (8 层审批链) | Hardline/Sudo 不可绕过 |
+| **D4: 文件操作** | 路径穿越 / 敏感写入 | `tools/path_security.py` / `agent/file_safety.py` / `tools/file_tools.py` | 拒绝列表不可绕过 |
+| **D5: 网络 URL** | SSRF / 私有 IP / 元数据 | `tools/url_safety.py` / `tools/website_policy.py` | 云元数据始终拦截 |
+| **D6: MCP** | 恶意包 / 描述注入 | `tools/osv_check.py` / `tools/mcp_tool.py` | OSV fail-open |
+| **D7: Computer-Use** | 危险按键 / 命令输入 | `tools/computer_use/tool.py` | 键盘组合不可绕过 |
+| **D8: 子进程沙箱** | 凭证泄露 / Env 逃逸 | `tools/environments/local.py` / `tools/env_passthrough.py` / `tools/code_execution_tool.py` | Provider 凭证不可透传 |
+| **D9: Skills 生命周期** | 恶意 Skill 安装 | `tools/skills_guard.py` / `tools/skill_manager_tool.py` | community → caution 即 block |
+| **D10: Cron** | 定时任务注入 / 越界 | `cron/scheduler.py` / `cron/jobs.py` | 注入检测 hard block |
+| **D11: 输出脱敏** | 凭证/token 泄露 | `agent/redact.py` / `agent/memory_manager.py` | 始终生效 |
+| **D12: Prompt 注入** | 上下文文件 / MCP 描述 | `run_agent.py` / `tools/mcp_tool.py` / `cron/scheduler.py` | 上下文文件 hard block |
+
+<a id="552-agent-loop-中的安全触发时序"></a>
+<a id="section-2-3"></a>
+### 2.3 Agent Loop 中的安全触发时序
+
+```
+每轮迭代开始
+    │
+    ├─ [D1] IterationBudget.consume() → 超限则终止
+    │
+    ├─ [D12] _build_system_prompt() → 上下文文件注入扫描（首次/重建时）
+    │
+    ├─ API 调用（Provider Guardrails: Bedrock guardrailConfig）
+    │
+    ├─ LLM 返回 tool_calls
+    │   │
+    │   ├─ [D1] _should_parallelize_tool_batch()
+    │   │   └─ 含破坏性命令? → 禁止并行，串行执行
+    │   │
+    │   └─ 对每个 tool_call:
+    │       │
+    │       ├─── Pre-execution ──────────────────────────────────────
+    │       │ [D2] Plugin: get_pre_tool_call_block_message()
+    │       │ [D2] Guardrail: before_call() → 循环检测
+    │       │
+    │       │ 按工具类型分流:
+    │       │ ├─ terminal → [D3] check_all_command_guards (8层)
+    │       │ │             [D3] _validate_workdir()
+    │       │ ├─ read_file → [D4] 设备文件 + Hub 缓存 + 二进制检查
+    │       │ ├─ write/patch → [D4] 写入拒绝列表 + Jail + 敏感路径
+    │       │ ├─ web/vision → [D5] is_safe_url() + check_website_access()
+    │       │ ├─ MCP tools → [D6] OSV check (启动时) + 描述扫描 (注册时)
+    │       │ ├─ computer_use → [D7] 键盘组合 + 输入文本拦截
+    │       │ ├─ execute_code → [D8] Env 清洗 + 受限工具集
+    │       │ ├─ skill_manage → [D9] Skills Guard 扫描 + 路径检查
+    │       │ └─ cron tools → [D10] prompt 注入 + 路径围栏
+    │       │
+    │       ├─── Execution ──────────────────────────────────────────
+    │       │ 工具执行
+    │       │
+    │       ├─── Post-execution ─────────────────────────────────────
+    │       │ [D2] Guardrail: after_call() → 失败累计
+    │       │ [D11] redact_sensitive_text() (execute_code/cron 输出)
+    │       │ [D11] StreamingContextScrubber (Memory 围栏)
+    │       │
+    │       └─── 结果返回 → 下一个 tool_call 或下一轮迭代
+    │
+    └─ [D8] 子进程 env 始终清洗 (每次 terminal/execute_code 调用)
+```
+
+<a id="553-关键安全边界详解"></a>
+<a id="section-2-4"></a>
+### 2.4 关键安全边界详解
+
+<a id="d3-终端-8-层审批链"></a>
+<a id="section-2-4-1"></a>
+#### 2.4.1 D3: 终端 8 层审批链
+
+```
+① Hardline → rm -rf /, shutdown, fork bomb         【绝对不可绕过】
+② Sudo stdin → sudo -S 密码猜测                     【绝对不可绕过】
+③ YOLO/mode=off → 开发者主动跳过
+④ Tirith → OPA 策略引擎自定义规则
+⑤ DANGEROUS_PATTERNS → 47 条正则
+⑥ 白名单 → 永久/会话级
+⑦ Smart Approval → 辅助 LLM
+⑧ Interactive Approval → CLI 用户确认
+```
+
+<a id="d4-文件写入拒绝列表agentfile_safetypy"></a>
+<a id="section-2-4-2"></a>
+#### 2.4.2 D4: 文件写入拒绝列表（`agent/file_safety.py`）
+
+**精确路径** (16 个): `~/.ssh/id_rsa`, `~/.ssh/authorized_keys`, `~/.hermes/.env`, `~/.bashrc`, `~/.zshrc`, `/etc/shadow`, `/etc/passwd`, `/etc/sudoers` 等
+
+**前缀拒绝** (9 个目录): `~/.ssh/`, `~/.aws/`, `~/.gnupg/`, `~/.kube/`, `~/.docker/`, `~/.azure/`, `~/.config/gh/`, `/etc/sudoers.d/`, `/etc/systemd/`
+
+**写入 Jail**: `HERMES_WRITE_SAFE_ROOT` 设置后，所有写操作必须在此根目录下
+
+<a id="d8-凭证隔离设计"></a>
+<a id="section-2-4-3"></a>
+#### 2.4.3 D8: 凭证隔离设计
+
+```
+主进程 (持有所有 API key)
+    │
+    ├─ terminal → _sanitize_subprocess_env() 移除所有 Provider key
+    │
+    ├─ execute_code → 同上 + SANDBOX_ALLOWED_TOOLS 交集 + redact 输出
+    │
+    └─ env_passthrough.register() → 拒绝注册 Hermes Provider 凭证
+                                     (GHSA-rhgp-j443-p4rf 修复)
+```
+
+<a id="d9-skills-信任分级"></a>
+<a id="section-2-4-4"></a>
+#### 2.4.4 D9: Skills 信任分级
+
+| 来源 | safe | caution | dangerous |
+|------|------|---------|-----------|
+| `builtin` | allow | allow | allow |
+| `trusted` (openai/anthropics) | allow | allow | **block** |
+| `community` | allow | **block** | **block** |
+| `agent-created` | allow | allow | **ask** |
+
+<a id="554-容器环境豁免"></a>
+<a id="section-2-5"></a>
+### 2.5 容器环境豁免
+
+```python
+# tools/approval.py:L1028
+if env_type in {"docker", "singularity", "modal", "daytona", "vercel_sandbox"}:
+    return {"approved": True}  # 容器天然隔离，跳过终端审批
+```
+
+豁免仅限 **D3 终端命令审批**。D4 文件安全、D5 URL 安全、D6 MCP 扫描等其他维度在容器内依然生效。
+
+<a id="555-设计哲学"></a>
+<a id="section-2-6"></a>
+### 2.6 设计哲学
+
+| 设计选择 | 原因 |
+|---------|------|
+| **攻击面特化** | 命令（正则+审批）、文件（路径+拒绝列表）、URL（IP 解析+黑名单）— 语义完全不同 |
+| **不可绕过层** | Hardline、Sudo stdin、Workdir、写入拒绝列表、设备文件、键盘组合 — 任何配置都拦截 |
+| **Fail-open vs Fail-closed** | OSV 恶意软件 fail-open（网络不可用不阻塞）；文件写入拒绝 fail-closed（宁可误拦） |
+| **凭证主进程隔离** | API key 只在主进程，子进程 env 清洗，Skill 不可注册 Provider 凭证透传 |
+| **分层脱敏** | 工具输出 → `redact`；Memory → 围栏标签；日志 → `RedactingFormatter`；Cron → stdout 脱敏 |
+| **线程安全** | Approval 回调 `threading.local` 隔离；`IterationBudget` 线程安全计数 |
+
+---
+
+<a id="2-第一层skills-guard技能安装前扫描"></a>
+<a id="section-3"></a>
+## 3. 第一层：Skills Guard（技能安装前扫描）
+
+<a id="21-设计哲学"></a>
+<a id="section-3-1"></a>
+### 3.1 设计哲学
 
 **核心思想**：所有来自外部的技能（非内置）在安装前必须经过静态分析扫描，基于**信任级别**和**扫描结果**的二维决策矩阵决定是否允许安装。
 
-### 2.2 扫描流程详解
+<a id="22-扫描流程详解"></a>
+<a id="section-3-2"></a>
+### 3.2 扫描流程详解
 
-#### 步骤 1: 信任级别解析
+<a id="步骤-1-信任级别解析"></a>
+<a id="section-3-2-1"></a>
+#### 3.2.1 步骤 1: 信任级别解析
 
 ```python
 # tools/skills_guard.py:884-908
@@ -127,7 +405,9 @@ def _resolve_trust_level(source: str) -> str:
 | `community` | `github.com/user/skill-x` | ✅ 扫描且严格 | 未知来源，零信任 |
 | `agent-created` | Agent 自己生成的技能 | ✅ 扫描（可选） | 可能受 prompt injection 影响 |
 
-#### 步骤 2: 结构性检查
+<a id="步骤-2-结构性检查"></a>
+<a id="section-3-2-2"></a>
+#### 3.2.2 步骤 2: 结构性检查
 
 ```python
 # tools/skills_guard.py:738-852
@@ -256,11 +536,15 @@ MAX_SINGLE_FILE_KB = 256  # 单个文件不超过 256KB
 - ✅ **可执行权限**：非脚本文件设置可执行位是可疑行为
 - ✅ **规模限制**：过大的技能可能包含隐藏内容或资源消耗攻击
 
-#### 步骤 3: 正则模式匹配
+<a id="步骤-3-正则模式匹配"></a>
+<a id="section-3-2-3"></a>
+#### 3.2.3 步骤 3: 正则模式匹配
 
 这是最核心的部分，包含 **100+ 个威胁模式**，覆盖 8 大类攻击向量。
 
-##### 3.1 数据泄露（Exfiltration）- 18 个模式
+<a id="31-数据泄露exfiltration--18-个模式"></a>
+<a id="section-3-2-3-1"></a>
+##### 3.2.3.1 数据泄露（Exfiltration）- 18 个模式
 
 ```python
 THREAT_PATTERNS = [
@@ -341,7 +625,9 @@ THREAT_PATTERNS = [
 - ✅ **敏感目录访问**：监控 `.ssh`、`.aws`、`.hermes/.env` 等凭证存储位置
 - ✅ **隐蔽通道**：DNS 查询、图片加载、Markdown 链接都可能成为数据泄露通道
 
-##### 3.2 Prompt Injection（提示注入）- 20 个模式
+<a id="32-prompt-injection提示注入--20-个模式"></a>
+<a id="section-3-2-3-2"></a>
+##### 3.2.3.2 Prompt Injection（提示注入）- 20 个模式
 
 ```python
 THREAT_PATTERNS.extend([
@@ -416,7 +702,9 @@ THREAT_PATTERNS.extend([
 - ✅ **社会工程**：虚假更新公告、新政策声明
 - ✅ **隐蔽通道**：HTML 注释、隐藏 DIV 元素
 
-##### 3.3 破坏性操作（Destructive）- 8 个模式
+<a id="33-破坏性操作destructive--8-个模式"></a>
+<a id="section-3-2-3-3"></a>
+##### 3.2.3.3 破坏性操作（Destructive）- 8 个模式
 
 ```python
 THREAT_PATTERNS.extend([
@@ -454,7 +742,9 @@ THREAT_PATTERNS.extend([
 ])
 ```
 
-##### 3.4 持久化（Persistence）- 10 个模式
+<a id="34-持久化persistence--10-个模式"></a>
+<a id="section-3-2-3-4"></a>
+##### 3.2.3.4 持久化（Persistence）- 10 个模式
 
 ```python
 THREAT_PATTERNS.extend([
@@ -490,7 +780,9 @@ THREAT_PATTERNS.extend([
 
 **关键点**：检测对 Agent 配置文件（`AGENTS.md`、`.cursorrules`、`SOUL.md`）的修改，防止跨会话持久化恶意指令。
 
-##### 3.5 网络攻击（Network）- 10 个模式
+<a id="35-网络攻击network--10-个模式"></a>
+<a id="section-3-2-3-5"></a>
+##### 3.2.3.5 网络攻击（Network）- 10 个模式
 
 ```python
 THREAT_PATTERNS.extend([
@@ -516,7 +808,9 @@ THREAT_PATTERNS.extend([
 ])
 ```
 
-##### 3.6 混淆技术（Obfuscation）- 12 个模式
+<a id="36-混淆技术obfuscation--12-个模式"></a>
+<a id="section-3-2-3-6"></a>
+##### 3.2.3.6 混淆技术（Obfuscation）- 12 个模式
 
 ```python
 THREAT_PATTERNS.extend([
@@ -550,7 +844,9 @@ THREAT_PATTERNS.extend([
 ])
 ```
 
-##### 3.7 供应链攻击（Supply Chain）- 8 个模式
+<a id="37-供应链攻击supply-chain--8-个模式"></a>
+<a id="section-3-2-3-7"></a>
+##### 3.2.3.7 供应链攻击（Supply Chain）- 8 个模式
 
 ```python
 THREAT_PATTERNS.extend([
@@ -576,7 +872,9 @@ THREAT_PATTERNS.extend([
 ])
 ```
 
-##### 3.8 硬编码凭证（Credential Exposure）- 6 个模式
+<a id="38-硬编码凭证credential-exposure--6-个模式"></a>
+<a id="section-3-2-3-8"></a>
+##### 3.2.3.8 硬编码凭证（Credential Exposure）- 6 个模式
 
 ```python
 THREAT_PATTERNS.extend([
@@ -606,7 +904,9 @@ THREAT_PATTERNS.extend([
 ])
 ```
 
-#### 步骤 4: 不可见 Unicode 字符检测
+<a id="步骤-4-不可见-unicode-字符检测"></a>
+<a id="section-3-2-4"></a>
+#### 3.2.4 步骤 4: 不可见 Unicode 字符检测
 
 ```python
 # tools/skills_guard.py:509-527
@@ -653,7 +953,9 @@ for i, line in enumerate(lines, start=1):
 - **方向覆盖**：RTL/LTR 控制字符可以改变文本显示顺序，隐藏真实内容
 - **同形异义**：视觉上相同的字符可能有不同的 Unicode 码点
 
-#### 步骤 5: 裁决判定
+<a id="步骤-5-裁决判定"></a>
+<a id="section-3-2-5"></a>
+#### 3.2.5 步骤 5: 裁决判定
 
 ```python
 # tools/skills_guard.py:911-923
@@ -678,7 +980,9 @@ def _determine_verdict(findings: List[Finding]) -> str:
 - `caution`: 存在 high/medium/low 严重性发现
 - `dangerous`: 存在 critical 严重性发现
 
-### 2.3 策略决策矩阵
+<a id="23-策略决策矩阵"></a>
+<a id="section-3-3"></a>
+### 3.3 策略决策矩阵
 
 ```python
 # tools/skills_guard.py:41-53
@@ -735,7 +1039,9 @@ def should_allow_install(result: ScanResult, force: bool = False) -> Tuple[bool,
 - ✅ **Agent 自生成技能需确认**：dangerous 发现时询问用户（而非直接阻止）
 - ✅ **强制覆盖机制**：`--force` 标志可以绕过所有阻止
 
-### 2.4 集成到安装流程
+<a id="24-集成到安装流程"></a>
+<a id="section-3-4"></a>
+### 3.4 集成到安装流程
 
 ```python
 # tools/skill_manager_tool.py:78-102
@@ -787,13 +1093,19 @@ def _create_skill(name: str, content: str, ...) -> Dict[str, Any]:
 
 ---
 
-## 3. 第二层：Context Scanner（上下文文件加载时扫描）
+<a id="3-第二层context-scanner上下文文件加载时扫描"></a>
+<a id="section-4"></a>
+## 4. 第二层：Context Scanner（上下文文件加载时扫描）
 
-### 3.1 设计目标
+<a id="31-设计目标"></a>
+<a id="section-4-1"></a>
+### 4.1 设计目标
 
 保护 System Prompt 免受恶意上下文文件（如 `AGENTS.md`、`HERMES.md`、`.cursorrules`）的注入攻击。
 
-### 3.2 扫描实现
+<a id="32-扫描实现"></a>
+<a id="section-4-2"></a>
+### 4.2 扫描实现
 
 ```python
 # agent/prompt_builder.py:36-73
@@ -837,7 +1149,9 @@ def _scan_context_content(content: str, filename: str) -> str:
     return content
 ```
 
-### 3.3 调用链路
+<a id="33-调用链路"></a>
+<a id="section-4-3"></a>
+### 4.3 调用链路
 
 ```python
 # agent/prompt_builder.py:load_context_files
@@ -870,7 +1184,9 @@ def load_context_files(cwd: Path) -> str:
     return "\n\n---\n\n".join(parts)
 ```
 
-### 3.4 阻断效果
+<a id="34-阻断效果"></a>
+<a id="section-4-4"></a>
+### 4.4 阻断效果
 
 当检测到威胁时，返回明确的阻断消息：
 
@@ -889,13 +1205,19 @@ def load_context_files(cwd: Path) -> str:
 
 ---
 
-## 4. 第三层：Runtime Injection Detection（运行时注入检测）
+<a id="4-第三层runtime-injection-detection运行时注入检测"></a>
+<a id="section-5"></a>
+## 5. 第三层：Runtime Injection Detection（运行时注入检测）
 
-### 4.1 设计理念
+<a id="41-设计理念"></a>
+<a id="section-5-1"></a>
+### 5.1 设计理念
 
 在查看/加载技能时进行轻量级检测，主要目的是**监控和告警**，而非阻断。
 
-### 4.2 实现细节
+<a id="42-实现细节"></a>
+<a id="section-5-2"></a>
+### 5.2 实现细节
 
 ```python
 # tools/skills_tool.py:133-143
@@ -927,7 +1249,9 @@ def skill_view(name: str, ...) -> str:
     return json.dumps({"success": True, "content": content, ...})
 ```
 
-### 4.3 与其他层的对比
+<a id="43-与其他层的对比"></a>
+<a id="section-5-3"></a>
+### 5.3 与其他层的对比
 
 | 特性 | Skills Guard | Context Scanner | Runtime Detector |
 |------|-------------|-----------------|------------------|
@@ -944,9 +1268,13 @@ def skill_view(name: str, ...) -> str:
 
 ---
 
-## 5. 威胁模式库详解
+<a id="5-威胁模式库详解"></a>
+<a id="section-6"></a>
+## 6. 威胁模式库详解
 
-### 5.1 模式统计
+<a id="51-模式统计"></a>
+<a id="section-6-1"></a>
+### 6.1 模式统计
 
 | 类别 | 模式数量 | Critical | High | Medium | Low |
 |------|---------|----------|------|--------|-----|
@@ -965,9 +1293,13 @@ def skill_view(name: str, ...) -> str:
 | Structural | 4 | 1 | 1 | 2 | 0 |
 | **总计** | **105** | **50** | **34** | **21** | **0** |
 
-### 5.2 模式质量评估
+<a id="52-模式质量评估"></a>
+<a id="section-6-2"></a>
+### 6.2 模式质量评估
 
-#### 优点
+<a id="优点"></a>
+<a id="section-6-2-1"></a>
+#### 6.2.1 优点
 
 ✅ **覆盖面广**：从数据泄露到越狱攻击，涵盖 OWASP Top 10 for LLM
 
@@ -979,7 +1311,9 @@ def skill_view(name: str, ...) -> str:
 
 ✅ **持续更新**：包含最新的越狱技术（DAN、开发者模式等）
 
-#### 潜在改进空间
+<a id="潜在改进空间"></a>
+<a id="section-6-2-2"></a>
+#### 6.2.2 潜在改进空间
 
 ⚠️ **误报风险**：某些模式可能过于宽泛
 
@@ -1015,9 +1349,13 @@ def skill_view(name: str, ...) -> str:
 
 ---
 
-## 6. 信任模型与策略决策
+<a id="6-信任模型与策略决策"></a>
+<a id="section-7"></a>
+## 7. 信任模型与策略决策
 
-### 6.1 信任级别设计
+<a id="61-信任级别设计"></a>
+<a id="section-7-1"></a>
+### 7.1 信任级别设计
 
 ```mermaid
 graph LR
@@ -1033,9 +1371,13 @@ graph LR
     F --> J[Scan + Strict Policy]
 ```
 
-### 6.2 策略合理性分析
+<a id="62-策略合理性分析"></a>
+<a id="section-7-2"></a>
+### 7.2 策略合理性分析
 
-#### builtin（内置技能）
+<a id="builtin内置技能"></a>
+<a id="section-7-2-1"></a>
+#### 7.2.1 builtin（内置技能）
 
 **策略**：完全信任，跳过扫描
 
@@ -1053,7 +1395,9 @@ graph LR
 - CI/CD 自动化测试
 - 社区审计
 
-#### trusted（可信第三方）
+<a id="trusted可信第三方"></a>
+<a id="section-7-2-2"></a>
+#### 7.2.2 trusted（可信第三方）
 
 **策略**：扫描但允许 caution 级别
 
@@ -1074,7 +1418,9 @@ graph LR
 - 添加更多可信源（如 Microsoft、Google 的官方技能库）
 - 实现动态信任评分（基于历史安全记录）
 
-#### community（社区技能）
+<a id="community社区技能"></a>
+<a id="section-7-2-3"></a>
+#### 7.2.3 community（社区技能）
 
 **策略**：严格扫描，任何 warning 都阻止
 
@@ -1092,7 +1438,9 @@ graph LR
 - 提供详细的误报报告渠道
 - 允许用户标记"已审查"的技能
 
-#### agent-created（Agent 自生成）
+<a id="agent-createdagent-自生成"></a>
+<a id="section-7-2-4"></a>
+#### 7.2.4 agent-created（Agent 自生成）
 
 **策略**：扫描，dangerous 时询问用户
 
@@ -1127,7 +1475,9 @@ def _guard_agent_created_enabled() -> bool:
 - 默认开启，但提供清晰的配置文档
 - 在首次启动时提示用户选择安全级别
 
-### 6.3 决策矩阵评估
+<a id="63-决策矩阵评估"></a>
+<a id="section-7-3"></a>
+### 7.3 决策矩阵评估
 
 | 场景 | 当前策略 | 评估 | 建议 |
 |------|---------|------|------|
@@ -1138,9 +1488,13 @@ def _guard_agent_created_enabled() -> bool:
 
 ---
 
-## 7. 关键代码路径追踪
+<a id="7-关键代码路径追踪"></a>
+<a id="section-8"></a>
+## 8. 关键代码路径追踪
 
-### 7.1 外部技能安装流程
+<a id="71-外部技能安装流程"></a>
+<a id="section-8-1"></a>
+### 8.1 外部技能安装流程
 
 ```mermaid
 sequenceDiagram
@@ -1178,7 +1532,9 @@ sequenceDiagram
     CLI-->>User: 显示结果
 ```
 
-### 7.2 Agent 创建技能流程
+<a id="72-agent-创建技能流程"></a>
+<a id="section-8-2"></a>
+### 8.2 Agent 创建技能流程
 
 ```mermaid
 sequenceDiagram
@@ -1213,7 +1569,9 @@ sequenceDiagram
     end
 ```
 
-### 7.3 Prompt 构建流程
+<a id="73-prompt-构建流程"></a>
+<a id="section-8-3"></a>
+### 8.3 Prompt 构建流程
 
 ```mermaid
 sequenceDiagram
@@ -1252,9 +1610,13 @@ sequenceDiagram
 
 ---
 
-## 8. 安全设计原则评估
+<a id="8-安全设计原则评估"></a>
+<a id="section-9"></a>
+## 9. 安全设计原则评估
 
-### 8.1 符合的安全原则
+<a id="81-符合的安全原则"></a>
+<a id="section-9-1"></a>
+### 9.1 符合的安全原则
 
 ✅ **纵深防御（Defense in Depth）**
 - 三层独立检测机制
@@ -1276,7 +1638,9 @@ sequenceDiagram
 - `guard_agent_created` 默认关闭（虽有争议）
 - 社区技能默认严格策略
 
-### 8.2 潜在弱点
+<a id="82-潜在弱点"></a>
+<a id="section-9-2"></a>
+### 9.2 潜在弱点
 
 ⚠️ **正则表达式局限性**
 
@@ -1369,7 +1733,9 @@ with open("/tmp/malicious.txt") as f:
 - 实施动态分析沙箱
 - 监控运行时行为（不仅仅是静态代码）
 
-### 8.3 与其他项目的对比
+<a id="83-与其他项目的对比"></a>
+<a id="section-9-3"></a>
+### 9.3 与其他项目的对比
 
 | 特性 | Hermes Agent | deer-flow | AutoGPT |
 |------|-------------|-----------|---------|
@@ -1384,9 +1750,13 @@ with open("/tmp/malicious.txt") as f:
 
 ---
 
-## 9. 最佳实践建议
+<a id="9-最佳实践建议"></a>
+<a id="section-10"></a>
+## 10. 最佳实践建议
 
-### 9.1 对于技能开发者
+<a id="91-对于技能开发者"></a>
+<a id="section-10-1"></a>
+### 10.1 对于技能开发者
 
 ✅ **编写安全技能**：
 - 避免硬编码凭证（使用环境变量）
@@ -1420,7 +1790,9 @@ response = requests.get(
 )
 ```
 
-### 9.2 对于用户
+<a id="92-对于用户"></a>
+<a id="section-10-2"></a>
+### 10.2 对于用户
 
 ✅ **安装技能时**：
 - 优先使用官方或可信来源的技能
@@ -1450,7 +1822,9 @@ skills:
     - ~/dev/skills
 ```
 
-### 9.3 对于安全研究人员
+<a id="93-对于安全研究人员"></a>
+<a id="section-10-3"></a>
+### 10.3 对于安全研究人员
 
 🔍 **审计建议**：
 - 定期检查 `THREAT_PATTERNS` 是否有遗漏的攻击向量
@@ -1465,9 +1839,13 @@ skills:
 
 ---
 
-## 10. 未来改进方向
+<a id="10-未来改进方向"></a>
+<a id="section-11"></a>
+## 11. 未来改进方向
 
-### 10.1 短期改进（1-3 个月）
+<a id="101-短期改进1-3-个月"></a>
+<a id="section-11-1"></a>
+### 11.1 短期改进（1-3 个月）
 
 1. **性能优化**
    - 预编译所有正则表达式
@@ -1484,7 +1862,9 @@ skills:
    - 常见误报及解决方法
    - 安全编码指南
 
-### 10.2 中期改进（3-6 个月）
+<a id="102-中期改进3-6-个月"></a>
+<a id="section-11-2"></a>
+### 11.2 中期改进（3-6 个月）
 
 1. **ML 辅助检测**
    - 训练分类器识别 prompt injection
@@ -1501,7 +1881,9 @@ skills:
    - 基于历史记录的信任度调整
    - 自动化风险评估
 
-### 10.3 长期愿景（6-12 个月）
+<a id="103-长期愿景6-12-个月"></a>
+<a id="section-11-3"></a>
+### 11.3 长期愿景（6-12 个月）
 
 1. **形式化验证**
    - 使用定理证明器验证技能安全性
@@ -1520,9 +1902,13 @@ skills:
 
 ---
 
-## 11. 总结
+<a id="11-总结"></a>
+<a id="section-12"></a>
+## 12. 总结
 
-### 11.1 核心优势
+<a id="111-核心优势"></a>
+<a id="section-12-1"></a>
+### 12.1 核心优势
 
 ✅ **全面性**：100+ 威胁模式覆盖 8 大类攻击向量
 
@@ -1534,7 +1920,9 @@ skills:
 
 ✅ **可扩展**：模块化设计易于添加新模式
 
-### 11.2 关键设计决策
+<a id="112-关键设计决策"></a>
+<a id="section-12-2"></a>
+### 12.2 关键设计决策
 
 | 决策 | 理由 | 权衡 |
 |------|------|------|
@@ -1543,7 +1931,9 @@ skills:
 | 可选的 agent 扫描 | 避免过度摩擦 | 可能错过攻击 |
 | 不回溯已安装技能 | 性能考虑 | 遗留风险 |
 
-### 11.3 适用场景
+<a id="113-适用场景"></a>
+<a id="section-12-3"></a>
+### 12.3 适用场景
 
 ✅ **适合**：
 - 生产环境的 Agent 部署
@@ -1556,7 +1946,9 @@ skills:
 - 快速原型开发（可暂时禁用扫描）
 - 内部可信网络（可放宽策略）
 
-### 11.4 最终评价
+<a id="114-最终评价"></a>
+<a id="section-12-4"></a>
+### 12.4 最终评价
 
 Hermes Agent 的安全扫描机制代表了当前 Agent 安全领域的**最佳实践**：
 
@@ -1568,13 +1960,19 @@ Hermes Agent 的安全扫描机制代表了当前 Agent 安全领域的**最佳�
 
 ---
 
-## 附录
+<a id="附录"></a>
+<a id="section-13"></a>
+## 13. 附录
 
-### A. 完整的威胁模式列表
+<a id="a-完整的威胁模式列表"></a>
+<a id="section-13-1"></a>
+### 13.1 A. 完整的威胁模式列表
 
 见 `tools/skills_guard.py:86-488`
 
-### B. 配置文件示例
+<a id="b-配置文件示例"></a>
+<a id="section-13-2"></a>
+### 13.2 B. 配置文件示例
 
 ```yaml
 # ~/.hermes/config.yaml
@@ -1606,7 +2004,9 @@ security:
   tirith_fail_open: false
 ```
 
-### C. 常见问题解答
+<a id="c-常见问题解答"></a>
+<a id="section-13-3"></a>
+### 13.3 C. 常见问题解答
 
 **Q1: 如何报告误报？**
 
@@ -1644,7 +2044,9 @@ hermes skill view <name>
 hermes skill audit
 ```
 
-### D. 参考文献
+<a id="d-参考文献"></a>
+<a id="section-13-4"></a>
+### 13.4 D. 参考文献
 
 1. OWASP Top 10 for LLM Applications: https://owasp.org/www-project-top-10-for-large-language-model-applications/
 2. Prompt Injection Attacks: https://simonwillison.net/2022/Sep/12/prompt-injection/
@@ -1657,457 +2059,43 @@ hermes skill audit
 
 ---
 
-# Part B · Background Review（自进化审查）{#part-b-background-review}
+<a id="1-核心设计理念"></a>
+<a id="2-完整执行流程"></a>
+<a id="21-触发条件检测-conversation_looppyfileusersgqliworkdeepagentshermes-devhermes-agentagentconversation_looppy"></a>
+<a id="22-计数器更新机制"></a>
+<a id="3-源码级时序图"></a>
+<a id="4-关键技术细节"></a>
+<a id="41-fork-agent-创建-background_reviewpyfileusersgqliworkdeepagentshermes-devhermes-agentagentbackground_reviewpyl396-l445"></a>
+<a id="42-工具白名单限制-background_reviewpyfileusersgqliworkdeepagentshermes-devhermes-agentagentbackground_reviewpyl447-l478"></a>
+<a id="43-review-prompt-策略-background_reviewpyfileusersgqliworkdeepagentshermes-devhermes-agentagentbackground_reviewpyl45-l145"></a>
+<a id="44-执行与结果汇总-background_reviewpyfileusersgqliworkdeepagentshermes-devhermes-agentagentbackground_reviewpyl495-l518"></a>
+<a id="45-错误处理与清理-background_reviewpyfileusersgqliworkdeepagentshermes-devhermes-agentagentbackground_reviewpyl520-l549"></a>
+<a id="5-性能影响分析"></a>
+<a id="51-api-成本"></a>
+<a id="52-延迟"></a>
+<a id="53-内存"></a>
+<a id="54-并发安全"></a>
+<a id="6-与前台-skill_manage-和-curator-的边界"></a>
+<a id="61-为什么不是一套机制"></a>
+<a id="62-对延迟的真实影响"></a>
+<a id="63-可能重叠的地方"></a>
+<a id="7-设计风险与建议边界"></a>
+<a id="71-风险"></a>
+<a id="72-建议"></a>
+<a id="part-b--background-review自进化审查part-b-background-review"></a>
+<a id="🎯-总结"></a>
+<a id="后台学习的安全边界详见-skills"></a>
+<a id="section-14"></a>
+## 14. 后台学习的安全边界（详见 Skills）
 
-> 原独立文件 `BACKGROUND_REVIEW_DEEP_ANALYSIS.md`；与 Part A 安全扫描并列，同属 **治理与纵深防御**。Part B 专注对话结束后的 skill/memory 后台审查路径。
+Background Review 是对话结束后的学习与技能维护，不是恶意输入扫描，也不是人工审批恢复。安全篇只关心它的工具白名单、写入保护和审计边界。
 
-## 📋 目录
-
-- [1. 核心设计理念](#1-核心设计理念)
-- [2. 完整执行流程](#2-完整执行流程)
-- [3. 源码级时序图](#3-源码级时序图)
-- [4. 关键技术细节](#4-关键技术细节)
-- [5. 性能影响分析](#5-性能影响分析)
-- [6. 与前台 skill_manage 和 Curator 的边界](#6-与前台-skill_manage-和-curator-的边界)
-- [7. 设计风险与建议边界](#7-设计风险与建议边界)
-
----
-
-## 1. 核心设计理念
-
-Background Review 不是"离线批量分析",而是**对话结束后的条件触发实时审查**:
-
-- ✅ 每次 `run_conversation()` 正常结束后检查触发条件,达到阈值才触发
-- ✅ Fork 一个独立的 Agent 实例在后台线程运行
-- ✅ 继承父 Agent 的运行时环境(credentials、模型配置、缓存)
-- ✅ 只允许调用 memory/skill 管理工具,其他工具被拒绝
-- ✅ 不进入主工具调用链路,通常不拖慢最终回复
-- ⚠️ 与前台 `skill_manage` 和周期性 `curator` 是三条不同路径,不能混为一谈
-
----
-
-## 2. 完整执行流程
-
-### 2.1 触发条件检测 ([conversation_loop.py](file:///Users/gqli/work/deepagents/hermes-dev/hermes-agent/agent/conversation_loop.py))
-
-```python
-# 对话结束前: Skill Review 触发条件
-_should_review_skills = False
-if (agent._skill_nudge_interval > 0
-        and agent._iters_since_skill >= agent._skill_nudge_interval
-        and "skill_manage" in agent.valid_tool_names):
-    _should_review_skills = True
-    agent._iters_since_skill = 0
-
-# 对话正常结束且未中断时: spawn background review
-if final_response and not interrupted and (_should_review_memory or _should_review_skills):
-    try:
-        agent._spawn_background_review(
-            messages_snapshot=list(messages),
-            review_memory=_should_review_memory,
-            review_skills=_should_review_skills,
-        )
-    except Exception:
-        pass  # Background review is best-effort
-```
-
-**关键参数**:
-- `_skill_nudge_interval`: 默认 `10` 次工具迭代(可在配置中调整)
-- `_iters_since_skill`: 计数器,记录上次使用 `skill_manage` 后的迭代次数
-- 触发时机:**对话正常结束且未被中断时,且达到 nudge 阈值**
-- 重要区别:**不是每次对话结束都运行 Review Agent; 每次结束只是检查条件**
+完整设计、图表与代码解读已移至 [后台自进化：Background Review、skill_manage 与 Curator](SKILLS_SYSTEM.md#background-review-design)。本处只保留与本篇主题直接相关的边界。
 
 ---
 
-### 2.2 计数器更新机制
-
-**在哪里递增?**
-
-```python
-# conversation_loop.py L654-657: 每次工具迭代时递增(如果 skill_manage 可用)
-if (agent._skill_nudge_interval > 0
-        and "skill_manage" in agent.valid_tool_names):
-    agent._iters_since_skill += 1
-
-# tool_executor.py L93-94: 调用 skill_manage 时重置为 0
-elif function_name == "skill_manage":
-    agent._iters_since_skill = 0
-```
-
-**逻辑解释**:
-- 每进行一次工具调用,`_iters_since_skill` +1
-- 一旦 Agent 使用了 `skill_manage`,计数器归零
-- 当累积达到阈值(默认 10),下次对话结束后触发 Review
-- 如果本轮前台已经调用 `skill_manage`,计数器会被重置,通常不会马上再触发 skill review
-
----
-
-## 3. 源码级时序图
-
-```mermaid
-sequenceDiagram
-    participant User as 用户
-    participant MainAgent as 主 Agent
-    participant ConvLoop as conversation_loop
-    participant BGThread as 后台线程
-    participant ReviewAgent as Review Agent
-    participant Whitelist as Thread Tool Whitelist
-    participant SkillStore as Skill Store
-    participant MemoryStore as Memory Store
-    
-    User->>MainAgent: 发送消息
-    MainAgent->>ConvLoop: run_conversation()
-    ConvLoop->>MainAgent: 执行对话(多轮工具调用)
-    
-    Note over MainAgent,ConvLoop: L654-657: 每次工具迭代<br/>_iters_since_skill += 1
-    
-    MainAgent->>SkillStore: skill_manage(create/patch)<br/>L93-94: 重置计数器为 0
-    
-    ConvLoop->>ConvLoop: L4041-4046: 检查触发条件<br/>_iters_since_skill >= 10?
-    
-    alt 触发条件满足
-        ConvLoop->>BGThread: L4059-4063: spawn_background_review_thread()<br/>messages_snapshot + review_prompt
-        activate BGThread
-        
-        BGThread->>ReviewAgent: L396-410: 创建 Fork Agent<br/>继承运行时配置
-        activate ReviewAgent
-        Note over ReviewAgent: model/provider/api_key/base_url<br/>credential_pool/session_id
-        
-        ReviewAgent->>ReviewAgent: L411-417: 关键状态继承<br/>_memory_store/_memory_enabled<br/>_skill_nudge_interval = 0 (禁用递归)
-        
-        ReviewAgent->>ReviewAgent: L436-445: 缓存继承<br/>_cached_system_prompt<br/>session_start/session_id
-        
-        ReviewAgent->>Whitelist: L447-466: 设置工具白名单<br/>memory/skills only
-        Note over Whitelist: deny_msg_fmt:<br/>"Background review denied..."
-        
-        ReviewAgent->>ReviewAgent: L468-476: run_conversation()<br/>传入对话历史+Review Prompt
-        
-        alt Review Agent 发现 Skill 信号
-            ReviewAgent->>SkillStore: skill_manage(patch/create/write_file)<br/>L730-763: action dispatch
-            ReviewAgent->>MemoryStore: memory(add/update)<br/>L303-318: provenance metadata
-        else 无信号
-            ReviewAgent->>ReviewAgent: 返回 "Nothing to save."
-        end
-        
-        ReviewAgent->>BGThread: L477-493: 清理资源<br/>shutdown_memory_provider()<br/>close()
-        deactivate ReviewAgent
-        
-        BGThread->>BGThread: L501-504: summarize_background_review_actions()<br/>扫描成功操作并去重
-        
-        BGThread->>User: L506-518: 💾 Self-improvement review:<br/>Skill updated · Memory added
-        
-        deactivate BGThread
-    else 未触发
-        ConvLoop->>User: 直接返回响应
-    end
-    
-    Note over SkillStore,MemoryStore: L767-788: 技能修改后<br/>clear_skills_system_prompt_cache()<br/>bump_patch()/mark_agent_created()
-```
-
----
-
-## 4. 关键技术细节
-
-### 4.1 Fork Agent 创建 ([background_review.py](file:///Users/gqli/work/deepagents/hermes-dev/hermes-agent/agent/background_review.py#L396-L445))
-
-```python
-# L396-410: 创建 Review Agent(继承父 Agent 运行时)
-review_agent = AIAgent(
-    model=agent.model,
-    max_iterations=16,
-    quiet_mode=True,
-    platform=agent.platform,
-    provider=agent.provider,
-    api_mode=_parent_api_mode,  # 继承认证配置
-    base_url=_parent_runtime.get("base_url"),
-    api_key=_parent_runtime.get("api_key"),
-    credential_pool=getattr(agent, "_credential_pool", None),
-    parent_session_id=agent.session_id,
-    enabled_toolsets=getattr(agent, "enabled_toolsets", None),
-    disabled_toolsets=getattr(agent, "disabled_toolsets", None),
-    skip_memory=True,  # 不触碰外部记忆插件
-)
-
-# L411-417: 关键状态继承
-review_agent._memory_write_origin = "background_review"
-review_agent._memory_write_context = "background_review"
-review_agent._memory_store = agent._memory_store  # 共享内存存储
-review_agent._memory_enabled = agent._memory_enabled
-review_agent._user_profile_enabled = agent._user_profile_enabled
-review_agent._memory_nudge_interval = 0  # 禁用递归触发
-review_agent._skill_nudge_interval = 0   # 禁用递归触发
-
-# L436-445: 继承系统提示缓存(保证 prefix cache 命中)
-review_agent._cached_system_prompt = agent._cached_system_prompt
-review_agent.session_start = agent.session_start
-review_agent.session_id = agent.session_id
-```
-
-**关键设计决策**:
-
-1. **Runtime Inheritance**: 继承父 Agent 的模型、provider、credentials,确保使用相同的认证和配额
-2. **Shared Memory Store**: 直接复用 `_memory_store`,让 Review Agent 的写入立即生效
-3. **Disable Recursive Trigger**: 设置 `_skill_nudge_interval = 0`,防止 Review Agent 再次触发 Background Review
-4. **Cache Parity**: 继承 `_cached_system_prompt`,保证 Anthropic/OpenRouter 的 prefix cache 命中率(减少 26% 成本)
-5. **skip_memory=True**: 避免触碰外部记忆插件(Honcho/Mem0等),防止 harness prompt 泄漏到用户真实记忆空间
-
----
-
-### 4.2 工具白名单限制 ([background_review.py](file:///Users/gqli/work/deepagents/hermes-dev/hermes-agent/agent/background_review.py#L447-L478))
-
-```python
-# L447-466: 设置线程级工具白名单
-from model_tools import get_tool_definitions
-from hermes_cli.plugins import set_thread_tool_whitelist, clear_thread_tool_whitelist
-
-review_whitelist = {
-    t["function"]["name"]
-    for t in get_tool_definitions(
-        enabled_toolsets=["memory", "skills"],  # 只允许 memory/skills 工具集
-        quiet_mode=True,
-    )
-}
-set_thread_tool_whitelist(
-    review_whitelist,
-    deny_msg_fmt=(
-        "Background review denied non-whitelisted tool: "
-        "{tool_name}. Only memory/skill tools are allowed."
-    ),
-)
-
-try:
-    # L468-476: 执行 Review
-    review_agent.run_conversation(
-        user_message=(
-            prompt
-            + "\n\nYou can only call memory and skill "
-            "management tools. Other tools will be denied "
-            "at runtime — do not attempt them."
-        ),
-        conversation_history=messages_snapshot,  # 传入完整对话历史
-    )
-finally:
-    clear_thread_tool_whitelist()
-```
-
-**白名单包含的工具**:
-- `memory`: 添加/更新用户记忆
-- `skill_view`: 查看现有 Skill
-- `skill_manage`: 创建/更新/删除 Skill
-- `skills_list`: 列出所有 Skills
-
-**拒绝策略**: 任何非白名单工具调用会在运行时被拦截并返回错误消息
-
----
-
-### 4.3 Review Prompt 策略 ([background_review.py](file:///Users/gqli/work/deepagents/hermes-dev/hermes-agent/agent/background_review.py#L45-L145))
-
-有三种 Review Prompt(根据触发类型选择):
-
-```python
-# L567-572: 选择合适的 Prompt
-if review_memory and review_skills:
-    prompt = _COMBINED_REVIEW_PROMPT  # 同时审查记忆和技能
-elif review_memory:
-    prompt = _MEMORY_REVIEW_PROMPT    # 仅审查记忆
-else:
-    prompt = _SKILL_REVIEW_PROMPT     # 仅审查技能
-```
-
-**Skill Review Prompt 核心指令** (L45-145):
-
-```python
-_SKILL_REVIEW_PROMPT = (
-    "Review the conversation above and update the skill library. Be ACTIVE..."
-    
-    # 关键信号检测
-    "Signals to look for (any one of these warrants action):"
-    "  • User corrected your style, tone, format, legibility, or verbosity."
-    "  • User corrected your workflow, approach, or sequence of steps."
-    "  • Non-trivial technique, fix, workaround, debugging path emerged."
-    "  • A skill that got loaded or consulted turned out wrong — patch it NOW."
-    
-    # 优先级策略
-    "Preference order — prefer the earliest action that fits:"
-    "  1. UPDATE A CURRENTLY-LOADED SKILL (最高优先级)"
-    "  2. UPDATE AN EXISTING UMBRELLA (通过 skills_list + skill_view)"
-    "  3. ADD A SUPPORT FILE (references/templates/scripts)"
-    "  4. CREATE A NEW CLASS-LEVEL UMBRELLA SKILL (最低优先级)"
-    
-    # 保护机制
-    "Protected skills (DO NOT edit these):"
-    "  • Bundled skills (shipped with Hermes)"
-    "  • Hub-installed skills"
-    "Pinned skills CAN be improved — pin only blocks deletion/archive/consolidation by the curator"
-    
-    # 禁止捕获的内容
-    "Do NOT capture:"
-    "  • Environment-dependent failures (missing binaries, uninstalled packages)"
-    "  • Negative claims about tools ('X tool is broken')"
-    "  • Session-specific transient errors"
-    "  • One-off task narratives"
-)
-```
-
----
-
-### 4.4 执行与结果汇总 ([background_review.py](file:///Users/gqli/work/deepagents/hermes-dev/hermes-agent/agent/background_review.py#L495-L518))
-
-```python
-# L495-504: 扫描 Review Agent 的成功操作
-actions = summarize_background_review_actions(
-    review_messages,  # Review Agent 的会话消息
-    messages_snapshot,  # 原始对话快照(用于去重)
-)
-
-# L506-518: 向用户展示摘要
-if actions:
-    summary = " · ".join(dict.fromkeys(actions))  # 去重保持顺序
-    agent._safe_print(
-        f"  💾 Self-improvement review: {summary}"
-    )
-    _bg_cb = agent.background_review_callback
-    if _bg_cb:
-        try:
-            _bg_cb(f"💾 Self-improvement review: {summary}")
-        except Exception:
-            pass
-```
-
-**`summarize_background_review_actions` 逻辑** (L231-291):
-- 解析 Review Agent 的工具返回消息
-- 提取 `success=True` 的操作
-- 识别关键词:`created`、`updated`、`added`、`removed`、`replaced`
-- 跳过已在原始对话中存在的工具调用(避免重复报告)
-
-**Pinned Skill 的准确语义**:
-
-- `hermes curator pin` 主要约束 `curator`: 不允许长期维护任务删除、归档或合并这个 skill。
-- Background Review 仍然可以 patch pinned skill 的内容,因为用户刚刚指出的工作流/格式/偏好问题往往需要即时写回。
-- Bundled skills 与 Hub-installed skills 才是 Background Review 的真正保护对象; 如果只能修改这些受保护 skill,Review Agent 应说明受保护而不执行修改。
-
----
-
-### 4.5 错误处理与清理 ([background_review.py](file:///Users/gqli/work/deepagents/hermes-dev/hermes-agent/agent/background_review.py#L520-L549))
-
-```python
-except Exception as e:
-    logger.warning("Background memory/skill review failed: %s", e)
-    agent._emit_auxiliary_failure("background review", e)
-finally:
-    # L529-543: 异常路径下的资源清理
-    if review_agent is not None:
-        try:
-            with open(os.devnull, "w", encoding="utf-8") as _fn, \
-                 contextlib.redirect_stdout(_fn), \
-                 contextlib.redirect_stderr(_fn):
-                review_agent.shutdown_memory_provider()
-                review_agent.close()
-        except Exception:
-            pass
-    
-    # L546-549: 清除线程级回调,防止回收线程污染
-    try:
-        _set_approval_callback(None)
-    except Exception:
-        pass
-```
-
----
-
-## 5. 性能影响分析
-
-### 5.1 API 成本
-
-- **Prefix Cache Optimization**: 由于复用系统提示缓存,实际增加约 10-15%(而非预期的 100%)
-- **测量数据**: PR #17276 显示 Sonnet 4.5 上端到端成本降低 ~26%
-
-### 5.2 延迟
-
-- **后台运行**: 不进入主工具调用链路,通常不阻塞最终回复; 若有写入动作,可能在回复后展示一条摘要
-- **Daemon 线程**: 进程退出时自动终止,无需手动管理
-
-### 5.3 内存
-
-- **Shared Memory Store**: Fork Agent 共享 `_memory_store`,额外开销极小
-- **Stdout Redirect**: 使用 `os.devnull` 重定向输出,避免内存积累
-
-### 5.4 并发安全
-
-- **线程级工具白名单**: 通过 `set_thread_tool_whitelist()` 实现线程隔离
-- **Devnull 重定向**: 防止后台线程的输出污染主线程 UI
-- **Callback Cleanup**: finally 块清除线程级回调,防止回收线程污染
-
----
-
-## 6. 与前台 skill_manage 和 Curator 的边界
-
-Hermes Agent 里和 skill 更新相关的机制一共有三条路径。它们都可能改变 skill,但触发时机、职责和对用户延迟的影响不同。
-
-| 路径 | 入口/源码 | 触发时机 | 是否阻塞当前对话 | 主要职责 |
-| --- | --- | --- | --- | --- |
-| 前台 `skill_manage` | `tools/skill_manager_tool.py` | 用户明确要求,或主 Agent 在当前对话中主动决定维护 skill | 是。它作为普通工具调用运行,会占用当前 turn 的时间 | 立即创建、修改、查看或删除 skill; 适合用户当场要求固化的规则 |
-| `background_review` | `conversation_loop.py` -> `background_review.py` | 对话正常结束且 memory/skill nudge 阈值满足 | 基本不阻塞最终回复。主线程只负责创建 daemon 线程 | 复盘刚结束的对话,把用户纠正、稳定工作流、偏好和可复用技巧写入 memory/skill |
-| `curator` | `agent/curator.py` | CLI/Gateway 周期性检查,默认以天为尺度 | 不属于当前对话主链路 | 长期维护 agent-created skills: 发现重复、合并、归档、清理陈旧内容 |
-
-### 6.1 为什么不是一套机制
-
-- `skill_manage` 是**对话内的显式写入工具**。优点是可控、即时; 缺点是会增加当前回答延迟。
-- `background_review` 是**对话后的学习回放**。它不要求主 Agent 当场中断任务去整理经验,适合沉淀刚刚发生的纠正和复用信号。
-- `curator` 是**长期库维护**。它不关心某一轮对话是否刚发生,更像定期整理仓库: 去重、合并、归档和降低 skill 碎片化。
-
-因此,三者不是简单重复:一个负责"现在就改",一个负责"结束后学",一个负责"长期整理"。
-
-### 6.2 对延迟的真实影响
-
-- 会明显影响当前对话延迟的是前台 `skill_manage`,因为它在主 Agent 的工具调用链路内执行。
-- `background_review` 在主回复产生之后 spawn daemon thread。用户层面通常只会感知到最终回复后可能出现一条 `Self-improvement review` 摘要。
-- `curator` 是周期维护任务,不应该被理解成每轮聊天后的额外 Agent 调用。
-
-### 6.3 可能重叠的地方
-
-用户对冗余的担心是合理的: 前台 `skill_manage` 和 `background_review` 都能 patch skill。如果一轮对话里主 Agent 已经主动修改过 skill,后台 review 理论上仍可能看到同一段上下文。
-
-当前源码用几种方式降低重复:
-
-- `skill_manage` 调用后会重置 `_iters_since_skill`,减少紧接着触发 skill review 的概率。
-- Background Review fork 出来的 review agent 设置 `_skill_nudge_interval = 0`,避免 review agent 再触发下一轮 review。
-- `summarize_background_review_actions()` 会跳过原始对话中已经存在的工具调用,避免重复报告。
-- Review prompt 要求如果发现多个 skill 重叠,只记录/指出重叠,由 `curator` 处理规模化合并。
-
----
-
-## 7. 设计风险与建议边界
-
-### 7.1 风险
-
-- **过度学习**: `_SKILL_REVIEW_PROMPT` 倾向积极更新,可能把临时偏好误写成长期规则。
-- **重复修改**: 如果主 Agent 在前台已经 patch 了 skill,后台 review 仍可能基于同一段对话产生相近修改。
-- **职责模糊**: pinned skill 对 curator 是保护对象,但对 Background Review 仍可被内容更新; 如果文档不写清楚,容易误解为 pinned 完全只读。
-- **用户可见性不足**: 后台更新通常只给一行摘要,不一定展示完整 diff,审计成本较高。
-
-### 7.2 建议
-
-- 把前台 `skill_manage` 用于用户明确要求的规则固化,不要让主 Agent 在普通任务里频繁主动修改 skill。
-- 保留 `background_review` 作为 after-action learning,但需要在 prompt 中持续强调"不要记录一次性任务叙事"。
-- 让 `curator` 专注合并、归档、去重,不要承担即时学习。
-- 对重要 profile 或生产 agent,建议定期检查 background review 产生的变更摘要和 skill diff。
-
----
-
-## 🎯 总结
-
-Hermes Agent 的 Background Review 机制是一个精巧的自进化系统:
-
-1. **条件触发异步**: 对话结束后检查 nudge 阈值,满足条件才使用 daemon 线程启动 review
-2. **Runtime Inheritance**: 继承父 Agent 的认证和缓存,零额外配置成本
-3. **Prefix Cache Optimization**: 复用系统提示缓存,降低 26% API 成本
-4. **Tool Whitelist**: 线程级白名单,确保 Review Agent 只能修改记忆/Skill
-5. **Recursive Prevention**: 禁用 Review Agent 的 nudge 触发器,避免无限递归
-6. **Protected Skills**: Bundled/Hub-installed Skills 不可修改; pinned skill 仅阻止 curator 删除/归档/合并
-7. **Signal Detection**: 智能识别用户纠正、工作流改进等高质量信号
-8. **Class-Level Abstraction**: 鼓励创建类级别 Skill,避免 session-specific 碎片化
-9. **Provenance Tracking**: 标记 `write_origin="background_review"` 便于审计
-10. **Graceful Degradation**: Background Review 失败不影响主流程(best-effort)
-
-它和前台 `skill_manage`、周期性 `curator` 共同构成三层 skill 更新体系:前台负责即时显式修改,Background Review 负责对话后学习,Curator 负责长期整理和去重。通过这种分工,Agent 可以在不显著拖慢主对话的前提下,持续沉淀可复用经验。
+<!-- 旧章节锚点兼容：对应内容已校订，见文首导航。 -->
+<a id="📋-目录-1"></a>
+
+<!-- 旧目录与迁移章节锚点兼容；完整内容入口见文首目录及主题迁移表。 -->
+<a id="hermes-安全扫描与后台治理canonical"></a>

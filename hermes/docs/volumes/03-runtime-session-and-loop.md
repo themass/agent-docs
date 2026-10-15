@@ -89,7 +89,7 @@
 | 压缩阈值、原地 vs 裂变、逐行例子 | **第4章**（尤其 [4.4](#sec-4-example)） |
 | 审批堵在哪、Memory 三层、Session 库里长什么样 | **第6章**（[6.3](#sec-6-3)–[6.7](#sec-6-7)） |
 | IM 审批卡怎么画、闸门顺序 | [卷六第8章](06-gateways-channels-and-hitl.md#sec-g8) + [卷八 §2](08-security-and-governance.md#2-端到端危险终端命令cli--im) |
-| 后台复盘（自我进化的一条腿） | [6.8](#sec-6-8) → [卷八 §3](08-security-and-governance.md#3-后台复盘background-review) |
+| 后台复盘（自我进化的一条腿） | [6.8](#sec-6-8) → [卷八 §3.0 端到端](08-security-and-governance.md#sec-8-br-flow) |
 | Skills / Curator / Trajectory 长文 | [卷五附录 B](05-memory-architecture-and-evolution.md) |
 | `memory` 工具参数、外部 provider 清单与配置 | [卷五附录 Memory](05-memory-system-reference.md) · [§4.4](05-capabilities-extensions.md#44-记忆) |
 
@@ -2174,7 +2174,7 @@ Hermes 说的自我进化，是一轮结束之后改**跨会话的记忆和技�
 | 技能文件 | `skill_manage`，或复盘里允许的技能写入 | 不改。技能索引进的是系统提示，不是 Session 行 |
 | 外部记忆 provider | 正常结束才 `sync_all` | 不改 |
 
-后台复盘是 `turn_finalizer` 在人已经看到回复之后 fork 的一个受限 `AIAgent`（[1.5](#sec-1-5)）。它不重写主对话 transcript。实现细节在 [卷八 §3](08-security-and-governance.md#3-后台复盘background-review)。
+后台复盘是 `turn_finalizer` 在人已经看到回复之后 fork 的一个受限 `AIAgent`（[1.5](#sec-1-5)）。它不重写主对话 transcript。**完整时间轴（nudge → spawn → idle 队列 → cancel → 写盘）** → [卷八 §3.0](08-security-and-governance.md#sec-8-br-flow)；fork 属性表在 [§3.2](08-security-and-governance.md#32-build_cache_parity_fork-与-btw-共用)。
 
 **四条进化路径别混成一层**（legacy「六层塔」仅用于框架对比）：
 

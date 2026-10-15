@@ -1,16 +1,120 @@
 # Hermes Agent Kanban 多 Agent 调度系统深度分析
 
+<!-- legacy-review:start -->
+> **2026-10-15 校订导航**：持久任务如何建图、调度、执行、审核和通知。\
+> **核对范围**：校正 watcher 实体、并发帽和 scheduled 语义，标注历史调度伪代码；完整 Schema/全部算法摘录未逐行重写。\
+> **适用基线**：本地源码 `60d00c5633ad`；不是最新发布版本声明。原稿版本、行号、性能数字与长代码块若未在校订范围内，仍按历史示例阅读。
+> **先读当前结论**：[当前实现导读](CURRENT_IMPLEMENTATION.md#current-kanban) · **现行分卷**：[07-multi-agent-and-kanban.md](../../volumes/07-multi-agent-and-kanban.md) · [具体改动与未验证项](REVIEW_AND_CHANGES.md) · [返回全目录](README.md)
+
+<!-- legacy-review:end -->
+<a id="目录"></a>
+## 目录
+
+<!-- visible-toc:start -->
+- [1. 一分钟读懂](#section-1)
+- [2. 阅读指南（本文怎么读）](#section-2)
+- [3. 整体设计](#section-3)
+  - [3.1 问题与方案](#section-3-1)
+  - [3.2 分层架构（逻辑视图）](#section-3-2)
+  - [3.3 核心对象模型](#section-3-3)
+  - [3.4 端到端数据流（文字版）](#section-3-4)
+  - [3.5 与 Hermes 其它子系统的关系](#section-3-5)
+- [4. 模块地图](#section-4)
+  - [4.1 源码目录（按职责）](#section-4-1)
+  - [4.2 关键函数 / 类（读代码入口）](#section-4-2)
+  - [4.3 进程与线程模型](#section-4-3)
+  - [4.4 配置键（`config.yaml` → `kanban:`）](#section-4-4)
+- [5. 概述（详细）](#section-5)
+  - [5.1 目录](#section-5-1)
+- [6. 核心设计理念](#section-6)
+  - [6.1 Kanban vs delegate_task](#section-6-1)
+  - [6.2 适用场景](#section-6-2)
+- [7. 📐 设计与方案（图示）](#section-7)
+  - [7.1 设计目标](#section-7-1)
+  - [7.2 方案支柱（一句话）](#section-7-2)
+  - [7.3 方案组件设计图](#section-7-3)
+  - [7.4 任务状态机（流程图）](#section-7-4)
+  - [7.5 Dispatcher 单 Tick 流程图](#section-7-5)
+  - [7.6 端到端时序：创建 → 调度 → Worker → 完成](#section-7-6)
+  - [7.7 时序：崩溃回收（Crash → Reclaim）](#section-7-7)
+  - [7.8 时序：多 Agent 流水线（扇出 / 汇合）](#section-7-8)
+  - [7.9 流程图：Worker 标准生命周期](#section-7-9)
+  - [7.10 通知与事件扇出（简图）](#section-7-10)
+  - [7.11 方案对照：何时用 Kanban vs `delegate_task`](#section-7-11)
+- [8. 系统架构](#section-8)
+  - [8.1 整体架构图](#section-8-1)
+  - [8.2 核心组件](#section-8-2)
+- [9. Dispatcher 调度引擎](#section-9)
+  - [9.1 调度循环（60s Tick）](#section-9-1)
+  - [9.2 僵尸进程回收](#section-9-2)
+  - [9.3 Worker 启动流程](#section-9-3)
+  - [9.4 故障熔断机制](#section-9-4)
+- [10. Worker 工具集](#section-10)
+  - [10.1 工具注册机制](#section-10-1)
+  - [10.2 核心工具列表](#section-10-2)
+  - [10.3 Worker 标准工作流程](#section-10-3)
+- [11. 数据流与隔离模型](#section-11)
+  - [11.1 Board 隔离（硬边界）](#section-11-1)
+  - [11.2 Tenant 隔离（软命名空间）](#section-11-2)
+  - [11.3 Workspace 隔离](#section-11-3)
+- [12. 事件系统与审计轨迹](#section-12)
+  - [12.1 事件类型分类](#section-12-1)
+  - [12.2 事件查询接口](#section-12-2)
+- [13. 🎨 使用场景深度剖析](#section-13)
+  - [13.1 场景 1：研究流水线（Research Pipeline）](#section-13-1)
+  - [13.2 场景 2：工程流水线（Engineering Pipeline）](#section-13-2)
+  - [13.3 场景 3：数字分身（Digital Twin）](#section-13-3)
+- [14. ⚙️ 配置与部署](#section-14)
+  - [14.1 Gateway 嵌入式 Dispatcher（默认）](#section-14-1)
+  - [14.2 独立 Dispatcher（已弃用）](#section-14-2)
+  - [14.3 Systemd 服务（生产部署）](#section-14-3)
+  - [14.4 多 Board 配置](#section-14-4)
+- [15. REST API 与 Dashboard](#section-15)
+  - [15.1 REST 端点](#section-15-1)
+  - [15.2 WebSocket 实时推送](#section-15-2)
+  - [15.3 Dashboard 功能](#section-15-3)
+- [16. 🛡️ 安全与健壮性设计](#section-16)
+  - [16.1 Worker 任务所有权强制](#section-16-1)
+  - [16.2 幻觉检测（Hallucination Detection）](#section-16-2)
+  - [16.3 并发 Claim 防护](#section-16-3)
+  - [16.4 崩溃检测与恢复](#section-16-4)
+- [17. 📈 性能与扩展性](#section-17)
+  - [17.1 SQLite WAL 模式性能](#section-17-1)
+  - [17.2 多 Board 扩展](#section-17-2)
+  - [17.3 并发限制](#section-17-3)
+  - [17.4 数据库维护](#section-17-4)
+- [18. 🎓 最佳实践](#section-18)
+  - [18.1 Profile 设计](#section-18-1)
+  - [18.2 任务设计规范](#section-18-2)
+  - [18.3 依赖管理](#section-18-3)
+  - [18.4 错误处理](#section-18-4)
+  - [18.5 监控与告警](#section-18-5)
+- [19. 数据库自愈（0.19+）](#section-19)
+  - [19.1 `hermes kanban repair`](#section-19-1)
+  - [19.2 周期 WAL checkpoint](#section-19-2)
+- [20. 🔮 未来规划](#section-20)
+  - [20.1 计划中的功能](#section-20-1)
+  - [20.2 可能的改进](#section-20-2)
+- [21. 相关文档](#section-21)
+- [22. 总结](#section-22)
+<!-- visible-toc:end -->
+
+
+
+
 > **文档角色**: Canonical 技术深潜（架构 + 模块 + 实现细节）  
-> **Hermes 版本锚点**: 0.19.0 · **核对**: 2026-08-04 · [DOC_MAINTENANCE.md](DOC_MAINTENANCE.md)  
+> **原稿版本锚点（历史）**: 0.19.0 · **核对**: 2026-08-04 · [DOC_MAINTENANCE.md](DOC_MAINTENANCE.md)\
 > **用户向入门**: 官网 [Kanban 功能说明](https://hermes-agent.nousresearch.com/docs/user-guide/features/kanban) · [Kanban 教程](https://hermes-agent.nousresearch.com/docs/user-guide/features/kanban-tutorial)
 
 ---
 
-## 一分钟读懂
+<a id="一分钟读懂"></a>
+<a id="section-1"></a>
+## 1. 一分钟读懂
 
 **Kanban 是什么？** 一块 **持久化的共享看板**（SQLite `kanban.db`）+ 一个 **嵌入 Gateway 的调度器**（每 ~60s tick）+ 多个 **独立 Worker 子进程**（`hermes -p <profile> chat -q`）。任务在 DB 里走状态机；人类 / CLI / Dashboard / Orchestrator Agent 写卡；Dispatcher 认领 `ready` 卡并 spawn Worker；Worker 用 `kanban_*` 工具把结果写回 DB。
 
-**和 `delegate_task` 的区别：** `delegate_task` = 父 Agent 进程内 **RPC（fork → 等返回值）**；Kanban = **消息队列 + 命名 Profile + 可恢复状态**（崩溃 reclaim、人类 unblock、审计行永久保留）。
+**和 `delegate_task` 的区别：** `delegate_task` = 父 Agent 进程内 **进程内委派（可等待结果，也有后台模式；不是 OS fork）**；Kanban = **消息队列 + 命名 Profile + 可恢复状态**（崩溃 reclaim、人类 unblock、审计行永久保留）。
 
 **三个角色（先分清再读下文）：**
 
@@ -22,7 +126,9 @@
 
 ---
 
-## 阅读指南（本文怎么读）
+<a id="阅读指南本文怎么读"></a>
+<a id="section-2"></a>
+## 2. 阅读指南（本文怎么读）
 
 | 你想搞清楚… | 先读 | 再读 |
 |-------------|------|------|
@@ -38,9 +144,13 @@
 
 ---
 
-## 整体设计
+<a id="整体设计"></a>
+<a id="section-3"></a>
+## 3. 整体设计
 
-### 问题与方案
+<a id="问题与方案"></a>
+<a id="section-3-1"></a>
+### 3.1 问题与方案
 
 | 痛点 | Kanban 方案 |
 |------|-------------|
@@ -51,7 +161,9 @@
 | 要审计「谁何时做了什么」 | `task_events` + `task_runs` 行级永久记录 |
 | 子 Agent 匿名、无记忆 | Worker = **Profile**（独立 `HERMES_HOME`、memory、skills） |
 
-### 分层架构（逻辑视图）
+<a id="分层架构逻辑视图"></a>
+<a id="section-3-2"></a>
+### 3.2 分层架构（逻辑视图）
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
@@ -83,7 +195,9 @@
 - 不把对话 transcript 当任务队列
 - 不跨 Board 共享同一个 `kanban.db`（多项目 = 多 Board）
 
-### 核心对象模型
+<a id="核心对象模型"></a>
+<a id="section-3-3"></a>
+### 3.3 核心对象模型
 
 ```text
 Board（boards/<slug>/）
@@ -97,17 +211,21 @@ Board（boards/<slug>/）
         └── Comment（task_comments）：人类/Agent 线程
 ```
 
-### 端到端数据流（文字版）
+<a id="端到端数据流文字版"></a>
+<a id="section-3-4"></a>
+### 3.4 端到端数据流（文字版）
 
 1. **创建**：人类 / Orchestrator / `hermes kanban create` / REST → `create_task()` → 无阻塞 parent 则 `ready`，否则 `todo`
-2. **调度**：`KanbanDispatcherWatcher`（Gateway）→ `dispatch_once()` → reclaim 僵尸 → promote → `claim_task`（CAS）→ `subprocess` spawn Worker
+2. **调度**：`GatewayKanbanWatchersMixin`（Gateway）→ `dispatch_once()` → reclaim 僵尸 → promote → `claim_task`（CAS）→ `subprocess` spawn Worker
 3. **执行**：Worker 读 `HERMES_KANBAN_*` → `kanban_show()` 拿上下文 → 在 `HERMES_KANBAN_WORKSPACE` 里用 terminal/file 等工具
 4. **写回**：`kanban_complete(summary, metadata)` 或 `kanban_block` → `running→done/blocked` → 子任务可被 promote
-5. **通知**：`task_events` → `NotifierWatcher` → Telegram 等；Dashboard WebSocket 同源
+5. **通知**：`task_events` → `_kanban_notifier_watcher` → Telegram 等；Dashboard WebSocket 同源
 
-时序图见 **[D.6–D.8](#d6-端到端时序创建--调度--worker--完成)**。
+时序图见 **[D.6–D.8](#d6-端到端时序创建-→-调度-→-worker-→-完成)**。
 
-### 与 Hermes 其它子系统的关系
+<a id="与-hermes-其它子系统的关系"></a>
+<a id="section-3-5"></a>
+### 3.5 与 Hermes 其它子系统的关系
 
 | 子系统 | 关系 |
 |--------|------|
@@ -120,16 +238,22 @@ Board（boards/<slug>/）
 
 ---
 
-## 模块地图
+<a id="模块地图"></a>
+<a id="section-4"></a>
+## 4. 模块地图
 
-### 源码目录（按职责）
+<a id="源码目录按职责"></a>
+<a id="section-4-1"></a>
+### 4.1 源码目录（按职责）
 
 | 模块 | 路径 | 职责 |
 |------|------|------|
 | **DB 核心** | `hermes_cli/kanban_db.py` | Schema、Board 路径、`create_task` / `claim_task` / `complete_task` / `dispatch_once`、WAL repair、CAS、事件 |
 | **CLI** | `hermes_cli/kanban.py` | `hermes kanban create/list/watch/repair/…` 人类命令行 |
 | **Agent 工具** | `tools/kanban_tools.py` | `kanban_show` / `complete` / `block` / `create` / … 注册到 `registry` |
-| **Gateway 调度** | `gateway/kanban_watchers.py` | `KanbanDispatcherWatcher`（tick）、`NotifierWatcher`、spawn Worker、singleton lock |
+| **Gateway 循环** | `gateway/kanban_watchers.py` | `GatewayKanbanWatchersMixin` 的 dispatcher/notifier watcher 与生命周期 |
+| **Gateway tick 协调** | `gateway/kanban_watchers_dispatcher.py` | `_KanbanDispatcher` 配置、board 遍历与调度协调 |
+| **调度与 spawn** | `hermes_cli/kanban_db_dispatch.py` | `dispatch_once`、容量与回收、`_default_spawn` |
 | **Gateway 宿主** | `gateway/run.py` | `GatewayRunner` 混入 watchers mixin，启动时挂 watcher |
 | **自动分解** | `hermes_cli/kanban_decompose.py` | 根任务自动扇出（`kanban.auto_decompose`） |
 | **Triage 细化** | `hermes_cli/kanban_specify.py` | `triage` 卡 LLM 填 body（REST `/specify`、CLI） |
@@ -140,25 +264,29 @@ Board（boards/<slug>/）
 | **Slash** | `gateway/slash_commands.py` | `/kanban …` 聊天内看板操作 |
 | **Worker Skill** | `optional-skills/…/kanban-worker`、bundled guidance | Prompt 里写清 Worker 生命周期协议 |
 
-### 关键函数 / 类（读代码入口）
+<a id="关键函数--类读代码入口"></a>
+<a id="section-4-2"></a>
+### 4.2 关键函数 / 类（读代码入口）
 
 | 符号 | 文件 | 作用 |
 |------|------|------|
-| `dispatch_once()` | `kanban_db.py` | 单次调度 tick 总入口（reclaim → promote → claim → spawn 结果汇总） |
-| `_dispatch_once_locked()` | `kanban_db.py` | 持 `dispatch_tick_lock` 的实际逻辑 |
+| `dispatch_once()` | `hermes_cli/kanban_db_dispatch.py` | 单次调度 tick 总入口（reclaim → promote → claim → spawn 结果汇总） |
+| `_dispatch_once_locked()` | `hermes_cli/kanban_db_dispatch.py` | 持 `dispatch_tick_lock` 的实际逻辑 |
 | `claim_task()` | `kanban_db.py` | `ready→running` CAS + 创建 `task_runs` 行 |
 | `complete_task()` / `block_task()` | `kanban_db.py` | Worker 写回；重置 failure 计数、幻觉校验 |
 | `recompute_ready()` | `kanban_db.py` | parents 全 `done` 时 `todo→ready` |
-| `_default_spawn()` | `kanban_watchers.py` | 拼 `hermes -p … chat -q` + 注入 env |
+| `_default_spawn()` | `hermes_cli/kanban_db_dispatch.py` | 拼 `hermes -p … chat -q` + 注入 env |
 | `_check_kanban_mode()` | `kanban_tools.py` | 决定是否向模型暴露 lifecycle 工具 |
 | `_enforce_worker_task_ownership()` | `kanban_tools.py` | Worker 只能 complete/block 自己的 `HERMES_KANBAN_TASK` |
 
-### 进程与线程模型
+<a id="进程与线程模型"></a>
+<a id="section-4-3"></a>
+### 4.3 进程与线程模型
 
 ```text
 Gateway 进程（asyncio 主循环）
-  ├─ KanbanDispatcherWatcher：asyncio 定时任务 → 调 dispatch_once（同步 SQLite）
-  ├─ NotifierWatcher：读 notify subs → Adapter.send
+  ├─ GatewayKanbanWatchersMixin：asyncio 定时任务 → 调 dispatch_once（同步 SQLite）
+  ├─ _kanban_notifier_watcher：读 notify subs → 平台适配器投递
   └─ 子进程：Worker × N（各是独立 hermes 进程，非 Gateway 线程）
 
 Worker 进程
@@ -169,58 +297,69 @@ Worker 进程
 
 **并发帽：** `kanban.max_parallel_jobs`（及 per-profile cap）限制 **同时 running** 的 Worker 数；不是「全局只能跑一个 Agent」。
 
-### 配置键（`config.yaml` → `kanban:`）
+<a id="配置键configyaml-→-kanban"></a>
+<a id="section-4-4"></a>
+### 4.4 配置键（`config.yaml` → `kanban:`）
 
 | 键 | 默认倾向 | 含义 |
 |----|----------|------|
 | `dispatch_in_gateway` | `true` | 嵌入式 Dispatcher（推荐） |
 | `dispatch_interval_seconds` | `60` | tick 间隔 |
 | `failure_limit` | `5` | spawn 连续失败 → auto-block |
-| `max_parallel_jobs` | 配置项 | 全局并发 Worker 上限 |
+| `max_spawn` | 可选 | 单 board 在途并发上限 |
+| `max_in_progress` | 可选 / 内存推导默认 | host-wide 在途上限 |
 | `auto_decompose` | `true` | 根任务是否自动 LLM 分解（可关，#49638） |
 | `orchestrator_profile` | 可选 | 分解/编排用 Profile |
 | `default_assignee` | 可选 | 分解时未知 assignee 的落点 |
 
 ---
 
-## 📋 概述（详细）
+<a id="📋-概述详细"></a>
+<a id="section-5"></a>
+## 5. 概述（详细）
 
 Hermes Agent 的 **Kanban 多 Agent 调度系统**是一个基于 SQLite 的持久化工作队列，支持多个 Profile（Agent）协作处理共享任务。这是 Hermes 区别于其他 Agent 框架的核心特性之一，提供了真正的多 Agent 并行工作能力。
 
-### 目录
+
+<a id="section-5-1"></a>
+### 5.1 目录
 
 - [一分钟读懂](#一分钟读懂) · [阅读指南](#阅读指南本文怎么读) · **[整体设计](#整体设计)** · **[模块地图](#模块地图)**
-- [核心设计理念](#-核心设计理念)
-- [**设计与方案（图示）**](#-设计与方案图示)
+- [核心设计理念](#🎯-核心设计理念)
+- [**设计与方案（图示）**](#📐-设计与方案图示)
   - [D.1 设计目标](#d1-设计目标) · [D.2 方案支柱](#d2-方案支柱一句话) · [D.3 组件图](#d3-方案组件设计图)
   - [D.4 状态机](#d4-任务状态机流程图) · [D.5 tick](#d5-dispatcher-单-tick-流程图)
-  - [D.6–D.8 时序](#d6-端到端时序创建--调度--worker--完成) · [D.9 Worker 流程](#d9-流程图worker-标准生命周期)
+  - [D.6–D.8 时序](#d6-端到端时序创建-→-调度-→-worker-→-完成) · [D.9 Worker 流程](#d9-流程图worker-标准生命周期)
   - [D.10 事件](#d10-通知与事件扇出简图) · [D.11 vs delegate](#d11-方案对照何时用-kanban-vs-delegate_task)
-- [系统架构](#️-系统架构)（Schema 细节）
-- [Dispatcher 调度引擎](#-dispatcher-调度引擎)
-- [Worker 工具集](#️-worker-工具集)
-- [数据流与隔离模型](#-数据流与隔离模型)
-- [事件系统与审计轨迹](#-事件系统与审计轨迹)
-- [使用场景深度剖析](#-使用场景深度剖析)
-- [配置与部署](#️-配置与部署)
-- [REST API 与 Dashboard](#️-rest-api-与-dashboard)
-- [安全与健壮性设计](#️-安全与健壮性设计)
-- [性能与扩展性](#-性能与扩展性)
-- [最佳实践](#-最佳实践)
-- [数据库自愈](#数据库自愈019)
-- [未来规划](#-未来规划)
+- [系统架构](#🏗️-系统架构)（Schema 细节）
+- [Dispatcher 调度引擎](#🔄-dispatcher-调度引擎)
+- [Worker 工具集](#🛠️-worker-工具集)
+- [数据流与隔离模型](#📊-数据流与隔离模型)
+- [事件系统与审计轨迹](#🔍-事件系统与审计轨迹)
+- [使用场景深度剖析](#🎨-使用场景深度剖析)
+- [配置与部署](#⚙️-配置与部署)
+- [REST API 与 Dashboard](#🔧-rest-api-与-dashboard)
+- [安全与健壮性设计](#🛡️-安全与健壮性设计)
+- [性能与扩展性](#📈-性能与扩展性)
+- [最佳实践](#🎓-最佳实践)
+- [数据库自愈](#数据库自愈019+)
+- [未来规划](#🔮-未来规划)
 
 ---
 
-## 🎯 核心设计理念
+<a id="🎯-核心设计理念"></a>
+<a id="section-6"></a>
+## 6. 核心设计理念
 
-### 1. Kanban vs delegate_task
+<a id="1-kanban-vs-delegate_task"></a>
+<a id="section-6-1"></a>
+### 6.1 Kanban vs delegate_task
 
 两者看起来相似，但本质不同：
 
 | 维度 | `delegate_task` | Kanban |
 |------|-----------------|--------|
-| **形态** | RPC 调用（fork → join） | 持久化消息队列 + 状态机 |
+| **形态** | 进程内委派（同步等待或后台模式） | 持久化消息队列 + 状态机 |
 | **父任务** | 阻塞直到子任务返回 | 发布后不管（fire-and-forget） |
 | **子任务身份** | 匿名子 Agent | 命名 Profile，具有持久记忆 |
 | **可恢复性** | 无 — 失败即失败 | Block → Unblock → Re-run；Crash → Reclaim |
@@ -231,7 +370,9 @@ Hermes Agent 的 **Kanban 多 Agent 调度系统**是一个基于 SQLite 的持�
 
 **一句话区别：** `delegate_task` 是函数调用；Kanban 是工作队列，每次交接都是一行任何 Profile（或人类）都能看见和编辑的记录。
 
-### 2. 适用场景
+<a id="2-适用场景"></a>
+<a id="section-6-2"></a>
+### 6.2 适用场景
 
 Kanban 适用于 `delegate_task` 无法覆盖的工作负载：
 
@@ -243,12 +384,16 @@ Kanban 适用于 `delegate_task` 无法覆盖的工作负载：
 
 ---
 
-## 📐 设计与方案（图示）
+<a id="📐-设计与方案图示"></a>
+<a id="section-7"></a>
+## 7. 📐 设计与方案（图示）
 
 > 源码锚点：`hermes_cli/kanban_db.py`（状态机 / `dispatch_once`）、`tools/kanban_tools.py`（Worker 工具）、`gateway/kanban_watchers.py`（Gateway 嵌入式 dispatcher + 通知）。  
 > 下文图示是对现有实现的设计归纳；细节与伪代码见后文各章。
 
-### D.1 设计目标
+<a id="d1-设计目标"></a>
+<a id="section-7-1"></a>
+### 7.1 设计目标
 
 | 目标 | 设计取舍 |
 |------|----------|
@@ -258,9 +403,11 @@ Kanban 适用于 `delegate_task` 无法覆盖的工作负载：
 | **人类在环** | `blocked` / comment / unblock；typed block 区分依赖 vs 真人决策 |
 | **审计** | `task_events` / `task_runs` 永久行记录 |
 | **隔离** | Board（硬 DB 边界）+ workspace（文件系统）+ Profile secrets |
-| **安全并发** | 原子 `claim_task` + board 级 dispatch lock；`max_spawn` 是**全局并发帽** |
+| **安全并发** | 原子 `claim_task` + board 级 dispatch lock；`max_spawn` 是**单 board 在途并发帽**；host-wide 上限另看 `max_in_progress` |
 
-### D.2 方案支柱（一句话）
+<a id="d2-方案支柱一句话"></a>
+<a id="section-7-2"></a>
+### 7.2 方案支柱（一句话）
 
 ```text
 共享 SQLite 看板 = 唯一真相
@@ -272,7 +419,9 @@ Kanban 适用于 `delegate_task` 无法覆盖的工作负载：
 
 **不做的事**：不在父 Agent 内嵌套阻塞式子调用；不把 transcript 当任务队列；不跨 board 共享同一 `kanban.db`。
 
-### D.3 方案组件设计图
+<a id="d3-方案组件设计图"></a>
+<a id="section-7-3"></a>
+### 7.3 方案组件设计图
 
 ```mermaid
 flowchart TB
@@ -290,7 +439,7 @@ flowchart TB
   end
 
   subgraph Engine["调度 · Gateway 嵌入"]
-    Tick["KanbanDispatcherWatcher<br/>每 board 一 tick"]
+    Tick["GatewayKanbanWatchersMixin<br/>每 board 一 tick"]
     Lock["dispatch_tick_lock<br/>单写者"]
     Once["dispatch_once"]
   end
@@ -311,7 +460,9 @@ flowchart TB
   Once -.->|"notify subs"| Surfaces
 ```
 
-### D.4 任务状态机（流程图）
+<a id="d4-任务状态机流程图"></a>
+<a id="section-7-4"></a>
+### 7.4 任务状态机（流程图）
 
 `VALID_STATUSES`：`triage` · `todo` · `scheduled` · `ready` · `running` · `blocked` · `review` · `done` · `archived`。
 
@@ -320,13 +471,13 @@ stateDiagram-v2
   [*] --> triage: 人工分拣 / 循环 breaker
   [*] --> todo: create + 未完成 parents
   [*] --> ready: create + 无阻塞 parents
-  [*] --> scheduled: 定时任务
+  [*] --> scheduled: 保留状态，不代表已实现定时器
   [*] --> blocked: initial_status=blocked
   [*] --> running: 少见 initial_status
 
   triage --> todo: 指派后进入队列
   triage --> ready: 可立即执行
-  scheduled --> ready: 到点 / 手动
+  scheduled --> ready: 显式状态变更，不是自动到点唤醒
 
   todo --> ready: recompute_ready<br/>全部 parents=done
   ready --> running: claim_task 成功
@@ -355,7 +506,9 @@ stateDiagram-v2
 | `transient` | → `blocked`（可重试语义） | 人类或策略性 unblock |
 | 未分型 | → `blocked` | 人类 |
 
-### D.5 Dispatcher 单 Tick 流程图
+<a id="d5-dispatcher-单-tick-流程图"></a>
+<a id="section-7-5"></a>
+### 7.5 Dispatcher 单 Tick 流程图
 
 对应 `_dispatch_once_locked`（外层 `dispatch_once` 先抢 board 级非阻塞锁）。
 
@@ -388,13 +541,15 @@ flowchart TD
   WAL --> End
 ```
 
-### D.6 端到端时序：创建 → 调度 → Worker → 完成
+<a id="d6-端到端时序创建-→-调度-→-worker-→-完成"></a>
+<a id="section-7-6"></a>
+### 7.6 端到端时序：创建 → 调度 → Worker → 完成
 
 ```mermaid
 sequenceDiagram
   participant Op as 人类/CLI/Agent
   participant DB as kanban.db
-  participant GW as Gateway<br/>DispatcherWatcher
+  participant GW as GatewayRunner / GatewayKanbanWatchersMixin
   participant W as Worker<br/>hermes -p profile
   participant FS as workspace/
 
@@ -423,13 +578,15 @@ sequenceDiagram
   end
 ```
 
-### D.7 时序：崩溃回收（Crash → Reclaim）
+<a id="d7-时序崩溃回收crash-→-reclaim"></a>
+<a id="section-7-7"></a>
+### 7.7 时序：崩溃回收（Crash → Reclaim）
 
 ```mermaid
 sequenceDiagram
   participant W as Worker PID
   participant OS as OS
-  participant GW as Dispatcher tick
+  participant GW as _KanbanDispatcher
   participant DB as kanban.db
 
   W-xOS: 进程死亡（未 complete）
@@ -449,7 +606,9 @@ sequenceDiagram
   end
 ```
 
-### D.8 时序：多 Agent 流水线（扇出 / 汇合）
+<a id="d8-时序多-agent-流水线扇出--汇合"></a>
+<a id="section-7-8"></a>
+### 7.8 时序：多 Agent 流水线（扇出 / 汇合）
 
 典型：decomposer 拆卡 → 并行专家 → 汇合写作者（`parents=[…]`）。
 
@@ -457,7 +616,7 @@ sequenceDiagram
 sequenceDiagram
   participant D as Decomposer<br/>Profile
   participant DB as kanban.db
-  participant Disp as Dispatcher
+  participant Disp as _KanbanDispatcher
   participant R1 as Researcher A
   participant R2 as Researcher B
   participant Wr as Writer
@@ -479,7 +638,9 @@ sequenceDiagram
   Wr->>DB: kanban_complete
 ```
 
-### D.9 流程图：Worker 标准生命周期
+<a id="d9-流程图worker-标准生命周期"></a>
+<a id="section-7-9"></a>
+### 7.9 流程图：Worker 标准生命周期
 
 ```mermaid
 flowchart TD
@@ -499,7 +660,9 @@ flowchart TD
   Dep --> Exit
 ```
 
-### D.10 通知与事件扇出（简图）
+<a id="d10-通知与事件扇出简图"></a>
+<a id="section-7-10"></a>
+### 7.10 通知与事件扇出（简图）
 
 ```mermaid
 flowchart LR
@@ -511,12 +674,14 @@ flowchart LR
   Ev --> CLI["hermes kanban events"]
 ```
 
-### D.11 方案对照：何时用 Kanban vs `delegate_task`
+<a id="d11-方案对照何时用-kanban-vs-delegate_task"></a>
+<a id="section-7-11"></a>
+### 7.11 方案对照：何时用 Kanban vs `delegate_task`
 
 ```mermaid
 flowchart TD
   Q{需要什么?} --> A{子调用返回值<br/>同进程上下文?}
-  A -->|是| Del[delegate_task<br/>RPC fork-join]
+  A -->|是| Del[delegate_task<br/>进程内委派]
   A -->|否| B{要持久队列<br/>跨重启 / 人类编辑?}
   B -->|是| Kan[Kanban board]
   B -->|否| Del
@@ -527,11 +692,15 @@ flowchart TD
 
 ---
 
-## 🏗️ 系统架构
+<a id="🏗️-系统架构"></a>
+<a id="section-8"></a>
+## 8. 系统架构
 
 > **已读 [整体设计](#整体设计) / [模块地图](#模块地图)** 可跳过本节的 ASCII 总览，直接看下方 **Schema 与状态机细节**。组件关系图见 **[§D.3](#d3-方案组件设计图)**。
 
-### 整体架构图
+<a id="整体架构图"></a>
+<a id="section-8-1"></a>
+### 8.1 整体架构图
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -595,9 +764,13 @@ flowchart TD
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 核心组件
+<a id="核心组件"></a>
+<a id="section-8-2"></a>
+### 8.2 核心组件
 
-#### 1. SQLite 数据库 Schema
+<a id="1-sqlite-数据库-schema"></a>
+<a id="section-8-2-1"></a>
+#### 8.2.1 SQLite 数据库 Schema
 
 **主表结构**：
 
@@ -693,7 +866,9 @@ CREATE INDEX idx_events_task           ON task_events(task_id, created_at);
 CREATE INDEX idx_runs_task             ON task_runs(task_id, started_at);
 ```
 
-#### 2. 任务状态机
+<a id="2-任务状态机"></a>
+<a id="section-8-2-2"></a>
+#### 8.2.2 任务状态机
 
 ```
 ┌─────────┐
@@ -739,7 +914,9 @@ CREATE INDEX idx_runs_task             ON task_runs(task_id, started_at);
 - **running → ready**：Claim TTL 过期（默认 15min）且 PID 死亡，或手动 reclaim
 - **running → blocked**：连续 spawn 失败达到阈值（默认 5 次），自动熔断
 
-#### 3. 并发控制策略
+<a id="3-并发控制策略"></a>
+<a id="section-8-2-3"></a>
+#### 8.2.3 并发控制策略
 
 **WAL 模式 + BEGIN IMMEDIATE + CAS 更新**：
 
@@ -810,13 +987,19 @@ def claim_task(conn, task_id, ttl_seconds=900):
 
 ---
 
-## 🔄 Dispatcher 调度引擎
+<a id="🔄-dispatcher-调度引擎"></a>
+<a id="section-9"></a>
+## 9. Dispatcher 调度引擎
 
 > 单 tick 流程图与崩溃回收时序见 **[§D.5 / §D.7](#d5-dispatcher-单-tick-流程图)**。
 
-### 1. 调度循环（60s Tick）
+<a id="1-调度循环60s-tick"></a>
+<a id="section-9-1"></a>
+### 9.1 调度循环（60s Tick）
 
 Dispatcher 嵌入在 Gateway 进程中运行（默认配置），每 60 秒执行一次调度周期：
+
+> **历史简化伪代码**：下段用于解释依赖晋级、CAS 与并发帽，不是当前函数原文。当前实现还包含 board 单写者锁、host-wide 容量、review 配额、运行身份与回收分支；见 [当前 Kanban 模块与流程](CURRENT_IMPLEMENTATION.md#current-kanban)。
 
 ```python
 def dispatch_once(conn, *, 
@@ -887,7 +1070,9 @@ def dispatch_once(conn, *,
     return result
 ```
 
-### 2. 僵尸进程回收
+<a id="2-僵尸进程回收"></a>
+<a id="section-9-2"></a>
+### 9.2 僵尸进程回收
 
 Dispatcher 作为父进程，负责回收已完成的 Worker 子进程：
 
@@ -913,7 +1098,9 @@ if os.name != "nt":  # Skip on Windows
 - `_record_worker_exit`：记录退出状态，区分正常退出与异常崩溃
 - 防止僵尸进程累积（`<defunct>` entries）
 
-### 3. Worker 启动流程
+<a id="3-worker-启动流程"></a>
+<a id="section-9-3"></a>
+### 9.3 Worker 启动流程
 
 ```python
 def _default_spawn(task, workspace, *, board=None):
@@ -973,7 +1160,9 @@ def _default_spawn(task, workspace, *, board=None):
 | `HERMES_PROFILE` | Comment 工具的默认作者 |
 | `HERMES_HOME` | Profile 特定的 config.yaml |
 
-### 4. 故障熔断机制
+<a id="4-故障熔断机制"></a>
+<a id="section-9-4"></a>
+### 9.4 故障熔断机制
 
 **统一失败计数器**：
 
@@ -1043,9 +1232,13 @@ def _record_spawn_failure(conn, task_id, error, *, failure_limit=5):
 
 ---
 
-## 🛠️ Worker 工具集
+<a id="🛠️-worker-工具集"></a>
+<a id="section-10"></a>
+## 10. Worker 工具集
 
-### 1. 工具注册机制
+<a id="1-工具注册机制"></a>
+<a id="section-10-1"></a>
+### 10.1 工具注册机制
 
 Kanban 工具仅在以下两种情况下出现在 Agent 的 schema 中：
 
@@ -1068,9 +1261,13 @@ def _check_kanban_mode() -> bool:
 - Dispatcher 启动的 Worker：仅看到生命周期工具
 - Orchestrator Profile：看到路由工具（`kanban_list`、`kanban_create`）
 
-### 2. 核心工具列表
+<a id="2-核心工具列表"></a>
+<a id="section-10-2"></a>
+### 10.2 核心工具列表
 
-#### 2.1 kanban_show()
+<a id="21-kanban_show"></a>
+<a id="section-10-2-1"></a>
+#### 10.2.1 kanban_show()
 
 ```python
 @registry.tool(KANBAN_SHOW_SCHEMA, check_fn=_check_kanban_mode)
@@ -1105,7 +1302,9 @@ def handle_kanban_show(args):
 - 完整的评论线程
 - 预格式化的 `worker_context`（可直接作为 ground truth）
 
-#### 2.2 kanban_complete()
+<a id="22-kanban_complete"></a>
+<a id="section-10-2-2"></a>
+#### 10.2.2 kanban_complete()
 
 ```python
 @registry.tool(KANBAN_COMPLETE_SCHEMA, check_fn=_check_kanban_mode)
@@ -1149,7 +1348,9 @@ def handle_kanban_complete(args):
 - 验证是否由当前 Worker 的 Profile 创建
 - 阻止虚假的任务创建声明
 
-#### 2.3 kanban_block()
+<a id="23-kanban_block"></a>
+<a id="section-10-2-3"></a>
+#### 10.2.3 kanban_block()
 
 ```python
 @registry.tool(KANBAN_BLOCK_SCHEMA, check_fn=_check_kanban_mode)
@@ -1179,7 +1380,9 @@ def handle_kanban_block(args):
 - 付费墙源（需要订阅的内容）
 - 同行输出（等待其他任务的成果）
 
-#### 2.4 kanban_heartbeat()
+<a id="24-kanban_heartbeat"></a>
+<a id="section-10-2-4"></a>
+#### 10.2.4 kanban_heartbeat()
 
 ```python
 @registry.tool(KANBAN_HEARTBEAT_SCHEMA, check_fn=_check_kanban_mode)
@@ -1215,7 +1418,9 @@ def handle_kanban_heartbeat(args):
 - 短时间任务可跳过
 - 防止 Dispatcher 误判为僵尸进程
 
-#### 2.5 kanban_comment()
+<a id="25-kanban_comment"></a>
+<a id="section-10-2-5"></a>
+#### 10.2.5 kanban_comment()
 
 ```python
 @registry.tool(KANBAN_COMMENT_SCHEMA, check_fn=_check_kanban_mode)
@@ -1239,7 +1444,9 @@ def handle_kanban_comment(args):
 - 用于跨任务信息传递
 - 人类可随时查看和回复
 
-#### 2.6 kanban_create()（Orchestrator Only）
+<a id="26-kanban_createorchestrator-only"></a>
+<a id="section-10-2-6"></a>
+#### 10.2.6 kanban_create()（Orchestrator Only）
 
 ```python
 @registry.tool(KANBAN_CREATE_SCHEMA, check_fn=_check_kanban_orchestrator_mode)
@@ -1295,7 +1502,9 @@ kanban_create(
 # → returns {"task_id": "t_w1", ...}
 ```
 
-### 3. Worker 标准工作流程
+<a id="3-worker-标准工作流程"></a>
+<a id="section-10-3"></a>
+### 10.3 Worker 标准工作流程
 
 > 生命周期流程图见 **[§D.9](#d9-流程图worker-标准生命周期)**；多 Agent 扇出/汇合时序见 **[§D.8](#d8-时序多-agent-流水线扇出--汇合)**。
 
@@ -1319,9 +1528,13 @@ Step 3: Handoff
 
 ---
 
-## 📊 数据流与隔离模型
+<a id="📊-数据流与隔离模型"></a>
+<a id="section-11"></a>
+## 11. 数据流与隔离模型
 
-### 1. Board 隔离（硬边界）
+<a id="1-board-隔离硬边界"></a>
+<a id="section-11-1"></a>
+### 11.1 Board 隔离（硬边界）
 
 ```
 ~/.hermes/kanban/boards/
@@ -1357,7 +1570,9 @@ env["HERMES_KANBAN_BOARD"] = resolved_board
 
 **效果**：Worker 无法看到其他 Board 的任务，即使它尝试修改环境变量也无法突破。
 
-### 2. Tenant 隔离（软命名空间）
+<a id="2-tenant-隔离软命名空间"></a>
+<a id="section-11-2"></a>
+### 11.2 Tenant 隔离（软命名空间）
 
 ```sql
 -- Tasks table includes optional tenant column
@@ -1380,7 +1595,9 @@ hermes kanban create "Review Q3 metrics" \
 hermes kanban list --tenant "acme-corp"
 ```
 
-### 3. Workspace 隔离
+<a id="3-workspace-隔离"></a>
+<a id="section-11-3"></a>
+### 11.3 Workspace 隔离
 
 **三种 Workspace 类型**：
 
@@ -1415,11 +1632,17 @@ def resolve_workspace(task, *, board=None):
 
 ---
 
-## 🔍 事件系统与审计轨迹
+<a id="🔍-事件系统与审计轨迹"></a>
+<a id="section-12"></a>
+## 12. 事件系统与审计轨迹
 
-### 1. 事件类型分类
+<a id="1-事件类型分类"></a>
+<a id="section-12-1"></a>
+### 12.1 事件类型分类
 
-#### 生命周期事件
+<a id="生命周期事件"></a>
+<a id="section-12-1-1"></a>
+#### 12.1.1 生命周期事件
 
 | Kind | Payload | When |
 |------|---------|------|
@@ -1432,7 +1655,9 @@ def resolve_workspace(task, *, board=None):
 | `promoted` | `{from_parents}` | All parents done, todo→ready |
 | `reprioritized` | `{old, new}` | Priority changed |
 
-#### Worker 遥测事件
+<a id="worker-遥测事件"></a>
+<a id="section-12-1-2"></a>
+#### 12.1.2 Worker 遥测事件
 
 | Kind | Payload | When |
 |------|---------|------|
@@ -1443,7 +1668,9 @@ def resolve_workspace(task, *, board=None):
 | `spawn_failed` | `{error, failures}` | One spawn attempt failed |
 | `gave_up` | `{failures, error}` | Circuit breaker fired (N consecutive failures) |
 
-#### 诊断事件
+<a id="诊断事件"></a>
+<a id="section-12-1-3"></a>
+#### 12.1.3 诊断事件
 
 | Kind | Payload | When |
 |------|---------|------|
@@ -1451,7 +1678,9 @@ def resolve_workspace(task, *, board=None):
 | `suspected_hallucinated_references` | `{phantom_refs}` | Summary mentions non-existent task IDs |
 | `claim_extended` | `{reason: "pid_alive"}` | Live worker's TTL extended |
 
-### 2. 事件查询接口
+<a id="2-事件查询接口"></a>
+<a id="section-12-2"></a>
+### 12.2 事件查询接口
 
 **CLI**：
 
@@ -1490,9 +1719,13 @@ for ev in events:
 
 ---
 
-## 🎨 使用场景深度剖析
+<a id="🎨-使用场景深度剖析"></a>
+<a id="section-13"></a>
+## 13. 🎨 使用场景深度剖析
 
-### 场景 1：研究流水线（Research Pipeline）
+<a id="场景-1研究流水线research-pipeline"></a>
+<a id="section-13-1"></a>
+### 13.1 场景 1：研究流水线（Research Pipeline）
 
 ```
 User Request: "Draft a launch post on the ICP funding landscape"
@@ -1546,7 +1779,9 @@ Step 5: Human Review (optional)
 - ✅ 结构化手头（summaries + metadata）
 - ✅ 完整审计轨迹（谁做了什么，何时做的）
 
-### 场景 2：工程流水线（Engineering Pipeline）
+<a id="场景-2工程流水线engineering-pipeline"></a>
+<a id="section-13-2"></a>
+### 13.2 场景 2：工程流水线（Engineering Pipeline）
 
 ```
 User Request: "Refactor the rate limiter to use token bucket algorithm"
@@ -1610,7 +1845,9 @@ Step 5: Integration (manual or automated)
 - ✅ 依赖链自动推进
 - ✅ 结构化元数据（changed_files、git_branch）
 
-### 场景 3：数字分身（Digital Twin）
+<a id="场景-3数字分身digital-twin"></a>
+<a id="section-13-3"></a>
+### 13.3 场景 3：数字分身（Digital Twin）
 
 ```
 Setup: Persistent named assistants
@@ -1660,9 +1897,13 @@ Step 3: Memory Accumulation
 
 ---
 
-## ⚙️ 配置与部署
+<a id="⚙️-配置与部署"></a>
+<a id="section-14"></a>
+## 14. ⚙️ 配置与部署
 
-### 1. Gateway 嵌入式 Dispatcher（默认）
+<a id="1-gateway-嵌入式-dispatcher默认"></a>
+<a id="section-14-1"></a>
+### 14.1 Gateway 嵌入式 Dispatcher（默认）
 
 ```yaml
 # config.yaml
@@ -1684,7 +1925,9 @@ kanban:
 hermes gateway start
 ```
 
-### 2. 独立 Dispatcher（已弃用）
+<a id="2-独立-dispatcher已弃用"></a>
+<a id="section-14-2"></a>
+### 14.2 独立 Dispatcher（已弃用）
 
 ```bash
 # DEPRECATED: Use gateway instead
@@ -1693,7 +1936,9 @@ hermes kanban daemon --failure-limit 5 --pidfile /tmp/kanban.pid
 
 **警告**：同时运行 Gateway 嵌入式 Dispatcher 和独立 Daemon 会导致 Claim 竞争，不被支持。
 
-### 3. Systemd 服务（生产部署）
+<a id="3-systemd-服务生产部署"></a>
+<a id="section-14-3"></a>
+### 14.3 Systemd 服务（生产部署）
 
 ```ini
 # /etc/systemd/user/hermes-kanban-dispatcher.service
@@ -1721,7 +1966,9 @@ systemctl --user enable hermes-kanban-dispatcher
 systemctl --user start hermes-kanban-dispatcher
 ```
 
-### 4. 多 Board 配置
+<a id="4-多-board-配置"></a>
+<a id="section-14-4"></a>
+### 14.4 多 Board 配置
 
 ```bash
 # Create separate boards for different projects
@@ -1757,9 +2004,13 @@ hermes kanban boards list
 
 ---
 
-## 🔧 REST API 与 Dashboard
+<a id="🔧-rest-api-与-dashboard"></a>
+<a id="section-15"></a>
+## 15. REST API 与 Dashboard
 
-### 1. REST 端点
+<a id="1-rest-端点"></a>
+<a id="section-15-1"></a>
+### 15.1 REST 端点
 
 所有路由挂载在 `/api/plugins/kanban/` 下，受 Dashboard 临时会话令牌保护：
 
@@ -1778,7 +2029,9 @@ hermes kanban boards list
 | `GET` | `/config` | Read dashboard preferences |
 | `WS` | `/events?since=<event_id>` | Live event stream |
 
-### 2. WebSocket 实时推送
+<a id="2-websocket-实时推送"></a>
+<a id="section-15-2"></a>
+### 15.2 WebSocket 实时推送
 
 ```javascript
 const ws = new WebSocket('ws://localhost:8080/api/plugins/kanban/events?since=0');
@@ -1801,7 +2054,9 @@ ws.onmessage = (event) => {
 };
 ```
 
-### 3. Dashboard 功能
+<a id="3-dashboard-功能"></a>
+<a id="section-15-3"></a>
+### 15.3 Dashboard 功能
 
 **主要视图**：
 
@@ -1819,9 +2074,13 @@ ws.onmessage = (event) => {
 
 ---
 
-## 🛡️ 安全与健壮性设计
+<a id="🛡️-安全与健壮性设计"></a>
+<a id="section-16"></a>
+## 16. 🛡️ 安全与健壮性设计
 
-### 1. Worker 任务所有权强制
+<a id="1-worker-任务所有权强制"></a>
+<a id="section-16-1"></a>
+### 16.1 Worker 任务所有权强制
 
 ```python
 def _enforce_worker_task_ownership(tid: str) -> Optional[str]:
@@ -1855,7 +2114,9 @@ def _enforce_worker_task_ownership(tid: str) -> Optional[str]:
 - ❌ `kanban_comment()`（允许跨任务评论）
 - ❌ `kanban_create()`（Orchestrator 专用）
 
-### 2. 幻觉检测（Hallucination Detection）
+<a id="2-幻觉检测hallucination-detection"></a>
+<a id="section-16-2"></a>
+### 16.2 幻觉检测（Hallucination Detection）
 
 **Created Cards 验证**：
 
@@ -1932,7 +2193,9 @@ def _scan_prose_for_phantom_ids(conn, text):
 - 发现疑似幻觉引用时发射 `suspected_hallucinated_references` 事件
 - **不阻止完成**（advisory only）
 
-### 3. 并发 Claim 防护
+<a id="3-并发-claim-防护"></a>
+<a id="section-16-3"></a>
+### 16.3 并发 Claim 防护
 
 **CAS 更新保证原子性**：
 
@@ -1955,7 +2218,9 @@ UPDATE tasks
 
 **无重试循环**：失败者不重试，避免活锁。
 
-### 4. 崩溃检测与恢复
+<a id="4-崩溃检测与恢复"></a>
+<a id="section-16-4"></a>
+### 16.4 崩溃检测与恢复
 
 **PID 存活检查**：
 
@@ -2021,9 +2286,13 @@ def release_stale_claims(conn):
 
 ---
 
-## 📈 性能与扩展性
+<a id="📈-性能与扩展性"></a>
+<a id="section-17"></a>
+## 17. 📈 性能与扩展性
 
-### 1. SQLite WAL 模式性能
+<a id="1-sqlite-wal-模式性能"></a>
+<a id="section-17-1"></a>
+### 17.1 SQLite WAL 模式性能
 
 **优势**：
 
@@ -2041,7 +2310,9 @@ Single-board, 1000 tasks, concurrent access:
 - Dispatcher tick (claim + spawn 10 tasks): ~50ms
 ```
 
-### 2. 多 Board 扩展
+<a id="2-多-board-扩展"></a>
+<a id="section-17-2"></a>
+### 17.2 多 Board 扩展
 
 **隔离保证**：
 
@@ -2057,7 +2328,9 @@ Medium team (5-20 users): 2-3 boards by project/domain
 Large org (> 20 users): Multiple boards + separate Gateway instances
 ```
 
-### 3. 并发限制
+<a id="3-并发限制"></a>
+<a id="section-17-3"></a>
+### 17.3 并发限制
 
 **Gateway 配置**：
 
@@ -2079,7 +2352,9 @@ kanban:
 HERMES_KANBAN_MAX_PARALLEL_JOBS=8 hermes gateway start
 ```
 
-### 4. 数据库维护
+<a id="4-数据库维护"></a>
+<a id="section-17-4"></a>
+### 17.4 数据库维护
 
 **垃圾回收**：
 
@@ -2098,9 +2373,13 @@ hermes kanban gc \
 
 ---
 
-## 🎓 最佳实践
+<a id="🎓-最佳实践"></a>
+<a id="section-18"></a>
+## 18. 🎓 最佳实践
 
-### 1. Profile 设计
+<a id="1-profile-设计"></a>
+<a id="section-18-1"></a>
+### 18.1 Profile 设计
 
 **Worker Profile**：
 
@@ -2143,7 +2422,9 @@ memory:
 - Worker：拥有执行工具（terminal、file），专注于单一任务
 - Orchestrator：只有路由工具，负责任务分解和分配
 
-### 2. 任务设计规范
+<a id="2-任务设计规范"></a>
+<a id="section-18-2"></a>
+### 18.2 任务设计规范
 
 **好的任务标题**：
 
@@ -2186,7 +2467,9 @@ body: |
 body: "Fix the limiter"
 ```
 
-### 3. 依赖管理
+<a id="3-依赖管理"></a>
+<a id="section-18-3"></a>
+### 18.3 依赖管理
 
 **推荐模式**：
 
@@ -2220,7 +2503,9 @@ A → B → A  # Will deadlock
 A → B → C → D
 ```
 
-### 4. 错误处理
+<a id="4-错误处理"></a>
+<a id="section-18-4"></a>
+### 18.4 错误处理
 
 **Worker 侧**：
 
@@ -2252,7 +2537,9 @@ except FatalError as e:
 - 崩溃自动 reclaim（PID 消失）
 - 连续失败自动 block（熔断）
 
-### 5. 监控与告警
+<a id="5-监控与告警"></a>
+<a id="section-18-5"></a>
+### 18.5 监控与告警
 
 **关键指标**：
 
@@ -2286,9 +2573,13 @@ hermes kanban stats --json
 
 ---
 
-## 数据库自愈（0.19+）
+<a id="数据库自愈019+"></a>
+<a id="section-19"></a>
+## 19. 数据库自愈（0.19+）
 
-### `hermes kanban repair`
+<a id="hermes-kanban-repair"></a>
+<a id="section-19-1"></a>
+### 19.1 `hermes kanban repair`
 
 Index 损坏（非整库 page 损坏）时，连接守卫与 CLI 共用同一策略（`hermes_cli/kanban_db.py::repair_db`）：
 
@@ -2303,7 +2594,9 @@ hermes kanban repair
 hermes kanban repair --board <name>
 ```
 
-### 周期 WAL checkpoint
+<a id="周期-wal-checkpoint"></a>
+<a id="section-19-2"></a>
+### 19.2 周期 WAL checkpoint
 
 Dispatcher tick 上周期性 `PRAGMA wal_checkpoint(TRUNCATE)`，控制 WAL 文件膨胀（长跑网关 + 多 worker 写板）。与「崩溃检测 / CAS」互补，不替代备份策略。
 
@@ -2311,9 +2604,13 @@ FTS5 部分索引损坏：`_db_opens_cleanly` 现会探测 FTS5 读路径，避�
 
 ---
 
-## 🔮 未来规划
+<a id="🔮-未来规划"></a>
+<a id="section-20"></a>
+## 20. 🔮 未来规划
 
-### 计划中的功能
+<a id="计划中的功能"></a>
+<a id="section-20-1"></a>
+### 20.1 计划中的功能
 
 1. **Live Status Suffixes**：在 Topic 标题中显示实时状态（如 "🟢 Active"、"⏸️ Paused"）
 2. **Topic Title Sync**：自动同步 Topic 标题与会话名称
@@ -2325,7 +2622,9 @@ FTS5 部分索引损坏：`_db_opens_cleanly` 现会探测 FTS5 读路径，避�
 8. **分布式 Dispatcher**：支持多主机共享 Board（需要分布式锁）
 9. **高级 analytics**：任务完成时间分布、瓶颈分析、预测性告警
 
-### 可能的改进
+<a id="可能的改进"></a>
+<a id="section-20-2"></a>
+### 20.2 可能的改进
 
 1. **智能任务分配**：根据 Profile 历史表现自动选择最佳 Assignee
 2. **任务合并**：将相关的任务合并为一个
@@ -2335,7 +2634,9 @@ FTS5 部分索引损坏：`_db_opens_cleanly` 现会探测 FTS5 读路径，避�
 
 ---
 
-## 📚 相关文档
+<a id="📚-相关文档"></a>
+<a id="section-21"></a>
+## 21. 相关文档
 
 - [Kanban 用户指南](https://hermes-agent.nousresearch.com/docs/user-guide/features/kanban)（功能与操作，非实现）
 - [Kanban 教程](https://hermes-agent.nousresearch.com/docs/user-guide/features/kanban-tutorial)
@@ -2343,12 +2644,14 @@ FTS5 部分索引损坏：`_db_opens_cleanly` 现会探测 FTS5 读路径，避�
 - [多 Agent 架构](MULTI_AGENT_ARCHITECTURE.md)（`delegate_task` 对比）
 - [Hermes Agent 架构总览](./ARCHITECTURE.md)
 - [会话与 Memory](./MEMORY_SYSTEM.md)
-- [Kanban v1 设计规范](../docs/hermes-kanban-v1-spec.pdf)
+- Kanban v1 设计规范（历史引用：`../docs/hermes-kanban-v1-spec.pdf`，当前归档未附该文件）
 - 源码：`hermes_cli/kanban_db.py` · `tools/kanban_tools.py` · `gateway/kanban_watchers.py` · `plugins/kanban/`
 
 ---
 
-## 💡 总结
+<a id="💡-总结"></a>
+<a id="section-22"></a>
+## 22. 总结
 
 Hermes Agent 的 Kanban 多 Agent 调度系统是一个**生产级**的多 Agent 协作框架，具有以下核心优势：
 

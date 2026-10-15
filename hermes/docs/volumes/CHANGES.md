@@ -158,3 +158,49 @@ python3 -m unittest discover -s hermes/docs/_merge -p 'test_document_audit.py' -
 - 解释 built-in memory、工作 messages、SessionDB、外部 Provider、Skills、插件 context 的区别，以及为何内置笔记不走外部召回的 `<memory-context>` 包装。
 - 保留原 §1.7–1.8，追加适用条件：普通写入不即时刷新快照，但压缩后 invalidate_system_prompt 重新加载是当前会话内的刷新入口；不能绝对理解为只在下一次会话生效。
 - 本次附录全文本地链接与围栏检查通过，git diff 空白检查、13 项文档审计工具测试及既有源码引用审计通过；新增符号入口来自本次本地源码阅读，未扩充机器引用清单。既有增补扫描仍报告 18 份片段 / 33 个 Mermaid 围栏，不含本次附录新增的 2 张图；未做 Mermaid 渲染或 Hermes 运行时验证。
+
+## 后续专题增补：Channel 独立模块的架构与四条生命周期链路
+
+- 卷六第2章追加 §2.1–2.7，卷首增加按问题查找和小节目录；区分 Channel 适配层、具体平台频道、Gateway 编排与外部平台服务。
+- 新增整体架构图、核心类图，以及启动、停止、入站、出站四张时序图，共 6 张图。以真实 SignalAdapter 展示继承与连接资源，不把所有平台假设成同一种协议。
+- 启动解释注册表/内置工厂优先级、先装配后连接、有界并发、失败清理、degraded 状态与 Profile 隔离；停止解释唯一 stop task、先 drain 后 teardown、取消任务再断连、DB 关闭顺序与超时兜底。
+- 入站解释 MessageEvent / SessionSource、创建 task 前同步占 guard、Adapter/Runner 双守卫、控制消息 inline 与 pending/debounce；出站解释普通回复由 Base 生命周期交付、发送前登记义务、SendResult 与重连后的 transport 所有权。
+- 保留第2/4章旧简图，追加说明其省略与顺序限制；明确流式、媒体、审批、cron 主动出站不应套用普通最终文本的同一路径。
+- 保全检查：剥离两个新增标记区域及新增目录行后，可逐字节还原本次编辑前卷六；旧锚点保留、显式锚点无重复，未增加坏链接。全文原有两处指向同一缺失比较文档的链接仍存在，本次未修改。
+- 本地 AST 静态解析核对 28 个源码符号，无需导入 Hermes。既有全卷结构检查、103 条机器清单引用及 13 项审计工具测试通过；既有结构扫描的 18 片段 / 33 围栏不含本次卷六增补，本次另检新增 6 个图围栏闭合。未执行平台连接、收发/启停场景或 Mermaid 渲染，不将静态核对当作运行验证。
+
+## 后续专题增补：Follow-up 队列与 Channel 领域能力清单
+
+- 卷六新增 §2.8，解释 Adapter pending 头槽、`SessionState.conversation.queued_events` FIFO 溢出链、Runner 内消费的 queued follow-up 与 steer 的边界；补充入队、提升、递归下一轮、Hook、递归深度上限、照片 burst 合并和队列上限。
+- 新增 follow-up 消费时序图与关机/重启恢复流程图：说明当前轮如何复用更新后的 history，为什么不重新伪装成平台 callback，以及 shutdown spool → 启动 replay 到 DB 与独立 auto-resume 的区别。
+- 新增 §2.9 Channel/Gateway 能力清单，覆盖注册/探测、事件规范化、访问控制、并发/忙时、Agent 交接、可靠出站、HITL 控制、恢复、主动事件和扩展观测，作为后续平台适配器检查清单。
+- 原有正文、上一轮 Channel 增补、旧锚点均保留；剥离本轮导航和标记区域后恢复本轮编辑前文档。既有两处比较文档缺失链接未修改。新增 2 张图围栏闭合，未做 Mermaid 渲染、真实平台队列或重启运行验证。
+
+## 后续修订：Channel 图统一真实实体与方法归属
+
+- 重绘 §2.1 整体架构、§2.2 类图及启动/停止/收/发/follow-up 五张时序图：统一使用 `runner: GatewayRunner`、`adapter: SignalAdapter`、`turn_runner: TurnRunner` 等实例与真实类型；用 Signal 展开实际协议方法。
+- 类图展开本专题相关 Mixin 继承、对象持有与调用依赖，补入 TurnContext、SessionState/ConversationState、入站信封与回执。新增实体—源码—职责对照表和图例。
+- 修正 follow-up 方法归属：`_run_agent_queued_followup` / `_run_agent_drain_pending` 定义于 GatewayTurnMixin，不属于 TurnRunner；Mixin 不是独立实例，Adapter 基类和子类也不是两个运行服务。ledger 明确为模块函数，外部 Signal 服务不伪装为 Python 类。
+- 保留旧章节锚点及原始概览图，并注明历史简图与实体级图的层次区别。全文围栏、旧锚点兼容及无新增坏链接检查通过；10 项 AST 方法归属核对及 13 项文档审计测试通过。原有缺失比较文档链接仍存在；未进行 Mermaid 渲染或平台运行验证。
+
+
+## 2026-10-15 · 卷八校验规则与人工审批现场补充
+
+- 将卷八导航改为按问题检索：校验链、硬拒绝/问人规则、CLI/IM 等待、ID 关联、失败与重启、写入暂存审核分别直达，保留旧章节与锚点。
+- 依据本地源码补齐 §0.3–0.4 安全控制矩阵、Skill 来源/verdict 策略和 context 扫描例外；§2.7–2.16 展开完整 terminal 调用链、规则优先级、真实类/状态所有权、CLI Queue 与 Gateway Event 时序。
+- 明确 tool_call_id、session_key、request_id、pattern_key 与平台卡片 ID 的差别，补充 FIFO/精确选择、并发合并、timeout 与 resolver 结算竞态。
+- 增加一条说明用的完整 terminal 请求示例：模型请求 → 校验 → 人工确认 → 同栈执行 → 原 tool result → 后续推理；示例命令未执行。
+- 区分在线等待与 memory/skills 文件 staging：后者重新加载 payload 并应用，不是恢复旧 Agent 调用栈；同时补充拒绝、无 UI、取消与进程重启边界。
+- 校正旧文将 check_dangerous_command 当作完整 terminal 入口、所有审批都经 _run_approval_gate、忽略容器分支用户 deny 等表述，并更新 CLI/Gateway 方法的实际文件归属与卷五旧跳转。
+- 本次仅修改文档；全文链接/旧锚点、源码符号与既有文档审计检查另行核验，不将静态检查宣称为 Mermaid 渲染或 Hermes 运行时验证。
+
+## 2026-10-15 · 卷七 Kanban 整体架构与任务全生命周期补充
+
+- 将卷七导航改为按实际问题检索，保留旧章节及锚点；展开第4节为 §4.1–4.17，覆盖架构分层、真实实体、数据模型、状态/依赖、拆解/Swarm、Gateway 启停、调度/并发、原子认领、worker 上下文、工作区/成果、完成/阻塞、review/返工、恢复、通知/wake、Dashboard 和运维清单。
+- 以本地源码快照 `60d00c5633ad76f3dd8e3ecd79f77f1c6f8e6fdd` 为口径，补充10张架构/类/ER/状态/流程/时序图（替换旧1张简图，全文净增9张）。类、模块、Mixin 和运行实例明确区分，不再把 dispatch_once 当作数据库服务。
+- 修正“worker exit code 更新任务即完成”的误导：成功需要显式领域结算；说明 Task / Run / claim / PID 指纹 / SessionDB 各自职责、CAS 与 expected_run_id 防旧写回、失败后新尝试与原地 turn 重试的区别。
+- 解释 triage 拆解与 Swarm 的根任务依赖方向、max_spawn 是本板 live 并发额度、主机并发/资源压力门禁、scheduled 当前不自带定时唤醒、unblock 可恢复 review 阶段等边界。
+- 增加一条“接口实现 → 审核返工 → 再实现 → 通过 → 后继派工/结果交付”的完整示例及带注释认领 SQL；示例不执行、不冒充正式工具 schema。
+- 区分看板持久 review 与卷八同栈安全审批；区分 Dashboard WebSocket、被动通知与 wake，说明 ping checkpoint/事件游标及外部交付非 exactly-once，不能等同旧 Agent restore。
+- 保留第0–3节及第5–8节正文；修复原导航指向 delegate 标题的坏锚点。全文链接、旧锚点保留、围栏及源码符号另行静态核对；既有审计工具不覆盖全部本次增补，未将其通过等同 Mermaid 渲染或 Hermes 运行验证。
+- 核验结果：本次另检卷七全文链接、全部旧锚点、显式 ID 唯一及15个 Mermaid 围栏闭合（第4节10个）；对照本轮编辑前快照，其他章节正文保持，仅为 delegate 目录补稳定显式锚点。75个源码符号静态核对、10项方法归属与 GatewayRunner 继承核对通过。既有全卷结构检查、103条机器清单源码引用和13项审计工具测试通过；未执行 Mermaid 渲染、真实派工/审核/通知或重启场景。

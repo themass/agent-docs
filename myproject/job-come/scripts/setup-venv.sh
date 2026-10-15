@@ -1,27 +1,16 @@
 #!/usr/bin/env bash
-# Install job-come deps into monorepo venv (deepagents/venv).
+# Install JC development dependencies into the monorepo venv (deepagents/venv).
 # Job-come is designed as a standalone project; while inside deepagents monorepo
 # we only borrow the parent Python venv — do not use job-come/.venv here.
 set -euo pipefail
 
-JOB_COME_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-MONO_ROOT="$(cd "${JOB_COME_ROOT}/../../.." && pwd)"
-if [[ ! -x "${MONO_ROOT}/venv/bin/python" ]]; then
-  # walk up until monorepo venv is found
-  probe="${JOB_COME_ROOT}"
-  MONO_ROOT=""
-  while [[ "${probe}" != "/" ]]; do
-    if [[ -x "${probe}/venv/bin/python" && -d "${probe}/libs/agentkit" ]]; then
-      MONO_ROOT="${probe}"
-      break
-    fi
-    probe="$(cd "${probe}/.." && pwd)"
-  done
-fi
-if [[ -z "${MONO_ROOT}" ]]; then
-  echo "Cannot find monorepo root (venv + libs/agentkit) above ${JOB_COME_ROOT}"
+JC_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=lib/project_paths.sh
+source "${JC_ROOT}/scripts/lib/project_paths.sh"
+MONO_ROOT="$(jc_monorepo_root "$JC_ROOT")" || {
+  echo "Cannot find monorepo root (venv + libs/agentkit) above ${JC_ROOT}" >&2
   exit 1
-fi
+}
 VENV="${MONO_ROOT}/venv"
 
 if [[ ! -x "${VENV}/bin/python" ]]; then
@@ -31,6 +20,7 @@ if [[ ! -x "${VENV}/bin/python" ]]; then
 fi
 
 export UV_PROJECT_ENVIRONMENT="${VENV}"
-cd "${JOB_COME_ROOT}"
+SERVER_ROOT="$(jc_server_root "$JC_ROOT")"
+cd "$SERVER_ROOT"
 uv sync --extra dev --python "${VENV}/bin/python"
-echo "OK: job-come → ${VENV} ($( "${VENV}/bin/python" -c 'import sys; print(sys.version.split()[0])' ))"
+echo "OK: JC development environment → ${VENV} ($( "${VENV}/bin/python" -c 'import sys; print(sys.version.split()[0])' ))"

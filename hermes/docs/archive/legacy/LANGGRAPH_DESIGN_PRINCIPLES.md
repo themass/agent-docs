@@ -1,42 +1,53 @@
 # LangGraph 设计原理与底层框架深度解析
 
-> **文档状态**: 外部框架研读 · **非 Hermes 规范** · 核对 2026-06-10
+<!-- legacy-review:start -->
+> **2026-10-15 校订导航**：对比框架时应看状态和恢复边界，而非类名相似。\
+> **核对范围**：作为历史设计对比，不将其它框架行为视为 Hermes 实现；本次未核验外部最新 API。\
+> **适用基线**：本地源码 `60d00c5633ad`；不是最新发布版本声明。原稿版本、行号、性能数字与长代码块若未在校订范围内，仍按历史示例阅读。
+> **先读当前结论**：[当前实现导读](CURRENT_IMPLEMENTATION.md#current-evidence) · **现行分卷**：[09-reference-history-and-versions.md](../../volumes/09-reference-history-and-versions.md) · [具体改动与未验证项](REVIEW_AND_CHANGES.md) · [返回全目录](README.md)
+
+<!-- legacy-review:end -->
+<a id="目录"></a>
 ## 目录
 
-**第一部分：架构全景**
-1. [概述](#1-概述)
-2. [分层架构设计](#2-分层架构设计)
-3. [模块设计与依赖关系](#3-模块设计与依赖关系)
+<!-- visible-toc:start -->
+- [1. 第一部分：架构全景](#section-1)
+  - [1.1 概述](#section-1-1)
+  - [1.2 分层架构设计](#section-1-2)
+  - [1.3 模块设计与依赖关系](#section-1-3)
+- [2. 第二部分：核心抽象](#section-2)
+  - [2.1 六大核心抽象](#section-2-1)
+  - [2.2 State 与 Channel 设计](#section-2-2)
+  - [2.3 表达式解析与 Runnable 协议 (LCEL)](#section-2-3)
+- [3. 第三部分：编译与执行](#section-3)
+  - [3.1 编译流程：StateGraph 到 Pregel](#section-3-1)
+  - [3.2 执行模型：Super-Step 详解](#section-3-2)
+  - [3.3 ReAct Agent 完整执行时序](#section-3-3)
+- [4. 第四部分：持久化与流式](#section-4)
+  - [4.1 Checkpoint 持久化系统设计](#section-4-1)
+  - [4.2 Streaming 流式输出架构](#section-4-2)
+- [5. 第五部分：高级编排](#section-5)
+  - [5.1 子图与多 Agent 编排](#section-5-1)
+  - [5.2 Command 控制流机制](#section-5-2)
+- [6. 第六部分：项目集成](#section-6)
+  - [6.1 Deep Agents SDK 中的 LangGraph 集成](#section-6-1)
+  - [6.2 附录：关键源码文件索引](#section-6-2)
+- [7. 附录：Hermes 与图式框架的选型边界](#section-7)
+  - [7.1 选型决策树](#section-7-1)
+  - [7.2 Hermes 相对优势（命令式循环才有的粒度）](#section-7-2)
+<!-- visible-toc:end -->
 
-**第二部分：核心抽象**
-4. [六大核心抽象](#4-六大核心抽象)
-5. [State 与 Channel 设计](#5-state-与-channel-设计)
-6. [表达式解析与 Runnable 协议 (LCEL)](#6-表达式解析与-runnable-协议-lcel)
 
-**第三部分：编译与执行**
-7. [编译流程：StateGraph 到 Pregel](#7-编译流程stategraph-到-pregel)
-8. [执行模型：Super-Step 详解](#8-执行模型super-step-详解)
-9. [ReAct Agent 完整执行时序](#9-react-agent-完整执行时序)
 
-**第四部分：持久化与流式**
-10. [Checkpoint 持久化系统设计](#10-checkpoint-持久化系统设计)
-11. [Streaming 流式输出架构](#11-streaming-流式输出架构)
 
-**第五部分：高级编排**
-12. [子图与多 Agent 编排](#12-子图与多-agent-编排)
-13. [Command 控制流机制](#13-command-控制流机制)
+> **文档状态**: 外部框架研读 · **非 Hermes 规范** · 核对 2026-06-10
+<a id="第一部分架构全景"></a>
+<a id="section-1"></a>
+## 1. 第一部分：架构全景
 
-**第六部分：项目集成**
-14. [Deep Agents SDK 中的 LangGraph 集成](#14-deep-agents-sdk-中的-langgraph-集成)
-
-**附录**
-- [关键源码文件索引](#附录关键源码文件索引)
-
----
-
-# 第一部分：架构全景
-
-## 1. 概述
+<a id="1-概述"></a>
+<a id="section-1-1"></a>
+### 1.1 概述
 
 LangGraph 是 LangChain 团队开发的**低层编排框架**，将 Agent 的执行流建模为一张**有状态的有向图**。
 
@@ -49,9 +60,13 @@ LangGraph 是 LangChain 团队开发的**低层编排框架**，将 Agent 的执
 
 ---
 
-## 2. 分层架构设计
+<a id="2-分层架构设计"></a>
+<a id="section-1-2"></a>
+### 1.2 分层架构设计
 
-### 2.1 分层架构图
+<a id="21-分层架构图"></a>
+<a id="section-1-2-1"></a>
+#### 1.2.1 分层架构图
 
 ```mermaid
 block-beta
@@ -95,7 +110,9 @@ block-beta
   langchain --> infra
 ```
 
-### 2.2 各层职责
+<a id="22-各层职责"></a>
+<a id="section-1-2-2"></a>
+#### 1.2.2 各层职责
 
 | 层级 | 职责 | 关键模块 |
 |------|------|---------|
@@ -107,9 +124,13 @@ block-beta
 
 ---
 
-## 3. 模块设计与依赖关系
+<a id="3-模块设计与依赖关系"></a>
+<a id="section-1-3"></a>
+### 1.3 模块设计与依赖关系
 
-### 3.1 LangGraph 核心模块依赖图
+<a id="31-langgraph-核心模块依赖图"></a>
+<a id="section-1-3-1"></a>
+#### 1.3.1 LangGraph 核心模块依赖图
 
 ```mermaid
 graph TB
@@ -183,7 +204,9 @@ graph TB
     BT -.->|implements| RUN
 ```
 
-### 3.2 模块职责清单
+<a id="32-模块职责清单"></a>
+<a id="section-1-3-2"></a>
+#### 1.3.2 模块职责清单
 
 | 模块 | 源码位置 | 核心职责 |
 |------|---------|---------|
@@ -200,11 +223,17 @@ graph TB
 
 ---
 
-# 第二部分：核心抽象
+<a id="第二部分核心抽象"></a>
+<a id="section-2"></a>
+## 2. 第二部分：核心抽象
 
-## 4. 六大核心抽象
+<a id="4-六大核心抽象"></a>
+<a id="section-2-1"></a>
+### 2.1 六大核心抽象
 
-### 4.1 抽象关系总览
+<a id="41-抽象关系总览"></a>
+<a id="section-2-1-1"></a>
+#### 2.1.1 抽象关系总览
 
 ```mermaid
 graph LR
@@ -236,7 +265,9 @@ graph LR
     PG -->|每步保存| CP
 ```
 
-### 4.2 核心抽象对照表
+<a id="42-核心抽象对照表"></a>
+<a id="section-2-1-2"></a>
+#### 2.1.2 核心抽象对照表
 
 | 抽象 | Pregel 对应 | 生命周期 | 用户可见性 |
 |------|------------|---------|-----------|
@@ -250,9 +281,13 @@ graph LR
 
 ---
 
-## 5. State 与 Channel 设计
+<a id="5-state-与-channel-设计"></a>
+<a id="section-2-2"></a>
+### 2.2 State 与 Channel 设计
 
-### 5.1 TypedDict 到 Channel 的映射流程
+<a id="51-typeddict-到-channel-的映射流程"></a>
+<a id="section-2-2-1"></a>
+#### 2.2.1 TypedDict 到 Channel 的映射流程
 
 ```mermaid
 flowchart TD
@@ -274,7 +309,9 @@ flowchart TD
     style K fill:#c8e6c9
 ```
 
-### 5.2 Channel 类型体系
+<a id="52-channel-类型体系"></a>
+<a id="section-2-2-2"></a>
+#### 2.2.2 Channel 类型体系
 
 ```mermaid
 classDiagram
@@ -317,7 +354,9 @@ classDiagram
     BaseChannel <|-- Topic
 ```
 
-### 5.3 Reducer 并发写入合并示例
+<a id="53-reducer-并发写入合并示例"></a>
+<a id="section-2-2-3"></a>
+#### 2.2.3 Reducer 并发写入合并示例
 
 ```mermaid
 flowchart LR
@@ -341,13 +380,19 @@ flowchart LR
 
 ---
 
-## 6. 表达式解析与 Runnable 协议 (LCEL)
+<a id="6-表达式解析与-runnable-协议-lcel"></a>
+<a id="section-2-3"></a>
+### 2.3 表达式解析与 Runnable 协议 (LCEL)
 
-### 6.1 LCEL 是什么
+<a id="61-lcel-是什么"></a>
+<a id="section-2-3-1"></a>
+#### 2.3.1 LCEL 是什么
 
 LCEL（LangChain Expression Language）是 Python 级的**组合式 API**，通过 `|` 操作符串联计算步骤。所有 LangChain/LangGraph 组件都实现 `Runnable` 协议。
 
-### 6.2 Runnable 协议类图
+<a id="62-runnable-协议类图"></a>
+<a id="section-2-3-2"></a>
+#### 2.3.2 Runnable 协议类图
 
 ```mermaid
 classDiagram
@@ -404,7 +449,9 @@ classDiagram
     Runnable <|-- CompiledStateGraph
 ```
 
-### 6.3 LCEL 组合流程图
+<a id="63-lcel-组合流程图"></a>
+<a id="section-2-3-3"></a>
+#### 2.3.3 LCEL 组合流程图
 
 ```mermaid
 flowchart LR
@@ -423,7 +470,9 @@ flowchart LR
     style OUT fill:#e8f5e9
 ```
 
-### 6.4 TypedDict 注解解析流程
+<a id="64-typeddict-注解解析流程"></a>
+<a id="section-2-3-4"></a>
+#### 2.3.4 TypedDict 注解解析流程
 
 ```mermaid
 flowchart TD
@@ -442,7 +491,9 @@ flowchart TD
     style I fill:#c8e6c9
 ```
 
-### 6.5 条件边求值流程
+<a id="65-条件边求值流程"></a>
+<a id="section-2-3-5"></a>
+#### 2.3.5 条件边求值流程
 
 ```mermaid
 flowchart TD
@@ -461,7 +512,9 @@ flowchart TD
     style J fill:#ffebee
 ```
 
-### 6.6 Runnable 嵌套统一性
+<a id="66-runnable-嵌套统一性"></a>
+<a id="section-2-3-6"></a>
+#### 2.3.6 Runnable 嵌套统一性
 
 ```mermaid
 graph TB
@@ -494,11 +547,17 @@ graph TB
 
 ---
 
-# 第三部分：编译与执行
+<a id="第三部分编译与执行"></a>
+<a id="section-3"></a>
+## 3. 第三部分：编译与执行
 
-## 7. 编译流程：StateGraph 到 Pregel
+<a id="7-编译流程stategraph-到-pregel"></a>
+<a id="section-3-1"></a>
+### 3.1 编译流程：StateGraph 到 Pregel
 
-### 7.1 编译全流程图
+<a id="71-编译全流程图"></a>
+<a id="section-3-1-1"></a>
+#### 3.1.1 编译全流程图
 
 ```mermaid
 flowchart TD
@@ -565,7 +624,9 @@ flowchart TD
     style G fill:#c8e6c9
 ```
 
-### 7.2 编译前后对比
+<a id="72-编译前后对比"></a>
+<a id="section-3-1-2"></a>
+#### 3.1.2 编译前后对比
 
 | 编译前（StateGraph） | 编译后（Pregel） |
 |---------------------|-----------------|
@@ -578,9 +639,13 @@ flowchart TD
 
 ---
 
-## 8. 执行模型：Super-Step 详解
+<a id="8-执行模型super-step-详解"></a>
+<a id="section-3-2"></a>
+### 3.2 执行模型：Super-Step 详解
 
-### 8.1 Pregel BSP 执行模型
+<a id="81-pregel-bsp-执行模型"></a>
+<a id="section-3-2-1"></a>
+#### 3.2.1 Pregel BSP 执行模型
 
 LangGraph 的 Pregel 引擎基于 **BSP（Bulk Synchronous Parallel）**模型：
 
@@ -620,7 +685,9 @@ flowchart TD
     style CP1 fill:#fff3e0
 ```
 
-### 8.2 节点调度算法
+<a id="82-节点调度算法"></a>
+<a id="section-3-2-2"></a>
+#### 3.2.2 节点调度算法
 
 ```mermaid
 flowchart TD
@@ -639,7 +706,9 @@ flowchart TD
     style J fill:#c8e6c9
 ```
 
-### 8.3 并行扇出/扇入时序图
+<a id="83-并行扇出扇入时序图"></a>
+<a id="section-3-2-3"></a>
+#### 3.2.3 并行扇出/扇入时序图
 
 ```mermaid
 sequenceDiagram
@@ -673,9 +742,13 @@ sequenceDiagram
 
 ---
 
-## 9. ReAct Agent 完整执行时序
+<a id="9-react-agent-完整执行时序"></a>
+<a id="section-3-3"></a>
+### 3.3 ReAct Agent 完整执行时序
 
-### 9.1 带工具调用的完整时序图
+<a id="91-带工具调用的完整时序图"></a>
+<a id="section-3-3-1"></a>
+#### 3.3.1 带工具调用的完整时序图
 
 ```mermaid
 sequenceDiagram
@@ -723,7 +796,9 @@ sequenceDiagram
     Graph-->>User: 返回最终 state
 ```
 
-### 9.2 ReAct 循环状态图
+<a id="92-react-循环状态图"></a>
+<a id="section-3-3-2"></a>
+#### 3.3.2 ReAct 循环状态图
 
 ```mermaid
 stateDiagram-v2
@@ -751,11 +826,17 @@ stateDiagram-v2
 
 ---
 
-# 第四部分：持久化与流式
+<a id="第四部分持久化与流式"></a>
+<a id="section-4"></a>
+## 4. 第四部分：持久化与流式
 
-## 10. Checkpoint 持久化系统设计
+<a id="10-checkpoint-持久化系统设计"></a>
+<a id="section-4-1"></a>
+### 4.1 Checkpoint 持久化系统设计
 
-### 10.1 Checkpoint 类图
+<a id="101-checkpoint-类图"></a>
+<a id="section-4-1-1"></a>
+#### 4.1.1 Checkpoint 类图
 
 ```mermaid
 classDiagram
@@ -811,7 +892,9 @@ classDiagram
     CheckpointTuple *-- Checkpoint
 ```
 
-### 10.2 Checkpoint 读写时序图
+<a id="102-checkpoint-读写时序图"></a>
+<a id="section-4-1-2"></a>
+#### 4.1.2 Checkpoint 读写时序图
 
 ```mermaid
 sequenceDiagram
@@ -840,7 +923,9 @@ sequenceDiagram
     Note over DB: 新 Checkpoint 持久化完成
 ```
 
-### 10.3 两阶段提交流程图
+<a id="103-两阶段提交流程图"></a>
+<a id="section-4-1-3"></a>
+#### 4.1.3 两阶段提交流程图
 
 ```mermaid
 flowchart TD
@@ -868,7 +953,9 @@ flowchart TD
     style K fill:#c8e6c9
 ```
 
-### 10.4 版本向量增量检测
+<a id="104-版本向量增量检测"></a>
+<a id="section-4-1-4"></a>
+#### 4.1.4 版本向量增量检测
 
 ```mermaid
 flowchart LR
@@ -887,7 +974,9 @@ flowchart LR
     style SKIP fill:#e0e0e0
 ```
 
-### 10.5 时间旅行与分叉
+<a id="105-时间旅行与分叉"></a>
+<a id="section-4-1-5"></a>
+#### 4.1.5 时间旅行与分叉
 
 ```mermaid
 flowchart LR
@@ -905,7 +994,9 @@ flowchart LR
     style S4F fill:#fff3e0
 ```
 
-### 10.6 存储后端对比
+<a id="106-存储后端对比"></a>
+<a id="section-4-1-6"></a>
+#### 4.1.6 存储后端对比
 
 | 后端 | 持久性 | 性能 | 并发 | 适用场景 |
 |------|--------|------|------|---------|
@@ -914,7 +1005,9 @@ flowchart LR
 | PostgresSaver | 完全持久 | 依赖网络 | 多进程安全 | 生产环境 |
 | RedisSaver | 可配置 | 低延迟 | 多进程安全 | 高频读写 |
 
-### 10.7 PostgresSaver 表结构
+<a id="107-postgressaver-表结构"></a>
+<a id="section-4-1-7"></a>
+#### 4.1.7 PostgresSaver 表结构
 
 ```mermaid
 erDiagram
@@ -945,9 +1038,13 @@ erDiagram
 
 ---
 
-## 11. Streaming 流式输出架构
+<a id="11-streaming-流式输出架构"></a>
+<a id="section-4-2"></a>
+### 4.2 Streaming 流式输出架构
 
-### 11.1 Streaming 数据流
+<a id="111-streaming-数据流"></a>
+<a id="section-4-2-1"></a>
+#### 4.2.1 Streaming 数据流
 
 ```mermaid
 flowchart LR
@@ -980,7 +1077,9 @@ flowchart LR
     SEQ --> SC3 --> C3
 ```
 
-### 11.2 流模式对比
+<a id="112-流模式对比"></a>
+<a id="section-4-2-2"></a>
+#### 4.2.2 流模式对比
 
 | stream_mode | 输出内容 | 粒度 | 典型用途 |
 |------------|---------|------|---------|
@@ -991,11 +1090,17 @@ flowchart LR
 
 ---
 
-# 第五部分：高级编排
+<a id="第五部分高级编排"></a>
+<a id="section-5"></a>
+## 5. 第五部分：高级编排
 
-## 12. 子图与多 Agent 编排
+<a id="12-子图与多-agent-编排"></a>
+<a id="section-5-1"></a>
+### 5.1 子图与多 Agent 编排
 
-### 12.1 子图嵌套执行时序图
+<a id="121-子图嵌套执行时序图"></a>
+<a id="section-5-1-1"></a>
+#### 5.1.1 子图嵌套执行时序图
 
 ```mermaid
 sequenceDiagram
@@ -1039,7 +1144,9 @@ sequenceDiagram
     Parent-->>User: 返回最终结果
 ```
 
-### 12.2 子图状态共享策略
+<a id="122-子图状态共享策略"></a>
+<a id="section-5-1-2"></a>
+#### 5.1.2 子图状态共享策略
 
 ```mermaid
 flowchart TD
@@ -1068,9 +1175,13 @@ flowchart TD
 
 ---
 
-## 13. Command 控制流机制
+<a id="13-command-控制流机制"></a>
+<a id="section-5-2"></a>
+### 5.2 Command 控制流机制
 
-### 13.1 Command 工作流程
+<a id="131-command-工作流程"></a>
+<a id="section-5-2-1"></a>
+#### 5.2.1 Command 工作流程
 
 ```mermaid
 flowchart TD
@@ -1088,7 +1199,9 @@ flowchart TD
     I --> K["父图处理 ParentCommand"]
 ```
 
-### 13.2 Command vs 传统边的对比
+<a id="132-command-vs-传统边的对比"></a>
+<a id="section-5-2-2"></a>
+#### 5.2.2 Command vs 传统边的对比
 
 | 特性 | 传统 Edge | Command |
 |------|-----------|---------|
@@ -1100,11 +1213,17 @@ flowchart TD
 
 ---
 
-# 第六部分：项目集成
+<a id="第六部分项目集成"></a>
+<a id="section-6"></a>
+## 6. 第六部分：项目集成
 
-## 14. Deep Agents SDK 中的 LangGraph 集成
+<a id="14-deep-agents-sdk-中的-langgraph-集成"></a>
+<a id="section-6-1"></a>
+### 6.1 Deep Agents SDK 中的 LangGraph 集成
 
-### 14.1 集成架构图
+<a id="141-集成架构图"></a>
+<a id="section-6-1-1"></a>
+#### 6.1.1 集成架构图
 
 ```mermaid
 graph TB
@@ -1151,7 +1270,9 @@ graph TB
     style CSG2 fill:#c8e6c9
 ```
 
-### 14.2 StateBackend 数据流
+<a id="142-statebackend-数据流"></a>
+<a id="section-6-1-2"></a>
+#### 6.1.2 StateBackend 数据流
 
 ```mermaid
 sequenceDiagram
@@ -1176,7 +1297,9 @@ sequenceDiagram
     Note over CP: files 变更随图状态一起持久化
 ```
 
-### 14.3 中间件与 LangGraph 类型映射
+<a id="143-中间件与-langgraph-类型映射"></a>
+<a id="section-6-1-3"></a>
+#### 6.1.3 中间件与 LangGraph 类型映射
 
 | 中间件 | 使用的 LangGraph 类型 | 用途 |
 |--------|---------------------|------|
@@ -1190,7 +1313,9 @@ sequenceDiagram
 
 ---
 
-## 附录：关键源码文件索引
+<a id="附录关键源码文件索引"></a>
+<a id="section-6-2"></a>
+### 6.2 附录：关键源码文件索引
 
 | 文件路径 | 作用 |
 |---------|------|
@@ -1213,3 +1338,44 @@ sequenceDiagram
 | `libs/deepagents/deepagents/graph.py` | Deep Agents 对 LangGraph 的封装入口 |
 | `libs/deepagents/deepagents/backends/state.py` | 基于 Channel read/send 的文件系统后端 |
 | `libs/deepagents/deepagents/backends/store.py` | 基于 BaseStore 的持久文件系统后端 |
+<a id="framework-selection"></a>
+<a id="附录hermes-与图式框架的选型边界"></a>
+<a id="section-7"></a>
+## 7. 附录：Hermes 与图式框架的选型边界
+
+> **主题归位**：本节从 `AGENT_LOOP_ARCHITECTURE.md` 的「13. 附录：跨框架选型（原 AIAgent §16）」迁入；保留原有图表、示例和讨论。本节是架构取舍参考，不是对外部框架当前版本的认证。
+
+多 Agent / 产品编排细节见 [MULTI_AGENT_ARCHITECTURE.md](MULTI_AGENT_ARCHITECTURE.md)；Plan 横向对比见 OpenHarness 05-plan-mode.md（历史引用：`../../../OpenHarness/docs/framework-comparison/05-plan-mode.md`，当前归档未附该文件）。此处只保留 **AIAgent 级**选型摘要。
+
+<a id="131-选型决策树"></a>
+<a id="section-7-1"></a>
+### 7.1 选型决策树
+
+```mermaid
+flowchart TD
+    Start[选择 Agent 框架] --> Q1{需要极致性能<br/>和完全控制?}
+    Q1 -->|是| Hermes[Hermes Agent<br/>命令式微内核]
+    Q1 -->|否| Q2{需要快速组合<br/>LangChain 能力?}
+    Q2 -->|是| DeepAgents[deepagents SDK<br/>声明式中间件]
+    Q2 -->|否| Q3{需要 Gateway<br/>多渠道产品?}
+    Q3 -->|是| DeerFlow[deer-flow]
+    Q3 -->|否| Q4{角色编排 / 教学?}
+    Q4 -->|是| CrewAI[CrewAI]
+    Q4 -->|否| OpenManus[OpenManus 等研究向]
+```
+
+<a id="132-hermes-相对优势命令式循环才有的粒度"></a>
+<a id="section-7-2"></a>
+### 7.2 Hermes 相对优势（命令式循环才有的粒度）
+
+| 能力 | 说明 |
+|------|------|
+| **精细并行策略** | 决策树 + 路径冲突 + 破坏性命令串行 |
+| **三道防线压缩** | Preflight + Post-tool + Error Recovery（§5.4） |
+| **Plugin Hook 全表** | §11；与 MemoryProvider / Surface callback 分清 |
+| **迭代预算 + refund** | `execute_code` PTC 调度轮可退回（§6.4） |
+| **Progress 中继** | 子 Agent 进度可回传到父 Surface |
+
+声明式图框架在抽象层上往往暴露不出同等细粒度控制点。
+
+---

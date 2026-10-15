@@ -1,13 +1,38 @@
 # Hermes Agent 版本演进（CalVer + Semver）
 
+<!-- legacy-review:start -->
+> **2026-10-15 校订导航**：历史版本怎样读，源码身份与安装版本怎样区分。\
+> **核对范围**：旧未发版章节限定为 2026-07-22 快照；未联网重新核验发布矩阵。\
+> **适用基线**：本地源码 `60d00c5633ad`；不是最新发布版本声明。原稿版本、行号、性能数字与长代码块若未在校订范围内，仍按历史示例阅读。
+> **先读当前结论**：[当前实现导读](CURRENT_IMPLEMENTATION.md#current-evidence) · **现行分卷**：[09-reference-history-and-versions.md](../../volumes/09-reference-history-and-versions.md) · [具体改动与未验证项](REVIEW_AND_CHANGES.md) · [返回全目录](README.md)
+
+<!-- legacy-review:end -->
+<a id="目录"></a>
+## 目录
+
+<!-- visible-toc:start -->
+- [1. 如何查版本](#section-1)
+- [2. 版本矩阵（v0.10 → v0.19）](#section-2)
+- [3. 历史未发版记录（相对 `v2026.7.20`，仅描述 2026-07-22 快照）](#section-3)
+- [4. 工作区增量（2026.9.24 戳，文档 2026-10-14）](#section-4)
+- [5. 更早版本（速览）](#section-5)
+- [6. 按能力域归类（跨版本）](#section-6)
+- [7. 读文档时的版本提示](#section-7)
+<!-- visible-toc:end -->
+
+
+
+
 > **当前发版 tag**: `0.19.0`（`v2026.7.20`）  
 > **工作区 `hermes-dev/hermes-agent`**: `__release_date__` **2026.9.24**（`hermes_cli/__init__.py`）；可能领先 tag  
-> **核对日期**: 2026-10-14 · 文档索引 [CATALOG.md](CATALOG.md)  
+> **核对日期**: 2026-10-14 · 文档索引 [CATALOG.md](../../CATALOG.md)\
 > **来源**: 签名 git tag 注解（`scripts/release.py` 发布）；仓库内 **无** 根级 `CHANGELOG.md`
 
 ---
 
-## 如何查版本
+<a id="如何查版本"></a>
+<a id="section-1"></a>
+## 1. 如何查版本
 
 ```bash
 hermes version
@@ -20,7 +45,9 @@ git describe --tags   # 可能显示 v2026.7.20-NNN-g<sha>
 
 ---
 
-## 版本矩阵（v0.10 → v0.19）
+<a id="版本矩阵v010-→-v019"></a>
+<a id="section-2"></a>
+## 2. 版本矩阵（v0.10 → v0.19）
 
 | CalVer tag | Semver | 代号 / 主题 | 主要升级 |
 |------------|--------|-------------|----------|
@@ -38,7 +65,9 @@ git describe --tags   # 可能显示 v2026.7.20-NNN-g<sha>
 
 ---
 
-## 未发版（`v2026.7.20` → 工作区，2026-07-22 快照）
+<a id="历史未发版记录相对-v2026720仅描述-2026-07-22-快照"></a>
+<a id="section-3"></a>
+## 3. 历史未发版记录（相对 `v2026.7.20`，仅描述 2026-07-22 快照）
 
 以下在 tag 之后合入，文档见 [SURFACE_ARCHITECTURE.md](SURFACE_ARCHITECTURE.md)：
 
@@ -54,7 +83,9 @@ git describe --tags   # 可能显示 v2026.7.20-NNN-g<sha>
 
 ---
 
-## 工作区增量（2026.9.24 戳，文档 2026-10-14）
+<a id="工作区增量2026924-戳文档-2026-10-14"></a>
+<a id="section-4"></a>
+## 4. 工作区增量（2026.9.24 戳，文档 2026-10-14）
 
 以下在 **monorepo `hermes-dev/hermes-agent`** 已体现，tag 矩阵可能尚未单独发版；以 `git log` / `hermes version` 为准。
 
@@ -65,11 +96,13 @@ git describe --tags   # 可能显示 v2026.7.20-NNN-g<sha>
 | **Auxiliary** | `agent/auxiliary_*.py` 子系统（压缩、session_search、结构化输出、降级） |
 | **Gateway** | `delivery_ledger`、`browser_control_broker`、`channel_directory` 等增强 |
 | **TUI 桥** | `tui_gateway/` 模块数显著增加（Skin / 事件协议见 SURFACE） |
-| **文档** | [CATALOG.md](CATALOG.md) 分类；考古 `EXECUTION_FLOW` → `archive/` |
+| **文档** | [CATALOG.md](../../CATALOG.md) 分类；考古 `EXECUTION_FLOW` → `archive/` |
 
 ---
 
-## 更早版本（速览）
+<a id="更早版本速览"></a>
+<a id="section-5"></a>
+## 5. 更早版本（速览）
 
 | CalVer | Semver | 要点 |
 |--------|--------|------|
@@ -84,7 +117,9 @@ git describe --tags   # 可能显示 v2026.7.20-NNN-g<sha>
 
 ---
 
-## 按能力域归类（跨版本）
+<a id="按能力域归类跨版本"></a>
+<a id="section-6"></a>
+## 6. 按能力域归类（跨版本）
 
 | 域 | 里程碑版本 |
 |----|------------|
@@ -98,7 +133,9 @@ git describe --tags   # 可能显示 v2026.7.20-NNN-g<sha>
 
 ---
 
-## 读文档时的版本提示
+<a id="读文档时的版本提示"></a>
+<a id="section-7"></a>
+## 7. 读文档时的版本提示
 
 | 文档现象 | 处理方式 |
 |----------|----------|
@@ -108,3 +145,6 @@ git describe --tags   # 可能显示 v2026.7.20-NNN-g<sha>
 | 英文用户手册 | 优先 `website/docs/user-guide/`（Docusaurus，随发版） |
 
 **延伸阅读**: [README.md](README.md) · [SURFACE_ARCHITECTURE.md](SURFACE_ARCHITECTURE.md) · [WORKSPACE_VS_WEBUI.md](WORKSPACE_VS_WEBUI.md)
+
+<!-- 旧章节锚点兼容：对应内容已校订，见文首导航。 -->
+<a id="未发版v2026720-→-工作区2026-07-22-快照"></a>

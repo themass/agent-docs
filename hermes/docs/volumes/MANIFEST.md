@@ -130,7 +130,7 @@
 | **Memory 使用 + Provider 清单** | [卷五附录 A](05-memory-system-reference.md) | legacy §7–§8；运行时仍看卷三 6.4 |
 | **Memory 协作 + Skills/Curator/Trajectory** | [卷五附录 B](05-memory-architecture-and-evolution.md) | legacy §6、§9、附录六层 |
 | **IM 审批卡（阻塞/pending）** | [卷六第8章](06-gateways-channels-and-hitl.md#sec-g8) | notify / Event / slash |
-| **审批 + 后台复盘（内核）** | [卷八 §2–3](08-security-and-governance.md#2-端到端危险终端命令cli--im) | 闸门顺序；fork 与 live 取消 |
+| **审批 + 后台复盘（内核）** | [卷八 §2–3](08-security-and-governance.md#2-端到端危险终端命令cli--im) | 复盘端到端：[§3.0](08-security-and-governance.md#sec-8-br-flow) |
 | **平行入口索引** | [卷一 §2.5](01-platform-and-architecture.md#sec-2-5) | delegate/cron/ACP/Batch/Room/Codex/compute host → 各卷专节 |
 | **cron / Room** | [卷六 §5–6](06-gateways-channels-and-hitl.md#5-cron定时任务与-delivery_queue) | `run_job`、`delivery_queue`、hosted room driver |
 | **Batch / Codex** | [卷三 §5.0 分叉图](03-runtime-session-and-loop.md#sec-5-0) · [§5.1 Batch](03-runtime-session-and-loop.md#sec-5-1) · [§5.2 Codex](03-runtime-session-and-loop.md#sec-5-2) | Batch 仍 `while`；仅 `api_mode=codex_app_server` 跳过 `while` |

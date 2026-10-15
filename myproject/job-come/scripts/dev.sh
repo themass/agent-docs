@@ -1,24 +1,32 @@
 #!/usr/bin/env bash
-# Start JobCome API (uvicorn) + web (Next.js dev).
+# Start JC API (uvicorn) + web (Next.js dev).
 # Prerequisite: ./scripts/setup-venv.sh, .env (migrations run automatically).
 #
 # Usage:
 #   ./scripts/dev.sh
 #
 # Optional env:
-#   JOB_COME_API_HOST=0.0.0.0
-#   JOB_COME_API_PORT=8000
-#   JOB_COME_WEB_PORT=3000
-#   JOB_COME_PYTHON=/path/to/python   # default: ../venv/bin/python
+#   JC_API_HOST=0.0.0.0
+#   JC_API_PORT=8000
+#   JC_WEB_PORT=3000
+#   JC_PYTHON=/path/to/python   # default: deepagents/venv/bin/python
+#   JC_SKIP_DB_UPGRADE=1        # start without executing Alembic migrations
+#   JC_API_RELOAD=false          # disable Uvicorn file watcher
 set -euo pipefail
 
-JOB_COME_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-MONO_ROOT="$(cd "${JOB_COME_ROOT}/.." && pwd)"
-PYTHON="${JOB_COME_PYTHON:-${MONO_ROOT}/venv/bin/python}"
+JC_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=lib/project_paths.sh
+source "${JC_ROOT}/scripts/lib/project_paths.sh"
+SERVER_ROOT="$(jc_server_root "$JC_ROOT")"
+WEB_ROOT="$(jc_web_root "$JC_ROOT")"
+PYTHON="$(jc_python "$JC_ROOT")" || {
+  echo "[dev] ERROR: cannot find deepagents/venv above ${JC_ROOT}" >&2
+  exit 1
+}
 
-API_HOST="${JOB_COME_API_HOST:-0.0.0.0}"
-API_PORT="${JOB_COME_API_PORT:-8000}"
-WEB_PORT="${JOB_COME_WEB_PORT:-3000}"
+API_HOST="${JC_API_HOST:-0.0.0.0}"
+API_PORT="${JC_API_PORT:-8000}"
+WEB_PORT="${JC_WEB_PORT:-3000}"
 
 API_PID=""
 
@@ -46,15 +54,19 @@ if [[ ! -x "$PYTHON" ]]; then
   die "Python not found: $PYTHON (run ./scripts/setup-venv.sh first)"
 fi
 
-if [[ ! -f "${JOB_COME_ROOT}/.env" ]]; then
+if [[ ! -f "${SERVER_ROOT}/.env" ]]; then
   die "Missing .env — copy .env.example to .env and configure it"
 fi
 
-log "Applying database migrations (alembic upgrade head)"
-"${JOB_COME_ROOT}/scripts/db_upgrade.sh"
+if [[ "${JC_SKIP_DB_UPGRADE:-false}" != "true" && "${JC_SKIP_DB_UPGRADE:-0}" != "1" ]]; then
+  log "Applying database migrations (alembic upgrade head)"
+  JC_PYTHON="$PYTHON" JC_SERVER_ROOT="$SERVER_ROOT" "${JC_ROOT}/scripts/db_upgrade.sh"
+else
+  log "Skipping database migrations (JC_SKIP_DB_UPGRADE is set)"
+fi
 
-if [[ ! -d "${JOB_COME_ROOT}/apps/web/node_modules" ]]; then
-  die "Missing apps/web/node_modules — run: cd apps/web && npm install"
+if [[ ! -d "${WEB_ROOT}/node_modules" ]]; then
+  die "Missing frontend/web/node_modules — run: cd frontend/web && npm install"
 fi
 
 if ! command -v npm >/dev/null 2>&1; then
@@ -63,7 +75,7 @@ fi
 
 set -a
 # shellcheck disable=SC1091
-source "${JOB_COME_ROOT}/.env"
+source "${SERVER_ROOT}/.env"
 set +a
 
 wait_for_api() {
@@ -82,25 +94,26 @@ wait_for_api() {
 }
 
 log "Starting API on ${API_HOST}:${API_PORT}"
-if [[ "${JOB_COME_LLM_ENABLED:-false}" != "true" ]]; then
-  log "WARN: JOB_COME_LLM_ENABLED is not true — resume parse/elevate will use placeholder rules"
+if [[ "${JC_LLM_ENABLED:-false}" != "true" ]]; then
+  log "WARN: JC_LLM_ENABLED is not true — resume parse/elevate will use placeholder rules"
 fi
-cd "${JOB_COME_ROOT}"
-"${PYTHON}" -m uvicorn jobcome.main:app \
-  --reload \
-  --host "$API_HOST" \
-  --port "$API_PORT" &
+cd "${SERVER_ROOT}"
+UVICORN_ARGS=(jc.main:app --app-dir "${SERVER_ROOT}/src" --host "$API_HOST" --port "$API_PORT")
+if [[ "${JC_API_RELOAD:-true}" == "true" || "${JC_API_RELOAD:-1}" == "1" ]]; then
+  UVICORN_ARGS+=(--reload)
+fi
+"${PYTHON}" -m uvicorn "${UVICORN_ARGS[@]}" &
 API_PID=$!
 
 wait_for_api
 log "API ready - http://127.0.0.1:${API_PORT}/health"
-if [[ "${JOB_COME_WEB_CLEAN:-true}" == "true" ]]; then
+if [[ "${JC_WEB_CLEAN:-true}" == "true" ]]; then
   log "Cleaning Next.js cache (.next)"
-  rm -rf "${JOB_COME_ROOT}/apps/web/.next"
+  rm -rf "${WEB_ROOT}/.next"
 fi
 
 log "Starting web at http://localhost:${WEB_PORT}"
-log "Press Ctrl+C to stop both. Set JOB_COME_WEB_CLEAN=false to keep .next cache."
+log "Press Ctrl+C to stop both. Set JC_WEB_CLEAN=false to keep .next cache."
 
-cd "${JOB_COME_ROOT}/apps/web"
+cd "${WEB_ROOT}"
 PORT="$WEB_PORT" npm run dev

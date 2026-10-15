@@ -7,8 +7,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from jobcome.services.export_quality import validate_export
-from jobcome.services.resume_render_engine import ResumeRenderEngine
+from jc.services.export_quality import validate_export
+from jc.services.resume_render_engine import ResumeRenderEngine
 
 SECTIONS = {
     "header": {
@@ -78,5 +78,5 @@ def main(output):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output", type=Path, default=Path("/tmp/jobcome-export-evidence"))
+    parser.add_argument("--output", type=Path, default=Path("/tmp/jc-export-evidence"))
     main(parser.parse_args().output)

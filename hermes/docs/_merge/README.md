@@ -1,4 +1,6 @@
-# 合订本构建
+# 合订本构建（历史工具，非日常维护入口）
+
+> 现行 `volumes/` 含手写增补；日常直接编辑对应分卷。校订 `archive/legacy/` 时也不要运行下面旧流程覆盖分卷。详见 `../archive/legacy/DOC_MAINTENANCE.md`。
 
 ```bash
 cd docs/hermes/docs

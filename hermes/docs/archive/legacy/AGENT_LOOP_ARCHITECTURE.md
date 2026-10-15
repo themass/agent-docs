@@ -1,99 +1,123 @@
 # Agent Loop / AIAgent 引擎架构详解
 
-> **文档状态**: **Canonical（唯一真相源）**  
-> **文档角色**: Hermes Agent 核心执行引擎（`AIAgent` + `conversation_loop`）的完整架构分析  
-> **Hermes 版本锚点**: 0.19.0 发版线；工作区 2026.9.24 · **核对**: 2026-10-14 · [STATE_AND_AUXILIARY.md](STATE_AND_AUXILIARY.md) · [CATALOG.md](CATALOG.md)  
-> **Surface / 推理回写**: [SURFACE_ARCHITECTURE.md](SURFACE_ARCHITECTURE.md)  
-> **适合人群**: 核心开发者、架构师、高级 AI 工程师  
-> **源码位置**: `agent/conversation_loop.py`、`run_agent.py`、`agent/chat_completion_helpers.py`、`agent/context_compressor.py`、`agent/transports/`、`tools/*`  
-> **行号提示**: 正文内历史 `run_agent.py Lxxxx` 多为 **v0.14 前快照**；以符号名 + `rg` 为准。  
+<!-- legacy-review:start -->
+> **2026-10-15 校订导航**：一轮推理如何运转、何时改消息、何时落库。\
+> **核对范围**：重写 steer 三个消费边界，纠正共享预算，补充轻量压缩和 context 持久化。\
+> **适用基线**：本地源码 `60d00c5633ad`；不是最新发布版本声明。原稿版本、行号、性能数字与长代码块若未在校订范围内，仍按历史示例阅读。
+> **先读当前结论**：[当前实现导读](CURRENT_IMPLEMENTATION.md#current-steer) · **现行分卷**：[03-runtime-session-and-loop.md](../../volumes/03-runtime-session-and-loop.md) · [具体改动与未验证项](REVIEW_AND_CHANGES.md) · [返回全目录](README.md)
+
+<!-- legacy-review:end -->
+<a id="目录"></a>
+## 目录
+
+<!-- visible-toc:start -->
+- [1. 架构总览](#section-1)
+  - [1.1 应用全景与类关系总图](#section-1-1)
+  - [1.2 分层架构设计](#section-1-2)
+  - [1.3 核心设计原则](#section-1-3)
+  - [1.4 关键数据结构](#section-1-4)
+- [2. 术语：Turn vs Iteration](#section-2)
+- [3. Transport Layer - API 适配层](#section-3)
+  - [3.1 策略模式实现](#section-3-1)
+  - [3.2 四种 Transport 对比](#section-3-2)
+  - [3.3 延迟加载优化](#section-3-3)
+- [4. AIAgent 核心类设计](#section-4)
+  - [4.1 初始化阶段 - 环境准备](#section-4-1)
+  - [4.2 运行时状态管理](#section-4-2)
+  - [4.3 资源生命周期](#section-4-3)
+- [5. ReAct Loop 执行引擎](#section-5)
+  - [5.1 AIAgent 类架构说明](#section-5-1)
+  - [5.2 主循环控制流](#section-5-2)
+  - [5.3 迭代预算系统](#section-5-3)
+  - [5.4 中断与引导机制](#section-5-4)
+  - [5.5 完整时序图](#section-5-5)
+  - [5.6 关键设计亮点](#section-5-6)
+  - [5.7 性能优化总结](#section-5-7)
+  - [5.8 常见问题排查](#section-5-8)
+- [6. Prompt 组装与缓存优化](#section-6)
+  - [6.1 System Prompt 缓存策略](#section-6-1)
+  - [6.2 Anthropic Cache Control](#section-6-2)
+  - [6.3 Preflight 压缩检查](#section-6-3)
+  - [6.4 上下文经济体系（6 层完整架构）](#section-6-4)
+- [7. 工具执行前的安全检查边界](#section-7)
+- [8. 子 Agent Session 机制](#section-8)
+  - [8.1 Session 创建](#section-8-1)
+  - [8.2 数据库关系](#section-8-2)
+  - [8.3 子 Agent 记录内容](#section-8-3)
+- [9. 外部存储预取与刷写时序](#section-9)
+  - [9.1 在 Agent Loop 中的位置](#section-9-1)
+  - [9.2 设计要点](#section-9-2)
+- [10. 主/子代理角色与 Prompt 的衔接](#section-10)
+- [11. 工具执行引擎](#section-11)
+  - [11.1 并行策略判定算法](#section-11-1)
+  - [11.2 ThreadPoolExecutor 实现](#section-11-2)
+  - [11.3 大结果持久化](#section-11-3)
+  - [11.4 `todo` 工具](#section-11-4)
+  - [11.5 Plan skill（所谓 plan mode）](#section-11-5)
+- [12. 记忆系统集成](#section-12)
+  - [12.1 MemoryManager 架构](#section-12-1)
+  - [12.2 预取缓存优化](#section-12-2)
+  - [12.3 Context Fencing](#section-12-3)
+- [13. 模型 Route 与压缩预算：切换模型后的窗口作用域](#section-13)
+- [14. 错误处理与恢复](#section-14)
+  - [14.1 多层错误分类](#section-14-1)
+  - [14.2 重试计数器机制](#section-14-2)
+  - [14.3 Failover 降级策略](#section-14-3)
+- [15. 性能优化最佳实践](#section-15)
+  - [15.1 延迟加载模式](#section-15-1)
+  - [15.2 连接池管理](#section-15-2)
+  - [15.3 缓存策略总结](#section-15-3)
+- [16. 0.18–0.19 增量（流式推理 / 压缩路由 / 子 Agent 实况）](#section-16)
+  - [16.1 流式推理发射（Agent → Surface）](#section-16-1)
+  - [16.2 Route-scoped context pin（防 stale-budget 死循环）](#section-16-2)
+  - [16.3 Live-viewable subagent transcripts（0.19）](#section-16-3)
+  - [16.4 api_content sidecar（0.19）](#section-16-4)
+- [17. 循环中的插件接入边界](#section-17)
+- [18. 附录：外部框架比较入口](#section-18)
+- [19. 附录：`environments/agent_loop.py`（RL / Atropos，非主循环）](#section-19)
+- [20. 附录：历史压缩设计与现行链路对照（非当前执行合约）](#section-20)
+  - [20.1 压缩触发时机](#section-20-1)
+  - [20.2 完整压缩时序图](#section-20-2)
+  - [20.3 压缩策略详解](#section-20-3)
+  - [20.4 与其他框架对比](#section-20-4)
+  - [20.5 最佳实践](#section-20-5)
+  - [20.6 故障排查](#section-20-6)
+- [21. 总结](#section-21)
+<!-- visible-toc:end -->
+
+
+
+
+> **原稿文档状态（历史标签）**: Canonical；当前核对范围以文首和校订记录为准\
+> **文档角色**: Hermes Agent 核心执行引擎（`AIAgent` + `conversation_loop`）的完整架构分析\
+> **原稿版本锚点（历史）**: 0.19.0 发版线；工作区 2026.9.24 · **核对**: 2026-10-14 · [STATE_AND_AUXILIARY.md](STATE_AND_AUXILIARY.md) · [CATALOG.md](../../CATALOG.md)\
+> **Surface / 推理回写**: [SURFACE_ARCHITECTURE.md](SURFACE_ARCHITECTURE.md)\
+> **适合人群**: 核心开发者、架构师、高级 AI 工程师\
+> **源码位置**: `agent/conversation_loop.py`、`run_agent.py`、`agent/chat_completion_helpers.py`、`agent/context_compressor.py`、`agent/transports/`、`tools/*`\
+> **行号提示**: 正文内历史 `run_agent.py Lxxxx` 多为 **v0.14 前快照**；以符号名 + `rg` 为准。\
 > **版本**: **v5.1** — §4.2.0 补全 `run_conversation` 源码解读（含 TodoStore 读/写）
 
-> **已废弃的重复副本**（仅留跳转 stub，勿再写新结论）：  
+> **已废弃的重复副本**（仅留跳转 stub，勿再写新结论）：\
 > `AIAgent_ARCHITECTURE.md` · `AGENT_LOOP_DEEP.md` · `AGENT_LOOP_DEEP_DIVE.md`
 
 ---
 
-## 📋 目录
+<a id="📋-目录"></a>
 
-- [1. 架构总览](#1-架构总览)
-  - [1.0 应用全景与类关系总图](#10-应用全景与类关系总图) ← **先读**
-    - [1.0.1 应用上下文](#101-应用上下文谁在跑-agent-loop)
-    - [1.0.2 核心类关系](#102-核心类关系持有与协作)（主干）
-    - [1.0.3 更全实体协作图](#103-更全实体协作图loop-一等公民补遗)（补遗）
-  - [1.1 分层架构设计](#11-分层架构设计)
-  - [1.2 核心设计原则](#12-核心设计原则)
-  - [1.3 关键数据结构](#13-关键数据结构)
-- [2. Transport Layer - API 适配层](#2-transport-layer---api-适配层)
-  - [2.1 策略模式实现](#21-策略模式实现)
-  - [2.2 四种 Transport 对比](#22-四种-transport-对比)
-  - [2.3 延迟加载优化](#23-延迟加载优化)
-- [3. AIAgent 核心类设计](#3-aiagent-核心类设计)
-  - [3.1 初始化阶段 - 环境准备](#31-初始化阶段---环境准备)
-  - [3.2 运行时状态管理](#32-运行时状态管理)
-  - [3.3 资源生命周期](#33-资源生命周期)
-- [4. ReAct Loop 执行引擎](#4-react-loop-执行引擎)
-  - [4.1 AIAgent 类架构说明](#41-aiagent-类架构说明)
-  - [4.2 主循环控制流](#42-主循环控制流)
-    - [4.2.0 `run_conversation` 源码全流程（含 TodoStore）](#420-run_conversation-源码全流程含-todostore)
-    - [4.2.1 主循环时序图](#421-主循环时序图)
-  - [4.3 迭代预算系统](#43-迭代预算系统)
-  - [4.4 中断与引导机制](#44-中断与引导机制)
-- [5. Prompt 组装与缓存优化](#5-prompt-组装与缓存优化)
-  - [5.1 System Prompt 缓存策略](#51-system-prompt-缓存策略)
-  - [5.2 Anthropic Cache Control](#52-anthropic-cache-control)
-  - [5.3 Preflight 压缩检查](#53-preflight-压缩检查)
-  - [5.4 上下文经济体系（6 层完整架构）](#54-上下文经济体系6-层完整架构)
-    - [5.4.1 六层架构总览](#541-六层架构总览扩展分析视角--非-memory-主模型)
-    - [5.4.1b 执行位置与时机](#541b-执行位置与时机)
-    - [5.4.2–5.4.9 各层细节](#542-layer-0-工具内部自截断)
-- [5.5 安全与权限体系（12 维度纵深防御）](#55-安全与权限体系12-维度纵深防御)
-- [5.6 子 Agent Session 机制](#56-子-agent-session-机制)
-- [5.7 外部存储预取与刷写时序](#57-外部存储预取与刷写时序)
-- [5b. 主/子 Agent Prompt 区分机制](#5b-主子-agent-prompt-区分机制)
-  - [5b.1 区分原理](#5b1-区分原理)
-  - [5b.2 两阶段拼接](#5b2-两阶段拼接)
-  - [5b.3 子 Agent 的 ephemeral_system_prompt 内容](#5b3-子-agent-的-ephemeral_system_prompt-内容)
-  - [5b.4 与缓存优化的关系](#5b4-与缓存优化的关系)
-- [6. 工具执行引擎](#6-工具执行引擎)
-  - [6.1 并行策略判定算法](#61-并行策略判定算法)
-  - [6.2 ThreadPoolExecutor 实现](#62-threadpoolexecutor-实现)
-  - [6.3 大结果持久化](#63-大结果持久化)
-  - [6.4 `todo` 工具](#64-todo-工具)
-  - [6.5 Plan skill（所谓 plan mode）](#65-plan-skill所谓-plan-mode)
-- [7. 记忆系统集成](#7-记忆系统集成)
-  - [7.1 MemoryManager 架构](#71-memorymanager-架构)
-  - [7.2 预取缓存优化](#72-预取缓存优化)
-  - [7.3 Context Fencing](#73-context-fencing)
-- [8. 错误处理与恢复](#8-错误处理与恢复)
-  - [8.1 多层错误分类](#81-多层错误分类)
-  - [8.2 重试计数器机制](#82-重试计数器机制)
-  - [8.3 Failover 降级策略](#83-failover-降级策略)
-- [9. 性能优化最佳实践](#9-性能优化最佳实践)
-  - [9.1 延迟加载模式](#91-延迟加载模式)
-  - [9.2 连接池管理](#92-连接池管理)
-  - [9.3 缓存策略总结](#93-缓存策略总结)
-- [10. 0.18–0.19 增量（流式推理 / 压缩路由 / 子 Agent 实况）](#10-018019-增量流式推理--压缩路由--子-agent-实况)
-- [11. Plugin Hook 全表](#11-plugin-hook-全表) ← 事件 / 挂载点 / 返回值
-  - [11.1 按生命周期总览](#111-按生命周期总览)
-  - [11.2 逐个：作用 · 返回值 · 挂载点](#112-逐个作用--返回值--挂载点)
-  - [11.3 与 Agent Loop 的对应](#113-与-agent-loop-的对应)
-  - [11.4 易混的三套「钩子」](#114-易混的三套钩子)
-- [12. 术语：Turn vs Iteration](#12-术语turn-vs-iteration)
-- [13. 附录：跨框架选型（原 AIAgent §16）](#13-附录跨框架选型原-aiagent-16)
-- [14. 附录：`environments/agent_loop.py`（RL / Atropos，非主循环）](#14-附录environmentsagent_looppyrl--atropos非主循环)
-- [总结](#总结)
-
----
-
+<a id="1-架构总览"></a>
+<a id="section-1"></a>
 ## 1. 架构总览
 
-### 1.0 应用全景与类关系总图
+<a id="10-应用全景与类关系总图"></a>
+<a id="section-1-1"></a>
+### 1.1 应用全景与类关系总图
 
 > **阅读顺序**：先建立「谁调用谁 / 谁持有谁」（§1.0.1–1.0.2），需要一等公民全貌时看 §1.0.3，再读 §1.1 分层与 §2 Transport。  
 > Transport 只是 **Provider API 适配策略**；它不是应用入口，也不是 ReAct 编排中心。
 
-#### 1.0.1 应用上下文（谁在跑 Agent Loop）
+<a id="101-应用上下文谁在跑-agent-loop"></a>
+<a id="section-1-1-1"></a>
+#### 1.1.1 应用上下文（谁在跑 Agent Loop）
 
 ```mermaid
 flowchart TB
@@ -143,7 +167,9 @@ flowchart TB
 
 **因果一句话**：Surface 只负责 I/O 与回调；**`AIAgent` + `conversation_loop`** 拥有 ReAct；**Transport** 把各家 API 收成 `NormalizedResponse`；工具 / 记忆 / 压缩 / SessionDB 挂在循环周边。
 
-#### 1.0.2 核心类关系（持有与协作）
+<a id="102-核心类关系持有与协作"></a>
+<a id="section-1-1-2"></a>
+#### 1.1.2 核心类关系（持有与协作）
 
 ```mermaid
 classDiagram
@@ -254,7 +280,9 @@ classDiagram
 | `TodoStore` | `tools/todo_tool.py` | 线程级 todo 板 |
 | `SessionDB` | `hermes_state.py` | 会话落盘 |
 
-#### 1.0.3 更全实体协作图（Loop 一等公民补遗）
+<a id="103-更全实体协作图loop-一等公民补遗"></a>
+<a id="section-1-1-3"></a>
+#### 1.1.3 更全实体协作图（Loop 一等公民补遗）
 
 > **与 1.0.1 / 1.0.2 的关系**：上面两张是**主干**（谁调谁）；本图把正文后文会讲到、但主干里省略的 **Loop 一等公民**补齐。  
 > **仍不收录**：billing / TTS / browser registry / secret sources / learning graph 等周边子系统——它们可挂在工具或 Surface 上，不是 ReAct 脊柱。
@@ -468,7 +496,9 @@ classDiagram
 | `SubagentLifecycleService` | `agent/subagent_lifecycle.py` | live 子 Agent 启停 / 重连 | §10 |
 | 循环出口 dict | `conversation_loop` 返回值 | 文档 §1.3.3 称 `AgentResult`；源码多为 `dict` | §1.3.3 / §4 |
 
-#### 1.0.4 与后文导航
+<a id="104-与后文导航"></a>
+<a id="section-1-1-4"></a>
+#### 1.1.4 与后文导航
 
 | 你要找的问题 | 跳转 |
 |--------------|------|
@@ -484,7 +514,9 @@ classDiagram
 ---
 
 
-### 1.1 分层架构设计
+<a id="11-分层架构设计"></a>
+<a id="section-1-2"></a>
+### 1.2 分层架构设计
 
 Hermes Agent 采用**四层分离架构**,每层职责清晰,遵循单一职责原则:
 
@@ -521,9 +553,13 @@ Hermes Agent 采用**四层分离架构**,每层职责清晰,遵循单一职责�
 | **适配层** | ProviderTransport | API 格式转换、响应标准化 | Strategy Pattern |
 | **能力层** | ToolRegistry, MemoryManager | 工具执行、记忆管理、持久化 | Singleton + Facade |
 
-### 1.2 核心设计原则
+<a id="12-核心设计原则"></a>
+<a id="section-1-3"></a>
+### 1.3 核心设计原则
 
-#### 1.2.1 Platform-Agnostic Design
+<a id="121-platform-agnostic-design"></a>
+<a id="section-1-3-1"></a>
+#### 1.3.1 Platform-Agnostic Design
 
 **问题**: Hermes 需要同时支持 CLI、Gateway (Telegram/Discord)、Cron、ACP 等多种运行环境。
 
@@ -544,7 +580,9 @@ clarify_callback: callable = None            # 用户澄清交互
 - ✅ Cron: 静默运行,仅记录日志
 - ✅ ACP: 标准协议消息格式
 
-#### 1.2.2 Transport Abstraction
+<a id="122-transport-abstraction"></a>
+<a id="section-1-3-2"></a>
+#### 1.3.2 Transport Abstraction
 
 **问题**: 不同 LLM Provider 使用完全不同的 API 格式 (OpenAI Chat Completions vs Anthropic Messages vs AWS Bedrock)。
 
@@ -570,7 +608,9 @@ class ProviderTransport(ABC):
 - `AnthropicTransport`: Anthropic Messages API
 - `BedrockTransport`: AWS Bedrock Converse API
 
-#### 1.2.3 Lazy Loading & Startup Optimization
+<a id="123-lazy-loading--startup-optimization"></a>
+<a id="section-1-3-3"></a>
+#### 1.3.3 Lazy Loading & Startup Optimization
 
 **问题**: Hermes CLI 要求启动时间 <200ms,但 openai SDK 导入耗时 ~240ms。
 
@@ -595,9 +635,13 @@ OpenAI = _OpenAIProxy()  # 全局代理对象
 - ✅ 首次 API 调用: 触发导入 (~240ms,仅一次)
 - ✅ 测试兼容性: `patch("run_agent.OpenAI")` 仍有效
 
-### 1.3 关键数据结构
+<a id="13-关键数据结构"></a>
+<a id="section-1-4"></a>
+### 1.4 关键数据结构
 
-#### 1.3.1 IterationBudget - 线程安全预算计数器
+<a id="131-iterationbudget---线程安全预算计数器"></a>
+<a id="section-1-4-1"></a>
+#### 1.4.1 IterationBudget - 线程安全预算计数器
 
 ```python
 # run_agent.py 第 257-298 行
@@ -630,11 +674,13 @@ class IterationBudget:
 ```
 
 **使用场景**:
-- 父代理: `AIAgent(max_iterations=90)`（默认上限随版本可更高，以配置为准）
-- 子代理: 独立 `IterationBudget`，`delegation.max_iterations`（默认约 50）
+- 父代理: `AIAgent(max_iterations=90)`（显式设置 90 的示例；构造器默认是 `sys.maxsize`，入口可覆盖）
+- 子代理: 独立 `IterationBudget`，`delegation.max_iterations`（当前未配置时为 250）
 - Refund: 外层 while 本轮 **仅** 调用了 `execute_code` 时，由 `conversation_loop` 调 `budget.refund()`（不是脚本内部循环去 refund）
 
-#### 1.3.2 NormalizedResponse - Transport 层统一响应格式
+<a id="132-normalizedresponse---transport-层统一响应格式"></a>
+<a id="section-1-4-2"></a>
+#### 1.4.2 NormalizedResponse - Transport 层统一响应格式
 
 ```python
 # agent/transports/types.py
@@ -653,7 +699,9 @@ class NormalizedResponse:
 - ✅ 新增 provider 只需实现 Transport.normalize_response()
 - ✅ 测试时可 mock NormalizedResponse
 
-#### 1.3.3 AgentResult - 最终返回结构
+<a id="133-agentresult---最终返回结构"></a>
+<a id="section-1-4-3"></a>
+#### 1.4.3 AgentResult - 最终返回结构
 
 ```python
 @dataclass
@@ -669,13 +717,44 @@ class AgentResult:
 
 ---
 
-## 2. Transport Layer - API 适配层
+<a id="12-术语turn-vs-iteration"></a>
+<a id="section-2"></a>
+## 2. 术语：Turn vs Iteration
+
+别家常说的「一次 LLM = 一 turn」**≠** Hermes 文档里的 turn。
+
+| 名字 | Hermes 含义 | 约等于别人说的 |
+|------|-------------|----------------|
+| **Session** | 同 `session_id` 的多轮对话 | conversation |
+| **Turn / user turn** | 一次用户输入 → 一次 `run_conversation()` → 本轮最终答复 | user turn / 一次 agent run |
+| **Iteration / API call** | `while` 里调 **一次** 大模型（`api_call_count` / `IterationBudget`） | 他们说的 turn / step |
+
+```text
+用户: 「修这个 bug」          ← turn 开始
+  LLM #1 → read_file          ← iteration 1
+  LLM #2 → patch + terminal   ← iteration 2
+  LLM #3 → 最终说明           ← iteration 3
+助手给出完整答案              ← turn 结束
+```
+
+因此：`pre_llm_call` = **每 turn 一次**；`max_iterations` 限制的是 **iteration**。
+
+---
+
+<a id="13-附录跨框架选型原-aiagent-16"></a>
+<a id="131-选型决策树"></a>
+<a id="132-hermes-相对优势命令式循环才有的粒度"></a>
+<a id="2-transport-layer---api-适配层"></a>
+<a id="section-3"></a>
+## 3. Transport Layer - API 适配层
 
 > **定位**：本节只讲 **Provider API 适配**（Strategy）。  
 > 它在总图中位于「适配层」——**被 `conversation_loop` 调用**，不直接对接 CLI/Gateway。  
 > 若尚未建立全局地图，请先读 [§1.0](#10-应用全景与类关系总图)。
 
-### 2.1 策略模式实现
+<a id="21-策略模式实现"></a>
+<a id="section-3-1"></a>
+### 3.1 策略模式实现
 
 **设计问题**: OpenAI、Anthropic、AWS Bedrock 的 API 格式完全不同,如何让 AIAgent 统一调用?
 
@@ -721,9 +800,13 @@ class ProviderTransport(ABC):
 - ✅ Transport **只负责** 数据格式转换 (messages/tools → provider format)
 - ✅ AIAgent 保留所有控制逻辑 (retry/interrupt/cache/budget)
 
-### 2.2 四种 Transport 对比
+<a id="22-四种-transport-对比"></a>
+<a id="section-3-2"></a>
+### 3.2 四种 Transport 对比
 
-#### 2.2.1 ChatCompletionsTransport (默认)
+<a id="221-chatcompletionstransport-默认"></a>
+<a id="section-3-2-1"></a>
+#### 3.2.1 ChatCompletionsTransport (默认)
 
 **适用场景**: OpenAI-compatible APIs (OpenRouter, Together, Fireworks, etc.)
 
@@ -782,7 +865,9 @@ class ChatCompletionsTransport(ProviderTransport):
 - ✅ 支持 streaming (`stream=True`)
 - ✅ 广泛兼容 (90%+ providers)
 
-#### 2.2.2 ResponsesApiTransport (Codex)
+<a id="222-responsesapitransport-codex"></a>
+<a id="section-3-2-2"></a>
+#### 3.2.2 ResponsesApiTransport (Codex)
 
 **适用场景**: OpenAI Responses API (gpt-5.x, o-series models)
 
@@ -843,7 +928,9 @@ class ResponsesApiTransport(ProviderTransport):
 - ⚠️ `response_item_id`: Codex 专有字段,需在 `_sanitize_tool_calls_for_strict_api()` 中移除
 - ⚠️ 不支持 streaming (部分 provider)
 
-#### 2.2.3 AnthropicTransport
+<a id="223-anthropictransport"></a>
+<a id="section-3-2-3"></a>
+#### 3.2.3 AnthropicTransport
 
 **适用场景**: Anthropic Claude models (native API)
 
@@ -918,7 +1005,9 @@ class AnthropicTransport(ProviderTransport):
 - ✅ Tool arguments: Anthropic 返回 dict,需序列化为 JSON string
 - ✅ System prompt: 单独字段,不在 messages 数组中
 
-#### 2.2.4 BedrockTransport
+<a id="224-bedrocktransport"></a>
+<a id="section-3-2-4"></a>
+#### 3.2.4 BedrockTransport
 
 **适用场景**: AWS Bedrock Converse API
 
@@ -973,7 +1062,9 @@ class BedrockTransport(ProviderTransport):
 | **Max Tokens** | 可选 | 可选 | **必填** | 必填 |
 | **System Prompt** | messages[0] | input[0] | 单独字段 | messages[0] |
 
-### 2.3 延迟加载优化
+<a id="23-延迟加载优化"></a>
+<a id="section-3-3"></a>
+### 3.3 延迟加载优化
 
 **问题**: Hermes CLI 要求启动时间 <200ms,但 openai SDK 导入耗时 ~240ms。
 
@@ -1020,11 +1111,17 @@ OpenAI = _OpenAIProxy()  # 全局代理对象
 
 ---
 
-## 3. AIAgent 核心类设计
+<a id="3-aiagent-核心类设计"></a>
+<a id="section-4"></a>
+## 4. AIAgent 核心类设计
 
-### 3.1 初始化阶段 - 环境准备
+<a id="31-初始化阶段---环境准备"></a>
+<a id="section-4-1"></a>
+### 4.1 初始化阶段 - 环境准备
 
-#### 3.1.1 SafeWriter - 防止 Broken Pipe 崩溃
+<a id="311-safewriter---防止-broken-pipe-崩溃"></a>
+<a id="section-4-1-1"></a>
+#### 4.1.1 SafeWriter - 防止 Broken Pipe 崩溃
 
 **不是**加密/鉴权意义上的「安全」，而是：**stdout/stderr 写挂了也不要把 Agent 整进程弄崩**。
 
@@ -1090,7 +1187,9 @@ sys.stdout / sys.stderr
 
 **一句话**: 管道对面没人听了，别因为一句 `print` 把整场 Agent 跑死。
 
-#### 3.1.2 Surrogate 字符清理
+<a id="312-surrogate-字符清理"></a>
+<a id="section-4-1-2"></a>
+#### 4.1.2 Surrogate 字符清理
 
 **问题**: Clipboard paste from rich-text editors (Google Docs, Word, etc.) can inject lone surrogates (U+D800-U+DFFF) that are invalid UTF-8 and crash JSON serialization in the OpenAI SDK.
 
@@ -1115,9 +1214,13 @@ persist_user_message = _sanitize_surrogates(persist_user_message)
 - persist_user_message (用于 transcript 存储)
 - 所有消息 content/text/name/tool_call arguments
 
-### 3.2 运行时状态管理
+<a id="32-运行时状态管理"></a>
+<a id="section-4-2"></a>
+### 4.2 运行时状态管理
 
-#### 3.2.1 中断机制
+<a id="321-中断机制"></a>
+<a id="section-4-2-1"></a>
+#### 4.2.1 中断机制
 
 ```python
 # 中断标志 (线程安全)
@@ -1137,123 +1240,94 @@ self._tool_worker_threads_lock = threading.Lock()
 4. Fan-out 到所有 worker threads (`_tool_worker_threads`)
 5. 主循环检测到标志,优雅退出
 
-#### 3.2.2 Steer 机制
+<a id="322-steer-机制"></a>
+<a id="section-4-2-2"></a>
+#### 4.2.2 Steer 机制
 
-> **一句话**：`steer()` **不打断**当前工具 / 当前 API；它只把用户文本放进邮箱 `_pending_steer`。主循环在**下一次模型能看见工具结果的时刻**，把文本**追加到某条已有的 `role:"tool"` 消息末尾**（带固定 marker），模型下一轮当「带外用户指令」读到。
+> **当前核对（2026-10-15）**：steer 不打断正在执行的工具或 API。它先进入线程安全邮箱，再在安全边界成为**独立 user 消息**；不再改写已经持久化的 tool 结果。旧版“两处 drain 都追加到 tool.content”的说明已不适用。
 
-##### 为什么不能直接插一条 `user` 消息？
+<a id="邮箱谁写谁读"></a>
+<a id="section-4-2-2-1"></a>
+##### 4.2.2.1 邮箱：谁写、谁读
 
-Chat Completions / Anthropic Messages 对 role 交替很敏感：`assistant(tool_calls)` 后面必须跟对应的 `tool` 结果，不能突然插 `user`。所以 Hermes **不新增消息、不改 role**，只改最后一条 tool 的 `content` 字符串（或 multimodal 再 append 一个 text block）。
+`InterruptControlMixin.steer` 写入 `_pending_steer`，多次文本可合并；`_drain_pending_steer` 取出并清空。这个邮箱不等于 Gateway 的普通 FIFO/followup 队列，也不是 SessionDB 表。
 
-系统提示里有 `STEER_CHANNEL_NOTE`，告诉模型：只有包在固定 marker 里的才是真用户中途消息，工具输出里的仿冒文案不要信。
+<a id="三个消费边界两处当轮注入一处返回入口补发"></a>
+<a id="section-4-2-2-2"></a>
+##### 4.2.2.2 三个消费边界：两处当轮注入，一处返回入口补发
 
-```text
-[OUT-OF-BAND USER MESSAGE — a direct message from the user, delivered mid-turn; not tool output]
-<用户 steer 原文>
-[/OUT-OF-BAND USER MESSAGE]
-```
+| 时机 | 当前实体 / 函数 | 消息放在哪里 | 无法交付时 |
+|---|---|---|---|
+| 下次请求模型前 | `agent.turn_iteration_prep.prepare_iteration` → `_inject_steer_after_newest_tool_result` | 最新 tool 后插入 `steer_user_row`，role=user | 没有 tool 时放回邮箱 |
+| 一批工具执行后 | `agent.tool_executor` → `agent.agent_runtime_helpers.apply_pending_steer_to_tool_results` | batch 结果后追加独立 user 行 | 本批没有 tool 时放回邮箱 |
+| 当前 turn 收尾 | `agent.turn_finalizer` | 返回值 `pending_steer`，由调用入口处理下一 turn | Gateway 在 `gateway/run_turn.py` 中安排后续执行；不是强制在当前循环再调一次模型 |
 
-（`agent/prompt_builder.py` · `format_steer_marker`）
-
-##### 邮箱：谁写、谁读
-
-| 角色 | 做什么 |
-|------|--------|
-| Surface（CLI / Gateway / TUI） | 用户输入 `/steer …` → 调 `AIAgent.steer(text)` |
-| `steer()` | 线程安全写入 `_pending_steer`（多次调用用 `\n` 拼接）；**不**设 interrupt |
-| 主循环 / tool_executor | 在两个固定点 `drain`（取出并清空），注入 messages |
-
-```python
-# run_agent.py — 写入侧（Surface 线程可调）
-def steer(self, text: str) -> bool:
-    # 空串忽略；多次 steer 拼到同一邮箱
-    with self._pending_steer_lock:
-        self._pending_steer = (self._pending_steer + "\n" + cleaned) if self._pending_steer else cleaned
-    return True
-```
-
-##### 在 Loop 里何时注入？（两条路径）
-
-Steer 到达时，Agent 通常处在下面某一段。**注入点随「下一次模型要读 messages」选**：
+前两处用同一个 `agent.prompt_builder.steer_user_row` 生成 marker；第三处交回入口的是原始待补发文本，**不能画成同一次 API 请求中完全相同的注入动作**。
 
 ```mermaid
 sequenceDiagram
-    participant U as 用户 / Surface
-    participant M as _pending_steer 邮箱
-    participant L as conversation_loop
-    participant T as tool_executor
-    participant LLM as Provider
-
-    Note over L,LLM: 迭代 N：已有历史 messages（可能已有 tool 结果）
-    L->>L: ① Pre-API drain<br/>有最后一条 tool？追加 marker : 放回邮箱
-    L->>LLM: create_completion(messages)
-    Note over U,M: 用户可在「模型思考中」随时 steer() → 写入邮箱
-    U->>M: steer("改用 pytest")
-    LLM-->>L: assistant + tool_calls（或最终文本）
-    alt 有 tool_calls
-        L->>T: 执行工具 batch，append tool 消息
-        T->>T: ② Post-tool drain<br/>追加到本 batch 最后一条 tool
-        Note over L: 进入迭代 N+1，模型已能看见 steer
-    else 最终文本、无工具
-        Note over M: 若①已注入则模型本轮已看见；<br/>若当时无 tool 可挂、又从未跑②，steer 可能仍在邮箱
+    participant Surface as CLI / GatewayRunner
+    participant Agent as AIAgent / InterruptControlMixin
+    participant Prep as turn_iteration_prep
+    participant Exec as tool_executor
+    participant Final as turn_finalizer
+    participant DB as SessionDB
+    Surface->>Agent: steer text 写邮箱
+    alt 下次模型请求前已有 tool 结果
+        Prep->>Agent: _drain_pending_steer
+        Prep->>Prep: 在最新 tool 后插入独立 user 行
+    else 工具 batch 完成时仍有 steer
+        Exec->>Agent: apply_pending_steer_to_tool_results
+        Exec->>Exec: 追加独立 user 行
+    else 当前 turn 收尾仍未交付
+        Final->>Agent: _drain_pending_steer
+        Final-->>Surface: result.pending_steer
+        Surface->>Surface: 安排下一 turn
     end
+    Note over Agent,DB: 新 user 行由后续常规 flush 写入；不覆盖旧 tool 行
 ```
 
-**路径 ① — Pre-API drain**（`conversation_loop` 每次调 LLM **之前**）
+<a id="消息长什么样真实角色关系的简化示例"></a>
+<a id="section-4-2-2-3"></a>
+##### 4.2.2.3 消息长什么样（真实角色关系的简化示例）
 
-- 场景：steer 在**上一轮 API 思考期间**到达；本轮开头就要让模型看见，不能再等「下一轮工具」（若本轮直接给最终答案，就永远等不到工具了）。
-- 动作：`drain` → 从后往前找**任意**最后一条 `role=="tool"` → `content += format_steer_marker(...)`。
-- 找不到 tool（例如首轮、还没跑过工具）：**放回邮箱**，等路径 ②。
-
-**路径 ② — Post-tool drain**（`tool_executor` 一批工具跑完、结果已 append 之后）
-
-- 场景：steer 在**工具执行期间**到达（`steer` 故意不杀工具）。
-- 动作：`apply_pending_steer_to_tool_results(messages, num_tool_msgs)` → `drain` → 只在本 batch 的 tool 尾巴里找最后一条 `tool` → 同样追加 marker。
-- 本 batch 没有可用 tool 结果（例如全被 interrupt 跳过）：放回邮箱，交给后续路径 / Surface 下一轮。
-
-两处最终效果相同：**模型看到的仍是「某条 tool 输出末尾多了一段带 marker 的用户话」**，不是新 role。
-
-##### 消息长什么样（注入前后）
-
-```text
-# 注入前（工具刚跑完）
-{ "role": "assistant", "tool_calls": [ … ] }
-{ "role": "tool", "tool_call_id": "…", "content": "tests passed: 3" }
-
-# 注入后（同一条 tool，content 变长）
-{ "role": "tool", "tool_call_id": "…", "content":
-  "tests passed: 3\n\n[OUT-OF-BAND USER MESSAGE — …]\n改用 pytest\n[/OUT-OF-BAND USER MESSAGE]"
-}
+```python
+messages = [
+    {"role": "assistant", "tool_calls": [{"id": "call_1", "type": "function",
+        "function": {"name": "terminal", "arguments": '{"command":"pytest"}'}}]},
+    {"role": "tool", "tool_call_id": "call_1", "content": "tests passed: 3"},
+    # 新 user 行：tool.content 原封不动，重启回放不会丢掉用户的指导。
+    {"role": "user", "content": "[OUT-OF-BAND USER MESSAGE — …]\n改用 pytest\n[/OUT-OF-BAND USER MESSAGE]"},
+]
 ```
 
-下一轮 API 请求带上这条 tool → 模型按 `STEER_CHANNEL_NOTE` 把它当用户中途指令。
+这里 marker 的省略号是说明性缩写；完整字节由 `format_steer_marker` 生成，不要复制该示例当成协议实现。
 
-##### 和 Interrupt / Redirect 的边界
+<a id="为什么可以插-user为什么不改-tool"></a>
+<a id="section-4-2-2-4"></a>
+##### 4.2.2.4 为什么可以插 user？为什么不改 tool？
 
-| | Steer | Interrupt | Redirect（相关但另一套） |
-|--|-------|-----------|-------------------------|
-| 当前工具 | 跑完 | 尽量停 | 工具执行中会 **降级成 steer** |
-| 当前模型请求 | 不取消 | 取消 | 可取消请求并注入 correction |
-| 邮箱 | `_pending_steer` | — | `_pending_redirect` |
-| hard interrupt | **会清空** pending steer（本轮不会再注入） | — | — |
+必须先保留 `assistant(tool_calls) → 对应 tool 结果` 的完整关联，然后再放 user。这与把 user 插进尚未收齐结果的工具调用组不同。当前实现选择新增 user 行，避免修改已经 append-only 写入的 tool 行导致“在线请求”和“重启回放”不一致，也让指令来源更清楚。
 
-##### 阅读源码入口
+<a id="和-interrupt--redirect-的边界"></a>
+<a id="section-4-2-2-5"></a>
+##### 4.2.2.5 和 Interrupt / Redirect 的边界
 
-| 符号 | 文件 |
-|------|------|
-| `steer` / `_drain_pending_steer` | `run_agent.py` |
-| Pre-API drain | `agent/conversation_loop.py`（`# Pre-API-call /steer drain`） |
-| Post-tool drain | `agent/agent_runtime_helpers.apply_pending_steer_to_tool_results`，由 `agent/tool_executor.py` 在 concurrent/sequential/segmented 收尾调用 |
-| marker / 系统说明 | `agent/prompt_builder.format_steer_marker` · `STEER_CHANNEL_NOTE` |
-| 单测时间线 | `tests/run_agent/test_steer.py` |
+Steer 等待边界；interrupt 请求停止当前运行；redirect 有自己的控制状态，不能把三者当成同一种队列。hard interrupt 的清理行为以 `agent/interrupt_control.py` 为准。邮箱本身不是可恢复的持久队列，只有已经落入 transcript 的消息才受 SessionDB 回放保护。
 
-##### 旧文档易误解处（已纠正）
+<a id="阅读源码入口"></a>
+<a id="section-4-2-2-6"></a>
+##### 4.2.2.6 阅读源码入口
 
-- 不是「注入到下一轮 **user** 消息」。
-- 标记不是字面 `"User guidance: …"`，而是 `format_steer_marker` 的 OUT-OF-BAND 块。
-- 「Pre-API」与「Post-tool」是**两个互补 drain 点**，不是二选一哲学口号；谁先碰到邮箱谁注入，另一处会看到空邮箱。
+- `agent/interrupt_control.py`：邮箱与线程同步。
+- `agent/turn_iteration_prep.py`：pre-API 注入和无 tool 时的 requeue。
+- `agent/agent_runtime_helpers.py`：post-tool 注入。
+- `agent/prompt_builder.py`：`steer_user_row`、`format_steer_marker`。
+- `agent/turn_finalizer.py`、`gateway/run_turn.py`：未交付文本返回与补发。
 
-### 3.3 资源生命周期
+<a id="33-资源生命周期"></a>
+<a id="section-4-3"></a>
+### 4.3 资源生命周期
 
 > **本节在讲什么**：`AIAgent` 不只是「消息 + 调模型」。一轮对话里，工具还会拉起**长生命周期副作用**（HTTP 连接池、终端沙箱、浏览器 daemon）。  
 > 若不在固定边界回收，Gateway 长驻进程会堆死连接 / 僵尸容器 / 泄漏浏览器。  
@@ -1275,7 +1349,9 @@ sequenceDiagram
 
 ---
 
-#### 3.3.1 Client 管理（调 LLM 用的 HTTP 客户端）
+<a id="331-client-管理调-llm-用的-http-客户端"></a>
+<a id="section-4-3-1"></a>
+#### 4.3.1 Client 管理（调 LLM 用的 HTTP 客户端）
 
 **作用**：每次 ReAct 迭代都要打 Provider API。Hermes 在 `AIAgent` 上挂 **可复用的 SDK client**（OpenAI 兼容的 `self.client`、按需的 Anthropic / Bedrock 等），避免每轮新建握手。
 
@@ -1312,7 +1388,9 @@ flowchart LR
 
 ---
 
-#### 3.3.2 VM / Browser 资源清理（工具拉起的沙箱与浏览器）
+<a id="332-vm--browser-资源清理工具拉起的沙箱与浏览器"></a>
+<a id="section-4-3-2"></a>
+#### 4.3.2 VM / Browser 资源清理（工具拉起的沙箱与浏览器）
 
 **先建立场景**：用户让 Agent「在沙箱里跑命令 / 开网页」。工具实现会按 **`task_id`**（通常绑 session）拉起：
 
@@ -1367,9 +1445,13 @@ _cleanup_task_resources(task_id)
 
 ---
 
-## 4. ReAct Loop 执行引擎
+<a id="4-react-loop-执行引擎"></a>
+<a id="section-5"></a>
+## 5. ReAct Loop 执行引擎
 
-### 4.1 AIAgent 类架构说明
+<a id="41-aiagent-类架构说明"></a>
+<a id="section-5-1"></a>
+### 5.1 AIAgent 类架构说明
 
 **重要澄清**：`AIAgent` 类是 **父子代理共享的同一个类**，而非独立的子类。
 
@@ -1388,7 +1470,9 @@ class AIAgent:
     """
 ```
 
-#### 父子代理的关系
+<a id="父子代理的关系"></a>
+<a id="section-5-1-1"></a>
+#### 5.1.1 父子代理的关系
 
 | 特性 | Parent Agent | Child Agent (Subagent) |
 |------|--------------|------------------------|
@@ -1396,13 +1480,15 @@ class AIAgent:
 | **实例化位置** | CLI/Gateway 入口 | `delegate_task()` 工具中 |
 | **System Prompt** | SOUL.md + 完整上下文 | 定制的 child prompt（包含 goal + context） |
 | **工具集** | 全部工具（包括 `delegate_task`） | 受限工具集（默认不含 delegation） |
-| **Budget** | 创建 `IterationBudget` | **继承**父代理的 budget |
+| **Budget** | 自己的 `IterationBudget` | 新建独立 `IterationBudget`，不继承父对象 |
 | **Session ID** | 自动生成 UUID | 自动生成独立 UUID |
 | **Memory Manager** | 可选启用 | **不继承**（子代理无独立记忆系统） |
 | **Checkpoint** | 可选启用 | **不继承**（子代理不保存快照） |
 | **回调函数** | 用户提供的 callback | 内部构造的 progress callback |
 
-#### 关键代码验证
+<a id="关键代码验证"></a>
+<a id="section-5-1-2"></a>
+#### 5.1.2 关键代码验证
 
 **1. 子代理创建** (`tools/delegate_tool.py` L1090-1095):
 
@@ -1415,7 +1501,7 @@ child = AIAgent(
     api_mode=effective_api_mode,
     acp_command=effective_acp_command,
     acp_args=effective_acp_args,
-    max_iterations=max_iterations,  # ← 从配置读取，默认 50
+    max_iterations=max_iterations,  # ← 从 delegation 配置读取，未配置时 250
     max_tokens=getattr(parent_agent, "max_tokens", None),
     reasoning_config=child_reasoning,
     enabled_toolsets=child_toolsets,  # ← 受限工具集（不含 delegation）
@@ -1436,24 +1522,19 @@ child_prompt = _build_child_system_prompt(
 )
 ```
 
-**3. Budget 共享机制** (`run_agent.py` L1174):
+**3. Budget 独立机制**（当前源码：`tools/delegate_tool.py::_build_child_agent`）:
 
 ```python
-# Shared iteration budget — parent creates, children inherit.
-# Consumed by every LLM turn across parent + all subagents.
-self.iteration_budget = iteration_budget or IterationBudget(max_iterations)
-```
-
-在 `delegate_task()` 中，子代理**继承**父代理的 budget：
-
-```python
-# tools/delegate_tool.py L1115
+# 摘录关键参数；不是完整构造器。
 child = AIAgent(
-    ...,
-    iteration_budget=parent_agent.iteration_budget,  # ← 共享同一个 budget 对象
-    ...
+    # 子代理上限取 delegation 配置；未配置时常量为 250。
+    max_iterations=max_iterations,
+    iteration_budget=None,  # 不传父对象；init_agent 创建新的 IterationBudget
+    # ... 其它路由、工具集与 session 参数
 )
 ```
+
+`agent/agent_init.py` 使用 `iteration_budget or IterationBudget(max_iterations)`。手动传入同一个 budget 可以共享，但**当前 delegate_task 构造子代理没有这样做**。父构造器默认 `sys.maxsize`，实际入口可以覆盖；旧稿的 90、50 不再是当前默认值。共享的是运行引擎，不是同一个计数器。
 
 **4. Memory Manager 隔离** (`run_agent.py` L1282-1290):
 
@@ -1467,7 +1548,9 @@ else:
 
 ---
 
-### 4.2 主循环控制流
+<a id="42-主循环控制流"></a>
+<a id="section-5-2"></a>
+### 5.2 主循环控制流
 
 **核心文件（2026-07 拆分后）**:
 
@@ -1561,13 +1644,17 @@ graph TB
 
 ---
 
-#### **4.2.0 `run_conversation` 源码全流程（含 TodoStore）**
+<a id="420-run_conversation-源码全流程含-todostore"></a>
+<a id="section-5-2-1"></a>
+#### 5.2.1 **4.2.0 `run_conversation` 源码全流程（含 TodoStore）**
 
 > 对应实现：`agent/conversation_loop.py` · `run_conversation(agent, user_message, …) -> dict`  
 > 入口壳：`AIAgent.run_conversation` → 直接转发到上式。  
 > **Turn** = 一次 `run_conversation`；**Iteration** = while 里一次 LLM API。
 
-##### A. 总览（一张图）
+<a id="a-总览一张图"></a>
+<a id="section-5-2-1-1"></a>
+##### 5.2.1.1 A. 总览（一张图）
 
 ```text
 Surface
@@ -1592,7 +1679,9 @@ Surface
                   → { final_response, messages, interrupted, … }
 ```
 
-##### B. 阶段 ① — `build_turn_context`（序言，进 while 之前）
+<a id="b-阶段-①--build_turn_context序言进-while-之前"></a>
+<a id="section-5-2-1-2"></a>
+##### 5.2.1.2 B. 阶段 ① — `build_turn_context`（序言，进 while 之前）
 
 源码：`agent/turn_context.py`。**只跑一遍**，loop 本体不再重复这些事。
 
@@ -1618,7 +1707,9 @@ Surface
 
 Gateway 常「每消息新 AIAgent、空 store」——靠这一步从 transcript 恢复板子。store **已有 items 则跳过**（不覆盖本进程已有状态）。
 
-##### C. 阶段 ② — 主 `while`（每次 iteration）
+<a id="c-阶段-②--主-while每次-iteration"></a>
+<a id="section-5-2-1-3"></a>
+##### 5.2.1.3 C. 阶段 ② — 主 `while`（每次 iteration）
 
 条件（简化）：
 
@@ -1693,7 +1784,9 @@ while (api_call_count < max_iterations and budget.remaining > 0) or _budget_grac
 | 压缩后 injection | **`format_for_injection` 读** | 否 |
 | interrupt / 空回复兜底 | 否（housekeeping 只认工具**名** `"todo"`） | 否 |
 
-##### D. 阶段 ③ — `finalize_turn`（出 while 之后）
+<a id="d-阶段-③--finalize_turn出-while-之后"></a>
+<a id="section-5-2-1-4"></a>
+##### 5.2.1.4 D. 阶段 ③ — `finalize_turn`（出 while 之后）
 
 源码：`agent/turn_finalizer.py`。
 
@@ -1703,7 +1796,9 @@ while (api_call_count < max_iterations and budget.remaining > 0) or _budget_grac
 
 `/new` 等路径会 `_todo_store = TodoStore()`（整对象替换，不是 `write`）。
 
-##### E. 极简例子（对照源码阶段）
+<a id="e-极简例子对照源码阶段"></a>
+<a id="section-5-2-1-5"></a>
+##### 5.2.1.5 E. 极简例子（对照源码阶段）
 
 ```text
 用户: 「登录 500，复杂就先列 todo」
@@ -1731,7 +1826,9 @@ while (api_call_count < max_iterations and budget.remaining > 0) or _budget_grac
 
 若 API#2 前触发压缩：读 store → 把未完成项注入 messages → 模型仍看得见板子，**store 内容不变**。
 
-##### F. 和旧伪代码的差异（避免看晕）
+<a id="f-和旧伪代码的差异避免看晕"></a>
+<a id="section-5-2-1-6"></a>
+##### 5.2.1.6 F. 和旧伪代码的差异（避免看晕）
 
 | 旧文档写法 | 现状 |
 |------------|------|
@@ -1742,7 +1839,9 @@ while (api_call_count < max_iterations and budget.remaining > 0) or _budget_grac
 
 ---
 
-#### **4.2.1 主循环时序图**
+<a id="421-主循环时序图"></a>
+<a id="section-5-2-2"></a>
+#### 5.2.2 **4.2.1 主循环时序图**
 
 以下时序图展示了 ReAct Loop 执行过程中各**类和实体**之间的完整交互流程：
 
@@ -1941,7 +2040,9 @@ sequenceDiagram
 > - **轮后** `queue_prefetch_all`：异步，**预热下一 turn**；下次 `run_conversation` 再 `prefetch_all` 时尽量命中。  
 > 详细因果见 [§5.7](#57-外部存储预取与刷写时序)。
 
-#### 正流程还可能漏画的调用（对照用）
+<a id="正流程还可能漏画的调用对照用"></a>
+<a id="section-5-2-3"></a>
+#### 5.2.3 正流程还可能漏画的调用（对照用）
 
 时序图是**主干 happy path**。下面这些也在真 loop 里，但不必全部塞进主图：
 
@@ -1958,7 +2059,9 @@ sequenceDiagram
 
 **Session 与 Memory 存什么**：见下一小节例子——二者**不是同一粒度**。
 
-#### SessionDB vs 外部 Memory：存什么？（例子）
+<a id="sessiondb-vs-外部-memory存什么例子"></a>
+<a id="section-5-2-4"></a>
+#### 5.2.4 SessionDB vs 外部 Memory：存什么？（例子）
 
 假设用户说「跑一下测试」，模型先 `terminal` 再给最终答复：
 
@@ -2032,11 +2135,15 @@ SessionDB / session_*.json
 
 ---
 
-#### **阶段 1: 环境准备** (L11100-11380)
+<a id="阶段-1-环境准备-l11100-11380"></a>
+<a id="section-5-2-5"></a>
+#### 5.2.5 **阶段 1: 环境准备** (L11100-11380)
 
 **目标**: 在循环开始前完成所有初始化工作,确保后续迭代可以高效运行。
 
-##### **1.1 构建 System Prompt** (L11200)
+<a id="11-构建-system-prompt-l11200"></a>
+<a id="section-5-2-5-1"></a>
+##### 5.2.5.1 **1.1 构建 System Prompt** (L11200)
 
 ```python
 # run_agent.py L11200
@@ -2061,7 +2168,9 @@ system_prompt = f"""
 """
 ```
 
-##### **1.2 Preflight 压缩检查** (L11225-11292)
+<a id="12-preflight-压缩检查-l11225-11292"></a>
+<a id="section-5-2-5-2"></a>
+##### 5.2.5.2 **1.2 Preflight 压缩检查** (L11225-11292)
 
 **问题**: 用户可能在一个长对话中切换到小上下文窗口模型(如从 Claude 3.5 切换到 GPT-4o-mini),如果不提前压缩,第一次 API 调用就会因 context overflow 失败。
 
@@ -2099,7 +2208,9 @@ if (
 - ✅ **清空 conversation_history**: 压缩后创建新 session,必须清空历史引用,否则 `_flush_messages_to_session_db` 会跳过写入
 - ✅ **重置计数器**: 避免 pre-compression 的重试计数污染 post-compression 的逻辑
 
-##### **1.3 Plugin Hook: `pre_llm_call`**
+<a id="13-plugin-hook-pre_llm_call"></a>
+<a id="section-5-2-5-3"></a>
+##### 5.2.5.3 **1.3 Plugin Hook: `pre_llm_call`**
 
 > **一句话**：是的——这一步就是向插件**征集本 turn 的临时上下文**，引擎再统一拼进 **API 用的 user message 副本**；**不**让各 hook 自己改 `messages`。
 
@@ -2128,15 +2239,17 @@ api_content = user_content + "\n\n" + memory_fence + "\n\n" + plugin_user_contex
 | | |
 |--|--|
 | 注入位置 | **user message**（不是 system）→ system 前缀稳定，利于 prompt cache |
-| 生命周期 | **Ephemeral**：跟本 turn API 走；不写入 Session 的 durable `content` |
+| 生命周期 | 本 turn 收集，不覆盖原始 durable `content`；组合版本 `api_content` 可持久化并重放 |
 | 触发次数 | 每 `run_conversation` **一次**，不是 while 里每次 tool 迭代一次 |
 
-##### 为什么「收集返回值」，而不是「每个 hook 自己改 messages」？
+<a id="为什么收集返回值而不是每个-hook-自己改-messages"></a>
+<a id="section-5-2-5-4"></a>
+##### 5.2.5.4 为什么「收集返回值」，而不是「每个 hook 自己改 messages」？
 
-1. **持久化边界**：Session / `/resume` 需要干净的用户原话。若 hook 就地改 `messages[i].content`，临时 RAG/记忆会进 DB，下一轮当「用户说过的话」重放。  
+1. **持久化边界**：Session / `/resume` 需要区分用户原话与请求上下文。原话保存在 `content`，组合后的 `api_content` sidecar 也可持久化用于精确回放；不是所有注入都从 DB 消失。\
 2. **单一拼装口**：`compose_user_api_content` 统一合并 memory prefetch + plugin context（还可做 oversized spill）。多 hook 乱改会绕过 spill、gateway notes、sidecar 规则。  
 3. **多插件可组合**：返回片段 → 按发现顺序 `\n\n` 拼接；若共享可变 `messages`，后注册的 hook 覆盖/破坏先注册的，顺序与冲突难推理。  
-4. **隔离**：hook 拿到的是 `list(messages)` **副本**；契约是「交回一段 context」，不是「拿到 transcript 写权限」。  
+4. **契约**：hook 通过返回 context 扩展请求。`list(messages)` 只复制列表、不是递归隔离所有 dict 的安全沙箱；不能据此声称插件无法修改任何共享对象。\
 5. **与 system 解耦**：system 是 Hermes 领地（人格/工具/技能）；插件只能往 user 侧挂 ephemeral 上下文，避免戳 cache prefix。
 
 ```text
@@ -2148,11 +2261,13 @@ Memory prefetch fence    ──────────────────�
 
 **设计原则（对照）**：
 - ✅ 注入 User，不碰 System Prompt  
-- ✅ Ephemeral，不持久化到 Session `content`  
+- ✅ 保留原始 Session `content`，但 `api_content` 可持久化，不是完全瞬时数据\
 - ✅ 多插件合并，引擎拥有最终拼装权  
 - ❌ 不把 live `messages` 的写权限交给插件  
 
-##### **1.4 Memory Prefetch 预取缓存** (L11356-11378)
+<a id="14-memory-prefetch-预取缓存-l11356-11378"></a>
+<a id="section-5-2-5-5"></a>
+##### 5.2.5.5 **1.4 Memory Prefetch 预取缓存** (L11356-11378)
 
 **问题**: 如果每次工具调用都重新调用 `prefetch_all()`,10 次工具调用 = 10x 延迟 + 成本。
 
@@ -2193,7 +2308,9 @@ if idx == current_turn_user_idx and msg.get("role") == "user":
 
 ---
 
-#### **阶段 2: 主循环入口** (L11379-11405)
+<a id="阶段-2-主循环入口-l11379-11405"></a>
+<a id="section-5-2-6"></a>
+#### 5.2.6 **阶段 2: 主循环入口** (L11379-11405)
 
 **循环条件**: `(api_call_count < max_iterations AND budget.remaining > 0) OR grace_call`
 
@@ -2230,11 +2347,15 @@ while (api_call_count < self.max_iterations and self.iteration_budget.remaining 
 
 ---
 
-#### **阶段 3: API 调用** (L11490-12434)
+<a id="阶段-3-api-调用-l11490-12434"></a>
+<a id="section-5-2-7"></a>
+#### 5.2.7 **阶段 3: API 调用** (L11490-12434)
 
 这是最复杂的阶段,包含 **10 个子步骤**:
 
-##### **3.1 消息预处理** (L11496-11522)
+<a id="31-消息预处理-l11496-11522"></a>
+<a id="section-5-2-7-1"></a>
+##### 5.2.7.1 **3.1 消息预处理** (L11496-11522)
 
 ```python
 # Sanitize tool call arguments (修复损坏的参数)
@@ -2249,7 +2370,9 @@ repaired_seq = self._repair_message_sequence(messages)
 - ❌ `user → user` 序列 (缺少 assistant 响应)
 - ❌ 损坏的 JSON 参数 (截断、格式错误)
 
-##### **3.2 构建 API Messages** (L11523-11567)
+<a id="32-构建-api-messages-l11523-11567"></a>
+<a id="section-5-2-7-2"></a>
+##### 5.2.7.2 **3.2 构建 API Messages** (L11523-11567)
 
 ```python
 api_messages = []
@@ -2285,7 +2408,9 @@ for idx, msg in enumerate(messages):
 - ✅ **Reasoning 传递**: 将 `reasoning` 字段复制到 `reasoning_content`,供支持该字段的 provider 使用
 - ✅ **Strict API 兼容**: 移除 Mistral/Fireworks 等严格 provider 不接受的字段
 
-##### **3.3 应用 Prompt Caching** (L11596-11602)
+<a id="33-应用-prompt-caching-l11596-11602"></a>
+<a id="section-5-2-7-3"></a>
+##### 5.2.7.3 **3.3 应用 Prompt Caching** (L11596-11602)
 
 ```python
 if self._use_prompt_caching:
@@ -2301,7 +2426,9 @@ if self._use_prompt_caching:
 - ✅ **Third-party Gateways**: OpenRouter/MiniMax/GLM 等 Anthropic-compatible endpoints
 - ✅ **成本节省**: 多轮对话可减少 75% input token 成本
 
-##### **3.4 Sanitize Messages** (L11607-11618)
+<a id="34-sanitize-messages-l11607-11618"></a>
+<a id="section-5-2-7-4"></a>
+##### 5.2.7.4 **3.4 Sanitize Messages** (L11607-11618)
 
 ```python
 # Strip orphaned tool results / add stubs
@@ -2315,7 +2442,9 @@ api_messages = self._drop_thinking_only_and_merge_users(api_messages)
 - ❌ Anthropic 400: "The final block in an assistant message cannot be `thinking`."
 - ❌ Orphan tool results (没有对应 assistant tool_call 的 tool message)
 
-##### **3.5 Normalize Whitespace & JSON** (L11625-11651)
+<a id="35-normalize-whitespace--json-l11625-11651"></a>
+<a id="section-5-2-7-5"></a>
+##### 5.2.7.5 **3.5 Normalize Whitespace & JSON** (L11625-11651)
 
 ```python
 # Normalize whitespace for consistent prefix matching
@@ -2344,7 +2473,9 @@ for am in api_messages:
 - ✅ **Local Inference**: llama.cpp/vLLM/Ollama 依赖精确前缀匹配
 - ✅ **Cloud Providers**: 改善 Anthropic/OpenAI 的 cache hit rates
 
-##### **3.6 Surrogate Sanitization** (L11656)
+<a id="36-surrogate-sanitization-l11656"></a>
+<a id="section-5-2-7-6"></a>
+##### 5.2.7.6 **3.6 Surrogate Sanitization** (L11656)
 
 ```python
 # Proactively strip surrogate characters (U+D800-U+DFFF)
@@ -2355,7 +2486,9 @@ _sanitize_messages_surrogates(api_messages)
 
 **解决**: 在 API 调用前主动清理,避免 3-retry 循环。
 
-##### **3.7 调用 LLM API** (L11690-12434)
+<a id="37-调用-llm-api-l11690-12434"></a>
+<a id="section-5-2-7-7"></a>
+##### 5.2.7.7 **3.7 调用 LLM API** (L11690-12434)
 
 这是最复杂的部分,包含 **重试逻辑 + 错误分类 + Fallback**:
 
@@ -2463,9 +2596,13 @@ while retry_count < max_retries:
 
 ---
 
-#### **阶段 4: 响应处理** (L12435-13800)
+<a id="阶段-4-响应处理-l12435-13800"></a>
+<a id="section-5-2-8"></a>
+#### 5.2.8 **阶段 4: 响应处理** (L12435-13800)
 
-##### **4.1 提取 Tool Calls** (L13793)
+<a id="41-提取-tool-calls-l13793"></a>
+<a id="section-5-2-8-1"></a>
+##### 5.2.8.1 **4.1 提取 Tool Calls** (L13793)
 
 ```python
 if assistant_message.tool_calls:
@@ -2475,7 +2612,9 @@ else:
     final_response = assistant_message.content or ""
 ```
 
-##### **4.2 Empty Response 检测** (L14118-14250)
+<a id="42-empty-response-检测-l14118-14250"></a>
+<a id="section-5-2-8-2"></a>
+##### 5.2.8.2 **4.2 Empty Response 检测** (L14118-14250)
 
 **问题**: 模型可能返回空内容或只有 `<REASONING_SCRATCHPAD>` 但没有实际输出。
 
@@ -2519,9 +2658,13 @@ if not self._has_content_after_think_block(final_response):
 
 ---
 
-#### **阶段 5: 工具验证** (L13801-13945)
+<a id="阶段-5-工具验证-l13801-13945"></a>
+<a id="section-5-2-9"></a>
+#### 5.2.9 **阶段 5: 工具验证** (L13801-13945)
 
-##### **5.1 验证工具名称** (L13803-13851)
+<a id="51-验证工具名称-l13803-13851"></a>
+<a id="section-5-2-9-1"></a>
+##### 5.2.9.1 **5.1 验证工具名称** (L13803-13851)
 
 ```python
 # Auto-repair mismatched tool names
@@ -2558,7 +2701,9 @@ if invalid_tool_calls:
 - ✅ **Self-correction**: 将错误注入消息历史,让模型自己修正
 - ✅ **Retry Limit**: 最多 3 次,避免无限循环
 
-##### **5.2 验证 JSON 参数** (L13856-13945)
+<a id="52-验证-json-参数-l13856-13945"></a>
+<a id="section-5-2-9-2"></a>
+##### 5.2.9.2 **5.2 验证 JSON 参数** (L13856-13945)
 
 ```python
 invalid_json_args = []
@@ -2605,7 +2750,9 @@ if invalid_json_args:
 - ✅ **Empty String Handling**: 将空字符串转换为 `{}`,处理模型的常见怪癖
 - ✅ **Recovery Path**: 3 次重试后注入错误结果,让模型学习正确格式
 
-##### **5.3 Guardrail 安全检查** (L13947-13953)
+<a id="53-guardrail-安全检查-l13947-13953"></a>
+<a id="section-5-2-9-3"></a>
+##### 5.2.9.3 **5.3 Guardrail 安全检查** (L13947-13953)
 
 ```python
 # Cap delegate_task calls (防止递归爆炸)
@@ -2625,9 +2772,13 @@ assistant_message.tool_calls = self._deduplicate_tool_calls(
 
 ---
 
-#### **阶段 6: 工具执行** (L13954-14105)
+<a id="阶段-6-工具执行-l13954-14105"></a>
+<a id="section-5-2-10"></a>
+#### 5.2.10 **阶段 6: 工具执行** (L13954-14105)
 
-##### **6.1 并行策略判定** (L13954)
+<a id="61-并行策略判定-l13954"></a>
+<a id="section-5-2-10-1"></a>
+##### 5.2.10.1 **6.1 并行策略判定** (L13954)
 
 ```python
 self._execute_tool_calls(assistant_message, messages, effective_task_id, api_call_count)
@@ -2648,7 +2799,9 @@ return self._execute_tool_calls_concurrent(...)
 - ❌ **Overlapping file operations**: 同一路径的读写必须顺序执行
 - ❌ **Stateful tools**: todo/memory 等需要保持顺序
 
-##### **6.2 并发执行** (L9958-10300)
+<a id="62-并发执行-l9958-10300"></a>
+<a id="section-5-2-10-2"></a>
+##### 5.2.10.2 **6.2 并发执行** (L9958-10300)
 
 ```python
 # run_agent.py L10174-10250
@@ -2715,7 +2868,9 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
 - ✅ **Heartbeat**: 每 5s 检查一次,调用 `_touch_activity()` 防止 gateway timeout
 - ✅ **Interrupt Support**: 检测到中断后立即 cancel 所有 futures
 
-##### **6.3 收集结果** (L10251-10300)
+<a id="63-收集结果-l10251-10300"></a>
+<a id="section-5-2-10-3"></a>
+##### 5.2.10.3 **6.3 收集结果** (L10251-10300)
 
 ```python
 # Append results in original order
@@ -2740,7 +2895,9 @@ for i, (name, args, result, duration, is_error, blocked) in enumerate(results):
 
 **保证顺序**: 即使并发执行,结果也按原始 tool_calls 顺序追加到 messages。
 
-##### **6.4 Budget Refund** (`conversation_loop` · execute_code PTC)
+<a id="64-budget-refund-conversation_loop--execute_code-ptc"></a>
+<a id="section-5-2-10-4"></a>
+##### 5.2.10.4 **6.4 Budget Refund** (`conversation_loop` · execute_code PTC)
 
 ```python
 # Refund iteration if ONLY execute_code was called
@@ -2772,7 +2929,9 @@ execute_code：
 
 源码：`tools/code_execution_tool.py`（PTC）、`agent/iteration_budget.py`、`agent/conversation_loop.py`（refund 调用点）。
 
-##### **6.5 Context 压缩检查** (L14070-14098)
+<a id="65-context-压缩检查-l14070-14098"></a>
+<a id="section-5-2-10-5"></a>
+##### 5.2.10.5 **6.5 Context 压缩检查** (L14070-14098)
 
 ```python
 # Use real token counts from API response
@@ -2792,7 +2951,9 @@ if self.compression_enabled and _compressor.should_compress(_real_tokens):
 - ✅ **Include Tool Schemas**: 估算时包含工具定义,避免漏判 (#14695)
 - ✅ **Fallback Logic**: 如果 `last_prompt_tokens` 为 0(API disconnect),回退到粗略估算 (#2153)
 
-##### **6.6 Checkpoint 快照** (L14099-14102)
+<a id="66-checkpoint-快照-l14099-14102"></a>
+<a id="section-5-2-10-6"></a>
+##### 5.2.10.6 **6.6 Checkpoint 快照** (L14099-14102)
 
 ```python
 # Save session log incrementally
@@ -2804,7 +2965,9 @@ self._save_session_log(messages)
 
 ---
 
-#### **阶段 7: 循环结束** (L14106-14500)
+<a id="阶段-7-循环结束-l14106-14500"></a>
+<a id="section-5-2-11"></a>
+#### 5.2.11 **阶段 7: 循环结束** (L14106-14500)
 
 当模型返回最终文本响应(无 tool_calls)时:
 
@@ -2837,7 +3000,9 @@ else:
 > while 退出后**不**在 `conversation_loop` 里散落收尾，而是进 **`finalize_turn`**。  
 > 每步独立 try/except，失败写入 `result["cleanup_errors"]`，**不吞** `final_response`。
 
-#### `finalize_turn` 入口签名与实参
+<a id="finalize_turn-入口签名与实参"></a>
+<a id="section-5-2-12"></a>
+#### 5.2.12 `finalize_turn` 入口签名与实参
 
 ```python
 # agent/conversation_loop.py — while 之后
@@ -2896,7 +3061,9 @@ def finalize_turn(
 | `_turn_exit_reason` | 退出原因字符串（诊断 / explainer） |
 | `_pending_verification_*` | verify-on-stop 暂存的候选答复 |
 
-#### 内部调用顺序 + 参数
+<a id="内部调用顺序-+-参数"></a>
+<a id="section-5-2-13"></a>
+#### 5.2.13 内部调用顺序 + 参数
 
 ```text
 1. agent._save_trajectory(
@@ -3028,7 +3195,9 @@ post_llm_call(... assistant_response=final …)  → 插件自定义同步
 
 ---
 
-### 4.3 迭代预算系统
+<a id="43-迭代预算系统"></a>
+<a id="section-5-3"></a>
+### 5.3 迭代预算系统
 
 **核心类**: `IterationBudget` (L257-298)
 
@@ -3085,9 +3254,13 @@ class IterationBudget:
 
 ---
 
-### 4.4 中断与引导机制
+<a id="44-中断与引导机制"></a>
+<a id="section-5-4"></a>
+### 5.4 中断与引导机制
 
-#### 4.4.1 中断流程
+<a id="441-中断流程"></a>
+<a id="section-5-4-1"></a>
+#### 5.4.1 中断流程
 
 ```python
 def interrupt(self, message: str = None) -> None:
@@ -3110,7 +3283,9 @@ def interrupt(self, message: str = None) -> None:
 2. **API 调用前**: 快速退出,避免浪费 API 调用
 3. **工具执行中**: `_set_interrupt()` 设置线程级标志,工具内部定期检查
 
-#### 4.4.2 Steer vs Interrupt 对比
+<a id="442-steer-vs-interrupt-对比"></a>
+<a id="section-5-4-2"></a>
+#### 5.4.2 Steer vs Interrupt 对比
 
 | 特性 | `/steer` | `/interrupt` |
 |------|----------|--------------|
@@ -3124,7 +3299,9 @@ Steer 如何进 loop、消息如何变形：以 **§3.2.2** 为准（含时序�
 
 ---
 
-### 4.4 完整时序图
+<a id="44-完整时序图"></a>
+<a id="section-5-5"></a>
+### 5.5 完整时序图
 
 以下时序图展示了 ReAct Loop 的完整执行流程,包含所有关键阶段:
 
@@ -3243,9 +3420,13 @@ sequenceDiagram
 
 ---
 
-### 4.5 关键设计亮点
+<a id="45-关键设计亮点"></a>
+<a id="section-5-6"></a>
+### 5.6 关键设计亮点
 
-#### **1. 渐进式错误恢复**
+<a id="1-渐进式错误恢复"></a>
+<a id="section-5-6-1"></a>
+#### 5.6.1 **1. 渐进式错误恢复**
 
 Hermes 不是简单地 "重试或放弃",而是采用多层次恢复策略:
 
@@ -3265,27 +3446,35 @@ API 错误
   └─ 最终放弃
 ```
 
-#### **2. 智能预算系统**
+<a id="2-智能预算系统"></a>
+<a id="section-5-6-2"></a>
+#### 5.6.2 **2. 智能预算系统**
 
 - **父子隔离**: Parent=90, Child=50, 总计可达 140 次迭代
 - **Refund 机制**: 本轮仅 `execute_code` 时退回外层迭代（PTC 调度不烧规划配额）
 - **Grace call**: 预算耗尽后给最后一次机会优雅收尾
 
-#### **3. 并行工具执行**
+<a id="3-并行工具执行"></a>
+<a id="section-5-6-3"></a>
+#### 5.6.3 **3. 并行工具执行**
 
 - **智能判定**: Read-only tools 总是并行,File writes 检查路径重叠
 - **Thread Pool**: 默认 128 workers,动态调整
 - **ContextVars Propagation**: 复制 approval/sudo callbacks 避免 deadlock
 - **Heartbeat**: 每 5s 调用 `_touch_activity()` 防止 gateway timeout
 
-#### **4. Context 管理**
+<a id="4-context-管理"></a>
+<a id="section-5-6-4"></a>
+#### 5.6.4 **4. Context 管理**
 
 - **Preflight Compression**: 进入循环前主动压缩,避免首次 API 调用失败
 - **Real Token Counting**: 只计算 input tokens,不包含 completion/reasoning (#12026)
 - **Include Tool Schemas**: 估算时包含工具定义,避免漏判 (#14695)
 - **Fallback Logic**: last_prompt_tokens=0 时回退到粗略估算 (#2153)
 
-#### **5. Empty Response 处理**
+<a id="5-empty-response-处理"></a>
+<a id="section-5-6-5"></a>
+#### 5.6.5 **5. Empty Response 处理**
 
 5 层恢复策略:
 1. Partial stream recovery (优先使用已传输内容)
@@ -3294,12 +3483,16 @@ API 错误
 4. Thinking prefill retry (强制开始思考)
 5. Give up (返回 partial=true)
 
-#### **6. Interrupt 支持**（怎么做到的）
+<a id="6-interrupt-支持怎么做到的"></a>
+<a id="section-5-6-6"></a>
+#### 5.6.6 **6. Interrupt 支持**（怎么做到的）
 
 > 入口：`AIAgent.interrupt(message)`（Surface / Ctrl+C / `/stop`）  
 > 两套信号：**Agent 级** `_interrupt_requested` + **线程级** `tools.interrupt` 的 `_interrupted_threads`。
 
-##### 6.1 信号模型（为何要两套）
+<a id="61-信号模型为何要两套"></a>
+<a id="section-5-6-6-1"></a>
+##### 5.6.6.1 信号模型（为何要两套）
 
 | 层 | 状态 | 谁读 | 作用 |
 |----|------|------|------|
@@ -3319,7 +3512,9 @@ Surface 线程                    Agent 执行线程                 Tool worker
     └─ _active_request_abort()        │  掐掉 in-flight HTTP         │
 ```
 
-##### 6.2 Fan-out（`interrupt()` 里具体干什么）
+<a id="62-fan-outinterrupt-里具体干什么"></a>
+<a id="section-5-6-6-2"></a>
+##### 5.6.6.2 Fan-out（`interrupt()` 里具体干什么）
 
 ```python
 # run_agent.py · interrupt()
@@ -3342,7 +3537,9 @@ Worker 登记（`tool_executor` 里 `_run_tool`）：进工具前 `add(current_t
 
 `clear_interrupt()` 对称：清 Agent 标志 + 对 exec_tid / 所有 worker tid `_set_interrupt(False, …)`，并**丢掉** pending steer（hard stop 不再注入）。
 
-##### 6.3 Quick Check（多处检测，谁看哪套）
+<a id="63-quick-check多处检测谁看哪套"></a>
+<a id="section-5-6-6-3"></a>
+##### 5.6.6.3 Quick Check（多处检测，谁看哪套）
 
 | 检测点 | 查什么 | 行为 |
 |--------|--------|------|
@@ -3354,7 +3551,9 @@ Worker 登记（`tool_executor` 里 `_run_tool`）：进工具前 `add(current_t
 
 仅设 `_interrupt_requested` **不够**：并发 worker 的 `is_interrupted()` 只看**自己的 tid**，所以必须 fan-out 到 `_tool_worker_threads`。
 
-##### 6.4 Sleep in Increments（~200ms 上限轮询）
+<a id="64-sleep-in-increments~200ms-上限轮询"></a>
+<a id="section-5-6-6-4"></a>
+##### 5.6.6.4 Sleep in Increments（~200ms 上限轮询）
 
 长跑工具不能 `proc.wait()` 死等——那样永远看不到 interrupt。典型实现在 `tools/environments/base.py` · `_wait_for_process`：
 
@@ -3374,7 +3573,9 @@ while proc.poll() is None:
 - **从 5ms 爬升**：`echo` 类短命令不被 200ms 拖慢；长 build 稳态仍是 200ms 一检，CPU 可忽略。  
 - 其它工具（browser / MCP 轮询等）同样模式：短 sleep + `is_interrupted()`，不是同一函数，但是同一契约。
 
-##### 6.5 因果一句话
+<a id="65-因果一句话"></a>
+<a id="section-5-6-6-5"></a>
+##### 5.6.6.5 因果一句话
 
 Surface 调 `interrupt()` → 写 Agent 旗 + **按 tid fan-out** 线程旗 + 可选掐 HTTP → 循环靠 `_interrupt_requested` 快速退出 → 已在跑的工具靠 `is_interrupted()` + **≤200ms poll** 杀进程收尾。
 
@@ -3382,7 +3583,9 @@ Surface 调 `interrupt()` → 写 Agent 旗 + **按 tid fan-out** 线程旗 + �
 
 ---
 
-### 4.6 性能优化总结
+<a id="46-性能优化总结"></a>
+<a id="section-5-7"></a>
+### 5.7 性能优化总结
 
 | 优化点 | 技术 | 效果 |
 |--------|------|------|
@@ -3396,9 +3599,13 @@ Surface 调 `interrupt()` → 写 Agent 旗 + **按 tid fan-out** 线程旗 + �
 
 ---
 
-### 4.7 常见问题排查
+<a id="47-常见问题排查"></a>
+<a id="section-5-8"></a>
+### 5.8 常见问题排查
 
-#### **Q1: 为什么模型一直返回空响应?**
+<a id="q1-为什么模型一直返回空响应"></a>
+<a id="section-5-8-1"></a>
+#### 5.8.1 **Q1: 为什么模型一直返回空响应?**
 
 **排查步骤**:
 1. 检查日志中的 `Empty response detected` 消息
@@ -3411,7 +3618,9 @@ Surface 调 `interrupt()` → 写 Agent 旗 + **按 tid fan-out** 线程旗 + �
 - ✅ 增加 `max_tokens` 让模型有足够空间输出
 - ✅ 检查 system prompt 是否过于复杂导致模型困惑
 
-#### **Q2: 为什么工具执行很慢?**
+<a id="q2-为什么工具执行很慢"></a>
+<a id="section-5-8-2"></a>
+#### 5.8.2 **Q2: 为什么工具执行很慢?**
 
 **排查步骤**:
 1. 检查是否触发了并行执行 (`Concurrent: N tool calls`)
@@ -3423,7 +3632,9 @@ Surface 调 `interrupt()` → 写 Agent 旗 + **按 tid fan-out** 线程旗 + �
 - ✅ 优化慢工具的实现 (如 terminal timeout 设置)
 - ✅ 避免在同一次调用中执行多个 I/O 密集型工具
 
-#### **Q3: 为什么会话突然被压缩?**
+<a id="q3-为什么会话突然被压缩"></a>
+<a id="section-5-8-3"></a>
+#### 5.8.3 **Q3: 为什么会话突然被压缩?**
 
 **排查步骤**:
 1. 检查日志中的 `Preflight compression` 或 `Context too large` 消息
@@ -3435,7 +3646,9 @@ Surface 调 `interrupt()` → 写 Agent 旗 + **按 tid fan-out** 线程旗 + �
 - ✅ 提高 `threshold_tokens` (默认 50% of context_length)
 - ✅ 定期使用 `/new` 开启新会话
 
-#### **Q4: 为什么 API 调用一直重试?**
+<a id="q4-为什么-api-调用一直重试"></a>
+<a id="section-5-8-4"></a>
+#### 5.8.4 **Q4: 为什么 API 调用一直重试?**
 
 **排查步骤**:
 1. 查看错误分类 (`FailoverReason.xxx`)
@@ -3464,9 +3677,13 @@ def run_conversation(self, user_message: str, ...) -> Dict[str, Any]:
 
 ---
 
-## 5. Prompt 组装与缓存优化
+<a id="5-prompt-组装与缓存优化"></a>
+<a id="section-6"></a>
+## 6. Prompt 组装与缓存优化
 
-### 5.1 System Prompt 缓存策略
+<a id="51-system-prompt-缓存策略"></a>
+<a id="section-6-1"></a>
+### 6.1 System Prompt 缓存策略
 
 **核心问题**: For continuing sessions (gateway creates a fresh AIAgent per message), rebuilding the system prompt would pick up memory changes from disk that the model already knows about, producing a different system prompt and breaking the Anthropic prefix cache.
 
@@ -3500,7 +3717,9 @@ if self._cached_system_prompt is None:
 - ✅ 避免重复构建 (节省 200-500ms)
 - ✅ 内存变化不影响缓存命中率
 
-### 5.2 Anthropic Cache Control
+<a id="52-anthropic-cache-control"></a>
+<a id="section-6-2"></a>
+### 6.2 Anthropic Cache Control
 
 **原理**: Anthropic 支持 prompt caching,通过设置 `cache_control` 断点,可以缓存 system prompt 和前几轮对话,后续请求只需支付增量 token 费用。
 
@@ -3526,7 +3745,13 @@ if self._use_prompt_caching:
 - ✅ 多轮对话 (3+ turns)
 - ✅ 长 system prompt (>1000 tokens)
 
-### 5.3 Preflight 压缩检查
+<a id="53-preflight-压缩检查"></a>
+<a id="section-6-3"></a>
+### 6.3 Preflight 压缩检查
+
+
+> **当前压缩入口补充**：`turn_preflight.run_preflight_compression` 处理回合进入前的压力；`compress_after_tool_results` 处理工具后压力。`ContextCompressor.compress` 的内部预处理，不等于每回合必然先执行一次独立 prune。独立 `prune_tool_results_only` 由 `proactive_prune_tokens` 开启（构造默认 0），还受最小回收量和重新触发门槛限制；无收益返回原列表。有 DB 时轻量裁剪也会调用 `archive_and_compact`，成功才返回新工作集，因此“不调 LLM”不等于“不改内存/DB”。完整流程见 [当前压缩链路](CURRENT_IMPLEMENTATION.md#current-compaction)。
+
 
 **问题**: 用户切换到小上下文窗口模型时,已有会话可能超出新模型的阈值,等待 API 错误再压缩会导致请求完全失败 (4xx non-retryable)。
 
@@ -3562,11 +3787,15 @@ if self.compression_enabled and len(messages) > protect_first_n + protect_last_n
 - ✅ 多轮压缩 (最多 3 次)
 - ✅ 压缩后重置重试计数器
 
-### 5.4 上下文经济体系（6 层完整架构）
+<a id="54-上下文经济体系6-层完整架构"></a>
+<a id="section-6-4"></a>
+### 6.4 上下文经济体系（6 层完整架构）
 
 > 5.3 仅描述了 Preflight 压缩（Layer 3 的一道防线）。实际上 Hermes 的上下文管理是一个**从工具输出到 Session 分裂的 6 层纵深防御体系**。
 
-#### 5.4.1 六层架构总览（扩展分析视角 · 非 Memory 主模型）
+<a id="541-六层架构总览扩展分析视角--非-memory-主模型"></a>
+<a id="section-6-4-1"></a>
+#### 6.4.1 六层架构总览（扩展分析视角 · 非 Memory 主模型）
 
 > ⚠️ **阅读提示**：本节为跨框架对比用的 **L0–L5 扩展视角**。Hermes 对外 Memory 主模型仅为三层（Persistent / Session Search / External Provider），见 [MEMORY_SYSTEM.md](MEMORY_SYSTEM.md)。
 
@@ -3602,7 +3831,9 @@ Preflight / Post-tool / API overflow
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-#### 5.4.1b 执行位置与时机
+<a id="541b-执行位置与时机"></a>
+<a id="section-6-4-2"></a>
+#### 6.4.2 执行位置与时机
 
 §5.4 的 **L0–L5** 不是一个函数串完，而是不同挂载点；位置和时机如下：
 
@@ -3636,7 +3867,9 @@ Preflight / Post-tool / API overflow
 
 短 turn 可能只碰到 L0；大输出常 L0→L1→L2；真正超窗才上 L3→L4→L5。L0–L2 只瘦 tool 字符串、**不调压缩 LLM**；L4 Phase 3 才用辅模型。
 
-#### 5.4.2 Layer 0: 工具内部自截断
+<a id="542-layer-0-工具内部自截断"></a>
+<a id="section-6-4-3"></a>
+#### 6.4.3 Layer 0: 工具内部自截断
 
 每个工具在 return 前**自行截断**超大输出（工具作者控制）：
 
@@ -3645,7 +3878,9 @@ Preflight / Post-tool / API overflow
 # 例: terminal 输出超过 M 字符 → 截断
 ```
 
-#### 5.4.3 Layer 1: 单结果持久化 (`maybe_persist_tool_result`)
+<a id="543-layer-1-单结果持久化-maybe_persist_tool_result"></a>
+<a id="section-6-4-4"></a>
+#### 6.4.4 Layer 1: 单结果持久化 (`maybe_persist_tool_result`)
 
 工具返回后，如果单个结果超过阈值 → **写入 sandbox 文件**而非截断：
 
@@ -3658,7 +3893,9 @@ Preflight / Post-tool / API overflow
 
 **不丢弃数据**: 原始内容完整保留在 sandbox，模型可 `read_file` 按需访问。
 
-#### 5.4.4 Layer 2: 单轮聚合预算 (`enforce_turn_budget`)
+<a id="544-layer-2-单轮聚合预算-enforce_turn_budget"></a>
+<a id="section-6-4-5"></a>
+#### 6.4.5 Layer 2: 单轮聚合预算 (`enforce_turn_budget`)
 
 **要解决的问题（L1 管不到）**：一次 assistant 并行/串行打出 **多个** tool，每个都略低于单结果阈值 → L1 全放过；但 **加起来** 仍可能把上下文撑爆。
 
@@ -3706,7 +3943,9 @@ enforce_turn_budget(
 - 仍 **不丢数据**（在 sandbox）；只是上下文里变短。
 - 之后若窗口仍紧，才轮到 L3/L4 真压缩。
 
-#### 5.4.5 Layer 3: 三道防线（触发判定）
+<a id="545-layer-3-三道防线触发判定"></a>
+<a id="section-6-4-6"></a>
+#### 6.4.6 Layer 3: 三道防线（触发判定）
 
 | # | 名称 | 时机 | Token 来源 | 循环次数 | 源码 |
 |---|------|------|-----------|---------|------|
@@ -3716,7 +3955,9 @@ enforce_turn_budget(
 
 差异仅在触发条件、参数精度、循环策略。全部调用同一个 `_compress_context()` → Layer 4。
 
-#### 5.4.6 Layer 4: 四阶段压缩算法 (`ContextCompressor.compress()`)
+<a id="546-layer-4-四阶段压缩算法-contextcompressorcompress"></a>
+<a id="section-6-4-7"></a>
+#### 6.4.7 Layer 4: 四阶段压缩算法 (`ContextCompressor.compress()`)
 
 **Phase 1: `_prune_old_tool_results`** — 三个 Pass（无 LLM）:
 
@@ -3742,7 +3983,9 @@ enforce_turn_budget(
 - Role 冲突处理（避免连续同 role）
 - Anti-thrashing 跟踪（连续 2 次节省 <10% → 下次 Post-tool 跳过）
 
-#### 5.4.7 Layer 5: Session 分裂 + 状态迁移
+<a id="547-layer-5-session-分裂-+-状态迁移"></a>
+<a id="section-6-4-8"></a>
+#### 6.4.8 Layer 5: Session 分裂 + 状态迁移
 
 压缩算法完成后，`_compress_context()` 执行**完整的 Session 生命周期操作**:
 
@@ -3762,7 +4005,9 @@ enforce_turn_budget(
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-#### 5.4.8 六层对比总表
+<a id="548-六层对比总表"></a>
+<a id="section-6-4-9"></a>
+#### 6.4.9 六层对比总表
 
 | 层 | 挂载点 | 做什么 | 调 LLM？ | 数据 | 换 Session？ |
 |----|--------|--------|----------|------|--------------|
@@ -3775,7 +4020,9 @@ enforce_turn_budget(
 
 组合关系：L0→L1→L2 是 **tool 结果变瘦**；L3→L4→L5 是 **整段对话压缩/换 session**。前者不够时才升级到后者。
 
-#### 5.4.9 设计哲学
+<a id="549-设计哲学"></a>
+<a id="section-6-4-10"></a>
+#### 6.4.10 设计哲学
 
 | 原则 | 体现 |
 |------|------|
@@ -3784,7 +4031,9 @@ enforce_turn_budget(
 | **Session 连续性** | 分裂后 `parent_session_id` 链式追溯，Goal/Todo/Memory 全量迁移 |
 | **不可逆操作最后执行** | LLM 摘要（有损）和 Session 分裂放在最高层 |
 
-#### 5.4.10 Layer 1 补充：为什么持久化而非全留上下文？
+<a id="5410-layer-1-补充为什么持久化而非全留上下文"></a>
+<a id="section-6-4-11"></a>
+#### 6.4.11 Layer 1 补充：为什么持久化而非全留上下文？
 
 **核心疑问**: 大结果写入磁盘后模型 `read_file` 读回来，不又超限触发持久化了吗？
 
@@ -3809,187 +4058,36 @@ PINNED_THRESHOLDS: Dict[str, float] = {
 
 ---
 
-## 5.5 安全与权限体系（12 维度纵深防御）
+<a id="55-安全与权限体系12-维度纵深防御"></a>
+<a id="550-安全全景图"></a>
+<a id="551-安全维度总览"></a>
+<a id="552-agent-loop-中的安全触发时序"></a>
+<a id="553-关键安全边界详解"></a>
+<a id="554-容器环境豁免"></a>
+<a id="555-设计哲学"></a>
+<a id="d3-终端-8-层审批链"></a>
+<a id="d4-文件写入拒绝列表agentfile_safetypy"></a>
+<a id="d8-凭证隔离设计"></a>
+<a id="d9-skills-信任分级"></a>
+<a id="55-工具执行前的安全检查边界"></a>
+<a id="section-7"></a>
+## 7. 工具执行前的安全检查边界
 
-> 安全不是「统一网关」，而是 **12 个维度的分布式纵深防御** — 每个攻击面有专门的检查逻辑。  
-> （原 `AIAgent_ARCHITECTURE.md` §8c 已并入本节，勿再开平行文档。）
+Agent Loop 只编排与本轮执行相关的检查：工具调用前的插件/guardrail、终端审批、预算与执行结果处理。不能把所有安全机制理解为由循环内一个统一网关完成。
 
-### 5.5.0 安全全景图
-
-```
-                        ┌─────────────────────────────────────┐
-                        │     Dimension 1: Agent Loop 控制     │
-                        │  IterationBudget / max_iterations    │
-                        │  破坏性命令禁止并行执行                │
-                        └──────────────┬──────────────────────┘
-                                       ↓
-┌──────────────────────────────────────────────────────────────────────┐
-│                   Dimension 2: 公共 Pre-execution                    │
-│  ① Plugin Hook: get_pre_tool_call_block_message()                    │
-│  ② Tool Loop Guardrail: before_call() → 循环失败检测                  │
-└──────────────────────────┬───────────────────────────────────────────┘
-                           ↓
-          ┌────────────────┼────────────────┬──────────────────┐
-          ↓                ↓                ↓                  ↓
-  ┌───────────────┐ ┌───────────────┐ ┌──────────────┐ ┌────────────────┐
-  │ Dim 3: 终端    │ │ Dim 4: 文件    │ │ Dim 5: 网络   │ │ Dim 6: MCP     │
-  │ Command Guards │ │ 路径+写入安全  │ │ URL/SSRF 防护 │ │ 恶意软件+注入   │
-  └───────────────┘ └───────────────┘ └──────────────┘ └────────────────┘
-          ↓                ↓                ↓                  ↓
-  ┌───────────────┐ ┌───────────────┐ ┌──────────────┐ ┌────────────────┐
-  │ Dim 7: 桌面    │ │ Dim 8: 沙箱   │ │ Dim 9: Skills │ │ Dim 10: Cron   │
-  │ Computer-Use  │ │ Env 清洗+隔离  │ │ Guard 静态扫描│ │ 注入+路径围栏   │
-  └───────────────┘ └───────────────┘ └──────────────┘ └────────────────┘
-                           ↓
-          ┌────────────────┼────────────────┐
-          ↓                ↓                ↓
-  ┌───────────────┐ ┌───────────────┐ ┌──────────────┐
-  │ Dim 11: 输出   │ │ Dim 12: Prompt│ │ 容器环境豁免   │
-  │ 脱敏+围栏      │ │ 注入防护      │ │ Docker/Modal  │
-  └───────────────┘ └───────────────┘ └──────────────┘
-                           ↓
-                  ┌────────────────────┐
-                  │ Provider Guardrails │
-                  └────────────────────┘
-```
-
-### 5.5.1 安全维度总览
-
-| 维度 | 防御对象 | 关键文件 | 可否绕过 |
-|------|---------|---------|---------|
-| **D1: Agent Loop 控制** | 无限循环 / 并行竞态 | `run_agent.py` (`IterationBudget`, `_is_destructive_command`) | 硬上限不可绕过 |
-| **D2: 公共 Pre/Post** | 循环失败 / 插件拦截 | `run_agent.py` / `agent/tool_guardrails.py` | 插件可选 |
-| **D3: 终端命令** | 危险 shell 命令 | `tools/approval.py` (8 层审批链) | Hardline/Sudo 不可绕过 |
-| **D4: 文件操作** | 路径穿越 / 敏感写入 | `tools/path_security.py` / `agent/file_safety.py` / `tools/file_tools.py` | 拒绝列表不可绕过 |
-| **D5: 网络 URL** | SSRF / 私有 IP / 元数据 | `tools/url_safety.py` / `tools/website_policy.py` | 云元数据始终拦截 |
-| **D6: MCP** | 恶意包 / 描述注入 | `tools/osv_check.py` / `tools/mcp_tool.py` | OSV fail-open |
-| **D7: Computer-Use** | 危险按键 / 命令输入 | `tools/computer_use/tool.py` | 键盘组合不可绕过 |
-| **D8: 子进程沙箱** | 凭证泄露 / Env 逃逸 | `tools/environments/local.py` / `tools/env_passthrough.py` / `tools/code_execution_tool.py` | Provider 凭证不可透传 |
-| **D9: Skills 生命周期** | 恶意 Skill 安装 | `tools/skills_guard.py` / `tools/skill_manager_tool.py` | community → caution 即 block |
-| **D10: Cron** | 定时任务注入 / 越界 | `cron/scheduler.py` / `cron/jobs.py` | 注入检测 hard block |
-| **D11: 输出脱敏** | 凭证/token 泄露 | `agent/redact.py` / `agent/memory_manager.py` | 始终生效 |
-| **D12: Prompt 注入** | 上下文文件 / MCP 描述 | `run_agent.py` / `tools/mcp_tool.py` / `cron/scheduler.py` | 上下文文件 hard block |
-
-### 5.5.2 Agent Loop 中的安全触发时序
-
-```
-每轮迭代开始
-    │
-    ├─ [D1] IterationBudget.consume() → 超限则终止
-    │
-    ├─ [D12] _build_system_prompt() → 上下文文件注入扫描（首次/重建时）
-    │
-    ├─ API 调用（Provider Guardrails: Bedrock guardrailConfig）
-    │
-    ├─ LLM 返回 tool_calls
-    │   │
-    │   ├─ [D1] _should_parallelize_tool_batch()
-    │   │   └─ 含破坏性命令? → 禁止并行，串行执行
-    │   │
-    │   └─ 对每个 tool_call:
-    │       │
-    │       ├─── Pre-execution ──────────────────────────────────────
-    │       │ [D2] Plugin: get_pre_tool_call_block_message()
-    │       │ [D2] Guardrail: before_call() → 循环检测
-    │       │
-    │       │ 按工具类型分流:
-    │       │ ├─ terminal → [D3] check_all_command_guards (8层)
-    │       │ │             [D3] _validate_workdir()
-    │       │ ├─ read_file → [D4] 设备文件 + Hub 缓存 + 二进制检查
-    │       │ ├─ write/patch → [D4] 写入拒绝列表 + Jail + 敏感路径
-    │       │ ├─ web/vision → [D5] is_safe_url() + check_website_access()
-    │       │ ├─ MCP tools → [D6] OSV check (启动时) + 描述扫描 (注册时)
-    │       │ ├─ computer_use → [D7] 键盘组合 + 输入文本拦截
-    │       │ ├─ execute_code → [D8] Env 清洗 + 受限工具集
-    │       │ ├─ skill_manage → [D9] Skills Guard 扫描 + 路径检查
-    │       │ └─ cron tools → [D10] prompt 注入 + 路径围栏
-    │       │
-    │       ├─── Execution ──────────────────────────────────────────
-    │       │ 工具执行
-    │       │
-    │       ├─── Post-execution ─────────────────────────────────────
-    │       │ [D2] Guardrail: after_call() → 失败累计
-    │       │ [D11] redact_sensitive_text() (execute_code/cron 输出)
-    │       │ [D11] StreamingContextScrubber (Memory 围栏)
-    │       │
-    │       └─── 结果返回 → 下一个 tool_call 或下一轮迭代
-    │
-    └─ [D8] 子进程 env 始终清洗 (每次 terminal/execute_code 调用)
-```
-
-### 5.5.3 关键安全边界详解
-
-#### D3: 终端 8 层审批链
-
-```
-① Hardline → rm -rf /, shutdown, fork bomb         【绝对不可绕过】
-② Sudo stdin → sudo -S 密码猜测                     【绝对不可绕过】
-③ YOLO/mode=off → 开发者主动跳过
-④ Tirith → OPA 策略引擎自定义规则
-⑤ DANGEROUS_PATTERNS → 47 条正则
-⑥ 白名单 → 永久/会话级
-⑦ Smart Approval → 辅助 LLM
-⑧ Interactive Approval → CLI 用户确认
-```
-
-#### D4: 文件写入拒绝列表（`agent/file_safety.py`）
-
-**精确路径** (16 个): `~/.ssh/id_rsa`, `~/.ssh/authorized_keys`, `~/.hermes/.env`, `~/.bashrc`, `~/.zshrc`, `/etc/shadow`, `/etc/passwd`, `/etc/sudoers` 等
-
-**前缀拒绝** (9 个目录): `~/.ssh/`, `~/.aws/`, `~/.gnupg/`, `~/.kube/`, `~/.docker/`, `~/.azure/`, `~/.config/gh/`, `/etc/sudoers.d/`, `/etc/systemd/`
-
-**写入 Jail**: `HERMES_WRITE_SAFE_ROOT` 设置后，所有写操作必须在此根目录下
-
-#### D8: 凭证隔离设计
-
-```
-主进程 (持有所有 API key)
-    │
-    ├─ terminal → _sanitize_subprocess_env() 移除所有 Provider key
-    │
-    ├─ execute_code → 同上 + SANDBOX_ALLOWED_TOOLS 交集 + redact 输出
-    │
-    └─ env_passthrough.register() → 拒绝注册 Hermes Provider 凭证
-                                     (GHSA-rhgp-j443-p4rf 修复)
-```
-
-#### D9: Skills 信任分级
-
-| 来源 | safe | caution | dangerous |
-|------|------|---------|-----------|
-| `builtin` | allow | allow | allow |
-| `trusted` (openai/anthropics) | allow | allow | **block** |
-| `community` | allow | **block** | **block** |
-| `agent-created` | allow | allow | **ask** |
-
-### 5.5.4 容器环境豁免
-
-```python
-# tools/approval.py:L1028
-if env_type in {"docker", "singularity", "modal", "daytona", "vercel_sandbox"}:
-    return {"approved": True}  # 容器天然隔离，跳过终端审批
-```
-
-豁免仅限 **D3 终端命令审批**。D4 文件安全、D5 URL 安全、D6 MCP 扫描等其他维度在容器内依然生效。
-
-### 5.5.5 设计哲学
-
-| 设计选择 | 原因 |
-|---------|------|
-| **攻击面特化** | 命令（正则+审批）、文件（路径+拒绝列表）、URL（IP 解析+黑名单）— 语义完全不同 |
-| **不可绕过层** | Hardline、Sudo stdin、Workdir、写入拒绝列表、设备文件、键盘组合 — 任何配置都拦截 |
-| **Fail-open vs Fail-closed** | OSV 恶意软件 fail-open（网络不可用不阻塞）；文件写入拒绝 fail-closed（宁可误拦） |
-| **凭证主进程隔离** | API key 只在主进程，子进程 env 清洗，Skill 不可注册 Provider 凭证透传 |
-| **分层脱敏** | 工具输出 → `redact`；Memory → 围栏标签；日志 → `RedactingFormatter`；Cron → stdout 脱敏 |
-| **线程安全** | Approval 回调 `threading.local` 隔离；`IterationBudget` 线程安全计数 |
+完整设计、图表与代码解读已移至 [纵深防御全景：Agent、工具与运行环境的检查边界](SECURITY_SCAN_DEEP_ANALYSIS.md#defense-boundaries)。本处只保留与本篇主题直接相关的边界。
 
 ---
 
-## 5.6 子 Agent Session 机制
+<a id="56-子-agent-session-机制"></a>
+<a id="section-8"></a>
+## 8. 子 Agent Session 机制
 
 > 子 Agent 也会创建独立的 Session 记录，与主 Agent 通过 `parent_session_id` 形成父子链。
 
-### 5.6.1 Session 创建
+<a id="561-session-创建"></a>
+<a id="section-8-1"></a>
+### 8.1 Session 创建
 
 子 Agent 构造时接收主 Agent 的 `_session_db`（共享同一个 SQLite 实例）和 `session_id`（作为 parent）：
 
@@ -4011,7 +4109,9 @@ self._session_db.create_session(
 )
 ```
 
-### 5.6.2 数据库关系
+<a id="562-数据库关系"></a>
+<a id="section-8-2"></a>
+### 8.2 数据库关系
 
 ```
 主 Agent: sess_..._abc123  (parent = NULL)
@@ -4022,7 +4122,9 @@ self._session_db.create_session(
 
 `parent_session_id` 承担双重语义：委派关系（子 Agent）和 lineage 链（压缩分裂），通过 `source` 和上下文区分。
 
-### 5.6.3 子 Agent 记录内容
+<a id="563-子-agent-记录内容"></a>
+<a id="section-8-3"></a>
+### 8.3 子 Agent 记录内容
 
 - **Session 元数据** → `sessions` 表（id、parent、model、source、起止时间）
 - **完整消息历史** → `messages` 表（`_flush_messages_to_session_db()` 增量写入）
@@ -4031,11 +4133,15 @@ self._session_db.create_session(
 
 ---
 
-## 5.7 外部存储预取与刷写时序
+<a id="57-外部存储预取与刷写时序"></a>
+<a id="section-9"></a>
+## 9. 外部存储预取与刷写时序
 
 > 预取（prefetch）和刷写（sync）**都在 `run_conversation()` 内部**，分别在 while 循环的前后。
 
-### 5.7.1 在 Agent Loop 中的位置
+<a id="571-在-agent-loop-中的位置"></a>
+<a id="section-9-1"></a>
+### 9.1 在 Agent Loop 中的位置
 
 ```
 run_conversation(user_message) {
@@ -4061,7 +4167,9 @@ run_conversation(user_message) {
 }
 ```
 
-### 5.7.2 设计要点
+<a id="572-设计要点"></a>
+<a id="section-9-2"></a>
+### 9.2 设计要点
 
 | 设计选择 | 原因 |
 |---------|------|
@@ -4074,84 +4182,28 @@ run_conversation(user_message) {
 
 ---
 
-## 5b. 主/子 Agent Prompt 区分机制
+<a id="5b-主子-agent-prompt-区分机制"></a>
+<a id="5b1-区分原理"></a>
+<a id="5b2-两阶段拼接"></a>
+<a id="5b3-子-agent-的-ephemeral_system_prompt-内容"></a>
+<a id="5b4-与缓存优化的关系"></a>
+<a id="5b-主子代理角色与-prompt-的衔接"></a>
+<a id="section-10"></a>
+## 10. 主/子代理角色与 Prompt 的衔接
 
-> `AIAgent` 类被主 Agent 和子 Agent **共用**，Prompt 的差异完全通过构造参数和运行时追加实现。
+循环负责选择代理运行角色并进入相同推理引擎；各角色的 system prompt、工具提示与上下文裁剪属于 Prompt 组装职责。
 
-### 5b.1 区分原理
-
-子 Agent 创建时（`delegate_tool.py:_build_child_agent()`），通过**3 个开关**精简 `_build_system_prompt()` 的输出，再通过 **1 个追加字段**注入聚焦任务描述：
-
-| 控制参数 | 主 Agent | 子 Agent | 对 System Prompt 的影响 |
-|---------|---------|---------|----------------------|
-| `skip_context_files` | `False` | `True` | 跳过 AGENTS.md / .cursorrules / SOUL.md 加载 |
-| `skip_memory` | `False` | `True` | 跳过 MemoryManager 初始化、记忆召回注入 |
-| `load_soul_identity` | 自动检测 | `False` | 即使 context_files 被跳过也不会加载 SOUL |
-| `ephemeral_system_prompt` | `None` | 由 `_build_child_system_prompt()` 生成 | API 调用时追加到末尾 |
-
-### 5b.2 两阶段拼接
-
-```
-阶段 1: _build_system_prompt() — 构造时执行一次,缓存
-
-  主 Agent: SOUL + Guidance + Skills Index + Memory + Context Files + Env
-  子 Agent: DEFAULT_IDENTITY + Guidance + Skills Index + Env (精简版)
-
-阶段 2: API 调用时 — 每次 LLM 调用前动态拼接
-
-  effective_system = _cached_system_prompt
-  if self.ephemeral_system_prompt:        # 仅子 Agent 非空
-      effective_system += "\n\n" + ephemeral_system_prompt
-```
-
-**为什么分两阶段？**
-- `_cached_system_prompt` 是 Anthropic **前缀缓存的锚点**，保持不变 → 命中率 100%
-- `ephemeral_system_prompt` 是一次性的任务描述，不参与缓存，不写入 SessionDB
-
-### 5b.3 子 Agent 的 ephemeral_system_prompt 内容
-
-由 `_build_child_system_prompt(goal, context, ...)` 生成:
-
-```
-You are a focused subagent working on a specific delegated task.
-
-YOUR TASK:
-{goal}
-
-CONTEXT:
-{parent 提供的上下文}
-
-WORKSPACE PATH:
-{工作目录}
-
-Complete this task using the tools available...
-```
-
-对于 `orchestrator` 角色，额外追加委派能力说明块。
-
-### 5b.4 与缓存优化的关系
-
-本节内容是 **5.1 System Prompt 缓存策略** 的直接延伸:
-
-```
-                   主 Agent                          子 Agent
-                   ┌──────────────┐                  ┌──────────────┐
-Cache 锚点 →       │ _cached_sys  │                  │ _cached_sys  │ ← 更短,但同样缓存
-                   │  (完整版)     │                  │  (精简版)     │
-                   └──────┬───────┘                  └──────┬───────┘
-                          │                                 │
-API 调用时:               │ 直接使用                         │ + ephemeral 追加
-                          ↓                                 ↓
-                   [system prompt]                    [system prompt + task]
-```
-
-这确保主/子 Agent 的 System Prompt 在各自的会话中都是**稳定不变**的（对 Anthropic cache 来说），ephemeral 追加的部分仅增加了一小段（通常 <500 tokens），不会严重影响缓存命中。
+完整设计、图表与代码解读已移至 [主代理与子代理的 Prompt 组装差异](PROMPT_SYSTEM_ARCHITECTURE.md#parent-child-prompt)。本处只保留与本篇主题直接相关的边界。
 
 ---
 
-## 6. 工具执行引擎
+<a id="6-工具执行引擎"></a>
+<a id="section-11"></a>
+## 11. 工具执行引擎
 
-### 6.1 并行策略判定算法
+<a id="61-并行策略判定算法"></a>
+<a id="section-11-1"></a>
+### 11.1 并行策略判定算法
 
 ```python
 def _should_parallelize_tool_batch(tool_calls) -> bool:
@@ -4209,7 +4261,9 @@ def _paths_overlap(left: Path, right: Path) -> bool:
 - `/home/user/a.txt` vs `/home/user/b.txt` → ❌ 不冲突
 - `/home/user/dir/` vs `/home/user/dir/file.txt` → ✅ 冲突 (子树重叠)
 
-### 6.2 ThreadPoolExecutor 实现
+<a id="62-threadpoolexecutor-实现"></a>
+<a id="section-11-2"></a>
+### 11.2 ThreadPoolExecutor 实现
 
 ```python
 def _execute_tool_calls_parallel(self, tool_calls, messages, task_id):
@@ -4262,7 +4316,9 @@ def _execute_tool_calls_parallel(self, tool_calls, messages, task_id):
 - 并行执行 8 个工具: ~1.5秒 (overhead + 最长任务)
 - **加速比**: ~5.3x
 
-### 6.3 大结果持久化
+<a id="63-大结果持久化"></a>
+<a id="section-11-3"></a>
+### 11.3 大结果持久化
 
 **阈值**: 50KB
 
@@ -4332,7 +4388,9 @@ def cleanup_old_results(max_age_hours: int = 24, max_total_size_mb: int = 500):
     logger.info("Cleaned up %d old tool result files", deleted_count)
 ```
 
-### 6.4 `todo` 工具
+<a id="64-todo-工具"></a>
+<a id="section-11-4"></a>
+### 11.4 `todo` 工具
 
 源码：`tools/todo_tool.py`。**本 session 任务板**，不是 plan 文件，也不写 `MEMORY.md`。
 
@@ -4361,7 +4419,9 @@ def cleanup_old_results(max_age_hours: int = 24, max_total_size_mb: int = 500):
      （防止压缩冲掉任务板）
 ```
 
-### 6.5 Plan skill（所谓 plan mode）
+<a id="65-plan-skill所谓-plan-mode"></a>
+<a id="section-11-5"></a>
+### 11.5 Plan skill（所谓 plan mode）
 
 Hermes **没有** 运行时 `plan_mode` 标志（源码无硬开关禁用写工具）。所谓 plan mode ≈ 加载 **`plan` skill**（`/plan` → `skills/software-development/plan`）：
 
@@ -4380,9 +4440,13 @@ Hermes **没有** 运行时 `plan_mode` 标志（源码无硬开关禁用写工�
 
 ---
 
-## 7. 记忆系统集成
+<a id="7-记忆系统集成"></a>
+<a id="section-12"></a>
+## 12. 记忆系统集成
 
-### 7.1 MemoryManager 架构
+<a id="71-memorymanager-架构"></a>
+<a id="section-12-1"></a>
+### 12.1 MemoryManager 架构
 
 ```python
 # agent/memory_manager.py
@@ -4420,7 +4484,9 @@ class MemoryManager:
             self._external_provider.on_pre_compress(messages)
 ```
 
-### 7.2 预取缓存优化
+<a id="72-预取缓存优化"></a>
+<a id="section-12-2"></a>
+### 12.2 预取缓存优化
 
 **关键优化**: Reuse cached result on every iteration to avoid re-calling prefetch_all() on each tool call (10 tool calls = 10x latency + cost).
 
@@ -4451,7 +4517,9 @@ if idx == current_turn_user_idx and msg.get("role") == "user":
 - ✅ 延迟降低 90% (10→1 次网络请求)
 - ✅ 成本降低 90%
 
-### 7.3 Context Fencing
+<a id="73-context-fencing"></a>
+<a id="section-12-3"></a>
+### 12.3 Context Fencing
 
 ```python
 def build_memory_context_block(raw_context: str) -> str:
@@ -4473,9 +4541,32 @@ def build_memory_context_block(raw_context: str) -> str:
 
 ---
 
-## 8. 错误处理与恢复
+<a id="route-compaction-scope"></a>
+<a id="模型-route-与压缩预算切换模型后的窗口作用域"></a>
+<a id="section-13"></a>
+## 13. 模型 Route 与压缩预算：切换模型后的窗口作用域
 
-### 8.1 多层错误分类
+> **主题归位**：本节从 `SURFACE_ARCHITECTURE.md` 的「8. 压缩与 Route 作用域（v0.19+ 稳定性）」迁入；保留原有图表、示例和讨论。
+
+`model.context_length` 描述**配置默认模型**的窗口。切换 `/model` 或 fallback 后若 pin 未清除，压缩阈值会算错并触发 **stale-budget retry loop**。
+
+| 模块 | 职责 |
+|------|------|
+| `hermes_cli/route_identity.py` | `normalize_route_base_url()`、`should_clear_context_pin()` |
+| `agent/agent_init.py` | 启动时 route-scope context pin |
+| `agent/context_compressor.py` | handoff summary 作为 protected head；压缩后注入 MEMORY.md 权威提示 |
+
+详见 `agent/conversation_loop.py` 与 `tests/run_agent/test_switch_model_context.py`。
+
+---
+
+<a id="8-错误处理与恢复"></a>
+<a id="section-14"></a>
+## 14. 错误处理与恢复
+
+<a id="81-多层错误分类"></a>
+<a id="section-14-1"></a>
+### 14.1 多层错误分类
 
 | 错误类型 | 处理方式 | 是否继续 |
 |---------|---------|---------|
@@ -4485,7 +4576,9 @@ def build_memory_context_block(raw_context: str) -> str:
 | JSON 解析失败 | 返回错误消息给模型 | ✅ 继续 |
 | 工具执行异常 | 返回错误消息给模型 | ✅ 继续 |
 
-### 8.2 重试计数器机制
+<a id="82-重试计数器机制"></a>
+<a id="section-14-2"></a>
+### 14.2 重试计数器机制
 
 ```python
 # 重置重试计数器
@@ -4502,7 +4595,9 @@ self._thinking_prefill_retries = 0
 - 避免无限循环
 - 压缩后重置 (给予模型新鲜预算)
 
-### 8.3 Failover 降级策略
+<a id="83-failover-降级策略"></a>
+<a id="section-14-3"></a>
+### 14.3 Failover 降级策略
 
 ```python
 def _try_activate_fallback(self, api_error: Exception) -> bool:
@@ -4532,9 +4627,13 @@ def _try_activate_fallback(self, api_error: Exception) -> bool:
 
 ---
 
-## 9. 性能优化最佳实践
+<a id="9-性能优化最佳实践"></a>
+<a id="section-15"></a>
+## 15. 性能优化最佳实践
 
-### 9.1 延迟加载模式
+<a id="91-延迟加载模式"></a>
+<a id="section-15-1"></a>
+### 15.1 延迟加载模式
 
 | 组件 | 加载时机 | 节省时间 |
 |------|---------|---------|
@@ -4543,7 +4642,9 @@ def _try_activate_fallback(self, api_error: Exception) -> bool:
 | `anthropic.Anthropic` | `api_mode="anthropic_messages"` | ~120ms |
 | `boto3.client` | `api_mode="bedrock_converse"` | ~80ms |
 
-### 9.2 连接池管理
+<a id="92-连接池管理"></a>
+<a id="section-15-2"></a>
+### 15.2 连接池管理
 
 ```python
 def _build_keepalive_http_client(self) -> httpx.Client:
@@ -4569,7 +4670,9 @@ def _build_keepalive_http_client(self) -> httpx.Client:
 - ✅ 限制最大连接数 (防止资源耗尽)
 - ✅ 自动清理空闲连接
 
-### 9.3 缓存策略总结
+<a id="93-缓存策略总结"></a>
+<a id="section-15-3"></a>
+### 15.3 缓存策略总结
 
 | 缓存类型 | 载体 | 命中率 | 效果 |
 |---------|------|--------|------|
@@ -4580,11 +4683,15 @@ def _build_keepalive_http_client(self) -> httpx.Client:
 
 ---
 
-## 10. 0.18–0.19 增量（流式推理 / 压缩路由 / 子 Agent 实况）
+<a id="10-018019-增量流式推理--压缩路由--子-agent-实况"></a>
+<a id="section-16"></a>
+## 16. 0.18–0.19 增量（流式推理 / 压缩路由 / 子 Agent 实况）
 
 > 本节补齐 v0.17 文档缺口；呈现层细节仍以 [SURFACE_ARCHITECTURE.md](SURFACE_ARCHITECTURE.md) 为准。
 
-### 10.1 流式推理发射（Agent → Surface）
+<a id="101-流式推理发射agent-→-surface"></a>
+<a id="section-16-1"></a>
+### 16.1 流式推理发射（Agent → Surface）
 
 `agent/chat_completion_helpers.py` 在 SSE chunk 上：
 
@@ -4597,7 +4704,9 @@ TUI `turnController.recordReasoningDelta` / Desktop `appendReasoningDelta` 在 t
 
 配置：`display.show_reasoning`（默认 true）。
 
-### 10.2 Route-scoped context pin（防 stale-budget 死循环）
+<a id="102-route-scoped-context-pin防-stale-budget-死循环"></a>
+<a id="section-16-2"></a>
+### 16.2 Route-scoped context pin（防 stale-budget 死循环）
 
 问题：`model.context_length` 描述的是**配置默认模型**的窗口；`/model` 或 fallback 后若仍用旧 pin，压缩阈值错误 → 反复压缩失败。
 
@@ -4610,172 +4719,49 @@ TUI `turnController.recordReasoningDelta` / Desktop `appendReasoningDelta` 在 t
 
 测试锚点：`tests/run_agent/test_switch_model_context.py`、`tests/run_agent/test_413_compression.py`。
 
-### 10.3 Live-viewable subagent transcripts（0.19）
+<a id="103-live-viewable-subagent-transcripts019"></a>
+<a id="section-16-3"></a>
+### 16.3 Live-viewable subagent transcripts（0.19）
 
 子 Agent 运行时，父侧可 **tail** 子 transcript：`tui_gateway` 将 `subagent.thinking` / `subagent.text` / `subagent.tool` 镜像到 watch session 的 `reasoning.delta` / `message.delta` / `tool.*`（见 `server.py` child mirror）。  
 不再只能等 `delegate_task` 最终 summary。
 
-### 10.4 api_content sidecar（0.19）
+<a id="104-api_content-sidecar019"></a>
+<a id="section-16-4"></a>
+### 16.4 api_content sidecar（0.19）
 
 为精确 prompt cache / 审计，可把**实际发给 API 的字节**持久化为 sidecar（与展示用 transcript 分离）。实现随 cache 路径演进；读代码时搜 `api_content`。
 
 ---
 
-## 11. Plugin Hook 全表
+<a id="11-plugin-hook-全表"></a>
+<a id="111-按生命周期总览"></a>
+<a id="112-逐个作用--返回值--挂载点"></a>
+<a id="113-与-agent-loop-的对应"></a>
+<a id="114-易混的三套钩子"></a>
+<a id="11-循环中的插件接入边界"></a>
+<a id="section-17"></a>
+## 17. 循环中的插件接入边界
 
-> **权威名单**：`hermes_cli/plugins.py` → `VALID_HOOKS`  
-> **注册**：`ctx.register_hook(name, callback)`  
-> **分发**：`hermes_cli.lifecycle.invoke_hook` → plugins（shell hooks 事件名重叠，见用户文档）  
-> **用户文档**：`website/docs/user-guide/features/hooks.md`  
-> **深度单点**：`pre_llm_call` 的征集/拼装因果见 [§4 阶段 1.3](#13-plugin-hook-pre_llm_call)
+循环只在特定阶段调用 Hook。`pre_llm_call` 的 context 征集与请求投影仍在本篇解释；完整插件事件名、参数和返回值约定集中到插件篇。
 
-通则：
-
-- 回调一律 **kwargs**；崩溃只打日志，不拖垮 Agent。
-- **会改行为的少数**：`pre_tool_call`（block）、`pre_llm_call`（inject）、`pre_verify`（continue）、`pre_gateway_dispatch`（skip/rewrite）、三个 `transform_*`（替换字符串）。其余多为观测。
-
-### 11.1 按生命周期总览
-
-```text
-Gateway 入站
-  └─ pre_gateway_dispatch
-
-Session 边界
-  ├─ on_session_start          （新 session 第一 turn）
-  ├─ on_session_end            （每轮 run_conversation 末 / 进程收尾）
-  ├─ on_session_finalize       （真正拆 session：flush/统计）
-  └─ on_session_reset          （/new /reset）
-
-Turn（Agent Loop）
-  ├─ pre_llm_call              ← 征集 ephemeral context
-  ├─ pre_api_request / post_api_request / api_request_error   （每次打模型）
-  ├─ pre_tool_call → 工具 → post_tool_call
-  │     ├─ transform_terminal_output   （仅 terminal 内部）
-  │     └─ transform_tool_result       （结果回模型前）
-  ├─ pre_approval_* / post_approval_*  （危险命令审批）
-  ├─ pre_verify                （改过代码、将结束前）
-  ├─ transform_llm_output      （最终答复交给用户前）
-  └─ post_llm_call             （本 turn 工具环结束后）
-
-子 Agent
-  ├─ subagent_start / subagent_stop
-
-Kanban（另一进程模型）
-  └─ kanban_task_claimed / completed / blocked
-```
-
-### 11.2 逐个：作用 · 返回值 · 挂载点
-
-| Hook | 作用 | 返回值 | 挂载点（生产） |
-|------|------|--------|----------------|
-| **`pre_gateway_dispatch`** | 网关收到用户消息、鉴权/派发前；可丢弃或改文案 | `skip` / `rewrite` / `allow` | `gateway/run.py` |
-| **`on_session_start`** | 新 session 首 turn 初始化 | 忽略 | `agent/conversation_loop.py` |
-| **`pre_llm_call`** | 征集临时上下文，拼进 API user（不改 Session 原话） | `{"context"}` / `str` | `agent/turn_context.py`（`build_turn_context`） |
-| **`pre_api_request`** | 每次即将发 LLM HTTP 前（观测/计量） | 忽略 | `agent/conversation_loop.py` |
-| **`post_api_request`** | 每次 LLM HTTP 成功返回后 | 忽略 | `agent/conversation_loop.py` |
-| **`api_request_error`** | LLM 请求失败时 | 忽略 | `run_agent.py` |
-| **`pre_tool_call`** | 任一工具执行前；可否决 | `{"action":"block","message"}` | `hermes_cli/plugins.py`（由 `model_tools.handle_function_call` 路径触发） |
-| **`post_tool_call`** | 工具返回后（观测） | 忽略 | `model_tools.py` → `_emit_post_tool_call_hook` |
-| **`transform_terminal_output`** | `terminal` 原始输出、截断/脱敏前 | `str` 替换 | `tools/terminal_tool.py` |
-| **`transform_tool_result`** | 任意工具结果回模型前 | `str` 替换（首个非空） | `model_tools.py` |
-| **`pre_approval_request`** | 危险命令进入审批前 | 忽略（不能否决；否决用 `pre_tool_call`） | `tools/approval.py` |
-| **`post_approval_response`** | 审批有结果（once/deny/timeout/smart_*） | 忽略 | `tools/approval.py` |
-| **`pre_verify`** | 本 turn 改过代码、将验证/收工前；可续跑 | `{"action":"continue","message"}` | `agent/conversation_loop.py`（经 plugins helper） |
-| **`transform_llm_output`** | 最终答复交付用户前 | `str` 替换（首个非空） | `agent/turn_finalizer.py` |
-| **`post_llm_call`** | 本 turn 工具环结束（同步/落库类观测） | 忽略 | `agent/turn_finalizer.py` |
-| **`on_session_end`** | **每个** `run_conversation` 收尾（名含 session，实为 turn 末）+ CLI/TUI 退出兜底 | 忽略 | `turn_finalizer.py`；另 `cli.py` / `tui_gateway/server.py` |
-| **`on_session_finalize`** | 真拆 session（flush/统计） | 忽略 | `lifecycle.finalize_session`；CLI/TUI/Gateway 边界 |
-| **`on_session_reset`** | `/new`、`/reset` 换新 session key | 忽略 | `cli.py`、`gateway/slash_commands.py`、`tui_gateway` |
-| **`subagent_start`** | `delegate_task` 子 Agent 已建、将跑 | 忽略 | `tools/delegate_tool.py` |
-| **`subagent_stop`** | 子 Agent 退出 | 忽略 | `tools/delegate_tool.py` |
-| **`kanban_task_claimed`** | 任务被认领（dispatcher 进程） | 忽略 | `hermes_cli/kanban_db.py` |
-| **`kanban_task_completed`** | 任务完成（worker） | 忽略 | 同上 |
-| **`kanban_task_blocked`** | 任务阻塞 | 忽略 | 同上 |
-
-### 11.3 与 Agent Loop 的对应
-
-```text
-build_turn_context
-  └─ pre_llm_call
-
-while ReAct:
-  └─ pre_api_request → LLM → post_api_request
-       └─ (error → api_request_error)
-  └─ pre_tool_call → tool → [transform_terminal_output]
-                     → post_tool_call → transform_tool_result
-  └─ (审批路径) pre_approval_request → … → post_approval_response
-  └─ (收工前) pre_verify?
-
-finalize_turn
-  └─ transform_llm_output → post_llm_call → on_session_end
-```
-
-### 11.4 易混的三套「钩子」
-
-| 体系 | 是什么 |
-|------|--------|
-| **Plugin / shell hooks**（上表） | `VALID_HOOKS`，扩展点 |
-| **MemoryProvider** | `prefetch` / `sync_turn` / `on_turn_start`… —— 记忆后端 API，不是 plugin hook |
-| **AIAgent callbacks** | `stream_delta_callback` / `step_callback`… —— Surface 注入，也不是 hook |
+完整设计、图表与代码解读已移至 [Hook 生命周期全表：触发点、参数与可改变的行为](PLUGINS_SYSTEM.md#hook-lifecycle-table)。本处只保留与本篇主题直接相关的边界。
 
 ---
 
-## 12. 术语：Turn vs Iteration
+<a id="13-附录外部框架比较入口"></a>
+<a id="section-18"></a>
+## 18. 附录：外部框架比较入口
 
-别家常说的「一次 LLM = 一 turn」**≠** Hermes 文档里的 turn。
+Hermes 的主循环是命令式运行时；这里不展开 LangGraph、Deep Agents 等外部框架的选型比较。比较材料不是 Hermes 执行语义的证据。
 
-| 名字 | Hermes 含义 | 约等于别人说的 |
-|------|-------------|----------------|
-| **Session** | 同 `session_id` 的多轮对话 | conversation |
-| **Turn / user turn** | 一次用户输入 → 一次 `run_conversation()` → 本轮最终答复 | user turn / 一次 agent run |
-| **Iteration / API call** | `while` 里调 **一次** 大模型（`api_call_count` / `IterationBudget`） | 他们说的 turn / step |
-
-```text
-用户: 「修这个 bug」          ← turn 开始
-  LLM #1 → read_file          ← iteration 1
-  LLM #2 → patch + terminal   ← iteration 2
-  LLM #3 → 最终说明           ← iteration 3
-助手给出完整答案              ← turn 结束
-```
-
-因此：`pre_llm_call` = **每 turn 一次**；`max_iterations` 限制的是 **iteration**。
+完整设计、图表与代码解读已移至 [附录：Hermes 与图式框架的选型边界](LANGGRAPH_DESIGN_PRINCIPLES.md#framework-selection)。本处只保留与本篇主题直接相关的边界。
 
 ---
 
-## 13. 附录：跨框架选型（原 AIAgent §16）
-
-多 Agent / 产品编排细节见 [MULTI_AGENT_ARCHITECTURE.md](MULTI_AGENT_ARCHITECTURE.md)；Plan 横向对比见 OpenHarness [05-plan-mode.md](../../../OpenHarness/docs/framework-comparison/05-plan-mode.md)。此处只保留 **AIAgent 级**选型摘要。
-
-### 13.1 选型决策树
-
-```mermaid
-flowchart TD
-    Start[选择 Agent 框架] --> Q1{需要极致性能<br/>和完全控制?}
-    Q1 -->|是| Hermes[Hermes Agent<br/>命令式微内核]
-    Q1 -->|否| Q2{需要快速组合<br/>LangChain 能力?}
-    Q2 -->|是| DeepAgents[deepagents SDK<br/>声明式中间件]
-    Q2 -->|否| Q3{需要 Gateway<br/>多渠道产品?}
-    Q3 -->|是| DeerFlow[deer-flow]
-    Q3 -->|否| Q4{角色编排 / 教学?}
-    Q4 -->|是| CrewAI[CrewAI]
-    Q4 -->|否| OpenManus[OpenManus 等研究向]
-```
-
-### 13.2 Hermes 相对优势（命令式循环才有的粒度）
-
-| 能力 | 说明 |
-|------|------|
-| **精细并行策略** | 决策树 + 路径冲突 + 破坏性命令串行 |
-| **三道防线压缩** | Preflight + Post-tool + Error Recovery（§5.4） |
-| **Plugin Hook 全表** | §11；与 MemoryProvider / Surface callback 分清 |
-| **迭代预算 + refund** | `execute_code` PTC 调度轮可退回（§6.4） |
-| **Progress 中继** | 子 Agent 进度可回传到父 Surface |
-
-声明式图框架在抽象层上往往暴露不出同等细粒度控制点。
-
----
-
-## 14. 附录：`environments/agent_loop.py`（RL / Atropos，非主循环）
+<a id="14-附录environmentsagent_looppyrl--atropos非主循环"></a>
+<a id="section-19"></a>
+## 19. 附录：`environments/agent_loop.py`（RL / Atropos，非主循环）
 
 > 原 `AGENT_LOOP_DEEP_DIVE.md` 主体。**不要**与生产主循环混淆。
 
@@ -4791,7 +4777,551 @@ flowchart TD
 
 ---
 
-## 总结
+<a id="historical-compaction-design"></a>
+<a id="附录历史压缩设计与现行链路对照非当前执行合约"></a>
+<a id="section-20"></a>
+## 20. 附录：历史压缩设计与现行链路对照（非当前执行合约）
+
+> **主题归位**：本节从 `MULTI_AGENT_ARCHITECTURE.md` 的「14. 上下文压缩完整流程」迁入；保留原有图表、示例和讨论。**以下是保留的历史设计示例，不代表当前实现**。其中“仅在回合结束压缩”“会话分裂”“四层渐进压缩”等旧模型不能直接套用；当前入口、轻量 pruning、工作集替换和 DB 提交请先读 [现行压缩链路](CURRENT_IMPLEMENTATION.md#current-compaction)。
+
+> 多 Agent 场景下的压缩行为；通用压缩深潜见 OpenHarness / AGENT_LOOP 相关文档。
+
+<a id="141-压缩触发时机"></a>
+<a id="section-20-1"></a>
+### 20.1 压缩触发时机
+
+**关键发现**: hermes-agent 的压缩不是在对话开始前检查，而是在**每轮对话结束后立即触发**。
+
+```python
+    # run_agent.py → agent/conversation_loop.py: run_conversation()（v0.15+ 实现已迁出）
+
+    # 执行完当前轮次后
+if self._should_compress():
+    # 1. 通知 Memory Manager 准备压缩
+    self.memory_manager.notify_compression_start()
+
+    # 2. 执行压缩（可能分裂 Session）
+    await self._execute_compression()
+
+    # 3. 重建 Prompt（注入 Todo + 新系统提示）
+    await self._rebuild_system_prompt()
+
+    # 4. 启动下一轮的异步预取
+    self._start_prefetch_next_turn()
+```
+
+**触发条件**:
+
+| 条件 | 说明 | 配置项 |
+|------|------|--------|
+| **消息数阈值** | 当前会话消息数 > `max_messages_before_compact` | `session.max_messages_before_compact=50` |
+| **Token 阈值** | 当前上下文 token 数 > `context_window * 0.8` | 自动计算 |
+| **手动触发** | 用户调用 `/compact` 命令 | N/A |
+| **强制压缩** | 子代理创建前清理父上下文 | 内部逻辑 |
+
+---
+
+<a id="142-完整压缩时序图"></a>
+<a id="section-20-2"></a>
+### 20.2 完整压缩时序图
+
+```mermaid
+sequenceDiagram
+    participant User as 用户
+    participant Agent as AIAgent (父)
+    participant RL as ReAct Loop
+    participant Compressor as ContextCompressor
+    participant Memory as MemoryManager
+    participant SessionDB as SessionDB (SQLite)
+    participant ExtProvider as External Provider (Honcho/Mem0)
+    participant LLM as Compression LLM
+
+    Note over Agent,LLM: === 第 N 轮对话结束 ===
+
+    User->>Agent: 发送消息
+    Agent->>RL: run_conversation()
+    RL->>RL: 执行工具调用
+    RL->>RL: 获取 LLM 响应
+    RL->>User: 返回结果
+
+    Note over RL: === 压缩检查阶段 ===
+    RL->>RL: _should_compress()
+    alt 达到压缩阈值
+        RL->>Compressor: notify_compression_start()
+        Compressor->>Memory: 暂停记忆同步
+
+        Note over Compressor: === 阶段 1: 提取待压缩消息 ===
+        Compressor->>SessionDB: get_messages(session_id)
+        SessionDB-->>Compressor: 返回 50 条消息
+
+        Compressor->>Compressor: 分离可压缩消息
+        Note right of Compressor: 保留最近 10 条<br/>标记中间 40 条为待压缩
+
+        Note over Compressor: === 阶段 2: 调用 LLM 生成摘要 ===
+        Compressor->>LLM: 调用压缩模型
+        Note right of LLM: Prompt:<br/>"请总结以下对话的关键信息..."
+        LLM-->>Compressor: 返回结构化摘要 JSON
+
+        Note over Compressor: === 阶段 3: 会话分裂 ===
+        Compressor->>SessionDB: create_child_session()
+        SessionDB->>SessionDB: INSERT INTO sessions<br/>(parent_session_id, ...)
+        SessionDB-->>Compressor: new_session_id = "sess-xxx:sub:uuid"
+
+        Compressor->>SessionDB: move_messages_to_new_session()
+        SessionDB->>SessionDB: UPDATE messages<br/>SET session_id = new_session_id<br/>WHERE id IN (compressed_ids)
+
+        Note over Compressor: === 阶段 4: 记忆提取 ===
+        Compressor->>Memory: commit_memory_session(old_session_id)
+        Memory->>ExtProvider: extract_facts_from_session()
+        ExtProvider->>ExtProvider: 向量化存储对话片段
+        ExtProvider-->>Memory: 确认写入
+
+        Note over Compressor: === 阶段 5: 状态保持 ===
+        Compressor->>Compressor: save_todo_list()
+        Compressor->>Compressor: save_file_cache()
+        Compressor->>Compressor: save_tool_state()
+
+        Note over Compressor: === 阶段 6: 重建 Prompt ===
+        Compressor->>Agent: rebuild_system_prompt()
+        Agent->>Memory: get_memory_context(new_session_id)
+        Memory->>ExtProvider: prefetch_memories(query)
+        ExtProvider-->>Memory: 返回相关记忆
+        Memory-->>Agent: 组装系统提示（含 Todo + 记忆）
+
+        Note over Compressor: === 阶段 7: 异步预取 ===
+        Compressor->>ExtProvider: start_background_prefetch()
+        Note right of ExtProvider: 后台线程查询<br/>缓存到 next_turn_cache
+
+        Compressor-->>RL: 压缩完成
+        RL->>RL: 继续下一轮对话
+
+    else 未达到阈值
+        RL-->>RL: 跳过压缩
+    end
+
+    RL->>User: 等待下一条消息
+```
+
+---
+
+<a id="143-压缩策略详解"></a>
+<a id="section-20-3"></a>
+### 20.3 压缩策略详解
+
+<a id="1四层渐进压缩"></a>
+<a id="section-20-3-1"></a>
+#### 20.3.1 （1）四层渐进压缩
+
+hermes-agent 采用 **L0-L4 五层压缩架构**：
+
+| 层级 | 策略 | 触发时机 | 压缩率 | 成本 |
+|------|------|---------|--------|------|
+| **L0: 规则截断** | 移除冗余空格、空行 | 每次 API 调用前 | 5-10% | $0 |
+| **L1: 微压缩** | 清空工具输出正文，保留元数据 | Token > 80% 窗口 | 30-40% | $0 |
+| **L2: 滑动窗口** | 保留最近 N 轮，丢弃早期消息 | Token > 90% 窗口 | 50-60% | $0 |
+| **L3: LLM 摘要** | 调用 LLM 生成智能摘要 | 消息数 > 50 | 70-80% | $0.01-0.05 |
+| **L4: Offload** | 卸载到文件系统/数据库 | 会话结束 | 90%+ | $0 |
+
+**实际案例**（128K 窗口）：
+
+```
+初始状态: 120K tokens (93% 使用率)
+
+Step 1 - L0 规则截断:
+  120K → 115K (节省 5K, 4%)
+
+Step 2 - L1 微压缩:
+  115K → 75K (节省 40K, 35%)
+  操作: 清空 CmdOutputObservation.content，只保留 exit_code
+
+Step 3 - L2 滑动窗口:
+  75K → 45K (节省 30K, 40%)
+  操作: 保留最近 15 轮，丢弃更早的消息
+
+Step 4 - L3 LLM 摘要:
+  45K → 25K (节省 20K, 44%)
+  操作: 对丢弃的 30 轮生成结构化摘要
+
+最终: 25K tokens (19% 使用率)
+总节省: 95K tokens (79%)
+```
+
+---
+
+<a id="2会话分裂机制"></a>
+<a id="section-20-3-2"></a>
+#### 20.3.2 （2）会话分裂机制
+
+**为什么需要分裂 Session？**
+
+1. **保持 lineage 链**: `parent_session_id` 形成追溯链
+2. **隔离压缩前后**: 旧消息归档到新 session，当前 session 保持干净
+3. **支持回溯**: 用户可以查看历史压缩前的完整对话
+
+**数据结构**：
+
+```sql
+-- SessionDB schema
+CREATE TABLE sessions (
+    session_id TEXT PRIMARY KEY,
+    parent_session_id TEXT,  -- ← 关键：指向父会话
+    created_at TIMESTAMP,
+    ended_at TIMESTAMP,
+    end_reason TEXT,  -- 'compression', 'user_exit', 'error'
+    message_count INTEGER,
+    metadata JSON
+);
+
+-- 压缩后的 lineage 链
+sess-abc123                    (parent=null, messages=50)
+  └─ sess-abc123:sub:uuid-1   (parent=sess-abc123, messages=40) ← 压缩出的旧消息
+     └─ sess-abc123:sub:uuid-1:sub:uuid-2  (depth=2)
+```
+
+**代码实现**：
+
+```python
+    # run_agent.py Line ~8108-8136
+
+async def _split_session_on_compression(self):
+    """压缩时分裂会话，建立 lineage 链"""
+
+    # 1. 创建子会话
+    new_session_id = f"{self.session_id}:sub:{uuid.uuid4()}"
+
+    await self.session_db.execute(
+        """
+        INSERT INTO sessions (session_id, parent_session_id, created_at)
+        VALUES (?, ?, ?)
+        """,
+        (new_session_id, self.session_id, datetime.now())
+    )
+
+    # 2. 移动待压缩消息到新会话
+    compressed_msg_ids = self._get_compressed_message_ids()
+
+    await self.session_db.execute(
+        """
+        UPDATE messages
+        SET session_id = ?
+        WHERE id IN ({})
+        """.format(','.join(['?'] * len(compressed_msg_ids))),
+        [new_session_id] + list(compressed_msg_ids)
+    )
+
+    # 3. 更新当前会话元数据
+    await self.session_db.execute(
+        """
+        UPDATE sessions
+        SET end_reason = 'compression',
+            ended_at = ?,
+            child_session_id = ?
+        WHERE session_id = ?
+        """,
+        (datetime.now(), new_session_id, self.session_id)
+    )
+
+    logger.info(
+        "Session split: %s -> %s (moved %d messages)",
+        self.session_id,
+        new_session_id,
+        len(compressed_msg_ids)
+    )
+
+    return new_session_id
+```
+
+---
+
+<a id="3双层记忆同步"></a>
+<a id="section-20-3-3"></a>
+#### 20.3.3 （3）双层记忆同步
+
+**问题**: 压缩会丢失细节，如何保证重要信息不丢失？
+
+**解决方案**: **实时同步 + 批量提取**
+
+```python
+    # 实时同步（每轮对话）
+async def sync_turn(self, messages: List[Message]):
+    """External Provider 每轮自动保存"""
+    for provider in self.external_providers:
+        # 异步写入，不阻塞主流程
+        asyncio.create_task(
+            provider.save_messages(messages)
+        )
+
+    # 批量提取（压缩时）
+async def commit_memory_session(self, session_id: str):
+    """从即将归档的会话中提取 facts"""
+    messages = await self.session_db.get_messages(session_id)
+
+    for provider in self.external_providers:
+        # 提取高置信度 facts
+        facts = await provider.extract_facts(messages)
+
+        # 向量化存储
+        await provider.store_facts(facts)
+
+        logger.info(
+            "Extracted %d facts from session %s",
+            len(facts),
+            session_id
+        )
+```
+
+**优势**：
+- ✅ **低延迟**: 实时同步保证最新信息立即可用
+- ✅ **完整性**: 压缩时批量提取确保历史知识不丢失
+- ✅ **去重**: External Provider 自动合并相似 facts
+
+---
+
+<a id="4todo-注入机制"></a>
+<a id="section-20-3-4"></a>
+#### 20.3.4 （4）Todo 注入机制
+
+**问题**: 压缩后，Agent 如何知道下一步该做什么？
+
+**解决方案**: **TodoListMiddleware 自动注入**
+
+```python
+    # middleware/todo_list_middleware.py
+
+class TodoListMiddleware:
+    """在压缩后自动注入待办事项到系统提示"""
+
+    async def post_compress_hook(self, agent: AIAgent):
+        # 1. 保存当前 Todo 列表
+        todo_snapshot = agent.todo_list.export()
+
+        # 2. 压缩完成后，重建系统提示
+        system_prompt = await self._build_system_prompt_with_todo(
+            base_prompt=agent.base_system_prompt,
+            todo_list=todo_snapshot
+        )
+
+        # 3. 更新 agent 的系统提示
+        agent.update_system_prompt(system_prompt)
+
+        logger.info("Injected %d todos into system prompt", len(todo_snapshot))
+
+    async def _build_system_prompt_with_todo(
+        self,
+        base_prompt: str,
+        todo_list: List[Dict]
+    ) -> str:
+        todo_section = "\n\n## Current TODO List\n"
+        for i, todo in enumerate(todo_list, 1):
+            status_icon = {
+                'pending': '⏳',
+                'in_progress': '🔄',
+                'completed': '✅'
+            }.get(todo['status'], '❓')
+
+            todo_section += f"{status_icon} {i}. {todo['description']}\n"
+
+        return base_prompt + todo_section
+```
+
+**效果**：
+
+```markdown
+You are Hermes, a helpful AI assistant...
+
+### Current TODO List
+✅ 1. 分析代码库结构
+🔄 2. 编写单元测试
+⏳ 3. 优化性能瓶颈
+⏳ 4. 编写文档
+```
+
+---
+
+<a id="5异步预取优化"></a>
+<a id="section-20-3-5"></a>
+#### 20.3.5 （5）异步预取优化
+
+**问题**: 压缩后下一轮对话需要重新召回记忆，导致延迟增加。
+
+**解决方案**: **压缩后立即启动后台预取**
+
+```python
+    # memory_manager.py
+
+async def _execute_compression(self):
+    """执行压缩流程"""
+
+    # ... 压缩逻辑 ...
+
+    # 压缩完成后，立即启动下一轮的预取
+    self._start_prefetch_next_turn()
+
+async def _start_prefetch_next_turn(self):
+    """后台线程预取下一轮可能需要的记忆"""
+
+    def background_prefetch():
+        # 1. 基于当前对话上下文构建查询
+        query = self._build_search_query()
+
+        # 2. 并行查询所有 External Providers
+        results = asyncio.run(
+            asyncio.gather(
+                *[provider.search(query, top_k=5)
+                  for provider in self.external_providers]
+            )
+        )
+
+        # 3. 缓存到 next_turn_cache
+        self.next_turn_cache = self._merge_results(results)
+
+        logger.info(
+            "Prefetched %d memories for next turn",
+            len(self.next_turn_cache)
+        )
+
+    # 在后台线程中执行，不阻塞主流程
+    threading.Thread(target=background_prefetch, daemon=True).start()
+```
+
+**性能提升**：
+
+| 场景 | 无预取 | 有预取 | 提升 |
+|------|--------|--------|------|
+| **首次召回延迟** | 500ms | 50ms | **10x** |
+| **用户感知延迟** | 高 | 低 | **显著改善** |
+| **命中率** | 70% | 85% | **+15%** |
+
+---
+
+<a id="144-与其他框架对比"></a>
+<a id="section-20-4"></a>
+### 20.4 与其他框架对比
+
+| 维度 | hermes-agent | deepagents | deer-flow | OpenHands V1 |
+|------|-------------|-----------|----------|-------------|
+| **压缩触发** | 每轮结束后检查 | Token 阈值 | Token 阈值 + 防抖 | 事件数阈值 |
+| **压缩策略** | L0-L4 五层渐进 | LLM 摘要 + Offload | LLM 摘要 | LLMSummarizingCondenser |
+| **会话管理** | ✅ SessionDB + lineage | ❌ 单一会话 | ❌ 单一会话 | ❌ 单一会话 |
+| **记忆提取** | ✅ 压缩时批量提取 | ❌ 无 | ✅ 防抖批处理 | ❌ 无 |
+| **状态保持** | ✅ Todo + 文件缓存 | ❌ 无 | ❌ 无 | ❌ 无 |
+| **异步预取** | ✅ 压缩后立即预取 | ❌ 无 | ❌ 无 | ❌ 无 |
+| **可回溯性** | ✅ 完整 lineage 链 | ⚠️ 文件存档 | ❌ 不可回溯 | ❌ 不可回溯 |
+| **配置复杂度** | ⚠️ 中等 | ✅ 简单 | ⚠️ 中等 | ✅ 最简单 |
+
+**关键差异**：
+
+1. **hermes-agent 是唯一实现 SessionDB lineage 的框架**
+   - 支持完整的会话历史追溯
+   - 压缩不会丢失原始数据
+
+2. **hermes-agent 是唯一实现异步预取的框架**
+   - 显著降低用户感知延迟
+   - 提高记忆召回命中率
+
+3. **hermes-agent 的状态保持最完善**
+   - Todo 列表自动注入
+   - 文件缓存、工具状态保持
+
+---
+
+<a id="145-最佳实践"></a>
+<a id="section-20-5"></a>
+### 20.5 最佳实践
+
+<a id="✅-推荐配置"></a>
+<a id="section-20-5-1"></a>
+#### 20.5.1 推荐配置
+
+```yaml
+    # config.yaml
+
+session:
+  max_messages_before_compact: 50  # 超过 50 条消息触发压缩
+  auto_save_interval: 5            # 每 5 轮保存到 SessionDB
+
+compression:
+  enable_layers: ["L0", "L1", "L2", "L3"]  # 启用 L0-L3
+  l3_model: "gpt-4o-mini"                   # 使用便宜模型做摘要
+  keep_recent_rounds: 10                    # 保留最近 10 轮
+  summary_max_tokens: 500                   # 摘要最大 token 数
+
+memory:
+  provider: honcho                          # 外部 Provider
+  sync_interval: 1                          # 每轮同步
+  prefetch_enabled: true                    # 启用异步预取
+  prefetch_top_k: 5                         # 预取 5 条相关记忆
+```
+
+<a id="❌-避免做法"></a>
+<a id="section-20-5-2"></a>
+#### 20.5.2 ❌ 避免做法
+
+1. **不要禁用 SessionDB**: 失去 lineage 追溯能力
+2. **不要跳过 L1/L2**: 直接跳到 L3 成本过高
+3. **不要设置过低的 keep_recent**: 导致上下文断裂
+4. **不要忘记启用预取**: 用户体验显著下降
+
+<a id="📊-监控指标"></a>
+<a id="section-20-5-3"></a>
+#### 20.5.3 监控指标
+
+```python
+    # 关键监控指标
+metrics = {
+    "compression_triggered": True,          # 是否触发压缩
+    "original_tokens": 120000,              # 压缩前 token 数
+    "compressed_tokens": 25000,             # 压缩后 token 数
+    "compression_ratio": 0.79,              # 压缩率 79%
+    "session_split": True,                  # 是否分裂会话
+    "facts_extracted": 15,                  # 提取的 facts 数量
+    "prefetch_latency_ms": 45,              # 预取延迟
+    "prefetch_hit_rate": 0.85,              # 预取命中率
+}
+```
+
+---
+
+<a id="146-故障排查"></a>
+<a id="section-20-6"></a>
+### 20.6 故障排查
+
+**Q1: 压缩后 Todo 列表丢失**
+
+**A**: 检查 TodoListMiddleware 是否正确注册：
+```python
+agent.register_middleware(TodoListMiddleware())
+```
+
+**Q2: 预取未生效，延迟仍然很高**
+
+**A**: 检查后台线程是否正常启动：
+```python
+logger.debug("Background prefetch thread started: %s", thread.name)
+```
+
+**Q3: SessionDB 中找不到 parent_session_id**
+
+**A**: 确认压缩时调用了 `_split_session_on_compression()`：
+```python
+    # 应该看到日志
+logger.info("Session split: %s -> %s", old_id, new_id)
+```
+
+**Q4: External Provider 写入失败**
+
+**A**: 检查 API key 和网络连接：
+```yaml
+honcho:
+  api_key: ${HONCHO_API_KEY}  # 确保环境变量已设置
+  mode: cloud
+```
+
+---
+
+<a id="总结"></a>
+<a id="section-21"></a>
+## 21. 总结
 
 Hermes Agent Loop 的核心优势:
 
@@ -4813,3 +5343,9 @@ Hermes Agent Loop 的核心优势:
 **维护者**: Hermes Agent Community  
 **相关**: [ARCHITECTURE.md](ARCHITECTURE.md) · [SURFACE_ARCHITECTURE.md](SURFACE_ARCHITECTURE.md) · [MULTI_AGENT_ARCHITECTURE.md](MULTI_AGENT_ARCHITECTURE.md) · [MEMORY_SYSTEM.md](MEMORY_SYSTEM.md) · [DOC_MAINTENANCE.md](DOC_MAINTENANCE.md)
 **许可证**: 同项目主许可证
+
+<!-- 旧章节锚点兼容：对应内容已校订，见文首导航。 -->
+<a id="为什么不能直接插一条-user-消息"></a>
+<a id="在-loop-里何时注入两条路径"></a>
+<a id="旧文档易误解处已纠正"></a>
+<a id="消息长什么样注入前后"></a>

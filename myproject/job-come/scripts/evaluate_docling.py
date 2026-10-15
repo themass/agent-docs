@@ -17,8 +17,8 @@ import time
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-DEFAULT_HF_HOME = "/tmp/jobcome-docling-models"
-DEFAULT_XDG_CACHE = "/tmp/jobcome-docling-cache"
+DEFAULT_HF_HOME = "/tmp/jc-docling-models"
+DEFAULT_XDG_CACHE = "/tmp/jc-docling-cache"
 
 
 def configure_environment(*, offline: bool, artifacts_path: Path | None) -> None:
@@ -136,7 +136,7 @@ def evaluate(
         try:
             if path.suffix == ".txt":
                 # Docling supports Markdown, not raw TXT: explicit no-content-change adapter.
-                with TemporaryDirectory(prefix="jobcome-docling-") as temp_dir:
+                with TemporaryDirectory(prefix="jc-docling-") as temp_dir:
                     adapted = Path(temp_dir) / (path.stem + ".md")
                     adapted.write_bytes(path.read_bytes())
                     text = converter.convert(adapted).document.export_to_markdown()
@@ -193,10 +193,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--manifest",
         type=Path,
-        default=Path("/tmp/jobcome-docling-cases/manifest.json"),
+        default=Path("/tmp/jc-docling-cases/manifest.json"),
     )
     parser.add_argument(
-        "--output", type=Path, default=Path("/tmp/jobcome-docling-result.json")
+        "--output", type=Path, default=Path("/tmp/jc-docling-result.json")
     )
     parser.add_argument("--source", type=Path, help="Local Docling source checkout")
     parser.add_argument(
