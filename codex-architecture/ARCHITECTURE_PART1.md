@@ -4616,3 +4616,18 @@ ResponseItem(user msg: "Actually focus on failing tests first.")  ← steer 输�
 
 如果你在梳理架构图，建议把"内存 `ContextManager.items`"和"磁盘 JSONL"画成**双向同步**关系（压缩/记录时内存→磁盘，恢复时磁盘→内存），而不是单向的"内存是真源"。这正是 Codex 这套 rollout 设计比单纯"消息数组"强大的地方——它能精确记录和重建压缩边界、turn 边界、steer 注入点等过程性信息
 
+
+
+---
+
+## 2026-10-15 源码校准增补：核心运行时与控制面
+
+原章节保留。按当前 commit `b7ba02f88095cd3c039709157618c03909d47a26`，建议结合 [源码深读 §3–6](./SOURCE_DEEP_DIVE_2026.md#3-入口与控制面) 阅读：
+
+- 当前外层 loop 在 `core/src/session/handlers.rs`，内层函数在 `core/src/session/turn.rs`；`agent/` 更多承担 AgentControl/registry/control，不能根据目录名定位 Agent Loop。
+- app-server 资源串行化、ConnectionRpcGate、TurnAdmission 是三个不同保护面，并不等于“一 Thread 只允许一个 RPC”。
+- 原 §4.4 的 HTTP 采样标题需要按 transport 路径理解；当前 ModelClientSession 支持 Responses WebSocket 与 fallback。
+- 原 §5.8.6 已说明内存 replace 与 rollout append-only；入口短语“不可改写上下文”应以该详细限定为准。
+- 后台压缩、turn completion 与 pending input 联动见 [§8](./SOURCE_DEEP_DIVE_2026.md#8-上下文压缩与不可改写历史)；模型 final message 不是全部待处理工作均结束的证据。
+
+本轮改动与验证边界见 [覆盖与改动记录](./COVERAGE_AND_CHANGES.md)。

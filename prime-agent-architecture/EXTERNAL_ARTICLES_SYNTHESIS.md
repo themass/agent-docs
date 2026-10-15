@@ -393,3 +393,34 @@ tui → telemetry → ai → agent → session-backends → protocol → client 
 ---
 
 **返回**: [README.md](./README.md) · [ARCHITECTURE_GUIDE.md](./ARCHITECTURE_GUIDE.md)
+
+
+---
+
+## 2026 源码校准补充：当前 Rust 主线
+
+> 以下为追加内容，前文完整保留作为历史设计。核对基线：`d592d5e7746408fe9097541af96d3239e263f7a1`（2026-10-15）。当前实现为 Rust workspace + Python runtime，不应把旧 TypeScript/Pi 模块名称直接当成当前源码路径。
+
+### 外部观点与当前实现的证据分级
+
+| 设计观点 | 当前源码对应 | 证据边界 |
+|---|---|---|
+| Harness 应与模型循环解耦 | pa-agent 无 workspace 依赖；core 注入工具/provider | 可静态确认，不代表所有 adapter 已兼容 |
+| 长任务需要可恢复状态 | JSONL tree、goal custom state、lease、worker replay | 机制存在，崩溃/掉电保证需故障测试 |
+| 多代理需显式 topology | daemon RLM ledger / roster / child workers | 不可仅扫描 session files 推断 family |
+| Memory compression 应保留关键上下文 | compaction summary + kept boundary + harness digest | 上下文语义/质量不能从 token 常量证明 |
+| 可观测性不应拖慢产品 | telemetry fire-and-forget、首帧规范 | 规范不是性能实测 |
+| 隔离与授权不能依赖模型自律 | socket ticket、lease、kernel/host boundary | 有机制不等于安全审计已完成 |
+
+### 从“文章观点”到“工程合同”
+
+每条设计建议应记录四项：owner、状态源、失败语义、验收测试。例如“可恢复”必须说明恢复的是 durable transcript、worker queue 还是 event cursor；“并行”必须说明是子 worker 并行、工具并行还是 host futures 并行；“自动优化”必须说明 review 的授权与分支过期判定。
+
+### 当前最值得补齐的深度
+
+1. Rust/TS parity 差异登记，尤其 direct transport refusal 与 process identity。
+2. live/durable 分歧的用户可见合同和恢复演练。
+3. provider/tool 类型转换的错误分类与枚举兼容测试。
+4. 从 source 到测试再到生产观测的证据链，不用架构图代替实测。
+
+外部观点保留为设计启发；[源码深读](SOURCE_DEEP_DIVE_2026.md) 与[验证记录](COVERAGE_AND_CHANGES.md) 是当前实现的校准层，不宣称完成了外部资料的重新检索。

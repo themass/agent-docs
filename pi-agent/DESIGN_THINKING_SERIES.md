@@ -1,4 +1,5 @@
 # Pi Agent 设计思想导读（九幕）
+> **2026-10-15 源码校正**：原正文保留；请同时阅读本文末尾新增的当前源码补充和 [全景入口](./PI_SOURCE_DEEP_DIVE_2026.md)。涉及旧 Harness 路径、消息类型、第三方插件版本的描述不能直接视为当前实现。
 
 > **阅读方式**：先读本导读（~30 分钟）→ [ARCHITECTURE.md Part I](./ARCHITECTURE.md#part-i--高层架构) → Part II 源码深潜  
 > **树形 / JSONL**：[JSONL_TREE_GUIDE.md](./JSONL_TREE_GUIDE.md)  
@@ -301,3 +302,24 @@ commit intent（规划写入）
 | 7 Steering / Follow-up | 第 7 幕 |
 | 8 Harness | 第 8 幕 |
 | 9 最小核心 | 第 9 幕 |
+
+
+---
+
+## 第 10 幕补充：当前 Pi 不止 CLI，还有独立的持久执行内核
+
+前九幕保留。对照当前源码时，请增加这张心智地图：
+
+```mermaid
+flowchart LR
+  CHAT[本地对话体验] --> CLI[AgentSession + Agent]
+  LONG[持久任务/服务宿主] --> DUR[Harness + TaskScheduler]
+  CLI --> AI[pi-ai]
+  DUR --> AI
+  CLI --> LOG[CLI session.jsonl / 会话树]
+  DUR --> STORE[Storage / checkpoint / documents]
+```
+
+**先问保存的是什么**：CLI 保存对话与分支；Durable 保存阶段、任务 ownership 和恢复策略。两边都调用模型，都能执行工具，但不是同一个 loop，也不是同一种 JSONL。
+
+如果希望理解“为什么 Pi 变得复杂”，看 [BACKEND_RUNTIME.md](./BACKEND_RUNTIME.md)；如果希望理解所有包放在哪里，看 [源码全景](./PI_SOURCE_DEEP_DIVE_2026.md) 和 [完整源码清单](./SOURCE_MAP.md)。

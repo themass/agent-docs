@@ -13,6 +13,8 @@
 | **安全导读（图表）** | [SECURITY_ARCHITECTURE.md](./SECURITY_ARCHITECTURE.md) | 四层防御、审批/Guardian、Hook |
 | **多 Agent 导读（V1/V2）** | [MULTI_AGENT_ARCHITECTURE.md](./MULTI_AGENT_ARCHITECTURE.md) | notification vs 邮箱、trigger_turn |
 | 持久化与取舍 | [ARCHITECTURE_PART3.md](./ARCHITECTURE_PART3.md) | Rollout、Hooks、Observability、优缺点 |
+| 源码校准与后端边界 | [SOURCE_DEEP_DIVE_2026.md](./SOURCE_DEEP_DIVE_2026.md) | app-server、admission、资源队列、关闭与恢复 |
+| 覆盖与改动总结 | [COVERAGE_AND_CHANGES.md](./COVERAGE_AND_CHANGES.md) | 证据索引、测试尝试与本轮总结 |
 
 ## 专题深潜
 
@@ -36,5 +38,9 @@
 ## 设计目标（一句话）
 
 把「本地编码 Agent」做成一个 **可被多种前端复用的协议运行时**：上下文可缓存、历史可回放、工具可审批、沙箱可升级、多 Agent 可隔离。
+
+## 源码校准补充
+
+跨越协议、core、工具安全和持久化边界的新增源码分析见 [SOURCE_DEEP_DIVE_2026.md](./SOURCE_DEEP_DIVE_2026.md)。
 
 返回：[文档中心](./README.md)

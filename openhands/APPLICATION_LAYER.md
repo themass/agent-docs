@@ -283,3 +283,27 @@ sequenceDiagram
 ---
 
 **维护**: 若上游 `openhands/app_server` 或 Agent Server 路由有变，以 `software-agent-sdk/openhands-agent-server` 与 `OpenHands/src/api` 为准更新本文。
+
+
+---
+
+## 追加：当前 Agent Canvas 的三条数据面
+
+[新大纲与源码地图](SOURCE_DEEP_DIVE_2026.md) · [覆盖与验证](COVERAGE_AND_CHANGES.md)
+
+当前应用层最容易遗漏的是：配置编译、执行控制、事件投影三者各有 owner。`agent-server-adapter` 组装启动请求；`backend-registry` 决定身份与连接；typed client 承载 API；WebSocket context 保持 socket 和恢复游标；EventStore 保存 UI 投影。
+
+```mermaid
+flowchart LR
+  Registry[Backend + org + revision] --> Adapter[Configuration compiler]
+  Adapter --> Client[Typed client]
+  Client --> Server[Agent Server]
+  Server --> Socket[Session frames]
+  Socket --> Projection[EventStore projection]
+  Server --> REST[REST history/search]
+  REST --> Projection
+```
+
+cloud history/search 请求到 App API，计数/确认等 live API 到 conversation runtime host，并使用 session key。新增 API 不应复制 service 中现有 URL 规则；应沿用 `getAgentServerClientOptions`，其 host 优先显式 override，再 conversationUrl，再 backend host。
+
+**状态设计建议**：每个缓存键都审计 backend/org/connectionRevision；历史可读但 runtime 暂停时，UI 应显示不同于登录失败的状态。held message 是客户端待投递，不是 SDK 的 durable job queue。

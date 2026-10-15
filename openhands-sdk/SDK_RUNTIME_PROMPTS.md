@@ -572,3 +572,14 @@ Planning 与 Default **共用动态层**（repo/skills/suffix/secrets/datetime�
 - 架构总览：[ARCHITECTURE_PART1.md §3 / §6 / §8](./ARCHITECTURE_PART1.md)  
 - 工具注册与 MCP：[ARCHITECTURE_PART2.md 第0章](./ARCHITECTURE_PART2.md)  
 - 静态英文 oracle：`tests/sdk/context/prompts/snapshots/openai__browser-on__secana-on__cli-on.txt`
+
+
+---
+
+## 2026-10-15 源码校准与新增阅读入口
+
+原文完整保留。新增内容基于当前本地源码，不把历史部署方案与当前实现混写。
+
+- [源码深读：架构、执行、持久化与故障边界](SOURCE_DEEP_DIVE_2026.md)
+- [覆盖矩阵、真正缺口与本轮验证](COVERAGE_AND_CHANGES.md)
+- 建议阅读：先看深读的边界与模块地图，再回到本篇原有细节；最后按覆盖矩阵做故障演练。

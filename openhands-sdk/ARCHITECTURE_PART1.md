@@ -3398,3 +3398,37 @@ sequenceDiagram
 **文档版本**: 2.3
 **最后更新**: 2026-07-29
 **维护者**: Deep Agents Team
+
+
+---
+
+## 追加：Conversation 同步、异步与运行宿主的边界
+
+新增阅读入口：[源码深读 §3、§12](SOURCE_DEEP_DIVE_2026.md)。
+
+### 外层循环与单步执行
+
+`send_message`、`run/_run`、`arun/_arun` 和 `agent.step/astep` 不应合并理解成一次 API 调用。消息到达可改变执行状态；run 控制 stop hook、预算和迭代上限；step 决定本轮 LLM/工具动作；EventService 在 SDK 外控制运行配额和协议交互。
+
+```mermaid
+flowchart LR
+  Message[send_message] --> State[ConversationState]
+  State --> Run[run/arun outer loop]
+  Run --> Step[step/astep]
+  Step --> Events[Action/Observation]
+  Events --> State
+  Host[EventService RunSlot] --> Run
+```
+
+### 并发输入的关键细节
+
+同步循环刻意不在 step 返回 FINISHED 后立即退出，使等待 FIFO 锁的 `send_message` 有机会把状态重置为 IDLE；否则会产生“新消息已经写入，但当前 run 误以为结束”的竞态。这不是单纯性能优化，而是消息接受与执行状态的配合。
+
+异步 `arun` 会追踪运行 task 和 cancellation token；中断导致 PAUSED，并修补缺失的工具 observation，防止下轮 provider 校验失败。后端断开 HTTP 请求不等价于 interrupt：同步线程 fallback 仍可能在执行，需要等待真实 worker 完成再释放 run 配额。
+
+### 测试应覆盖的不变量
+
+1. 新消息写入不会因前一轮完成而静默遗失。
+2. 最后一轮正好 FINISHED 时，不被 max-iteration 错误覆盖。
+3. 取消后的 action/observation 对仍符合 LLM tool-call 约束。
+4. 前端请求取消不能提前释放仍在执行的 worker 配额。

@@ -275,3 +275,50 @@ token 超阈值 → 插入 CompactionEntry
 ---
 
 **返回**: [ARCHITECTURE_GUIDE.md](./ARCHITECTURE_GUIDE.md) · [README.md](./README.md)
+
+
+---
+
+## 2026 源码校准补充：当前 Rust 主线
+
+> 以下为追加内容，前文完整保留作为历史设计。核对基线：`d592d5e7746408fe9097541af96d3239e263f7a1`（2026-10-15）。当前实现为 Rust workspace + Python runtime，不应把旧 TypeScript/Pi 模块名称直接当成当前源码路径。
+
+### 后端契约与常量索引
+
+| 契约 | 当前值/语义 | 源码 |
+|---|---|---|
+| daemon protocol/schema | 7 / 30 | `pa-types/src/daemon/mod.rs` |
+| worker in-flight | 128 | `pa-daemon/src/backpressure.rs` |
+| broadcast / targeted event queue | 各 4096 | 同上 |
+| client outbound | 32768 response bundles | 同上，不是字节容量 |
+| client dispatch concurrency | 64，读 socket 前控制并发 | 同上 |
+| direct grant TTL / registration timeout | 10000ms / 3000ms | `peer_tickets.rs` |
+| compaction reserve / keep recent | 16384 / 20000 tokens | `session_engine/compaction.rs` |
+| threshold ratio / combined headroom floor | 0.95 / 4096 tokens | 同上 |
+
+这些值是当前基线，不是跨版本 API 承诺。worker 饱和时 client request 得到 typed `worker_overloaded`；supervisor internal route 在自己的 timeout 内等待 slot。不能把所有满队列概括成“丢弃”或“无阻塞”。
+
+### Session 数据关系
+
+```mermaid
+erDiagram
+  SESSION ||--o{ ENTRY : contains
+  ENTRY o|--o{ ENTRY : parent_of
+  SESSION ||--o| GOAL_STATE : latest_custom_state
+  SESSION ||--o{ COMPACTION_ENTRY : records
+  SESSION ||--o{ BRANCH_LABEL : annotates
+```
+
+这是 JSONL 逻辑关系图，不代表关系数据库表。entry 的 id/parent_id 决定当前分支；goal state 使用 custom entry；compaction summary 与 first-kept boundary 重建模型窗口。`build_session_context` 带 visited set，避免沿损坏 parent 关系无限回溯。
+
+### 持久化契约核对清单
+
+- 普通 append：写失败回滚候选 entry，成功后更新窗口与索引。
+- retained append：已进入 loop 的消息在写失败时保留内存，记录错误。
+- first assistant 之前：部分 entry 延迟 flush；`flush_now` 提供显式落盘边界。
+- rewrite：临时文件、write、sync、rename；不要从这一点推出所有平台的目录 fsync/掉电恢复已验证。
+- lease：session ownership 具有 process-start identity；direct ticket 的 process identity 缺口是另一个边界，不应混为一谈。
+
+### 建议补充的协议文档
+
+字段升级规则、错误码和重试矩阵、partial replay 客户端降级、attach 与 stream 顺序、direct ticket 权限模型。源码实现了很多机制，但正式规范仍需把这些合同固定为可执行测试。

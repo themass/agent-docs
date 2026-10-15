@@ -3745,7 +3745,8 @@ Wakeup 种类：`wake`（空闲唤醒 drain inbox）· `resume`（HITL 续跑）
 ### 6. Channel（IM 渠道）{#part-channel}
 
 **一句话**：把飞书 / 钉钉 / Discord 等平台消息 **归一成 `ChannelEvent`**，经 **`ChannelGateway` 入站** 触发 `ChatService`；**出站** 由跑 Agent 的节点用 **`ChannelClients.deliver`** 读 `session_events` 流并调平台 REST **发回聊天**。  
-**长连接** 只在 **`ChannelLifecycleDispatcher`**（或独立 **channel worker**）里；API 副本通常 **不持连接**，但仍用 **`ChannelClients`** 发回复。
+**长连接** 只在 **`ChannelLifecycleDispatcher`**（或独立 **channel worker**）里；API 副本通常 **不持连接**，但仍用 **`ChannelClients`** 发回复。  
+与 Hermes Gateway 的启动 / 收 / 发对照：[CHANNEL_AGENTSCOPE_VS_HERMES.md](../compare/CHANNEL_AGENTSCOPE_VS_HERMES.md)。
 
 #### 6.1 架构图（组件分工）
 

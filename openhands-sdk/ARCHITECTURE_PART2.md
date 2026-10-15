@@ -2079,3 +2079,27 @@ sequenceDiagram
 **文档版本**: 2.0  
 **最后更新**: 2026-07-28  
 **维护者**: Deep Agents Team
+
+
+---
+
+## 追加：工具授权、执行与副作用不是同一边界
+
+新增阅读入口：[源码深读 §6–8、§12](SOURCE_DEEP_DIVE_2026.md)。
+
+```mermaid
+flowchart TB
+  Action[ActionEvent] --> Policy[ConfirmationPolicy]
+  Policy -->|requires confirmation| Pending[等待用户确认]
+  Pending --> API[Server respond_to_confirmation]
+  API --> Execute[Tool executor]
+  Policy -->|auto approved| Execute
+  Execute --> Workspace[Workspace/MCP/ACP]
+  Workspace --> Observation[Observation or AgentError]
+```
+
+SDK Tool schema 描述能力，confirmation policy 描述“何时等待”，Workspace/外部系统决定“实际权限”。批准一次工具调用不等于允许所有未来参数，也不等于工作区已经隔离。
+
+**集成设计建议**：审批记录应绑定当前 conversation、待决 action 和调用者；重启后不要把历史中的 approve 当成新的授权。对外部写操作记录可查询的 operation id，区分未发出、已发出但结果未知、完成三种状态，避免超时后盲目重试。
+
+**取消设计建议**：ACP 子进程、MCP transport、本地 command、远程 HTTP 各有不同停止语义，不能假设一个 cancellation token 足以撤销它们。close/interrupt/exception 路径应明确资源 owner 和清理责任。

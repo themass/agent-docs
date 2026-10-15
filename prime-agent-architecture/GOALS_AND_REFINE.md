@@ -184,3 +184,58 @@ Autonomous：goal 仍 active → 自动 admit continuation follow-up
 | [ARCHITECTURE_GUIDE §6.7](./ARCHITECTURE_GUIDE.md#67-goals-与-autonomous) | Goals 与 Autonomous |
 | [_archive/ARCHITECTURE_PART2 §4–5](./_archive/ARCHITECTURE_PART2.md#第4章continual-harness-与-refine) | refine / goal 深潜原文 |
 | [EXTERNAL_ARTICLES_SYNTHESIS](./EXTERNAL_ARTICLES_SYNTHESIS.md) | 产品叙事与 `/refine` 校正 |
+
+
+---
+
+## 2026 源码校准补充：当前 Rust 主线
+
+> 以下为追加内容，前文完整保留作为历史设计。核对基线：`d592d5e7746408fe9097541af96d3239e263f7a1`（2026-10-15）。当前实现为 Rust workspace + Python runtime，不应把旧 TypeScript/Pi 模块名称直接当成当前源码路径。
+
+### 当前 Rust Goal 状态合同
+
+`pa-types/src/goal.rs` 定义 `idle/active/paused/budget_limited/complete/error`。状态以 `thread_goal_state` custom entry 持久化，并通过 `goal_update` 与 attach snapshot 的 `state.goal` 展示。Goal 不只是追加一段提示词：预算统计、continuation、wrap-up 和终止错误有共享 boundary arms。
+
+```mermaid
+flowchart LR
+  Goal[GoalState] --> Driver[GoalDriver usage / budget]
+  Driver --> Boundary[goal_boundary]
+  Boundary --> Continue[continuation row]
+  Boundary --> Wrap[budget wrap-up steering]
+  Boundary --> Terminal[terminal error finish]
+  Goal --> Persist[thread_goal_state custom entry]
+  Goal --> Wire[goal_update / attach snapshot]
+```
+
+这里展示责任关系，不暗示任意状态可以相互跳转。`seed_initial_goal` 有 depth-0 与 seedable-branch 前置条件；budget 越界的后续消息应走共享 wrap-up 逻辑，不应由各 transport 自己拼接。源码注明 goal driver 与 persistence 使用统一 driver-first 锁顺序，新增入口必须保持这一顺序。
+
+### Compaction-triggered Auto-refine 流程
+
+```mermaid
+flowchart TD
+  Compact[successful compaction] --> Allowed{refine surface allowed?}
+  Allowed -->|no| Exit[no trigger]
+  Allowed -->|yes| Pending[mark pending]
+  Pending --> Gates[gates / cooldown / in-flight]
+  Gates --> Review[review model]
+  Review --> Approve{approves?}
+  Approve -->|no| Done[stamp review cooldown]
+  Approve -->|yes| Active{agent turn active?}
+  Active -->|yes| Hold[retain pending_review]
+  Hold --> Boundary[next serviced boundary]
+  Active -->|no| Boundary
+  Boundary --> Refine[run refinement]
+  Refine --> Version{captured branch_version unchanged?}
+  Version -->|yes| Apply[apply result]
+  Version -->|no| Drop[discard stale result]
+```
+
+源码 `auto_refine_trigger.rs` 的状态包含 pending、last_review_at、settled_turns_since_review、in_flight、branch_version、pending_review。checkpoint 遇 cooldown 保留 trigger 供以后处理；dispose 遇 cooldown 丢弃，不等待下一轮。第二个消费请求会 re-arm 而不是并发 review。分支切换 bump version，旧 review 的修改不得应用。
+
+### 为什么 compaction 不是删除历史
+
+`compaction.rs` 决定 token headroom、cut point 和摘要；`compact_session`/执行层处理调用与落盘；session context 重建将摘要和保留消息投影成 LLM window。历史 JSONL、当前窗口、refinement 的 harness digest 是三个层次，不能把“摘要已产生”当成“原始历史已删除”。
+
+### 建议新增验收
+
+预算边界只 wrap-up 一次、review 中切分支不应用旧结果、checkpoint/dispose cooldown 差异、in-flight 重入不重叠、compaction abort/crash 有明确 outcome。本轮未运行这些 Rust 测试，不声称这些场景已通过。

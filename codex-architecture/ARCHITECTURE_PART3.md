@@ -1599,3 +1599,18 @@ flowchart LR
 ---
 
 *第三部分完 · 持久化与可观测性设计 v2.1*
+
+
+---
+
+## 2026-10-15 源码校准增补：持久化屏障与 daemon 恢复
+
+原章节保留，补充 [源码深读 §9](./SOURCE_DEEP_DIVE_2026.md#9-持久化resume-与服务端恢复)：
+
+- LocalThreadStore 的 `write_and_project` 先 durable_write/flush 再 SQLite projection；SQLite 是可重建视图，可落后但不应超前 canonical rollout。
+- 上层事件发送调用 append 后仍需核对错误传播：`persist_rollout_items` 返回 false 不一定阻止该调用点 deliver，因此 UI 收到事件不是磁盘成功证明。
+- writer flush ack 不可未经验证扩展成 power-loss fsync 保证；本轮检查的 recorder 路径可见 file flush。
+- daemon recovery 已有 loaded/interrupted snapshot；自动 continuation 限定于记录过输入、未取消 Regular turn、单一 local/FromThread 环境，并要求快照前 flush。
+- server drain 与 connection cleanup 不等于 turn cancel；慢客户端、普通关闭、强制关闭和后台恢复分别见 [§11](./SOURCE_DEEP_DIVE_2026.md#11-关闭取消错误与背压)。
+
+具体基线、静态检查与未通过的动态验证尝试见 [覆盖与改动记录](./COVERAGE_AND_CHANGES.md)。

@@ -1,4 +1,5 @@
 # Pi 发给大模型的完整运行时 Prompt
+> **2026-10-15 源码校正**：原正文保留；请同时阅读本文末尾新增的当前源码补充和 [全景入口](./PI_SOURCE_DEEP_DIVE_2026.md)。涉及旧 Harness 路径、消息类型、第三方插件版本的描述不能直接视为当前实现。
 
 > 目标：还原 **一次 LLM 请求** 里模型实际看到的全部内容。  
 > 源码锚点：`system-prompt.ts`、`skills.ts`、`messages.ts`、`tools/*`、`agent-loop.ts`  
@@ -508,3 +509,41 @@ skill 文件中的相对路径，请相对 skill 目录解析（SKILL.md 的父�
 ---
 
 **一句话**：发给大模型的 = **`system`（角色+工具摘要+指南+文档路径+项目上下文+skills 索引+cwd）+ `messages`（投影并 convert 后的对话）+ `tools`（完整 JSON Schema）**。
+
+
+---
+
+## 8. 当前源码补充：System 已成为可重放的结构化消息（2026-10-15）
+
+旧章节保留，但理解当前实现需要再加一层：**System 不只是传给 Provider 的一个最终字符串，它还在 transcript 中记录位置、sections 与工具变化。**
+
+当前 `pi-ai/types.ts` 的 `Message` 联合包括 `SystemMessage | UserMessage | AssistantMessage | ToolResultMessage`。因此旧文档中的“LLM 只认识 user/assistant/toolResult”应理解为历史约定，不是当前完整类型。
+
+```mermaid
+flowchart TB
+  OPTIONS[BuildSystemPromptOptions] --> BUILD[buildSystemPromptSections]
+  BUILD --> DIFF[diffSystemPromptSections
+  与 transcript 已有 sections 比较]
+  DIFF --> SYSTEM[SystemMessage
+  sections patch]
+  TOOLS[当前可执行 context.tools] --> LOADOUT[declareToolChanges]
+  SYSTEM --> LOADOUT
+  LOADOUT --> TRANSCRIPT[系统更新写入消息历史]
+  TRANSCRIPT --> REPLAY[normalizeContext / transcript replay]
+  REPLAY --> ADAPTER[Provider adapter]
+```
+
+- `sections` 的 patch 只替换相应名称；null 移除该 section。
+- `toolsAdded` 是完整工具声明；`toolsRemoved` 是移除引用。
+- `context.tools` 保存可执行实现，transcript 保存模型看见的声明；两者不是同一个对象。
+- AgentSession 在启动和下一轮边界重建 sections；工具搜索加载新工具后，变更在下一次请求声明并被历史记录。
+- `_installAgentRequestProjection()` 用 SessionManager 的 canonical projection 构造请求，避免 UI 缓存和分支历史失配。
+- `overrideSystemPrompt` 涉及请求投影，不应把它理解为永久覆盖整棵历史树。
+
+### 模型能力与模型路由也参与准备阶段
+
+ModelRuntime 还处理 Provider composition、credential 同步、远程 catalog 和 virtual model routing。选择虚拟模型时最终请求可被路由到具体 model，压缩阈值必须对实际请求模型核对，而不是永远按虚拟壳子的窗口估算。
+
+源码入口：[`system-prompt.ts`](../../pi/packages/coding-agent/src/core/system-prompt.ts)、[`agent-session.ts`](../../pi/packages/coding-agent/src/core/agent-session.ts)、[`transcript.ts`](../../pi/packages/ai/src/utils/transcript.ts)、[`model-runtime.ts`](../../pi/packages/coding-agent/src/core/model-runtime.ts)、[`virtual-models.ts`](../../pi/packages/coding-agent/src/core/virtual-models.ts)。
+
+这也解释了为什么压缩时要保留完整 prompt/tool baseline：旧前缀被摘要替换后，模型仍需知道当前生效的系统要求和工具。

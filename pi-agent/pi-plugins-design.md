@@ -1,4 +1,5 @@
 # Pi 核心扩展生态源码级设计原理（最终合并版）
+> **2026-10-15 源码校正**：原正文保留；请同时阅读本文末尾新增的当前源码补充和 [全景入口](./PI_SOURCE_DEEP_DIVE_2026.md)。涉及旧 Harness 路径、消息类型、第三方插件版本的描述不能直接视为当前实现。
 
 > 面向本地源码运行 Pi 的开发者。覆盖 Pi 扩展机制底层契约、`/plan` 命令与 Plan 插件的端到端链路（含协作图与时序图），以及五大核心扩展（pi-mcp-adapter / context-mode / pi-subagents / pi-goal / pi-hermes-memory）的架构、流程、状态机与设计取舍。
 >
@@ -667,3 +668,18 @@ pi install npm:@pi-vault/pi-plan
 
 如果你需要，我还可以输出 **精简无注释版本** 或者 导出适配 GitBook / MkDocs 的文档格式。
 ```
+
+
+---
+
+## 当前本地核心源码补充与第三方资料边界（2026-10-15）
+
+本文原有插件分析保留，但本轮源码核对范围是本地 `pi/` monorepo。`pi-mcp-adapter`、`pi-subagents`、`pi-goal`、`pi-hermes-memory`、`pi-plan` 等第三方包的当前实现并未在本轮逐一取得并核验；前文不能据此被重新标记为“已按最新第三方源码验证”。
+
+当前 Pi core 内置 `mcp`、`codemode`、`tool-search` 和 `llama.cpp` extensions；`packages/mcp` 提供独立客户端，非必须借助前文的第三方 adapter。插件协作图应视为一种生态组合，而非 Pi 默认全部安装的执行链。
+
+- 内置扩展和 ToolExposure：见 [EXTENSIONS.md Part III](./EXTENSIONS.md#part-iii--当前源码补充扩展宿主嵌套调用与实际安全边界)。
+- Durable 的 tasks/hooks/sections 契约与 CLI `ExtensionAPI` 分开，见 [BACKEND_RUNTIME.md](./BACKEND_RUNTIME.md)。
+- 完整模块来源与检查范围：见 [SOURCE_MAP.md](./SOURCE_MAP.md)。
+
+这条边界尤其重要：**插件提供的多 Agent、目标自治、记忆和审批能力，不能反推为 Pi core 默认具备这些运行时。**

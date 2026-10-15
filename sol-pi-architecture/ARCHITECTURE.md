@@ -4820,3 +4820,65 @@ Online Context Compact 的不同选择：
 
 *文档版本：2026-09-29 · 扩展版 · 基于 SoL-Pi 全部 23 个源文件的一手阅读 · 含词汇表、宿主 API 深度解析、四篇机制交互论文、五个 E2E 场景、四个扩展的完整设计分析*
 
+
+---
+
+# 追加校准：SoL-Pi 自有实现与后端合同（2026-10-15）
+
+> 原文完整保留。当前核对源码 `06b3ee358ddc5cebc5fb21a8e7493fab2db508ce`；追加大纲：能力归属 → 状态来源 → 错误合同 → 运维验收。完整索引见[自有能力深读](OWN_IMPLEMENTATION_DEEP_DIVE.md)。
+
+## A. 项目自己的介绍应突出什么
+
+源码 README 与 package metadata 定义的是 standalone context/tool-efficiency extension。NVIDIA 维护 SoL-Pi，Pi 是独立上游；这里的“自有部分”指 SoL-Pi 的实现范围，不是重新实现或拥有 Pi。
+
+```mermaid
+flowchart TB
+  Pi[Pi host runtime] --> API[Public Extension API]
+  API --> AF[SoL-Pi file queue + then_run]
+  API --> OP[SoL-Pi archive + context projection + recall]
+  API --> EPR[SoL-Pi diagnostic candidate + receipt validation]
+  API --> OCC[SoL-Pi plan economics + compact continuation]
+  Pi --> Native[Native tools / model auth / session tree / compaction]
+```
+
+它不拥有独立 LLM loop、daemon scheduler 或权限隔离；不要因目录中存在 provider.ts、state.ts 就把它解释成通用后端服务。后端深度来自本地对象完整性、session custom entries 和钩子生命周期。
+
+## B. 状态与恢复的追加矩阵
+
+| 机制 | 自有 live 状态 | 可持久/外置状态 | 恢复限制 |
+|---|---|---|---|
+| AF | canonical-path queue Map | 文件修改由 native tool 完成 | 不是跨进程锁；命令失败不撤销修改 |
+| OP | sentCounts、ledger closure | objects、ledger JSONL | sends 用 assistant count 补偿，不读取 ledger 恢复 |
+| EPR | runtime-root config/journal Map | content hash objects、Pi custom journal | receipt 不证明所有失败均已覆盖 |
+| OCC | selected、activeDebt、continuation barrier | versioned online state、native compaction | branch restore 清 transient，不能恢复任意飞行中的任务 |
+
+无 session/in-memory 仍会写临时 archive；目录保留供 caller 回读，不能把这种模式介绍成“绝无磁盘痕迹”。持久会话备份应包含 sidecar，不只是 session JSONL。
+
+## C. 对原有 fail-open 叙述的精确补充
+
+原文中的“磁盘满 fail-open 全链路”应结合当前源码作用域阅读：
+
+1. OP 对循环内单 observation 的 archive/ledger 错误 catch 后保留原投影；`runtimeRoot` 位于这个 catch 之外。
+2. EPR 捕获 provider 调用失败并降级，但 `archiveBody` 和多个 journal 调用不在该 provider catch 内，可能传播至宿主。
+3. `obs_recall` 读 object 后还等待 ledger 写入；ledger 失败不等同于正常返回 chunk。
+4. 上述传播是否被 Pi public extension runner 降级处理，需要当前版本的真实失败注入，不由 SoL-Pi 局部 catch 自动证明。
+
+这是对强保证的校准，而不是删除原有场景分析；不得在未测试时写成“任何磁盘故障都不影响执行”。
+
+## D. Action Fusion 与证据链的边界
+
+AF 的 hash/yield/hash 检查是 interference guard，不是文件锁。其 queue 只约束同进程 fused calls；其他进程可在 guard 后改写。命令运行覆盖多个文件时，单 path queue 也不是项目级事务。
+
+EPR 能从符合安全规则的 `pi-bash-*.log` 恢复完整输出；AF 合并 text 但不转移 bash details，因此超长融合结果应专门测试 text 中 readback path 是否正确保留。静态发现是测试需求，不是已经证实的丢日志故障。
+
+## E. 省钱声明与兼容性的证据级别
+
+- TUI `Money saved` 呈现避免量，不是实际账单。
+- OCC 固定 ratio 与 token-equivalent debt 不读取模型价格；换模型不会动态调整 ratio。
+- Reducer quote 校验保证引用存在，不保证诊断完整性，模型原文的 lossless 不能当全局无损证明。
+- 源码 compatibility 文档报告过版本验证；本轮依赖未安装，不能把历史报告当当前实测结果。
+- 真实收益需把 nested reducer usage、recall 请求、cache miss、wall time 和最终质量一起计算。
+
+## F. 补充目录与验收
+
+[深读第 4–7 章](OWN_IMPLEMENTATION_DEEP_DIVE.md#4-action-fusion自己的队列和组合合同) 展示执行/归档/归约/压缩时序；[第 9 章](OWN_IMPLEMENTATION_DEEP_DIVE.md#9-缺失内容与验收优先级) 给出磁盘失败、日志完整性、临时归档保留、第三方生命周期与基准测试建议。改动和未通过检查见[覆盖记录](COVERAGE_AND_CHANGES.md)。

@@ -1302,3 +1302,22 @@ class AgentRunner(HookRunner):
     async def run(...):
         # 新建隔离子会话执行子agent评审
 ```
+
+---
+
+## 追加：View 与事件转换的符号校准
+
+[完整源码补充](SOURCE_DEEP_DIVE_2026.md) · [验证记录](COVERAGE_AND_CHANGES.md)
+
+当前真正的符号关系是 `View.from_events` / `append_event` / `enforce_properties`，随后由 `LLMConvertibleEvent.events_to_messages` 转换消息；不是 View 上存在同名 `events_to_messages`。`CondenserBase.condense(view, agent_llm)` 返回 View 或 Condensation，异步对应 `acondense`。
+
+```mermaid
+flowchart TD
+  Branch[ConversationState active_branch] --> V[View.from_events]
+  V --> Apply[apply Condensation and view properties]
+  Apply --> C[CondenserBase condense/acondense]
+  C --> M[LLMConvertibleEvent.events_to_messages]
+  M --> LLM[provider messages]
+```
+
+View 对 Condensation 事件按顺序应用，非 LLMConvertible 的状态事件被跳过。压缩投影不等于删除 EventLog 原始事件；按 seq 的完整审计流与当前分支的 prompt 视图应分别观察。重启恢复检查也必须同时核对分支 parent、Condensation 与工具调用配对。

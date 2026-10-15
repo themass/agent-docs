@@ -1,5 +1,7 @@
 # Microsoft Agent Framework — 架构文档（第1部分）
 
+> **追加阅读导航**：本卷原文完整保留。当前源码/API 与后端责任校准见卷末「源码校准补充（2026）」、[源码深读](./SOURCE_DEEP_DIVE_2026.md)及[覆盖与改动](./COVERAGE_AND_CHANGES.md)。
+
 > **核心架构、Agent.run、Handoff、Workflow 概念、内置 Prompt** · 合并版 2026-08-05
 > 合并自 AGENT_FRAMEWORK_ARCHITECTURE_ANALYSIS + PYTHON_GUIDE + GLOSSARY
 
@@ -4060,3 +4062,39 @@ FunctionInvocationLayer → ChatMiddlewareLayer → ChatTelemetryLayer → Raw*C
 
 ---
 
+
+
+## 源码校准补充（2026）
+
+关于 `RawAgent.run`、SessionContext provider 顺序、service session 双轨、`ResponseStream` 消费契约和审批 occurrence，请见 [SOURCE_DEEP_DIVE_2026.md §3–§6](./SOURCE_DEEP_DIVE_2026.md#3-agentrun-的真实边界)。原文保留不变。
+
+### 本卷追加：当前执行层与流式 API 校准
+
+**源码基线**见 [新卷附录 A](./SOURCE_DEEP_DIVE_2026.md#附录-aapi-与历史文档漂移校准)。本节不删除旧的 MRO、行号和 `run_stream()` 说明，但新代码应使用 `agent.run(..., stream=True)`；`Agent` 当前继承 `AgentMiddlewareLayer`、`AgentTelemetryLayer`、`RawAgent`。
+
+```mermaid
+classDiagram
+  BaseAgent <|-- RawAgent
+  RawAgent <|-- Agent
+  AgentMiddlewareLayer <|-- Agent
+  AgentTelemetryLayer <|-- Agent
+  RawAgent --> AgentSession : run receives
+  RawAgent --> SessionContext : per run
+  RawAgent --> ResponseStream : stream=True
+```
+
+`RawAgent.run` 不是 `async def` 的单一路径：非流式返回 awaitable；流式返回延迟准备上下文的 `ResponseStream.from_awaitable(...)`。因此“调用了 run”与“执行已完成”是两个不同时间点；流式消费者提前停止时，必须明确关闭流，而不是把最后一个收到的 token 当完成标志。
+
+```python
+# 用真实 API 展示调用契约；agent 与 session 由应用预先创建。
+stream = agent.run("解释结果", session=session, stream=True)
+try:
+    async for update in stream:
+        # 此处只是增量观测，不应提前提交最终业务状态。
+        print(update.text, end="")
+    final = await stream.get_final_response()  # 完成汇总和 result hooks
+finally:
+    await stream.close()  # 幂等清理；不是业务副作用回滚
+```
+
+成功 `after_run` 与错误 cleanup 是不同契约；不要在业务层将取消包装为成功响应。`response_id`、`conversation_id` 和 `service_session_id` 也不应互换。

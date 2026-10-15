@@ -762,3 +762,22 @@ volumes = {
 **文档版本**: 1.0  
 **最后更新**: 2026-05-17  
 **维护者**: Deep Agents Team
+
+
+---
+
+## 追加：历史架构与当前源码映射
+
+[当前源码全景、时序与模块职责](SOURCE_DEEP_DIVE_2026.md) · [覆盖矩阵](COVERAGE_AND_CHANGES.md)
+
+原文中的 App Server、Controller 与旧运行时内容不删除。本地当前 `OpenHands` 仓库是 Agent Canvas，后端执行在 `software-agent-sdk/openhands-agent-server`；Cloud 编排仍可能提供 App API，但不能把旧 Python 路由逐一当作本地当前实现。
+
+| 阅读原文时的概念 | 当前优先查阅 |
+|---|---|
+| 产品会话创建 | Canvas adapter + typed ConversationClient |
+| Agent loop/controller | SDK LocalConversation + Agent.step/astep |
+| 实时流与恢复 | Server session_socket + Canvas seq cursor |
+| 会话配置/密钥 | Profiles/Settings/LookupSecret + Server validation |
+| 本地启动/自动化 | CLI + ingress + dev scripts |
+
+进一步设计时，把“身份/编排”“执行/持久化”“显示/恢复”分层。原文有些功能描述属于部署方案，不代表同一进程内的类关系；新增模块应标清源码 owner 和服务通信协议。

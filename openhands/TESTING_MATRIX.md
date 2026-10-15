@@ -95,3 +95,25 @@ Each cell = create automation → dispatch run → run reaches COMPLETED → con
 | `test:e2e:live` | npm | Linux | OpenHands | ❌ |
 
 **Not yet covered by CI:** real ACP credentials (Claude Code / Codex / Gemini), macOS, public auth mode, subscription login paths, Windows.
+
+
+---
+
+## 追加：源码驱动的恢复与身份测试矩阵
+
+[源码证据索引](SOURCE_DEEP_DIVE_2026.md) · [本轮实际结果](COVERAGE_AND_CHANGES.md)
+
+| 场景 | 不变量 | 层级 |
+|---|---|---|
+| seq 乱序/重复/缺口 | cursor 不因最高 seq 跳过未到达事件 | unit |
+| 主 socket 与 planning 切换 | 游标/消息不串会话 | context integration |
+| cloud 无 runtime URL | held 而非向 parent 错投 | unit + integration |
+| REST fallback 投递 | queued 与 delivered/finished 区分 | client contract |
+| backend/org/key 切换 | 缓存和凭据无跨身份泄漏 | integration |
+| subscribe/replay 并发写 | 历史/live 边界无遗漏 | server integration |
+| worker 等待者取消 | permit 不早于真实执行结束释放 | server unit |
+| lease takeover | 旧 generation 受保护写失败 | server integration |
+| 慢 subscriber | 有界内存 + 可 replay 恢复 | stress |
+| 版本不满足/版本未知 | 拒绝启动并给可诊断错误 | compatibility |
+
+本轮仅执行 Canvas seq cursor 的 6 项单元测试并通过；其它条目是建议矩阵，不是已通过报告。

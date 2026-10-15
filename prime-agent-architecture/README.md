@@ -92,3 +92,29 @@ Pi 九幕设计思想：[pi-agent/DESIGN_THINKING_SERIES.md](../pi-agent/DESIGN_
 ---
 
 **维护者**: Deep Agents Team
+
+
+---
+
+## 2026 源码校准补充：当前 Rust 主线
+
+> 以下为追加内容，前文完整保留作为历史设计。核对基线：`d592d5e7746408fe9097541af96d3239e263f7a1`（2026-10-15）。当前实现为 Rust workspace + Python runtime，不应把旧 TypeScript/Pi 模块名称直接当成当前源码路径。
+
+### 新增目录与推荐阅读路线
+
+1. 入门：[架构总览](ARCHITECTURE.md) → [源码深读第 1–3 章](SOURCE_DEEP_DIVE_2026.md#1-当前事实与新旧映射)。
+2. 开发：[模块指南](ARCHITECTURE_GUIDE.md) → [双层循环与工具管线](SOURCE_DEEP_DIVE_2026.md#4-pa-agent-双层循环与工具管线)。
+3. 后端：[运行时桥接](RUNTIME_BRIDGES.md) → [参考契约](ARCHITECTURE_REFERENCE.md) → [持久化深读](SOURCE_DEEP_DIVE_2026.md#5-pa-core-sessionengine-与持久化)。
+4. 长任务：[Goals/Refine](GOALS_AND_REFINE.md) → [缺口与验收清单](SOURCE_DEEP_DIVE_2026.md#11-当前缺口与验证计划)。
+5. 评审：[外部文章与实现对照](EXTERNAL_ARTICLES_SYNTHESIS.md) → [改动和验证记录](COVERAGE_AND_CHANGES.md)。
+
+### 版本阅读原则
+
+- 历史 Pi 调用链用于理解设计演变；当前事实以 Rust owner 与源码索引为准。
+- 当前模型可见核心工具是 `bash`、`edit`、`python_repl`，不是“唯一 IPython 工具”。
+- Python 用户入口 `rlm.spawn()` 与 host wire `rlm.run` 名称不同，不是两套独立子代理执行器。
+- 图表示控制和责任边界，不表示相关崩溃恢复、跨平台和性能场景已经通过测试。
+
+### 本轮总结
+
+补齐 Rust 分层、事件持久化、direct transport、kernel pending future、goal/refine/compaction 和验证矩阵。历史文件不删除；源码不修改。细节和已知验证失败见改动记录。

@@ -936,3 +936,27 @@ except Exception as e:
 **文档版本**: 1.0  
 **最后更新**: 2026-05-17  
 **维护者**: Deep Agents Team
+
+
+---
+
+## 追加：持久化一致性与进程所有权
+
+新增阅读入口：[源码深读 §4、§12](SOURCE_DEEP_DIVE_2026.md)。
+
+`EventLog.append` 返回存储分配的 seq；存储锁下拒绝重复 id 与不存在的 parent。事件 JSON 写入在前，内存 id/index 与 length marker 更新在后。它不是把 EventLog、ConversationState、metadata 和 Workspace 一起提交的数据库事务。
+
+```mermaid
+flowchart LR
+  Guard[lease guarded_write] --> Event[write event JSON]
+  Event --> Index[update in-memory index]
+  Index --> Marker[advance length marker]
+  Marker --> Replay[recovery/replay]
+  SideEffect[external tool side effect] -. no atomic transaction .-> Event
+```
+
+ConversationLease 基于 FileLock 和 owner/generation/expiry，SDK FIFO 锁基于线程顺序。部署到共享文件系统前应验证锁和原子 replace 语义；不要把文件锁写成全局共识算法。
+
+**建议监控字段**：conversation id、lease generation、run permit 生命周期、event seq、subscriber backlog、replay duration、tool operation reference。禁止默认记录 secret、完整 prompt、token 或授权 header。
+
+**恢复测试矩阵**：写事件后崩溃、marker 失败、lease 接管、旧 owner 再写、慢 socket 断开、transient delta 丢失。每项分别核对持久化事实、执行状态和外部副作用。

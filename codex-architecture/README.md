@@ -16,6 +16,8 @@ OpenAI Codex CLI 是一个**本地运行的编码 Agent**：TUI / IDE / exec / a
 |------|------|------|
 | **入口** | [ARCHITECTURE.md](./ARCHITECTURE.md) | 10 分钟主题表 |
 | **同步** | 本 README | 分类大纲与阅读路径 |
+| **源码增补** | [SOURCE_DEEP_DIVE_2026.md](./SOURCE_DEEP_DIVE_2026.md) | 控制面、并发、持久化屏障与恢复深读 |
+| **证据与总结** | [COVERAGE_AND_CHANGES.md](./COVERAGE_AND_CHANGES.md) | 覆盖矩阵、回归入口、验证限制与改动记录 |
 
 ### A. 架构分章（按源码模块）
 
@@ -92,3 +94,10 @@ OpenAI Codex CLI 是一个**本地运行的编码 Agent**：TUI / IDE / exec / a
 ---
 
 **维护者**: Deep Agents Team · **整理日期**: 2026-09-01
+
+
+### 本轮源码校准补充
+
+推荐先阅读 [SOURCE_DEEP_DIVE_2026.md](./SOURCE_DEEP_DIVE_2026.md)，再回到 PART1/2/3 对照核心循环、工具安全和持久化实现。
+
+新增专题：[覆盖与改动记录](./COVERAGE_AND_CHANGES.md)。原文 2026-08 快照说明保留；本次增补以 commit `b7ba02f88095cd3c039709157618c03909d47a26` 为基线，历史行号、平台能力与 feature 默认值需要按实际 checkout/config 核对。

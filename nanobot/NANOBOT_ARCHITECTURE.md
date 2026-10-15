@@ -2,6 +2,20 @@
 
 > **合并版** · 2026-08-05 · 合并自 Part 1–3 + Runtime 深读。源码：`nanobot/nanobot/`
 
+> **本轮增补入口**：[第20章：源码校准与后端深读](#第20章源码校准与后端深读2026-10-15-增补)。前文为保留的历史正文；当前 stage pipeline、Provider state、Prompt 与持久化差异以新增章节校准为准。
+
+## 全文阅读总纲（新增）
+
+| 内容区 | 包含内容 | 入口 |
+|---|---|---|
+| 核心运行时 | 第1–6章及第一段第7章、源码导读第19章 | [核心设计](#第1章核心设计理念)、[源码导读](#第19章源码级核心流程导读补充) |
+| 状态与扩展 | 第二段第7章、第8–12章 | [Session](#第7章session-与会话管理)、[Memory](#第8章memory-与-dream-整合完整设计方案) |
+| 服务与交互 | 第13–18章、附录 | [MessageBus / Channels](#第13章messagebus-与-channels)、[WebUI](#第14章webui) |
+| Runtime 历史深读 | Memory、Session、Subagent、Prompt 全文 | [Memory 框架总览](#1-memory-框架总览) |
+| 当前源码校准 | 新增第20章，事实、图表、缺口和验证记录 | [源码校准](#第20章源码校准与后端深读2026-10-15-增补) |
+
+原文存在多段独立目录和两处“第7章”，这是合并历史造成的编号；本轮保留而不删除。上表提供跨段导航，新章节使用 20.x 编号，不重新定义旧章含义。
+
 ---
 
 
@@ -4492,3 +4506,820 @@ sequenceDiagram
 
 ---
 
+
+---
+
+# 第20章：源码校准与后端深读（2026-10-15 增补）
+
+> **本章目的**：在保留前文设计叙述、历史版本和已有方案的前提下，按当前源码重新建立一条可追踪的“入口 → 编排 → 上下文 → Provider → 工具 → 会话 → 投影”链路。源码基线为本地仓库提交 `1360d0d83a0d27f7c0df465fccb48160c7d0fbca`，根目录为 `/Users/gqli/work/deepagents/nanobot/`。
+>
+> **证据标记**：`[现有]` 表示当前源码可直接定位；`[推论]` 表示由多个模块的接口关系推得；`[建议]` 表示后续工程方向，不代表已经实现。前文中“设计方案”与当前实现有差异时，优先以本章的源码校准为准。
+
+## 本章大纲与阅读路径
+
+1. [源码事实地图](#201-源码事实地图)
+2. [入口、进程与运行时边界](#202-入口进程与运行时边界)
+3. [核心对象与依赖关系](#203-核心对象与依赖关系)
+4. [MessageBus 与事件投影](#204-messagebus-与事件投影)
+5. [AgentLoop：会话队列与 Turn FSM](#205-agentloop会话队列与-turn-fsm)
+6. [AgentRunner：模型—工具闭环](#206-agentrunner模型工具闭环)
+7. [ContextBuilder 与上下文治理](#207-contextbuilder-与上下文治理)
+8. [Provider、Conversation State 与恢复](#208-providerconversation-state-与恢复)
+9. [Tool、MCP、Skill 与 Subagent](#209-toolmcpskill-与-subagent)
+10. [Session、Checkpoint 与 Memory/Dream](#2010-sessioncheckpoint-与-memorydream)
+11. [Channel、WebUI、API 与 Cron](#2011-channelwebuiapi-与-cron)
+12. [安全边界、进程托管与工程缺口](#2012-安全边界进程托管与工程缺口)
+13. [源码解读与验证总结](#2013-源码解读与验证总结)
+
+### 建议阅读顺序
+
+- **产品/架构读者**：20.1 → 20.2 → 20.5 → 20.11 → 20.12。
+- **后端开发者**：20.3 → 20.4 → 20.5 → 20.6 → 20.10。
+- **Provider / 工具开发者**：20.6 → 20.7 → 20.8 → 20.9。
+- **排障者**：20.4 → 20.5 → 20.8 → 20.10 → 20.13。
+
+## 20.1 源码事实地图
+
+### 20.1.1 现有文档已经覆盖的部分
+
+| 主题 | 原文已有内容 | 本章补充的深度 |
+|---|---|---|
+| AgentLoop / AgentRunner | 已有主循环、工具循环和状态机描述 | 补充同 session 串行、跨 session 并发、取消、恢复和投影边界 |
+| Tool 系统 | 已有抽象、注册和 MCP 说明 | 补充 schema 顺序、执行期 Context、权限和结果归一化 |
+| Session / Memory | 已有文件布局和 Dream 方案 | 区分 Session history、runtime checkpoint、Memory archive、Dream cursor |
+| Channels / WebUI | 已有渠道列表和接口说明 | 补充消息队列、typed event、stream segment、delivery policy |
+| Provider | 已有适配器对比 | 补充 conversation state、provider compaction、fallback 和 runtime admission |
+
+### 20.1.2 本轮补齐的“后端厚度”
+
+```mermaid
+flowchart LR
+    In[入口：CLI / SDK / Web API / Channel / Cron] --> Admission[入口准入与 session key]
+    Admission --> Queue[MessageBus + per-session FIFO]
+    Queue --> Turn[AgentLoop Turn FSM]
+    Turn --> Context[ContextBuilder + workspace scope]
+    Context --> Run[AgentRunner]
+    Run --> Runtime[LLMRuntime / Provider factory]
+    Run --> Tools[ToolRegistry / MCP / Subagent]
+    Run --> State[checkpoint / usage / events]
+    State --> Session[Session JSONL + recovery]
+    Session --> Delivery[TurnDelivery + outbound projection]
+    Delivery --> Channel[IM / WebSocket / API / CLI]
+```
+
+图为逻辑职责概览，不表示所有入口都必须经过总线；直接入口的分支见 20.2。这张图强调 nanobot 不是“一个函数调用模型”的薄壳，而是一个带有**消息准入、会话调度、上下文预算、工具执行、恢复持久化和多渠道投影**的异步运行时。
+
+### 20.1.3 历史描述与当前实现的差异
+
+- **FSM 仍然显式，但实现形态变了**：当前 `loop.py` 以 `_run_turn_stage` 和 `TurnContext` 驱动阶段，没有检索到 `TurnState`、`StateTraceEntry` 的定义；前文枚举/trace 描述属于历史形态，不能作为当前类接口。
+- **入口拆分**：`cli/commands.py` 不再适合被视为唯一组装文件，应同时追踪 `cli/entry.py`、`cli/gateway.py` 和 `cli/gateway_runtime.py`。
+- **Prompt 的 Recent History 描述需要校准**：当前 `ContextBuilder.build_system_prompt` 未直接注入 MemoryStore recent history；直接观察到的是 identity、bootstrap、tool contract、current project、MEMORY.md、skills 和 session summary。Session history 由 transcript 另行拼入。
+
+### 20.1.4 不能从目录名推导出来的事实
+
+- `MessageBus` 不只是 inbound/outbound 两个队列；它还承载 typed `AgentEvent` 的本地订阅和渠道投影。
+- `AgentLoop.run()` 不直接串行处理全部消息；它把消息按 session 放入独占 worker，因此同一 session 保序，不同 session 可并行。
+- `AgentRunner` 不拥有产品层 session；它接收 `AgentRunSpec`，负责模型—工具循环、请求级恢复、注入和 usage。
+- Session 层不只是历史数组读写；`SessionManager`/store 处理原子保存与 runtime checkpoint，`session/recovery.py` 处理 pending follow-up 解码和 acknowledgment。
+- `TurnDelivery` 不是简单的 `publish_outbound` 包装器；它记录 stream segment、response source、retry、latency、usage 和最终 outcome。
+
+## 20.2 入口、进程与运行时边界
+
+### 20.2.1 四类入口不是同一条调用路径
+
+```mermaid
+flowchart TB
+    CLI[nanobot gateway] -->|组装运行时| Runtime[AgentLoop + services]
+    SDK[Python SDK] -->|process_direct| Direct[单次/直接 turn]
+    Controller[WebUI / API lifecycle control] --> ApiRuntime[ApiRuntime / ManagedProcessRuntime]
+    Channel[Telegram / Discord / WebSocket 等] --> Bus[MessageBus.inbound]
+    Cron[Cron / heartbeat / automation] --> System[定时任务 turn 准入]
+    Runtime --> Bus
+    Bus --> SessionWorker[per-session worker]
+    Direct --> TurnCore[直接调用 turn pipeline]
+    System --> SessionWorker
+    ApiRuntime --> API[独立 nanobot serve 子进程]
+    API --> TurnCore
+```
+
+`gateway` 是常驻进程：启动配置、总线、SessionManager、Cron、AgentLoop、ChannelManager 和 WebUI 支持服务；`agent` CLI 和 SDK 可以绕过常驻 gateway 直接处理一条 turn；`serve` 则是被 WebUI 或 CLI 管理的独立 API 子进程。把这些入口混为一谈会导致错误的 shutdown、session 和 delivery 设计。
+
+### 20.2.2 Gateway 的生命周期
+
+```mermaid
+sequenceDiagram
+    participant C as CLI gateway
+    participant G as gateway_runtime
+    participant B as MessageBus
+    participant A as AgentLoop
+    participant H as ChannelManager
+    participant W as Web/API service
+    C->>G: 解析 config / workspace / host
+    G->>B: 创建 inbound/outbound queues
+    G->>A: AgentLoop.from_config()
+    G->>H: 创建并启动渠道
+    G->>W: 按需启动 WebUI/API
+    par 长驻任务
+      H->>B: 发布 InboundMessage
+      A->>B: 消费并生成 outbound/events
+      H->>B: 消费 outbound 并发送到外部渠道
+      W->>B: 订阅或投影 runtime events
+    end
+    C->>G: SIGINT / SIGTERM
+    G->>A: preserve inflight turns / shutdown
+    G->>H: 停止渠道
+    G->>W: 停止托管服务
+```
+
+源码中的信号处理有“第一次请求优雅关闭、再次请求强制取消”的语义；这不是所有入口都自动具备的全局保证，嵌入 SDK 时必须由宿主负责取消和持久化策略。
+
+### 20.2.3 进程托管的状态不是端口探测
+
+`process_runtime.py::ManagedProcessRuntime` 为 API 等后台进程维护：
+
+- `run_dir` 中的 state 文件：PID、启动时间、端口、命令和平台事实；
+- `logs_dir` 中的轮转日志；
+- lifecycle file lock，防止 start/stop/restart 竞争；
+- 子进程句柄与 `poll()`，避免已退出但尚未 reaped 的 PID 被误认为运行中；
+- 平台相关的 detached process 参数。
+
+```mermaid
+stateDiagram-v2
+    [*] --> not_started
+    not_started --> starting: start_background
+    starting --> running: pid / startup check succeeds
+    starting --> failed: child exits during startup
+    running --> stopping: stop / restart
+    stopping --> stopped: process exits
+    running --> stale: state exists but identity not alive
+    stale --> starting: restart
+    running --> running: status / log tail
+```
+
+**工程结论**：[现有] 状态文件是生命周期事实的持久投影；[推论] 仅检查端口不足以安全判断是否为本实例；[建议] 若增加远程运行时，应将 host identity、binary digest 和启动 fingerprint 纳入 state，而不是复用本机 PID 语义。
+
+## 20.3 核心对象与依赖关系
+
+### 20.3.1 运行时对象图
+
+```mermaid
+classDiagram
+    class AgentLoop {
+      +run()
+      +process_direct()
+      +_enqueue_session_message()
+      +_process_message()
+      -pending_queues
+      -active_tasks
+      -session_locks
+    }
+    class AgentRunner {
+      +run(spec)
+      +_run_core(spec)
+      +_try_drain_injections()
+    }
+    class AgentRunSpec {
+      +runtime
+      +initial_messages
+      +tools
+      +max_iterations
+      +workspace
+      +session_key
+      +checkpoint_callback
+      +events
+    }
+    class MessageBus {
+      +inbound Queue
+      +outbound Queue
+      +publish_event()
+      +subscribe()
+    }
+    class SessionManager {
+      +get_or_create()
+      +save()
+      +save_runtime_checkpoint()
+    }
+    class ContextBuilder {
+      +build_system_prompt()
+      +build_user_content()
+      +build_transcript()
+    }
+    class TurnDelivery {
+      +started()
+      +runtime_admitted()
+      +complete()
+      +fail()
+      +abort_stream()
+    }
+    AgentLoop --> MessageBus : consume/publish
+    AgentLoop --> SessionManager : load/save/recover
+    AgentLoop --> ContextBuilder : build model input
+    AgentLoop --> TurnDelivery : lifecycle projection
+    AgentLoop --> AgentRunner : run one admitted turn
+    AgentRunner --> AgentRunSpec
+    AgentRunner --> ToolRegistry : execute tools
+```
+
+### 20.3.2 三个边界不要混淆
+
+| 边界 | 负责 | 不负责 |
+|---|---|---|
+| `AgentLoop` → `AgentRunner` | session、命令、context、save/respond、产品事件 | 具体 provider 的产品路由和渠道发送 |
+| `AgentRunner` → `LLMRuntime` | request payload、tool loop、retry/compaction 接口 | 哪个 IM 渠道收到最终文本 |
+| `TurnDelivery` → `MessageBus` | stream、lifecycle、completion 的投影 | 决定模型是否应该继续思考 |
+
+### 20.3.3 源码节选：Turn 的七个阶段
+
+```python
+# agent/loop.py::_process_message，核心阶段的教学性节选。
+# 每个 stage 都有统一计时、异常日志和上下文恢复边界。
+await self._run_turn_stage(ctx, "restore", self._restore_turn)
+await self._run_turn_stage(ctx, "compact", self._compact_session)
+if await self._run_turn_stage(ctx, "command", self._dispatch_command):
+    self._log_turn_completion(ctx, outcome="command")
+    return ctx.outbound       # Slash command 可短路，不进入模型循环。
+await self._run_turn_stage(ctx, "build", self._build_turn)
+await self._run_turn_stage(ctx, "run", self._run_turn)
+await self._run_turn_stage(ctx, "save", self._persist_turn)
+await self._run_turn_stage(ctx, "respond", self._prepare_outbound)
+```
+
+`_run_turn_stage` 将阶段名、耗时、异常和 log-content policy 统一记录，避免每个阶段各自实现一套错误处理。该结构也给 WebUI 的状态时间线提供稳定的 stage vocabulary。
+
+## 20.4 MessageBus 与事件投影
+
+### 20.4.1 消息和事件是两种不同层级
+
+- `InboundMessage`：等待 AgentLoop 处理的输入，包含 channel、sender、chat、content、media、metadata 和 session key。
+- `OutboundMessage`：渠道最终可发送的文本/媒体或事件 fallback。
+- `AgentEvent`：内部运行事实，如 `StreamDeltaEvent`、`RetryStatusEvent`、`TurnCompleted`、`ContextCompactionEvent`。
+
+```mermaid
+flowchart LR
+    I[InboundMessage] --> QI[inbound Queue]
+    QI --> L[AgentLoop]
+    L --> E[AgentEvent]
+    E --> Local[MessageBus.publish 本地订阅]
+    E --> Wire[MessageBus.publish_event]
+    Wire --> O[OutboundMessage / event projection]
+    O --> Channel[Channel adapter]
+    L --> Text[最终 OutboundMessage]
+    Text --> Channel
+```
+
+`MessageBus.publish()` 会按注册顺序等待本地 handler；`publish_event()` 则把事件转成渠道可理解的 outbound 形式。TurnDelivery 绑定渠道 EventSink 时，由 notification audience policy 决定是否投影；ChannelManager 还会根据具体渠道能力处理发送，不能要求每个渠道渲染所有内部事件。
+
+### 20.4.2 事件 audience 是安全与产品契约
+
+`notification_delivery.py` 将事件划分为 lifecycle、interactive、channel 等 audience：
+
+- lifecycle：是否开启 `publish_lifecycle` 决定是否对外暴露；
+- interactive：通常只对 WebSocket 暴露 retry/source 等交互状态；
+- channel：流增量和流结束面向真实消息渠道。
+
+这使“日志可见性”和“用户回复内容”分开。新增事件时必须补 audience，否则默认为不可投影；不要在 Channel 层用事件类名猜测权限。
+
+### 20.4.3 源码节选：本地订阅不是持久事件日志
+
+```python
+# bus/queue.py::publish，删去异常日志细节，增加解释性注释。
+for handler in list(self._handlers):
+    try:
+        result = handler(event)
+        if inspect.isawaitable(result):
+            await result  # 按注册顺序等待；慢 handler 影响当前 publication。
+    except Exception:
+        logger.exception("event handler failed for {}", type(event).__name__)
+        # 不因一个订阅失败而停止后面的订阅，但失败并未变成可重放 receipt。
+```
+
+`publish_nowait` 会保留 task 到结束，但不同 publication 可以交错，源码明确不承诺全局 event FIFO。两个顶层队列初始化为 `asyncio.Queue()`，即没有 maxsize 背压；这不表示项目完全没有限流，而是**队列容量、并发 semaphore、附件限制和 provider budget 各管一层**。
+
+## 20.5 AgentLoop：会话队列与 Turn FSM
+
+### 20.5.1 同一 session 串行、不同 session 并行
+
+```mermaid
+flowchart TB
+    Msg[InboundMessage] --> Key[effective_session_key]
+    Key --> Existing{session worker exists?}
+    Existing -->|否| NewQ[创建 Queue + worker task]
+    Existing -->|是| Pending[放入 pending queue]
+    NewQ --> Worker[唯一 session worker]
+    Pending --> Worker
+    Worker --> FIFO[FIFO dispatch]
+    FIFO -->|完成| Next{队列还有消息?}
+    Next -->|是| FIFO
+    Next -->|否| Release[释放 pending queue]
+    Other[另一个 session key] --> OtherWorker[独立 worker，可并行]
+```
+
+源码 `_enqueue_session_message()` 使用 `_pending_queues` 作为 admission point；队列存在时，新消息不会创建竞争 task，而是等待当前 session worker。这样既保留同一会话历史顺序，也允许不同 session 并发；但“不同用户一定是不同 session”并不成立，启用 unified-session 时尤其需要区分 identity 与 session key。`_dispatch_one` 另外持有 session lock 和可选 concurrency semaphore，FIFO 与全局并发上限是不同保证。
+
+**重要细节**：正在运行的 WebUI follow-up 不只是进入内存队列；`_journal_pending_message()` 会先将可恢复 follow-up 写进 session metadata，只有对应 user row 已提交 history 后才由 `acknowledge_pending_followups()` 移除。
+
+### 20.5.2 `_dispatch_one` 的恢复准入
+
+```mermaid
+sequenceDiagram
+    participant B as MessageBus
+    participant L as AgentLoop
+    participant R as RecoveryAdmission
+    participant Q as session pending queue
+    participant T as Turn
+    B->>L: 新 InboundMessage
+    L->>L: 计算 effective session key
+    opt active queue 中的新 WebUI 输入
+      L->>R: admit，先检查是否替代旧 recovery
+      R-->>L: accept / reject
+    end
+    alt 已有 active queue 且已准入
+      L->>Q: journal + enqueue follow-up
+      Q->>T: mid-turn injection 或后续独立 turn
+    else 新 session
+      L->>Q: 创建唯一 worker
+      Q->>T: restore → compact → command → build → run → save → respond
+    end
+```
+
+这条 admission 规则避免“恢复中的旧 turn 先结束，随后才看到用户的新消息”的竞态。它是一个产品语义，而不只是 asyncio 实现细节。
+
+### 20.5.3 命令短路与普通消息不是同一类
+
+`AgentLoop.run()` 先识别 priority command；命令可以直接在 loop 中执行或进入 session queue，shell command 还可能被安排为 background task，以保持 inbound consumer 响应 `/stop`。因此：
+
+- `/stop` 的目标是取消 active tasks、subagents 和 exec sessions；
+- 需要 session 的 slash command 必须进入该 session worker；
+- 普通用户文本进入 build/run/save/respond；
+- system、cron、automation message 也复用 turn pipeline，但其 history、delivery 和 runtime context 可不同。
+
+### 20.5.4 源码节选：follow-up 的先记账后入队
+
+```python
+# agent/loop.py::_journal_pending_message，关键节选。
+session = self.sessions.get_or_create(session_key)
+followup_id = record_pending_followup(session, msg)
+if followup_id is None:
+    return msg   # 例如不是 WebSocket 或 metadata 不能序列化。
+pending_msg = dataclasses.replace(
+    msg, metadata={**msg.metadata, PENDING_FOLLOWUP_ID_KEY: followup_id},
+)
+self.sessions.save(session)  # 普通 save 默认 fsync=False，不是断电级承诺。
+return pending_msg
+```
+
+之后 `_enqueue_session_message` 才对已有 queue `put_nowait`。`record_pending_followup` 按 ID 去重，且明确不把 journal 当成有界内存 inbox 的镜像；已确认输入只有在 history 提交后才允许清除。这里的“journaled”是恢复可读事实，不等价于外部事务或工具副作用对账。
+
+## 20.6 AgentRunner：模型—工具闭环
+
+### 20.6.1 AgentRunSpec 是产品层与模型层的契约
+
+```mermaid
+classDiagram
+    class AgentRunSpec {
+      +LLMRuntime runtime
+      +list initial_messages
+      +ToolRegistry tools
+      +int max_iterations
+      +int max_tool_result_chars
+      +bool concurrent_tools
+      +Path workspace
+      +str session_key
+      +checkpoint_callback
+      +injection_callback
+      +continuation_callback
+      +ProviderConversationState provider_state
+      +EventSink events
+    }
+    class AgentRunResult {
+      +str final_content
+      +list initial_messages
+      +ToolRegistry tools_used
+      +LLMUsage usage
+      +list round_usages
+      +str stop_reason
+      +str error
+      +str failure_error_kind
+      +list tool_events
+      +bool had_injections
+    }
+    AgentRunSpec --> AgentRunResult : run
+    AgentRunSpec --> LLMRuntime
+    AgentRunSpec --> ToolRegistry
+```
+
+类图只列部分当前字段：输入名为 `initial_messages`，或通过 `transcript_input` 与 `transcript_builder` 生成；并非原文中的统一 `messages` 输入。`AgentRunSpec` 允许 runner 被测试和其他入口复用；`AgentRunResult` 将用户可见文本、完整 messages、usage、工具事件、停止原因和错误类型分开，避免把“有 final_content”误当成“成功”。
+
+### 20.6.2 一次模型迭代的真实边界
+
+```mermaid
+sequenceDiagram
+    participant R as AgentRunner
+    participant G as ContextGovernor
+    participant S as ConversationState
+    participant P as LLMProvider
+    participant T as ToolRegistry
+    participant C as checkpoint callback
+    R->>G: prepare_for_model(messages, tools)
+    G->>G: pressure / tool-result budget / malformed repair
+    G-->>R: model payload + provider context
+    R->>S: prepare_request / resume state
+    R->>P: stream chat request
+    P-->>R: delta / reasoning / tool calls
+    alt tool calls
+      R->>C: checkpoint awaiting_tools
+      R->>T: execute validated tools
+      T-->>R: normalized tool results
+      R->>C: checkpoint tools_completed
+      R->>R: append results, next iteration
+    else final response
+      R->>C: checkpoint final_response
+      R-->>R: stop_reason completed
+    end
+```
+
+### 20.6.3 错误恢复不等于无限重试
+
+当前 runner 会根据 provider error、empty final response、length limit、injection 和 max iteration 等条件进行分支处理。错误恢复通常需要同时维护：
+
+1. 给模型看的 messages；
+2. 持久化语义上的 raw transcript（不是未清洗的 provider 网络响应）；
+3. provider 可复用的 conversation state；
+4. usage 中“逻辑 round”和“恢复 dispatch”的聚合关系；
+5. 用户看到的 stream segment 是否已经发送。
+
+[建议] 新增 provider 时，应先定义这五者的边界，再实现 retry；否则最常见的回归是重复输出、重复工具调用或 usage 统计失真。
+
+## 20.7 ContextBuilder 与上下文治理
+
+### 20.7.1 Prompt 不是一个字符串
+
+```mermaid
+flowchart TD
+    Identity[identity.md] --> System[system prompt]
+    Bootstrap[AGENTS / SOUL / USER] --> System
+    Contract[tool contract] --> System
+    Memory[MEMORY.md] --> System
+    Always[always-on skills] --> System
+    Skills[L1 skill summaries] --> System
+    Summary[session archived summary] --> System
+    System --> Messages[model messages]
+    User[当前消息 + media + runtime context] --> Messages
+    History[Session history transcript] --> Messages
+    Messages --> Governor[ContextGovernor]
+    Governor --> Provider[provider request]
+```
+
+图中 system、history 与当前消息是并列组装项，不是把 system 字符串塞进 user message。ContextBuilder 的职责是**语义组装**；ContextGovernor 的职责是**容量与合法性治理**。前者决定模型应知道什么，后者决定这批消息能否安全进入 provider 请求。
+
+### 20.7.2 ContextGovernor 的治理层
+
+源码中可见的治理包括：
+
+- 估算 request pressure 和 input budget；
+- provider 支持时请求 pre-request compaction；
+- 否则执行历史 compact，并重新建立独立 provider context；
+- 限制 tool result 字符量；
+- 清除 placeholder assistant、孤立 tool result 和 malformed tool call；
+- 合并相邻 user messages 的 model 投影；
+- 保留 durable transcript 与 model payload 的差异。
+
+```python
+# 等价伪代码：解释 prepare_request 的分支，不是可复制替换的真实节选。
+prepared = prepare_messages_for_model(config, messages)
+pressure = self.request_pressure(config, prepared, usage, ...)
+if pressure:
+    if resumable_state and provider_supports_pre_request_compaction:
+        # 必须有可续接状态且 provider 声明支持预请求压缩。
+        provider_context = replace(provider_context,
+                                   compaction_input_budget=input_budget)
+    else:
+        # 本地压缩后用独立 provider context；无 pressure 则不做这步。
+        prepared = await compact_request_history(...)
+        provider_context = independent_request_context(...)
+```
+
+### 20.7.3 上下文治理的实际风险
+
+- token estimate 不是 provider 最终计费/拒绝事实；
+- 压缩后的模型 messages 不应覆盖原始 session history；
+- tool result 截断可能改变模型判断，必须在事件或日志中可解释；
+- system prompt 的 always skill、L1 summary 与 L2 内容存在不同披露级别；
+- workspace scope、log-content policy 和 runtime context 共同决定敏感内容是否进入 prompt。
+
+## 20.8 Provider、Conversation State 与恢复
+
+### 20.8.1 Provider 是工厂、运行时和会话状态的组合
+
+```mermaid
+flowchart LR
+    Config[provider config] --> Factory[providers.factory]
+    Factory --> Snapshot[ProviderSnapshot / registry]
+    Snapshot --> Runtime[LLMRuntime]
+    Runtime --> Provider[Anthropic / OpenAI / Bedrock / compat 等 adapter]
+    Runtime --> State[ProviderConversationState]
+    State --> Prepare[prepare request]
+    State --> Observe[observe response]
+    Observe --> Checkpoint[checkpoint provider state]
+    Checkpoint --> Recovery[restore next turn]
+```
+
+`providers.factory` 负责把配置解析成 provider/runtime；`ProviderConversationStateController` 负责 request boundary、resume eligibility、checkpoint、finish 和 transcript projection。它不是所有 provider 都能无条件复用的 token；`can_resume_conversation_state()` 决定何时必须退回独立 request context。
+
+### 20.8.2 provider state 与 Session history 的双账本
+
+| 数据 | 目的 | 生命周期 | 失败时策略 |
+|---|---|---|---|
+| Session JSONL messages | durable transcript；用户可见历史另由 visibility projection 决定 | 长期 | 从文件恢复，必要时修复 |
+| Provider conversation state | 某 provider 的压缩/续接状态 | turn/模型相关 | 无法恢复时丢弃并重建 request |
+| Runtime checkpoint | 工具中断时的临时安全边界 | in-flight | 版本和 base message count 校验 |
+| AgentRunResult | 当前执行的最终结果与 usage | 单次 run | 交给 loop 决定 save/respond |
+
+### 20.8.3 私有 state 已有身份字段，不能称为“没有版本”
+
+```python
+# providers/base.py::ProviderConversationState，真实字段节选。
+kind: str
+provider: str
+model: str
+version: int
+payload: dict[str, Any] = field(default_factory=dict, repr=False)
+pending_messages: list[dict[str, Any]] = field(default_factory=list, repr=False)
+```
+
+payload 可能包含加密 reasoning 和 provider 私有协议项；`to_private_record` 的注释明确不用于公开 history。当前已经有 provider/model/version，后续建议是评审 endpoint/config 等兼容性因素是否需要额外绑定，不是重新发明一个版本字段。
+
+### 20.8.4 不同恢复语义不能混称
+
+- **retry**：当前 turn 的 provider 请求重新尝试；
+- **continuation**：已有 assistant/tool 边界后，让模型继续生成；
+- **recovery**：gateway 或进程中断后，从 runtime checkpoint 恢复未完成 turn；
+- **new turn**：用户发来新消息，追加新的 user row；
+- **compaction**：改变模型输入投影，不代表删除 durable history。
+
+将这些都写成“重试”会掩盖重复发送和重复执行工具的风险。
+
+## 20.9 Tool、MCP、Skill 与 Subagent
+
+### 20.9.1 工具发现到执行的链路
+
+```mermaid
+flowchart TB
+    Config[ToolsConfig] --> Builtins[内置工具 loader]
+    EntryPoints[setuptools entry points] --> Plugins[第三方 tool plugins]
+    Builtins --> Registry[ToolRegistry]
+    Plugins --> Registry
+    MCP[MCPProvider lifecycle] --> Registry
+    Registry --> Schema[稳定 schema 排序]
+    Schema --> Runner[AgentRunner tool definitions]
+    Runner --> Validate[参数校验 / ToolContext]
+    Validate --> Execute[execute]
+    Execute --> Result[字符串或结构化结果]
+    Result --> Truncate[结果预算 / events]
+    Truncate --> Model[下一轮 messages]
+```
+
+`ToolRegistry` 同时承担注册、schema 导出和执行路由；`ToolContext` 是工具构造/服务依赖容器；每次请求的 channel、session、workspace 和 log-content policy 由 `RequestContext` 的 ContextVar 绑定。两者不要混称。当前内置工具读 ContextVar，兼容外部 `ContextAware.set_context` 的路径保留在 registry 中。
+
+### 20.9.2 Tool、Skill、MCP 的职责差异
+
+| 扩展 | 给模型什么 | 何时加载 | 是否直接执行 |
+|---|---|---|---|
+| Tool | 可调用 schema + result | 当前 run | 是 |
+| Skill | 行为说明、脚本和 references 的披露策略 | ContextBuilder 按 metadata/requirements | skill 脚本可能由工具执行 |
+| MCP | 外部 server 提供的工具集合 | AgentLoop 管生命周期，Registry 接入 | 通过 MCP client |
+| Subagent | 独立 task/session 观察与结果回传 | SpawnTool 调用时 | 由 parent-owned manager 管理 |
+
+### 20.9.3 Subagent 不是“普通工具的递归调用”
+
+Subagent 具有 task id、父 session、状态变更和结果接收策略；`SubagentManager` / `subagent_sessions.py` 还需处理取消、终态等待和 parent 是否接收结果。因此新增 subagent 能力时必须定义：谁拥有生命周期、何时算完成、父 session 如何持久化观察，而不是只增加一个 tool schema。
+
+## 20.10 Session、Checkpoint 与 Memory/Dream
+
+### 20.10.1 四类持久化内容
+
+```mermaid
+flowchart LR
+    Turn[turn] --> History[session JSONL history]
+    Turn --> Checkpoint[runtime checkpoint]
+    History --> Compact[Consolidator / AutoCompact]
+    Compact --> Summary[session summary metadata]
+    History --> Memory[MemoryStore history/archive]
+    Memory --> Dream[Dream cursor + LLM consolidation]
+    Dream --> LongTerm[MEMORY.md / git-backed memory]
+```
+
+### 20.10.2 SessionManager 的原子写入
+
+`session/manager.py` 使用 `FileLock`、临时文件、`os.replace` 和可选 `fsync`。普通保存和运行时 checkpoint 是不同写入路径：
+
+- 普通保存写 metadata + messages，适合历史重放；
+- runtime checkpoint 只写 volatile in-flight 状态，避免工具密集 turn 每次复制完整 transcript；
+- checkpoint 带版本、session key、base updated time 和 base message count，加载 sidecar overlay 时可拒绝不匹配的旧 checkpoint；
+- shutdown 时可以选择保留 in-flight checkpoint，供显式 recovery，而不是把取消误当成已完成。
+
+```mermaid
+sequenceDiagram
+    participant L as AgentLoop
+    participant S as SessionManager
+    participant F as FileLock
+    participant T as temp file
+    participant D as session JSONL
+    L->>S: checkpoint after tool boundary
+    S->>F: acquire session files lock
+    S->>T: write checkpoint sidecar，mode 0600
+    S->>T: os.replace 到 checkpoint path
+    S-->>L: sidecar 原子可见，当前无 fsync
+    L->>S: persist completed turn
+    S->>D: atomic JSONL rewrite，可选 fsync
+```
+
+### 20.10.3 原子可见与断电持久必须分别描述
+
+```python
+# session/manager.py::_save_unlocked，节选。
+# metadata 和 messages 组成新的完整 JSONL，而非这里逐行 append。
+atomic_write_lines(path, lines, fsync=fsync)
+```
+
+普通 `save(..., fsync=False)` 默认不做 file/directory fsync；shutdown flush 等特定路径使用 `fsync=True`。`save_runtime_checkpoint` 当前是 0600 临时文件写入、关闭、`os.replace`，本轮读取的路径没有 file/directory fsync。因此上面的时序图只承诺 sidecar 原子替换，**不承诺每个工具边界在断电后都能恢复**。
+
+overlay 还比较主 JSONL 与 sidecar 的 mtime，主文件更新后旧 sidecar 会被清除；它解决的是“主历史提交与旧 checkpoint unlink 之间崩溃”的窗口，而不是外部 API 调用与历史提交之间的原子性。
+
+### 20.10.4 Memory 与 Session 不是同一份历史
+
+Session 的 messages 解决“这个 chat 的可重放上下文”；Memory 的 history/archive 解决“跨 session 的长期知识”；Dream 使用 cursor 追踪哪些 memory history 已巩固。`ContextBuilder` 当前将 Archived Summary、MEMORY.md 和 skills 注入 system prompt；Session history 则作为 transcript 的消息序列输入。前文 Recent History 的直接 system 注入描述不能类推到当前版本。若把 Memory 当作 session transcript，会造成重复注入和隐私范围扩大。
+
+## 20.11 Channel、WebUI、API 与 Cron
+
+### 20.11.1 ChannelManager 是适配层，不是 AgentLoop 的子类
+
+```mermaid
+classDiagram
+    class ChannelManager {
+      +start_all()
+      +stop_all()
+      -_dispatch_outbound()
+    }
+    class BaseChannel {
+      +start()
+      +stop()
+      +send(msg)
+    }
+    class MessageBus
+    class AgentLoop
+    class WebSocket
+    class IMChannel
+    ChannelManager o-- BaseChannel
+    BaseChannel --> MessageBus : inbound/outbound
+    MessageBus --> AgentLoop
+    ChannelManager --> WebSocket
+    ChannelManager --> IMChannel
+```
+
+Channel 将外部 wire protocol 转成 `InboundMessage`，并将 outbound message/event 投影回平台。平台特有的 Markdown、media、typing、thread/reply 逻辑应该停留在 channel 层，不要污染 AgentRunner。
+
+### 20.11.2 WebUI 的关键不是“另一个 channel”
+
+WebUI 还承担 session list、settings、media、file preview、MCP presets、remote pairing、recovery、automation 和 workspace browser 等控制面能力。它既消费 runtime projection，也能产生新的 inbound/recovery/control request，所以需要单独的 ingress policy、身份、大小限制和权限校验。
+
+```mermaid
+flowchart TB
+    Browser[WebUI browser] --> Ingress[ingress policy / auth / size limits]
+    Ingress --> Routes[HTTP / WebSocket routes]
+    Routes --> SessionAPI[session projection / recovery]
+    Routes --> Settings[settings / MCP / skills]
+    Routes --> Media[media gateway / file preview]
+    Routes --> Bus[InboundMessage / control]
+    Bus --> AgentLoop[AgentLoop]
+    AgentLoop --> Events[typed runtime events]
+    Events --> Outbound[WebUI outbound projection]
+```
+
+### 20.11.3 渠道发送已有重试，但不是端到端 exactly-once
+
+`channels/manager.py::_send_with_retry` 已有指数退避；由 `channel.should_retry_send_error` 判断错误是否可重试，按配置次数或给定 deadline 结束，取消会继续抛出。达到上限或不可重试时记录失败，不是让整个 AgentRunner 重新生成回答。`_coalesce_stream_deltas` 则处理流增量合并。
+
+这说明缺口不应该被写为“没有发送重试”。真正需要单独评审的是：进程退出前队列里的消息如何恢复、发送成功但响应丢失是否重复、平台 message ID 是否可对账、工具通知与最终回复是否保证顺序。当前内存 bus 本身不能提供持久 outbox。
+
+### 20.11.4 Cron、Heartbeat、Automation 的统一点
+
+Cron service、heartbeat 和 automation 复用 AgentLoop 的 turn 能力，但**不统一等于 `channel="system"`**：session-bound cron 通过 `submit_cron_turn` 保留目标 channel、chat 和 session override；gateway 的其他定时/heartbeat 路径可走 `process_direct`。它们有不同的 history override、delivery policy 和 runtime context。这样既能共享工具和 memory，又能防止定时任务把内部提示直接泄漏给 messaging channel。
+
+## 20.12 安全边界、进程托管与工程缺口
+
+### 20.12.1 现有安全边界
+
+| 边界 | 当前机制 | 设计含义 |
+|---|---|---|
+| Workspace | `workspace_access`、scope resolver、workspace policy | 工具得到的是本 turn 的工作区视图，而不是任意全局路径 |
+| Web ingress | message/attachment/frame 大小、origin/token/route 校验 | 网络入口先限流和限尺寸，再进入 session |
+| Session 文件 | file lock、atomic replace、路径编码 | 防止并发写和部分文件覆盖 |
+| 子进程 | `process_runtime` 状态文件、日志轮转、平台参数 | API/gateway 子进程可独立管理 |
+| Request context | ContextVar 中绑定 request/session/workspace metadata | 作用域与日志策略由 turn 决定，不是任意 tool 自报权限 |
+| Event visibility | audience policy | 内部诊断事件不自动变成用户消息 |
+
+### 20.12.2 网络与 shell 防护不能用一句“有 sandbox”概括
+
+`security/network.py` 校验 HTTP/HTTPS、hostname 和解析得到的 IP；对 IPv4-mapped IPv6 先归一化，再判断阻断网段。CIDR whitelist、`allow_loopback` 和 `trust_remote_dns` 是不同例外：后者假设受信代理负责最终 DNS/egress，不能解释为允许任意私网。
+
+`agent/tools/shell.py` 另有 workspace/path 检查和配置化 sandbox wrapper。源码在 Windows 不支持指定 sandbox 时记录“running unsandboxed”警告。因此 workspace 路径策略、URL 校验、shell wrapper 和真实 OS 隔离是四种不同边界。扩展工具/第三方 MCP 必须逐项确认是否使用同一策略，不能凭注册成功就认定已隔离。
+
+### 20.12.3 仍值得补强的缺口
+
+以下为**局部源码阅读得到的风险与评审候选**，不是已经复现的漏洞，也不代表全仓库不存在相关保护。已有能力单独写出，再讨论未覆盖的更强保证。
+
+| 缺口 | 源码依据/风险 | 建议落点 | 验证方式 |
+|---|---|---|---|
+| Provider 兼容性绑定的覆盖范围待评审 | **已有** kind/provider/model/version 和 resume 检查；本轮未证明 endpoint/config fingerprint 也受同等约束 | 先审查 ProviderConversationState 校验，再考虑扩展 manifest | provider/model/endpoint 变化后的恢复测试 |
+| 工具副作用的 intent/receipt 不统一 | Tool result 与外部副作用完成状态不是同一事实 | ToolExecutionReceipt / idempotency key | 客户端超时、重启、重复 tool call |
+| 跨入口身份模型复杂 | gateway、API、remote pairing、channel sender 语义不同 | 统一 principal/session admission | 未授权 sender、重放 token、跨 workspace 测试 |
+| WebUI 与消息渠道的敏感信息策略可能分叉 | event audience 和 log-content policy 分层 | redaction / retention policy | raw log、attachment、stream、error 全路径检查 |
+| 资源预算分散 | max iterations、tool chars、context budget、queue 和 process timeout 分属不同配置 | cumulative TurnBudget | 长工具链、并发 session、压缩循环压测 |
+| Memory/Dream 与用户可见历史双向影响难观察 | cursor、archive、summary 多个持久化点 | provenance fields / memory audit | 回滚、重复 Dream、删除与隐私请求 |
+| 跨重启投递确认仍需独立评审 | 已有 `_send_with_retry` 和 outbound 排队；未见 MessageBus 本身承担持久 outbox/端到端 receipt | 持久 delivery receipt / outbox 的必要性评估 | 网络断开、发送成功但客户端超时、重启重放 |
+
+### 20.12.4 高风险设计误读
+
+1. `MessageBus` 有 outbound queue，不代表外部平台已确认收到消息。
+2. session 文件使用 atomic replace，不代表跨文件的 history、checkpoint、memory 更新具备一个事务。
+3. provider 返回 `completed`，不代表用户渠道已经完成 delivery。
+4. `ToolRegistry` 能执行工具，不代表工具副作用可安全重复执行。
+5. ContextGovernor 能压缩上下文，不代表压缩保留了所有用户可见语义。
+6. WebSocket 可以收到事件，不代表客户端拥有完整可重放的事件日志。
+
+### 20.12.5 扩展影响矩阵与优先顺序
+
+| 改动 | 首要模块 | 需要同步的契约 | 对应验证入口 |
+|---|---|---|---|
+| 新 Provider / fallback | factory、registry、conversation_state | state eligibility、usage、error kind、compaction | runner errors/fallback、provider tests |
+| 新工具 / MCP | loader、registry、execution、context | schema、RequestContext、副作用、取消 | tool execution、MCP reconnect、workspace tests |
+| 新渠道 | channel registry/manager/base | sender 准入、typed event、retry、media | channel 与 bus tests |
+| 修改恢复 | session store/recovery、WebUI recovery、loop | checkpoint base、follow-up ack、新输入替代旧任务 | session recovery、loop recovery |
+| 修改记忆 | memory、consolidator、context_governance | summary boundary、cursor、private/public projection | Dream、consolidator、context tests |
+| 修改后台服务 | process_runtime、gateway_runtime、api/runtime | process identity、日志、shutdown | CLI runtime/identity、gateway tests |
+
+[建议] **P0：** 先锁定历史描述与当前符号的漂移、恢复 sidecar 的持久化边界、敏感 provider state 的非公开约束。**P1：** 做副作用/投递 receipt 与跨入口 principal 评审。**P2：** 再扩展累计预算、队列压力观测和版本化兼容 manifest。这里是工作排序建议，不是已经批准的改造计划。
+
+## 20.13 源码解读与验证总结
+
+### 20.13.1 本轮新增内容
+
+- 按当前源码补齐入口、进程、AgentLoop、AgentRunner、ContextBuilder、Provider state、Tool/MCP/Skill/Subagent、Session、Memory、Channel、WebUI、API 和 Cron 的后端链路。
+- 增加 **17 个 Mermaid 图**：事实地图、入口部署、gateway 时序、进程状态、对象类图、消息事件流、session 调度、恢复准入、runner 时序、context 组装、provider state、session 原子写、channel 类图、WebUI 流程等（图中部分图综合多个子系统）。
+- 增加源码节选、明确标注的等价伪代码和解释性注释，特别标出 session worker、checkpoint、notification audience、ContextGovernor 和 delivery 的边界。
+- 将“设计目标”“当前实现”“后续建议”分开，避免把架构愿景误写成已存在功能。
+
+### 20.13.2 已做的静态检查
+
+- 原文内容保持在前面；本章采用追加方式，没有删除或重写历史章节。
+- 新增 Mermaid 代码块结构、Markdown 代码围栏和新增章节锚点已检查；未安装 Mermaid 渲染器，因此没有完成渲染级图形验证。
+- 源码路径、类名和模块名以提交 `1360d0d83a0d27f7c0df465fccb48160c7d0fbca` 为基线；行号不作为稳定 API，阅读时以符号名为准。
+
+### 20.13.3 本轮源码定位与回归索引
+
+下表业务模块路径相对于 `/Users/gqli/work/deepagents/nanobot/nanobot/`；测试路径相对于仓库根 `/Users/gqli/work/deepagents/nanobot/`。缩写测试文件名默认位于 `tests/agent/`，但 `test_tool_contextvars.py` 位于 `tests/`。符号名比历史行号更稳定。
+
+| 本轮重点核对 | 源码落点 | 已有测试入口（只定位，未运行成功） |
+|---|---|---|
+| 调度与 stage pipeline | `agent/loop.py`：run、_enqueue_session_message、_run_session_queue、_dispatch_one、_process_message | `tests/agent/test_loop_concurrency.py`、`test_loop_recovery.py` |
+| runner 输入/结果与工具边界 | `agent/runner.py`：AgentRunSpec、AgentRunResult、_try_drain_injections、_emit_checkpoint | `test_runner_core.py`、`test_runner_persistence.py` |
+| 上下文压力与 model 投影 | `agent/context.py`、`agent/context_governance.py`：prepare_request、input_budget | `test_context_governance.py`、`test_context_builder.py` |
+| provider 私有 state | `providers/base.py`、`providers/conversation_state.py` | `tests/providers`、`test_runner_runtime_identity.py` |
+| bus、通知与 delivery | `bus/queue.py`、`bus/notification_delivery.py`、`agent/turn_delivery.py` | `tests/bus`、`test_turn_delivery.py` |
+| history/sidecar/follow-up | `session/manager.py`、`session/recovery.py` | `test_session_atomic.py`、`tests/session/test_recovery.py` |
+| 工具组装与请求上下文 | `agent/tools/loader.py`、`agent/tools/registry.py`、`agent/tools/context.py`、`agent/tools/execution.py` | `test_runner_tool_execution.py`、`test_tool_contextvars.py` |
+| Channel retry 与 session cron | `channels/manager.py`、`cron/bound_runner.py` | `tests/channels`、`tests/cron/test_session_delivery.py` |
+| 生命周期与安全 | `process_runtime.py`、`security/network.py`、`agent/tools/shell.py`、`webui/ingress_policy.py` | `tests/cli/test_process_identity.py`、`tests/security` |
+
+本轮对表中关键分支和接口进行了静态阅读；没有逐行审计全部 Channel、Provider、Dream 实现或 WebUI 前端。涉及未深入路径的文字属于模块导航或候选评审方向，不是“完整安全审计”。
+
+### 20.13.4 动态验证边界
+
+本轮使用 pyenv Python 3.12.11 尝试运行后端测试，但该解释器环境缺少 `loguru` 依赖，pytest 在加载 `conftest.py` 阶段停止，因此没有把“测试通过”写入本章。建议在 nanobot 项目开发环境中运行：
+
+```bash
+cd /Users/gqli/work/deepagents/nanobot
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/Users/gqli/work/deepagents/nanobot \
+python3 -m pytest -q -rs -p no:cacheprovider \
+tests/bus tests/agent/test_loop_concurrency.py \
+tests/agent/test_runner_core.py tests/agent/test_runner_errors.py \
+tests/agent/test_context_governance.py \
+tests/agent/test_runner_persistence.py tests/agent/test_loop_recovery.py \
+tests/agent/test_session_atomic.py
+```
+
+失败不是源码测试断言失败，而是环境依赖缺失；不要据此宣称实现不工作。成功运行后应把解释器、依赖版本、通过/跳过数量和跳过原因追加到这里。
+
+### 20.13.5 最终结论
+
+nanobot 的核心价值不只是“轻量 Agent loop”，而是以较小的中心循环连接了多层可替换边缘：渠道、工具、MCP、Provider、WebUI、Memory、Cron 和 Subagent。基于本轮已读边界，后续值得继续评审的不是盲目增加模块，而是让**恢复事实、外部 delivery、工具副作用、Provider 版本和敏感信息治理**具有更明确的 provenance、receipt 和可验证契约。
+
+---
+
+## 增补导航（追加）
+
+- 本次源码校准： [第20章：源码校准与后端深读](#第20章源码校准与后端深读2026-10-15-增补)
+- 运行时主链：20.2 → 20.5 → 20.6 → 20.8 → 20.10
+- 扩展与边界：20.9 → 20.11 → 20.12
+- 验证与限制：20.13

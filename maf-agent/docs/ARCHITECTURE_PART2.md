@@ -1,5 +1,7 @@
 # Microsoft Agent Framework — 架构文档（第2部分）
 
+> **追加阅读导航**：本卷原文完整保留。当前源码/API 与后端责任校准见卷末「源码校准补充（2026）」、[源码深读](./SOURCE_DEEP_DIVE_2026.md)及[覆盖与改动](./COVERAGE_AND_CHANGES.md)。
+
 > **Memory、Session、Compaction、Skills、MCP、Prompt、安全** · 合并版 2026-08-05（2026-08-12 增补 §2.5 / §3.1）  
 > 合并自 MEMORY_DESIGN + SESSION_CONTEXT + HARNESS + SKILLS + MCP + RUNTIME_PROMPTS + SECURITY
 
@@ -4335,3 +4337,38 @@ agent = Agent(
 
 ---
 
+
+
+## 源码校准补充（2026）
+
+关于 SessionStore deep copy、FileSessionStore 原子替换、Harness 装配、后台 Agent 回收和 ToolApproval 生命周期，请见 [SOURCE_DEEP_DIVE_2026.md §4–§8](./SOURCE_DEEP_DIVE_2026.md#4-sessioncontext-与历史持久化)。原文保留不变。
+
+### 本卷追加：历史加载、快照写回与审批权限
+
+在 `_prepare_session_and_messages` 中有一个对扩展很重要的分支：
+
+```python
+# 源码节选，省略无关字段；以下判断出自 _agents.py。
+per_service_call_history_required = self.require_per_service_call_history_persistence and bool(
+    self._get_history_providers()
+)
+for provider in self.context_providers:
+    if per_service_call_history_required and isinstance(provider, HistoryProvider):
+        continue  # 加载/保存权已交给每次模型调用的 middleware，不重复拼历史
+    if isinstance(provider, HistoryProvider) and not provider.load_messages:
+        continue  # 有的 provider 只负责保存，不负责回放
+    # 后续调用 provider.before_run(...)
+```
+
+这说明 `before_run` 并非“每个 provider 每次都调用”。Harness 的 before-compaction 应放在历史加载后的 client 调用边界；after-compaction 才在已落入 provider 历史的 turn 上执行。把二者都挂为普通 before_run 会产生错误预算或空历史压缩。
+
+| 持久化机制 | 真实保证 | 不保证 |
+|---|---|---|
+| `SessionStore` | get/set 返回或保存独立快照 | TTL、租户授权、分布式一致性 |
+| `FileSessionStore` | 临时文件 + 原子替换，避免部分写 | 跨进程 CAS、加密、业务事务 |
+| HistoryProvider | 按约定维护消息历史 | 外部工具副作用回滚 |
+| approval pending snapshot | 绑定本次 occurrence/generation | 任意持有 session id 的人都有恢复权 |
+
+**不要把防重放与鉴权混为一谈**：框架可以阻止已消费审批再次执行，但应用仍必须保护权威 session state，不允许未授权 caller 替换 pending snapshot。AG-UI 的 `indeterminate` 表示副作用结果未知，不是“失败所以立刻重试”。
+
+背景子 Agent 的 `BackgroundAgentsProvider.release_session(...)` 与 session store 的 `delete(...)` 是不同动作：前者收敛进程内 asyncio tasks，后者删除快照；删除文件本身不会终止已启动的网络/工具任务。

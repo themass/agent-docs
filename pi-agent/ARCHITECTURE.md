@@ -8,6 +8,12 @@
 
 ---
 
+## 源码版本校正与深度补充（2026-10-15）
+
+本篇原有 Part I/II 全部保留。由于当前本地 Pi 已演进到 11 个 workspace 包，新增的源码全景、Durable 后端/恢复、Chord、MCP、Code Mode、远程 `pi-env`、TUI/评测以及旧路径校正，请先看 [PI_SOURCE_DEEP_DIVE_2026.md](./PI_SOURCE_DEEP_DIVE_2026.md)。特别注意：当前源码中 `agent`、`coding-agent`、`durable` 是三个不同层次，旧文档里的历史 `agent/harness` 命名不能直接当作当前目录结构。
+
+---
+
 ## 文档结构
 
 | 部分 | 受众 | 内容 |

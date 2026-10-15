@@ -106,3 +106,20 @@
 
 **最后更新**: 2026-05-17  
 **文档状态**: PART1 已完成
+
+
+---
+
+## 2026-10-15 源码校准与新增阅读入口
+
+原文完整保留。新增内容基于当前本地源码，不把历史部署方案与当前实现混写。
+
+- [源码深读：架构、执行、持久化与故障边界](SOURCE_DEEP_DIVE_2026.md)
+- [覆盖矩阵、真正缺口与本轮验证](COVERAGE_AND_CHANGES.md)
+- 建议阅读：先看深读的边界与模块地图，再回到本篇原有细节；最后按覆盖矩阵做故障演练。
+
+### 当前源码身份
+
+本轮本地 `OpenHands` 为 Agent Canvas；Agent Server 的 Python 实现在兄弟 `software-agent-sdk` 仓库。旧 App Server/Controller 内容保持原样，作为历史或 Cloud 编排背景，不代表本地 Canvas 每条调用都经过旧 App Server。
+
+推荐次序：`SOURCE_DEEP_DIVE_2026` → `APPLICATION_LAYER` → `AGENT_SERVER` → `ENTITY_MODEL` → 对照历史 PART1/PART2。README 中先前“待完成”状态属于历史记录；当前目录中的 PART2 已存在。

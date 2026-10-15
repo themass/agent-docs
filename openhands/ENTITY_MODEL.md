@@ -644,3 +644,45 @@ openharness 对照：`docs/openharness/framework-comparison/14-loop-interjection
 ---
 
 **维护**: 与 `OPENHANDS_SDK_ARCHITECTURE_DEEP_DIVE.md`、`OpenHands_ARCHITECTURE_OVERVIEW.md`、`docs/openhands-sdk/ARCHITECTURE_PART1.md` §3.6 互补；源码以 `software-agent-sdk/` 为准。
+
+
+---
+
+## 追加：Canvas 身份、日志序号与投影实体
+
+[完整当前实体/调用链](SOURCE_DEEP_DIVE_2026.md)
+
+```mermaid
+classDiagram
+  class Backend {
+    +string id
+    +string host
+    +string apiKey
+    +BackendKind kind
+    +number connectionRevision
+  }
+  class BackendSelection {
+    +string backendId
+    +string orgId
+  }
+  class ResolvedActiveBackend {
+    +Backend backend
+    +string orgId
+  }
+  class SeqCursor {
+    +number value
+    +start(base)
+    +observe(seq)
+    +clear()
+  }
+  class EventState {
+    +events
+    +eventIds
+    +uiEvents
+  }
+  BackendSelection --> Backend : resolves
+  ResolvedActiveBackend *-- Backend
+  SeqCursor --> EventState : replay position, not durable log
+```
+
+以上按 TypeScript 实体投影；可空/可选类型以源码定义为准。会话 id 不能独立于 backend/org 解释，seq 只能定位同一 conversation 的日志，不能跨主/规划 socket 共用。EventState 与 streaming slot 是 UI 状态，而 ConversationState/EventLog 才是执行和持久化状态。

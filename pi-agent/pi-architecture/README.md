@@ -20,6 +20,13 @@
 
 ## 2. 架构深潜（Pi 本体）
 
+当前本地源码的全景和后端补充：
+
+- [PI_SOURCE_DEEP_DIVE_2026](../PI_SOURCE_DEEP_DIVE_2026.md)
+- [BACKEND_RUNTIME](../BACKEND_RUNTIME.md)
+- [SOURCE_MAP](../SOURCE_MAP.md)
+
+
 | 文档 | 路径 |
 |------|------|
 | 文档中心 | [pi-agent/README.md](../pi-agent/README.md) |
@@ -76,3 +83,13 @@ DESIGN_THINKING_SERIES（或 design-thinking-series.html）
 ---
 
 **维护**：Deep Agents Team · 若链接失效，优先查 `docs/pi-agent/` 是否在本机未 `git add`（设计思想系列与 `diagrams/` 曾为未跟踪文件）。
+
+## 目录迁移后的正确入口（原导航保留）
+
+- [Pi 源码](../../../pi/)
+- [文档中心](../README.md)
+- [设计思想](../DESIGN_THINKING_SERIES.md)
+- [会话树](../JSONL_TREE_GUIDE.md)
+- [架构深潜](../ARCHITECTURE.md)
+- [运行时服务](../RUNTIME_SERVICES.md)
+- [覆盖审计与改动摘要](../COVERAGE_AND_CHANGES.md)

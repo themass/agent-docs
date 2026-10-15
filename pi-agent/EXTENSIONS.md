@@ -1,4 +1,5 @@
 # Pi Extensions：设计、使用与编排深潜
+> **2026-10-15 源码校正**：原正文保留；请同时阅读本文末尾新增的当前源码补充和 [全景入口](./PI_SOURCE_DEEP_DIVE_2026.md)。涉及旧 Harness 路径、消息类型、第三方插件版本的描述不能直接视为当前实现。
 
 > 源码：`packages/coding-agent/src/core/extensions/`  
 > 官方教程：`packages/coding-agent/docs/extensions.md`  
@@ -659,3 +660,65 @@ Extension Hook → 强制策略（拦 bash、注入模式）
 
 > Pi 的「多 Agent / 编排 / Plan」= **Extension 工具与钩子的应用模式**：  
 > **Subagent** 用子进程换隔离上下文；**Plan** 用工具集+拦截换安全策略；**Template** 用自然语言把两者串成工作流——三者都建立在同一套 Extension 设计上，而不是第二套内核。
+
+
+---
+
+## Part III · 当前源码补充：扩展宿主、嵌套调用与实际安全边界
+
+### III.1 coding-agent 和 Durable 的扩展契约不同
+
+| 维度 | coding-agent ExtensionAPI | Durable Extension |
+|---|---|---|
+| 宿主 | ResourceLoader + ExtensionRunner + AgentSession | Registry + phase snapshot + Harness |
+| 注入 | commands、tools、events、UI、providers、MCP servers 等 | tools、sections、tasks、hooks、wrappers |
+| 控制边界 | Agent loop request/turn/settle 和产品事件 | Task phase 与 durable commit |
+| 生命周期 | 加载、reload、会话切换、shutdown | Registry 更新、定义版本、phase 重解析 |
+
+不能拿 coding-agent `pi.on()` 的调用例子解释 Durable `hook(task, handlers)`：两边可以共享设计理念，但 API、状态保存和恢复约束不同。
+
+### III.2 内置扩展的完整位置
+
+[`src/extensions/index.ts`](../../pi/packages/coding-agent/src/extensions/index.ts) 注册四个 built-in extensions：
+
+- `llama.cpp`：本地 Provider 与模型/交互 UI 集成；
+- `codemode`：沙箱脚本执行和嵌套工具调用；
+- `tool-search`：工具检索与按需激活；
+- `mcp`：Server 连接、OAuth、tools/resources 与 UI。
+
+后三者 `replaceable: true`，第三方接管同名能力时不是两份实现必然同时工作。这也是旧“第三方 MCP adapter 是唯一接入方式”需要校正的地方：**当前源码已经有内置 MCP 客户端与 extension**。
+
+### III.3 “能调用”与“模型可见”分开
+
+工具 exposure 类型是 `direct | model-only | codemode | deferred | hidden`。不要只看注册了多少工具就估算每次模型请求 schema 有多大。
+
+```mermaid
+flowchart LR
+  REG[注册工具] --> CALLABLE[可执行集合]
+  REG --> EXP[exposure policy]
+  EXP --> MODEL[模型本轮声明集合]
+  EXP --> SEARCH[deferred/codemode 检索]
+  SEARCH --> ACTIVE[setActiveTools]
+  ACTIVE --> SYS[下一轮 SystemMessage tool delta]
+```
+
+内置 tool-search 使用 BM25 检索工具名称、description、schema 字段和 namespace；激活经 active tool set 更新，历史中的 tool changes 使 tree/resume/fork 能重放该分支的选择。具体 exposure 的筛选以 `_getCallableTools()`、tool-search 与 Code Mode 集成代码为准。
+
+### III.4 Nested tool 不能绕开 hook
+
+CLI `ctx.executeTool()` 经 `NestedToolCallTracker` 和 agent-core `runToolCall()`，仍有参数校验、before/after hooks。`runToolCall()` 自己不发事件、不追加消息，宿主 tracker 才组织 nested events、usage 和父结果记录。
+
+Durable 的对应能力则以 nested ToolTask + `NestedCallDoc` 保存 receipt；可恢复语义见 [BACKEND_RUNTIME.md §6](./BACKEND_RUNTIME.md#6-工具副作用不能许诺恰好一次)。
+
+### III.5 Hook 返回值必须按层区分
+
+- agent-core `beforeToolCall`：`block`、`reason`、`terminate`；不提供任意工具结果替换/参数重写的返回契约。
+- Durable `beforeTool`：可 block 或返回 arguments，之后再次校验。
+- `afterToolCall`：字段级替换，不是 deep merge；content 改了却未同步 structuredContent 时，旧 structuredContent 会移除，防止两种输出不一致。
+- `turn_end` 和 `agent_settled` 不等同：一个低层 run 结束后还可能 retry/compaction/新增排队消息，产品 settled 是更后面的边界。
+
+源码：[`extensions/types.ts`](../../pi/packages/coding-agent/src/core/extensions/types.ts)、[`nested-tool-calls.ts`](../../pi/packages/coding-agent/src/core/nested-tool-calls.ts)、[`agent-loop.ts`](../../pi/packages/agent/src/agent-loop.ts)、[`durable/define.ts`](../../pi/packages/durable/src/harness/define.ts)。
+
+### III.6 项目信任不等于 OS 权限审批
+
+当前 Pi 会判断是否加载 `.pi` 项目 settings/MCP/extensions/skills/prompts/themes/System 文件；trust 是配置来源信任，不是默认限制 bash/read/network 的沙箱。第三方扩展、容器和宿主才可能进一步实现权限边界。不要把 hook 存在解释为默认已经配置了权限拦截。

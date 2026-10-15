@@ -292,3 +292,56 @@ flowchart TB
 | [_archive/ARCHITECTURE_PART3 §1](./_archive/ARCHITECTURE_PART3.md#第1章daemon-协议-v7-深潜) | Daemon 命令全集、capability 列表 |
 | [_archive/ARCHITECTURE_PART2 §2](./_archive/ARCHITECTURE_PART2.md#第2章kernelmanager-与-host-request) | KernelManager 与 Host Request 深潜 |
 | [_archive/ENTITY_AND_SEQUENCES §10.5](./_archive/ENTITY_AND_SEQUENCES.md#105-ipython-host-requestkernel--ts) | host.request JSON 示例 |
+
+
+---
+
+## 2026 源码校准补充：当前 Rust 主线
+
+> 以下为追加内容，前文完整保留作为历史设计。核对基线：`d592d5e7746408fe9097541af96d3239e263f7a1`（2026-10-15）。当前实现为 Rust workspace + Python runtime，不应把旧 TypeScript/Pi 模块名称直接当成当前源码路径。
+
+### 当前跨语言桥接时序
+
+```mermaid
+sequenceDiagram
+  participant A as pa-agent
+  participant B as ToolDefinitionBridge
+  participant K as Rust KernelManager
+  participant P as Python rlm runtime
+  participant H as Rust Host Handler
+  participant W as Child Worker
+  A->>B: python_repl execute + AbortSignal
+  B->>K: tool execution
+  K->>P: execute JSONL frame
+  P->>H: host_request(id, rlm.run, payload)
+  H->>W: admit child via RlmSubagentHost
+  W-->>H: admission / result
+  H-->>P: reply matched by id
+  P-->>K: output / completion
+  K-->>B: ToolExecutionResult
+  B-->>A: AgentToolResult
+```
+
+`rlm.spawn()` 是用户 API；`rlm.run` 是保留的 host request 名称。`collect/list_subagents/delete_subagent/create_session/progress_note` 也由 runtime 发 host request，不是 Python 直接访问 Rust 内存。
+
+### 请求生命周期与取消
+
+```mermaid
+stateDiagram-v2
+  [*] --> Pending: allocate request id / future
+  Pending --> Completed: matching host reply
+  Pending --> Failed: host closed
+  Pending --> Cancelled: caller cancelled
+  Completed --> Removed: finally pop pending
+  Failed --> Removed: finally pop pending
+  Cancelled --> Removed: finally pop pending
+  Removed --> [*]
+```
+
+此图描述 Python host-request 等待者，不是整个 worker lifecycle。`repl.py` 的 `_fail_pending_host_requests` 将 connection closed 传播给所有 future；Rust kernel teardown 还要处理 active execution、interrupt 和子进程。只杀 Python 进程而不解除等待者会把上游请求留下。
+
+### Direct transport 的另一种桥接
+
+Supervisor 先检查 worker 状态和身份，再注册 single-use grant，成功后才返回 ticket。模型请求仍由 worker 执行，direct socket 只是绕开 supervisor 的数据转发，不应绕开授权。
+
+源码披露 Rust 尚未移植 client-owned worker 的 `ownerClientId` refusal，且 direct transport 尚未 pin TS process-start identity。这是需验收的迁移差异，不是已证实可利用漏洞。详见[缺口矩阵](SOURCE_DEEP_DIVE_2026.md#11-当前缺口与验证计划)。

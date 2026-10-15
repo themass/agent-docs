@@ -131,3 +131,46 @@ Online Compact 的状态条目写进 Pi session（`ONLINE_STATE_ENTRY`），resu
 | Session 历史字节（Pack 只投影） | 新机制：必须再走 ExtensionAPI，禁止 patch Pi |
 
 → [Part 1](./ARCHITECTURE_PART1.md)
+
+---
+
+## 第十幕（追加）：如何识别 SoL-Pi 自己的设计
+
+> 核对 2026-10-15 当前源码；不替代前九幕。详见[自有能力深读](OWN_IMPLEMENTATION_DEEP_DIVE.md)。
+
+### 1. 不实现完整 Agent，也能拥有系统设计深度
+
+Pi 保留执行权；SoL-Pi 控制组合与投影。自己的设计重点不是“又造一个 AgentSession”，而是四个合同：文件 mutation 后命令能否执行、大结果怎样保持可回读、nested model 引用如何验证、压缩后 outer prompt 怎样等到自动续跑结束。
+
+```mermaid
+flowchart LR
+  Cost[可避免的浪费] --> Calls[分离 edit / command 往返]
+  Cost --> Replay[重复大日志]
+  Cost --> Noise[无结构诊断输出]
+  Cost --> Window[高成本长上下文]
+  Calls --> AF[Action Fusion]
+  Replay --> OP[Observation Pack]
+  Noise --> EPR[Verified receipt]
+  Window --> OCC[Boundary compact / continue]
+```
+
+### 2. 设计的代价同样要写清
+
+- 融合少一个决策边界，但修改和命令不是原子事务。
+- 证据外置减少上下文，却引入本地归档生命周期和备份成本。
+- 引用验证抑制幻造，但不能证明归约覆盖所有失败。
+- 压缩减少未来上下文，却引入 cache-write debt 和 continuation 生命周期。
+
+### 3. 后续优化应该落在哪一层
+
+| 目标 | 正确入口 | 不应误做 |
+|---|---|---|
+| 更稳定融合 | file-queue / then-run 测试 | 修改 upstream Pi queue |
+| 更安全召回 | observation object/read limits | 宣称整个 Pi 变成 sandbox |
+| 更可信归约 | candidate / receipt / privacy policy | 把 reducer 当维修裁决者 |
+| 更有效压缩 | economics / projection / settled barrier | 在飞行工具中直接强行切 session |
+| 更可观测收益 | ledger/journal + workload baseline | 用 TUI 避免量代替账单 |
+
+### 4. 自己的文档还应积累什么
+
+可执行故障矩阵、schema 迁移策略、reference-aware archive 清理、第三方 extension 组合测试，以及带质量指标的消融基准。这些是建议工作项，不宣称本轮已经实现。当前源码路径、证据分级和验证限制见[覆盖记录](COVERAGE_AND_CHANGES.md)。

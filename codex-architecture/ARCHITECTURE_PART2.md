@@ -1838,3 +1838,18 @@ flowchart TD
 ---
 
 *第二部分完 · 扩展层设计 v2.1*
+
+
+---
+
+## 2026-10-15 源码校准增补：工具调用与安全升级
+
+原章节保留，补充 [源码深读 §7](./SOURCE_DEEP_DIVE_2026.md#7-工具审批沙箱与-guardian)：
+
+- 按 Router → Registry → handler/runtime 阅读工具主链；`parallel.rs` 管 futures/并发 gate，`orchestrator.rs` 管适用 runtime 的审批与 sandbox attempt。
+- `function_tool.rs` 当前主要是 cancellation/error 适配；不能当作完整工具注册器。
+- 沙箱不是不可变化的固定开关：批准的升级仍受 permission profile/denied reads/network/exec-server capability 限制。
+- ExecutedToolCalls 已有 best-effort bounded 审计与 MCP attribution；其存在不等于外部副作用 exactly-once，也不能写成“完全没有工具审计”。
+- Code Mode 的运行安全边界依赖 host、sandbox 与权限，不能仅凭独立 broker 推导 OS 隔离。
+
+证据与回归入口见 [覆盖与改动记录](./COVERAGE_AND_CHANGES.md)。

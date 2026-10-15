@@ -383,3 +383,34 @@ Client WebSocket 连接 → `ConversationService` 解析 `EventService` → `sub
 ---
 
 **维护**: 版本号以 `openhands-agent-server/pyproject.toml` 为准；行为变更请同步 [`APPLICATION_LAYER.md`](APPLICATION_LAYER.md) 与 [`ENTITY_MODEL.md`](ENTITY_MODEL.md)。
+
+
+---
+
+## 追加：session socket 的无遗漏回放与背压
+
+[详细执行图](SOURCE_DEEP_DIVE_2026.md) · [SDK 并发与持久化](../openhands-sdk/SOURCE_DEEP_DIVE_2026.md)
+
+`session_socket.py` 的 durable frame 含 seq，支持 `after_seq`。注册订阅发生在读取 through_seq 之前；随后读取历史、去重缓冲并切换 live。这比“先查历史再订阅”更重要，后者会漏掉中间产生的事件。
+
+```mermaid
+sequenceDiagram
+  participant UI as Canvas
+  participant Socket as Session socket
+  participant ES as EventService
+  participant Log as EventLog
+  UI->>Socket: after_seq
+  Socket->>ES: subscribe
+  Socket->>Log: read boundary
+  Log-->>Socket: replay durable frames
+  ES-->>Socket: buffered/live events
+  Socket-->>UI: deduped stream
+```
+
+慢客户端触发有界 writer 的断开，由 durable replay 恢复；progress/delta 属于瞬态，不是完整持久化事实。运维监控应单独测 backlog、断开原因、replay 耗时、坏事件跳过，不把浏览器仍然连接等价为会话仍然运行。
+
+RunSlot 和 ConversationLease 也是不同边界：start 建立 owner/generation，run 控制进程内容量；同步 executor 的等待者取消时 worker 可能继续，shield 与 done callback 保证不能过早归还容量。
+
+### 可定位的异常路径：注册成功但初始化失败
+
+当前 `EventService.subscribe_to_events` 在注册后才创建 snapshot/推送初始状态，仅捕获 TimeoutError；其它异常使 id 无法返回且未在内部回滚。session socket 关闭 writer/socket 不能拿到该 id 回收注册。建议增加“初始化失败回滚注册”的契约及故障注入测试；本轮未修改源码，也未宣称运行复现。完整证据：[SDK 深读 §13](../openhands-sdk/SOURCE_DEEP_DIVE_2026.md#13-静态可定位的订阅异常清理缺口)。

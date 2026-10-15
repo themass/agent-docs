@@ -1,4 +1,5 @@
 # Pi Skills：加载 · 链接 · 使用完整流程
+> **2026-10-15 源码校正**：原正文保留；请同时阅读本文末尾新增的当前源码补充和 [全景入口](./PI_SOURCE_DEEP_DIVE_2026.md)。涉及旧 Harness 路径、消息类型、第三方插件版本的描述不能直接视为当前实现。
 
 > 源码：`packages/coding-agent/src/core/skills.ts`、`resource-loader.ts`、`agent-session.ts`、`system-prompt.ts`  
 > 规范：[Agent Skills](https://agentskills.io/specification)  
@@ -296,3 +297,30 @@ bash → command: bash /abs/.../pdf-tools/scripts/extract.sh invoice.pdf
 ## 9. 一句话
 
 > **加载**把磁盘变成 `Skill[]`；**链接**用 system XML + `/skill:` 命令挂到会话；**使用**要么模型 `read` location，要么用户命令把全文塞进 user 消息，再按 `baseDir` 解析相对资源。
+
+
+---
+
+## 10. 当前源码补充：Skill 前面还有项目资源信任边界
+
+当前 `ResourceLoader` 不只是扫描 `SKILL.md`：它还涉及 package resources、source/diagnostics、project trust 与 reload。项目 Skill 是能够影响模型操作的输入，加载前应经过项目资源信任决策；不能把文件“在项目里”视为天然可信。
+
+```mermaid
+sequenceDiagram
+  participant Trust as Project trust
+  participant Loader as ResourceLoader
+  participant Skill as skills.ts
+  participant Session as AgentSession
+  participant Model as 模型
+  Trust-->>Loader: 是否允许项目资源
+  Loader->>Skill: loadSkills(允许的来源)
+  Skill-->>Loader: skill metadata + diagnostics
+  Loader-->>Session: getSkills()
+  Session-->>Model: System sections 中的 skill 索引
+  Note over Session: /skill:name 读正文、去 frontmatter、展开为 user input
+  Session->>Model: skill block + 参数
+```
+
+Skill 仍不是可恢复 Task，不会因为带 scripts 目录就获得独立执行引擎。脚本是否执行由模型/工具/宿主决定；相对资源定位与信任要一起说明。
+
+源码：[`resource-loader.ts`](../../pi/packages/coding-agent/src/core/resource-loader.ts)、[`skills.ts`](../../pi/packages/coding-agent/src/core/skills.ts)、[`project-trust.ts`](../../pi/packages/coding-agent/src/core/project-trust.ts)、[`agent-session.ts:_expandSkillCommand`](../../pi/packages/coding-agent/src/core/agent-session.ts)。

@@ -667,3 +667,59 @@ flowchart LR
 | 跨项目 Pi 列 | [CROSS_AGENT_CONCEPT_MAP](../agent-doc-template/CROSS_AGENT_CONCEPT_MAP.md) |
 
 **返回**: [README.md](./README.md)
+
+
+---
+
+## 2026 源码校准补充：当前 Rust 主线
+
+> 以下为追加内容，前文完整保留作为历史设计。核对基线：`d592d5e7746408fe9097541af96d3239e263f7a1`（2026-10-15）。当前实现为 Rust workspace + Python runtime，不应把旧 TypeScript/Pi 模块名称直接当成当前源码路径。
+
+### 模块设计：新增能力应该放在哪里
+
+| 需求 | 首选 owner | 边界理由 |
+|---|---|---|
+| provider 流式解析/请求 | pa-ai | loop 不感知 provider SDK |
+| 通用 turn、tool dispatch、队列 | pa-agent | 不依赖 IO 存储和宿主 |
+| 会话组装、goal、compaction、kernel | pa-core | 将独立 loop 与宿主资源适配 |
+| worker admission、socket、replay | pa-daemon | 进程和传输生命周期归宿主 |
+| attach/goal/event wire 字段 | pa-types | 跨进程共享词汇 |
+| TUI 展示 | pa-tui | 不反向依赖业务 engine |
+| 命令启动与 wiring | pa-cli | 组合根而非业务数据库 |
+
+### 真实类与适配关系
+
+```mermaid
+classDiagram
+  class SessionEngineConfig
+  class SessionEngine
+  class AgentSession
+  class SessionManager
+  class Agent
+  class ToolDefinitionBridge
+  class AgentTool
+  SessionEngine --> SessionEngineConfig : assembles from
+  SessionEngine --> AgentSession : owns
+  AgentSession --> Agent
+  AgentSession --> SessionManager : persistence listener
+  ToolDefinitionBridge ..|> AgentTool : implements
+  Agent --> AgentTool : dispatches
+```
+
+`AgentSession` 和 `SessionEngine` 都是当前源码 struct，不是历史 TypeScript 同名类的直接复制。`bridge_tool()` 是自由函数。独立 `pa-agent` 类型与共享 wire 类型存在转换层，新增枚举不能只改一侧。
+
+### 代码解读：事件为何由会话层落盘
+
+`session_engine/mod.rs::persist_event` 对 `MessageEnd` 先做 `loop_message_to_session`，再调用 retained append。这样 loop 不知道文件格式；而 loop 已归约的消息在 IO 失败时仍保留 live 状态。失败通过 stderr 记录，不把已经完成的模型回复再变成一次 loop failure。
+
+这是一种“运行连续性优先”的取舍，不是强事务保证。建议为 live/durable 分歧增加显式状态展示与恢复测试，避免用户把当前屏幕内容当成磁盘承诺。
+
+### 调试顺序
+
+1. 没开始：检查 daemon admission、worker 路由与队列。
+2. 没模型响应：检查 provider adapter、retry/failover 与 abort。
+3. 工具卡住：检查 bridge cancellation、kernel request id、host pending future。
+4. 重启后内容丢失：检查 retained-write 日志、flush 状态和 session 文件。
+5. UI 断档：先辨别 cursor replay 的 partial/unavailable，再检查 transcript。
+
+详见[完整源码索引](SOURCE_DEEP_DIVE_2026.md#12-源码索引)。

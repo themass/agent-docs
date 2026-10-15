@@ -155,3 +155,20 @@ Workflow 另有节点级 `WorkflowEvent`。
 ```text
 DESIGN_THINKING_SERIES → ARCHITECTURE Part I → steerable sample → ADR-0035
 ```
+
+
+## 第 10 幕：可信边界与失败语义（源码校准）
+
+MAF 的后端落地不能只画“请求 → Agent → 响应”：成功边界还包括 stream finalization、工具审批 settlement、session/checkpoint 持久化和同会话 single-writer。
+
+```mermaid
+flowchart LR
+  Request[不可信请求] --> Policy[鉴权/租户/选项 allow-list]
+  Policy --> Run[Agent 或 Workflow]
+  Run --> Gate[工具审批/副作用]
+  Gate --> Finalize[流/运行最终化]
+  Finalize --> Persist[Session 或 Checkpoint]
+  Persist --> Response[协议响应]
+```
+
+详见 [SOURCE_DEEP_DIVE_2026.md](./SOURCE_DEEP_DIVE_2026.md) 与 [COVERAGE_AND_CHANGES.md](./COVERAGE_AND_CHANGES.md)。

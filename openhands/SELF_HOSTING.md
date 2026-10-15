@@ -284,3 +284,21 @@ as an additional backend and switch between local and remote from the UI.
    - **Session API key** — the `LOCAL_BACKEND_API_KEY` you chose in step 3.
 2. Save. The new backend should show as "Connected". Pick it from the
    backend switcher to talk to the remote machine.
+
+
+---
+
+## 追加：自托管运行契约与故障演练
+
+[当前启动拓扑](SOURCE_DEEP_DIVE_2026.md) · [验证限制](COVERAGE_AND_CHANGES.md)
+
+`config/defaults.json` 是 CLI、开发脚本和 Docker 默认值的共同来源；当前含 Agent Server/Automation/Canvas 版本、最低兼容版本、端口、state 子目录和 VSCode 路径前缀。不要在文档示例中复制后又独立维护另一组版本。
+
+**上线检查清单**：
+
+1. ingress 同时代理 HTTP API 与 WebSocket upgrade，路径不能只测首页。
+2. public bind 与 API key、secret key 配套检查；默认 loopback 不等于容器已隔离。
+3. Cloud runtime CORS 与 session key header 可用，且不扩大为任意 origin。
+4. `/vscode` 路径前缀路由不是 origin 隔离；同源编辑器对 localStorage 的权限应纳入威胁模型。
+5. SIGTERM 后 drain 活跃 run、subscriber、MCP/ACP/worker；不要直接删除会话目录充当清理。
+6. 备份要覆盖事件、state/meta、加密设置与解密密钥的恢复关系，且测试旧版本 migration。

@@ -1,5 +1,7 @@
 # Microsoft Agent Framework — 架构文档（第3部分）
 
+> **追加阅读导航**：本卷原文完整保留。当前源码/API 与后端责任校准见卷末「源码校准补充（2026）」、[源码深读](./SOURCE_DEEP_DIVE_2026.md)及[覆盖与改动](./COVERAGE_AND_CHANGES.md)。
+
 > **Workflow、编排、Hosting、Providers、评测** · 合并版 2026-08-05（2026-08-12 增补第11章 §2.1–§2.6：Builder/Executor 清单、初始化流程、引用关系、各 Orchestrator 原理）  
 > 合并自 WORKFLOW + ORCHESTRATOR + HOSTING + PROVIDERS + EVALUATION + FAQS
 
@@ -1473,3 +1475,44 @@ For more information see: <https://docs.github.com/en/packages/working-with-a-gi
 
 ---
 
+
+
+## 源码校准补充（2026）
+
+关于 Runner superstep 的 commit/discard、checkpoint lineage、AgentState/WorkflowState 和 Hosting 的应用责任，请见 [SOURCE_DEEP_DIVE_2026.md §7–§10](./SOURCE_DEEP_DIVE_2026.md#7-workflow-runner-与-checkpoint)。原文保留不变。
+
+### 本卷追加：Workflow 与 Hosting 的提交边界
+
+`RunnerImpl.run_until_convergence` 的一轮语义是：运行 edge/executor → drain events → `State.commit()` → checkpoint → `superstep_completed`。异常路径 discard pending state；这只回滚工作流暂存状态，不回滚外部 API 副作用。入口 checkpoint 由 `Workflow` 创建，而非 runner 首轮执行后补写。
+
+```mermaid
+sequenceDiagram
+  participant W as Workflow
+  participant R as RunnerImpl
+  participant S as State
+  participant C as CheckpointStorage
+  W->>C: entry checkpoint before executor
+  W->>R: run_until_convergence
+  R->>R: iteration + event drain
+  alt iteration succeeds
+    R->>S: commit
+    R->>C: save checkpoint
+    R-->>W: superstep_completed
+  else iteration fails
+    R->>S: discard pending
+    R-->>W: failure events then exception
+  end
+```
+
+`iteration_count` 不能用来选最新 checkpoint：人机恢复输入可在同一 iteration 写 response-entry checkpoint。应使用 checkpoint lineage 和明确的 session→checkpoint cursor；`graph_signature_hash` 校验也不等于执行代码、业务 schema 已完全兼容。
+
+**Hosting 校准**：当前 `SessionStore` 定义在 core `_sessions.py`；`AgentState` 负责目标解析与 session get/create；`WorkflowState` 负责解析 workflow 或 builder，不替应用维护 conversation→checkpoint cursor。协议 helper 负责转换，不是完整 Web server。
+
+```python
+# 官方 local_responses/app.py 的非流式关键顺序，省略协议字段。
+result = await target.run(run["messages"], session=session, options=options_for_run)
+# session 在 run 成功返回后才具有本轮完整状态；流式路径要等消费/最终化。
+await state.set_session(conversation_id or response_id, session)
+```
+
+此顺序仍不构成原子业务事务。相同 conversation 的两个并发请求可以读出两份旧快照，再 last-writer-wins；生产后端应把 load→run→save 整段串行化或使用版本检查，而不仅锁 get/create。若 SSE 终止事件已发送但 session 保存失败，还需明确重试/恢复协议，不能推断“客户端看见完成”就一定可续接。

@@ -60,3 +60,15 @@
 cd agent-framework/python && uv sync
 uv run python examples/mytest/debug_quick.py
 ```
+
+
+## 源码深读增补（2026）
+
+本套文档在保留原三卷内容的基础上，新增源码与后端校准层：
+
+| 文档 | 用途 |
+|---|---|
+| [SOURCE_DEEP_DIVE_2026.md](./SOURCE_DEEP_DIVE_2026.md) | 从 `RawAgent.run`、SessionStore、ResponseStream、Workflow Runner、Harness、Hosting 和审批生命周期展开源码级解读；含架构图、类图、时序图、状态图和后端流程图。 |
+| [COVERAGE_AND_CHANGES.md](./COVERAGE_AND_CHANGES.md) | 源码证据索引、原文覆盖矩阵、真实缺口、生产核对表、验证限制与改动总结。 |
+
+**推荐新阅读顺序**：先读本页 → [源码深读 §2](./SOURCE_DEEP_DIVE_2026.md#2-全局架构定义状态执行协议) → [§5 审批状态机](./SOURCE_DEEP_DIVE_2026.md#5-tool-loop审批与防重放) → [§9 Hosting 后端](./SOURCE_DEEP_DIVE_2026.md#9-hosting-后端框架不等于-web-服务) → [覆盖矩阵](./COVERAGE_AND_CHANGES.md#3-覆盖矩阵)。
