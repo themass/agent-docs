@@ -1,4 +1,5 @@
-# 卷五附录 B · Memory 协作架构与自我进化（Skills / Curator / Trajectory）
+<a id="卷五附录-b--memory-协作架构与自我进化skills--curator--trajectory"></a>
+# 卷五附录 B · Memory 协作与经验沉淀：数据流、Skills、Curator 与 Trajectory
 
 > **卷标准**：[`VOLUME_STANDARD.md`](VOLUME_STANDARD.md) · **完成度**：[`MANIFEST.md`](MANIFEST.md)  
 > **本文件边界**：自 legacy `MEMORY_SYSTEM.md` 迁入的 **§6 协作与数据流**、**§9 扩展机制**、**附录 A/B（六层对比与演进表述）**。  
@@ -7,21 +8,96 @@
 
 ---
 
-## 本附录目录
+<a id="本附录目录"></a>
+## 阅读导航：这份文档解决什么问题？
 
-- [C. 协作、数据流与架构](#c-协作数据流与架构)（MemoryManager、协作矩阵、端到端流向）
-- [D. 扩展机制：Skills / Curator / Trajectory](#d-扩展机制skills--curator--trajectory)（与 memory 协同的进化路径）
-- [E. 附录：六层视角与演进表述](#e-附录六层视角与演进表述)（对外叙事用三层；对比框架时用六层）
+本附录解释**记忆如何协作，以及经验怎样沉淀为不同资产**。先读 MemoryManager 与完整数据流，再分别查 Skills、Curator、Telemetry 和 Trajectory；最后两节是架构对比视角，不是另一套在线 Memory 实现。
+
+### 三份文档怎么选
+
+| 文档 | 解决的问题 |
+|---|---|
+| [卷五主卷：工具与扩展](05-capabilities-extensions.md) | 配置如何启用工具，模型调用后如何执行，MCP/Skills/Memory 如何接入，插件如何注册与卸载 |
+| [附录 A：Memory 使用与 Provider 接入](05-memory-system-reference.md) | 该存什么、如何检索、容量怎么管，以及 Mem0/Honcho/Supermemory 的读写、配置与自定义接入 |
+| [附录 B：协作数据流与经验沉淀](05-memory-architecture-and-evolution.md) | MemoryManager 如何协调数据，压缩前后如何流转，Skills/Curator/Trajectory 如何分别沉淀经验 |
+
+### 按问题查找
+
+| 我想知道…… | 直接看这里 |
+|---|---|
+| Memory、Session、Skills 各有什么职责，谁协调它们？ | [1.2 MemoryManager 与协作矩阵](#memorymanager-与协作矩阵) |
+| 一轮、压缩前后、下一轮的记忆数据怎样流动？ | [1.3 完整数据流向（含压缩、沉淀与第二轮拉取）](#完整数据流向含压缩沉淀与第二轮拉取) |
+| 三层 Memory 主模型是什么，六层视角为什么不是同一回事？ | [1.4 当前实现真正的「层级」与易误判点](#当前实现真正的层级与易误判点) |
+| 什么时候应沉淀 Skill，而不是保存一条 Memory？ | [2.3.3 什么时候该沉淀成 skill](#53-什么时候该沉淀成-skill) |
+| Skill 使用与成功反馈怎样记录，在哪里触发？ | [2.4 Skill Telemetry：使用记录、反馈写入与沉淀流程](#54-skill-telemetry-系统底层实现) |
+| 哪些机制自动触发、哪些要手动触发？ | [2.6 触发时机对照：哪些自动执行，哪些需要主动调用](#59-所有进化机制的触发时机对比) |
+| Curator 的日常生命周期与技能整理是什么关系？ | [2.7 Curator 生命周期：自动管理的对象与流程](#57-curator-自动生命周期管理) |
+| Trajectory 导出什么，为什么不是在线记忆？ | [2.9 Trajectory：离线轨迹的定位、用途与导出实现](#61-它属于什么层) |
+| Curator Review 什么时候执行、处理哪些资产？ | [2.10 Curator Review：独立运行的 LLM 技能审查与整合](#71-curator-review策展人审查机制llm-驱动的技能整合) |
+| “自我进化”到底指哪些工程机制，有什么限制？ | [4.2 对“Hermes 会自我进化”的准确表述](#9-对hermes-会自我进化的准确表述) |
+
+### 建议阅读顺序
+
+- **理解运行时**：第1节的职责与 MemoryManager → 完整数据流 → 三层模型与误区。
+- **理解经验沉淀**：第2节分别查 Skill 记录、触发时机、Curator 生命周期、Trajectory 导出和 Curator Review。
+- **做架构对比**：在前两节基础上，再看第3–4节的层次视角与演化表述。
+
+**编号说明**：正文标题按本文件层级重新编号，旧标题锚点保留。代码示例里的源文件行号和原文中的历史编号不作为本目录的节号。
+
+### 完整内容目录
+
+- [1. Memory 协作架构：职责、MemoryManager 与压缩前后数据流](#c-协作数据流与架构)
+  - [1.1 设计目标与非目标](#设计目标与非目标)
+    - [1.1.1 设计目标](#11-设计目标)
+    - [1.1.2 非目标](#12-非目标)
+  - [1.2 MemoryManager 与协作矩阵](#memorymanager-与协作矩阵)
+    - [1.2.1 协作矩阵](#23-协作矩阵)
+    - [1.2.2 MemoryManager 内部架构](#24-memorymanager-内部架构)
+  - [1.3 完整数据流向（含压缩、沉淀与第二轮拉取）](#完整数据流向含压缩沉淀与第二轮拉取)
+  - [1.4 当前实现真正的「层级」与易误判点](#当前实现真正的层级与易误判点)
+    - [1.4.1 当前实现真正的“层级”](#7-当前实现真正的层级)
+    - [1.4.2 设计优劣势](#8-设计优劣势)
+    - [1.4.3 读源码时最容易误判的点](#9-读源码时最容易误判的点)
+- [2. 经验沉淀机制：Skills、Curator、Telemetry 与 Trajectory](#d-扩展机制非-memory-主模型)
+  - [2.1 阅读范围：Skills、Curator、Trajectory 与 Memory 的职责边界](#本节范围)
+  - [2.2 Hermes 的"进化"不是单一路径](#2-hermes-的进化不是单一路径)
+  - [2.3 Skills 沉淀：与事实记忆的区别、工程策略与适用场景](#5-进化路径三skills)
+    - [2.3.1 为什么 skill 不应被混同为 memory](#51-为什么-skill-不应被混同为-memory)
+    - [2.3.2 Hermes 当前的工程策略](#52-hermes-当前的工程策略)
+    - [2.3.3 什么时候该沉淀成 skill](#53-什么时候该沉淀成-skill)
+  - [2.4 Skill Telemetry：使用记录、反馈写入与沉淀流程](#54-skill-telemetry-系统底层实现)
+    - [2.4.1 Telemetry 写入时机与执行流程](#55-写入时机与执行流程)
+    - [2.4.2 Skill 沉淀决策流程](#56-skill-沉淀决策流程)
+    - [2.4.3 Skill 沉淀时序图](#57-skill-沉淀时序图)
+  - [2.5 Skill 与 Memory 对照：方法沉淀和事实记忆如何选择](#58-skill-vs-memory-对比表)
+  - [2.6 触发时机对照：哪些自动执行，哪些需要主动调用](#59-所有进化机制的触发时机对比)
+  - [2.7 Curator 生命周期：自动管理的对象与流程](#57-curator-自动生命周期管理)
+  - [2.8 生命周期对照：Skills、Session Archive 与 Curated Memory](#510-三种进化机制的生命周期管理对比)
+  - [2.9 Trajectory：离线轨迹的定位、用途与导出实现](#61-它属于什么层)
+    - [2.9.1 为什么 Trajectory 不属于 Memory 主模型](#62-为什么它不该算进-memory-主模型)
+    - [2.9.2 Trajectory 与经验分析、后续改进的关系](#63-但为什么仍值得放在这里讲)
+    - [2.9.3 Trajectory 导出的底层实现](#64-trajectory-导出的底层实现)
+  - [2.10 Curator Review：独立运行的 LLM 技能审查与整合](#71-curator-review策展人审查机制llm-驱动的技能整合)
+- [3. 六层扩展视角：与三层主模型如何对应](#e-附录-a六层扩展视角)
+  - [3.1 六层扩展视角：用于架构对比，不是官方运行时主模型](#21-六层扩展视角架构分析用--非官方主模型)
+  - [3.2 三层主模型与六层扩展视角的对应关系](#22-三层主模型-vs-六层扩展)
+- [4. 演化时序与结论：如何准确理解自我进化](#e-附录-b演进表述与时序)
+  - [4.1 演化时序图：从对话、事实记忆到技能与离线资产](#8-一个更准确的演化时序图)
+  - [4.2 对“Hermes 会自我进化”的准确表述](#9-对hermes-会自我进化的准确表述)
+  - [4.3 架构对比结论：如何描述 Hermes 的记忆与经验沉淀](#11-最后给架构对比使用者的结论)
+
 
 ---
 
 <a id="c-协作数据流与架构"></a>
 
-## C. 协作、数据流与架构
+## 1. Memory 协作架构：职责、MemoryManager 与压缩前后数据流
 
-### 设计目标与非目标
+<a id="设计目标与非目标"></a>
+### 1.1 设计目标与非目标
 
-#### 1.1 设计目标
+<a id="11-设计目标"></a>
+#### 1.1.1 设计目标
 
 如果只看功能名称，Hermes memory 很容易被误解成“多加几个存储后端”。但从源码上看，它追求的是下面几个更具体的目标：
 
@@ -36,7 +112,8 @@
 - **不让 memory 侵占全部系统复杂度**
   memory 重要，但它必须和 skills、tool loop、gateway、delegation 保持边界。
 
-#### 1.2 非目标
+<a id="12-非目标"></a>
+#### 1.1.2 非目标
 
 同样重要的是，Hermes 当前**不追求**下面这些事情：
 
@@ -49,9 +126,11 @@
 - **不把 skill / trajectory 强行当成 memory 主层**
   它们相关，但角色不同。
 
-### MemoryManager 与协作矩阵
+<a id="memorymanager-与协作矩阵"></a>
+### 1.2 MemoryManager 与协作矩阵
 
-#### 2.3 协作矩阵
+<a id="23-协作矩阵"></a>
+#### 1.2.1 协作矩阵
 
 这套系统最容易误判的地方,是把所有“看起来像记忆”的东西混在一起。下面这张协作矩阵用来区分谁负责什么:
 
@@ -68,7 +147,8 @@
 
 > Hermes 不是一个“统一大 memory 仓库”,而是几套边界清晰、用途不同的记忆机制并行存在。
 
-#### 2.4 MemoryManager 内部架构
+<a id="24-memorymanager-内部架构"></a>
+#### 1.2.2 MemoryManager 内部架构
 
 ```mermaid
 classDiagram
@@ -136,7 +216,8 @@ classDiagram
 - ✅ 单 Provider 失败不阻塞其他 Provider
 - ✅ Tool name 冲突检测与警告
 
-### 完整数据流向（含压缩、沉淀与第二轮拉取）
+<a id="完整数据流向含压缩沉淀与第二轮拉取"></a>
+### 1.3 完整数据流向（含压缩、沉淀与第二轮拉取）
 
 
 ```mermaid
@@ -295,9 +376,11 @@ sequenceDiagram
 6. **预取是异步的** - `queue_prefetch_all` 在后台 daemon thread 中预热下一轮上下文
 7. **缓存是优化的** - Anthropic prefix cache 通过复用 stored system_prompt 保持命中
 
-### 当前实现真正的「层级」与易误判点
+<a id="当前实现真正的层级与易误判点"></a>
+### 1.4 当前实现真正的「层级」与易误判点
 
-#### 7. 当前实现真正的“层级”
+<a id="7-当前实现真正的层级"></a>
+#### 1.4.1 当前实现真正的“层级”
 
 如果一定要讲层级，我建议用下面这组更贴近现实的维度，而不是旧的六层官方口径：
 
@@ -314,9 +397,11 @@ sequenceDiagram
 
 ---
 
-#### 8. 设计优劣势
+<a id="8-设计优劣势"></a>
+#### 1.4.2 设计优劣势
 
-##### 8.1 优势
+<a id="81-优势"></a>
+##### 1.4.2.1 优势
 
 - 主层清晰：built-in memory 和 session archive 职责不同
 - 本地优先：没有外部 provider 也能工作
@@ -324,7 +409,8 @@ sequenceDiagram
 - 安全意识较强：写入扫描 + fenced recall
 - 可扩展：provider interface 很清楚
 
-##### 8.2 代价
+<a id="82-代价"></a>
+##### 1.4.2.2 代价
 
 - built-in memory 不会在当前 session 热更新
 - 长期记忆容量刻意受限，需要持续精编
@@ -333,9 +419,11 @@ sequenceDiagram
 
 ---
 
-#### 9. 读源码时最容易误判的点
+<a id="9-读源码时最容易误判的点"></a>
+#### 1.4.3 读源码时最容易误判的点
 
-##### 9.1 不要把 `MemoryManager` 当成 built-in memory 本体
+<a id="91-不要把-memorymanager-当成-built-in-memory-本体"></a>
+##### 1.4.3.1 不要把 MemoryManager 当成内置记忆存储本体
 
 当前 `MemoryManager` 主要是 external provider 编排器。
 
@@ -344,11 +432,13 @@ built-in persistent memory 的核心实现其实是：
 - `MemoryStore`
 - `memory` tool
 
-##### 9.2 不要把 `session_search` 当成 provider
+<a id="92-不要把-session_search-当成-provider"></a>
+##### 1.4.3.2 不要把 session_search 当成 Provider
 
 `session_search` 是 Hermes 核心工具，不属于 external provider 插件体系。
 
-##### 9.3 不要把 skills 当成 built-in memory
+<a id="93-不要把-skills-当成-built-in-memory"></a>
+##### 1.4.3.3 不要把 Skills 当成内置事实记忆
 
 skills 可以沉淀经验，但它们不是 `MEMORY.md` / `USER.md` 那套持久记忆文件。
 
@@ -357,13 +447,15 @@ skills 可以沉淀经验，但它们不是 `MEMORY.md` / `USER.md` 那套持久
 
 <a id="d-扩展机制skills--curator--trajectory"></a>
 
-## D. 扩展机制（非 memory 主模型）
+<a id="d-扩展机制非-memory-主模型"></a>
+## 2. 经验沉淀机制：Skills、Curator、Telemetry 与 Trajectory
 
 > Skills、Curator、Trajectory **不是** Persistent Memory 的子类型。  
 > 主模型仍是三层；本节描述与 memory **协同**的进化/沉淀机制。  
 > 已删除旧稿中错误的 `memory(action="write")` /「<5KB」示例（与 §3 API 冲突）。
 
-### 本节范围
+<a id="本节范围"></a>
+### 2.1 阅读范围：Skills、Curator、Trajectory 与 Memory 的职责边界
 
 本文只回答：
 
@@ -373,7 +465,8 @@ skills 可以沉淀经验，但它们不是 `MEMORY.md` / `USER.md` 那套持久
 
 ---
 
-### 2. Hermes 的"进化"不是单一路径
+<a id="2-hermes-的进化不是单一路径"></a>
+### 2.2 Hermes 的"进化"不是单一路径
 
 Hermes 所谓进化，至少有四条不同路径：
 
@@ -399,9 +492,12 @@ Hermes 所谓进化，至少有四条不同路径：
 
 所以"进化"不是一个按钮，而是多个沉淀面并行发生。
 
-### 5. 进化路径三：Skills
+<a id="5-进化路径三skills"></a>
+<a id="23-进化路径三skills"></a>
+### 2.3 Skills 沉淀：与事实记忆的区别、工程策略与适用场景
 
-#### 5.1 为什么 skill 不应被混同为 memory
+<a id="51-为什么-skill-不应被混同为-memory"></a>
+#### 2.3.1 为什么 skill 不应被混同为 memory
 
 memory 解决的是：
 
@@ -413,7 +509,8 @@ skill 解决的是：
 
 这两者显然相关，但不是一回事。
 
-#### 5.2 Hermes 当前的工程策略
+<a id="52-hermes-当前的工程策略"></a>
+#### 2.3.2 Hermes 当前的工程策略
 
 Hermes 的主线不是“自动无限生成 skills 并自我改写一切”，而是：
 
@@ -430,7 +527,8 @@ Hermes 的主线不是“自动无限生成 skills 并自我改写一切”，�
 
 而不是一个黑箱式“自动学习引擎”。
 
-#### 5.3 什么时候该沉淀成 skill
+<a id="53-什么时候该沉淀成-skill"></a>
+#### 2.3.3 什么时候该沉淀成 skill
 
 适合 skill 的内容：
 
@@ -447,7 +545,9 @@ Hermes 的主线不是“自动无限生成 skills 并自我改写一切”，�
 
 ---
 
-#### 5.4 Skill Telemetry 系统（底层实现）
+<a id="54-skill-telemetry-系统底层实现"></a>
+<a id="234-skill-telemetry-系统底层实现"></a>
+### 2.4 Skill Telemetry：使用记录、反馈写入与沉淀流程
 
 **存储位置**: `~/.hermes/skills/.usage.json`
 
@@ -546,7 +646,9 @@ def save_usage(data: Dict[str, Dict[str, Any]]) -> None:
 
 ---
 
-#### 5.5 写入时机与执行流程
+<a id="55-写入时机与执行流程"></a>
+<a id="235-写入时机与执行流程"></a>
+#### 2.4.1 Telemetry 写入时机与执行流程
 
 **触发位置**: 同样在主循环的工具调用分支中（[run_agent.py#L9323](file:///Users/gqli/work/deepagents/hermes-agent/run_agent.py#L9323)）
 
@@ -644,7 +746,9 @@ LLM: "我已将此调试方法保存为技能 'debug-python-import'，下次遇�
 
 ---
 
-#### 5.6 Skill 沉淀决策流程
+<a id="56-skill-沉淀决策流程"></a>
+<a id="236-skill-沉淀决策流程"></a>
+#### 2.4.2 Skill 沉淀决策流程
 
 ```mermaid
 graph TD
@@ -690,7 +794,9 @@ graph TD
 
 ---
 
-#### 5.7 Skill 沉淀时序图
+<a id="57-skill-沉淀时序图"></a>
+<a id="237-skill-沉淀时序图"></a>
+#### 2.4.3 Skill 沉淀时序图
 
 ```mermaid
 sequenceDiagram
@@ -762,7 +868,9 @@ sequenceDiagram
 
 ---
 
-#### 5.8 Skill vs Memory 对比表
+<a id="58-skill-vs-memory-对比表"></a>
+<a id="238-skill-vs-memory-对比表"></a>
+### 2.5 Skill 与 Memory 对照：方法沉淀和事实记忆如何选择
 
 | 维度 | Skill | Memory |
 |------|-------|--------|
@@ -788,7 +896,9 @@ sequenceDiagram
 
 ---
 
-#### 5.9 所有进化机制的触发时机对比
+<a id="59-所有进化机制的触发时机对比"></a>
+<a id="239-所有进化机制的触发时机对比"></a>
+### 2.6 触发时机对照：哪些自动执行，哪些需要主动调用
 
 | 机制 | 中文含义 | 主要作用 | 效果 | 触发位置 | 是否阻塞主循环 | 触发者 | 代码行号 |
 |------|---------|---------|------|---------|--------------|--------|----------|
@@ -820,7 +930,9 @@ sequenceDiagram
 - ✅ **用户体验**: 会后操作不阻塞响应
 - ✅ **系统稳定性**: 后台任务不影响前台交互
 
-#### 5.7 Curator 自动生命周期管理
+<a id="57-curator-自动生命周期管理"></a>
+<a id="2310-curator-自动生命周期管理"></a>
+### 2.7 Curator 生命周期：自动管理的对象与流程
 
 **配置文件**: `~/.hermes/config.yaml`
 
@@ -947,7 +1059,9 @@ mv ~/.hermes/skills/.archive/<skill-name> ~/.hermes/skills/<skill-name>
 - ✅ **可逆操作**: 归档不是删除，可以随时恢复
 - ✅ **渐进式降级**: Active → Stale → Archived，给用户多次机会
 
-#### 5.10 三种进化机制的生命周期管理对比
+<a id="510-三种进化机制的生命周期管理对比"></a>
+<a id="2311-三种进化机制的生命周期管理对比"></a>
+### 2.8 生命周期对照：Skills、Session Archive 与 Curated Memory
 
 | 机制 | 是否需要过期 | 是否需要错误更正 | 管理方式 |
 |------|------------|----------------|---------|
@@ -969,7 +1083,9 @@ mv ~/.hermes/skills/.archive/<skill-name> ~/.hermes/skills/<skill-name>
    - 原因：容量有限（<5KB），需要保持高信噪比
    - 解决：Agent 主动更新 + 用户手动编辑，不依赖自动化
 
-#### 6.1 它属于什么层
+<a id="61-它属于什么层"></a>
+<a id="2312-trajectory-的定位训练与研究资产不是在线召回记忆"></a>
+### 2.9 Trajectory：离线轨迹的定位、用途与导出实现
 
 Trajectory（轨迹）是训练和研究资产，不是在线 recall memory。
 
@@ -978,7 +1094,9 @@ Trajectory（轨迹）是训练和研究资产，不是在线 recall memory。
 - 生成可分析的对话轨迹
 - 为 RL / fine-tuning / evaluation 准备数据
 
-#### 6.2 为什么它不该算进 memory 主模型
+<a id="62-为什么它不该算进-memory-主模型"></a>
+<a id="2313-为什么-trajectory-不属于-memory-主模型"></a>
+#### 2.9.1 为什么 Trajectory 不属于 Memory 主模型
 
 因为它既不参与日常 prompt 注入，也不承担用户级 recall。
 
@@ -990,7 +1108,9 @@ Trajectory（轨迹）是训练和研究资产，不是在线 recall memory。
 
 把它硬塞进“memory 层级”会导致概念膨胀。
 
-#### 6.3 但为什么仍值得放在这里讲
+<a id="63-但为什么仍值得放在这里讲"></a>
+<a id="2314-trajectory-与经验分析后续改进的关系"></a>
+#### 2.9.2 Trajectory 与经验分析、后续改进的关系
 
 因为 Hermes 的品牌叙事不是“有记忆就够了”，而是：
 
@@ -1003,7 +1123,9 @@ Trajectory（轨迹）是训练和研究资产，不是在线 recall memory。
 
 ---
 
-#### 6.4 Trajectory 导出的底层实现
+<a id="64-trajectory-导出的底层实现"></a>
+<a id="2315-trajectory-导出的底层实现"></a>
+#### 2.9.3 Trajectory 导出的底层实现
 
 **存储格式**: JSONL（每行一个完整的会话）
 
@@ -1154,7 +1276,9 @@ def convert_scratchpad_to_think(content: str) -> str:
 
 ---
 
-#### 7.1 Curator Review（策展人审查）机制（LLM 驱动的技能整合）
+<a id="71-curator-review策展人审查机制llm-驱动的技能整合"></a>
+<a id="2316-curator-review策展人审查机制llm-驱动的技能整合"></a>
+### 2.10 Curator Review：独立运行的 LLM 技能审查与整合
 
 **触发位置**: ❌ **完全独立，不在主循环中**
 
@@ -1347,11 +1471,13 @@ def _classify_removed_skills(
 
 <a id="e-附录六层视角与演进表述"></a>
 
-## E. 附录 A：六层扩展视角
+<a id="e-附录-a六层扩展视角"></a>
+## 3. 六层扩展视角：与三层主模型如何对应
 
 > **非官方主模型。** 仅用于架构对比；对外叙事请用三层。
 
-### 2.1 六层扩展视角（架构分析用 · 非官方主模型）
+<a id="21-六层扩展视角架构分析用--非官方主模型"></a>
+### 3.1 六层扩展视角：用于架构对比，不是官方运行时主模型
 
 > ⚠️ 下图将 skills、compression、trajectory 与 runtime memory **画在同一塔里**，便于和 OpenHarness / deer-flow 对比。**运行时主 API 仍以 §2.2 三层为准。**
 
@@ -1430,15 +1556,18 @@ graph TB
 | **L6 训练数据** | ShareGPT JSONL | 批量导出 | 模型微调、RL 训练 | `trajectory_compressor.py` |
 | **External** | Honcho/Mem0 API | 每轮 prefetch/sync | 语义召回、深度用户建模 | 向量数据库检索 |
 
-### 2.2 三层主模型 vs 六层扩展
+<a id="22-三层主模型-vs-六层扩展"></a>
+### 3.2 三层主模型与六层扩展视角的对应关系
 
 > **重要澄清**: 正文 §1–§6 聚焦**三层主模型**(Persistent Memory + Session Search + External Provider),这是 Hermes memory 的核心运行时。
 >
 > L1/L5/L6 属于**扩展沉淀机制**,与 skills/trajectory/compression 专题交叉,在 [附录 D · 扩展机制](#d-扩展机制skills--curator--trajectory) 中详述。
 
-## E. 附录 B：演进表述与时序
+<a id="e-附录-b演进表述与时序"></a>
+## 4. 演化时序与结论：如何准确理解自我进化
 
-### 8. 一个更准确的演化时序图
+<a id="8-一个更准确的演化时序图"></a>
+### 4.1 演化时序图：从对话、事实记忆到技能与离线资产
 
 ```mermaid
 graph TD
@@ -1461,7 +1590,8 @@ graph TD
 
 ---
 
-### 9. 对“Hermes 会自我进化”的准确表述
+<a id="9-对hermes-会自我进化的准确表述"></a>
+### 4.2 对“Hermes 会自我进化”的准确表述
 
 建议把这个说法写得更稳一些。
 
@@ -1480,7 +1610,8 @@ graph TD
 ---
 
 
-### 11. 最后给架构对比使用者的结论
+<a id="11-最后给架构对比使用者的结论"></a>
+### 4.3 架构对比结论：如何描述 Hermes 的记忆与经验沉淀
 
 如果你在跨框架对比 Hermes memory，最稳妥的说法应该是：
 
