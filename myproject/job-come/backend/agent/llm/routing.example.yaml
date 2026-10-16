@@ -1,0 +1,52 @@
+# JC LLM routing — copy to routing.yaml
+#
+# providers: named credential profiles → env var names in backend/server/.env
+# scenarios: failover chains; each entry picks model + provider (or inline api_*_env)
+
+providers:
+  gateway:
+    api_base_env: JC_LLM_API_BASE
+    api_key_env: JC_LLM_API_KEY
+  vision:
+    api_base_env: JC_LLM_VISION_API_BASE
+    api_key_env: JC_LLM_VISION_API_KEY
+  # Per-vendor example (add matching vars to .env, then set provider on models):
+  # anthropic:
+  #   api_base_env: JC_LLM_ANTHROPIC_API_BASE
+  #   api_key_env: JC_LLM_ANTHROPIC_API_KEY
+
+scenarios:
+  ingest_fast:
+    - model: openai/deepseek-v4-flash
+      provider: gateway
+      timeout_sec: 120
+    - model: openai/claude-haiku-5-5
+      provider: gateway
+      # provider: anthropic   # when Claude uses a different host/key
+      timeout_sec: 120
+
+  writer:
+    - model: openai/gpt-6-1-sol
+      provider: gateway
+      timeout_sec: 180
+
+  coach:
+    - model: openai/gpt-6-1-sol
+      provider: gateway
+      timeout_sec: 180
+
+  vision:
+    - model: openai/qwen-vl-ocr
+      provider: vision
+      timeout_sec: 180
+
+  flash:
+    - model: openai/deepseek-v4-flash
+      provider: gateway
+      timeout_sec: 60
+
+defaults:
+  provider: gateway
+  api_base_env: JC_LLM_API_BASE
+  api_key_env: JC_LLM_API_KEY
+  temperature: 0.1

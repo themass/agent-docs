@@ -1,0 +1,13 @@
+Company: Databricks
+Role: Senior Data Scientist — Growth Analytics
+
+Requirements:
+- 5+ years in data science or analytics engineering
+- Strong SQL, Python (pandas, scikit-learn), experimentation (A/B testing)
+- Experience with causal inference or uplift modeling preferred
+- Clear communication with product and engineering partners
+
+Responsibilities:
+- Design and analyze growth experiments across acquisition funnels
+- Build dashboards and self-serve metrics for PM teams
+- Partner with ML engineers on feature pipelines

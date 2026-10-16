@@ -1,0 +1,30 @@
+{% import "_sections.html" as s %}
+{% set labels = {
+  "summary": "个人总结",
+  "experience": "工作经历",
+  "projects": "项目经历",
+  "education": "教育背景",
+  "skills": "技能"
+} %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>{{ (header or {}).name }} — 简历</title>
+<style>{% include "_theme.css.html" %}</style>
+</head>
+<body>
+<main class="sheet">
+{{ s.body({
+  "header": header,
+  "summary": summary,
+  "experience_blocks": experience_blocks,
+  "project_blocks": project_blocks,
+  "education_blocks": education_blocks,
+  "skills_block": skills_block,
+  "section_order": section_order
+}, labels) }}
+</main>
+</body>
+</html>

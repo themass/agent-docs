@@ -1,0 +1,16 @@
+王强
+wangqiang@example.com | 13700137000 | 深圳
+
+个人总结
+6年 DevOps / SRE 经验，熟悉 Kubernetes、Terraform、CI/CD。
+
+工作经历
+2018-06 — 至今 | 某金融科技公司 | 高级 SRE
+- 负责生产集群稳定性，全年可用性 99.95%
+- 搭建 GitLab CI + Argo CD 发布流水线，发布耗时降低 50%
+
+技能
+Kubernetes、Docker、Prometheus、Grafana、Python、Go
+
+教育经历
+2014 — 2018 | 某理工大学 | 软件工程 本科

@@ -1,0 +1,32 @@
+{% import "_sections.html" as s %}
+{% set zh_labels = {
+  "summary": "个人总结",
+  "experience": "工作经历",
+  "projects": "项目经历",
+  "education": "教育背景",
+  "skills": "技能"
+} %}
+{% set en_labels = {
+  "summary": "Summary",
+  "experience": "Experience",
+  "projects": "Projects",
+  "education": "Education",
+  "skills": "Skills"
+} %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>{{ (zh.header or {}).name or (en.header or {}).name }} — 中英对照简历</title>
+<style>{% include "_theme.css.html" %}</style>
+</head>
+<body>
+<main class="sheet">
+  {# Chinese and English are separate pages, not interleaved columns: a recruiter
+     forwards one language and ATS parsers read a single stream per page. #}
+  <section class="track track-zh">{{ s.body(zh, zh_labels) }}</section>
+  <section class="track track-en">{{ s.body(en, en_labels) }}</section>
+</main>
+</body>
+</html>

@@ -1,0 +1,99 @@
+# JC embedded DeerFlow harness (see docs/architecture/TECH-AGENT.md)
+config_version: 3
+
+models:
+  - name: jc-coach
+    display_name: JC Coach
+    use: langchain_openai:ChatOpenAI
+    model: mt-gpt-5-6-terra
+    base_url: $JC_LLM_API_BASE
+    api_key: $JC_LLM_API_KEY
+    max_tokens: 8192
+    context_window: 200000
+    temperature: 0.1
+
+  - name: jc-writer
+    display_name: JC Writer
+    use: langchain_openai:ChatOpenAI
+    model: bt-deepseek-v4-pro
+    base_url: $JC_LLM_API_BASE
+    api_key: $JC_LLM_API_KEY
+    max_tokens: 8192
+    context_window: 200000
+    temperature: 0.1
+
+skills:
+  path: skills
+
+checkpointer:
+  type: sqlite
+  connection_string: .data/deerflow/checkpoints.sqlite3
+
+token_usage:
+  enabled: true
+
+summarization:
+  enabled: true
+  model_name: null
+  trigger:
+    - type: tokens
+      # Auto: JC_MODEL_CONTEXT_WINDOW × JC_SUMMARIZATION_TRIGGER_RATIO (default 200k × 0.16 = 32k)
+      value: $JC_SUMMARIZATION_TRIGGER_TOKENS
+  keep:
+    type: messages
+    value: $JC_SUMMARIZATION_KEEP_MESSAGES
+  trim_tokens_to_summarize: 15564
+
+subagent_runtime:
+  max_running: 3
+  max_queued: 64
+  admission_policy: queue
+  queue_timeout_seconds: 300
+
+subagents:
+  max_total_per_run: 6
+  timeout_seconds: 1800
+  custom_agents:
+    resume-writer:
+      description: Generate job-tailored elevated resume sections from verified profile facts only.
+      system_prompt: |
+        You are Resume Writer for JC. Read profile via jc_profile_get.
+        Write structured resume sections with elevation_map; never invent employers or metrics.
+        Use the resume-writer skill rubric. Delegate review to resume-reviewer before export.
+      tools:
+        - jc_profile_get
+        - jc_resume_review
+      skills:
+        - resume-writer
+      model: jc-writer
+      max_turns: 30
+      timeout_seconds: 600
+    resume-reviewer:
+      description: Review resume draft for factual consistency before export or apply pipeline.
+      system_prompt: |
+        You are Resume Reviewer for JC. Call jc_resume_review on the latest draft.
+        Report pass/fail with concrete issues. Block export when facts are unsupported.
+      tools:
+        - jc_profile_get
+        - jc_resume_review
+      skills:
+        - resume-reviewer
+      model: jc-coach
+      max_turns: 20
+      timeout_seconds: 300
+
+memory:
+  enabled: false
+
+title:
+  enabled: false
+
+authorization:
+  enabled: false
+
+sandbox:
+  use: deerflow.sandbox.local:LocalSandboxProvider
+  allow_host_bash: false
+
+tool_search:
+  enabled: false

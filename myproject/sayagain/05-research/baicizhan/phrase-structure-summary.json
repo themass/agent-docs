@@ -1,0 +1,49 @@
+{
+  "apk_sha256": "74082eb083622c9a2408743584868031d52ab351c89c23c1d54e16dabea65a8e",
+  "scope": "packaged JSON only; no code execution; type_hint meanings and runtime activation unknown",
+  "phrase_record_count": 422,
+  "phrase_keys": [
+    "exam_info",
+    "explain_audio",
+    "img_option",
+    "mean_cn",
+    "sentence",
+    "sentence2",
+    "sentence2_audio",
+    "sentence2_word_highlight",
+    "sentence_audio",
+    "sentence_trans",
+    "sentence_word_highlight",
+    "sentencen2_trans",
+    "similar_highlight",
+    "topic_id",
+    "word",
+    "word_audio",
+    "word_image"
+  ],
+  "group_count": 59,
+  "group_size_distribution": {
+    "8": 45,
+    "5": 6,
+    "4": 8
+  },
+  "group_entries": 422,
+  "unique_group_topic_ids": 422,
+  "configured_exercise_rows": 2132,
+  "type_hint_distribution": {
+    "59": 360,
+    "60": 360,
+    "64": 360,
+    "61": 422,
+    "68": 422,
+    "62": 56,
+    "65": 28,
+    "66": 62,
+    "67": 62
+  },
+  "source_files": [
+    "assets/phrasetraining/packed_short_phrase.json",
+    "assets/phrasetraining/get_all_short_phrase_groups.json",
+    "assets/phrasetraining/get_short_phrase_topics_by_group.json"
+  ]
+}

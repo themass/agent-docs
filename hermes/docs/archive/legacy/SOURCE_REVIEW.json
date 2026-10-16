@@ -1,0 +1,235 @@
+{
+  "review_date": "2026-10-15",
+  "source_commit": "60d00c5633ad76f3dd8e3ecd79f77f1c6f8e6fdd",
+  "scope": "仅限 CURRENT_IMPLEMENTATION 及本轮原章节修正的关键入口；不是全部旧源码摘录认证",
+  "source_checks": [
+    {
+      "path": "run_agent.py",
+      "symbols": [
+        "AIAgent"
+      ]
+    },
+    {
+      "path": "agent/agent_init.py",
+      "symbols": [
+        "init_agent"
+      ]
+    },
+    {
+      "path": "agent/interrupt_control.py",
+      "symbols": [
+        "InterruptControlMixin",
+        "steer",
+        "_drain_pending_steer"
+      ]
+    },
+    {
+      "path": "agent/turn_context.py",
+      "symbols": [
+        "compose_multimodal_context_part",
+        "compose_user_api_content",
+        "substitute_api_content",
+        "build_api_messages"
+      ]
+    },
+    {
+      "path": "agent/turn_request_assembly.py",
+      "symbols": [
+        "assemble_api_request"
+      ]
+    },
+    {
+      "path": "agent/chat_completion_helpers.py",
+      "symbols": [
+        "build_api_kwargs"
+      ]
+    },
+    {
+      "path": "agent/session_persistence.py",
+      "symbols": [
+        "SessionPersistenceMixin",
+        "_flush_messages_to_session_db_unlocked",
+        "_db_flush_collect",
+        "_db_flush_write",
+        "durable_user_row_content"
+      ]
+    },
+    {
+      "path": "hermes_state_messages.py",
+      "symbols": [
+        "SessionMessagesMixin",
+        "get_messages",
+        "get_messages_as_conversation",
+        "archive_and_compact"
+      ]
+    },
+    {
+      "path": "agent/conversation_compression.py",
+      "symbols": [
+        "_commit_compaction"
+      ]
+    },
+    {
+      "path": "agent/context_compressor.py",
+      "symbols": [
+        "ContextCompressor",
+        "prune_tool_results_only",
+        "compress"
+      ]
+    },
+    {
+      "path": "agent/turn_preflight.py",
+      "symbols": [
+        "compress_after_tool_results",
+        "run_preflight_compression"
+      ]
+    },
+    {
+      "path": "agent/turn_iteration_prep.py",
+      "symbols": [
+        "prepare_iteration",
+        "_inject_steer_after_newest_tool_result"
+      ]
+    },
+    {
+      "path": "agent/agent_runtime_helpers.py",
+      "symbols": [
+        "apply_pending_steer_to_tool_results"
+      ]
+    },
+    {
+      "path": "agent/prompt_builder.py",
+      "symbols": [
+        "steer_user_row",
+        "format_steer_marker"
+      ]
+    },
+    {
+      "path": "agent/turn_finalizer.py",
+      "symbols": [
+        "finalize_turn"
+      ]
+    },
+    {
+      "path": "gateway/session_transcript.py",
+      "symbols": []
+    },
+    {
+      "path": "gateway/run_turn.py",
+      "symbols": []
+    },
+    {
+      "path": "gateway/kanban_watchers.py",
+      "symbols": [
+        "GatewayKanbanWatchersMixin"
+      ]
+    },
+    {
+      "path": "gateway/kanban_watchers_dispatcher.py",
+      "symbols": [
+        "_KanbanDispatcher"
+      ]
+    },
+    {
+      "path": "hermes_cli/kanban_db_dispatch.py",
+      "symbols": [
+        "dispatch_once",
+        "_dispatch_once_locked"
+      ]
+    },
+    {
+      "path": "hermes_cli/cli_modal_mixin.py",
+      "symbols": [
+        "CLIModalMixin",
+        "_approval_callback",
+        "_handle_approval_selection"
+      ]
+    },
+    {
+      "path": "plugins/platforms/telegram/adapter.py",
+      "symbols": [
+        "TelegramAdapter"
+      ]
+    },
+    {
+      "path": "agent/iteration_budget.py",
+      "symbols": [
+        "IterationBudget"
+      ]
+    },
+    {
+      "path": "hermes_cli/plugins.py",
+      "symbols": []
+    },
+    {
+      "path": "tools/delegate_tool.py",
+      "symbols": [
+        "_build_child_agent"
+      ]
+    },
+    {
+      "path": "tools/approval.py",
+      "symbols": [
+        "check_all_command_guards",
+        "check_dangerous_command",
+        "_floor_block",
+        "resolve_gateway_approval",
+        "request_tool_approval"
+      ]
+    },
+    {
+      "path": "tools/approval_gateway_wait.py",
+      "symbols": [
+        "_await_gateway_decision"
+      ]
+    },
+    {
+      "path": "hermes_state.py",
+      "symbols": [
+        "SessionDB"
+      ]
+    },
+    {
+      "path": "gateway/run.py",
+      "symbols": [
+        "GatewayRunner"
+      ]
+    },
+    {
+      "path": "tools/budget_config.py",
+      "symbols": []
+    }
+  ],
+  "method_owners": [
+    [
+      "agent/session_persistence.py",
+      "SessionPersistenceMixin",
+      "_flush_messages_to_session_db_unlocked"
+    ],
+    [
+      "hermes_state_messages.py",
+      "SessionMessagesMixin",
+      "archive_and_compact"
+    ],
+    [
+      "hermes_state_messages.py",
+      "SessionMessagesMixin",
+      "get_messages_as_conversation"
+    ],
+    [
+      "agent/context_compressor.py",
+      "ContextCompressor",
+      "prune_tool_results_only"
+    ],
+    [
+      "hermes_cli/cli_modal_mixin.py",
+      "CLIModalMixin",
+      "_approval_callback"
+    ],
+    [
+      "agent/interrupt_control.py",
+      "InterruptControlMixin",
+      "steer"
+    ]
+  ]
+}

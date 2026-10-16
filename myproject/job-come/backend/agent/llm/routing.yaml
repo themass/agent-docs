@@ -1,0 +1,70 @@
+# JC LLM routing — per-model provider (base/key) via named profiles in .env
+# Each provider maps to api_base_env + api_key_env (never put secrets in this file).
+
+providers:
+  gateway:
+    api_base_env: JC_LLM_API_BASE
+    api_key_env: JC_LLM_API_KEY
+  vision:
+    api_base_env: JC_LLM_VISION_API_BASE
+    api_key_env: JC_LLM_VISION_API_KEY
+  # Example second gateway (uncomment + set env vars when models use another host):
+  # alt:
+  #   api_base_env: JC_LLM_ALT_API_BASE
+  #   api_key_env: JC_LLM_ALT_API_KEY
+
+scenarios:
+  ingest_fast:
+    - model: openai/deepseek-v4-flash
+      provider: gateway
+      timeout_sec: 120
+    - model: openai/claude-haiku-5-5
+      provider: gateway
+      timeout_sec: 120
+    - model: openai/gpt-6-1-sol
+      provider: gateway
+      timeout_sec: 120
+
+  writer:
+    - model: openai/gpt-6-1-sol
+      provider: gateway
+      timeout_sec: 180
+    - model: openai/claude-haiku-5-5
+      provider: gateway
+      timeout_sec: 180
+    - model: openai/deepseek-v4-flash
+      provider: gateway
+      timeout_sec: 180
+
+  coach:
+    - model: openai/gpt-6-1-sol
+      provider: gateway
+      timeout_sec: 180
+    - model: openai/claude-haiku-5-5
+      provider: gateway
+      timeout_sec: 180
+    - model: openai/deepseek-v4-flash
+      provider: gateway
+      timeout_sec: 180
+
+  vision:
+    - model: openai/qwen-vl-ocr
+      provider: vision
+      timeout_sec: 180
+
+  flash:
+    - model: openai/deepseek-v4-flash
+      provider: gateway
+      timeout_sec: 60
+    - model: openai/claude-haiku-5-5
+      provider: gateway
+      timeout_sec: 60
+    - model: openai/gpt-6-1-sol
+      provider: gateway
+      timeout_sec: 60
+
+defaults:
+  provider: gateway
+  api_base_env: JC_LLM_API_BASE
+  api_key_env: JC_LLM_API_KEY
+  temperature: 0.1
