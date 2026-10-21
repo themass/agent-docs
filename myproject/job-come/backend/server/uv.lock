@@ -610,7 +610,7 @@ wheels = [
 
 [[package]]
 name = "deerflow-extension-api"
-version = "0.2.5"
+version = "0.2.7"
 source = { editable = "../../../../../libs/agentkit/vendor/deer-flow/backend/packages/extension-api" }
 
 [[package]]
@@ -1385,6 +1385,7 @@ dependencies = [
     { name = "litellm" },
     { name = "markitdown" },
     { name = "mcp" },
+    { name = "pillow" },
     { name = "pydantic-settings" },
     { name = "pymupdf" },
     { name = "python-docx" },
@@ -1425,6 +1426,7 @@ requires-dist = [
     { name = "markitdown", specifier = "==0.1.5" },
     { name = "mcp", specifier = ">=1.26,<2" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.13.0" },
+    { name = "pillow", specifier = ">=11.0.0" },
     { name = "playwright", marker = "extra == 'export'", specifier = ">=1.49.0" },
     { name = "pydantic-settings", specifier = ">=2.6.0" },
     { name = "pymupdf", specifier = ">=1.24.0" },

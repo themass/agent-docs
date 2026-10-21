@@ -16,7 +16,7 @@ import type { Config } from "tailwindcss";
  *    Those are mapped onto this scale so density is decided here, not per-file.
  */
 const config: Config = {
-  content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
+  content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./lib/**/*.{ts,tsx}"],
   theme: {
     extend: {
       fontSize: {
@@ -161,11 +161,44 @@ const config: Config = {
         shimmer: {
           "100%": { transform: "translateX(100%)" },
         },
+        // The collapsed rail's attention cue. A short nudge with a long pause:
+        // the motion has to be noticeable once and then stay out of the way,
+        // because it sits next to a document the user is reading.
+        "nudge-x": {
+          "0%, 72%, 100%": { transform: "translateX(0)" },
+          "80%": { transform: "translateX(-3px)" },
+          "88%": { transform: "translateX(-1px)" },
+        },
+        "agent-think": {
+          "0%, 100%": { transform: "scale(1)", opacity: "1" },
+          "50%": { transform: "scale(0.94)", opacity: "0.92" },
+        },
+        // Thinking-dots bounce. Intentionally a bigger vertical throw than
+        // Tailwind's stock `animate-bounce` (which is sized as a % of the
+        // element's own box — invisible at 3-4px) so the "still working" cue
+        // reads clearly even at dot scale.
+        "think-dot": {
+          "0%, 80%, 100%": { transform: "translateY(0)" },
+          "40%": { transform: "translateY(-5px)" },
+        },
+        // Floating feedback envelope's idle cue: a small hop, not a shake —
+        // it sits over page content indefinitely, so the motion has to read
+        // as "alive, optional to notice" rather than demand attention.
+        "icon-bounce": {
+          "0%, 78%, 100%": { transform: "translateY(0)" },
+          "85%": { transform: "translateY(-4px)" },
+          "92%": { transform: "translateY(0)" },
+          "96%": { transform: "translateY(-2px)" },
+        },
       },
       animation: {
         "fade-in": "fade-in 180ms cubic-bezier(0.16, 1, 0.3, 1) both",
         "fade-up": "fade-up 220ms cubic-bezier(0.16, 1, 0.3, 1) both",
         "scale-in": "scale-in 160ms cubic-bezier(0.16, 1, 0.3, 1) both",
+        "nudge-x": "nudge-x 3.2s cubic-bezier(0.16, 1, 0.3, 1) infinite",
+        "agent-think": "agent-think 1.6s cubic-bezier(0.16, 1, 0.3, 1) infinite",
+        "think-dot": "think-dot 1.1s ease-in-out infinite",
+        "icon-bounce": "icon-bounce 4.5s cubic-bezier(0.34, 1.4, 0.64, 1) infinite",
       },
     },
   },

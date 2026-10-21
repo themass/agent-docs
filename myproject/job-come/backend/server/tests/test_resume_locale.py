@@ -85,7 +85,9 @@ def test_english_draft_uses_english_labels() -> None:
             )
         ],
     )
-    sections, _ = ResumeDraftBuilder().build(profile, elevation_level="conservative", locale="en-US")
+    sections, _ = ResumeDraftBuilder().build(
+        profile, elevation_level="conservative", locale="en-US"
+    )
     assert sections["skills_block"]["title"] == "Skills"
     assert "Present" in sections["experience_blocks"][0]["date_range"]
     html = ResumeRenderEngine().render_html(sections, template_id="en-two-page")

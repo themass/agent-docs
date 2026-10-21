@@ -3,17 +3,16 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-_ROOT = Path(__file__).resolve().parents[3].parent / "agent" / "prompts"
+from jc.paths import PROMPTS_ROOT
 
 
 @lru_cache
 def get_prompt_catalog() -> Environment:
     return Environment(
-        loader=FileSystemLoader(str(_ROOT)),
+        loader=FileSystemLoader(str(PROMPTS_ROOT)),
         autoescape=select_autoescape(enabled_extensions=()),
     )
 

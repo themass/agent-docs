@@ -1,3 +1,5 @@
+from unittest.mock import AsyncMock
+
 import pytest
 
 from jc.services.resume_render_engine import ResumeRenderEngine
@@ -73,7 +75,6 @@ def test_actual_pdf_quality_all_templates(template, track):
 @pytest.mark.asyncio
 async def test_cross_profile_draft_is_rejected():
     from types import SimpleNamespace
-    from unittest.mock import AsyncMock
 
     from jc.exceptions import NotFoundError
     from jc.schemas.resume import ExportRequest
@@ -90,41 +91,9 @@ async def test_cross_profile_draft_is_rejected():
         )
 
 
-@pytest.mark.asyncio
-async def test_pdf_failure_never_uploads_html():
-    from types import SimpleNamespace
-    from unittest.mock import AsyncMock, Mock
-
-    from jc.schemas.resume import ExportRequest
-    from jc.services.resume_service import ResumeService
-
-    service = object.__new__(ResumeService)
-    service._profiles = SimpleNamespace(get=AsyncMock())
-    draft = SimpleNamespace(
-        id="draft", profile_id="own", sections=FIXTURE_SECTIONS, template_id="zh-one-page"
-    )
-
-    async def failed(job, error):
-        job.status = "failed"
-
-    service._resumes = SimpleNamespace(
-        get_draft_by_id=AsyncMock(return_value=draft),
-        create_export_job=AsyncMock(),
-        mark_export_failed=AsyncMock(side_effect=failed),
-    )
-    service._review_draft = AsyncMock(return_value={"can_export": True})
-    service._renderer = SimpleNamespace(
-        render_html=Mock(return_value="<html/>"),
-        render_pdf=Mock(side_effect=RuntimeError("renderer unavailable")),
-    )
-    service._storage = SimpleNamespace(put_object=Mock())
-    service._db = SimpleNamespace(commit=AsyncMock())
-    result = await service.export(
-        "own", actor=SimpleNamespace(user_id="user"), body=ExportRequest(draft_id="draft")
-    )
-    assert result.status == "failed"
-    assert result.format == "pdf"
-    service._storage.put_object.assert_not_called()
+# Export lifecycle (including real PDF failure and all persisted reviewer states)
+# is covered by test_export_lifecycle using real SQL sessions instead of mocks
+# that cannot model ORM expiration, rollback or a broken transaction.
 
 
 def test_word_declares_cjk_fonts_and_a4():

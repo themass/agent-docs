@@ -5,12 +5,12 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from jc.db.base import Base
 from jc.db.mixins import TimestampMixin
-from jc.db.types import JSONText
+from jc.db.types import JSONText, UTCDateTime
 from jc.models.enums import CampaignPhase, JobStatus, JobTag
 
 if TYPE_CHECKING:
@@ -54,6 +54,8 @@ class Campaign(Base, TimestampMixin):
     warmup_job_ids: Mapped[list[Any]] = mapped_column(JSONText, nullable=False, default=list)
     target_job_ids: Mapped[list[Any]] = mapped_column(JSONText, nullable=False, default=list)
     progress: Mapped[dict[str, Any]] = mapped_column(JSONText, nullable=False, default=dict)
-    target_unlocked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    target_unlocked_at: Mapped[datetime | None] = mapped_column(
+        UTCDateTime, nullable=True
+    )
 
     profile: Mapped[Profile] = relationship(back_populates="campaign")

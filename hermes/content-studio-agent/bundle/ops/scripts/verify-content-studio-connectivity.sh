@@ -8,6 +8,12 @@ WORKSPACE_URL="${WORKSPACE_URL:-http://127.0.0.1:3000}"
 PROFILE="${CONTENT_STUDIO_PROFILE_NAME:-content-studio}"
 GATEWAY_HOME="${HERMES_GATEWAY_HOME:-$HOME/.hermes}"
 PROFILE_HOME="${HERMES_PROFILE_HOME:-$HOME/.hermes/profiles/${PROFILE}}"
+VERIFY_LLM_MODEL="${VERIFY_LLM_MODEL:-auto}"
+if [[ -f "${PROFILE_HOME}/secrets.env" ]]; then
+  # shellcheck disable=SC1090
+  source "${PROFILE_HOME}/secrets.env" 2>/dev/null || true
+  VERIFY_LLM_MODEL="${LLM_MODEL:-$VERIFY_LLM_MODEL}"
+fi
 
 fail() { echo "[verify] FAIL: $*" >&2; exit 1; }
 ok() { echo "[verify] OK: $*"; }
@@ -49,6 +55,13 @@ load_tdai_ids() {
   return 0
 }
 
+FREELLMAPI_URL="${FREELLMAPI_URL:-http://127.0.0.1:3011}"
+if curl -fsS -m 5 "${FREELLMAPI_URL}/v1/models" >/dev/null 2>&1; then
+  ok "FreeLLMAPI (${FREELLMAPI_URL})"
+else
+  echo "[verify] WARN: FreeLLMAPI not reachable at ${FREELLMAPI_URL}/v1/models (stack may use OpenInspector only)"
+fi
+
 wait_curl_ok "${GATEWAY_URL}/health" "Hermes Gateway" 12 5
 wait_curl_ok "${PROXY_URL}/health" "TencentDB Proxy" 24 5
 curl_ok "${WORKSPACE_URL}/" "Hermes Workspace"
@@ -77,7 +90,7 @@ if [[ -n "$mem_key" ]]; then
     -H "Authorization: Bearer ${mem_key}" \
     -H "Content-Type: application/json" \
     "${hdr_args[@]}" \
-    -d "{\"model\":\"gpt-5-6-luna\",\"messages\":[{\"role\":\"user\",\"content\":\"ping\"}],\"max_tokens\":8,\"stream\":false}" || true)"
+    -d "{\"model\":\"${VERIFY_LLM_MODEL}\",\"messages\":[{\"role\":\"user\",\"content\":\"ping\"}],\"max_tokens\":8,\"stream\":false}" || true)"
   echo "$body" | grep -q '"choices"' || fail "Proxy chat completions (no choices in response)"
   ok "Proxy → LLM chat/completions (with Memory headers)"
   if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^tdai-proxy$'; then
@@ -109,7 +122,7 @@ fi
 gbody="$(curl -sS -m 120 -X POST "${GATEWAY_URL}/p/${PROFILE}/v1/chat/completions" \
   -H "Authorization: Bearer ${api_key}" \
   -H "Content-Type: application/json" \
-  -d '{"model":"gpt-5-6-luna","messages":[{"role":"user","content":"Reply exactly: stack-ok"}],"stream":false,"max_tokens":16}' || true)"
+  -d "{\"model\":\"${VERIFY_LLM_MODEL}\",\"messages\":[{\"role\":\"user\",\"content\":\"Reply exactly: stack-ok\"}],\"stream\":false,\"max_tokens\":16}" || true)"
 echo "$gbody" | grep -q '"choices"' || fail "Gateway profile chat (no choices)"
 ok "Gateway → profile ${PROFILE} chat/completions"
 
@@ -133,7 +146,7 @@ sbody="$(curl -sS -m 120 -X POST "${GATEWAY_URL}/p/${PROFILE}/v1/chat/completion
   -H "Authorization: Bearer ${api_key}" \
   -H "X-Hermes-Session-Id: ${desktop_session}" \
   -H "Content-Type: application/json" \
-  -d '{"model":"gpt-5-6-luna","messages":[{"role":"user","content":"Reply exactly: session-ok"}],"stream":false,"max_tokens":16}' || true)"
+  -d "{\"model\":\"${VERIFY_LLM_MODEL}\",\"messages\":[{\"role\":\"user\",\"content\":\"Reply exactly: session-ok\"}],\"stream\":false,\"max_tokens\":16}" || true)"
 echo "$sbody" | grep -q '"choices"' || fail "Gateway session chat (no choices)"
 ok "Gateway chat with X-Hermes-Session-Id"
 

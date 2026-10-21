@@ -1,13 +1,13 @@
 # Copy to ~/.hermes/profiles/content-studio/config.yaml — do not commit real keys.
 model:
-  default: gpt-5-6-luna
+  default: auto
   provider: custom
-  api_key: sk-your-key-here
-  base_url: http://127.0.0.1:8080/v1
+  api_key: freellmapi-your-key-here
+  base_url: http://127.0.0.1:3011/v1
 providers:
   manifest:
     type: openai
-    base_url: http://127.0.0.1:8080/v1
+    base_url: http://127.0.0.1:3011/v1
     key_env: CUSTOM_API_KEY
 toolsets:
   - hermes-cli

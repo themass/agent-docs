@@ -11,21 +11,22 @@ import { forgotPassword } from "@/lib/api/auth";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
-  const [sent, setSent] = useState(false);
+  // Success and failure are separate state. Sharing one `message` meant the copy and the
+  // styling could disagree, and a red box that says 「已发送」 tells the user nothing.
+  const [sent, setSent] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    setMessage(null);
+    setSent(null);
+    setError(null);
     try {
       const res = await forgotPassword({ email });
-      setMessage(res.message);
-      setSent(true);
+      setSent(res.message);
     } catch (err) {
-      setMessage(userFacingApiError(err, "请求失败"));
-      setSent(false);
+      setError(userFacingApiError(err, "没能发出重置邮件，请稍后重试。"));
     } finally {
       setBusy(false);
     }
@@ -51,14 +52,25 @@ export default function ForgotPasswordPage() {
           onChange={(e) => setEmail(e.target.value)}
         />
 
-        {message ? (
-          <div className={`notice ${sent ? "notice-success" : "notice-danger"}`} role="status">
-            <span>{message}</span>
+        {sent ? (
+          <div className="notice notice-success" role="status">
+            <div className="min-w-0">
+              <p className="font-medium">{sent}</p>
+              <p className="mt-0.5 text-xs leading-relaxed opacity-80">
+                没收到的话先看一下垃圾邮件，或者过几分钟重发一次。
+              </p>
+            </div>
+          </div>
+        ) : null}
+
+        {error ? (
+          <div className="notice notice-danger" role="alert">
+            <span>{error}</span>
           </div>
         ) : null}
 
         <button type="submit" disabled={busy} className="btn btn-md btn-primary-emphasis w-full">
-          {busy ? "发送中…" : "发送重置邮件"}
+          {busy ? "发送中…" : sent ? "重新发送" : "发送重置邮件"}
         </button>
       </form>
     </AuthShell>

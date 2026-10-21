@@ -2,14 +2,16 @@
 
 import { useEffect, useState } from "react";
 
+import { Select } from "@/components/ui/Select";
 import { activateProfile, createProfile, listProfiles, type ProfileListItem } from "@/lib/api/profile";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
 type Props = {
+  disabled?: boolean;
   onSwitched?: () => void;
 };
 
-export function ProfileSwitcher({ onSwitched }: Props) {
+export function ProfileSwitcher({ onSwitched, disabled = false }: Props) {
   const { context, refresh } = useAuth();
   const [items, setItems] = useState<ProfileListItem[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -61,7 +63,7 @@ export function ProfileSwitcher({ onSwitched }: Props) {
     return (
       <button
         type="button"
-        disabled={busy}
+        disabled={busy || disabled}
         onClick={() => void onCreate()}
         className="btn btn-sm btn-secondary shrink-0"
       >
@@ -75,22 +77,23 @@ export function ProfileSwitcher({ onSwitched }: Props) {
       <label className="sr-only" htmlFor="profile-switcher">
         当前档案
       </label>
-      <select
+      <Select
         id="profile-switcher"
-        disabled={busy}
+        disabled={busy || disabled}
         value={activeId ?? ""}
         onChange={(e) => void onActivate(e.target.value)}
-        className="field h-7 max-w-[10rem] truncate py-0 pl-2 pr-6 text-xs"
+        className="max-w-[10rem]"
+        selectClassName="h-7 truncate py-0 pl-2 text-xs"
       >
         {items.map((p) => (
           <option key={p.id} value={p.id}>
             {p.contact_name ?? `档案 ${p.id.slice(-4)}`}
           </option>
         ))}
-      </select>
+      </Select>
       <button
         type="button"
-        disabled={busy}
+        disabled={busy || disabled}
         onClick={() => void onCreate()}
         className="btn btn-sm btn-secondary px-2"
         title="新建档案"

@@ -26,6 +26,7 @@ export type AgentSessionListItem = {
   kind: string;
   status: string;
   profile_id: string | null;
+  title?: string | null;
   created_at: string;
   updated_at: string;
 };

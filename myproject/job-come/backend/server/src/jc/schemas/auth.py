@@ -11,6 +11,7 @@ class UserPublic(BaseModel):
     id: str
     email: EmailStr
     email_verified: bool
+    role: Literal["user", "admin"] = "user"
 
 
 class UserContext(UserPublic):

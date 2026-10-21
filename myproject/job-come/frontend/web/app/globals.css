@@ -52,6 +52,29 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/*
+ * Split workbench (resume / apply / coach): use the full viewport width. The 1680px
+ * marketing shell is for list and settings pages; a resizable document + agent rail
+ * should not sit in empty side gutters on wide monitors.
+ */
+main:has(.jc-workbench-page),
+main:has(.jc-workbench-surface) {
+  max-width: none;
+  width: 100%;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  main:has(.jc-workbench-page),
+  main:has(.jc-workbench-surface) {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
 /* Headings should not inherit the body's generous CJK leading. */
 h1, h2, h3, h4 {
   text-wrap: pretty;
@@ -241,6 +264,327 @@ h1, h2, h3, h4 {
   }
 }
 
+/*
+ * Studio two-column layout (resume step 3).
+ *
+ * Why a container query and not an `xl:` breakpoint
+ * -------------------------------------------------
+ * The studio shares the screen with the agent sidebar through a *user-resizable*
+ * splitter, so viewport width says nothing about how much room this content actually
+ * has: at a 1280px viewport the studio pane is ~800px, and a viewport-based two-column
+ * rule produced a 402px document column — narrower than the resume it had to show.
+ * Querying the container measures the space that exists rather than guessing at it.
+ *
+ * The document is ordered *second* in the DOM so the controls come first for keyboard
+ * and screen-reader users, and visually *first* when stacked, because on a narrow pane
+ * the resume is the thing worth seeing. Above the threshold it takes the right column.
+ *
+ * Why each column owns its scrollbar
+ * ----------------------------------
+ * The first version made the document `position: sticky` inside the step's single
+ * scroller. Measured, that arrangement was: an 818px document and a 2724px rail sharing
+ * one 860px-tall scroller with 2756px of content. One scrollbar therefore moved both
+ * columns at once, and because the rail was three times the document's height, scrolling
+ * to the bottom of the rail scrolled the document completely out of its own column.
+ * Sticky cannot save that — a sticky element only stays put while its *containing block*
+ * is still in view, and the containing block here is the full 2724px grid.
+ *
+ * So above the threshold neither the step nor the grid scrolls: each column is bounded
+ * to the grid's height and scrolls itself. Reading the resume and working through the
+ * panels become two independent motions, which is what having two columns implied.
+ *
+ * Stacked, the opposite is true: two scrollbars stacked vertically would be a trap, so
+ * the inner wrapper is the single scroller and the columns flow inside it.
+ */
+/* Resume workflow: four equal steps across the pane; actions on a second row. */
+.workflow-rail-wrap {
+  container-type: inline-size;
+  width: 100%;
+  min-width: 0;
+}
+
+.workflow-rail {
+  display: flex;
+  width: 100%;
+  align-items: stretch;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 0.125rem;
+}
+
+.workflow-rail__cell {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex: 1 1 0;
+}
+
+.workflow-rail__cell + .workflow-rail__cell::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 22%;
+  bottom: 22%;
+  width: 1px;
+  background: var(--app-border);
+  pointer-events: none;
+}
+
+.workflow-rail__btn {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  border-radius: 0.5rem;
+  padding: 0.375rem 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.25;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.workflow-rail__btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.workflow-rail__btn--active {
+  background: var(--brand);
+  color: #fff;
+  box-shadow: 0 1px 2px rgb(91 70 229 / 0.35);
+}
+
+.workflow-rail__btn--done {
+  color: var(--color-success-700, #15803d);
+}
+
+.workflow-rail__btn--done:hover:not(:disabled) {
+  background: var(--color-success-50, #f0fdf4);
+}
+
+.workflow-rail__btn--idle:hover:not(:disabled) {
+  background: #f3f4f6;
+  color: #161b26;
+}
+
+.workflow-rail__index {
+  display: flex;
+  height: 1.125rem;
+  width: 1.125rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  font-size: 0.625rem;
+  font-weight: 600;
+}
+
+.workflow-rail__btn--active .workflow-rail__index {
+  background: rgb(255 255 255 / 0.28);
+  color: #fff;
+}
+
+.workflow-rail__btn--done .workflow-rail__index {
+  background: var(--color-success-100, #dcfce7);
+  color: var(--color-success-700, #15803d);
+}
+
+.workflow-rail__btn--idle .workflow-rail__index {
+  background: #eef0f6;
+  color: #6b7280;
+}
+
+.workflow-rail__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@container (max-width: 26rem) {
+  .workflow-rail {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+
+  .workflow-rail::-webkit-scrollbar {
+    display: none;
+  }
+
+  .workflow-rail__cell {
+    flex: 0 0 auto;
+    min-width: 4.75rem;
+  }
+
+  .workflow-rail__cell + .workflow-rail__cell::before {
+    display: none;
+  }
+
+  .workflow-rail__label {
+    display: none;
+  }
+}
+
+.studio-columns {
+  container-type: inline-size;
+  /* Not a scroller: it has no height of its own to scroll within. The height comes from
+     the step shell, which stops scrolling so these columns can. */
+  height: 100%;
+  min-height: 0;
+}
+
+/* Stacked: one column, one scrollbar, document first. */
+.studio-columns-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.studio-doc {
+  order: -1;
+  min-width: 0;
+}
+
+.studio-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+/* 48rem: once the pane is wide enough for a ~26% rail + document, split; below that stack. */
+@container (min-width: 48rem) {
+  .studio-columns-inner {
+    display: grid;
+    /* One row, bounded: `minmax(0, 1fr)` is what lets the children be shorter than their
+       content and scroll. `auto` would size the row to the tallest column and put the
+       scrollbar back on an ancestor. */
+    grid-template-columns: minmax(0, min(26rem, 32%)) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 1rem;
+    overflow: hidden;
+  }
+
+  .studio-doc {
+    order: 2;
+    min-height: 0;
+    overflow-y: auto;
+    /* The resume is the reference while editing on the left, so it keeps its scroll
+       position instead of being dragged by the rail. */
+    overscroll-behavior: contain;
+  }
+
+  .studio-rail {
+    order: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* Room for the scrollbar so it does not sit on top of the cards' right edge. */
+    padding-right: 0.25rem;
+  }
+}
+
+/*
+ * Rail density.
+ *
+ * The rail carries three panels of controls and explanation in a 22rem column, while the
+ * document beside it is reading material at full size. At one shared type scale the
+ * rail's helper prose was set as large as the resume's own bullets, which read as
+ * oversized and made the column look like it held less than it does.
+ *
+ * One rule, in absolute units, on the elements that carry prose. Deliberately *not*
+ * relative (`0.92em`): font-size in `em` compounds down a tree, so a span inside a
+ * paragraph inside a list item would end up three multiplications small, and the amount
+ * of shrink would depend on markup depth rather than on a decision. Absolute sizes mean
+ * every line in the rail lands on the same step no matter how it is nested.
+ *
+ * `!important` because these compete with Tailwind utilities of equal specificity whose
+ * order in the sheet is not something this file controls. It is scoped to prose inside
+ * `.studio-rail`, which is narrow enough to reason about.
+ */
+.studio-rail
+  :where(p, li, span, label, button):not([class~="badge"], [class~="label-meta"],
+    [class~="btn"], [class~="segment-item"], [class~="text-micro"]) {
+  font-size: 0.78125rem !important;
+  line-height: 1.6;
+}
+
+/*
+ * Why the opt-outs are attribute selectors instead of plain class names.
+ *
+ * `.badge` and `.label-meta` are declared with `@apply text-micro`. Tailwind resolves
+ * `@apply` by copying *every* rule whose selector mentions that class and rewriting the
+ * context. So `.studio-rail .text-micro { font-size: inherit }` was silently re-emitted
+ * by the compiler as `.studio-rail .badge { font-size: inherit }` and the same for
+ * `.label-meta`. Badges then took their size from whichever element wrapped them: 16px
+ * inside a `div`, 12.5px inside an `li`. Nothing in this file said so.
+ *
+ * Moving the names into `:not()` did not help -- the clone is textual, so the compiler
+ * produced a second copy of this rule with `.text-micro` swapped for `.label-meta`
+ * inside the `:not()`, which quietly stopped exempting `text-micro` at all.
+ * `[class~="text-micro"]` matches the same elements but is not a class token the
+ * rewriter recognises, so the rule is emitted exactly once, as written.
+ *
+ * Rule of thumb for this file: never mention an `@apply`-ed component class by name in
+ * a selector. Verified against the built sheet, not inferred.
+ */
+
+/* Typed text sits one step above helper prose so it stays proofread-able. An absolute
+   step, not `inherit`: inherit would make a field's size depend on how deeply it is
+   nested, which is the same trap `em` sets. */
+.studio-rail :where(input, textarea, select) {
+  font-size: 0.84375rem !important;
+}
+
+/*
+ * A plain span inside a heading is part of the heading, so `inherit` is the meaning we
+ * want. A badge inside a heading is not: it is a chip that happens to sit on the same
+ * line, and it carries its own size. Measured, `2/3 达标` inside an `h3` came out at
+ * 13.5px while the identical badge elsewhere was 11px.
+ *
+ * The opt-out list repeats the one above because CSS has no way to name a selector
+ * fragment. Both lists mean the same thing -- component classes that bring their own
+ * type size -- and must be changed together. The acceptance script measures one class
+ * at a time and fails if any of them renders at two different sizes, so drifting them
+ * apart is caught rather than discovered later.
+ */
+.studio-rail :where(h1, h2, h3, h4)
+  :where(span):not([class~="badge"], [class~="label-meta"], [class~="text-micro"]) {
+  font-size: inherit !important;
+}
+
+/*
+ * Collapsed agent rail.
+ *
+ * The sidebar is ~440px of a 1920px screen, and on the export/review steps the user is
+ * reading the document rather than talking to the assistant. Collapsed it becomes a
+ * 44px edge strip that still says what it is.
+ *
+ * `writing-mode: vertical-rl` for the label rather than `rotate(90deg)`: a rotated
+ * element keeps its horizontal layout box, so the parent would still reserve the full
+ * text width and the strip could not be 44px. Vertical writing mode changes the box
+ * itself, so the column can actually be narrow. CJK glyphs are upright in vertical mode
+ * by default, which is the right reading orientation here; Latin runs inside the label
+ * would lie on their side, so the label text is kept CJK-only.
+ */
+.agent-rail-collapsed {
+  width: 2.75rem;
+  flex-shrink: 0;
+}
+
+.agent-rail-label {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  letter-spacing: 0.22em;
+}
+
 @keyframes shimmer {
   100% {
     transform: translateX(100%);
@@ -250,6 +594,106 @@ h1, h2, h3, h4 {
 @keyframes parse-progress {
   0%, 100% { transform: translateX(-45%) scaleX(0.7); opacity: 0.72; }
   50% { transform: translateX(48%) scaleX(1); opacity: 1; }
+}
+
+@keyframes elevate-preview-progress {
+  0%, 100% { transform: translateX(-55%) scaleX(0.55); opacity: 0.65; }
+  50% { transform: translateX(52%) scaleX(1); opacity: 1; }
+}
+
+@keyframes elevate-ripple {
+  0% { transform: translate(-50%, -50%) scale(0.55); opacity: 0.42; }
+  100% { transform: translate(-50%, -50%) scale(1.85); opacity: 0; }
+}
+
+@keyframes elevate-ripple-slow {
+  0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0.28; }
+  100% { transform: translate(-50%, -50%) scale(2.05); opacity: 0; }
+}
+
+@keyframes elevate-glow-drift {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.55; }
+  50% { transform: translate(-48%, -52%) scale(1.08); opacity: 0.72; }
+}
+
+.elevate-generating {
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--brand) 7%, var(--app-bg)) 0%,
+    var(--app-bg) 48%,
+    color-mix(in srgb, var(--brand) 5%, #eef0f6) 100%
+  );
+}
+
+.elevate-generating-ripples {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.elevate-generating-ripples span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(160%, 56rem);
+  aspect-ratio: 1.15 / 1;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--brand) 20%, transparent);
+  background: radial-gradient(
+    ellipse at center,
+    color-mix(in srgb, var(--brand) 16%, transparent) 0%,
+    transparent 72%
+  );
+  transform: translate(-50%, -50%);
+  animation: elevate-ripple 5.2s ease-out infinite;
+}
+
+.elevate-generating-ripples span:nth-child(2) {
+  animation-delay: 1.1s;
+  opacity: 0.9;
+  width: min(145%, 50rem);
+}
+
+.elevate-generating-ripples span:nth-child(3) {
+  animation-delay: 2.2s;
+  width: min(175%, 60rem);
+  animation-name: elevate-ripple-slow;
+  animation-duration: 6.4s;
+}
+
+.elevate-generating-ripples span:nth-child(4) {
+  animation-delay: 3.3s;
+  width: min(130%, 44rem);
+  opacity: 0.75;
+}
+
+.elevate-generating-ripples span:nth-child(5) {
+  animation-delay: 4.4s;
+  width: min(190%, 64rem);
+  animation-name: elevate-ripple-slow;
+  animation-duration: 7s;
+  opacity: 0.65;
+}
+
+.elevate-generating-ripples .elevate-generating-glow {
+  width: min(120%, 42rem);
+  aspect-ratio: 1.4 / 1;
+  border: none;
+  background: radial-gradient(
+    ellipse at center,
+    color-mix(in srgb, var(--brand) 12%, transparent) 0%,
+    color-mix(in srgb, var(--brand) 4%, transparent) 45%,
+    transparent 78%
+  );
+  animation: elevate-glow-drift 8s ease-in-out infinite;
+  opacity: 0.7;
+}
+
+.elevate-generating-bar {
+  width: 42%;
+  transform-origin: left center;
+  animation: elevate-preview-progress 2.2s ease-in-out infinite;
 }
 
 /* Respect users who ask for less motion. */

@@ -9,13 +9,21 @@ import io
 import re
 from typing import Any
 
+from jc.services.pdf_text_quality import inspect_pdf_text, normalize_extracted_text
+
 
 def expected_text(sections: dict[str, Any]) -> list[str]:
     if sections.get("track") == "bilingual":
         return expected_text(sections.get("zh_sections") or {}) + expected_text(
             sections.get("en_sections") or {}
         )
-    values = list((sections.get("header") or {}).values()) + [sections.get("summary")]
+    header = sections.get("header") or {}
+    # `photo_data_uri` is a base64 blob, not text: it can never be extracted back out
+    # of a PDF or DOCX, so including it here made the retention check declare every
+    # export-with-a-headshot "missing 1 field" and fail the download outright.
+    values = [
+        value for key, value in header.items() if key != "photo_data_uri"
+    ] + [sections.get("summary")]
     for key in ("experience_blocks", "education_blocks", "project_blocks"):
         for block in sections.get(key) or []:
             for field, value in block.items():
@@ -89,15 +97,13 @@ def validate_export(content: bytes, format: str, sections: dict[str, Any]) -> di
     else:
         raise ValueError("Unsupported export format")
 
-    def normalize(value: str) -> str:
-        return re.sub(r"\s+", "", value)
-
-    normalized = normalize(text)
+    normalized = normalize_extracted_text(text)
     expected = expected_text(sections)
-    missing = [value for value in expected if normalize(value) not in normalized]
+    missing = [value for value in expected if normalize_extracted_text(value) not in normalized]
     if not expected or missing:
         raise ValueError(f"Export content missing ({len(missing)} fields); revise draft/template")
     return {
+        **({"text_layer": inspect_pdf_text(text, sections)} if format == "pdf" else {}),
         "format": format,
         "pages": count,
         "text_retention": 1.0,

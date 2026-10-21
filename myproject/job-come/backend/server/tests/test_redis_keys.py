@@ -5,7 +5,6 @@ from __future__ import annotations
 import pytest
 
 from jc.redis_client import redis_key, redis_key_prefix
-from jc.services import patch_confirm_service
 from jc.stores.email_verification_store import EmailVerificationStore
 from jc.stores.guest_session_store import GuestSessionStore
 
@@ -62,20 +61,3 @@ async def test_email_verification_store_uses_shared_redis_key_builder(monkeypatc
     assert redis.last_key.startswith("jc:test:email-verify:")
 
 
-@pytest.mark.asyncio
-async def test_profile_patch_confirmation_uses_shared_redis_key_builder(monkeypatch) -> None:
-    from jc import redis_client
-
-    monkeypatch.setattr(redis_client.settings, "jc_redis_key_prefix", "jc:test:")
-    redis = FakeRedis()
-    monkeypatch.setattr(patch_confirm_service, "get_redis", lambda: redis)
-
-    pending = await patch_confirm_service.create_pending(
-        session_id="agsn_test",
-        user_id="usr_test",
-        profile_id="prof_test",
-        patch={"summary": "x"},
-        preview={"patch_keys": ["summary"]},
-    )
-
-    assert redis.last_key == f"jc:test:profile-patch:{pending.confirm_id}"

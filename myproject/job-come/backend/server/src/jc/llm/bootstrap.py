@@ -91,4 +91,10 @@ def configure_litellm() -> None:
     litellm.drop_params = True
     if not _langfuse_legacy_sdk_compatible():
         _strip_legacy_langfuse_callbacks()
+    # Audit is an observer on litellm, so it must be attached before the first
+    # call. Both the deterministic services and the DeerFlow adapter go through
+    # litellm, which is what lets one callback cover both paths.
+    from jc.llm.audit_hook import register_audit_callback
+
+    register_audit_callback()
     _CONFIGURED = True

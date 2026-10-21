@@ -87,7 +87,7 @@ class ApplicationService:
             )
             await self._apps.create(row)
         if row.user_id != actor.user_id:
-            raise ForbiddenError("Not your application")
+            raise ForbiddenError("这条投递记录不属于您。", code="forbidden")
         if row.status not in _KEEP_ON_APPLY:
             row.status = ApplicationStatus.APPLIED.value
         row.applied_at = row.applied_at or date.today()
@@ -109,13 +109,13 @@ class ApplicationService:
         await self._profiles.get(profile_id, actor=actor)
         row = await self._apps.get_by_id(application_id)
         if row is None or row.profile_id != profile_id:
-            raise NotFoundError("Application not found")
+            raise NotFoundError("投递记录不存在或已删除。", code="application_not_found")
         if row.user_id != actor.user_id:
-            raise ForbiddenError("Not your application")
+            raise ForbiddenError("这条投递记录不属于您。", code="forbidden")
 
         if body.status is not None:
             if body.status not in _FUNNEL_STATUSES:
-                raise AppError("Invalid application status", code="invalid_request")
+                raise AppError("投递状态不合法。", code="invalid_request")
             row.status = body.status
             if body.status == ApplicationStatus.APPLIED.value and row.applied_at is None:
                 row.applied_at = date.today()

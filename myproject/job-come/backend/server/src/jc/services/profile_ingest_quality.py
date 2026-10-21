@@ -44,3 +44,41 @@ def payload_quality_score(payload: ProfilePayload, *, file_name: str) -> int:
 
 def is_low_quality_payload(payload: ProfilePayload, *, file_name: str) -> bool:
     return payload_quality_score(payload, file_name=file_name) < 35
+
+
+def has_profile_facts(payload: ProfilePayload) -> bool:
+    """Return true only when the model extracted at least one real source fact.
+
+    Collection presence is not evidence: ``[{"company": "", ...}]`` and
+    ``[{"name": ""}]`` are common empty model placeholders. IDs, dates,
+    confidence and metadata are generated/structural fields and therefore do not
+    make an otherwise empty extraction successful.
+    """
+    def text(value: object) -> bool:
+        return isinstance(value, str) and bool(value.strip())
+    if any(text(value) for value in (
+        payload.contact.name, payload.contact.email, payload.contact.phone,
+        payload.contact.location, payload.summary,
+    )):
+        return True
+    if any(
+        text(value)
+        for item in payload.experiences
+        for value in (item.company, item.title, item.start_date, item.end_date,
+                      item.location, item.scope, *item.highlights, *item.skills)
+    ):
+        return True
+    if any(
+        text(value)
+        for item in payload.education
+        for value in (item.school, item.degree, item.major, item.start_date, item.end_date)
+    ):
+        return True
+    if any(
+        text(value)
+        for item in payload.projects
+        for value in (item.name, item.role, item.start_date, item.end_date,
+                      item.description, item.scope, *item.highlights)
+    ):
+        return True
+    return any(text(item.name) or any(text(e) for e in item.evidence) for item in payload.skills)

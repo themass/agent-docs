@@ -1,0 +1,648 @@
+{
+  "date": "2026-10-16",
+  "source_root_relative": "../../personal-agent/OpenMausBot",
+  "commit": "c2cf30127c9fb6fb506be533f361214f764c01da",
+  "version": "0.1.111",
+  "files": [
+    {
+      "path": "server/contracts.ts",
+      "sha256": "08451b4da946b054e0d58e260efd01fca5da2b8dc55e04d448f49aec2771a20a",
+      "anchors": [
+        {
+          "match": "export interface SendTurnInput",
+          "line": 83
+        },
+        {
+          "match": "export interface ProviderAdapter",
+          "line": 179
+        },
+        {
+          "match": "export interface ProviderInstance",
+          "line": 386
+        },
+        {
+          "match": "export interface ProviderDriver",
+          "line": 422
+        }
+      ]
+    },
+    {
+      "path": "shared/wire.ts",
+      "sha256": "89dfe8b5a2434c170ba6c85646d8045ab6c1aea61a84922e506cd02cc12445ae",
+      "anchors": [
+        {
+          "match": "export interface WireMessage",
+          "line": 396
+        }
+      ]
+    },
+    {
+      "path": "shared/approval-mode.ts",
+      "sha256": "7f4c2e4a442a2ba972187f3236cd390ed8765e3f37b905cecad6f83583ee2cd1",
+      "anchors": [
+        {
+          "match": "export const APPROVAL_MODES",
+          "line": 5
+        },
+        {
+          "match": "export const DEFAULT_APPROVAL_MODE",
+          "line": 51
+        },
+        {
+          "match": "export function approvalModeFor",
+          "line": 63
+        }
+      ]
+    },
+    {
+      "path": "shared/runtime-events.ts",
+      "sha256": "6f314237a534b668ff4ee74acbfabd0e2b654df9cb3e2abda9787f06ad4cbdde",
+      "anchors": [
+        {
+          "match": "export type RuntimeEvent",
+          "line": 38
+        }
+      ]
+    },
+    {
+      "path": "server/index.ts",
+      "sha256": "5d6fc1cc74b0429872b5947a80a1365ef4613e8c365ec2b3cffcc3274069f5a1",
+      "anchors": [
+        {
+          "match": "const registry = new ProviderRegistry",
+          "line": 794
+        },
+        {
+          "match": "await registry.load",
+          "line": 1593
+        },
+        {
+          "match": "bus.attach(registry.instances())",
+          "line": 1698
+        },
+        {
+          "match": "const store = new Store",
+          "line": 3341
+        },
+        {
+          "match": "async function acceptDirectSend",
+          "line": 8052
+        },
+        {
+          "match": "async function startOrQueueDirectMessage",
+          "line": 8001
+        },
+        {
+          "match": "async function startTurn",
+          "line": 8451
+        },
+        {
+          "match": "async function compactConversation",
+          "line": 7868
+        },
+        {
+          "match": "const contextReset =",
+          "line": 8740
+        },
+        {
+          "match": "if (contextReset && record)",
+          "line": 9378
+        },
+        {
+          "match": "async function answerRequest",
+          "line": 5536
+        },
+        {
+          "match": "case \"request.opened\"",
+          "line": 7240
+        },
+        {
+          "match": "function broadcast(",
+          "line": 5481
+        },
+        {
+          "match": "restoreSteeredMessages();",
+          "line": 17621
+        },
+        {
+          "match": "server.listen(PORT",
+          "line": 17632
+        },
+        {
+          "match": "const gracefulShutdown =",
+          "line": 17683
+        }
+      ]
+    },
+    {
+      "path": "server/store.ts",
+      "sha256": "07fa049179923cbfbceed4026a1c934503aadd7fe7c16fb07be33e41bedc7df0",
+      "anchors": [
+        {
+          "match": "export class Store",
+          "line": 437
+        },
+        {
+          "match": "private cacheThread(",
+          "line": 1266
+        },
+        {
+          "match": "activePath(threadId:",
+          "line": 1317
+        },
+        {
+          "match": "appendMessage(threadId:",
+          "line": 1341
+        }
+      ]
+    },
+    {
+      "path": "server/message-db.ts",
+      "sha256": "e54e426c627f328621c84d4687bb0331ee8a68fe5cf5cb2dbd70f5dbdb42990a",
+      "anchors": [
+        {
+          "match": "CREATE TABLE IF NOT EXISTS messages (",
+          "line": 35
+        },
+        {
+          "match": "CREATE TABLE IF NOT EXISTS chat_followups",
+          "line": 54
+        },
+        {
+          "match": "CREATE TABLE IF NOT EXISTS thread_state",
+          "line": 50
+        }
+      ]
+    },
+    {
+      "path": "server/context-rebuild.ts",
+      "sha256": "d78313891f32d911fcf52cefcc0c9cf68fdc49195441356eccbca1f476d3d969",
+      "anchors": [
+        {
+          "match": "export function selectReplay",
+          "line": 179
+        },
+        {
+          "match": "export function boundedContextText",
+          "line": 168
+        },
+        {
+          "match": "export const REPLAY_TOOL_LINE_CAP",
+          "line": 23
+        }
+      ]
+    },
+    {
+      "path": "server/compaction-summary.ts",
+      "sha256": "4c8fa855844c63af976589a10acfe930e825eb9371941f53f6749700db028e53",
+      "anchors": [
+        {
+          "match": "export function foldPoint",
+          "line": 5
+        },
+        {
+          "match": "export async function draftSummary",
+          "line": 43
+        }
+      ]
+    },
+    {
+      "path": "server/turn-context.ts",
+      "sha256": "56e903f1c86e35ac2092efd00a93b130a09ec4516a80b0c98bd726e54f3c7423",
+      "anchors": [
+        {
+          "match": "export function buildTurnContext",
+          "line": 57
+        },
+        {
+          "match": "export function buildRecoveryText",
+          "line": 41
+        }
+      ]
+    },
+    {
+      "path": "server/context-budget.ts",
+      "sha256": "dd6e9c9ee0d3aa517e67850d1febaf3d7fd04fb757e9f39fb7148aa6f9a5f6a9",
+      "anchors": [
+        {
+          "match": "export function",
+          "line": 7
+        }
+      ]
+    },
+    {
+      "path": "server/system-prompt.ts",
+      "sha256": "656cc0657285dd9e6e73cbd9884c35bbea248986b84e60d329ba0ac122e7ed2a",
+      "anchors": [
+        {
+          "match": "export function buildSystemPrompt",
+          "line": 41
+        },
+        {
+          "match": "VOLATILE_SECTIONS",
+          "line": 18
+        }
+      ]
+    },
+    {
+      "path": "server/steer-queue.ts",
+      "sha256": "cd0a77e5f6adfe81b92bdd8118ff64ac9c4b4d8670114d20012cc9f19d554a5a",
+      "anchors": [
+        {
+          "match": "export function restoreSteeredMessages",
+          "line": 51
+        },
+        {
+          "match": "export function queueSteeredMessage",
+          "line": 97
+        }
+      ]
+    },
+    {
+      "path": "server/admission.ts",
+      "sha256": "6f24034314e795918720b0cdd7c913f90c063ac46cc5a1f69538305459ac0b7c",
+      "anchors": [
+        {
+          "match": "export function admit(",
+          "line": 84
+        }
+      ]
+    },
+    {
+      "path": "server/harness/registry.ts",
+      "sha256": "b3eb2ec5ffdf89d07b33c51ad0b41f495fb595d154c23bcd85ef66843138832c",
+      "anchors": [
+        {
+          "match": "export class ProviderRegistry",
+          "line": 50
+        }
+      ]
+    },
+    {
+      "path": "server/harness/bus.ts",
+      "sha256": "d04629a47f7fe1f82624353d0d824b35c06cf59eb6a3fef00db54346be95d2cc",
+      "anchors": [
+        {
+          "match": "export class EventBus",
+          "line": 44
+        }
+      ]
+    },
+    {
+      "path": "server/drivers/builtIn.ts",
+      "sha256": "3c86ee08455702e70fa0d4486d7aa3c98600a8996135a9e0552f9f9f4266d777",
+      "anchors": [
+        {
+          "match": "BUILT_IN_DRIVERS",
+          "line": 25
+        }
+      ]
+    },
+    {
+      "path": "server/drivers/openai-chat.ts",
+      "sha256": "a9f757cc6babaf8a6a2c4a1feffb54a215cccacea30aecf282bea96378a04041",
+      "anchors": [
+        {
+          "match": "export function createOpenAIChatRuntime",
+          "line": 265
+        },
+        {
+          "match": "const messagesFor =",
+          "line": 477
+        }
+      ]
+    },
+    {
+      "path": "server/coordinator.ts",
+      "sha256": "290e8e660e0550574dcf3a1547a371b66acec16ee4a1ad09df4b1db2a09d8af1",
+      "anchors": [
+        {
+          "match": "export interface CoordinatorHost",
+          "line": 97
+        },
+        {
+          "match": "export interface Coordinator {",
+          "line": 116
+        },
+        {
+          "match": "export function createCoordinator",
+          "line": 166
+        }
+      ]
+    },
+    {
+      "path": "server/runtime-coordinator.ts",
+      "sha256": "ad7ca0d5d4fef3d70892733b240085c3f2d016c87c8059f99a60fd65038a5ed1",
+      "anchors": [
+        {
+          "match": "export class RuntimeCoordinator",
+          "line": 97
+        },
+        {
+          "match": "requests: REQUESTS_PER_ROOT",
+          "line": 119
+        },
+        {
+          "match": "private ready():",
+          "line": 125
+        }
+      ]
+    },
+    {
+      "path": "server/runtime/runtime.ts",
+      "sha256": "81f0d6f16c02c1029aae4b95f4bb9fe641df6a7561c58bbe95f10ff39c36819d",
+      "anchors": [
+        {
+          "match": "export class Runtime",
+          "line": 47
+        },
+        {
+          "match": "open():",
+          "line": 76
+        },
+        {
+          "match": "private finishTurn(",
+          "line": 414
+        },
+        {
+          "match": "private report(",
+          "line": 611
+        },
+        {
+          "match": "private wake(",
+          "line": 626
+        }
+      ]
+    },
+    {
+      "path": "server/runtime/store.ts",
+      "sha256": "09af711d66d2282076551db747d148ed267bf768cbb4dc0208f64d1f999c35e7",
+      "anchors": [
+        {
+          "match": "CREATE TABLE IF NOT EXISTS assignments",
+          "line": 108
+        },
+        {
+          "match": "CREATE TABLE IF NOT EXISTS inbox",
+          "line": 140
+        },
+        {
+          "match": "export function openRuntimeStore",
+          "line": 191
+        }
+      ]
+    },
+    {
+      "path": "server/runtime/types.ts",
+      "sha256": "4b0ee74fd612a4dec655d99197c8bbbc2c4897436197865cb8ec8991080440ac",
+      "anchors": [
+        {
+          "match": "export interface Assignment",
+          "line": 80
+        },
+        {
+          "match": "export interface TurnRunner",
+          "line": 270
+        }
+      ]
+    },
+    {
+      "path": "server/channel-queue.ts",
+      "sha256": "fccc7821e9e8a834e000561f6170d5cbb20ff8a0fd8bcddb369b2af10c691c2d",
+      "anchors": [
+        {
+          "match": "export function holdChannelQueue",
+          "line": 115
+        },
+        {
+          "match": "export function settleHeldChannelQueueHead",
+          "line": 148
+        }
+      ]
+    },
+    {
+      "path": "server/turn-resources.ts",
+      "sha256": "0e066ce9ffd8e3e4b4c7ab3d50e84fe82be4029542059902e58a0a3c742dfd2b",
+      "anchors": [
+        {
+          "match": "export class TurnResources",
+          "line": 10
+        }
+      ]
+    },
+    {
+      "path": "server/permission-proxy.ts",
+      "sha256": "cf2a22bf254790ec2892268bf58eaa7f86f133fb580e32e5a5d3c62896b3af19",
+      "anchors": [
+        {
+          "match": "function askBroker(",
+          "line": 56
+        }
+      ]
+    },
+    {
+      "path": "server/request-auth.ts",
+      "sha256": "a338707fd5b3e5321d19b387286f4b82af4b7369e1288cd31836747d634c2817",
+      "anchors": [
+        {
+          "match": "export const SERVICE_ALLOW",
+          "line": 33
+        }
+      ]
+    },
+    {
+      "path": "server/safety-floor-gate.ts",
+      "sha256": "52b3c8bfaf0f99d114adc6607179a154e26bfae010270ba8bf8d18527bf717a6",
+      "anchors": [
+        {
+          "match": "export function safetyFloorEnabled",
+          "line": 15
+        },
+        {
+          "match": "export function heldAtSafetyFloor",
+          "line": 98
+        },
+        {
+          "match": "export function denyAtSafetyFloor",
+          "line": 104
+        }
+      ]
+    },
+    {
+      "path": "server/mcp-trim.ts",
+      "sha256": "b715612defb02408d78f4e914f3b9134df1f4b41ee0adae16fc67827b584abe5",
+      "anchors": [
+        {
+          "match": "export const DEFAULT_RESULT_BUDGET",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "path": "server/mcp-result-budget.ts",
+      "sha256": "1bb42caccfd932538755a1660165bce12f6a5c64af56e978e6c755d1d49fe72d",
+      "anchors": [
+        {
+          "match": "export function attachCustomMcp",
+          "line": 17
+        }
+      ]
+    },
+    {
+      "path": "server/memory-store.ts",
+      "sha256": "bb5002d198bac1ad7111fa39d661864e56201a31b4c239225297e53d34f48f2a",
+      "anchors": [
+        {
+          "match": "export function parseMemoryPath",
+          "line": 53
+        }
+      ]
+    },
+    {
+      "path": "server/memory-capture.ts",
+      "sha256": "87a096459270dd5a644edece99ca3bc8c506673605277a74262567612454b581",
+      "anchors": [
+        {
+          "match": "export function capturePrompt",
+          "line": 53
+        },
+        {
+          "match": "export class CaptureBuffer",
+          "line": 172
+        }
+      ]
+    },
+    {
+      "path": "server/memory-upkeep.ts",
+      "sha256": "ddc3c6ffac1d80f294be051865cb06987657250b69eeae91f4124f2a1873a8bb",
+      "anchors": [
+        {
+          "match": "export const CAPTURE_MAX_TURNS",
+          "line": 14
+        }
+      ]
+    },
+    {
+      "path": "server/skills.ts",
+      "sha256": "10f3248e9f36b1d81c02c34c9960fdd0afdaec360f3bb4f596ae12e9c803bb43",
+      "anchors": [
+        {
+          "match": "export function skillsSystemPrompt",
+          "line": 1261
+        },
+        {
+          "match": "export function stageSkillWrite",
+          "line": 986
+        },
+        {
+          "match": "export function applyStagedSkillWrite",
+          "line": 1142
+        }
+      ]
+    },
+    {
+      "path": "server/routines.ts",
+      "sha256": "2adab65b0272a96c4778d9fddadf33f2e7eab78898331881038f2e922ab9b752",
+      "anchors": [
+        {
+          "match": "export class RoutineManager",
+          "line": 676
+        }
+      ]
+    },
+    {
+      "path": "server/decider/room-routing.ts",
+      "sha256": "72b84c8d41d4476aada5fa4d0ed587d79eeb1982c79a2577e3a57a57a15a2440",
+      "anchors": [
+        {
+          "match": "export const ROOM_ROUTING_TIMEOUT_MS",
+          "line": 4
+        },
+        {
+          "match": "export const ROOM_ROUTING_MIN_PROBABILITY",
+          "line": 6
+        }
+      ]
+    },
+    {
+      "path": "server/graceful-shutdown.ts",
+      "sha256": "5c1e2eccabe3f4a650e43a30b5b393610921c975027c92072087b1a3a4cd0bd0",
+      "anchors": [
+        {
+          "match": "export function createGracefulShutdown",
+          "line": 8
+        }
+      ]
+    },
+    {
+      "path": "src/state/store.tsx",
+      "sha256": "7f90acfc56c3a23a1c45be153430e50429440dfcb5433059fce6b5c43b51126a",
+      "anchors": [
+        {
+          "match": "// Hydrate only after the stream",
+          "line": 3364
+        }
+      ]
+    },
+    {
+      "path": "src/lib/live-events.ts",
+      "sha256": "a71476457a6b70edaa730a16eaa8e6c87aa48afc0067c95dbc8c751dc4674895",
+      "anchors": [
+        {
+          "match": "export function openLiveEvents",
+          "line": 162
+        }
+      ]
+    },
+    {
+      "path": "server/fleet.ts",
+      "sha256": "3b4b79cab86ee0ae541896d5da0dafbc4554b3194fb85ac0fe0a982639f124af",
+      "anchors": [
+        {
+          "match": "// Many client workspaces",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "path": "server/sentinel/scan.ts",
+      "sha256": "bee9ce217a703bcf60ed4b56dd5bc970f3385f24be532ef8dce26e1bd4c50118",
+      "anchors": [
+        {
+          "match": "export function runScan",
+          "line": 34
+        }
+      ]
+    },
+    {
+      "path": "server/host/README.md",
+      "sha256": "415553de2c982e60505fa3c46b0918208409e67ed954d164cd037e12f00e39e3",
+      "anchors": [
+        {
+          "match": "# server/host",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "path": "server/routes/README.md",
+      "sha256": "9cb4e48fb24e2857c404e25833954136d11ea6d19e18a4afb2261d49e1eb6afe",
+      "anchors": [
+        {
+          "match": "# server/routes",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "path": "docs/verification/README.md",
+      "sha256": "b7531a7a678af13f1d66658b7749e50ec58c1331ee0e6d737fdbc7e548dc9623",
+      "anchors": [
+        {
+          "match": "# Verifying OpenMausBot",
+          "line": 1
+        }
+      ]
+    }
+  ]
+}

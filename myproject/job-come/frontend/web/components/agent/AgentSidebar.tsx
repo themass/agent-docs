@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { AgentAssistantPanel } from "@/components/agent/AgentAssistantPanel";
-import { AgentComposerSwitch } from "@/components/agent/AgentComposerSwitch";
+import { AgentConversation } from "@/components/agent/AgentConversation";
 import { AgentHeader } from "@/components/agent/AgentHeader";
 import { AgentHistoryDrawer } from "@/components/agent/AgentHistoryDrawer";
-import { AgentTaskQueue } from "@/components/agent/AgentTaskQueue";
 import { useAgentSession } from "@/hooks/useAgentSession";
+import { sessionHeaderSubtitle } from "@/lib/agent-session-display";
 import { ZHOUKA_NAME } from "@/lib/brand";
 import { formatUiFocusChip, type AgentUiContext } from "@/lib/ui-context";
 
@@ -21,6 +20,19 @@ type Props = {
   placeholder?: string;
   onProfileUpdated?: () => void;
   uiContext?: AgentUiContext | null;
+  /** Omitted when the panel cannot be collapsed. */
+  onCollapse?: () => void;
+  /**
+   * An opening turn to send on the user's behalf, used when they entered through a
+   * button that promised a conversation ("和舟卡聊着写") rather than through the
+   * composer. Keyed so the same request cannot fire twice across re-renders.
+   */
+  autoStart?: { id: string; message: string } | null;
+  /**
+   * Lifts run state out so a collapsed rail can show it. The session lives in this
+   * component, so the parent has no other way to know a run is in flight.
+   */
+  onStatusChange?: (status: { busy: boolean; assistantCount: number }) => void;
 };
 
 export function AgentSidebar({
@@ -33,6 +45,9 @@ export function AgentSidebar({
   placeholder,
   onProfileUpdated,
   uiContext = null,
+  onCollapse,
+  onStatusChange,
+  autoStart = null,
 }: Props) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const agent = useAgentSession({
@@ -47,13 +62,49 @@ export function AgentSidebar({
   });
   const focusChip = formatUiFocusChip(uiContext);
 
+  // Fire-once per request id. The session lives here, so the page that owns the
+  // entry button cannot send the turn itself; it hands down the request instead.
+  const autoStartedRef = useRef<string | null>(null);
+  const sendRef = useRef(agent.sendMessage);
+  sendRef.current = agent.sendMessage;
+  useEffect(() => {
+    if (disabled || !autoStart) return;
+    if (autoStartedRef.current === autoStart.id) return;
+    autoStartedRef.current = autoStart.id;
+    void sendRef.current(autoStart.message);
+  }, [autoStart, disabled]);
+
+  // Count *completed* assistant turns. A streaming item would make the collapsed badge
+  // tick up on every token, which is noise rather than news.
+  const assistantCount = agent.items.filter(
+    (item) => item.kind === "assistant" && !item.streaming,
+  ).length;
+
+  useEffect(() => {
+    onStatusChange?.({ busy: agent.busy, assistantCount });
+  }, [agent.busy, assistantCount, onStatusChange]);
+
+  const firstUserLine = agent.items.find((item) => item.kind === "user")?.content;
+  const sessionSubtitle = sessionHeaderSubtitle(
+    agent.sessions,
+    agent.sessionId,
+    firstUserLine,
+  );
+
+  // Two different queues, and conflating them would mislead. `queueWait` is waiting
+  // for the shared harness slot (other users ahead); `followUpQueue` is this user's own
+  // messages waiting for their own current turn to finish.
   const statusDetail =
     agent.busy
-      ? agent.steerQueue.length > 0
-        ? `插队纠偏 ×${agent.steerQueue.length}`
-        : agent.followUpQueue.length > 0
-          ? `排队 ${agent.followUpQueue.length} 条`
-          : "处理中"
+      ? agent.queueWait
+        ? agent.queueWait.ahead > 0
+          ? `排队中（前面 ${agent.queueWait.ahead} 个）`
+          : "排队中，马上开始"
+        : agent.steerQueue.length > 0
+          ? `插队纠偏 ×${agent.steerQueue.length}`
+          : agent.followUpQueue.length > 0
+            ? `排队 ${agent.followUpQueue.length} 条`
+            : "正在回复…"
       : undefined;
 
   return (
@@ -63,11 +114,13 @@ export function AgentSidebar({
         busy={agent.busy}
         sessions={agent.sessions}
         statusDetail={statusDetail}
+        sessionSubtitle={sessionSubtitle}
         disabled={disabled}
         replyLocale={agent.replyLocale}
         onReplyLocaleChange={agent.setReplyLocale}
         onNew={agent.resetSession}
         onOpenHistory={() => setHistoryOpen(true)}
+        onCollapse={onCollapse}
       />
 
       <AgentHistoryDrawer
@@ -83,39 +136,12 @@ export function AgentSidebar({
         <p className="px-4 py-8 text-center text-sm text-warn-900">请先登录以使用{ZHOUKA_NAME}。</p>
       ) : (
         <>
-          <AgentAssistantPanel
+          <AgentConversation
             variant="sidebar"
-            items={agent.items}
-            busy={agent.busy}
-            onConfirm={agent.resolveConfirm}
-            composer={
-              <>
-                {agent.error ? (
-                  <p className="shrink-0 px-3 pb-1 text-xs text-danger-600">{agent.error}</p>
-                ) : null}
-                <AgentTaskQueue
-                  followUp={agent.followUpQueue}
-                  steerCount={agent.steerQueue.length}
-                  busy={agent.busy}
-                  onRemove={agent.removeQueued}
-                  onClearSteer={agent.clearSteerQueue}
-                />
-                {focusChip ? (
-                  <p className="shrink-0 px-3 pb-1 text-xs text-brand-700">
-                    当前指向：{focusChip}
-                  </p>
-                ) : null}
-                <AgentComposerSwitch
-                  variant="sidebar"
-                  disabled={disabled}
-                  busy={agent.busy}
-                  context={agent.contextUsage}
-                  placeholder={placeholder}
-                  onSend={agent.sendMessage}
-                  onStop={agent.stopRun}
-                />
-              </>
-            }
+            agent={agent}
+            disabled={disabled}
+            placeholder={placeholder}
+            focusHint={focusChip}
           />
         </>
       )}

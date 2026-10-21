@@ -1,4 +1,7 @@
 # Pi 核心扩展生态源码级设计原理（最终合并版）
+
+> **版本核验：2026-10-17 / Pi v1.3.0**。本目录当前源码结论固定到官方 tag `71023aec1546d6d677a65669c5665c0927ce0dd0`。旧文中的 `agent/src/harness/`、Lane/registers、`LeafEntry` 和 Prime/第三方生态不能视为 v1.3.0 的 core 实现；具体差异见 [版本核验与纠错](./VERSION_ALIGNMENT.md)。历史示例保留并就地标记，旧行号不作为当前定位依据。
+
 > **2026-10-15 源码校正**：原正文保留；请同时阅读本文末尾新增的当前源码补充和 [全景入口](./PI_SOURCE_DEEP_DIVE_2026.md)。涉及旧 Harness 路径、消息类型、第三方插件版本的描述不能直接视为当前实现。
 
 > 面向本地源码运行 Pi 的开发者。覆盖 Pi 扩展机制底层契约、`/plan` 命令与 Plan 插件的端到端链路（含协作图与时序图），以及五大核心扩展（pi-mcp-adapter / context-mode / pi-subagents / pi-goal / pi-hermes-memory）的架构、流程、状态机与设计取舍。
@@ -9,7 +12,7 @@
 
 ## 第零章 Pi 扩展底层契约
 
-Pi 核心仅内置 `read / write / edit / bash` 四个基础工具，所有复杂能力均通过**扩展（Extension）**注入。扩展与核心交互有两种范式：
+Pi 默认常用写码工具是 `read / write / edit / bash`，但 v1.3.0 core 还实现了 grep/find/ls/powershell 等工具，并自带 MCP、Code Mode、tool-search 等扩展；不能说源码“仅有四个工具”或接 MCP 必须安装第三方 adapter。下面的第三方插件分析保留为独立生态资料，不代表这些插件已按 v1.3.0 重新验证。扩展与核心交互有两种范式：
 
 | 范式 | 机制 | 代表扩展 |
 |---|---|---|

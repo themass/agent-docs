@@ -3,16 +3,23 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+import logging
 from typing import Any
 
 from jc.config import settings
+from jc.domain.fit_evidence import verify_requirement_evidence
+from jc.domain.profile_context import material_profile
+from jc.exceptions import AppError
+from jc.llm.call_context import llm_context
 from jc.llm.router import get_llm_router
 from jc.models.enums import FitRecommendation
+from jc.paths import prompt_file
 from jc.schemas.job import FitScoreResponse, JDParseResult
 from jc.schemas.profile_payload import ProfilePayload
 
-_PROMPT_PATH = Path(__file__).resolve().parents[3].parent / "agent" / "prompts" / "ingest" / "fit_score.md"
+logger = logging.getLogger(__name__)
+
+_PROMPT_PATH = prompt_file("ingest", "fit_score.md")
 _DIM_KEYS = ("match", "target", "comp", "culture", "red_flags")
 _LEGIT = {"high", "caution", "suspicious"}
 
@@ -69,20 +76,46 @@ class FitScoreService:
             )
 
         router = get_llm_router()
-        response = await router.acompletion(
+
+        def validate(response: Any) -> FitScoreResponse:
+            data = json.loads(router.content_from_response(response))
+            result = fit_response_from_llm(data)
+            return result.model_copy(
+                update={
+                    "requirement_evidence": verify_requirement_evidence(
+                        data.get("requirement_evidence") or [],
+                        profile,
+                        jd,
+                    )
+                }
+            )
+
+        request_data = json.dumps(
+            {"profile": material_profile(profile), "jd": jd.model_dump(mode="json")},
+            ensure_ascii=False,
+        )
+        logger.info(
+            "profile_context task=fit_score input_chars=%d budget_chars=100000", len(request_data)
+        )
+        if len(request_data) > 100_000:
+            # Never silently remove evidence or submit an invalid, sliced JSON document.
+            raise AppError(
+                "岗位匹配材料超过处理上限；请缩小职位描述或整理重复材料后重试。",
+                code="fit_input_too_large",
+            )
+        # Validated inside the call so a 200 carrying unparseable JSON fails
+        # over to the next endpoint instead of becoming a 500.
+        return await router.acompletion(
             "flash",
+            log_context=llm_context("fit_score"),
             messages=[
                 {"role": "system", "content": self._system_prompt},
                 {
                     "role": "user",
-                    "content": json.dumps(
-                        {"profile": profile.model_dump(mode="json"), "jd": jd.model_dump(mode="json")},
-                        ensure_ascii=False,
-                    )[:50_000],
+                    "content": request_data,
                 },
             ],
             response_format={"type": "json_object"},
             temperature=0.0,
+            response_validator=validate,
         )
-        data = json.loads(router.content_from_response(response))
-        return fit_response_from_llm(data)

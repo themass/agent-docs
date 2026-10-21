@@ -5,7 +5,9 @@ from __future__ import annotations
 import logging
 from collections.abc import AsyncGenerator
 
-from sqlalchemy.exc import SQLAlchemyError
+import anyio
+
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from jc.config import settings
@@ -31,16 +33,18 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     try:
         yield session
     finally:
-        try:
-            await session.close()
-        except SQLAlchemyError:
-            # A remote MySQL connection can disappear while a slow LLM operation is running.
-            # Preserve the endpoint error/response instead of replacing it with a cleanup traceback.
-            logger.warning("Discarding broken MySQL session during request cleanup", exc_info=True)
+        # Request disconnect cancellation also applies to dependency finalizers.
+        # Shield async driver cleanup, but do not disguise concurrent-session
+        # programming errors as a broken MySQL connection and retry invalidate().
+        with anyio.CancelScope(shield=True):
             try:
-                await session.invalidate()
-            except SQLAlchemyError:
-                logger.warning("Unable to invalidate broken MySQL session", exc_info=True)
+                await session.close()
+            except DBAPIError:
+                logger.warning("Discarding broken MySQL session during request cleanup", exc_info=True)
+                try:
+                    await session.invalidate()
+                except DBAPIError:
+                    logger.warning("Unable to invalidate broken MySQL session", exc_info=True)
 
 
 async def release_db_connection(session: AsyncSession) -> None:

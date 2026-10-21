@@ -2,7 +2,10 @@
   "middlewares": [
     "jc.deerflow_middleware:JCProductRulesMiddleware"
   ],
-  "mcpInterceptors": [],
+  "mcpInterceptors": [
+    "jc.mcp.identity_interceptor:build_jc_identity_interceptor",
+    "jc.mcp.interceptors:build_apply_pipeline_review_interceptor"
+  ],
   "mcpServers": {
     "jc": {
       "enabled": true,
@@ -12,13 +15,7 @@
         "-m",
         "jc.mcp.server"
       ],
-      "env": {
-        "JC_MCP_USER_ID": "$JC_MCP_USER_ID",
-        "JC_MCP_PROFILE_ID": "$JC_MCP_PROFILE_ID",
-        "JC_MCP_JOB_ID": "$JC_MCP_JOB_ID",
-        "JC_MCP_SESSION_ID": "$JC_MCP_SESSION_ID"
-      },
-      "tool_name_prefix": true,
+      "tool_name_prefix": false,
       "session_init_timeout": 60,
       "tool_call_timeout": 120,
       "description": "JC business tools: profile, interview bank, JD fit",
@@ -40,6 +37,9 @@
   },
   "skills": {
     "resume-coach": {
+      "enabled": true
+    },
+    "profile-interview": {
       "enabled": true
     },
     "resume-writer": {

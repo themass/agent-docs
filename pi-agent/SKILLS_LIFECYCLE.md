@@ -1,4 +1,7 @@
 # Pi Skills：加载 · 链接 · 使用完整流程
+
+> **版本核验：2026-10-17 / Pi v1.3.0**。本目录当前源码结论固定到官方 tag `71023aec1546d6d677a65669c5665c0927ce0dd0`。旧文中的 `agent/src/harness/`、Lane/registers、`LeafEntry` 和 Prime/第三方生态不能视为 v1.3.0 的 core 实现；具体差异见 [版本核验与纠错](./VERSION_ALIGNMENT.md)。历史示例保留并就地标记，旧行号不作为当前定位依据。
+
 > **2026-10-15 源码校正**：原正文保留；请同时阅读本文末尾新增的当前源码补充和 [全景入口](./PI_SOURCE_DEEP_DIVE_2026.md)。涉及旧 Harness 路径、消息类型、第三方插件版本的描述不能直接视为当前实现。
 
 > 源码：`packages/coding-agent/src/core/skills.ts`、`resource-loader.ts`、`agent-session.ts`、`system-prompt.ts`  
@@ -323,4 +326,4 @@ sequenceDiagram
 
 Skill 仍不是可恢复 Task，不会因为带 scripts 目录就获得独立执行引擎。脚本是否执行由模型/工具/宿主决定；相对资源定位与信任要一起说明。
 
-源码：[`resource-loader.ts`](../../pi/packages/coding-agent/src/core/resource-loader.ts)、[`skills.ts`](../../pi/packages/coding-agent/src/core/skills.ts)、[`project-trust.ts`](../../pi/packages/coding-agent/src/core/project-trust.ts)、[`agent-session.ts:_expandSkillCommand`](../../pi/packages/coding-agent/src/core/agent-session.ts)。
+源码：[`resource-loader.ts`](https://github.com/earendil-works/pi/blob/v1.3.0/packages/coding-agent/src/core/resource-loader.ts)、[`skills.ts`](https://github.com/earendil-works/pi/blob/v1.3.0/packages/coding-agent/src/core/skills.ts)、[`project-trust.ts`](https://github.com/earendil-works/pi/blob/v1.3.0/packages/coding-agent/src/core/project-trust.ts)、[`agent-session.ts:_expandSkillCommand`](https://github.com/earendil-works/pi/blob/v1.3.0/packages/coding-agent/src/core/agent-session.ts)。

@@ -1,4 +1,7 @@
-"""Live ping of configured LLM gateway models. Run: JC_LLM_LIVE=1 pytest -q tests/test_llm_models_live.py"""
+"""Live ping of configured LLM gateway models.
+
+Run: `JC_LLM_LIVE=1 pytest -q tests/test_llm_models_live.py`
+"""
 
 from __future__ import annotations
 
@@ -10,6 +13,7 @@ import pytest
 
 from jc.config import settings
 from jc.llm.router import LLMRouter
+from jc.paths import agent_file
 
 TEXT_MODELS = [
     "deepseek-v4-flash",
@@ -22,7 +26,9 @@ VISION_MODELS = [
 ]
 
 
-@pytest.mark.skipif(os.environ.get("JC_LLM_LIVE") != "1", reason="set JC_LLM_LIVE=1 to probe gateway")
+@pytest.mark.skipif(
+    os.environ.get("JC_LLM_LIVE") != "1", reason="set JC_LLM_LIVE=1 to probe gateway"
+)
 @pytest.mark.parametrize("slug", TEXT_MODELS)
 def test_llm_gateway_chat_completion(slug: str) -> None:
     base = settings.jc_llm_api_base.rstrip("/")
@@ -47,7 +53,9 @@ def test_llm_gateway_chat_completion(slug: str) -> None:
     assert content.strip(), f"{slug} empty content {elapsed_ms}ms"
 
 
-@pytest.mark.skipif(os.environ.get("JC_LLM_LIVE") != "1", reason="set JC_LLM_LIVE=1 to probe gateway")
+@pytest.mark.skipif(
+    os.environ.get("JC_LLM_LIVE") != "1", reason="set JC_LLM_LIVE=1 to probe gateway"
+)
 @pytest.mark.parametrize("slug", VISION_MODELS)
 def test_llm_gateway_vision_model_listed(slug: str) -> None:
     key = settings.jc_llm_vision_api_key or settings.jc_llm_api_key
@@ -66,12 +74,12 @@ def test_llm_gateway_vision_model_listed(slug: str) -> None:
     assert response.status_code == 200, response.text[:400]
 
 
-@pytest.mark.skipif(os.environ.get("JC_LLM_LIVE") != "1", reason="set JC_LLM_LIVE=1 to probe gateway")
+@pytest.mark.skipif(
+    os.environ.get("JC_LLM_LIVE") != "1", reason="set JC_LLM_LIVE=1 to probe gateway"
+)
 @pytest.mark.asyncio
 async def test_router_flash_scenario() -> None:
-    from pathlib import Path
-
-    router = LLMRouter(Path(__file__).resolve().parents[1] / ".." / "agent" / "llm" / "routing.yaml")
+    router = LLMRouter(agent_file("llm", "routing.yaml"))
     response = await router.acompletion(
         "flash",
         messages=[{"role": "user", "content": "Reply with exactly OK"}],

@@ -1,0 +1,94 @@
+{
+  "scope": "offline intake convergence: no model, no browser, no MySQL. Proves the interview terminates and that the panel and the agent tools agree about one plan.",
+  "max_rounds_allowed": 30,
+  "cases": [
+    {
+      "start": "empty",
+      "panel": {
+        "path": "panel",
+        "mode_at_start": "empty",
+        "rounds": 4,
+        "questions_asked": 12,
+        "repeated_question_ids": [],
+        "required_questions_that_wrote_nothing": [],
+        "can_generate": true,
+        "blocking": [],
+        "dictated_split_segments": 4
+      },
+      "agent": {
+        "path": "agent",
+        "mode_at_start": "empty",
+        "rounds": 12,
+        "questions_asked": 12,
+        "repeated_question_ids": [],
+        "required_questions_that_wrote_nothing": [],
+        "can_generate": true,
+        "blocking": [],
+        "dictated_split_segments": 0
+      },
+      "highlights_after": {
+        "panel": 6,
+        "agent": 5
+      }
+    },
+    {
+      "start": "skeleton",
+      "panel": {
+        "path": "panel",
+        "mode_at_start": "skeleton",
+        "rounds": 3,
+        "questions_asked": 9,
+        "repeated_question_ids": [],
+        "required_questions_that_wrote_nothing": [],
+        "can_generate": true,
+        "blocking": [],
+        "dictated_split_segments": 4
+      },
+      "agent": {
+        "path": "agent",
+        "mode_at_start": "skeleton",
+        "rounds": 9,
+        "questions_asked": 9,
+        "repeated_question_ids": [],
+        "required_questions_that_wrote_nothing": [],
+        "can_generate": true,
+        "blocking": [],
+        "dictated_split_segments": 0
+      },
+      "highlights_after": {
+        "panel": 7,
+        "agent": 5
+      }
+    },
+    {
+      "start": "stale",
+      "panel": {
+        "path": "panel",
+        "mode_at_start": "stale",
+        "rounds": 2,
+        "questions_asked": 6,
+        "repeated_question_ids": [],
+        "required_questions_that_wrote_nothing": [],
+        "can_generate": true,
+        "blocking": [],
+        "dictated_split_segments": 4
+      },
+      "agent": {
+        "path": "agent",
+        "mode_at_start": "stale",
+        "rounds": 6,
+        "questions_asked": 6,
+        "repeated_question_ids": [],
+        "required_questions_that_wrote_nothing": [],
+        "can_generate": true,
+        "blocking": [],
+        "dictated_split_segments": 0
+      },
+      "highlights_after": {
+        "panel": 7,
+        "agent": 6
+      }
+    }
+  ],
+  "failures": []
+}

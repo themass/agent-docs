@@ -16,17 +16,28 @@ Extract structured profile data from resume text. Output **only** valid JSON mat
 }
 ```
 
+## Output efficiency
+
+Return compact JSON without indentation, Markdown fences, commentary or repeated source text.
+Omit optional null/empty fields and empty metadata/preferences/constraints: the application supplies
+schema defaults. This is only serialization compaction: preserve every source fact, every role,
+every accomplishment, all numbers and dates. Never shorten or summarize resume facts to save tokens.
+
 ## Extraction is lossless
 
 You are building the **source of truth** that every later step reads. A downstream writer can
 re-word what you capture, but it can never recover what you dropped — anything missing here is
 silently gone from the user's resume. Extract everything; let the writer decide what to cut.
 
-- **Never summarize, merge or sample.** If a role lists 9 bullets, `highlights` has 9 entries.
-  Do not collapse two accomplishments into one string, and do not keep "the best few".
-- **One accomplishment per `highlights` entry.** Split a source bullet that packs several
-  results (`负责 A，同时搭建 B，推动 C 上线`) into separate entries. Split on `；` and on
-  sentence boundaries, not on `，` inside a single thought.
+- **Preserve source units and their order.** One original bullet or semantic project
+  paragraph becomes one `highlights` entry. If a role lists 9 bullets, retain 9 entries.
+  Do not split a source unit on semicolons, sentences, metrics or visual line wraps;
+  do not merge independent source bullets or sample only the best few.
+- **Keep project narratives together.** Background, responsibility, implementation and
+  outcome of the same project belong to that source unit, even when it has several
+  sentences. An explicit project heading and its subordinate statements stay together;
+  when represented inside a job's highlights, retain the heading with its statements
+  in one entry, not as several unrelated job achievements. Preserve all text.
 - **Preserve specifics verbatim**: numbers, units, percentages, QPS, 人数, 业务线数, tech names,
   system names, and before/after pairs (`25 天 → 8 天`). These are the load-bearing content.
   Losing `4kw` or `120+ 服务` destroys the evidence the whole resume rests on.
@@ -39,10 +50,11 @@ silently gone from the user's resume. Extract everything; let the writer decide 
 `项目经历` / `Projects` is a real section that gets rendered, **not** a dump for leftovers:
 
 - `name` is the project name only. `role` is the person's role on it (`负责人` / `核心开发`).
-- `description` is **one line**: what the project was. It is not where accomplishments go.
+- `description` preserves the source project overview in full; do not force it into one line.
 - `highlights` is where the work goes, and it follows the **same lossless rule as experiences**:
-  one accomplishment per entry, every source bullet kept, numbers verbatim. A project listed with
-  six bullets gets six `highlights` entries — never one merged paragraph in `description`.
+  one source bullet/semantic paragraph per entry, in its original order, numbers verbatim.
+  A project with six distinct source bullets retains six entries under that one project;
+  a single paragraph containing background, actions and results stays one entry.
 - `start_date` / `end_date` only when the source states them; otherwise `null`.
 - A project with only a one-line source description gets that line in `description` and
   `highlights: []`. Never write a placeholder string.

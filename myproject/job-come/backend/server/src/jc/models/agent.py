@@ -24,7 +24,9 @@ class AgentSession(Base, TimestampMixin):
     )
     profile_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
     kind: Mapped[str] = mapped_column(String(16), default=AgentSessionKind.RESUME, nullable=False)
-    status: Mapped[str] = mapped_column(String(16), default=AgentSessionStatus.ACTIVE, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(16), default=AgentSessionStatus.ACTIVE, nullable=False
+    )
     deerflow_thread_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     skill_hint: Mapped[str | None] = mapped_column(String(64), nullable=True)
     job_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)

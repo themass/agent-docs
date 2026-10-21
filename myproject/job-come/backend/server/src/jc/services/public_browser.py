@@ -10,6 +10,7 @@ import asyncio
 import hashlib
 from datetime import UTC, datetime
 
+from jc.domain.jd_integrity import inspect_jd_text
 from jc.exceptions import AppError
 
 
@@ -90,6 +91,7 @@ async def render_public_page(url, fetcher):
                     text,
                     hashlib.sha256(text.encode()).hexdigest(),
                     method="browser",
+                    integrity=inspect_jd_text(text),
                 )
             finally:
                 await browser.close()

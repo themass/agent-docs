@@ -1,7 +1,6 @@
 .env
 .env.local
 .env.*.local
-deploy/litellm/config.yaml
 *.pyc
 __pycache__/
 .venv/
@@ -15,3 +14,5 @@ dist/
 .DS_Store
 # Local screenshots from scripts/audit_visual.py and manual review runs.
 .shots/
+# Local agent prompt / tool-output dumps (may contain presigned URLs or PII).
+test/prom.txt

@@ -35,7 +35,9 @@ class NotificationService:
         unread = sum(1 for i in items if not i.read)
         return NotificationListResponse(items=items, unread_count=unread)
 
-    async def mark_read(self, *, actor: UserActor, body: NotificationReadRequest) -> NotificationListResponse:
+    async def mark_read(
+        self, *, actor: UserActor, body: NotificationReadRequest
+    ) -> NotificationListResponse:
         state = await self._load_state(actor.user_id)
         read_at = datetime.now(UTC).isoformat()
         for nid in body.notification_ids:
@@ -43,7 +45,9 @@ class NotificationService:
         await self._save_state(actor.user_id, state)
         return await self.list_for_actor(actor=actor)
 
-    async def dismiss(self, *, actor: UserActor, body: NotificationDismissRequest) -> NotificationListResponse:
+    async def dismiss(
+        self, *, actor: UserActor, body: NotificationDismissRequest
+    ) -> NotificationListResponse:
         state = await self._load_state(actor.user_id)
         dismissed_at = datetime.now(UTC).isoformat()
         for nid in body.notification_ids:
@@ -72,7 +76,9 @@ class NotificationService:
                         read=nid in read_map,
                         dismissed=False,
                         dismiss_policy="auto_when_resolved",
-                        action=NotificationAction(label="重发验证邮件", action="resend_verification"),
+                        action=NotificationAction(
+                        label="重发验证邮件", action="resend_verification"
+                    ),
                         metadata={"tone": "amber"},
                     )
                 )
@@ -99,7 +105,9 @@ class NotificationService:
                     )
 
             source_profile = await self._profiles.get_by_id(profile.id, with_sources=True)
-            source = source_profile.sources[0] if source_profile and source_profile.sources else None
+            source = (
+            source_profile.sources[0] if source_profile and source_profile.sources else None
+        )
             if source and source.parse_error:
                 nid = f"parse_warn_{profile.id}"
                 if nid not in dismissed_map:

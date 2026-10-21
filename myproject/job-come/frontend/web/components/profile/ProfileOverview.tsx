@@ -1,5 +1,7 @@
 "use client";
 
+import type { ProfileDraftController } from "@/lib/hooks/useProfileDraft";
+import { ProfileDocumentEditor } from "./ProfileDocumentEditor";
 import type { Profile, ProfileEducation, ProfileExperience, ProfilePayload } from "@/lib/api/profile";
 import {
   estimateYears,
@@ -8,14 +10,22 @@ import {
   isParseDraft,
   parseStatusLabel,
 } from "@/lib/profile-utils";
+import { ProfilePhotoField } from "@/components/resume/ProfilePhotoField";
 import { ZHOUKA_NAME } from "@/lib/brand";
 import { isDegradedIngest } from "@/lib/resume-workflow";
 import { experienceLabel, type AgentUiContext, type AgentUiFocus } from "@/lib/ui-context";
 
 type Props = {
+  editor?: ProfileDraftController;
   profile: Profile;
   compact?: boolean;
   onRelocalize?: (source: "zh-CN" | "en-US") => void;
+  /**
+   * Passed by the review step so the headshot control can appear on the identity
+   * card. Omitted (and the control hidden) in `compact` and read-only contexts,
+   * where there is nothing to save a photo onto.
+   */
+  onProfileChange?: (profile: Profile) => void;
   uiContext?: AgentUiContext | null;
   onUiFocus?: (focus: AgentUiFocus) => void;
 };
@@ -46,7 +56,7 @@ function ExperienceTimeline({
     return (
       <div className="card-sunken px-4 py-10 text-center">
         <p className="mx-auto max-w-prose text-sm leading-relaxed text-ink-500">
-          未识别到工作经历。可在下方「快速编辑」补充，或让右侧{ZHOUKA_NAME}帮你整理。
+          未识别到工作经历。可补充工作经历，或让右侧{ZHOUKA_NAME}帮你整理。
         </p>
       </div>
     );
@@ -228,9 +238,11 @@ function SkillsCloud({
 }
 
 export function ProfileOverview({
+  editor,
   profile,
   compact = false,
   onRelocalize,
+  onProfileChange,
   uiContext = null,
   onUiFocus,
 }: Props) {
@@ -291,6 +303,13 @@ export function ProfileOverview({
         ) : null}
       </section>
     );
+  }
+
+  if (editor) {
+    return <ProfileDocumentEditor profile={profile} editor={editor}
+      warning={showParseFailure ? parseWarning : showReviewBanner ? reviewDetail : null}
+      sourceLocale={sourceLocale} onProfileChange={onProfileChange} onRelocalize={onRelocalize}
+      uiContext={uiContext} onUiFocus={onUiFocus} />;
   }
 
   return (
@@ -407,6 +426,16 @@ export function ProfileOverview({
             <StatCard label="经验年限" value={years != null ? `${years}年` : "—"} />
           </div>
         </div>
+
+        {/* Keep the headshot attached to the identity card in read-only overviews too. */}
+        {onProfileChange ? (
+          <div className="relative mt-5 border-t border-surface-border pt-5">
+            <p className="label-meta">简历照片</p>
+            <div className="mt-3">
+              <ProfilePhotoField profile={profile} onSaved={onProfileChange} />
+            </div>
+          </div>
+        ) : null}
       </section>
 
       {payload.summary ? (

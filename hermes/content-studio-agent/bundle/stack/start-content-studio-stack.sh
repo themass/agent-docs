@@ -61,7 +61,7 @@ HERMES_GATEWAY_HOME="${HERMES_GATEWAY_HOME:-$HOME/.hermes}"
 export HERMES_HOME
 
 # ── Ports (override via ports.env or env) ────────────────────────────────
-# See PORTS.md — MPT API uses 8082 (OpenInspector keeps 8080).
+# See PORTS.md — MPT API uses 8082; FreeLLMAPI default :3011.
 
 # SurrealDB: auto (native surreal CLI, else docker) | native | docker | 0 (skip)
 START_SURREALDB="${START_SURREALDB:-auto}"
@@ -74,6 +74,7 @@ API_RELOAD="${API_RELOAD:-false}"
 HERMES_DASHBOARD_TUI="${HERMES_DASHBOARD_TUI:-1}"
 DASHBOARD_READY_TIMEOUT="${DASHBOARD_READY_TIMEOUT:-90}"
 START_NOTEBOOK_FRONTEND="${START_NOTEBOOK_FRONTEND:-1}"
+START_OPEN_NOTEBOOK="${START_OPEN_NOTEBOOK:-1}"
 
 GATEWAY_URL="http://127.0.0.1:${GATEWAY_PORT}"
 DASHBOARD_URL="http://127.0.0.1:${DASHBOARD_PORT}"
@@ -82,6 +83,7 @@ NOTEBOOK_API_URL="http://127.0.0.1:${NOTEBOOK_API_PORT}"
 NOTEBOOK_FRONTEND_URL="http://127.0.0.1:${NOTEBOOK_FRONTEND_PORT}"
 MPT_API_URL="http://127.0.0.1:${MPT_API_PORT}"
 MPT_WEBUI_URL="http://127.0.0.1:${MPT_WEBUI_PORT}"
+FREELLMAPI_URL="${FREELLMAPI_URL:-http://127.0.0.1:${FREELLMAPI_PORT:-3011}}"
 OPENINSPECTOR_URL="http://127.0.0.1:${OPENINSPECTOR_PROXY_PORT}"
 OPENINSPECTOR_API_URL="http://127.0.0.1:${OPENINSPECTOR_API_PORT}"
 OPENINSPECTOR_UI_URL="http://127.0.0.1:${OPENINSPECTOR_UI_PORT}"
@@ -169,9 +171,13 @@ resolve_port_for_start() {
 
   print_port_occupiers "$port" "$label"
 
-  if [[ -n "$health_url" ]] && curl -fsS "$health_url" >/dev/null 2>&1; then
-    warn "  → ${label} health check passed; reusing existing service on :${port}."
-    return 0
+  if [[ -n "$health_url" ]]; then
+    local code
+    code="$(curl -sS -m 5 -o /dev/null -w '%{http_code}' "$health_url" 2>/dev/null || echo 000)"
+    if [[ "$code" =~ ^(200|204|401)$ ]]; then
+      warn "  → ${label} health check passed (HTTP ${code}); reusing existing service on :${port}."
+      return 0
+    fi
   fi
 
   err "  → Cannot start ${label}. Stop the process above or set a different port."
@@ -473,7 +479,7 @@ read_profile_llm_key() {
   done
 }
 
-# Real upstream LLM key (newapi/OpenInspector), not TencentDB sk-mem user_key.
+# Real upstream LLM key (FreeLLMAPI freellmapi-... / etc.), not TencentDB sk-mem user_key.
 read_upstream_llm_key() {
   local secrets="${HERMES_HOME}/secrets.env" k
   if [[ -f "$secrets" ]]; then
@@ -675,10 +681,20 @@ sync_content_studio_secrets() {
   fi
 }
 
+# Real LLM router (FreeLLMAPI / OpenInspector) — never the TencentDB Proxy URL.
+content_studio_real_llm_upstream_base() {
+  if [[ "${START_OPENINSPECTOR:-0}" == "1" ]]; then
+    printf '%s/v1' "$OPENINSPECTOR_URL"
+  else
+    printf '%s/v1' "$FREELLMAPI_URL"
+  fi
+}
+
 # Resolved LLM endpoints for Hermes vs OpenAI-compatible clients (Notebook / MPT / AionUi).
 content_studio_resolve_llm_routing() {
-  CONTENT_STUDIO_LLM_HERMES_BASE="${OPENINSPECTOR_URL}/v1"
-  CONTENT_STUDIO_LLM_OPENAI_BASE="${OPENINSPECTOR_URL}/v1"
+  CONTENT_STUDIO_LLM_UPSTREAM_BASE="$(content_studio_real_llm_upstream_base)"
+  CONTENT_STUDIO_LLM_HERMES_BASE="$CONTENT_STUDIO_LLM_UPSTREAM_BASE"
+  CONTENT_STUDIO_LLM_OPENAI_BASE="$CONTENT_STUDIO_LLM_UPSTREAM_BASE"
   CONTENT_STUDIO_LLM_KEY="$(read_profile_llm_key)"
   CONTENT_STUDIO_LLM_USING_TDAI=0
   if [[ "${CONTENT_STUDIO_LLM_VIA_TDAI_PROXY:-0}" == "1" ]] && read_tdai_user_key; then
@@ -697,6 +713,44 @@ start_openinspector() {
     "$oi_script" start
 }
 
+freellmapi_http_ready() {
+  local code
+  code="$(curl -sS -m 3 -o /dev/null -w '%{http_code}' "${FREELLMAPI_URL}/v1/models" 2>/dev/null || echo 000)"
+  [[ "$code" =~ ^(200|401)$ ]]
+}
+
+start_freellmapi() {
+  [[ "${START_FREELLMAPI:-1}" == "1" ]] || { log "Skipping FreeLLMAPI (START_FREELLMAPI=0)"; return 0; }
+  if [[ "${START_OPENINSPECTOR:-0}" == "1" ]]; then
+    warn "START_OPENINSPECTOR=1 — not starting FreeLLMAPI (OpenInspector is the LLM layer)"
+    return 0
+  fi
+  local script="$BUNDLE_ROOT/stack/start-freellmapi.sh"
+  [[ -f "$script" ]] || { err "Missing $script"; return 1; }
+  chmod +x "$script" 2>/dev/null || true
+  if freellmapi_http_ready; then
+    log "FreeLLMAPI already up: ${FREELLMAPI_URL}"
+    return 0
+  fi
+  log "FreeLLMAPI not up yet — starting (Docker pull may take several minutes; log: ${LOGS_DIR}/freellmapi.log)"
+  # Run synchronously: background + silent poll looked like a hang when Docker was down or image was pulling.
+  if ! RUNTIME_DIR="$RUNTIME_DIR" LOGS_DIR="$LOGS_DIR" HERMES_HOME="$HERMES_HOME" \
+    FREELLMAPI_PORT="${FREELLMAPI_PORT:-3011}" FREELLMAPI_URL="$FREELLMAPI_URL" \
+    FREELLMAPI_INSTALL_DIR="${FREELLMAPI_INSTALL_DIR:-$HOME/freellmapi}" \
+    bash "$script" >>"$LOGS_DIR/freellmapi.log" 2>&1; then
+    err "FreeLLMAPI failed — see ${LOGS_DIR}/freellmapi.log"
+    tail -5 "$LOGS_DIR/freellmapi.log" 2>/dev/null | while IFS= read -r line; do err "  ${line}"; done
+    err "FreeLLMAPI needs Docker Desktop running. Then: cd ~/freellmapi && docker compose up -d"
+    return 1
+  fi
+  if freellmapi_http_ready; then
+    log "FreeLLMAPI ready: ${FREELLMAPI_URL} (dashboard + Keys page)"
+    return 0
+  fi
+  err "FreeLLMAPI script exited OK but ${FREELLMAPI_URL}/v1/models is still unreachable"
+  return 1
+}
+
 # TencentDB Agent Memory — proxy 模式（docker：core + hub + proxy）
 start_tdai_memory() {
   [[ "${START_TDAI_MEMORY:-0}" == "1" ]] || { log "Skipping TencentDB Memory (START_TDAI_MEMORY=0)"; return 0; }
@@ -707,21 +761,23 @@ start_tdai_memory() {
   local llm_key llm_model
   llm_key="$(read_upstream_llm_key)" || llm_key=""
   llm_model="$(read_profile_llm_model)"
-  llm_model="${llm_model:-gpt-5-6-luna}"
+  llm_model="${llm_model:-auto}"
   if [[ -z "${llm_key:-}" ]]; then
     warn "TencentDB Memory needs upstream LLM API key (${HERMES_HOME}/secrets.env LLM_API_KEY) — skip START_TDAI_MEMORY"
     return 0
   fi
 
-  resolve_port_for_start "$MEMORY_CORE_PORT" "TencentDB Memory Core" "http://127.0.0.1:${MEMORY_CORE_PORT}/" || return 0
-  resolve_port_for_start "$MEMORY_PROXY_PORT" "TencentDB Memory Proxy" "http://127.0.0.1:${MEMORY_PROXY_PORT}/" || return 0
+  resolve_port_for_start "$MEMORY_CORE_PORT" "TencentDB Memory Core" "http://127.0.0.1:${MEMORY_CORE_PORT}/health" || return 0
+  resolve_port_for_start "$MEMORY_PROXY_PORT" "TencentDB Memory Proxy" "http://127.0.0.1:${MEMORY_PROXY_PORT}/health" || return 0
 
-  log "Starting TencentDB Agent Memory (proxy ${TDAI_PROXY_URL}; upstream ${OPENINSPECTOR_URL}/v1)..."
+  local tdai_upstream
+  tdai_upstream="$(content_studio_real_llm_upstream_base)"
+  log "Starting TencentDB Agent Memory (proxy ${TDAI_PROXY_URL}; upstream ${tdai_upstream})..."
   if ! TDAI_MEMORY_DIR="$TDAI_MEMORY_DIR" RUNTIME_DIR="$RUNTIME_DIR" LOGS_DIR="$LOGS_DIR" \
-    OPENINSPECTOR_URL="$OPENINSPECTOR_URL" \
+    FREELLMAPI_URL="$FREELLMAPI_URL" OPENINSPECTOR_URL="$OPENINSPECTOR_URL" \
     MEMORY_CORE_PORT="$MEMORY_CORE_PORT" MEMORY_PANEL_PORT="$MEMORY_PANEL_PORT" \
     MEMORY_KNOWLEDGE_PORT="$MEMORY_KNOWLEDGE_PORT" MEMORY_PROXY_PORT="$MEMORY_PROXY_PORT" \
-    TDAI_LLM_BASE_URL="${TDAI_LLM_BASE_URL:-${OPENINSPECTOR_URL}/v1}" \
+    TDAI_LLM_BASE_URL="${TDAI_LLM_BASE_URL:-${tdai_upstream}}" \
     TDAI_LLM_API_KEY="$llm_key" TDAI_LLM_MODEL="$llm_model" TDAI_SPACE_ID="$TDAI_SPACE_ID" \
     bash "$tdai_script"; then
     warn "TencentDB Memory failed — see ${LOGS_DIR}/tdai-memory.log"
@@ -740,7 +796,9 @@ read_tdai_user_key() {
 # ── Preflight ────────────────────────────────────────────────────────────
 [[ -d "$HERMES_AGENT_DIR" ]] || { err "Missing hermes-agent: ${HERMES_AGENT_DIR}"; exit 1; }
 [[ -d "$HERMES_WORKSPACE_DIR" ]] || { err "Missing hermes-workspace: ${HERMES_WORKSPACE_DIR}"; exit 1; }
-[[ -d "$OPEN_NOTEBOOK_DIR" ]] || { err "Missing open-notebook: ${OPEN_NOTEBOOK_DIR}"; exit 1; }
+if [[ "${START_OPEN_NOTEBOOK:-1}" == "1" ]]; then
+  [[ -d "$OPEN_NOTEBOOK_DIR" ]] || { err "Missing open-notebook: ${OPEN_NOTEBOOK_DIR}"; exit 1; }
+fi
 [[ -d "$MONEYPRINTER_DIR" ]] || { err "Missing MoneyPrinterTurbo: ${MONEYPRINTER_DIR}"; exit 1; }
 
 if ! "$HERMES_CLI" --version >/dev/null 2>&1; then
@@ -985,6 +1043,7 @@ ensure_surrealdb() {
 
 log "Checking ports..."
 ensure_mpt_listen_port
+start_freellmapi || exit 1
 start_openinspector
 # Load profile secrets (VOLCENGINE_*, etc.) before optional services.
 if [[ -f "$HERMES_HOME/.env" ]]; then
@@ -995,6 +1054,7 @@ if [[ -f "$HERMES_HOME/.env" ]]; then
 fi
 start_tdai_memory
 sync_content_studio_secrets
+content_studio_resolve_llm_routing
 install_tdai_hermes_integration() {
   [[ "${CONTENT_STUDIO_TDAI_INSTALL_PLUGIN:-1}" == "1" ]] || return 0
   [[ "${CONTENT_STUDIO_LLM_VIA_TDAI_PROXY:-0}" == "1" ]] || return 0
@@ -1008,17 +1068,30 @@ install_tdai_hermes_integration() {
 }
 install_tdai_hermes_integration
 if [[ "${CONTENT_STUDIO_LLM_VIA_TDAI_PROXY:-0}" == "1" ]] && ! read_tdai_user_key; then
-  warn "CONTENT_STUDIO_LLM_VIA_TDAI_PROXY=1 but TencentDB Memory 未就绪 — LLM 仍走 OpenInspector（见 ${LOGS_DIR}/tdai-memory.log）"
+  warn "CONTENT_STUDIO_LLM_VIA_TDAI_PROXY=1 but TencentDB Memory 未就绪 — LLM 仍走 FreeLLMAPI/OpenInspector（见 ${LOGS_DIR}/tdai-memory.log）"
 fi
-ensure_ali_tts_proxy
-# Volcano proxy is optional (only when VOLCENGINE_* env is set).
-ensure_volcano_tts_proxy
-ensure_ollama
-ensure_surrealdb
-resolve_port_for_start "$OPENINSPECTOR_API_PORT" "OpenInspector Dashboard API" "${OPENINSPECTOR_API_URL}/api/metrics" || exit 1
-resolve_port_for_start "$NOTEBOOK_API_PORT" "Open Notebook API" "${NOTEBOOK_API_URL}/docs" || exit 1
-if [[ "$START_NOTEBOOK_FRONTEND" == "1" ]]; then
-  resolve_port_for_start "$NOTEBOOK_FRONTEND_PORT" "Open Notebook Web UI" "${NOTEBOOK_FRONTEND_URL}" || exit 1
+if [[ "${START_OPEN_NOTEBOOK:-1}" == "1" ]]; then
+  ensure_ali_tts_proxy
+  # Volcano proxy is optional (only when VOLCENGINE_* env is set).
+  ensure_volcano_tts_proxy
+  ensure_ollama
+  ensure_surrealdb
+else
+  log "Skipping Open Notebook stack (START_OPEN_NOTEBOOK=0): SurrealDB, API, worker, Web UI, TTS proxies for podcasts"
+fi
+if [[ "${START_OPENINSPECTOR:-0}" == "1" ]]; then
+  resolve_port_for_start "$OPENINSPECTOR_API_PORT" "OpenInspector Dashboard API" "${OPENINSPECTOR_API_URL}/api/metrics" || exit 1
+elif [[ "${START_FREELLMAPI:-1}" == "1" ]]; then
+  freellmapi_http_ready || {
+    err "FreeLLMAPI required on ${FREELLMAPI_URL} but /v1/models is unreachable (connection refused?)"
+    exit 1
+  }
+fi
+if [[ "${START_OPEN_NOTEBOOK:-1}" == "1" ]]; then
+  resolve_port_for_start "$NOTEBOOK_API_PORT" "Open Notebook API" "${NOTEBOOK_API_URL}/docs" || exit 1
+  if [[ "$START_NOTEBOOK_FRONTEND" == "1" ]]; then
+    resolve_port_for_start "$NOTEBOOK_FRONTEND_PORT" "Open Notebook Web UI" "${NOTEBOOK_FRONTEND_URL}" || exit 1
+  fi
 fi
 resolve_port_for_start "$MPT_API_PORT" "MoneyPrinterTurbo API" "${MPT_API_URL}/docs" || exit 1
 resolve_port_for_start "$MPT_WEBUI_PORT" "MoneyPrinterTurbo WebUI" "${MPT_WEBUI_URL}" || exit 1
@@ -1040,45 +1113,47 @@ if port_in_use "$WORKSPACE_PORT"; then
 fi
 
 # ── 2. Open Notebook API ─────────────────────────────────────────────────
-if ! port_in_use "$NOTEBOOK_API_PORT" || ! curl -fsS "${NOTEBOOK_API_URL}/docs" >/dev/null 2>&1; then
-  start_background notebook-api \
-    env API_RELOAD="$API_RELOAD" API_PORT="$NOTEBOOK_API_PORT" API_HOST=127.0.0.1 UV_PYTHON="$DEEPAGENTS_PYTHON" \
-    bash -lc "cd '$OPEN_NOTEBOOK_DIR' && uv run --env-file .env run_api.py"
-  wait_http "${NOTEBOOK_API_URL}/docs" "Open Notebook API" 90
-else
-  log "Open Notebook API already up: ${NOTEBOOK_API_URL}"
-fi
-if [[ -f "$HERMES_HOME/secrets.env" && "${SECRETS_SYNC_NOTEBOOK:-1}" == "1" ]]; then
-  SECRETS_SYNC_NOTEBOOK=1 sync_content_studio_secrets || true
-fi
-
-if [[ "$START_NOTEBOOK_WORKER" == "1" ]]; then
-  ensure_notebook_queue
-  fix_script="$BUNDLE_ROOT/ops/scripts/fix-notebook-speaker-voices.py"
-  zh_script="$BUNDLE_ROOT/ops/scripts/fix-notebook-podcast-zh.py"
-  if curl -fsS "${NOTEBOOK_API_URL}/api/speaker-profiles" >/dev/null 2>&1; then
-    [[ -f "$fix_script" ]] && "$DEEPAGENTS_PYTHON" "$fix_script" --api-url "$NOTEBOOK_API_URL" || true
-    [[ -f "$zh_script" ]] && "$DEEPAGENTS_PYTHON" "$zh_script" --api-url "$NOTEBOOK_API_URL" || true
-  fi
-  start_background notebook-worker \
-    bash -lc "cd '$OPEN_NOTEBOOK_DIR' && \
-      PYTHONPATH='$ROOT_DIR/scripts':\"\${PYTHONPATH:-}\" \
-      CONTENT_STUDIO_PODCAST_SHORT='${CONTENT_STUDIO_PODCAST_SHORT:-1}' \
-      TTS_BATCH_SIZE='${TTS_BATCH_SIZE:-1}' \
-      UV_PYTHON='$DEEPAGENTS_PYTHON' \
-      uv run --env-file .env surreal-commands-worker start \
-        --import-modules commands,content_studio_podcast_bootstrap"
-  log "Open Notebook worker started (TTS_BATCH_SIZE=${TTS_BATCH_SIZE:-1}, CONTENT_STUDIO_PODCAST_SHORT=${CONTENT_STUDIO_PODCAST_SHORT:-1})"
-fi
-
-if [[ "$START_NOTEBOOK_FRONTEND" == "1" ]]; then
-  if ! port_in_use "$NOTEBOOK_FRONTEND_PORT" || ! curl -fsS "${NOTEBOOK_FRONTEND_URL}" >/dev/null 2>&1; then
-    ensure_notebook_frontend_deps
-    start_background notebook-frontend \
-      bash -lc "cd '$OPEN_NOTEBOOK_DIR/frontend' && INTERNAL_API_URL='${NOTEBOOK_API_URL}' npm run dev -- -p ${NOTEBOOK_FRONTEND_PORT} -H 127.0.0.1"
-    wait_http "${NOTEBOOK_FRONTEND_URL}" "Open Notebook Web UI" 120
+if [[ "${START_OPEN_NOTEBOOK:-1}" == "1" ]]; then
+  if ! port_in_use "$NOTEBOOK_API_PORT" || ! curl -fsS "${NOTEBOOK_API_URL}/docs" >/dev/null 2>&1; then
+    start_background notebook-api \
+      env API_RELOAD="$API_RELOAD" API_PORT="$NOTEBOOK_API_PORT" API_HOST=127.0.0.1 UV_PYTHON="$DEEPAGENTS_PYTHON" \
+      bash -lc "cd '$OPEN_NOTEBOOK_DIR' && uv run --env-file .env run_api.py"
+    wait_http "${NOTEBOOK_API_URL}/docs" "Open Notebook API" 90
   else
-    log "Open Notebook Web UI already up: ${NOTEBOOK_FRONTEND_URL}"
+    log "Open Notebook API already up: ${NOTEBOOK_API_URL}"
+  fi
+  if [[ -f "$HERMES_HOME/secrets.env" && "${SECRETS_SYNC_NOTEBOOK:-1}" == "1" ]]; then
+    SECRETS_SYNC_NOTEBOOK=1 sync_content_studio_secrets || true
+  fi
+
+  if [[ "$START_NOTEBOOK_WORKER" == "1" ]]; then
+    ensure_notebook_queue
+    fix_script="$BUNDLE_ROOT/ops/scripts/fix-notebook-speaker-voices.py"
+    zh_script="$BUNDLE_ROOT/ops/scripts/fix-notebook-podcast-zh.py"
+    if curl -fsS "${NOTEBOOK_API_URL}/api/speaker-profiles" >/dev/null 2>&1; then
+      [[ -f "$fix_script" ]] && "$DEEPAGENTS_PYTHON" "$fix_script" --api-url "$NOTEBOOK_API_URL" || true
+      [[ -f "$zh_script" ]] && "$DEEPAGENTS_PYTHON" "$zh_script" --api-url "$NOTEBOOK_API_URL" || true
+    fi
+    start_background notebook-worker \
+      bash -lc "cd '$OPEN_NOTEBOOK_DIR' && \
+        PYTHONPATH='$ROOT_DIR/scripts':\"\${PYTHONPATH:-}\" \
+        CONTENT_STUDIO_PODCAST_SHORT='${CONTENT_STUDIO_PODCAST_SHORT:-1}' \
+        TTS_BATCH_SIZE='${TTS_BATCH_SIZE:-1}' \
+        UV_PYTHON='$DEEPAGENTS_PYTHON' \
+        uv run --env-file .env surreal-commands-worker start \
+          --import-modules commands,content_studio_podcast_bootstrap"
+    log "Open Notebook worker started (TTS_BATCH_SIZE=${TTS_BATCH_SIZE:-1}, CONTENT_STUDIO_PODCAST_SHORT=${CONTENT_STUDIO_PODCAST_SHORT:-1})"
+  fi
+
+  if [[ "$START_NOTEBOOK_FRONTEND" == "1" ]]; then
+    if ! port_in_use "$NOTEBOOK_FRONTEND_PORT" || ! curl -fsS "${NOTEBOOK_FRONTEND_URL}" >/dev/null 2>&1; then
+      ensure_notebook_frontend_deps
+      start_background notebook-frontend \
+        bash -lc "cd '$OPEN_NOTEBOOK_DIR/frontend' && INTERNAL_API_URL='${NOTEBOOK_API_URL}' npm run dev -- -p ${NOTEBOOK_FRONTEND_PORT} -H 127.0.0.1"
+      wait_http "${NOTEBOOK_FRONTEND_URL}" "Open Notebook Web UI" 120
+    else
+      log "Open Notebook Web UI already up: ${NOTEBOOK_FRONTEND_URL}"
+    fi
   fi
 fi
 
@@ -1113,30 +1188,20 @@ if [[ "${CONTENT_STUDIO_LLM_VIA_TDAI_PROXY:-0}" == "1" ]] && port_in_use "$GATEW
   sleep 2
 fi
 if ! port_in_use "$GATEWAY_PORT" || ! curl -fsS "${GATEWAY_URL}/health" >/dev/null 2>&1; then
-  # Local OpenInspector proxy + reasoning models (e.g. gpt-5-6-luna) need long TTFB; avoid 40s client aborts.
-  start_background gateway bash -lc "
-    set -a
-    # shellcheck disable=SC1090
-    source '${HERMES_GATEWAY_HOME}/.env' 2>/dev/null || true
-    set +a
-    export HERMES_HOME='${HERMES_GATEWAY_HOME}'
-    export HERMES_API_CALL_STALE_TIMEOUT='${HERMES_API_CALL_STALE_TIMEOUT:-600}'
-    export HERMES_LOCAL_STREAM_STALE_TIMEOUT='${HERMES_LOCAL_STREAM_STALE_TIMEOUT:-900}'
-    export OPENAI_BASE_URL='${CONTENT_STUDIO_LLM_HERMES_BASE}'
-    export TDAI_PROXY_URL='${TDAI_PROXY_URL:-http://127.0.0.1:8096}'
-    export TDAI_PROXY_HERMES_BASE='${CONTENT_STUDIO_LLM_HERMES_BASE}'
-    tdai_ids='${HERMES_HOME}/tdai-hermes-ids.env'
-    if [[ -f \"\$tdai_ids\" ]]; then
-      for kv in TDAI_TEAM_ID TDAI_AGENT_ID TDAI_TASK_ID; do
-        v=\$(grep -E \"^\${kv}=\" \"\$tdai_ids\" | head -1 | cut -d= -f2- | tr -d ' \"'\\'')
-        [[ -n \"\$v\" ]] && export \"\$kv=\$v\"
-      done
-    fi
-    ${CONTENT_STUDIO_LLM_KEY:+export OPENAI_API_KEY='${CONTENT_STUDIO_LLM_KEY}'}
-    ${CONTENT_STUDIO_LLM_KEY:+export CUSTOM_API_KEY='${CONTENT_STUDIO_LLM_KEY}'}
-    exec '${HERMES_CLI}' -p default gateway run --replace
-  "
-  wait_http "${GATEWAY_URL}/health" "Hermes Gateway" 60
+  gw_script="$BUNDLE_ROOT/stack/start-hermes-gateway.sh"
+  chmod +x "$gw_script" 2>/dev/null || true
+  start_background gateway env \
+    HERMES_GATEWAY_HOME="$HERMES_GATEWAY_HOME" \
+    HERMES_CLI="$HERMES_CLI" \
+    HERMES_PROFILE_HOME="$HERMES_HOME" \
+    TDAI_HERMES_IDS_FILE="$HERMES_HOME/tdai-hermes-ids.env" \
+    CONTENT_STUDIO_LLM_HERMES_BASE="$CONTENT_STUDIO_LLM_HERMES_BASE" \
+    CONTENT_STUDIO_LLM_KEY="${CONTENT_STUDIO_LLM_KEY:-}" \
+    TDAI_PROXY_URL="${TDAI_PROXY_URL:-http://127.0.0.1:8096}" \
+    HERMES_API_CALL_STALE_TIMEOUT="${HERMES_API_CALL_STALE_TIMEOUT:-600}" \
+    HERMES_LOCAL_STREAM_STALE_TIMEOUT="${HERMES_LOCAL_STREAM_STALE_TIMEOUT:-900}" \
+    bash "$gw_script"
+  wait_http "${GATEWAY_URL}/health" "Hermes Gateway" 120
 else
   if [[ "${CONTENT_STUDIO_LLM_VIA_TDAI_PROXY:-0}" == "1" ]]; then
     warn "Hermes Gateway still up after recycle attempt — memory headers may be stale; run stop-content-studio-stack.sh then start again"
@@ -1167,9 +1232,9 @@ cat <<EOF
   Content Studio Stack — 服务地址
 ══════════════════════════════════════════════════════════════
 
-  【OpenInspector · 上游 + 追踪】  ${OPENINSPECTOR_UI_URL}
-    上游出口（TencentDB Proxy 再转发到这里）: ${OPENINSPECTOR_URL}/v1
-    API logs: ${OPENINSPECTOR_API_URL}/api/logs
+  【FreeLLMAPI · LLM 聚合】  ${FREELLMAPI_URL}
+    OpenAI 兼容: ${FREELLMAPI_URL}/v1  |  Keys 在 Web UI 配置各免费 provider
+    TencentDB Proxy 上游 LLM: ${CONTENT_STUDIO_LLM_UPSTREAM_BASE:-$(content_studio_real_llm_upstream_base)}
 
   【TencentDB Agent Memory】   Panel ${TDAI_PANEL_URL}  |  Proxy ${TDAI_PROXY_URL}
     Hermes LLM base: ${CONTENT_STUDIO_LLM_HERMES_BASE}  (via_tdai=${CONTENT_STUDIO_LLM_USING_TDAI})
@@ -1195,12 +1260,18 @@ cat <<EOF
   【Hermes · Gateway API】     ${GATEWAY_URL}
     Health: ${GATEWAY_URL}/health
 
+$(if [[ "${START_OPEN_NOTEBOOK:-1}" == "1" ]]; then cat <<NB
+
   【Open Notebook · Web UI】   ${NOTEBOOK_FRONTEND_URL}
     （Notebook 管理/使用界面）
 
   【Open Notebook · API】        ${NOTEBOOK_API_URL}
     Docs:   ${NOTEBOOK_API_URL}/docs
     SurrealDB: localhost:${SURREAL_PORT}
+NB
+else
+  echo "  【Open Notebook】           (skipped — START_OPEN_NOTEBOOK=0)"
+fi)
 
   【MoneyPrinterTurbo API】    ${MPT_API_URL}
     Docs:   ${MPT_API_URL}/docs

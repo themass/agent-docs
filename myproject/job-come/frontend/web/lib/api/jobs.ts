@@ -7,7 +7,19 @@ export type JDParseResult = {
   must_have_skills?: string[];
 };
 
+export type RequirementEvidence = {
+  requirement: string;
+  importance: "required" | "preferred" | "unspecified";
+  importance_basis: "jd_explicit" | "jd_structure" | "estimated";
+  status: "supported" | "partial" | "unverified";
+  citation_status: "verified" | "unverified";
+  evidence: { field_path: string; quote: string; entity_id: string | null }[];
+  next_question: string | null;
+};
+
 export type FitScore = {
+  evidence_profile_version?: number | null;
+  requirement_evidence?: RequirementEvidence[];
   job_id: string | null;
   score: number;
   recommendation: "go" | "caution" | "no";
@@ -30,6 +42,8 @@ export type Job = {
   fit_recommendation: string | null;
   fit_gaps: string[];
   fit_blockers: string[];
+  evidence_profile_version?: number | null;
+  requirement_evidence?: RequirementEvidence[];
   fit_summary?: string | null;
   elevate_hints?: string[];
   fit_dimensions?: Record<string, number>;
@@ -65,7 +79,7 @@ export function listJobs(profileId: string) {
 
 export function runApplyPipeline(
   profileId: string,
-  body: { job_id?: string; raw_text?: string; export_format?: "pdf" | "docx" },
+  body: { job_id?: string; raw_text?: string; export_format?: "pdf" | "docx"; create_application?: boolean },
 ) {
   return apiJson<{
     job_id: string;
@@ -75,7 +89,7 @@ export function runApplyPipeline(
     application_id: string | null;
   }>(`/jobs/profiles/${profileId}/apply-pipeline`, {
     method: "POST",
-    body: JSON.stringify({ ...body, create_application: true }),
+    body: JSON.stringify({ ...body, create_application: body.create_application ?? false }),
   });
 }
 

@@ -1,6 +1,8 @@
 # Pi 运行时支撑层：配置、资源、模型与会话重绑定
 
-> 本文补上最容易被 Agent Loop 遮住的一层：用户输入进入循环以前，Pi 如何决定“在哪个目录运行、加载什么、用哪个模型、是否可信，以及失败后由谁处理”。源码基线：本地 `pi` commit `1729ff447841e7666159a6f8bf70fbd6bac05642`。
+> 本文补上最容易被 Agent Loop 遮住的一层：用户输入进入循环以前，Pi 如何决定“在哪个目录运行、加载什么、用哪个模型、是否可信，以及失败后由谁处理”。源码基线：官方 `v1.3.0` / commit `71023aec1546d6d677a65669c5665c0927ce0dd0`（2026-10-17 核验；本文主要 core 文件与上轮快照字节一致）。
+
+> 发布版相对旧快照的 UI overlay、模型投影与 Provider 变化见 [VERSION_ALIGNMENT.md](./VERSION_ALIGNMENT.md)。本篇不把“core 文件相同”扩大成“整个运行时没有变化”。
 
 ## 目录
 
@@ -193,13 +195,13 @@ Runtime 创建错误  -> AgentSessionRuntime 返回/抛出，由调用者决定 
 
 ### 可点击的源码入口
 
-- [agent-session-services.ts](../../pi/packages/coding-agent/src/core/agent-session-services.ts)
-- [agent-session-runtime.ts](../../pi/packages/coding-agent/src/core/agent-session-runtime.ts)
-- [settings-manager.ts](../../pi/packages/coding-agent/src/core/settings-manager.ts)
-- [resource-loader.ts](../../pi/packages/coding-agent/src/core/resource-loader.ts)
-- [package-manager.ts](../../pi/packages/coding-agent/src/core/package-manager.ts)
-- [model-runtime.ts](../../pi/packages/coding-agent/src/core/model-runtime.ts)
-- [provider-composer.ts](../../pi/packages/coding-agent/src/core/provider-composer.ts)
-- [runtime-credentials.ts](../../pi/packages/coding-agent/src/core/runtime-credentials.ts)
-- [virtual-models.ts](../../pi/packages/coding-agent/src/core/virtual-models.ts)
-- [output-guard.ts](../../pi/packages/coding-agent/src/core/output-guard.ts)
+- [agent-session-services.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/coding-agent/src/core/agent-session-services.ts)
+- [agent-session-runtime.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/coding-agent/src/core/agent-session-runtime.ts)
+- [settings-manager.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/coding-agent/src/core/settings-manager.ts)
+- [resource-loader.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/coding-agent/src/core/resource-loader.ts)
+- [package-manager.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/coding-agent/src/core/package-manager.ts)
+- [model-runtime.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/coding-agent/src/core/model-runtime.ts)
+- [provider-composer.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/coding-agent/src/core/provider-composer.ts)
+- [runtime-credentials.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/coding-agent/src/core/runtime-credentials.ts)
+- [virtual-models.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/coding-agent/src/core/virtual-models.ts)
+- [output-guard.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/coding-agent/src/core/output-guard.ts)

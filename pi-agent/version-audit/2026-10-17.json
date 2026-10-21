@@ -1,0 +1,228 @@
+{
+  "checked_on": "2026-10-17",
+  "timezone": "Asia/Shanghai",
+  "release": {
+    "tag_name": "v1.3.0",
+    "published_at": "2026-10-15T19:17:33Z",
+    "html_url": "https://github.com/earendil-works/pi/releases/tag/v1.3.0",
+    "prerelease": false
+  },
+  "release_commit": "71023aec1546d6d677a65669c5665c0927ce0dd0",
+  "main_commit": "698a2d23b86a5045dd54554354a5e0cb7e466795",
+  "previous_local_commit": "1729ff447841e7666159a6f8bf70fbd6bac05642",
+  "previous_workspace_version": "1.2.0",
+  "scope": "all files under packages/*/src; byte comparison, not execution tests",
+  "packages": [
+    {
+      "package": "agent",
+      "files": 6,
+      "unchanged": 6,
+      "modified": [],
+      "added": [],
+      "removed": [],
+      "release_package_version": "1.3.0"
+    },
+    {
+      "package": "ai",
+      "files": 199,
+      "unchanged": 188,
+      "modified": [
+        {
+          "path": "packages/ai/src/api/anthropic-messages.ts",
+          "sha256": "a506637463cffd681f50f208e308dac4c979097ff1492df2dd1c73fe28d0f963"
+        },
+        {
+          "path": "packages/ai/src/api/bedrock-converse-stream.ts",
+          "sha256": "476ed6f426f50532c922d1dcaa4b01f8aeca43b618483c061e764f3330c2b672"
+        },
+        {
+          "path": "packages/ai/src/api/mistral-conversations.ts",
+          "sha256": "c3dc9b9b183817731868d091bcaf2ffc7f13ae2aea127db688a7359341954260"
+        },
+        {
+          "path": "packages/ai/src/api/openai-completions.ts",
+          "sha256": "bddb09f395df6d5d29fbab4dd8039f89dea0c58f892dc4c15c73be74fe6e0b7d"
+        },
+        {
+          "path": "packages/ai/src/api/openai-responses-shared.ts",
+          "sha256": "f940a1539a3ca03fbee79b2c848999e0b51c74f7cceb45484d3d52bc2303de3c"
+        },
+        {
+          "path": "packages/ai/src/api/transform-messages.ts",
+          "sha256": "1afe70d8ab9ac24fcfc7ee46bf002b24f9557396ffe3c61e44d3e35c692e27f4"
+        },
+        {
+          "path": "packages/ai/src/providers/kimi-coding.ts",
+          "sha256": "7b74ceaa07c4b90fbafccaeff5085bc6493bce28a04097540a3589f23cbc14bd"
+        },
+        {
+          "path": "packages/ai/src/types.ts",
+          "sha256": "258627828297eb0165de9828cab62666265a77e932dea5dba1542ace9c47c7d5"
+        },
+        {
+          "path": "packages/ai/src/utils/json-parse.ts",
+          "sha256": "b101d288394a45498a50e06966c753ffb55a2b4900bec24ecbecafb7c17591bd"
+        },
+        {
+          "path": "packages/ai/src/utils/retry.ts",
+          "sha256": "1f7947fa6f30596415e78fca0c0cbd43345c918509f6160b79cdeec459881dd8"
+        },
+        {
+          "path": "packages/ai/src/utils/validation.ts",
+          "sha256": "e4b8029c184bd6df830e0ee2cb7034a39d49b5ecb8c068c26af9564c20246594"
+        }
+      ],
+      "added": [],
+      "removed": [],
+      "release_package_version": "1.3.0"
+    },
+    {
+      "package": "chord",
+      "files": 32,
+      "unchanged": 29,
+      "modified": [
+        {
+          "path": "packages/chord/src/object.ts",
+          "sha256": "5045f7ae2dd1e41280f2a8fefd4a7501daf4a7747c8daa7276027eccfe6eb7cd"
+        },
+        {
+          "path": "packages/chord/src/remote.ts",
+          "sha256": "c6799f769d02c7d0243804d79b4c19fdaf21f3ce941dbb884fb029c71650ca7e"
+        }
+      ],
+      "added": [
+        "packages/chord/src/output.ts"
+      ],
+      "removed": [],
+      "release_package_version": "1.3.0"
+    },
+    {
+      "package": "codemode",
+      "files": 17,
+      "unchanged": 17,
+      "modified": [],
+      "added": [],
+      "removed": [],
+      "release_package_version": "1.3.0"
+    },
+    {
+      "package": "coding-agent",
+      "files": 262,
+      "unchanged": 261,
+      "modified": [
+        {
+          "path": "packages/coding-agent/src/modes/interactive/interactive-mode.ts",
+          "sha256": "b1000ccc60ac715d8483f00ad6cb8e6cd56665418b3738efa47a77ec4fce5043"
+        }
+      ],
+      "added": [],
+      "removed": [],
+      "release_package_version": "1.3.0"
+    },
+    {
+      "package": "durable",
+      "files": 82,
+      "unchanged": 72,
+      "modified": [
+        {
+          "path": "packages/durable/src/env/index.ts",
+          "sha256": "6601d869fb70ef0232143b1eda6a6241307b47dc0b5575a1c262e6f6f6c63eff"
+        },
+        {
+          "path": "packages/durable/src/harness/tool.ts",
+          "sha256": "ed426f36d2c1be7660de21977914505a424b6ad9e386d63bac38cd9b712a36fb"
+        },
+        {
+          "path": "packages/durable/src/storage/sqlite/cloudflare.ts",
+          "sha256": "428b68034173066227c8d2beff111e3a9852afd9b4215e30bc4ff6c315f47b20"
+        },
+        {
+          "path": "packages/durable/src/storage/sqlite/index.ts",
+          "sha256": "1fabc79df58729f28beef38d25af290e2a0a767e9b76cfac517b3b0e331b3d63"
+        },
+        {
+          "path": "packages/durable/src/storage/sqlite/migrations.ts",
+          "sha256": "3bbff65fe5630dda9af4da43032cec7648b401d6a7060f2d868ccb9a3fb49285"
+        },
+        {
+          "path": "packages/durable/src/storage/sqlite/node.ts",
+          "sha256": "4eb34b79d18b812b818f976737617593bbc3d25d0562b118810aed9e4efc123a"
+        },
+        {
+          "path": "packages/durable/src/storage/sqlite/storage.ts",
+          "sha256": "e27b7a1afcc92310706aca533eda62ff88c4c0f14a322dacb6e8fda9e9b81661"
+        },
+        {
+          "path": "packages/durable/src/tools/read.ts",
+          "sha256": "afb1c16af7b0451369d7851a57f66f6a457f840f586551f57ca2e75a2b87621f"
+        },
+        {
+          "path": "packages/durable/src/truncate.ts",
+          "sha256": "2067909f0ca0ec33d1bd4287054798cd10a4b1560149e6ca7743f35d87f6c2d2"
+        }
+      ],
+      "added": [
+        "packages/durable/src/storage/sqlite/schema.ts"
+      ],
+      "removed": [
+        "packages/durable/src/harness/output.ts"
+      ],
+      "release_package_version": "1.3.0"
+    },
+    {
+      "package": "env",
+      "files": 8,
+      "unchanged": 8,
+      "modified": [],
+      "added": [],
+      "removed": [],
+      "release_package_version": "1.3.0"
+    },
+    {
+      "package": "evals",
+      "files": 5,
+      "unchanged": 5,
+      "modified": [],
+      "added": [],
+      "removed": [],
+      "release_package_version": "1.3.0"
+    },
+    {
+      "package": "mcp",
+      "files": 18,
+      "unchanged": 18,
+      "modified": [],
+      "added": [],
+      "removed": [],
+      "release_package_version": "1.3.0"
+    },
+    {
+      "package": "telemetry",
+      "files": 6,
+      "unchanged": 6,
+      "modified": [],
+      "added": [],
+      "removed": [],
+      "release_package_version": "1.3.0"
+    },
+    {
+      "package": "tui",
+      "files": 46,
+      "unchanged": 46,
+      "modified": [],
+      "added": [],
+      "removed": [],
+      "release_package_version": "1.3.0"
+    }
+  ],
+  "documentation_validation": {
+    "mermaid_version": "11.14.0",
+    "mermaid_diagrams": 73,
+    "local_links_and_anchors": 249,
+    "pinned_release_source_targets": 235,
+    "errors": 0,
+    "diff_check": "passed",
+    "runtime_tests": "not run",
+    "jsonl_example": "JSON parsing and parent reference check only"
+  }
+}

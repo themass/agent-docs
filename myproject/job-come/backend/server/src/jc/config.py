@@ -21,6 +21,39 @@ class Settings(BaseSettings):
     jc_env: str = Field("development", alias="JC_ENV")
     jc_api_prefix: str = Field("/api/v1", alias="JC_API_PREFIX")
     jc_docs_enabled: bool = Field(True, alias="JC_DOCS_ENABLED")
+    jc_preview_writer_timeout_seconds: float = Field(
+        90, gt=0, le=120, alias="JC_PREVIEW_WRITER_TIMEOUT_SECONDS",
+        description="Whole writer fallback-chain budget, not a per-model timeout",
+    )
+    jc_export_review_timeout_seconds: float = Field(
+        90, gt=0, le=120, alias="JC_EXPORT_REVIEW_TIMEOUT_SECONDS"
+    )
+    jc_export_review_attempt_timeout_seconds: float = Field(
+        25, gt=0, le=60, alias="JC_EXPORT_REVIEW_ATTEMPT_TIMEOUT_SECONDS",
+        description="Per-model reviewer timeout within the shared total review budget",
+    )
+    jc_ingest_timeout_seconds: float = Field(
+        90, gt=0, le=120, alias="JC_INGEST_TIMEOUT_SECONDS",
+        description="Whole ingest deadline including local extraction and model failover",
+    )
+    jc_ingest_attempt_timeout_seconds: float = Field(
+        25, gt=0, le=60, alias="JC_INGEST_ATTEMPT_TIMEOUT_SECONDS",
+        description="Text connection/read-idle timeout; vision single-request timeout",
+    )
+    jc_ingest_stream_attempt_seconds: float = Field(
+        30, gt=0, le=60, alias="JC_INGEST_STREAM_ATTEMPT_SECONDS",
+        description="Complete structured-stream attempt cap, inside the shared ingest total budget",
+    )
+    jc_profile_parse_lease_seconds: int = Field(
+        240, gt=30, le=3600, alias="JC_PROFILE_PARSE_LEASE_SECONDS",
+        description=(
+            "Database lease for one parse attempt; exceeds bounded storage and ingest budgets"
+        ),
+    )
+    jc_profile_parse_concurrency: int = Field(
+        2, ge=1, le=16, alias="JC_PROFILE_PARSE_CONCURRENCY",
+        description="Maximum concurrent resume parses per API instance",
+    )
     jc_public_url: str = Field("http://127.0.0.1:3000", alias="JC_PUBLIC_URL")
 
     jc_db_host: str = Field("127.0.0.1", alias="JC_DB_HOST")
@@ -57,15 +90,32 @@ class Settings(BaseSettings):
     jc_log_json: bool = Field(True, alias="JC_LOG_JSON")
     jc_log_level: str = Field("INFO", alias="JC_LOG_LEVEL")
     jc_llm_enabled: bool = Field(False, alias="JC_LLM_ENABLED")
-    jc_llm_model_fast: str = Field("jc-fast", alias="JC_LLM_MODEL_FAST")
-    jc_llm_model_vision: str = Field("jc-vision", alias="JC_LLM_MODEL_VISION")
     jc_llm_routing_path: str = Field(
         "../agent/llm/routing.yaml",
         alias="JC_LLM_ROUTING_PATH",
     )
+
+    # LLM call audit log (jc_llm_call / jc_llm_call_attempt).
+    jc_llm_log_enabled: bool = Field(True, alias="JC_LLM_LOG_ENABLED")
+    jc_llm_log_payload: bool = Field(
+        True,
+        alias="JC_LLM_LOG_PAYLOAD",
+        description=(
+            "Persist prompt/response/reasoning text. These contain resume personal data, "
+            "so turning this off keeps metrics and failure codes without the content."
+        ),
+    )
+    jc_llm_log_payload_max_chars: int = Field(
+        60_000,
+        alias="JC_LLM_LOG_PAYLOAD_MAX_CHARS",
+        description="Per-column payload cap; longer text is truncated and flagged.",
+    )
+    jc_llm_log_retention_days: int = Field(
+        90,
+        alias="JC_LLM_LOG_RETENTION_DAYS",
+        description="Audit window enforced by scripts/prune_llm_log.py.",
+    )
     jc_skills_dir: str = Field("../agent/skills/public", alias="JC_SKILLS_DIR")
-    openai_api_base: str = Field("http://127.0.0.1:4000/v1", alias="OPENAI_API_BASE")
-    openai_api_key: str = Field("sk-litellm-local", alias="OPENAI_API_KEY")
 
     # OpenAI-compatible LLM gateway (vendor-agnostic)
     jc_llm_api_base: str = Field("https://newapi.yuaiweiwu.com/v1", alias="JC_LLM_API_BASE")
@@ -75,7 +125,6 @@ class Settings(BaseSettings):
         alias="JC_LLM_VISION_API_BASE",
     )
     jc_llm_vision_api_key: str = Field("", alias="JC_LLM_VISION_API_KEY")
-    jc_llm_vision_model: str = Field("qwen-vl-ocr", alias="JC_LLM_VISION_MODEL")
     jc_model_context_window: int = Field(
         200_000,
         alias="JC_MODEL_CONTEXT_WINDOW",
@@ -95,6 +144,37 @@ class Settings(BaseSettings):
     jc_summarization_keep_messages: int = Field(
         10,
         alias="JC_SUMMARIZATION_KEEP_MESSAGES",
+    )
+    jc_pii_redaction_enabled: bool = Field(
+        False,
+        alias="JC_PII_REDACTION_ENABLED",
+        description=(
+            "Deterministic PII redaction (email/phone/national id/credit card/"
+            "api key) in model-bound requests, via DeerFlow's pii_redaction "
+            "middleware. Raw values stay in the DB and UI; only what reaches "
+            "the LLM and jc_llm_call payload capture is replaced with keyed "
+            "placeholders. Does not redact names or employer names (those are "
+            "not pattern-detectable)."
+        ),
+    )
+    jc_pii_redaction_token_secret: str = Field(
+        "",
+        alias="JC_PII_REDACTION_TOKEN_SECRET",
+        description=(
+            "Deployment-scoped HMAC key for PII placeholder digests. Required "
+            "(>=16 chars) when JC_PII_REDACTION_ENABLED=true; DeerFlow raises at "
+            "config load otherwise."
+        ),
+    )
+    jc_token_budget_enabled: bool = Field(
+        True,
+        alias="JC_TOKEN_BUDGET_ENABLED",
+        description="Hard per-run token ceiling via DeerFlow's token_budget middleware.",
+    )
+    jc_token_budget_max_tokens: int = Field(
+        150_000,
+        alias="JC_TOKEN_BUDGET_MAX_TOKENS",
+        description="Total input+output tokens allowed per agent run before a forced stop.",
     )
     jc_debug_context_usage: bool = Field(False, alias="JC_DEBUG_CONTEXT_USAGE")
     jc_admin_enabled: bool = Field(False, alias="JC_ADMIN_ENABLED")

@@ -2,9 +2,9 @@
 
 import type { ThreadAssistantMessagePart, ThreadMessageLike } from "@assistant-ui/react";
 
-import { buildAgentTurns } from "@/lib/agent-turn-model";
+import { buildAgentTurns } from "@/lib/agent-ui-kit/conversation/turn-model";
 import type { AgentDisplayItem } from "@/lib/types/agent";
-import type { TurnActivity } from "@/lib/agent-turn-model";
+import type { TurnActivity } from "@/lib/agent-ui-kit/conversation/turn-model";
 
 type JsonArgs = Record<string, string | number | boolean | null>;
 

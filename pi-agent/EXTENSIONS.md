@@ -1,4 +1,7 @@
 # Pi Extensions：设计、使用与编排深潜
+
+> **版本核验：2026-10-17 / Pi v1.3.0**。本目录当前源码结论固定到官方 tag `71023aec1546d6d677a65669c5665c0927ce0dd0`。旧文中的 `agent/src/harness/`、Lane/registers、`LeafEntry` 和 Prime/第三方生态不能视为 v1.3.0 的 core 实现；具体差异见 [版本核验与纠错](./VERSION_ALIGNMENT.md)。历史示例保留并就地标记，旧行号不作为当前定位依据。
+
 > **2026-10-15 源码校正**：原正文保留；请同时阅读本文末尾新增的当前源码补充和 [全景入口](./PI_SOURCE_DEEP_DIVE_2026.md)。涉及旧 Harness 路径、消息类型、第三方插件版本的描述不能直接视为当前实现。
 
 > 源码：`packages/coding-agent/src/core/extensions/`  
@@ -87,7 +90,7 @@
    扩展只能通过 `pi.on(...)` 的返回值 / `register*` 影响行为。
 
 2. **顺序链式**  
-   同一事件上多个扩展按加载顺序执行；结果可合并（如多个 handler 改 `args`）。
+   同一事件上多个扩展按加载顺序执行；结果按事件契约处理（`tool_call` 的后续 handler 能看到前者对 `event.input` 的原地修改）。
 
 3. **错误隔离**  
    单个扩展抛错 → 上报 → 默认继续（不拖死整个 session）。
@@ -134,7 +137,7 @@ flowchart LR
 | `input` | 改写用户输入 / 自行处理 | `continue` / `transform` / `handled` |
 | `before_agent_start` | 注入消息、改 systemPrompt | `{ messages?, systemPrompt? }` |
 | `context` | 每次调 LLM 前改消息列表 | `{ messages? }` |
-| `tool_call` | 权限门、改参、拦截 | `{ block?, reason?, args? }` |
+| `tool_call` | 原地改 `event.input`、拦截；修改后不会重新 schema 校验 | 返回 `{ block?, reason?, terminate? }`，不是 `args` |
 | `tool_result` | 改写工具结果 | `{ content?, isError? }` |
 | `session_before_compact` | 自定义压缩 | `{ cancel?, compaction? }` |
 | `agent_settled` | 收尾、通知 | — |
@@ -679,7 +682,7 @@ Extension Hook → 强制策略（拦 bash、注入模式）
 
 ### III.2 内置扩展的完整位置
 
-[`src/extensions/index.ts`](../../pi/packages/coding-agent/src/extensions/index.ts) 注册四个 built-in extensions：
+[`src/extensions/index.ts`](https://github.com/earendil-works/pi/blob/v1.3.0/packages/coding-agent/src/extensions/index.ts) 注册四个 built-in extensions：
 
 - `llama.cpp`：本地 Provider 与模型/交互 UI 集成；
 - `codemode`：沙箱脚本执行和嵌套工具调用；
@@ -713,11 +716,12 @@ Durable 的对应能力则以 nested ToolTask + `NestedCallDoc` 保存 receipt�
 ### III.5 Hook 返回值必须按层区分
 
 - agent-core `beforeToolCall`：`block`、`reason`、`terminate`；不提供任意工具结果替换/参数重写的返回契约。
+- coding-agent `tool_call`：返回值同样没有 `args`；但 `event.input` 可原地修改，后续 handler 可见，且**不会再次校验**。这与工具的 `prepareArguments` 及 Durable 的“改参后再校验”不同。
 - Durable `beforeTool`：可 block 或返回 arguments，之后再次校验。
 - `afterToolCall`：字段级替换，不是 deep merge；content 改了却未同步 structuredContent 时，旧 structuredContent 会移除，防止两种输出不一致。
 - `turn_end` 和 `agent_settled` 不等同：一个低层 run 结束后还可能 retry/compaction/新增排队消息，产品 settled 是更后面的边界。
 
-源码：[`extensions/types.ts`](../../pi/packages/coding-agent/src/core/extensions/types.ts)、[`nested-tool-calls.ts`](../../pi/packages/coding-agent/src/core/nested-tool-calls.ts)、[`agent-loop.ts`](../../pi/packages/agent/src/agent-loop.ts)、[`durable/define.ts`](../../pi/packages/durable/src/harness/define.ts)。
+源码：[`extensions/types.ts`](https://github.com/earendil-works/pi/blob/v1.3.0/packages/coding-agent/src/core/extensions/types.ts)、[`nested-tool-calls.ts`](https://github.com/earendil-works/pi/blob/v1.3.0/packages/coding-agent/src/core/nested-tool-calls.ts)、[`agent-loop.ts`](https://github.com/earendil-works/pi/blob/v1.3.0/packages/agent/src/agent-loop.ts)、[`durable/define.ts`](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/harness/define.ts)。
 
 ### III.6 项目信任不等于 OS 权限审批
 

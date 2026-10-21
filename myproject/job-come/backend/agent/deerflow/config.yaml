@@ -1,26 +1,48 @@
 # JC embedded DeerFlow harness (see docs/architecture/TECH-AGENT.md)
 config_version: 3
 
+# Models are NOT named here. `model:` is a *scenario* in
+# backend/agent/llm/routing.yaml, and the adapter resolves the endpoint chain
+# (plus failover order and credentials) from that file at call time.
+#
+# This indirection exists because naming models here created a second source of
+# truth that had already drifted: `jc-writer` said deepseek-v4-flash while the
+# `writer` chain led with gpt-6-1-sol. To change a model, edit routing.yaml.
+# Output limits are owned by routing.yaml defaults/per-endpoint overrides.
+# Do not override them here: a harness-wide cap would mask fallback policies.
 models:
   - name: jc-coach
     display_name: JC Coach
-    use: langchain_openai:ChatOpenAI
-    model: mt-gpt-5-6-terra
-    base_url: $JC_LLM_API_BASE
-    api_key: $JC_LLM_API_KEY
-    max_tokens: 8192
+    use: jc.llm.chat_litellm:ChatLiteLLMRouter
+    model: coach
     context_window: 200000
-    temperature: 0.1
+    # Declares the reasoning contract so DeerFlow's factory treats this model as
+    # thinking-capable (has_thinking_settings=True) and forwards reasoning_effort
+    # to ChatLiteLLMRouter's constructor on every call where thinking_enabled is
+    # true (the client default for the main agent loop). Probed against the
+    # gateway directly: the lead model behind the `coach` scenario
+    # (openai/gpt-6-1-sol) returns reasoning_content for reasoning_effort=low;
+    # the deepseek-v4-flash failover hop also returns it (ignoring the effort
+    # hint); the claude-haiku-5-5 failover hop does not surface reasoning_content
+    # through this gateway regardless of dialect, so failover calls simply run
+    # without visible thinking (drop_params keeps the request from erroring).
+    supports_thinking: true
+    supports_reasoning_effort: true
+    when_thinking_enabled:
+      reasoning_effort: low
 
   - name: jc-writer
     display_name: JC Writer
-    use: langchain_openai:ChatOpenAI
-    model: bt-deepseek-v4-pro
-    base_url: $JC_LLM_API_BASE
-    api_key: $JC_LLM_API_KEY
-    max_tokens: 8192
+    use: jc.llm.chat_litellm:ChatLiteLLMRouter
+    model: writer
     context_window: 200000
-    temperature: 0.1
+    # Same reasoning contract as jc-coach above — see that comment for the
+    # gateway probe results. Writer benefits from visible reasoning too since
+    # resume rewrites go through the same elevate/export agent loop.
+    supports_thinking: true
+    supports_reasoning_effort: true
+    when_thinking_enabled:
+      reasoning_effort: low
 
 skills:
   path: skills
@@ -42,7 +64,25 @@ summarization:
   keep:
     type: messages
     value: $JC_SUMMARIZATION_KEEP_MESSAGES
-  trim_tokens_to_summarize: 15564
+  # Must be >= the trigger's token value: this is the budget the messages-to-
+  # summarize chunk gets trimmed to *before* being handed to the summarizer.
+  # A value smaller than the trigger silently drops the oldest history beyond
+  # this cap instead of summarizing it — no summary, no record, just gone.
+  # 40000 covers the trigger's current auto value (32000) with headroom for
+  # when JC_MODEL_CONTEXT_WINDOW grows.
+  trim_tokens_to_summarize: 40000
+
+# Default-off in DeerFlow; both decided on here (see docs/architecture
+# ADR on the audit that added them). `enabled`/`token_secret`/`max_tokens`
+# come from JC settings via `$VAR`, same mechanism as summarization above —
+# one place to flip these, not two.
+pii_redaction:
+  enabled: $JC_PII_REDACTION_ENABLED
+  token_secret: $JC_PII_REDACTION_TOKEN_SECRET
+
+token_budget:
+  enabled: $JC_TOKEN_BUDGET_ENABLED
+  max_tokens: $JC_TOKEN_BUDGET_MAX_TOKENS
 
 subagent_runtime:
   max_running: 3
@@ -56,10 +96,12 @@ subagents:
   custom_agents:
     resume-writer:
       description: Generate job-tailored elevated resume sections from verified profile facts only.
-      system_prompt: |
-        You are Resume Writer for JC. Read profile via jc_profile_get.
-        Write structured resume sections with elevation_map; never invent employers or metrics.
-        Use the resume-writer skill rubric. Delegate review to resume-reviewer before export.
+      # `skill:<id>` means "compose this prompt from that skill package at boot" — see
+      # `deerflow_harness_client.resolve_subagent_prompts_in_config`. A literal prompt
+      # here would be a second definition of a role the skill already defines, which is
+      # how the two drift: this field used to hold three English lines summarising a
+      # 101-line contract, and nothing failed when they disagreed.
+      system_prompt: skill:resume-writer
       tools:
         - jc_profile_get
         - jc_resume_review
@@ -70,9 +112,7 @@ subagents:
       timeout_seconds: 600
     resume-reviewer:
       description: Review resume draft for factual consistency before export or apply pipeline.
-      system_prompt: |
-        You are Resume Reviewer for JC. Call jc_resume_review on the latest draft.
-        Report pass/fail with concrete issues. Block export when facts are unsupported.
+      system_prompt: skill:resume-reviewer
       tools:
         - jc_profile_get
         - jc_resume_review
@@ -87,6 +127,21 @@ memory:
 
 title:
   enabled: false
+
+# Defense in depth for the `jc_profile_patch` confirm flow: that tool's
+# JSON result is parsed by `_maybe_emit_confirm` (see
+# deerflow_harness_client.py) to detect `status == "pending_confirm"` and
+# surface the frontend confirmation card. If the result ever crosses
+# DeerFlow's default externalize_min_chars (12_000), the middleware below
+# swaps it for a text synopsis, that parse fails, and the confirm card
+# silently never appears — the agent reports success but nothing gets
+# written (see the comment in `profile_patch_service.propose_patch`, which
+# already keeps the payload small by dropping `preview.merged`). Raising the
+# per-tool threshold here is a second, independent guard against the same
+# failure mode if the payload ever grows again.
+tool_output:
+  tool_overrides:
+    jc_profile_patch: 60000
 
 authorization:
   enabled: false

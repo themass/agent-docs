@@ -9,18 +9,17 @@ import argparse
 import importlib.metadata
 import importlib.util
 import json
-import sys
 import tempfile
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+from lib.bootstrap import ensure_project_env
+
+PROJECT_ROOT = ensure_project_env()
 SERVER_ROOT = PROJECT_ROOT / "backend" / "server"
-sys.path.insert(0, str(SERVER_ROOT / "src"))
 
-import fitz
-from docx import Document
-
-from jc.services.document_extractor import DocumentExtractor
+import fitz  # noqa: E402
+from docx import Document  # noqa: E402
+from jc.services.document_extractor import DocumentExtractor  # noqa: E402
 
 
 def samples(directory):
@@ -150,5 +149,7 @@ def evaluate(output):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output", type=Path, default=Path("docs/evidence/document-evaluation.json"))
+    parser.add_argument(
+        "--output", type=Path, default=Path("docs/evidence/document-evaluation.json")
+    )
     evaluate(parser.parse_args().output)

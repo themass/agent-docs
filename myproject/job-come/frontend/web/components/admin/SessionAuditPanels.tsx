@@ -2,20 +2,13 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 
+import { formatDateTime as fmtTime } from "@/lib/datetime";
 import type {
   AdminCheckpointMessage,
   AdminInventory,
   AdminTimelineTurn,
 } from "@/lib/api/admin";
 
-function fmtTime(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  try {
-    return new Date(iso).toLocaleString("zh-CN");
-  } catch {
-    return iso;
-  }
-}
 
 function Chevron({ open }: { open: boolean }) {
   return (

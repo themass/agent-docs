@@ -47,7 +47,8 @@ class Response:
     def __init__(self, status=200, headers=None, chunks=None):
         self.status = status
         self.headers = headers or [(b'content-type', b'text/html')]
-        self.chunks = chunks if chunks is not None else [b'<p>Public job description with sufficient content.</p>']
+        default = [b"<p>Public job description with sufficient content.</p>"]
+        self.chunks = chunks if chunks is not None else default
     async def aiter_stream(self):
         for chunk in self.chunks:
             yield chunk

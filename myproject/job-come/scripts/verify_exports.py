@@ -3,12 +3,14 @@
 
 import argparse
 import json
-import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from jc.services.export_quality import validate_export
-from jc.services.resume_render_engine import ResumeRenderEngine
+from lib.bootstrap import ensure_project_env
+
+ensure_project_env()
+
+from jc.services.export_quality import validate_export  # noqa: E402
+from jc.services.resume_render_engine import ResumeRenderEngine  # noqa: E402
 
 SECTIONS = {
     "header": {

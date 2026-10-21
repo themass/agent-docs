@@ -3,10 +3,18 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from urllib.parse import quote
 
 from agentkit.storage import CdnConfig, CdnUrlSigner, ObjectStore, ObjectStoreConfig
 
 from jc.config import settings
+
+
+def api_storage_object_url(storage_key: str) -> str:
+    """Same-origin URL for authenticated download when blobs live on local disk."""
+    prefix = settings.jc_api_prefix.rstrip("/")
+    safe_key = quote(storage_key.lstrip("/"), safe="/")
+    return f"{prefix}/storage/objects/{safe_key}"
 
 
 @lru_cache
@@ -37,7 +45,9 @@ def get_cdn_signer() -> CdnUrlSigner | None:
 
 
 def download_url_for_key(storage_key: str, *, ttl_seconds: int | None = None) -> str:
-    """Return CDN signed URL for users; fall back to TOS presigned if CDN not configured."""
+    """Return a user-fetchable URL: CDN/TOS when remote storage is on, else same-origin API."""
+    if not settings.storage_remote_enabled:
+        return api_storage_object_url(storage_key)
     signer = get_cdn_signer()
     if signer is not None:
         return signer.sign(storage_key, ttl_seconds=ttl_seconds)

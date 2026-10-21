@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { IconArrowRight, IconInbox, IconSpark } from "@/components/ui/Icon";
+import { Select } from "@/components/ui/Select";
 import {
   listApplications,
   patchApplication,
@@ -197,8 +198,9 @@ function ApplicationCard({
       <div className="mt-2.5 space-y-1.5">
         <label className="block">
           <span className="label-meta">状态</span>
-          <select
-            className="field mt-1 px-2 py-1 text-xs"
+          <Select
+            className="mt-1 w-full"
+            selectClassName="px-2 py-1 text-xs"
             disabled={busy}
             value={row.status ?? "evaluated"}
             onChange={(e) => onStatus(e.target.value as ApplicationStatus)}
@@ -208,7 +210,7 @@ function ApplicationCard({
                 {c.label}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="block">
           <span className="label-meta">跟进日</span>

@@ -6,7 +6,11 @@ import asyncio
 import json
 from pathlib import Path
 
-from playwright.async_api import async_playwright, expect
+from lib.bootstrap import ensure_project_env
+
+ensure_project_env()
+
+from playwright.async_api import async_playwright, expect  # noqa: E402
 
 
 async def verify(base, output):
@@ -85,6 +89,24 @@ async def verify(base, output):
                     payload = {"questions": [], "total": 0}
                 elif url.endswith("/interviews"):
                     payload = {"interviews": []}
+                elif "/profiles/profile_fixture/intake" in url:
+                    # Must precede the general profile branch below: its substring
+                    # test matches this URL too, and serving a profile payload here
+                    # is what crashed ProfileIntakePanel on `plan.stages.map`.
+                    # Shape mirrors `IntakePlanResponse` -- every list the panel
+                    # iterates has to exist, even when empty.
+                    payload = {
+                        "mode": "complete",
+                        "role_family": "product",
+                        "role_label": "产品经理",
+                        "questions": [],
+                        "answered": [],
+                        "stages": [],
+                        "answered_count": 0,
+                        "can_generate": True,
+                        "blocking": [],
+                        "version": 1,
+                    }
                 elif (
                     "/profiles/profile_fixture" in url
                     and "/jobs/" not in url
@@ -154,7 +176,7 @@ async def verify(base, output):
             await page.get_by_role("checkbox").check()
             button = page.get_by_role("button", name="抓取 JD 并计算匹配")
             await button.click()
-            await expect(page.get_by_text("来源：", exact=False)).to_be_visible()
+            await expect(page.get_by_text("来源 ", exact=False)).to_be_visible()
             await expect(page.get_by_text("技能与目标匹配")).to_be_visible()
             parse = next(r for r in requests if r["path"].endswith("/parse-url"))
             assert parse["body"] == {"url": "https://example.com/job", "render": True, "save": True}
@@ -163,7 +185,7 @@ async def verify(base, output):
             await page.screenshot(path=str(output / "jobs-success.png"), full_page=True)
             failed = True
             await button.click()
-            await expect(page.get_by_text("不允许访问私网地址", exact=False)).to_be_visible()
+            await expect(page.get_by_text("这个链接地址不被支持", exact=False)).to_be_visible()
             await expect(button).to_be_enabled()
             # Other newly shipped screens must at least hydrate and show their real heading.
             screens = {}

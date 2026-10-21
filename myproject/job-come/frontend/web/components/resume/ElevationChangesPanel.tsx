@@ -5,6 +5,9 @@ import { useMemo, useState } from "react";
 import type { ResumeDraft } from "@/lib/api/resume";
 import { resolveTechniques, summarizeTechniques, TECHNIQUES } from "@/lib/elevation-techniques";
 
+import type { PreviewProgress } from "@/lib/preview-progress";
+import { ElevatePreviewGenerating } from "./ElevatePreviewGenerating";
+
 type ElevationEntry = {
   field_path?: string;
   source_text?: string;
@@ -15,6 +18,10 @@ type ElevationEntry = {
 
 type Props = {
   draft: ResumeDraft | null;
+  progress?: PreviewProgress;
+  generating?: boolean;
+  loadStartedAt?: number | null;
+  onRetry?: () => void;
 };
 
 /** Human-readable location for a diff, e.g. `第 1 段经历 · 第 3 条`. */
@@ -27,7 +34,13 @@ function describePath(path: string | undefined): string | null {
   return `${unit} · 第 ${Number(match[3]) + 1} 条`;
 }
 
-export function ElevationChangesPanel({ draft }: Props) {
+export function ElevationChangesPanel({
+  draft,
+  progress,
+  generating = false,
+  loadStartedAt = null,
+  onRetry,
+}: Props) {
   const entries = useMemo(
     () => (draft?.elevation_map ?? []) as ElevationEntry[],
     [draft?.elevation_map],
@@ -39,6 +52,12 @@ export function ElevationChangesPanel({ draft }: Props) {
     if (!filter) return entries;
     return entries.filter((e) => resolveTechniques(e.techniques).some((t) => t.id === filter));
   }, [entries, filter]);
+
+  if (generating) {
+    return (
+      <ElevatePreviewGenerating progress={progress} startedAt={loadStartedAt} onRetry={onRetry} />
+    );
+  }
 
   if (!draft) {
     return (

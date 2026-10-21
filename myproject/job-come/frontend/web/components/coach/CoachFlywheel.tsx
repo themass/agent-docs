@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { IconArrowRight, IconBookmark, IconCheck } from "@/components/ui/Icon";
+import { Select } from "@/components/ui/Select";
 import {
   createMockSession,
   completeMockSession,
@@ -276,8 +277,8 @@ export function CoachFlywheel({ profileId, jobId, practiceQid, disabled, onSessi
               </label>
               <label className="block">
                 <span className="label-meta">题型</span>
-                <select
-                  className="field mt-1.5"
+                <Select
+                  className="mt-1.5 w-full"
                   value={qType}
                   onChange={(e) => setQType(e.target.value)}
                 >
@@ -286,7 +287,7 @@ export function CoachFlywheel({ profileId, jobId, practiceQid, disabled, onSessi
                       {t.label}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
               <label className="block">
                 <span className="label-meta">我的回答</span>

@@ -11,12 +11,17 @@ from pathlib import Path
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", required=True, help="Path to HERMES_HOME/config.yaml")
-    parser.add_argument("--base-url", required=True, help="LLM proxy URL, e.g. http://127.0.0.1:8080/v1")
+    parser.add_argument("--base-url", required=True, help="LLM proxy URL, e.g. http://127.0.0.1:3011/v1")
     parser.add_argument("--model", required=True, help="Default model id")
     parser.add_argument(
         "--api-key",
         default="",
         help="If set, update custom_providers[].api_key (TencentDB sk-mem user_key)",
+    )
+    parser.add_argument(
+        "--align-auxiliary",
+        action="store_true",
+        help="Set auxiliary.*.base_url to --base-url (replaces legacy OpenInspector :8080)",
     )
     args = parser.parse_args()
 

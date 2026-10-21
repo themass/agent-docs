@@ -27,6 +27,12 @@ dependencies = [
     "pyyaml>=6.0.0",
     "mcp>=1.26,<2",
     "markitdown==0.1.5",
+    # Headshot normalisation (EXIF orientation, dimension ceiling, JPEG re-encode)
+    # in `jc.services.profile_photo_service`. Pinned to a floor rather than exact:
+    # the API surface used here (open/exif_transpose/thumbnail/save) has been stable
+    # for many major versions, and security fixes in an image decoder are exactly
+    # the updates that should not require a JC release to pick up.
+    "pillow>=11.0.0",
 ]
 
 [tool.uv.sources]
@@ -63,6 +69,13 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+# Alembic revisions are generated, then hand-edited only inside the upgrade body.
+# Reflowing the generated column definitions makes migrations harder to diff against
+# the model that produced them, and a long line there has never hidden a defect.
+# Everything except line length is still enforced here.
+"alembic/versions/*.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.12"

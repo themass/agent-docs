@@ -1,9 +1,12 @@
 # Pi Agent 设计思想导读（九幕）
+
+> **版本核验：2026-10-17 / Pi v1.3.0**。本目录当前源码结论固定到官方 tag `71023aec1546d6d677a65669c5665c0927ce0dd0`。旧文中的 `agent/src/harness/`、Lane/registers、`LeafEntry` 和 Prime/第三方生态不能视为 v1.3.0 的 core 实现；具体差异见 [版本核验与纠错](./VERSION_ALIGNMENT.md)。历史示例保留并就地标记，旧行号不作为当前定位依据。
+
 > **2026-10-15 源码校正**：原正文保留；请同时阅读本文末尾新增的当前源码补充和 [全景入口](./PI_SOURCE_DEEP_DIVE_2026.md)。涉及旧 Harness 路径、消息类型、第三方插件版本的描述不能直接视为当前实现。
 
 > **阅读方式**：先读本导读（~30 分钟）→ [ARCHITECTURE.md Part I](./ARCHITECTURE.md#part-i--高层架构) → Part II 源码深潜  
 > **树形 / JSONL**：[JSONL_TREE_GUIDE.md](./JSONL_TREE_GUIDE.md)  
-> **跨项目对照**：[CROSS_AGENT_CONCEPT_MAP.md](../../docs/agent-doc-template/CROSS_AGENT_CONCEPT_MAP.md)  
+> **跨项目对照**：CROSS_AGENT_CONCEPT_MAP.md（历史引用：`../../docs/agent-doc-template/CROSS_AGENT_CONCEPT_MAP.md`，当前文件不存在）
 > **外部参考**：[Pi 设计思想图解](https://mp.weixin.qq.com/s/WB24MCub0fosrhZOlEiSAQ)（微信公众号；本文以本仓库源码为准）
 
 ---
@@ -22,15 +25,20 @@ packages/agent/src/
 ├── agent-loop.ts         ← 无状态双层循环
 ├── stream-fn.ts          ← 模型流式边界
 ├── proxy.ts              ← 代理壳
-├── search/               ← 会话搜索边界
-└── harness/              ← 持久化运行时（Session、Lane、JSONL）
+├── index.ts              ← 公开导出
+└── types.ts              ← Agent/工具/事件契约
+
+packages/durable/src/      ← 独立的可恢复运行时，不在 agent 包里
+├── harness/              ← Harness、TaskScheduler、GenerationTask/ToolTask
+├── session/              ← Session、transaction
+└── storage/              ← memory / JSONL / SQLite
 ```
 
 | 模块 | 职责 | 源码 |
 |------|------|------|
 | **Agent** | 状态、队列、subscribe | `agent.ts` |
 | **Agent Loop** | turn 内 LLM ↔ 工具 | `agent-loop.ts` |
-| **Harness** | entries、lanes、commit | `harness/session/` |
+| **Durable Harness** | tasks、checkpoint、documents、commit | `packages/durable/src/harness/` + `session/` |
 | **coding-agent** | CLI、TUI、AgentSession 编排 | `packages/coding-agent/` |
 
 ### 深潜
@@ -129,7 +137,7 @@ flowchart TB
 
 | 模块 | 运行时依赖 | 类型依赖 |
 |------|------------|----------|
-| `AgentSession` | `Agent`, `SessionManager`, extensions | harness types |
+| `AgentSession` | `Agent`, `SessionManager`, extensions | coding-agent / agent types；不依赖已移除的 agent Harness |
 | `Agent` | `agent-loop`, `stream-fn` | `types.ts` tools |
 | `agent-loop` | `stream-fn`, tool execute | `AgentTool` 类型 |
 
@@ -148,7 +156,7 @@ toolCall
   → validateToolArguments
   → beforeToolCall → block? → blocked result
   → execute()
-  → tool_execution_update（流式参数 diff 等）
+  → tool_execution_update（工具执行进度；不是模型参数 delta）
   → afterToolCall
   → toolResult（可带 terminate: true）
 ```
@@ -159,7 +167,7 @@ toolCall
 | `toolExecution: "sequential"` | 逐个执行 |
 | `terminate: true` on all results | 可跳过下一轮自动 LLM（`hasMoreToolCalls = false`） |
 
-Harness 路径另有 **effect gate**（`harness/execution/effect-gate.ts`）：外部副作用在 drive pass 内受控准入。
+旧实验 Harness 的 `harness/execution/effect-gate.ts` 不存在于 v1.3.0。当前 Durable 使用 ToolTask 的 checkpoint 与重跑策略；不要把“保存副作用意图”理解为 exactly-once。详见 [后端深潜](./BACKEND_RUNTIME.md)。
 
 ### 深潜
 
@@ -225,7 +233,11 @@ sequenceDiagram
 
 ## 第 8 幕：Harness 让 Agent 变成可恢复的持久化运行时
 
-**一句话**：**Session + Lane + 三存储**，支撑崩溃恢复、并行 lane、长期运行。
+**一句话（v1.3.0）**：**Session + TaskScheduler + checkpoint + Storage** 支撑恢复；不是旧实验 Harness 的 Lane/registers 设计。
+
+当前链路：`Harness -> TaskScheduler -> GenerationTask / ToolTask / CompactionTask -> Session.commitWith -> Storage`。恢复任务阶段而非恢复 JS 调用栈；工具副作用可能已部分发生。
+
+> **以下“Lane / 三存储 / effect gate”对照保留为旧设计资料，不是 v1.3.0 可用 API。** 当前数据模型与任务恢复请读 [BACKEND_RUNTIME.md](./BACKEND_RUNTIME.md)。
 
 ### Session 结构（概念 → 源码）
 
@@ -271,7 +283,7 @@ commit intent（规划写入）
 | **Proxy** | 远程模型中转 |
 | **Extensions** | 工具、hook、mode、多 agent |
 
-近期增强（产品演进方向，以 changelog 为准）：parallel toolExecution、terminate hooks、search refactor。
+v1.3.0 保留 parallel toolExecution 与 terminate hooks；旧 `packages/agent/src/search/` 已不在发布源码中，不能按旧 search API 集成。
 
 ### 深潜
 
@@ -283,7 +295,7 @@ commit intent（规划写入）
 
 ```text
 1. 本文件（九幕）
-2. ARCHITECTURE Part I（图表权威）
+2. PI_SOURCE_DEEP_DIVE_2026（v1.3.0 全景）；再看 ARCHITECTURE Part I 的非历史章节
 3. JSONL_TREE_GUIDE（树 + 投影）
 4. RUNTIME_PROMPT / SKILLS_LIFECYCLE（按需）
 5. ARCHITECTURE Part II（改代码时）

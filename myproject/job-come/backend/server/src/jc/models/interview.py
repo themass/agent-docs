@@ -5,12 +5,12 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Date, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from jc.db.base import Base
 from jc.db.mixins import TimestampMixin
-from jc.db.types import JSONText
+from jc.db.types import JSONText, UTCDateTime
 from jc.models.enums import ApplicationStatus, MockSessionStatus, QuestionSource
 
 if TYPE_CHECKING:
@@ -55,7 +55,10 @@ class InterviewQuestion(Base, TimestampMixin):
     role_category: Mapped[str | None] = mapped_column(String(64), nullable=True)
     round: Mapped[str | None] = mapped_column(String(16), nullable=True)
     interview_record_id: Mapped[str | None] = mapped_column(
-        String(32), ForeignKey("jc_interview_record.id", ondelete="SET NULL"), nullable=True, index=True
+        String(32),
+        ForeignKey("jc_interview_record.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     job_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
     tags: Mapped[list[Any]] = mapped_column(JSONText, nullable=False, default=list)
@@ -72,7 +75,10 @@ class AnswerAttempt(Base, TimestampMixin):
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
     question_id: Mapped[str] = mapped_column(
-        String(32), ForeignKey("jc_interview_question.id", ondelete="CASCADE"), nullable=False, index=True
+        String(32),
+        ForeignKey("jc_interview_question.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     profile_id: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     mock_session_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
@@ -99,9 +105,11 @@ class MockSession(Base, TimestampMixin):
     question_ids: Mapped[list[Any]] = mapped_column(JSONText, nullable=False, default=list)
     bank_draw_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     generated_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    status: Mapped[str] = mapped_column(String(16), default=MockSessionStatus.ACTIVE, nullable=False)
-    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(16), default=MockSessionStatus.ACTIVE, nullable=False
+    )
+    started_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
     deerflow_thread_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
     profile: Mapped[Profile] = relationship(back_populates="mock_sessions")

@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { logout } from "@/lib/api/auth";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { isWorkbenchPath } from "@/lib/layout/workbench";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 
 /**
@@ -63,12 +64,15 @@ export function AppHeader() {
   const [pendingHref, setPendingHref] = useState<string | null>(null);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const navRef = useRef<HTMLElement>(null);
+  const accountRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setPendingHref(null);
     setOpenGroup(null);
     setMobileOpen(false);
+    setAccountMenuOpen(false);
   }, [pathname]);
 
   // Dismiss the group menu on outside click or Escape so it never traps focus.
@@ -88,6 +92,23 @@ export function AppHeader() {
     };
   }, [openGroup]);
 
+  // Same dismiss pattern for the account menu (holds 账户设置 / 关于 / 反馈 / 退出).
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+    function onDown(e: MouseEvent) {
+      if (!accountRef.current?.contains(e.target as Node)) setAccountMenuOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setAccountMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [accountMenuOpen]);
+
   async function onLogout() {
     await logout();
     await refresh();
@@ -104,10 +125,15 @@ export function AppHeader() {
   }
 
   const activeItem = ALL_ITEMS.find((i) => isActiveHref(pathname, i.href));
+  const workbench = isWorkbenchPath(pathname);
 
   return (
     <header className="sticky top-0 z-[10050] border-b border-surface-border bg-surface/85 backdrop-blur-xl backdrop-saturate-150">
-      <div className="mx-auto flex h-14 max-w-shell items-center gap-2 px-4 sm:gap-3">
+      <div
+        className={`mx-auto flex h-14 w-full items-center gap-2 sm:gap-3 ${
+          workbench ? "max-w-none px-3 sm:px-4" : "max-w-shell px-4"
+        }`}
+      >
         <Link
           href="/resume-agent"
           className="flex shrink-0 items-center gap-2 text-base font-semibold tracking-tight text-ink-900"
@@ -211,24 +237,99 @@ export function AppHeader() {
             <span className="h-7 w-16 animate-pulse rounded-md bg-ink-100" aria-hidden />
           ) : context?.actor === "user" ? (
             <>
+              {context.capabilities.includes("admin") ? (
+                <Link
+                  href="/admin/sessions"
+                  className={`btn btn-sm h-8 gap-1 px-2.5 ${
+                    pathname.startsWith("/admin")
+                      ? "bg-brand-50 text-brand-700"
+                      : "text-ink-600 hover:bg-ink-100 hover:text-ink-900"
+                  }`}
+                >
+                  管理后台
+                </Link>
+              ) : null}
               <NotificationCenter />
-              <Link
-                href="/settings/account"
-                className="btn btn-sm btn-ghost h-8 gap-2 px-1.5 pr-2.5"
-              >
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-100 text-micro font-semibold text-brand-700">
-                  {(context.user?.display_name || context.user?.email || "U").slice(0, 1).toUpperCase()}
-                </span>
-                <span className="hidden max-w-[120px] truncate sm:inline">
-                  {context.user?.display_name || "账户"}
-                </span>
-              </Link>
-              <button type="button" onClick={onLogout} className="btn btn-sm btn-ghost h-8">
-                退出
-              </button>
+              <div ref={accountRef} className="relative">
+                <button
+                  type="button"
+                  aria-expanded={accountMenuOpen}
+                  aria-haspopup="true"
+                  onClick={() => setAccountMenuOpen((v) => !v)}
+                  className="btn btn-sm btn-ghost h-8 gap-2 px-1.5 pr-2.5"
+                >
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-100 text-micro font-semibold text-brand-700">
+                    {(context.user?.display_name || context.user?.email || "U").slice(0, 1).toUpperCase()}
+                  </span>
+                  <span className="hidden max-w-[120px] truncate sm:inline">
+                    {context.user?.display_name || "账户"}
+                  </span>
+                  <svg
+                    className={`h-3 w-3 text-ink-400 transition ${accountMenuOpen ? "rotate-180" : ""}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    aria-hidden
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {accountMenuOpen ? (
+                  <div className="absolute right-0 top-full z-20 mt-1.5 w-44 animate-scale-in rounded-xl border border-surface-border bg-surface p-1.5 shadow-pop">
+                    <Link
+                      href="/settings/account"
+                      className={`block rounded-lg px-2.5 py-2 text-sm font-medium transition ${
+                        pathname === "/settings/account" ? "bg-brand-50 text-brand-700" : "text-ink-800 hover:bg-ink-50"
+                      }`}
+                    >
+                      账户设置
+                    </Link>
+                    <Link
+                      href="/feedback"
+                      className={`block rounded-lg px-2.5 py-2 text-sm font-medium transition ${
+                        pathname.startsWith("/feedback") ? "bg-brand-50 text-brand-700" : "text-ink-800 hover:bg-ink-50"
+                      }`}
+                    >
+                      反馈
+                    </Link>
+                    <Link
+                      href="/about"
+                      className={`block rounded-lg px-2.5 py-2 text-sm font-medium transition ${
+                        pathname === "/about" ? "bg-brand-50 text-brand-700" : "text-ink-800 hover:bg-ink-50"
+                      }`}
+                    >
+                      关于
+                    </Link>
+                    <div className="my-1 border-t border-surface-border" />
+                    <button
+                      type="button"
+                      onClick={onLogout}
+                      className="block w-full rounded-lg px-2.5 py-2 text-left text-sm font-medium text-ink-800 transition hover:bg-ink-50"
+                    >
+                      退出
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </>
           ) : (
             <>
+              <Link
+                href="/feedback"
+                className={`btn btn-sm btn-ghost hidden h-8 px-2.5 sm:inline-flex ${
+                  pathname.startsWith("/feedback") ? "bg-brand-50 text-brand-700" : "text-ink-600"
+                }`}
+              >
+                反馈
+              </Link>
+              <Link
+                href="/about"
+                className={`btn btn-sm btn-ghost hidden h-8 px-2.5 sm:inline-flex ${
+                  pathname === "/about" ? "bg-brand-50 text-brand-700" : "text-ink-600"
+                }`}
+              >
+                关于
+              </Link>
               <span className="hidden text-xs text-ink-500 sm:inline">访客</span>
               <Link href="/auth/login" className="btn btn-sm btn-primary h-8">
                 登录
@@ -263,6 +364,47 @@ export function AppHeader() {
               </div>
             </div>
           ))}
+          <div className="py-1">
+            <p className="label-meta px-2 py-1">其他</p>
+            <div className="grid grid-cols-2 gap-1 sm:grid-cols-3">
+              <Link
+                href="/feedback"
+                onClick={(e) => navClick(e, "/feedback")}
+                className={`rounded-lg px-2.5 py-2 text-sm font-medium transition ${
+                  isActiveHref(pathname, "/feedback")
+                    ? "bg-brand-50 text-brand-700"
+                    : "text-ink-700 hover:bg-ink-50"
+                }`}
+              >
+                反馈
+              </Link>
+              <Link
+                href="/about"
+                onClick={(e) => navClick(e, "/about")}
+                className={`rounded-lg px-2.5 py-2 text-sm font-medium transition ${
+                  pathname === "/about" ? "bg-brand-50 text-brand-700" : "text-ink-700 hover:bg-ink-50"
+                }`}
+              >
+                关于
+              </Link>
+            </div>
+          </div>
+          {context?.capabilities.includes("admin") ? (
+            <div className="py-1">
+              <p className="label-meta px-2 py-1">管理</p>
+              <Link
+                href="/admin/sessions"
+                onClick={(e) => navClick(e, "/admin/sessions")}
+                className={`inline-block rounded-lg px-2.5 py-2 text-sm font-medium transition ${
+                  pathname.startsWith("/admin")
+                    ? "bg-brand-50 text-brand-700"
+                    : "text-ink-700 hover:bg-ink-50"
+                }`}
+              >
+                管理后台
+              </Link>
+            </div>
+          ) : null}
         </nav>
       ) : null}
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -23,24 +24,27 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     configure_logging(json_logs=settings.jc_log_json, level=settings.jc_log_level)
+    from jc.observability.logging_setup import configure_application_logging
+
+    configure_application_logging(json_logs=settings.jc_log_json, level=settings.jc_log_level)
     from jc.llm.bootstrap import configure_litellm
     from jc.observability.langfuse_setup import setup_langfuse_callbacks
 
     configure_litellm()
     setup_langfuse_callbacks()
-    from jc.tasks import recover_stale_profile_parses
+    from jc.tasks import run_profile_parse_dispatcher
 
+    # The source table is the durable queue. Every API instance may poll it;
+    # database lease claims ensure one instance owns each parse attempt.
+    dispatcher = asyncio.create_task(run_profile_parse_dispatcher())
     try:
-        await recover_stale_profile_parses()
-    except Exception as exc:  # noqa: BLE001
-        # Recovery is best-effort. A transient database/DNS outage must not kill the
-        # API process and turn every frontend request into ECONNRESET. Database-backed
-        # endpoints will still fail visibly until the dependency is restored.
-        logger.warning(
-            "Startup stale-profile recovery deferred: database unavailable (%s)",
-            type(exc).__name__,
-        )
-    yield
+        yield
+    finally:
+        dispatcher.cancel()
+        try:
+            await dispatcher
+        except asyncio.CancelledError:
+            pass
 
 
 _api_prefix = settings.jc_api_prefix.rstrip("/")

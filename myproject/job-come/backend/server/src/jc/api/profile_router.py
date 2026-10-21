@@ -17,19 +17,21 @@ from fastapi import (
     Response,
     UploadFile,
 )
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from jc.api.cookies import set_guest_cookie
 from jc.api.deps import (
     get_actor,
     get_auth_service,
     get_evidence_service,
+    get_intake_service,
     get_profile_service,
     get_resume_service,
     get_writing_options_service,
     require_capability,
     require_user,
 )
+from jc.api.sse import ClosingStreamingResponse
 from jc.exceptions import ForbiddenError, NotFoundError
 from jc.models.enums import ElevationLevel
 from jc.schemas.evidence import (
@@ -37,10 +39,18 @@ from jc.schemas.evidence import (
     EvidenceAnswerResponse,
     EvidenceGapsResponse,
 )
+from jc.schemas.intake import (
+    IntakeAnswerRequest,
+    IntakeAnswerResponse,
+    IntakePlanResponse,
+    IntakeSplitRequest,
+    IntakeSplitResponse,
+)
 from jc.schemas.profile import (
     ProfileConfirmResponse,
     ProfileListResponse,
     ProfileResponse,
+    ProfileTextIngestRequest,
     ProfileUpdateRequest,
 )
 from jc.schemas.resume import (
@@ -56,12 +66,25 @@ from jc.schemas.writing_options import (
 )
 from jc.services.auth_service import AuthService
 from jc.services.evidence_service import EvidenceService
-from jc.services.profile_ingest_service import IngestValidationError
+from jc.services.intake_service import IntakeService
+from jc.services.profile_ingest_service import MAX_UPLOAD_BYTES, IngestValidationError
 from jc.services.profile_service import ProfileService
 from jc.services.resume_service import ResumeService
 from jc.services.writing_options_service import WritingOptionsService
 
 router = APIRouter(prefix="/profiles", tags=["profiles"])
+
+
+async def read_limited_upload(file: UploadFile) -> bytes:
+    """Read the upload incrementally and stop once it exceeds the ingest limit."""
+    chunks: list[bytes] = []
+    total = 0
+    while chunk := await file.read(min(1024 * 1024, MAX_UPLOAD_BYTES + 1 - total)):
+        chunks.append(chunk)
+        total += len(chunk)
+        if total > MAX_UPLOAD_BYTES:
+            raise IngestValidationError("File too large (max 15 MB)")
+    return b"".join(chunks)
 
 
 async def get_actor_with_guest(
@@ -119,7 +142,7 @@ async def upload_profile(
     actor: Actor = Depends(get_actor_with_guest),
     profiles: ProfileService = Depends(get_profile_service),
 ) -> ProfileResponse:
-    raw = await file.read()
+    raw = await read_limited_upload(file)
     result = await profiles.upload(
         actor=actor,
         file_name=file.filename or "resume.pdf",
@@ -128,6 +151,40 @@ async def upload_profile(
     )
     from jc.tasks import parse_profile_source
 
+    if result.sources:
+        background_tasks.add_task(parse_profile_source, result.id, result.sources[0].id)
+    return result
+
+
+@router.post(
+    "/from-text",
+    response_model=ProfileResponse,
+    summary="粘贴内容建档",
+    description=(
+        "把简历原文或一段自述直接转成档案草稿，适用于手上没有文件的情况。"
+        "与上传走同一条解析与确认流程，结果仍是 draft，需用户逐段确认。"
+    ),
+)
+async def ingest_profile_text(
+    body: ProfileTextIngestRequest,
+    background_tasks: BackgroundTasks,
+    actor: Actor = Depends(get_actor_with_guest),
+    profiles: ProfileService = Depends(get_profile_service),
+) -> ProfileResponse:
+    result = await profiles.ingest_text(
+        actor=actor,
+        raw_text=body.raw_text,
+        title=body.title,
+    )
+    from jc.tasks import parse_profile_source
+
+    # Same background hand-off as upload: structuring is a model call that can take
+    # minutes, and holding the request open for it is what the parse-progress UI and
+    # its polling exist to avoid.
+    #
+    # `sources[0]`, not `[-1]`: `_to_response` sorts newest first, so the last element
+    # is the user's *oldest* source — scheduling that one would re-parse a stale file
+    # and leave the text they just pasted queued forever.
     if result.sources:
         background_tasks.add_task(parse_profile_source, result.id, result.sources[0].id)
     return result
@@ -160,6 +217,73 @@ async def update_profile(
     profiles: ProfileService = Depends(get_profile_service),
 ) -> ProfileResponse:
     return await profiles.update(profile_id, actor=actor, body=body)
+
+
+@router.put(
+    "/{profile_id}/photo",
+    response_model=ProfileResponse,
+    summary="上传简历照片",
+    description=(
+        "接收**已在前端裁剪好**的图片（JPG / PNG / WebP，上限 6MB）。"
+        "服务端会校正 EXIF 方向、限制最长边并统一转成 JPEG。"
+        "`enabled` 控制是否在简历上渲染，默认 `false`——上传本身不会改变导出效果。"
+    ),
+)
+async def set_profile_photo(
+    profile_id: Annotated[str, Path(description="档案 ID")],
+    file: Annotated[UploadFile, File(description="裁剪后的照片（.jpg / .png / .webp）")],
+    enabled: Annotated[
+        bool,
+        Query(description="上传后是否立即在简历上显示。默认 false。"),
+    ] = False,
+    actor: Actor = Depends(get_actor),
+    profiles: ProfileService = Depends(get_profile_service),
+) -> ProfileResponse:
+    raw = await file.read()
+    return await profiles.set_photo(profile_id, actor=actor, raw=raw, enabled=enabled)
+
+
+@router.patch(
+    "/{profile_id}/photo",
+    response_model=ProfileResponse,
+    summary="切换照片是否显示",
+    description=(
+        "只改显示开关，保留已上传的照片——关掉再打开不需要重新上传和裁剪。"
+        "彻底移除请用 `DELETE`。\n\n"
+        "`enabled` 作用于中文简历；`show_in_bilingual` 单独控制中英双语版本，"
+        "默认关闭。英文版本（en-US）永不渲染照片，不受这两个开关影响。"
+    ),
+)
+async def toggle_profile_photo(
+    profile_id: Annotated[str, Path(description="档案 ID")],
+    enabled: Annotated[bool, Body(embed=True, description="是否在中文简历上显示照片")],
+    show_in_bilingual: Annotated[
+        bool | None,
+        Body(embed=True, description="中英双语版本是否也显示。留空表示不改动。"),
+    ] = None,
+    actor: Actor = Depends(get_actor),
+    profiles: ProfileService = Depends(get_profile_service),
+) -> ProfileResponse:
+    return await profiles.set_photo_enabled(
+        profile_id,
+        actor=actor,
+        enabled=enabled,
+        show_in_bilingual=show_in_bilingual,
+    )
+
+
+@router.delete(
+    "/{profile_id}/photo",
+    response_model=ProfileResponse,
+    summary="移除简历照片",
+    description="从档案里清除照片引用。已存储的图片对象保留，以便版本历史回滚仍能还原。",
+)
+async def delete_profile_photo(
+    profile_id: Annotated[str, Path(description="档案 ID")],
+    actor: Actor = Depends(get_actor),
+    profiles: ProfileService = Depends(get_profile_service),
+) -> ProfileResponse:
+    return await profiles.delete_photo(profile_id, actor=actor)
 
 
 @router.post(
@@ -246,6 +370,60 @@ async def submit_evidence_answers(
 
 
 @router.get(
+    "/{profile_id}/intake",
+    response_model=IntakePlanResponse,
+    summary="对话建档：下一批要问的问题",
+    description=(
+        "档案为空、只有骨架或已过期时，用一组确定性的有序问题把真实材料问出来。"
+        "问题由档案缺什么推导，不由模型自由发挥，因此会终止、不跑偏、关掉页面可续。"
+    ),
+)
+async def get_intake_plan(
+    profile_id: Annotated[str, Path(description="档案 ID")],
+    limit: Annotated[int, Query(ge=1, le=20, description="本批问题数量上限")] = 6,
+    actor: Actor = Depends(get_actor),
+    intake: IntakeService = Depends(get_intake_service),
+) -> IntakePlanResponse:
+    return await intake.get_plan(profile_id, actor=actor, limit=limit)
+
+
+@router.post(
+    "/{profile_id}/intake-answers",
+    response_model=IntakeAnswerResponse,
+    summary="对话建档：提交回答",
+    description=(
+        "把用户自己写的回答按问题指定的路径原样写入档案，并同时记录为证据。"
+        "只写问题声明的字段，不改写任何已有文字；档案仍需用户在核对步骤确认。"
+    ),
+)
+async def submit_intake_answers(
+    profile_id: Annotated[str, Path(description="档案 ID")],
+    body: IntakeAnswerRequest = Body(...),
+    actor: Actor = Depends(get_actor),
+    intake: IntakeService = Depends(get_intake_service),
+) -> IntakeAnswerResponse:
+    return await intake.submit_answers(profile_id, actor=actor, body=body)
+
+
+@router.post(
+    "/{profile_id}/intake-split",
+    response_model=IntakeSplitResponse,
+    summary="对话建档：把一段话拆成多条要点",
+    description=(
+        "用户一口气说了好几件事时，按他自己写的标点与列表符号拆成独立要点，并给出每条将写入的位置。"
+        "只预览不写入：拆分结果由用户确认或修改后，再作为普通回答提交。全程不经过模型。"
+    ),
+)
+async def split_intake_answer(
+    profile_id: Annotated[str, Path(description="档案 ID")],
+    body: IntakeSplitRequest = Body(...),
+    actor: Actor = Depends(get_actor),
+    intake: IntakeService = Depends(get_intake_service),
+) -> IntakeSplitResponse:
+    return await intake.split_answer(profile_id, actor=actor, body=body)
+
+
+@router.get(
     "/{profile_id}/writing-options",
     response_model=WritingOptionsResponse,
     summary="写作偏好与可选包装角度",
@@ -282,6 +460,21 @@ async def update_writing_options(
     return await options.update(profile_id, actor=actor, body=body, job_id=job_id)
 
 
+@router.get("/{profile_id}/export/review/stream", summary="导出前质检真实阶段进度")
+async def export_review_stream(
+    profile_id: str,
+    elevation_level: ElevationLevel = ElevationLevel.ELEVATED,
+    locale: str = "zh-CN",
+    draft_id: str | None = None,
+    actor: UserActor = Depends(require_user),
+    resumes: ResumeService = Depends(get_resume_service),
+) -> StreamingResponse:
+    events = await resumes.review_events(profile_id, actor=actor,
+        elevation_level=elevation_level.value, locale=locale, draft_id=draft_id)
+    return ClosingStreamingResponse(events, media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no"})
+
+
 @router.get(
     "/{profile_id}/export/review",
     summary="导出前 reviewer 预检",
@@ -293,7 +486,9 @@ async def export_review(
         Query(description="优化档位"),
     ] = ElevationLevel.ELEVATED,
     locale: Annotated[str, Query(description="zh-CN | en-US | zh-en")] = "zh-CN",
-    draft_id: Annotated[str | None, Query(description="指定已有优化稿；空则按 locale 回退最新稿")] = None,
+    draft_id: Annotated[
+        str | None, Query(description="指定已有优化稿；空则按 locale 回退最新稿")
+    ] = None,
     actor: UserActor = Depends(require_user),
     resumes: ResumeService = Depends(get_resume_service),
 ) -> dict:
@@ -346,6 +541,10 @@ async def elevate_preview(
     ] = ElevationLevel.ELEVATED,
     locale: Annotated[str, Query(description="zh-CN | en-US | zh-en")] = "zh-CN",
     job_id: Annotated[str | None, Query(description="按该岗位关键词拔高")] = None,
+    force: Annotated[
+        bool,
+        Query(description="为 true 时忽略缓存，按当前档案重新生成优化稿"),
+    ] = False,
     actor: Actor = Depends(require_capability("elevate_preview")),
     resumes: ResumeService = Depends(get_resume_service),
 ) -> ElevatePreviewResponse:
@@ -355,6 +554,28 @@ async def elevate_preview(
         elevation_level=elevation_level.value,
         locale=locale,
         job_id=job_id,
+        force=force,
+    )
+
+
+@router.get("/{profile_id}/elevate/preview/stream", summary="真实阶段反馈的预览生成流")
+async def elevate_preview_stream(
+    profile_id: str,
+    elevation_level: ElevationLevel = ElevationLevel.ELEVATED,
+    locale: str = "zh-CN",
+    job_id: str | None = None,
+    force: bool = False,
+    actor: Actor = Depends(require_capability("elevate_preview")),
+    resumes: ResumeService = Depends(get_resume_service),
+) -> StreamingResponse:
+    events = await resumes.preview_events(
+        profile_id, actor=actor, elevation_level=elevation_level.value,
+        locale=locale, job_id=job_id, force=force,
+    )
+    return ClosingStreamingResponse(
+        events,
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no"},
     )
 
 

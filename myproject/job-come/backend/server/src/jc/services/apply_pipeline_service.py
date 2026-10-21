@@ -40,7 +40,7 @@ class ApplyPipelineService:
         trace_id: str | None = None,
     ) -> ApplyPipelineResponse:
         if not isinstance(actor, UserActor):
-            raise AppError("Login required for apply pipeline", code="login_required")
+            raise AppError("投递流程需要先登录。", code="login_required")
 
         user_id = actor.user_id
         log_product_event(
@@ -54,7 +54,7 @@ class ApplyPipelineService:
         job_id = body.job_id
         if not job_id:
             if not body.raw_text:
-                raise AppError("Provide job_id or raw_text", code="invalid_request")
+                raise AppError("请提供职位链接或粘贴 JD 正文。", code="invalid_request")
             parsed = await self._jobs.parse_jd(
                 profile_id,
                 actor=actor,
@@ -66,7 +66,7 @@ class ApplyPipelineService:
             )
             job_id = parsed.id
             if not job_id:
-                raise AppError("Failed to save job", code="job_save_failed")
+                raise AppError("职位保存失败，请稍后重试。", code="job_save_failed")
 
         fit = await self._jobs.fit_score(
             profile_id,
@@ -90,36 +90,19 @@ class ApplyPipelineService:
             job_id=job_id,
         )
 
-        export_resp = None
         application_id = None
-        try:
-            export_resp = await self._resumes.export(
-                profile_id,
-                actor=actor,
-                body=ExportRequest(
-                    format=ExportFormat(body.export_format),
-                    elevation_level=ElevationLevel(body.elevation_level),
-                    draft_id=draft.id,
-                ),
-            )
-        except AppError as exc:
-            if exc.code != "reviewer_failed":
-                raise
-            log_product_event(
-                "apply_pipeline_reviewer_failed",
-                trace_id=trace_id,
-                user_id=user_id,
-                profile_id=profile_id,
-                job_id=job_id,
-                error=exc.message,
-            )
-            return ApplyPipelineResponse(
-                job_id=job_id,
-                fit=fit,
-                draft=draft.model_dump(mode="json"),
-                export={"error": exc.message, "code": exc.code},
-                application_id=None,
-            )
+        # No `reviewer_failed` branch: the reviewer no longer blocks an export, so the
+        # only way this raises is a genuine render/storage failure, which belongs to the
+        # caller. The draft's `reviewer_status` still records the verdict.
+        export_resp = await self._resumes.export(
+            profile_id,
+            actor=actor,
+            body=ExportRequest(
+                format=ExportFormat(body.export_format),
+                elevation_level=ElevationLevel(body.elevation_level),
+                draft_id=draft.id,
+            ),
+        )
 
         if body.create_application and export_resp and export_resp.status == "done":
             app = await self._applications.mark_applied(
@@ -158,7 +141,7 @@ class ApplyPipelineService:
         profile = await self._profiles.get(profile_id, actor=actor)
         job = await self._job_store.get_by_id(job_id)
         if job is None or job.profile_id != profile_id:
-            raise NotFoundError("Job not found")
+            raise NotFoundError("职位不存在或已删除。", code="job_not_found")
         return {
             "profile_summary": (profile.payload.summary or "")[:500],
             "job": {

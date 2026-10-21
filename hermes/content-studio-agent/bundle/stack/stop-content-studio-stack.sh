@@ -61,6 +61,7 @@ NOTEBOOK_API_PORT="${NOTEBOOK_API_PORT:-5055}"
 NOTEBOOK_FRONTEND_PORT="${NOTEBOOK_FRONTEND_PORT:-3001}"
 MPT_API_PORT="${MPT_API_PORT:-8082}"
 MPT_WEBUI_PORT="${MPT_WEBUI_PORT:-8501}"
+FREELLMAPI_PORT="${FREELLMAPI_PORT:-3011}"
 OPENINSPECTOR_PROXY_PORT="${OPENINSPECTOR_PROXY_PORT:-8080}"
 OPENINSPECTOR_API_PORT="${OPENINSPECTOR_API_PORT:-8081}"
 OPENINSPECTOR_UI_PORT="${OPENINSPECTOR_UI_PORT:-5173}"
@@ -116,6 +117,18 @@ stop_port_listeners() {
 }
 
 log "Stopping Content Studio stack..."
+
+stop_pid_file "$STACK_RUNTIME" freellmapi
+stop_pid_file "$STACK_RUNTIME" memory-core
+stop_pid_file "$STACK_RUNTIME" memory-proxy
+stop_port_listeners "$FREELLMAPI_PORT" "FreeLLMAPI"
+stop_port_listeners "${MEMORY_CORE_PORT:-8420}" "TencentDB Memory Core"
+stop_port_listeners "${MEMORY_PROXY_PORT:-8096}" "TencentDB Memory Proxy"
+pkill -f "MemoryCore.*gateway/server" 2>/dev/null || true
+pkill -f "MemoryProxy.*src/index.ts" 2>/dev/null || true
+if [[ -d "${FREELLMAPI_INSTALL_DIR:-$HOME/freellmapi}" ]] && command -v docker >/dev/null 2>&1; then
+  (cd "${FREELLMAPI_INSTALL_DIR:-$HOME/freellmapi}" && docker compose stop 2>/dev/null) || true
+fi
 
 if [[ -x "$OPENINSPECTOR_DIR/scripts/dev-local.sh" ]]; then
   PROXY_PORT="$OPENINSPECTOR_PROXY_PORT" API_PORT="$OPENINSPECTOR_API_PORT" UI_PORT="$OPENINSPECTOR_UI_PORT" \
@@ -212,6 +225,7 @@ if command -v lsof >/dev/null 2>&1; then
     "${NOTEBOOK_FRONTEND_PORT}:Notebook Web UI" \
     "${MPT_API_PORT}:MPT API" \
     "${MPT_WEBUI_PORT}:MPT WebUI" \
+    "${FREELLMAPI_PORT}:FreeLLMAPI" \
     "${OPENINSPECTOR_PROXY_PORT}:OpenInspector Proxy" \
     "${OPENINSPECTOR_API_PORT}:OpenInspector API" \
     "${OPENINSPECTOR_UI_PORT}:OpenInspector UI" \

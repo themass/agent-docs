@@ -31,6 +31,10 @@ class AgentSessionListItem(BaseModel):
     kind: str
     status: str
     profile_id: str | None
+    title: str | None = Field(
+        default=None,
+        description="First user message snippet for session list display",
+    )
     created_at: datetime
     updated_at: datetime
 
@@ -46,6 +50,21 @@ class AgentAttachment(BaseModel):
     mime_type: str | None = None
     data_url: str | None = Field(default=None, description="Base64 data URL for images/audio")
     text_preview: str | None = Field(default=None, description="Extracted text for documents")
+    # Voice clips only. The browser does the speech-to-text (Web Speech API) and sends
+    # both: the clip is the archive, the transcript is what the model reads. Stored on
+    # the attachment rather than only inside `content`, so a replayed turn can still say
+    # which words came out of which recording instead of leaving an orphan audio player.
+    transcript: str | None = Field(
+        default=None,
+        max_length=4_000,
+        description="Browser speech-to-text for an audio attachment",
+    )
+    duration_ms: int | None = Field(
+        default=None,
+        ge=0,
+        le=6 * 60 * 60 * 1000,
+        description="Recorded length of an audio attachment",
+    )
 
 
 class AgentUiFocus(BaseModel):

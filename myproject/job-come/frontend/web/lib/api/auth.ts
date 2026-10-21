@@ -5,6 +5,7 @@ export type UserContext = {
   email: string;
   email_verified: boolean;
   display_name: string | null;
+  role: "user" | "admin";
 };
 
 export type AuthContext = {

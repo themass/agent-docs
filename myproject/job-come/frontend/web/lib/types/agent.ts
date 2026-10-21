@@ -5,9 +5,38 @@ export type AgentAttachment = {
   name: string;
   label?: string | null;
   mime_type?: string | null;
+  /** Present while the message is being composed and on the live turn only. */
   data_url?: string | null;
   text_preview?: string | null;
+  /** Object-storage key. Set on replayed history, where the bytes are not inline. */
+  storage_key?: string | null;
+  /** Signed URL re-issued by the server on every read; short-lived. */
+  download_url?: string | null;
+  size_bytes?: number | null;
+  /**
+   * Audio only. Browser speech-to-text; there is no server-side STT in this version,
+   * so these words are the only readable form of the clip and the only thing the model
+   * sees. Sent alongside the recording and stored on the same row.
+   */
+  transcript?: string | null;
+  duration_ms?: number | null;
+  /** Set by the server when the clip could not be archived to object storage. */
+  storage_error?: boolean | null;
 };
+
+/** Human-readable clip length, for the voice bubble. */
+export function formatClipDuration(ms?: number | null): string | null {
+  if (!ms || ms < 1000) return null;
+  const total = Math.round(ms / 1000);
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  return minutes > 0 ? `${minutes}分${String(seconds).padStart(2, "0")}秒` : `${seconds}秒`;
+}
+
+/** Where the bytes live for this attachment: inline while composing, signed after. */
+export function attachmentSrc(att: AgentAttachment): string | null {
+  return att.data_url ?? att.download_url ?? null;
+}
 
 export type AgentSession = {
   id: string;
@@ -50,7 +79,19 @@ export type AgentStreamEvent =
       actual?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
     }
   | { type: "error"; message?: string }
+  /**
+   * The run is waiting for the single harness slot. Transient and not persisted: it
+   * describes this moment, not the turn. Without it a queued run looks identical to a
+   * hung one — the server is silent either way.
+   */
+  | { type: "queued"; waited_sec?: number; ahead?: number }
   | { type: "done" }
+  /**
+   * Transport-level keep-alive (`jc/api/sse.py`). `coach`/`writer` can legitimately
+   * run for minutes across a failover chain; a ping is how the client tells "still
+   * connected, still working" apart from "nothing is coming back". Never persisted.
+   */
+  | { type: "ping" }
   | {
       type: "confirm";
       confirm_id?: string;
@@ -60,8 +101,16 @@ export type AgentStreamEvent =
     };
 
 export type AgentDisplayItem =
-  | { id: string; kind: "user"; content: string; attachments?: AgentAttachment[] }
-  | { id: string; kind: "assistant"; content: string; streaming?: boolean }
+  | {
+      id: string;
+      kind: "user";
+      content: string;
+      attachments?: AgentAttachment[];
+      /** Set when the turn this message started never produced a reply. Drives the
+       * retry affordance on the bubble; cleared once a retry is sent. */
+      failed?: boolean;
+    }
+  | { id: string; kind: "assistant"; content: string; streaming?: boolean; reveal?: boolean }
   | { id: string; kind: "skill"; name: string }
   | { id: string; kind: "thinking"; content: string }
   | { id: string; kind: "tool_start"; name: string; args?: unknown }
@@ -77,7 +126,7 @@ export type AgentDisplayItem =
       profileId?: string;
       patch?: Record<string, unknown>;
       preview?: Record<string, unknown>;
-      status: "pending" | "applied" | "rejected";
+      status: "pending" | "applied" | "rejected" | "superseded";
     };
 
 export type TokenUsageTotals = {
@@ -101,6 +150,13 @@ export type AgentContextUsage = {
   buckets: AgentContextBucket[];
   turns: number;
   actual?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
+};
+
+/** Live wait while the run sits behind other users' runs. */
+export type AgentQueueWait = {
+  waitedSec: number;
+  /** Runs ahead of this one. 0 means it is next. */
+  ahead: number;
 };
 
 export type QueuedAgentMessage = {

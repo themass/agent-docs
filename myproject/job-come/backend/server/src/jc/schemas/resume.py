@@ -33,6 +33,15 @@ class ElevatePreviewResponse(BaseModel):
     #: Screening measurements (length, bullet count, keyword coverage). Advisory only;
     #: step 3 surfaces the length half, where the user can still change the outcome.
     diagnostics: dict[str, Any] | None = None
+    #: What the document-level composition pass did (section order, bullet promotions,
+    #: scope-line coverage) and the structural defects it could not fix itself. This is
+    #: the answer to "what changed beyond the wording" — without it the user reads a
+    #: reordered, re-framed document as nothing but per-sentence polish.
+    structure: dict[str, Any] | None = None
+    #: The role family's document blueprint and a per-requirement pass/fail for this
+    #: draft. This is how "不同岗位有不同的方法论" becomes visible: the user reads the bar
+    #: their resume is being judged against, and which parts of it are not yet met.
+    blueprint: dict[str, Any] | None = None
 
 
 class ExportRequest(BaseModel):

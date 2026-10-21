@@ -1,4 +1,7 @@
 # Pi 会话 JSONL 与 Entry 树导读
+
+> **版本核验：2026-10-17 / Pi v1.3.0**。本目录当前源码结论固定到官方 tag `71023aec1546d6d677a65669c5665c0927ce0dd0`。旧文中的 `agent/src/harness/`、Lane/registers、`LeafEntry` 和 Prime/第三方生态不能视为 v1.3.0 的 core 实现；具体差异见 [版本核验与纠错](./VERSION_ALIGNMENT.md)。历史示例保留并就地标记，旧行号不作为当前定位依据。
+
 > **2026-10-15 源码校正**：原正文保留；请同时阅读本文末尾新增的当前源码补充和 [全景入口](./PI_SOURCE_DEEP_DIVE_2026.md)。涉及旧 Harness 路径、消息类型、第三方插件版本的描述不能直接视为当前实现。
 
 > **定位**：图解第 8 幕的 **专用入口**——用树形示意理解 `entries`、压缩与投影。  
@@ -12,7 +15,7 @@
 |------|------|------|
 | 产品 / 架构 | 本文 §2 树图 | DESIGN_THINKING_SERIES 第 8 幕 |
 | 集成方 | §3 JSONL 行类型 | ARCHITECTURE §3 完整 jsonl |
-| 改存储的开发者 | `harness/session/jsonl/` | `session-manager` 迁移 §3.2 |
+| 改存储的开发者 | `coding-agent/core/session-manager.ts` 或 `durable/src/storage/` | 两套格式分开理解，见 §10 |
 
 ---
 
@@ -31,11 +34,10 @@ null
                                └── …
                                     └── 00000010  compaction  ← 摘要节点
                                          └── 00000011  user: "加 health check"
-                                              └── 00000012  assistant
-                                                   └── 00000013  leaf
+                                              └── 00000012  assistant  ← leafId 指向这里；不是额外一行
 ```
 
-**Leaf**：标记当前分支尖端；切换分支时 fork 出新子树。
+**leafId**：SessionManager 当前活动分支的游标，不是 `type: "leaf"` entry。切换分支不必立刻产生新节点；后续追加消息才沿选定节点延伸。
 
 ---
 
@@ -48,10 +50,12 @@ null
 | `compaction` | 上下文压缩摘要 | 变为 `CompactionSummaryMessage` |
 | `branch_summary` | 分支摘要 | 按策略 |
 | `thinking_level_change` | 推理档位 | 否 |
-| `leaf` | 分支尖端指针 | 否 |
-| `custom` | 扩展类型 | 由 `EntryProjector` 决定 |
+| `usage` | 独立用量记录 | 否 |
+| `context_edit` | 上下文内容编辑 | 通过投影应用，而非新增普通消息 |
+| `custom` | 扩展状态 | 否 |
+| `custom_message` | 扩展注入的消息 | 是（经 convertToLlm） |
 
-当前 schema 类型定义：`packages/agent/src/harness/session/types.ts`（`Entry`、`MessageEntry`、`CompactionEntry`）。
+当前 CLI schema 类型定义：`packages/coding-agent/src/core/session-manager.ts`（`SessionEntry`、`SessionMessageEntry`、`CompactionEntry`）；header 不属于 SessionEntry。完整枚举见 §10.1。旧 `EntryProjector` 不适用于此处。
 
 ---
 
@@ -70,7 +74,9 @@ LLM messages[] =
 
 ---
 
-## 5. 三种持久化（对照图解）
+## 5. 三种持久化（旧实验 Harness 对照，非 v1.3.0）
+
+> 以下 entries/registers/usage 三分法是历史资料。v1.3.0 Durable 的五类记录是 conversation、entry、task、submission、document；CLI 是独立的 session v3 JSONL。
 
 | 图解名 | Pi 机制 | 写入 API |
 |--------|---------|----------|
@@ -82,7 +88,9 @@ LLM messages[] =
 
 ---
 
-## 6. Lane 与并行
+## 6. Lane 与并行（旧实验 Harness，非 v1.3.0）
+
+> 当前不能引用 `LaneConfiguration` 或 `harness/runtime/lane.ts`；Durable 的并发/恢复入口是 TaskScheduler 与 task ownership，见 [后端深潜](./BACKEND_RUNTIME.md)。
 
 | Lane 示例 | 用途 |
 |-----------|------|
@@ -111,9 +119,9 @@ LLM messages[] =
 
 | 要查 | 路径 |
 |------|------|
-| Entry 类型 | `harness/session/types.ts` |
-| JSONL codec | `harness/session/jsonl/` |
-| Commit 批量写 | `harness/session/commit.ts` |
+| CLI Entry 类型/JSONL | `packages/coding-agent/src/core/session-manager.ts` |
+| Durable JSONL | `packages/durable/src/storage/jsonl/storage.ts` |
+| Durable 批量提交 | `packages/durable/src/session/session.ts` + `transaction.ts` |
 | Session 编排 | `coding-agent` SessionManager |
 | 投影为 LLM | `messages.ts` / Part II §2 |
 
@@ -129,7 +137,7 @@ LLM messages[] =
 
 ## 10. 当前源码校正：两种 JSONL，不是一份 schema（2026-10-15）
 
-本节追加校正，前文保留作历史导读。当前 CLI 的 schema 来自 [`core/session-manager.ts`](../../pi/packages/coding-agent/src/core/session-manager.ts)，不是已经不存在的 `agent/src/harness/session/types.ts`。
+本节追加校正，前文保留作历史导读。当前 CLI 的 schema 来自 [`core/session-manager.ts`](https://github.com/earendil-works/pi/blob/v1.3.0/packages/coding-agent/src/core/session-manager.ts)，不是已经不存在的 `agent/src/harness/session/types.ts`。
 
 ### 10.1 CLI session v3 的实际类型
 
@@ -166,4 +174,19 @@ Durable 的 `storage/jsonl/storage.ts` 保存 `main.jsonl` commit markers 及 ta
 
 CLI `_persist()` 在已有 conversation 且未 flushed 时以 `wx` 创建文件、写入所有已缓存 entries；以后 append 新 entry。普通 append 不在这里显式执行 fsync，不能把“写 JSONL”理解为数据库级事务或任意掉电条件下持久保证。
 
-源码：[`SessionManager._persist`](../../pi/packages/coding-agent/src/core/session-manager.ts)、[`JsonlStorage.commit`](../../pi/packages/durable/src/storage/jsonl/storage.ts)。
+源码：[`SessionManager._persist`](https://github.com/earendil-works/pi/blob/v1.3.0/packages/coding-agent/src/core/session-manager.ts)、[`JsonlStorage.commit`](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/storage/jsonl/storage.ts)。
+
+
+### 10.4 v1.3.0 当前字段的最小 JSONL 示例
+
+下面给出一段**结构示例**，替代把旧 `leaf` 样本照抄成当前文件：provider/model 与 usage 数值均为占位，不代表真实模型调用，也不是完整生产导出。它展示 header、parentId、arguments、toolName、stopReason 和当前 usage 字段。逐行 JSON 与父节点引用已检查，但没有执行 Pi 导入或 Provider 请求。
+
+```jsonl
+{"type":"session","version":3,"id":"a1b2c3d4-e5f6-4890-abcd-ef1234567890","timestamp":"2026-10-17T00:00:00.000Z","cwd":"/example/project"}
+{"type":"message","id":"00000001","parentId":null,"timestamp":"2026-10-17T00:00:00.000Z","message":{"role":"user","content":"读取 README.md","timestamp":1792195200000}}
+{"type":"message","id":"00000002","parentId":"00000001","timestamp":"2026-10-17T00:00:00.000Z","message":{"role":"assistant","api":"openai-completions","provider":"example","model":"example-model","usage":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"totalTokens":0,"cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"total":0}},"timestamp":1792195200000,"content":[{"type":"toolCall","id":"call_1","name":"read","arguments":{"path":"README.md"}}],"stopReason":"toolUse"}}
+{"type":"message","id":"00000003","parentId":"00000002","timestamp":"2026-10-17T00:00:00.000Z","message":{"role":"toolResult","toolCallId":"call_1","toolName":"read","content":[{"type":"text","text":"# Example"}],"isError":false,"timestamp":1792195200000}}
+{"type":"message","id":"00000004","parentId":"00000003","timestamp":"2026-10-17T00:00:00.000Z","message":{"role":"assistant","api":"openai-completions","provider":"example","model":"example-model","usage":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"totalTokens":0,"cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"total":0}},"timestamp":1792195200000,"content":[{"type":"text","text":"README 的标题是 Example。"}],"stopReason":"stop"}}
+```
+
+这里 `leafId` 指向 `00000004`；磁盘不另写 `type: "leaf"`。真实请求还可能有模型/推理设置、system messages、usage、context edits、压缩等条目；完整联合类型仍以固定版本的 [session-manager.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/coding-agent/src/core/session-manager.ts) 和 [ai/types.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/ai/src/types.ts) 为准。

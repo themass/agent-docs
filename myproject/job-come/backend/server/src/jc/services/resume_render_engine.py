@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+import base64
 import io
+import logging
 from pathlib import Path
 from typing import Any
 
 from docx import Document
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
-from docx.shared import Cm, Pt, RGBColor
+from docx.shared import Cm, Mm, Pt, RGBColor
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+
+logger = logging.getLogger(__name__)
 
 _TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "templates" / "resume"
 
@@ -105,6 +110,7 @@ class ResumeRenderEngine:
         # Section order mirrors the HTML templates so PDF, HTML and Word stay consistent.
         labels = _DOCX_LABELS_EN if english else _DOCX_LABELS_ZH
         header = sections.get("header") or {}
+        _append_docx_photo(doc, header)
         doc.add_heading(str(header.get("name", "")), level=0)
         if header.get("headline"):
             doc.add_paragraph(str(header["headline"]))
@@ -124,6 +130,11 @@ class ResumeRenderEngine:
             )
             if meta:
                 doc.add_paragraph(meta)
+            # 先总后分: the scope line must survive into Word too. Word exports go to
+            # recruiters who paste into an ATS, so a layer that exists only in HTML/PDF
+            # would silently make the DOCX the weaker document.
+            if exp.get("scope_line"):
+                doc.add_paragraph(str(exp["scope_line"]))
             for bullet in exp.get("bullets", []):
                 doc.add_paragraph(str(bullet), style="List Bullet")
 
@@ -131,7 +142,7 @@ class ResumeRenderEngine:
             doc.add_heading(labels["projects"], level=1)
         for project in sections.get("project_blocks") or []:
             doc.add_heading(str(project.get("name", "")), level=2)
-            for key in ("date_range", "description"):
+            for key in ("date_range", "scope_line", "description"):
                 if project.get(key):
                     doc.add_paragraph(str(project[key]))
             for bullet in project.get("bullets") or []:
@@ -153,3 +164,35 @@ class ResumeRenderEngine:
         if skills.get("content"):
             doc.add_heading(str(skills.get("title") or labels["skills"]), level=1)
             doc.add_paragraph(str(skills["content"]))
+
+def _append_docx_photo(doc: Document, header: dict[str, Any]) -> None:
+    """Insert the headshot above the name, when one is set.
+
+    Word has no equivalent of the HTML masthead's flex row without dropping into a
+    borderless table, which brings its own ATS extraction risks (some parsers read
+    table cells out of order and would scramble the name and contact line). A
+    right-aligned image in its own paragraph keeps the document a linear sequence of
+    paragraphs, which is what every resume parser handles correctly.
+
+    `data:` URI rather than a path because that is the one form the sections carry
+    (the HTML/PDF renderer needs it inlined, see `profile_photo_service`), so DOCX
+    reuses it instead of adding a second source for the same bytes.
+
+    Any failure is swallowed: a decorative image must never be the reason a user
+    cannot download their resume.
+    """
+    data_uri = header.get("photo_data_uri")
+    if not isinstance(data_uri, str) or not data_uri.startswith("data:"):
+        return
+    try:
+        _, payload = data_uri.split(",", 1)
+        raw = base64.b64decode(payload, validate=True)
+        if not raw:
+            return
+        paragraph = doc.add_paragraph()
+        paragraph.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        # 25mm wide matches the HTML template's print size, so PDF and Word put the
+        # same photo at the same scale. Height follows the image's own ratio.
+        paragraph.add_run().add_picture(io.BytesIO(raw), width=Mm(25))
+    except Exception:  # noqa: BLE001
+        logger.warning("docx headshot embed failed", exc_info=True)

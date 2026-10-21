@@ -1,14 +1,16 @@
 # Pi 文档中心
 
 > monorepo 路径：`pi/` · 源码级架构整理
-> **源码基线补充**：当前本地 Pi commit `1729ff447841e7666159a6f8bf70fbd6bac05642`（2026-10-15，workspace 版本 1.2.0）。先阅读 [PI_SOURCE_DEEP_DIVE_2026.md](./PI_SOURCE_DEEP_DIVE_2026.md)，它补充了 Durable、Chord、MCP、Code Mode、远程环境和版本边界。
+> **已对齐最新发布版（2026-10-17 核验）**：官方 `v1.3.0`，tag commit `71023aec1546d6d677a65669c5665c0927ce0dd0`，北京时间 2026-10-16 03:17:33 发布。上一轮实际基于本地 `1.2.0`，不是最新版。先读 [版本核验与差异修正](./VERSION_ALIGNMENT.md)，再读 [源码全景](./PI_SOURCE_DEEP_DIVE_2026.md)。`main` 的未发布变化单列，不混入发布版结论。
 
 ## 推荐阅读路径
 
 ```text
-① DESIGN_THINKING_SERIES（九幕图解导读，~30min）
+⓪ VERSION_ALIGNMENT（版本事实、历史章节边界）
+① V1.3-durable（v1.3 + Durable 统一设计文档）
+② PI_SOURCE_DEEP_DIVE_2026（当前源码全景）；DESIGN_THINKING_SERIES（图解导读）
 ② JSONL_TREE_GUIDE（会话树 + 持久化）
-③ ARCHITECTURE Part I（图表权威）
+③ ARCHITECTURE Part I（综合专题，注意历史示例标记）
 ④ 专题：EXTENSIONS · SKILLS · RUNTIME_PROMPT
 ⑤ ARCHITECTURE Part II（改代码时深潜）
 ```
@@ -22,6 +24,8 @@
 
 | 文档 | 说明 |
 |------|------|
+| [**V1.3-durable.md**](./V1.3-durable.md) | **v1.3 + pi-durable 统一设计文档**：参考 v1.2 ARCHITECTURE 的细节密度，补充是什么、为什么、设计思考、图表、示例和源码索引 |
+| [**VERSION_ALIGNMENT.md**](./VERSION_ALIGNMENT.md) | **先读**：v1.3.0 官方发布核验、与旧快照的源码差异、main 未发布变化、历史纠错 |
 | [**PI_SOURCE_DEEP_DIVE_2026.md**](./PI_SOURCE_DEEP_DIVE_2026.md) | **最新源码级全景补充**：11 包地图、两条执行路径、Durable 后端/恢复、MCP/Code Mode/Chord/env |
 | [**BACKEND_RUNTIME.md**](./BACKEND_RUNTIME.md) | **后端深潜**：提交协议、任务 phase、工具副作用、恢复和 JSONL/SQLite |
 | [**RUNTIME_SERVICES.md**](./RUNTIME_SERVICES.md) | **运行时支撑**：cwd 重绑定、设置、资源/包发现、模型认证与诊断 |
@@ -30,7 +34,7 @@
 | [**DESIGN_THINKING_SERIES.md**](./DESIGN_THINKING_SERIES.md) | **九幕设计导读**（Agent/Loop、双循环、steer/follow-up、Harness） |
 | [**diagrams/design-thinking-series.html**](./diagrams/design-thinking-series.html) | **九幕图解页**（蓝白速览，可浏览器打开） |
 | [**JSONL_TREE_GUIDE.md**](./JSONL_TREE_GUIDE.md) | Entry 树、JSONL 行类型、三存储 |
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | Part I/II 完整架构（3000+ 行，深潜权威） |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | Part I/II 综合架构（历史 Harness/SQL 示例已就地标记；当前版本以源码全景为准） |
 | [EXTENSIONS.md](./EXTENSIONS.md) | 扩展、多 Agent、Plan |
 | [SKILLS_LIFECYCLE.md](./SKILLS_LIFECYCLE.md) | Skills 生命周期 |
 | [RUNTIME_PROMPT.md](./RUNTIME_PROMPT.md) | 运行时 Prompt |
@@ -38,9 +42,9 @@
 
 ## 跨项目
 
-- [pi-architecture/README.md](../pi-architecture/README.md)（Pi 文档总入口）
-- [CROSS_AGENT_DESIGN_INDEX.md](../CROSS_AGENT_DESIGN_INDEX.md)
-- [CROSS_AGENT_CONCEPT_MAP.md](../agent-doc-template/CROSS_AGENT_CONCEPT_MAP.md)
+- [pi-architecture/README.md](./pi-architecture/README.md)（Pi 文档总入口）
+- CROSS_AGENT_DESIGN_INDEX.md（历史引用：`../CROSS_AGENT_DESIGN_INDEX.md`，当前文件不存在）
+- CROSS_AGENT_CONCEPT_MAP.md（历史引用：`../agent-doc-template/CROSS_AGENT_CONCEPT_MAP.md`，当前文件不存在）
 
 ## 外部参考
 
@@ -48,4 +52,4 @@
 
 ## 路径迁移后的本地导航补充
 
-上面的跨项目链接保留原文；其中部分对应旧目录。当前 Pi 栈入口位于 [pi-agent/pi-architecture/README.md](./pi-architecture/README.md)。跨项目索引若已移动，请通过仓库目录定位，不把历史失效链接视为源码不存在。
+已修复可定位的跨项目链接；已不存在的历史索引保留为文字路径，不再作为有效链接。当前 Pi 栈入口位于 [pi-agent/pi-architecture/README.md](./pi-architecture/README.md)。跨项目索引若已移动，请通过仓库目录定位，不把历史失效链接视为源码不存在。

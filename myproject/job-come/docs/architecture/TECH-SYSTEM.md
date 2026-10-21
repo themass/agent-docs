@@ -52,15 +52,30 @@ docs/                           # 仅保留当前规范与历史归档
 
 ## 3. 服务端模块边界
 
-| 位置 | 责任 |
-|---|---|
-| `backend/server/src/jc/main.py` | FastAPI 应用、生命周期与 API 前缀 |
-| `backend/server/src/jc/api/` | HTTP/SSE 路由、请求校验、认证与响应模型 |
-| `backend/server/src/jc/services/` | 业务编排：档案、简历、JD、面试、会话、导出 |
-| `backend/server/src/jc/stores/` | MySQL/Redis 资源访问与归属隔离 |
-| `backend/server/src/jc/mcp/` | 受限 `jc_*` MCP 工具与权限检查 |
-| `backend/server/src/jc/llm/` | 模型路由、调用与本地 LiteLLM 初始化 |
-| `backend/server/src/jc/storage_*` | TOS/S3 与本地开发存储适配 |
+依赖方向是**单向**的，且由 `backend/server/tests/test_architecture_layers.py` 强制执行。
+完整契约与理由见 [`../decisions/ADR-004-layered-agent-architecture.md`](../decisions/ADR-004-layered-agent-architecture.md)。
+
+| 位置 | 责任 | 不得依赖 |
+|---|---|---|
+| `src/jc/main.py` | FastAPI 应用、生命周期与 API 前缀 | — |
+| `src/jc/api/` | HTTP/SSE 入站适配器：路由、校验、认证、响应模型 | — |
+| `src/jc/mcp/` | Agent 工具入站适配器：`jc_*` 工具的参数解析与委派 | `api/`、`diagnostics/` |
+| `src/jc/services/` | 业务编排（有状态、有 I/O）：档案、简历、JD、面试、会话、导出 | `mcp/`、`api/`、`diagnostics/` |
+| `src/jc/agent/` | 角色定义、工具目录、消息成形 | `mcp/`、`api/`、`diagnostics/` |
+| `src/jc/skills/` | 按角色组装 prompt（宿主侧组装，不靠模型读文件） | `services/`、`mcp/`、`api/`、`agent/` |
+| `src/jc/llm/` | 模型路由、传输、failover、审计日志、多模态线格式 | `services/`、`mcp/`、`api/`、`agent/`、`adapters/` |
+| `src/jc/stores/` | MySQL/Redis 资源访问与归属隔离 | 以上所有编排层 |
+| `src/jc/domain/` | 纯方法论：岗位 playbook、结构规则、评分启发式。**零 I/O** | 一切有状态的层 |
+| `src/jc/authz/` | `RunScope` 与归属守卫，失败即闭合 | 一切编排层 |
+| `src/jc/diagnostics/` | 运维内省（harness 清单）。**读所有层，不被任何层依赖** | — |
+| `src/jc/storage_*` | TOS/S3 与本地开发存储适配 | — |
+| `src/jc/paths.py` | **仓库布局的唯一所有者**：根目录、prompt/agent 资产、配置路径解析 | 一切（它不 import 任何 `jc` 模块，故任何层都可用） |
+
+两条最容易被破坏、也最该记住的规则：
+
+- **入站适配器永远不是依赖。** `services/` 不能 import `mcp/`——工具调用只是一个调用方。
+- **函数体内的 import 同样算依赖。** 分层测试用 AST 遍历全树，因为上一次的循环依赖正是靠函数内 import 藏住的。
+- **不要再手算 `parents[...]`。** 走 `jc.paths`。这条曾经被 11 处代码用 4 种写法各自重算，其中一处少算一层，导致 `.env` 从未被加载、服务只能从 `backend/server` 目录启动。细节见 [`ADR-004`](../decisions/ADR-004-layered-agent-architecture.md) §1.1。
 
 ## 4. HTTP 与鉴权约定
 

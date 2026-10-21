@@ -1,63 +1,40 @@
-type Step = {
-  id: string;
-  label: string;
-  done: boolean;
-  active: boolean;
-  disabled?: boolean;
-  hint?: string;
-};
+import type { WorkflowStep } from "@/lib/resume-workflow";
 
 type Props = {
-  steps: Step[];
-  onStepClick?: (stepId: string) => void;
+  steps: WorkflowStep[];
+  onStepClick?: (stepId: WorkflowStep["id"]) => void;
 };
 
+function stepAriaLabel(step: WorkflowStep): string {
+  if (step.disabled && step.hint) {
+    return `${step.label}（${step.hint}）`;
+  }
+  return step.label;
+}
+
 /**
- * Four-step progress rail for the resume workflow.
- *
- * Design intent: the user should be able to answer "where am I, what's done, and
- * what can I click" at a glance. So the three states are encoded redundantly —
- * fill, connector colour, and icon — rather than by colour alone, which also
- * keeps it legible for colour-vision deficiency.
- *
- * The connector between two steps is filled only when the *earlier* step is
- * done, so the rail reads as progress rather than decoration.
+ * Four-step progress rail — equal-width cells so the bar uses the full pane width
+ * instead of bunching on the left with empty space on the right.
  */
 export function WorkflowSteps({ steps, onStepClick }: Props) {
   return (
-    <ol className="scroll-area flex min-w-0 flex-1 flex-nowrap items-center overflow-x-auto">
+    <ol className="workflow-rail" aria-label="简历流程步骤">
       {steps.map((step, idx) => {
-        const interactive = !step.disabled && Boolean(onStepClick);
+        const state = step.active ? "active" : step.done ? "done" : "idle";
+        const canClick = Boolean(onStepClick) && !step.disabled;
         return (
-          <li key={step.id} className="flex shrink-0 items-center">
+          <li key={step.id} className="workflow-rail__cell">
             <button
               type="button"
               disabled={step.disabled}
-              title={step.disabled ? step.hint : undefined}
+              aria-label={stepAriaLabel(step)}
               aria-current={step.active ? "step" : undefined}
-              onClick={() => onStepClick?.(step.id)}
-              className={`group inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium transition
-                disabled:cursor-not-allowed disabled:opacity-45
-                ${
-                  step.active
-                    ? "bg-brand-600 text-white shadow-xs"
-                    : step.done
-                      ? "text-success-700 hover:bg-success-50"
-                      : interactive
-                        ? "text-ink-500 hover:bg-ink-100 hover:text-ink-800"
-                        : "text-ink-500"
-                }`}
+              onClick={() => {
+                if (canClick) onStepClick?.(step.id);
+              }}
+              className={`workflow-rail__btn workflow-rail__btn--${state}`}
             >
-              <span
-                className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full text-micro font-semibold transition ${
-                  step.active
-                    ? "bg-white/25 text-white"
-                    : step.done
-                      ? "bg-success-100 text-success-700"
-                      : "bg-ink-100 text-ink-500 group-hover:bg-ink-200"
-                }`}
-                aria-hidden
-              >
+              <span className="workflow-rail__index" aria-hidden>
                 {step.done && !step.active ? (
                   <svg className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3.5} d="M5 13l4 4L19 7" />
@@ -66,17 +43,8 @@ export function WorkflowSteps({ steps, onStepClick }: Props) {
                   idx + 1
                 )}
               </span>
-              <span className="whitespace-nowrap">{step.label}</span>
+              <span className="workflow-rail__label" aria-hidden>{step.label}</span>
             </button>
-
-            {idx < steps.length - 1 ? (
-              <span
-                aria-hidden
-                className={`mx-0.5 h-px w-4 shrink-0 rounded-full transition sm:w-5 ${
-                  step.done ? "bg-success-200" : "bg-surface-border"
-                }`}
-              />
-            ) : null}
           </li>
         );
       })}

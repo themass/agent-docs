@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from jc.capabilities import GUEST_CAPABILITIES, USER_CAPABILITIES
 from jc.config import settings
 from jc.exceptions import AppError, AuthError, ConflictError
+from jc.models.enums import UserRole
 from jc.models.user import User
 from jc.redis_client import get_redis, get_session_store
 from jc.schemas.auth import (
@@ -79,13 +80,16 @@ class AuthService:
         if isinstance(actor, UserActor):
             user = await self._users.get_by_id(actor.user_id)
             if user is None:
-                raise AuthError("Session user not found", code="session_invalid")
+                raise AuthError("登录状态已失效，请重新登录。", code="session_invalid")
             profile_id = await self._profile_service.resolve_active_profile_id(actor.user_id)
             profile = await self._profiles.get_by_id(profile_id) if profile_id else None
+            capabilities = USER_CAPABILITIES
+            if user.role == UserRole.ADMIN:
+                capabilities = capabilities + ("admin",)
             return AuthContextResponse(
                 actor="user",
                 user=self._to_user_context(user),
-                capabilities=list(USER_CAPABILITIES),
+                capabilities=list(capabilities),
                 active_profile_id=profile.id if profile else None,
                 merge_conflict=merge_conflict.model_dump() if merge_conflict else None,
             )
@@ -114,7 +118,7 @@ class AuthService:
         if session_id:
             session = await self._sessions.get(session_id)
             if session is None:
-                raise AuthError("Invalid session", code="session_invalid")
+                raise AuthError("登录状态已失效，请重新登录。", code="session_invalid")
             await self._sessions.touch(session_id)
             return UserActor(user_id=session.user_id, session_id=session_id)
         if guest_session_id:
@@ -122,7 +126,7 @@ class AuthService:
             if guest is not None:
                 await self._guests.touch(guest)
                 return GuestActor(guest_session_id=guest.id)
-        raise AuthError("Guest session required", code="guest_required")
+        raise AuthError("需要先创建访客会话。", code="guest_required")
 
     async def register(
         self,
@@ -132,7 +136,10 @@ class AuthService:
     ) -> tuple[SessionIssue, ClaimResult]:
         existing = await self._users.get_by_email(body.email)
         if existing is not None:
-            raise ConflictError("Email already registered", code="email_taken")
+            raise ConflictError(
+                "这个邮箱已经注册过了，直接登录或用「忘记密码」找回。",
+                code="email_taken",
+            )
 
         user = await self._users.create(
             email=body.email,
@@ -154,7 +161,7 @@ class AuthService:
     ) -> tuple[SessionIssue, ClaimResult]:
         user = await self._users.get_by_email(email)
         if user is None or not verify_password(password, user.password_hash):
-            raise AuthError("Invalid email or password", code="invalid_credentials")
+            raise AuthError("邮箱或密码不正确，请重新输入。", code="invalid_credentials")
 
         session_issue = await self._issue_session(user)
         claim = await self._migration.claim(guest_session_id, user.id)
@@ -165,9 +172,20 @@ class AuthService:
         await self._sessions.delete(session_id)
 
     async def request_password_reset(self, email: str) -> None:
-        """Always succeeds from caller's perspective (no email enumeration)."""
+        """Succeeds whether or not the address exists, to avoid email enumeration.
+
+        A missing account is deliberately indistinguishable from a sent mail. A missing
+        *SMTP config* is not: nobody is waiting on an inbox we never wrote to, and
+        telling them to go check it strands them. That one is reported.
+        """
+        if not self._email.smtp_configured():
+            raise AppError(
+                "邮件服务还没配置好，暂时发不出重置邮件，请联系我们。",
+                code="email_not_configured",
+            )
+
         user = await self._users.get_by_email(email)
-        if user is None or not self._email.smtp_configured():
+        if user is None:
             return
 
         plain_token = generate_token()
@@ -188,11 +206,11 @@ class AuthService:
     async def reset_password(self, token: str, new_password: str) -> None:
         row = await self._password_resets.get_valid(token)
         if row is None:
-            raise AppError("Invalid or expired reset token", code="invalid_token")
+            raise AppError("重置链接无效或已过期，请重新发起找回密码。", code="invalid_token")
 
         user = await self._users.get_by_id(row.user_id)
         if user is None:
-            raise AppError("Invalid or expired reset token", code="invalid_token")
+            raise AppError("重置链接无效或已过期，请重新发起找回密码。", code="invalid_token")
 
         await self._users.update_password(user, hash_password(new_password))
         await self._password_resets.mark_used(row)
@@ -201,11 +219,14 @@ class AuthService:
     async def send_email_verification(self, user_id: str) -> None:
         user = await self._users.get_by_id(user_id)
         if user is None:
-            raise AuthError("User not found", code="session_invalid")
+            raise AuthError("登录状态已失效，请重新登录。", code="session_invalid")
         if user.email_verified_at is not None:
             return
         if not self._email.smtp_configured():
-            raise AppError("Email is not configured", code="email_not_configured")
+            raise AppError(
+                "邮件服务还没配置好，暂时无法发送验证邮件。",
+                code="email_not_configured",
+            )
 
         plain_token = generate_token()
         verification_code = f"{secrets.randbelow(10_000):04d}"
@@ -229,11 +250,11 @@ class AuthService:
     async def verify_email(self, token: str) -> None:
         user_id = await self._email_verifications.consume_token(token)
         if user_id is None:
-            raise AppError("Invalid or expired verification token", code="invalid_token")
+            raise AppError("验证链接无效或已过期，请重新发送验证邮件。", code="invalid_token")
 
         user = await self._users.get_by_id(user_id)
         if user is None:
-            raise AppError("Invalid or expired verification token", code="invalid_token")
+            raise AppError("验证链接无效或已过期，请重新发送验证邮件。", code="invalid_token")
         if user.email_verified_at is not None:
             return
 
@@ -243,7 +264,7 @@ class AuthService:
     async def verify_email_code(self, user_id: str, code: str) -> None:
         user = await self._users.get_by_id(user_id)
         if user is None:
-            raise AuthError("User not found", code="session_invalid")
+            raise AuthError("登录状态已失效，请重新登录。", code="session_invalid")
         if user.email_verified_at is not None:
             return
 
@@ -254,16 +275,19 @@ class AuthService:
         )
         if result == "expired":
             raise AppError(
-                "Verification code expired; request a new email",
+                "验证码已过期，请重新发送验证邮件。",
                 code="verification_expired",
             )
         if result == "locked":
             raise AppError(
-                "Too many incorrect attempts; request a new email",
+                "验证码输错次数过多，请重新发送验证邮件。",
                 code="verification_locked",
             )
         if result == "invalid":
-            raise AppError("Verification code is incorrect", code="invalid_verification_code")
+            raise AppError(
+                "验证码不正确，请检查邮件里的 4 位数字。",
+                code="invalid_verification_code",
+            )
 
         await self._users.mark_email_verified(user)
         await self._db.commit()
@@ -271,13 +295,13 @@ class AuthService:
     async def get_account(self, user_id: str) -> AccountResponse:
         user = await self._users.get_by_id(user_id)
         if user is None:
-            raise AuthError("User not found", code="session_invalid")
+            raise AuthError("登录状态已失效，请重新登录。", code="session_invalid")
         return self._to_account_response(user)
 
     async def update_account(self, user_id: str, body: UpdateAccountRequest) -> AccountResponse:
         user = await self._users.get_by_id(user_id)
         if user is None:
-            raise AuthError("User not found", code="session_invalid")
+            raise AuthError("登录状态已失效，请重新登录。", code="session_invalid")
 
         values = body.model_dump(exclude_unset=True)
         if "display_name" in values:
@@ -291,9 +315,9 @@ class AuthService:
     async def change_password(self, user_id: str, current_password: str, new_password: str) -> None:
         user = await self._users.get_by_id(user_id)
         if user is None:
-            raise AuthError("User not found", code="session_invalid")
+            raise AuthError("登录状态已失效，请重新登录。", code="session_invalid")
         if not verify_password(current_password, user.password_hash):
-            raise AppError("Current password is incorrect", code="invalid_password")
+            raise AppError("当前密码不正确。", code="invalid_password")
         await self._users.update_password(user, hash_password(new_password))
         await self._db.commit()
 
@@ -356,4 +380,5 @@ class AuthService:
             email=user.email,
             email_verified=user.email_verified_at is not None,
             display_name=display_name,
+            role=user.role,
         )

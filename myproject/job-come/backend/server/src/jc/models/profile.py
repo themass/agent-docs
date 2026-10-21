@@ -5,12 +5,12 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String
+from sqlalchemy import ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from jc.db.base import Base
 from jc.db.mixins import SoftDeleteMixin, TimestampMixin
-from jc.db.types import JSONText
+from jc.db.types import JSONText, UTCDateTime
 from jc.models.enums import OwnerKind, ParseStatus, ProfileStatus
 
 if TYPE_CHECKING:
@@ -29,7 +29,10 @@ class Profile(Base, TimestampMixin, SoftDeleteMixin):
         String(32), ForeignKey("jc_user.id", ondelete="SET NULL"), nullable=True, index=True
     )
     guest_session_id: Mapped[str | None] = mapped_column(
-        String(32), ForeignKey("jc_guest_session.id", ondelete="SET NULL"), nullable=True, index=True
+        String(32),
+        ForeignKey("jc_guest_session.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     owner_kind: Mapped[str] = mapped_column(String(8), default=OwnerKind.GUEST, nullable=False)
     status: Mapped[str] = mapped_column(String(16), default=ProfileStatus.DRAFT, nullable=False)
@@ -38,7 +41,7 @@ class Profile(Base, TimestampMixin, SoftDeleteMixin):
     payload: Mapped[dict[str, Any]] = mapped_column(JSONText, nullable=False, default=dict)
     summary_text: Mapped[str | None] = mapped_column(String(512), nullable=True)
     contact_name: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
-    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    confirmed_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
 
     user: Mapped[User | None] = relationship(back_populates="profiles")
     guest_session: Mapped[GuestSession | None] = relationship(back_populates="profiles")
@@ -53,6 +56,9 @@ class Profile(Base, TimestampMixin, SoftDeleteMixin):
 
 class ProfileSource(Base, TimestampMixin):
     __tablename__ = "jc_profile_source"
+    __table_args__ = (
+        Index("ix_jc_profile_source_parse_status_lease", "parse_status", "parse_lease_until"),
+    )
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
     profile_id: Mapped[str] = mapped_column(
@@ -62,8 +68,15 @@ class ProfileSource(Base, TimestampMixin):
     content_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
     file_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
     storage_key: Mapped[str] = mapped_column(String(512), nullable=False)
-    parse_status: Mapped[str] = mapped_column(String(16), default=ParseStatus.PENDING, nullable=False)
+    parse_status: Mapped[str] = mapped_column(
+        String(16), default=ParseStatus.PENDING, nullable=False
+    )
     parse_phase: Mapped[str | None] = mapped_column(String(32), nullable=True)
     parse_error: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    # Cross-instance ownership for long-running parse jobs. Nullable claim tokens
+    # allow unclaimed queued rows; a unique token guards each active attempt.
+    parse_owner: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    parse_claim_token: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
+    parse_lease_until: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
 
     profile: Mapped[Profile] = relationship(back_populates="sources")

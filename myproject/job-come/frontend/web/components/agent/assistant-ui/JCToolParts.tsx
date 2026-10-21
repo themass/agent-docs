@@ -3,7 +3,7 @@
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
 import { useState } from "react";
 
-import { AgentPlanTodos } from "@/components/agent/AgentPlanTodos";
+import { AgentPlanTodos } from "@/lib/agent-ui-kit/conversation/AgentPlanTodos";
 import { useAgentThreadUI } from "@/components/agent/assistant-ui/AgentThreadUIContext";
 
 function JsonBlock({ value }: { value: unknown }) {

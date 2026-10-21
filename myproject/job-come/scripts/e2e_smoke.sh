@@ -69,11 +69,9 @@ if [[ -n "$EMAIL" && -n "$PASSWORD" ]]; then
 
   echo "==> PDF export"
   curl -sf -c "$COOKIE_JAR" -b "$COOKIE_JAR" -X POST \
-    "$BASE/resumes/profiles/${PROFILE_ID}/elevate" \
-    -H 'Content-Type: application/json' \
-    -d '{"elevation_level":"elevated"}' >/dev/null
+    "$BASE/profiles/${PROFILE_ID}/elevate?elevation_level=elevated" >/dev/null
   PDF_EXPORT_JSON=$(curl -sf -c "$COOKIE_JAR" -b "$COOKIE_JAR" -X POST \
-    "$BASE/resumes/profiles/${PROFILE_ID}/export" \
+    "$BASE/profiles/${PROFILE_ID}/export" \
     -H 'Content-Type: application/json' \
     -d '{"format":"pdf","elevation_level":"elevated"}')
   echo "$PDF_EXPORT_JSON" | python3 -c 'import json,sys; data=json.load(sys.stdin); assert data.get("status") == "done" and data.get("id") and not data.get("error"), data; print("    export_id=", data["id"])'

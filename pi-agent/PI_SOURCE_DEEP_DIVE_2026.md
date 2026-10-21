@@ -1,8 +1,8 @@
-# Pi 1.2.0 源码级全景补充：从请求到持久化、恢复与扩展
+# Pi 1.3.0 源码级全景补充：从请求到持久化、恢复与扩展
 
 > **用途**：这是对现有 `ARCHITECTURE.md`、`EXTENSIONS.md`、`JSONL_TREE_GUIDE.md` 等文档的补充，不替换、不删除旧内容。
 >
-> **源码基线**：本地 `../pi`，commit `1729ff447841e7666159a6f8bf70fbd6bac05642`，时间 `2026-10-15`，workspace package version `1.2.0`。
+> **源码基线**：官方 `v1.3.0`，tag commit `71023aec1546d6d677a65669c5665c0927ce0dd0`，workspace package version `1.3.0`；2026-10-17 重新核验。上一轮本地 1.2.0 不是最新发布版，本次已独立取得发布源码比对；[版本差异与证据](./VERSION_ALIGNMENT.md)。文中源码链接固定到发布 tag，不代表本地 `../pi` 已更新。
 >
 > **阅读方法**：先看本文的“全景”和“边界澄清”，再按需要进入 agent loop、coding-agent、durable、ai、chord、codemode、env、mcp、tui 专题。文中路径均相对于 Pi 源码根目录 `packages/`。
 
@@ -23,6 +23,7 @@
 13. [现有文档缺口与补充结果](#13-现有文档缺口与补充结果)
 14. [源码阅读索引](#14-源码阅读索引)
 15. [总结](#15-总结)
+16. [v1.3.0 版本对齐后的补充阅读](#16-v130-版本对齐后的补充阅读)
 
 ---
 
@@ -492,7 +493,7 @@ flowchart LR
 |---|---|---|
 | memory | 进程内、最快、测试友好 | 单元测试、短生命周期 |
 | JSONL | `main.jsonl` commit marker + sidecar，顺序追加、可检查 | 本地文件、调试、简单部署 |
-| SQLite | 数据库事务、迁移、索引和结构化查询 | 长期服务、结构化查询 |
+| SQLite | 数据库事务、迁移、索引、可选表/索引 prefix；DO adapter 共享队列 | 长期服务、结构化查询 |
 
 JSONL 的提交形态：
 
@@ -775,3 +776,119 @@ packages/chord/src/state.ts
 - **持久化专题**：逐函数解释 `TaskScheduler` 的 reservation、join、abort cascade 和 recovery；
 - **会话专题**：逐条解释 JSONL entry schema、branch/fork、compaction projection 和 resume；
 - **扩展专题**：按事件顺序画出 extension loader、project trust、MCP/Code Mode/tool-search 的完整生命周期。
+
+
+## 16. v1.3.0 版本对齐后的补充阅读
+
+本次不是只改标题：已对 `packages/*/src` 做旧快照与发布版字节比较，再核对变化文件。主要差异见 [VERSION_ALIGNMENT.md §4](./VERSION_ALIGNMENT.md#4-发布版必须补上的设计变化)：
+
+- pi-ai 最终工具参数使用 `parseToolCallArguments`；仍损坏时写 `argumentsError` 并拒绝执行，流式预览不是可执行参数。
+- 跨模型投影丢弃旧 thinking blocks，不把它们转换为普通答案文本。
+- kimi-coding 改用 OpenAI Chat Completions；Anthropic/Bedrock 错误工具图片拆出后仍保留给模型。
+- SQLite namespace 和同一 DO storage 的队列协调；工具 output 工具下沉至 Chord。
+- Chord foreign ctx 和 InteractiveMode overlay 身份边界修复。
+
+Agent、coding-agent core 支撑服务及 MCP/Code Mode 等不少文件与上轮相同；“实现未变”不等于旧文正确，旧 Harness/Lane/leaf 示例仍须按标记区分。main 未发布改动单列，不混入本篇发布版结论。
+
+
+```mermaid
+graph TD
+    %% 底层公共底座，两套体系共享
+    pi-ai["pi-ai：LLM抽象层"]
+    chord["chord：RPC/事件总线"]
+
+    %% 分支A：pi-agent-core 交互式体系
+    pi-agent-core["pi-agent-core：交互式Agent内核"]
+    pi-agent-core --> pi-ai
+    pi-agent-core --> chord
+    pi-mcp["pi-mcp：MCP工具插件"]
+    pi-codemode["pi-codemode：QuickJS沙箱"]
+    pi-tui["pi-tui：终端TUI界面"]
+    pi-agent-core -.可选挂载.-> pi-mcp
+    pi-agent-core -.可选挂载.-> pi-codemode
+
+    pi-coding-agent["pi-coding-agent：pi终端CLI成品App"]
+    pi-coding-agent --> pi-agent-core
+    pi-coding-agent --> pi-tui
+
+    %% 分支B：pi-durable 独立持久Harness（⚠️不依赖pi-agent-core！）
+    pi-durable["pi-durable：独立持久Harness"]
+    pi-durable --> pi-ai
+    pi-durable --> chord
+```
+
+```mermaid
+flowchart TD
+    A[接收编码任务] --> B[创建基准快照<br/>git commit / tar备份原始代码]
+    B --> C[克隆项目至独立沙箱工作目录<br/>原始项目目录保持只读，不碰]
+    C --> D[Agent进入循环]
+
+    D --> E[LLM生成代码修改方案<br/>输出完整文件 / diff补丁]
+    E --> F[沙箱内写入临时文件 *.tmp]
+    F --> G{写入tmp是否完成?}
+    G -- ❌ Agent被Kill/OOM中断 --> Z1[销毁沙箱目录]
+    Z1 --> Z2[原始代码保持快照原样，无损坏]
+
+    G -- ✅ 写入完成 --> H[原子rename: xxx.tmp → xxx.py]
+    H --> I[语法检查 / 构建 / 单元测试]
+    I{测试是否通过?}
+
+    I -- ❌ 报错 --> J[回滚沙箱到上一个快照]
+    J --> D[继续Agent迭代修改]
+
+    I -- ✅ 测试通过 --> K{任务全部完成?}
+    K -- ❌ 还有代码要改 --> D
+    K -- ✅ 全部完成 --> L[将沙箱变更合并到真实源码目录]
+    L --> M[记录rollout/trace.jsonl，保存快照ID]
+```
+```mermaid
+sequenceDiagram
+    participant User
+    participant Harness[Agent Harness\nRuflo / OpenMausBot / Paperclip]
+    participant Agent[Coding Agent LLM]
+    participant FS[文件系统 & Git快照]
+
+    User->>Harness: 下发编码任务
+    Harness->>FS: 1. 对原始项目创建快照
+    Harness->>FS: 2. 复制项目到独立沙箱目录
+    Note over FS: 原始源码目录只读
+
+loop Agent迭代编码循环
+Harness->>Agent: 发送当前需求+沙箱内代码上下文
+Agent->>Harness: 返回待修改代码 / diff
+
+Harness->>FS: 写入 .tmp 临时文件（沙箱内）
+alt 危险分支：中途被kill / OOM
+Agent--X Harness: 进程强制终止
+Harness->>FS: 销毁整个沙箱目录
+Note over FS: 原始代码完全不变
+else 正常写入完毕
+Harness->>FS: 原子 rename tmp -> target file
+Harness->>FS: 执行构建、单元测试
+alt 测试失败
+Harness->>FS: 沙箱内回滚快照
+else 测试成功
+Note over Harness: 继续下一轮迭代
+end
+end
+end
+
+Harness->>FS: 全部任务完成，合并沙箱变更到真实目录
+Harness->>FS: 写入trace.jsonl，记录快照ID、操作日志
+Harness-->>User: 返回任务结果
+```
+```mermaid
+flowchart LR
+subgraph BadAgent [简易Agent（无保护）]
+U1[原始代码] --> U2[直接打开原文件write]
+U2 -- 中途kill --> U3[文件截断损坏，旧代码丢失]
+end
+
+subgraph SafeAgent [Harness沙箱模式]
+S1[原始代码（只读基准）] --> S2[复制到沙箱]
+S2 --> S3[写入tmp临时文件]
+S3 --> S4[原子rename]
+S4 -- 测试通过 --> S5[合并回原始目录]
+S3 -- 中途kill --> S6[丢弃沙箱，原始不动]
+end
+```

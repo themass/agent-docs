@@ -129,3 +129,14 @@ class InterviewStore:
             .limit(limit)
         )
         return list((await self._db.execute(stmt)).scalars().all())
+
+    async def get_latest_attempt_for_question(
+        self, question_id: str
+    ) -> AnswerAttempt | None:
+        stmt = (
+            select(AnswerAttempt)
+            .where(AnswerAttempt.question_id == question_id)
+            .order_by(AnswerAttempt.created_at.desc())
+            .limit(1)
+        )
+        return (await self._db.execute(stmt)).scalar_one_or_none()

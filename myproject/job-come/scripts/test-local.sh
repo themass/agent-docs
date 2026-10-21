@@ -16,7 +16,14 @@ fi
 "$PYTHON" -m compileall -q src tests "$ROOT/scripts"
 "$PYTHON" -m pytest -q --tb=short
 "$PYTHON" "$ROOT/scripts/evaluate_documents.py" --output "$ROOT/docs/evidence/document-evaluation.json"
+# No model, no browser, no MySQL -- intake is the one path with nothing between the user
+# and their profile, so "can a new user actually finish the interview" is a deterministic
+# question and belongs in the default gate rather than behind a real-run flag.
+"$PYTHON" "$ROOT/scripts/verify_intake_flow.py" --output "$ROOT/docs/evidence/intake-flow.json"
 bash -n "$ROOT/scripts/e2e_smoke.sh" "$ROOT/scripts/agent_e2e.sh"
+# Needs no browser and no served build, so it belongs here rather than behind
+# RUN_UI_ACCEPTANCE: what a user reads on a failed request is release-blocking copy.
+"$PYTHON" "$ROOT/scripts/verify_error_copy.py"
 (cd "$WEB_ROOT" && npm run build)
 
 if [[ "${RUN_UI_ACCEPTANCE:-0}" == "1" ]]; then

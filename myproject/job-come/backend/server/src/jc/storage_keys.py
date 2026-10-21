@@ -28,6 +28,28 @@ def storage_environment() -> str:
         ) from exc
 
 
+_DOWNLOADABLE_KINDS = frozenset({"export", "photo"})
+
+
+def profile_id_and_kind_from_key(storage_key: str) -> tuple[str, str] | None:
+    """Parse `jc/{env}/profile[s]/{id}/{kind}/...` for authorized local downloads."""
+    normalized = storage_key.strip("/")
+    if not normalized or ".." in normalized or "\\" in normalized:
+        return None
+    parts = normalized.split("/")
+    try:
+        idx = next(i for i, part in enumerate(parts) if part in ("profile", "profiles"))
+    except StopIteration:
+        return None
+    if idx + 2 >= len(parts):
+        return None
+    profile_id = parts[idx + 1]
+    kind = parts[idx + 2]
+    if kind not in _DOWNLOADABLE_KINDS:
+        return None
+    return profile_id, kind
+
+
 def storage_key(*parts: str) -> str:
     """Build a JC-owned object key without exposing raw user-provided path segments."""
     normalized_parts: list[str] = []

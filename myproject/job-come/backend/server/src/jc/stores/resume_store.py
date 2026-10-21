@@ -24,10 +24,13 @@ class ResumeStore:
         *,
         elevation_level: str,
         locale: str | None = None,
+        job_id: str | None = None,
     ) -> ResumeDraft | None:
         stmt = select(ResumeDraft).where(
             ResumeDraft.profile_id == profile_id,
             ResumeDraft.elevation_level == elevation_level,
+            # Generic and job-targeted documents must never share a cache slot.
+            ResumeDraft.job_id == job_id,
         )
         if locale:
             stmt = stmt.where(ResumeDraft.locale == locale)

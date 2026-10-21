@@ -6,10 +6,10 @@
 |------|--------|------|
 | `HERMES_HOME` | `~/.hermes/profiles/content-studio` | Profile 根；Gateway/Cron/脚本必须一致 |
 | `HERMES_API_URL` | `http://127.0.0.1:8642` | Workspace → Gateway |
-| `LLM_API_KEY` | 见 `secrets.env` | 客户端/OpenInspector 透传 |
+| `LLM_API_KEY` | 见 `secrets.env` | FreeLLMAPI `freellmapi-...` 或 TDAI `sk-mem-*` |
 | `MONEYPRINTER_BASE_URL` | `http://127.0.0.1:8082` | MPT API（非 8080） |
 
-模型路由：**单一来源** `secrets.env` + `hermes-dev/config/llm.defaults.env`，运行 `./scripts/sync-content-studio-secrets.sh` 传播到 Hermes / Notebook / MPT / OpenInspector。详见 `bundle/config/LLM_CONFIG.md`。
+模型路由：**单一来源** `secrets.env` + `bundle/config/llm.defaults.env`（默认 FreeLLMAPI `:3011`），运行 `bundle/ops/scripts/sync-content-studio-secrets.sh` 传播到 Hermes / Notebook / MPT。详见 `bundle/config/LLM_CONFIG.md`。
 
 ---
 
@@ -36,19 +36,19 @@ cd hermes-dev
 ./start-dev.sh    # Gateway + Dashboard + Workspace 前台
 ```
 
-OpenInspector 另开：`openinspector/scripts/dev-local.sh start`
+FreeLLMAPI 由全栈脚本自动起（`START_FREELLMAPI=1`）。可选追踪：`START_OPENINSPECTOR=1` + `openinspector/scripts/dev-local.sh start`
 
 ---
 
 ## 3. 密钥同步
 
 1. 主 secrets：`~/.hermes/profiles/content-studio/secrets.env`  
-2. 模板：`hermes-dev/config/secrets.env.example`  
+2. 模板：`bundle/config/secrets.env.example`  
 3. 分发：
 
 ```bash
-hermes-dev/scripts/sync-content-studio-secrets.sh
-hermes-dev/scripts/audit-llm-config.sh   # 校验各服务 LLM 配置
+docs/hermes/content-studio-agent/bundle/ops/scripts/sync-content-studio-secrets.sh
+docs/hermes/content-studio-agent/bundle/ops/scripts/audit-llm-config.sh
 ```
 
 Open Notebook / MPT 单独脚本见 `SCRIPTS_AND_COMMANDS.md`。
@@ -77,8 +77,8 @@ curl -s http://127.0.0.1:8642/health
 # 今日 SOP 状态
 "$HERMES_HOME/scripts/content-studio.sh" sop-status
 
-# OpenInspector
-curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8080/v1/models
+# FreeLLMAPI（LLM 聚合）
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3011/v1/models
 ```
 
 ---

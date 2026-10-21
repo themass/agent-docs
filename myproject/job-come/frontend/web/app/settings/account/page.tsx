@@ -1,6 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/layout/PageHeader";
+import { Select } from "@/components/ui/Select";
 import { userFacingApiError } from "@/lib/api/user-error";
 
 import Link from "next/link";
@@ -161,19 +162,19 @@ export default function AccountSettingsPage() {
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block">
             <span className="text-sm font-medium text-ink-800">界面语言</span>
-            <select
-              className="field mt-1.5"
+            <Select
+              className="mt-1.5 w-full"
               value={locale}
               onChange={(event) => setLocale(event.target.value as Account["locale"])}
             >
               <option value="zh-CN">简体中文</option>
               <option value="en-US">English</option>
-            </select>
+            </Select>
           </label>
           <label className="block">
             <span className="text-sm font-medium text-ink-800">默认表达力度</span>
-            <select
-              className="field mt-1.5"
+            <Select
+              className="mt-1.5 w-full"
               value={elevation}
               onChange={(event) =>
                 setElevation(event.target.value as Account["default_elevation_level"])
@@ -182,7 +183,7 @@ export default function AccountSettingsPage() {
               <option value="conservative">保守：只做清晰表达</option>
               <option value="standard">标准：突出结果与影响</option>
               <option value="elevated">进阶：更主动地组织高价值表达</option>
-            </select>
+            </Select>
             <span className="mt-1 block text-xs text-ink-500">
               新建优化稿时的默认档位，每次仍可单独调整。
             </span>

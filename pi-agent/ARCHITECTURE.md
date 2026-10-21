@@ -1,10 +1,13 @@
 # Pi Agent 架构设计文档
 
+> **版本核验：2026-10-17 / Pi v1.3.0**。本目录当前源码结论固定到官方 tag `71023aec1546d6d677a65669c5665c0927ce0dd0`。旧文中的 `agent/src/harness/`、Lane/registers、`LeafEntry` 和 Prime/第三方生态不能视为 v1.3.0 的 core 实现；具体差异见 [版本核验与纠错](./VERSION_ALIGNMENT.md)。历史示例保留并就地标记，旧行号不作为当前定位依据。
+
+
 > **文档版本**：覆盖 `pi` monorepo 全包结构 + 源码级深潜  
 > **阅读方式**：先读 **Part I（高层设计）** 建立全局地图，再读 **Part II（源码深潜）** 对照实现  
 > **专题**：[EXTENSIONS.md](./EXTENSIONS.md)（Part I 基础 · Part II 多 Agent/Plan）· [SKILLS_LIFECYCLE.md](./SKILLS_LIFECYCLE.md) · [RUNTIME_PROMPT.md](./RUNTIME_PROMPT.md)  
 > **图解导读（推荐先读）**：[DESIGN_THINKING_SERIES.md](./DESIGN_THINKING_SERIES.md) · [JSONL_TREE_GUIDE.md](./JSONL_TREE_GUIDE.md) · [docs 索引](./README.md)  
-> **最后更新**：2026-08-04（Part I/II 去重与交叉引用）
+> **最后更新**：2026-10-17（v1.3.0 发布版重核与历史边界纠错；原 Part I/II 去重整理于 2026-08-04）
 
 ---
 
@@ -18,7 +21,7 @@
 
 | 部分 | 受众 | 内容 |
 |------|------|------|
-| **Part I** | 架构师、新贡献者、SDK 集成方 | 产品定位、包依赖、模块全景、核心流程、数据模型（图表与时序的**唯一权威来源**） |
+| **Part I** | 架构师、新贡献者、SDK 集成方 | 产品定位、包依赖、模块全景、核心流程、数据模型（历史图表已标明；v1.3.0 以源码全景与版本审计为准） |
 | **Part II** | 需要改具体函数的开发者 | 类型、循环、投影、压缩、扩展——带 `file:line`；重复图表已删，通过交叉引用指向 Part I |
 
 ---
@@ -52,7 +55,7 @@
 11. [模块八：`coding-agent/messages.ts` — 消息转换管道](#11-模块八coding-agentmessagests--消息转换管道)
 12. [端到端数据流：从用户输入到 LLM 响应持久化](#12-端到端数据流从用户输入到-llm-响应持久化)
 13. [存储后端：SQLite 行编码](#13-存储后端sqlite-行编码)
-14. [扩展系统（Extension System）详解](#14-扩展系统extension-system-详解)
+14. [扩展系统（Extension System）详解](#14-扩展系统extension-system详解)
 15. [系统提示词构建](#15-系统提示词构建)
 16. [工具系统](#16-工具系统)
 17. [pi-ai 通信层](#17-pi-ai-通信层)
@@ -266,6 +269,8 @@ modes/interactive|print|rpc
 
 ### I.2.3 双实现对照（易混淆）
 
+> **历史对照表**：下表右栏是已移除的实验 `agent/harness`，不是 v1.3.0 的 Durable。当前正确边界为 `AgentSession -> Agent -> pi-ai` 与 `durable Harness -> TaskScheduler -> pi-ai`，后者源码位于 `packages/durable/src/`，不能按旧文件名迁移调用。
+
 | 能力 | coding-agent（Pi CLI） | pi-agent-core/harness（通用嵌入） |
 |------|------------------------|-----------------------------------|
 | 会话存储 | `SessionManager` + JSONL | `Session` + `JsonlSessionStorage` |
@@ -288,7 +293,7 @@ modes/interactive|print|rpc
 | **`Agent`** | agent `agent.ts` | 同 AgentSession | 有状态运行时：messages、队列、订阅 runLoop | 内存 |
 | **`runLoop`** | agent `agent-loop.ts` | 单次 `prompt()` 调用 | 无状态双层循环：LLM ↔ 工具 ↔ steering/followUp | 无 |
 | **`SessionManager`** | coding-agent `session-manager.ts` | 同会话文件 | JSONL 树：append、branch、buildSessionContext | **JSONL 文件** |
-| **`SessionEntry`** | session-manager types | 永久 append | 树节点：message / compaction / leaf… | 每行 JSON |
+| **`SessionEntry`** | session-manager types | 永久 append | 树节点：message / compaction / context_edit…；不含 leaf entry | 每行 JSON |
 | **`AgentMessage`** | agent `types.ts` | 内存 + 投影 | 运行时消息联合类型（含 custom） | 经 entry 间接 |
 | **`Message`** | pi-ai | 单次 LLM 请求 | Provider API 格式（user/assistant/toolResult） | 否 |
 | **`ExtensionRunner`** | coding-agent `extensions/runner.ts` | AgentSession 级 | 扩展事件总线、命令、工具注册 | 扩展配置在磁盘 |
@@ -318,8 +323,8 @@ erDiagram
         string firstKeptEntryId FK
         number tokensBefore
     }
-    LeafEntry {
-        string targetId FK
+    SessionManagerCursor {
+        string leafId FK
     }
     ModelChangeEntry {
         string provider
@@ -327,7 +332,7 @@ erDiagram
     }
     SessionEntry ||--o| SessionMessageEntry : "type=message"
     SessionEntry ||--o| CompactionEntry : "type=compaction"
-    SessionEntry ||--o| LeafEntry : "type=leaf"
+    SessionManagerCursor }o--o| SessionEntry : "in-memory leafId, not a JSONL entry"
 ```
 
 - **`leafId`**：当前活动分支末端，不删旧节点，只移动指针。  
@@ -624,7 +629,7 @@ stateDiagram-v2
 | `branch_summary` | 1 条 `branchSummary` | 分支切换摘要 |
 | `custom_message` | 1 条 `custom` | 扩展注入上下文 |
 | `model_change` / `thinking_level_change` | 0 条 | 记录模型/思考级别（路径上用于解析设置） |
-| `label` / `custom` / `session_info` / `leaf` | 0 条 | UI、扩展状态、叶指针 |
+| `label` / `custom` / `session_info` / `usage` | 0 条 | UI、扩展状态、会话名和用量；leafId 是游标 |
 
 ### 消息四层变换（固定管道）
 
@@ -980,7 +985,7 @@ export function sessionEntryToContextMessages(entry: SessionEntry): AgentMessage
 }
 ```
 
-agent 包版本位于 `agent/src/harness/session/session.ts` 的 `sessionEntryToContextMessages()`，逻辑完全相同但独立实现。
+历史 agent Harness 曾在 `agent/src/harness/session/session.ts` 提供独立投影；该路径在 v1.3.0 已不存在。当前 CLI 看 `coding-agent/core/session-manager.ts`；Durable 看 `durable/src/harness/context.ts`，不能假定投影算法完全相同。
 
 ### 2.3 投影规则总结表
 
@@ -992,7 +997,7 @@ agent 包版本位于 `agent/src/harness/session/session.ts` 的 `sessionEntryTo
 | `custom_message` | `[CustomMessage]` | 1→1 包装为自定义消息类型 |
 | `compaction` | `[CompactionSummaryMessage]` | 1→1 压缩摘要变为 user 消息 |
 | `branch_summary` | `[BranchSummaryMessage]` | 1→1 分支摘要变为 user 消息 |
-| `model_change` / `thinking_level_change` / `label` / `custom` / `session_info` / `leaf` | `[]` | 不参与 LLM 上下文（见附录 B） |
+| `model_change` / `thinking_level_change` / `label` / `custom` / `session_info` / `usage` | `[]` | 不直接生成 LLM 消息（见附录 B）；无 leaf entry |
 
 ### 2.4 投影在上下文构建中的位置
 
@@ -1016,7 +1021,9 @@ Message[] (LLM API 可接受的格式)
 
 ## 3. 完整 JSONL 会话文件示例
 
-以下是一个完整会话的 JSONL 文件，展示了用户发送消息 → 模型回复 → 工具调用 → 工具结果 → 上下文压缩 → 分支的完整生命周期。
+以下保留旧讲解示例，展示对话、工具、压缩与分支。
+
+> **历史示意，不是 v1.3.0 可导入样本**：其中 `type: "leaf"`、toolCall 的 `input`、`stopReason: "tool_use"/"end_turn"` 与旧 usage 字段均不能直接用作 Pi v3 schema。当前使用 `arguments`、`stopReason: "toolUse"/"stop"`、`usage.input/output/cacheRead/cacheWrite/totalTokens/cost`，并由 SessionManager 维护 `leafId`，不追加 leaf 行。请以 [JSONL_TREE_GUIDE.md §10](./JSONL_TREE_GUIDE.md#10-当前源码校正两种-jsonl不是一份-schema2026-10-15) 及源码类型为准；[§10.4](./JSONL_TREE_GUIDE.md#104-v130-当前字段的最小-jsonl-示例) 有当前字段的最小样本。
 
 ```jsonl
 {"type":"session","version":3,"id":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","timestamp":"2025-01-15T10:00:00.000Z","cwd":"/home/user/myproject"}
@@ -1255,7 +1262,7 @@ graph TB
 │     └─ "end_turn" / "tool_use" → 继续
 │
 │  ④ 如果有 toolCall → executeToolCalls()
-│     ├─ beforeToolCall hook → 可修改参数或跳过
+│     ├─ beforeToolCall hook → block/reason/terminate；参数预处理另见 prepareArguments
 │     ├─ tool.execute(args) → 执行
 │     ├─ afterToolCall hook → 可修改结果
 │     └─ hasMoreToolCalls = !terminate
@@ -1459,18 +1466,25 @@ const stream = streamFunction(model, {
 
 ### 5.4 工具执行流程
 
+> **v1.3.0 纠错**：旧伪代码中的 `prepared.skip` / `prepared.result` 不存在于 `BeforeToolCallResult`，已用下方当前行为伪代码替换。当前应读 `prepareArguments -> validateToolArguments -> beforeToolCall({block,reason,terminate}) -> execute -> afterToolCall`。coding-agent `tool_call` 的原地改参是另一层契约。本例只说明控制流；实际参数和返回字段仍须对照 `agent/src/types.ts` 与 `agent-loop.ts`。
+
 ```typescript
-// agent-loop.ts:~400
-// 三阶段工具执行：
-// 1. prepareToolCall — beforeToolCall hook，可修改参数
-const prepared = await config.beforeToolCall?.({ toolCall, args });
-if (prepared?.skip) { /* 跳过执行，使用 prepared.result */ }
-
-// 2. executePreparedToolCall — 实际执行
-const result = await tool.execute(finalArgs, signal);
-
-// 3. finalizeExecutedToolCall — afterToolCall hook，可修改结果
-const finalResult = await config.afterToolCall?.({ toolCall, args, result });
+// v1.3.0 行为伪代码；省略了异常处理、事件和 batch 调度，不是可直接运行的节选。
+// prepareArguments 是工具自己的预处理；之后才进入参数校验。
+const preparedCall = prepareToolCallArguments(tool, toolCall);
+const args = validateToolArguments(tool, preparedCall);
+const decision = await config.beforeToolCall?.(
+  { assistantMessage, toolCall, args, context: currentContext }, signal,
+);
+if (decision?.block) {
+  // 生成 blocked toolResult；不是读取不存在的 skip/result/args 返回值。
+  return blockedToolResult(decision.reason, decision.terminate);
+}
+const result = await tool.execute(toolCall.id, args, signal, onUpdate);
+// afterToolCall 返回字段级 override，由循环统一合并成最终结果。
+const override = await config.afterToolCall?.(
+  { assistantMessage, toolCall, args, result, isError: result.isError === true, context: currentContext }, signal,
+);
 ```
 
 工具执行支持两种模式：
@@ -1636,6 +1650,8 @@ processEvents(event: AgentEvent): void {
 ---
 
 ## 7. 模块四：`agent/harness/` — 会话桥接层
+
+> **历史实现，已移除，非 v1.3.0 API。** 本节保留旧 Session/AgentHarness 的设计细节供比较；其中路径、类型、方法和代码不能在当前源码定位。现在独立 Durable 的实现请读 [BACKEND_RUNTIME.md](./BACKEND_RUNTIME.md)，不是把 `agent/harness` 路径机械换名。
 
 > Harness 层是 `agent` 包中连接"无状态循环"和"持久化存储"的桥梁。
 
@@ -2625,6 +2641,8 @@ export function convertToLlm(messages: AgentMessage[]): Message[] {
 
 ## 13. 存储后端：SQLite 行编码
 
+> **历史 SQL 行编码，非 v1.3.0 当前存储 schema。** 本节 `SessionTreeEntry`、`SessionEntryRow`、`session-entries.ts` 是旧适配器设计；当前 CLI SessionManager 使用 JSONL，Durable 的 SQLite 使用 conversations/entries/tasks/submissions/documents/document_revisions 等表，并支持 `prefix`，见 [BACKEND_RUNTIME.md §11](./BACKEND_RUNTIME.md#11-v130-发布版的后端变化2026-10-17-核验)。
+
 > 源文件：`packages/storage/sqlite-node/src/sqlite/storage/session-entries.ts`（218 行）
 
 SQLite 后端将 `SessionTreeEntry` 拆分为关系表列：
@@ -2711,7 +2729,8 @@ AgentSession
 | `custom_message` | `CustomMessageEntry` | 是（投影为 CustomMessage） | 是 | 扩展注入的上下文消息 |
 | `label` | `LabelEntry` | 否 | 是 | 用户标记/书签 |
 | `session_info` | `SessionInfoEntry` | 否 | 是 | 会话显示名称 |
-| `leaf` | `LeafEntry` | 否 | 是 | 叶指针移动记录 |
+| `usage` | `UsageEntry` | 否 | 是 | 记录用量 |
+| `context_edit` | `ContextEditEntry` | 通过投影应用 | 是 | 编辑历史消息在上下文中的内容 |
 
 ---
 
@@ -2969,7 +2988,7 @@ LLM 返回 toolCall
   ↓
 1. Agent.beforeToolCall hook（AgentSession._installAgentToolHooks() 设置）
   → ExtensionRunner.emitToolCall()
-  → 扩展可修改参数或跳过执行
+  → 扩展可原地修改 event.input（不再校验）或返回 block；不是返回 args/skip/result
   ↓
 2. ToolDefinition.execute(params)
   → 实际工具执行

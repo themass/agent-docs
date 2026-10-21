@@ -8,10 +8,9 @@ from agentkit.common.ids import new_id
 from agentkit.web.auth import Actor, UserActor
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from jc.authz import RunScope, require_owned_references
 from jc.coach.planner import select_bank_draws
 from jc.exceptions import ConflictError, NotFoundError
-from jc.mcp.context import McpRunContext, require_owned_references
-from jc.mcp.question_upsert import question_upsert
 from jc.models.enums import MockSessionStatus
 from jc.models.interview import InterviewQuestion, InterviewRecord, MockSession
 from jc.schemas.coach import (
@@ -30,7 +29,9 @@ from jc.schemas.coach import (
     QuestionSummary,
     QuestionUpsertRequest,
 )
+from jc.services.answer_attempt_service import save_answer_attempt
 from jc.services.profile_service import ProfileService
+from jc.services.question_bank_service import question_upsert
 from jc.stores.interview_store import InterviewStore
 
 
@@ -64,7 +65,7 @@ class InterviewService:
     ) -> QuestionDetailResponse:
         question = await self._store.get_question(question_id)
         if question is None:
-            raise NotFoundError("Question not found")
+            raise NotFoundError("题目不存在或已删除。", code="question_not_found")
         await self._profiles.get(question.profile_id, actor=actor)
 
         attempts = await self._store.list_attempts_for_question(question_id)
@@ -120,12 +121,16 @@ class InterviewService:
         body: InterviewSaveRequest,
     ) -> InterviewSaveResponse:
         await self._profiles.get(profile_id, actor=actor)
-        ctx = McpRunContext(db=self._db, user_id=getattr(actor, "user_id", None), profile_id=profile_id)
-        await require_owned_references(ctx, job_id=body.job_id)
+        scope = RunScope(
+            db=self._db,
+            user_id=getattr(actor, "user_id", None),
+            profile_id=profile_id,
+        )
+        await require_owned_references(scope, job_id=body.job_id)
         for qid in body.question_ids:
             question = await self._store.get_question(qid)
             if question is None or question.profile_id != profile_id:
-                raise NotFoundError("Question not found")
+                raise NotFoundError("题目不存在或已删除。", code="question_not_found")
         record = InterviewRecord(
             id=new_id("intr"),
             profile_id=profile_id,
@@ -154,16 +159,13 @@ class InterviewService:
     ) -> AnswerAttemptResponse:
         question = await self._store.get_question(question_id)
         if question is None:
-            raise NotFoundError("Question not found")
+            raise NotFoundError("题目不存在或已删除。", code="question_not_found")
         await self._profiles.get(question.profile_id, actor=actor)
 
-        from jc.mcp.context import McpRunContext
-        from jc.mcp.handlers import answer_save_attempt
-
         user_id = actor.user_id if isinstance(actor, UserActor) else None
-        ctx = McpRunContext(db=self._db, user_id=user_id, profile_id=question.profile_id)
-        result = await answer_save_attempt(
-            ctx,
+        scope = RunScope(db=self._db, user_id=user_id, profile_id=question.profile_id)
+        result = await save_answer_attempt(
+            scope,
             question_id=question_id,
             user_answer=body.user_answer,
             coach_feedback=body.coach_feedback,
@@ -179,8 +181,8 @@ class InterviewService:
         body: MockSessionCreateRequest,
     ) -> MockSessionResponse:
         await self._profiles.get(body.profile_id, actor=actor)
-        ctx = McpRunContext(db=self._db, user_id=actor.user_id, profile_id=body.profile_id)
-        await require_owned_references(ctx, job_id=body.job_id)
+        scope = RunScope(db=self._db, user_id=actor.user_id, profile_id=body.profile_id)
+        await require_owned_references(scope, job_id=body.job_id)
         now = datetime.now(UTC)
         draws: list[str] = []
         if body.mode == "target" and not body.job_id:
@@ -215,13 +217,15 @@ class InterviewService:
     ) -> MockSessionResponse:
         session = await self._store.get_mock_session(session_id)
         if session is None:
-            raise NotFoundError("Mock session not found")
+            raise NotFoundError("模拟面试不存在或已删除。", code="mock_session_not_found")
         await self._profiles.get(session.profile_id, actor=actor)
         if isinstance(actor, UserActor) and session.user_id != actor.user_id:
-            raise NotFoundError("Mock session not found")
+            raise NotFoundError("模拟面试不存在或已删除。", code="mock_session_not_found")
         return await self._to_mock_response(session)
 
-    async def complete_mock_session(self, session_id: str, *, actor: UserActor) -> MockSessionResponse:
+    async def complete_mock_session(
+        self, session_id: str, *, actor: UserActor
+    ) -> MockSessionResponse:
         await self.get_mock_session(session_id, actor=actor)
         session = await self._store.get_mock_session(session_id)
         if session.status == MockSessionStatus.ACTIVE:
@@ -238,9 +242,9 @@ class InterviewService:
         body: QuestionUpsertRequest,
     ) -> QuestionSummary:
         await self._profiles.get(profile_id, actor=actor)
-        ctx = McpRunContext(db=self._db, user_id=actor.user_id, profile_id=profile_id)
+        scope = RunScope(db=self._db, user_id=actor.user_id, profile_id=profile_id)
         upserted = await question_upsert(
-            ctx,
+            scope,
             stem=body.stem,
             question_type=body.question_type,
             company=body.company,
@@ -261,7 +265,7 @@ class InterviewService:
             )
         question = await self._store.get_question(upserted["id"])
         if question is None:
-            raise NotFoundError("Question not found")
+            raise NotFoundError("题目不存在或已删除。", code="question_not_found")
         return await self._to_question_summary(question)
 
     async def _to_question_summary(self, q: InterviewQuestion) -> QuestionSummary:

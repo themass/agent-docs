@@ -1,6 +1,6 @@
 # Pi 后端深潜：提交、任务恢复、工具副作用与存储
 
-> 本文补充旧架构文档缺少的后端语义。基线：本地 Pi `1729ff447841e7666159a6f8bf70fbd6bac05642`，workspace `1.2.0`。
+> 本文补充旧架构文档缺少的后端语义。基线：官方 Pi `v1.3.0` / `71023aec1546d6d677a65669c5665c0927ce0dd0`，workspace `1.3.0`（2026-10-17 重核；SQLite/输出边界变化见第 11 节）。
 > 先读 [全景补充](./PI_SOURCE_DEEP_DIVE_2026.md)，再对照 [源码清单](./SOURCE_MAP.md)。
 
 ## 目录
@@ -15,6 +15,7 @@
 - [8. 内存、JSONL、SQLite 后端](#8-内存jsonlsqlite-后端)
 - [9. 失败、取消、重试与观察](#9-失败取消重试与观察)
 - [10. 调试和设计取舍](#10-调试和设计取舍)
+- [11. v1.3.0 发布版的后端变化](#11-v130-发布版的后端变化2026-10-17-核验)
 
 ## 1. 先区分两种持久化
 
@@ -32,7 +33,7 @@
 | 文件格式 | 单个 session JSONL 的 `type`/`parentId` | `main.jsonl` marker + sidecar 的 commit 协议 |
 | 应用边界 | 本地 coding 产品 | 可供服务/worker/宿主使用的基础库 |
 
-源码：[SessionManager](../../pi/packages/coding-agent/src/core/session-manager.ts)、[SessionImpl](../../pi/packages/durable/src/session/session.ts)、[ToolTask](../../pi/packages/durable/src/harness/tool.ts)。
+源码：[SessionManager](https://github.com/earendil-works/pi/blob/v1.3.0/packages/coding-agent/src/core/session-manager.ts)、[SessionImpl](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/session/session.ts)、[ToolTask](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/harness/tool.ts)。
 
 > 旧文档里若把“leaf 行”“lane/registers”“agent/harness/session”写成当前通用格式，不应照抄。当前 CLI 与 Durable 的 JSONL 是不同协议。
 
@@ -63,7 +64,7 @@ sequenceDiagram
 
 不是“先把缓存改了，再试着写磁盘”。Storage 成功与内存 adopt 必须衔接；出现无法 adopt 的情况会失败关闭，避免缓存和后端分裂。
 
-源码：[session.ts](../../pi/packages/durable/src/session/session.ts)、[transaction.ts](../../pi/packages/durable/src/session/transaction.ts)、[observation.ts](../../pi/packages/durable/src/session/observation.ts)。
+源码：[session.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/session/session.ts)、[transaction.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/session/transaction.ts)、[observation.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/session/observation.ts)。
 
 ### 2.2 一个必须提醒的死锁点
 
@@ -82,7 +83,7 @@ await runtime.commit(async (tx) => {
 }, context);
 ```
 
-依据：[TaskRuntime 的 commit 契约](../../pi/packages/durable/src/types.ts)。此处 `MyDoc` 为示意 token，不是源码里的内置类型。
+依据：[TaskRuntime 的 commit 契约](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/types.ts)。此处 `MyDoc` 为示意 token，不是源码里的内置类型。
 
 ## 3. 后端的五类事实
 
@@ -117,7 +118,7 @@ erDiagram
 | `UsageDoc` | 本会话模型和工具 usage 汇总 | latest / initial |
 | `NestedCallDoc` | 工具内部调用的 durable receipt | task scope |
 
-源码：[agent.ts](../../pi/packages/durable/src/harness/agent.ts)、[inbox.ts](../../pi/packages/durable/src/harness/inbox.ts)、[live.ts](../../pi/packages/durable/src/harness/live.ts)、[usage.ts](../../pi/packages/durable/src/harness/usage.ts)、[tool.ts](../../pi/packages/durable/src/harness/tool.ts)。
+源码：[agent.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/harness/agent.ts)、[inbox.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/harness/inbox.ts)、[live.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/harness/live.ts)、[usage.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/harness/usage.ts)、[tool.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/harness/tool.ts)。
 
 ## 4. 从用户请求到可恢复任务
 
@@ -140,7 +141,7 @@ stateDiagram-v2
 
 `abort()` 返回 `aborted`、`already_placed` 或 `settled`，所以“取消请求”不一定代表已执行的操作撤回了。
 
-源码：[submissions.ts](../../pi/packages/durable/src/harness/submissions.ts)、[harness/types.ts](../../pi/packages/durable/src/harness/types.ts)。
+源码：[submissions.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/harness/submissions.ts)、[harness/types.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/harness/types.ts)。
 
 ### 4.2 GenerationTask 是 phase machine
 
@@ -167,7 +168,7 @@ flowchart TB
 
 `poll` 保存 Provider 返回的 `DeferredHandle` 与 `pollAt`。不是所有 Provider 都支持 deferred；普通响应仍直接分类。
 
-源码：[generation.ts](../../pi/packages/durable/src/harness/generation.ts)。
+源码：[generation.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/harness/generation.ts)。
 
 ### 4.3 CompactionTask 独立于生成
 
@@ -177,7 +178,7 @@ flowchart TB
 - conversation 拥有的压缩通过 write submission 放入摘要。
 - token policy 与 beforeCompact hook 决定是否压缩、是否使用自定义摘要。
 
-源码：[compaction.ts](../../pi/packages/durable/src/harness/compaction.ts)。摘要取代模型上下文里的旧前缀，不等于删除历史。
+源码：[compaction.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/harness/compaction.ts)。摘要取代模型上下文里的旧前缀，不等于删除历史。
 
 ## 5. 重启恢复不是从头再跑
 
@@ -198,13 +199,13 @@ flowchart TD
 
 需要分清三个“版本”：
 
-1. workspace package 的 `1.2.0`；
+1. workspace package 的 `1.3.0`；
 2. task definition `version`，决定 input/checkpoint 的 migration；
 3. SQLite migration version / JSONL format version，决定物理存储协议。
 
 不要看到“版本迁移”就把三者写成同一个机制。
 
-源码：[scheduler.ts](../../pi/packages/durable/src/harness/scheduler.ts)、[TaskDefinition](../../pi/packages/durable/src/types.ts)、[registry.ts](../../pi/packages/durable/src/harness/registry.ts)。
+源码：[scheduler.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/harness/scheduler.ts)、[TaskDefinition](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/types.ts)、[registry.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/harness/registry.ts)。
 
 ## 6. 工具副作用：不能许诺恰好一次
 
@@ -261,7 +262,7 @@ durable 的工具可调用其他工具。用稳定 key 找到 task-scoped `Neste
 
 CLI 的 `ctx.executeTool()` 也存在，但走 `runToolCall` 和 nested-tool tracking，不因此获得 Durable 的存储协议。
 
-源码：[durable/tool.ts](../../pi/packages/durable/src/harness/tool.ts)、[coding-agent/nested-tool-calls.ts](../../pi/packages/coding-agent/src/core/nested-tool-calls.ts)、[agent/agent-loop.ts](../../pi/packages/agent/src/agent-loop.ts)。
+源码：[durable/tool.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/harness/tool.ts)、[coding-agent/nested-tool-calls.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/coding-agent/src/core/nested-tool-calls.ts)、[agent/agent-loop.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/agent/src/agent-loop.ts)。
 
 ## 7. 文档分叉与会话上下文
 
@@ -275,7 +276,7 @@ CLI 的 `ctx.executeTool()` 也存在，但走 `runToolCall` 和 nested-tool tra
 
 `prepareForkDocumentCopies()` 校验 entry 从父会话可见，然后按 `asOf` 与 `current` 两次扫描，拒绝同一地址复制多个 source document。
 
-源码：[forks.ts](../../pi/packages/durable/src/session/forks.ts)、[documents.ts](../../pi/packages/durable/src/documents.ts)。
+源码：[forks.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/session/forks.ts)、[documents.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/documents.ts)。
 
 ### 7.2 构建模型上下文
 
@@ -293,7 +294,7 @@ flowchart LR
 
 历史结束在 tool call 中间时，context 层会处理缺失结果，不把不完整 tool pairing 直接交给 Provider。CLI 的 projection 是另一份实现，不应引用 Durable 的函数解释 CLI。
 
-源码：[context.ts](../../pi/packages/durable/src/harness/context.ts)。
+源码：[context.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/harness/context.ts)。
 
 ## 8. 内存、JSONL、SQLite 后端
 
@@ -301,7 +302,7 @@ flowchart LR
 
 MemoryStorage 不是只存几个 Map。JSONL 使用它先 `prepareCommit`，持久 append 成功后 `prepared.apply()`；因此内存结构也参与 writes 校验、sequence 和已提交状态管理。
 
-源码：[memory.ts](../../pi/packages/durable/src/storage/memory.ts)。
+源码：[memory.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/storage/memory.ts)。
 
 ### 8.2 JSONL：多文件的逻辑提交
 
@@ -325,7 +326,7 @@ MemoryStorage 不是只存几个 Map。JSONL 使用它先 `prepareCommit`，持�
 
 **重要限制**：默认 fsync=false；即使 true，正常 commit 代码也仅显式 flush sidecars，再 append 主 marker。不要把“函数成功返回”扩大成所有存储设备/断电条件下的物理持久保证。
 
-源码：[JsonlStorage.commit](../../pi/packages/durable/src/storage/jsonl/storage.ts)。
+源码：[JsonlStorage.commit](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/storage/jsonl/storage.ts)。
 
 ### 8.3 SQLite：把业务写和 sequence 放进同一 DB transaction
 
@@ -356,7 +357,7 @@ const seq = await this.db.transaction(async (transaction) => {
 
 迁移表保存 schema versions；每个 migration 有顺序与事务要求。数据库事务提供原子提交，但不能自动把外部 shell/network 副作用纳入 SQLite transaction。
 
-源码：[storage.ts](../../pi/packages/durable/src/storage/sqlite/storage.ts)、[database.ts](../../pi/packages/durable/src/storage/sqlite/database.ts)、[node.ts](../../pi/packages/durable/src/storage/sqlite/node.ts)、[cloudflare.ts](../../pi/packages/durable/src/storage/sqlite/cloudflare.ts)、[migrations.ts](../../pi/packages/durable/src/storage/sqlite/migrations.ts)。
+源码：[storage.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/storage/sqlite/storage.ts)、[database.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/storage/sqlite/database.ts)、[node.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/storage/sqlite/node.ts)、[cloudflare.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/storage/sqlite/cloudflare.ts)、[migrations.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/storage/sqlite/migrations.ts)。
 
 ## 9. 失败、取消、重试与观察
 
@@ -371,7 +372,7 @@ const seq = await this.db.transaction(async (transaction) => {
 
 Progress/live 状态服务 UI，final entries 服务历史；usage 在 response/summary 结果提交时汇总，不要求另行扫描每条聊天消息。background ownership 与普通 idle/abort cascade 的处理不同，不能笼统说“取消 conversation 会取消所有后台任务”。
 
-源码：[scheduler.ts](../../pi/packages/durable/src/harness/scheduler.ts)、[events.ts](../../pi/packages/durable/src/harness/events.ts)、[view.ts](../../pi/packages/durable/src/harness/view.ts)、[env/connection.ts](../../pi/packages/env/src/connection.ts)。
+源码：[scheduler.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/harness/scheduler.ts)、[events.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/harness/events.ts)、[view.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/harness/view.ts)、[env/connection.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/env/src/connection.ts)。
 
 ## 10. 调试和设计取舍
 
@@ -394,3 +395,68 @@ Progress/live 状态服务 UI，final entries 服务历史；usage 在 response/
 - Registry、模型与配置要有快照边界，否则恢复时改变请求含义。
 
 **总结**：真正的持久后端，不是“聊天记录写磁盘”。Pi Durable 保存输入的接纳、阶段的执行意图、状态的提交顺序和结果收据；仍然明确承认外部副作用的未知窗口。这正是理解其复杂度和能力边界的关键。
+
+## 11. v1.3.0 发布版的后端变化（2026-10-17 核验）
+
+> 本节是相对于上一轮本地 1.2.0 快照的实际源码差异，不是照抄整个 1.3.0 changelog。发布元数据和源码差异清单见 [版本审计](./VERSION_ALIGNMENT.md)。
+
+### 11.1 SQLite prefix：同库共存，而不是更换数据模型
+
+**问题**：宿主已经在同一个数据库中放了自己的 `entries` 或其他表；Pi 直接使用同名表就会冲突。
+
+**解决**：v1.3.0 为 `SqliteStorageOptions` 增加 `prefix`。`createSqliteSchema(prefix)` 统一生成表和索引名称，migration 与运行时查询使用同一份映射，不是仅替换某几条 INSERT。
+
+```ts
+// API 形态示意：database 是宿主提供的 SqliteDatabase。
+const storage = await SqliteStorage.open(database, { prefix: "pi_" });
+// 例如 entries -> pi_entries；对应索引、schema 和 metadata 表也加同一前缀。
+```
+
+- Node `openNodeSqliteStorage()` 与 DO `openDurableObjectSqliteStorage()` 会转交该选项。
+- 显式 prefix 必须匹配 `[A-Za-z_][A-Za-z0-9_]*`，且不得以 `sqlite_` 开头（忽略大小写）；不传时使用默认无前缀名称。
+- prefix 是**命名空间**，不是权限/租户隔离，也不会自动搬迁既有无前缀表中的数据；更改 prefix 不能当作 rename/migrate 操作。
+- 第 8 节事务代码只表达写入协议；真实 SQL 现在通过 `this.schema.tables.*` 取表名。
+
+源码：[schema.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/storage/sqlite/schema.ts)、[storage.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/storage/sqlite/storage.ts)、[migrations.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/storage/sqlite/migrations.ts)。测试入口：[sqlite-storage.test.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/test/sqlite-storage.test.ts)。
+
+### 11.2 Cloudflare DO：多个 adapter 要共享队列
+
+**例子**：adapter A 打开事务后 await；adapter B 虽是另一个对象，却使用相同 `ctx.storage`。如果 B 在这时执行普通 SQL，它可能意外参与 A 的事务。
+
+v1.3.0 按底层 **storage 对象身份**复用队列。普通 exec/run/get/all 排队，事务在整个 callback settle 前持有队列；事务回调收到的专用 executor 直接执行，避免自己排在自己后面而死锁。
+
+```mermaid
+sequenceDiagram
+  participant A as Adapter A
+  participant Q as Shared SerialQueue
+  participant D as 同一 DO storage
+  participant B as Adapter B
+  A->>Q: transaction(callback), hold queue
+  Q->>D: storage.transaction(callback)
+  B->>Q: run(sql), 等待
+  D-->>Q: callback resolve / reject
+  Note over D,Q: 事务 commit / rollback，句柄失效
+  Q-->>A: transaction settles
+  Q->>D: 执行 B 的 SQL
+  D-->>B: result
+```
+
+事务 executor 在回调结束后标为 inactive；继续使用会抛错。`close()` 等待排队工作，底层存储仍归 Durable Object 宿主管理。这里是**同进程内同一个 storage 对象的协调**，不是跨机器锁或多 writer Session 的自动一致性方案。
+
+源码：[cloudflare.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/storage/sqlite/cloudflare.ts)。测试入口：[sqlite-cloudflare.test.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/test/sqlite-cloudflare.test.ts)。
+
+### 11.3 输出限额下沉到 Chord
+
+旧入口 `durable/src/harness/output.ts` 已不在发布源码中。v1.3.0 的 `ToolTask` 从 `@earendil-works/chord/output` 导入：
+
+- `boundOutput`、`OutputBuffer`、`OutputLimits`；
+- `Progress` 与 `PROGRESS_BYTES_PER_SECOND`；
+- `truncate.ts` 复用该子路径的 `utf8ByteLength`，减少重复实现。
+
+这改变了**模块归属与导入路径**，不改变工具恢复的核心保证：执行前 checkpoint、安全重跑的双重 policy、不能保证 exactly-once，都仍成立。旧路径出现在历史样例时，不应在当前 release 中照抄。
+
+源码：[Chord output.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/chord/src/output.ts)、[ToolTask](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/harness/tool.ts)、[truncate.ts](https://github.com/earendil-works/pi/blob/v1.3.0/packages/durable/src/truncate.ts)。
+
+### 11.4 不提前使用 main 的未发布配置
+
+核验时 main 已为 Durable 增加 `compaction.modelOverrides` 并放宽 `ToolControl.terminate` 类型。这些不能倒灌到本页 v1.3.0 基线：发布版 Durable 的压缩策略仍按发布源码读取，`terminate?: true` 仍是其公开类型。CLI 自己的配置能力与 Durable 不是同一套字段表。详见 [版本核验 §5](./VERSION_ALIGNMENT.md#5-main-的未发布变化)。

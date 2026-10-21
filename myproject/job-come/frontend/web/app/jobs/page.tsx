@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { EmailVerificationBanner } from "@/components/auth/EmailVerificationBanner";
+import { RequirementEvidenceList } from "@/components/job/RequirementEvidenceList";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { IconArrowRight, IconInbox, IconSpark, IconTarget, IconWarn } from "@/components/ui/Icon";
@@ -66,6 +67,8 @@ export default function JobsPage() {
         fit_recommendation: fit.recommendation,
         fit_gaps: fit.gaps,
         fit_blockers: fit.blockers,
+        evidence_profile_version: fit.evidence_profile_version,
+        requirement_evidence: fit.requirement_evidence,
         fit_summary: fit.summary,
         elevate_hints: fit.elevate_hints,
         fit_dimensions: fit.dimensions,
@@ -279,6 +282,8 @@ function FitCard({ job, fit }: { job: Job; fit: FitScore | null }) {
   const hints = fit?.elevate_hints?.length ? fit.elevate_hints : job.elevate_hints ?? [];
   const gaps = fit?.gaps?.length ? fit.gaps : job.fit_gaps;
   const summary = fit?.summary ?? job.fit_summary;
+  const evidenceVersion = fit?.evidence_profile_version ?? job.evidence_profile_version;
+  const evidence = fit?.requirement_evidence ?? job.requirement_evidence ?? [];
 
   return (
     <section className="card bg-sheen animate-fade-up overflow-hidden">
@@ -343,6 +348,8 @@ function FitCard({ job, fit }: { job: Job; fit: FitScore | null }) {
             </div>
           ) : null}
         </div>
+
+        <RequirementEvidenceList items={evidence} profileVersion={evidenceVersion} />
 
         <div className="flex flex-wrap items-center gap-3 pt-1">
           <Link

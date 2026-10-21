@@ -1,7 +1,10 @@
 # Pi 栈架构图（含 Prime 封装层）
 
+> **版本核验：2026-10-17 / Pi v1.3.0**。本目录当前源码结论固定到官方 tag `71023aec1546d6d677a65669c5665c0927ce0dd0`。旧文中的 `agent/src/harness/`、Lane/registers、`LeafEntry` 和 Prime/第三方生态不能视为 v1.3.0 的 core 实现；具体差异见 [版本核验与纠错](../VERSION_ALIGNMENT.md)。历史示例保留并就地标记，旧行号不作为当前定位依据。
+
+
 > **读图方式**：**灰色 = Pi 各包固有能力**；**橙色 = Prime 产品封装**（在 `pi-coding-agent` + `prime-agent-runtime` 里实现）。  
-> **效果对照**：[PI_AND_PRIME.md §4](../prime-agent-architecture/_archive/PI_AND_PRIME.md#4-prime-在-pi-之上封装了什么)
+> **效果对照**：[PI_AND_PRIME.md §4](../../prime-agent-architecture/_archive/PI_AND_PRIME.md#4-prime-在-pi-之上封装了什么)
 
 ---
 
@@ -266,8 +269,8 @@ flowchart TB
 
 | 主题 | 文档 |
 |------|------|
-| Prime 封装六决策（文字） | [PI_AND_PRIME §4](../prime-agent-architecture/_archive/PI_AND_PRIME.md) |
-| Agent vs AgentSession 表 | [PI_AND_PRIME §5](../prime-agent-architecture/_archive/PI_AND_PRIME.md) |
-| 源码目录树 | [ARCHITECTURE_PART1 §1.2.5](../prime-agent-architecture/_archive/ARCHITECTURE_PART1.md) |
-| 跨项目 steer 对照 | [CROSS_AGENT_CONCEPT_MAP](../agent-doc-template/CROSS_AGENT_CONCEPT_MAP.md) |
-| 九幕设计思想 | [DESIGN_THINKING_SERIES](../pi-agent/DESIGN_THINKING_SERIES.md) |
+| Prime 封装六决策（文字） | [PI_AND_PRIME §4](../../prime-agent-architecture/_archive/PI_AND_PRIME.md) |
+| Agent vs AgentSession 表 | [PI_AND_PRIME §5](../../prime-agent-architecture/_archive/PI_AND_PRIME.md) |
+| 源码目录树 | [ARCHITECTURE_PART1 §1.2.5](../../prime-agent-architecture/_archive/ARCHITECTURE_PART1.md) |
+| 跨项目 steer 对照 | CROSS_AGENT_CONCEPT_MAP（历史引用：`../agent-doc-template/CROSS_AGENT_CONCEPT_MAP.md`，当前文件不存在） |
+| 九幕设计思想 | [DESIGN_THINKING_SERIES](../DESIGN_THINKING_SERIES.md) |

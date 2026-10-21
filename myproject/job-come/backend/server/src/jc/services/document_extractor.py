@@ -59,6 +59,32 @@ class DocumentExtractor:
             return raw_bytes.decode("utf-8", errors="ignore")[:50_000]
         return raw_bytes.decode("utf-8", errors="ignore")[:50_000]
 
+    def has_scanned_pdf_pages(self, raw_bytes: bytes) -> bool:
+        """Detect substantial image-only pages; a small portrait is not OCR evidence.
+
+        A mixed PDF selects vision for the whole document so native-text pages are
+        not silently lost. Page-selective OCR/merge is intentionally not guessed here.
+        """
+        try:
+            import fitz
+
+            with fitz.open(stream=raw_bytes, filetype="pdf") as doc:
+                for page in doc:
+                    text = page.get_text()
+                    if sum(c.isalnum() for c in text) >= 40:
+                        continue
+                    area = page.rect.get_area()
+                    image_area = sum(
+                        (fitz.Rect(image["bbox"]) & page.rect).get_area()
+                        for image in page.get_image_info()
+                    )
+                    if area and image_area / area >= 0.5:
+                        return True
+        except Exception:
+            # Native text extraction and local Route B remain available.
+            logger.warning("PDF page inspection unavailable", exc_info=False)
+        return False
+
     def extract_markdown_route_b(
         self,
         *,
@@ -129,6 +155,7 @@ class DocumentExtractor:
         *,
         max_pages: int | None = None,
         scale: float = 2.0,
+        require_all_pages: bool = False,
     ) -> list[tuple[bytes, str]]:
         """Render PDF pages to PNG bytes for vision OCR."""
         limit = max_pages if max_pages is not None else self.PDF_VISION_MAX_PAGES
@@ -144,6 +171,9 @@ class DocumentExtractor:
 
         images: list[tuple[bytes, str]] = []
         try:
+            if require_all_pages and len(doc) > limit:
+                # Do not label a truncated scan as a completely parsed resume.
+                raise ValueError("pdf_vision_page_limit")
             matrix = fitz.Matrix(scale, scale)
             for idx, page in enumerate(doc):
                 if idx >= limit:
@@ -156,9 +186,11 @@ class DocumentExtractor:
 
     @classmethod
     def pdf_page_images_from_bytes(
-        cls, raw_bytes: bytes, *, max_pages: int | None = None
+        cls, raw_bytes: bytes, *, max_pages: int | None = None, require_all_pages: bool = False
     ) -> list[tuple[bytes, str]]:
-        return cls().pdf_page_images(raw_bytes, max_pages=max_pages)
+        return cls().pdf_page_images(
+            raw_bytes, max_pages=max_pages, require_all_pages=require_all_pages
+        )
 
     def docx_embedded_images(
         self,

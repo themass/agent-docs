@@ -5,20 +5,22 @@ from __future__ import annotations
 
 import asyncio
 import os
-import sys
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+from lib.bootstrap import ensure_project_env
 
-from agentkit.common.crypto import hash_password
-from agentkit.common.ids import new_id
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+ensure_project_env()
 
-from jc.config import settings
-from jc.models.enums import OwnerKind, ProfileStatus, UserStatus
-from jc.models.profile import Profile
-from jc.models.user import User, UserMeta
+from agentkit.common.crypto import hash_password  # noqa: E402
+from agentkit.common.ids import new_id  # noqa: E402
+from jc.config import settings  # noqa: E402
+from jc.models.enums import OwnerKind, ProfileStatus, UserStatus  # noqa: E402
+from jc.models.profile import Profile  # noqa: E402
+from jc.models.user import User, UserMeta  # noqa: E402
+from sqlalchemy.ext.asyncio import (  # noqa: E402
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 DEMO_EMAIL = os.environ.get("JC_DEMO_EMAIL", "demo@jc.local")
 DEMO_PASSWORD = os.environ.get("JC_DEMO_PASSWORD", "Demo1234!")

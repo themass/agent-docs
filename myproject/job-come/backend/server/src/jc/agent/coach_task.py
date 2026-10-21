@@ -25,12 +25,18 @@ def wrap_coach_mock_message(
             "题库还没有本题可抽，请出与岗位相关的新题，"
             "每出一题调用 jc_question_upsert。"
         )
+    history_rule = (
+        "如果对话较长、不确定本轮模拟会话里已经问过哪些题、用户怎么答的，"
+        "先调用 jc_mock_session_history（带 mock_session_id）查出已记录的问答，"
+        "不要凭记忆猜测或重复问同一题。"
+    )
     return (
         "【面试模拟任务】\n"
         "只用中文。不要自我介绍，不要调用 ask_clarification。\n"
         f"档案 profile_id={bound_profile}；岗位 job_id={bound_job}；"
         f"模拟会话 mock_session_id={session}。\n"
         f"{draw_rule}\n"
+        f"{history_rule}\n"
         "每次出题后调用 jc_question_upsert（带 job_id 与 mock_session_id）。"
         "用户作答后点评，并调用 jc_answer_save_attempt。\n"
         "用户原话：\n"

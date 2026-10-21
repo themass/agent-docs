@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
+from jc.paths import prompt_file
+
 _RUBRIC_PATH = (
-    Path(__file__).resolve().parents[3].parent / "agent" / "prompts" / "coach" / "mock_rubric_five_dims.md"
+    prompt_file("coach", "mock_rubric_five_dims.md")
 )
 
 DIMENSION_KEYS = ("structure", "relevance", "depth", "communication", "reflection")
@@ -60,14 +61,18 @@ def normalize_coach_feedback(raw: dict[str, Any] | None) -> dict[str, Any]:
         if isinstance(dims, dict):
             score = data.get("score")
             if score is None and dims:
-                vals = [dims.get(k) for k in DIMENSION_KEYS if isinstance(dims.get(k), (int, float))]
+                vals = [
+                    dims.get(k) for k in DIMENSION_KEYS if isinstance(dims.get(k), (int, float))
+                ]
                 if vals:
                     data["score"] = int(round(sum(vals) / len(vals)))
         return data
 
 
 def overall_from_dimensions(dimensions: dict[str, Any]) -> int | None:
-    vals = [dimensions.get(k) for k in DIMENSION_KEYS if isinstance(dimensions.get(k), (int, float))]
+    vals = [
+        dimensions.get(k) for k in DIMENSION_KEYS if isinstance(dimensions.get(k), (int, float))
+    ]
     if not vals:
         return None
     return int(round(sum(vals) / len(vals)))

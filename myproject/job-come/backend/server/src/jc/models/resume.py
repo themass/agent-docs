@@ -10,7 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from jc.db.base import Base
 from jc.db.mixins import TimestampMixin
-from jc.db.types import JSONText
+from jc.db.types import JSONLongText
 from jc.models.enums import ElevationLevel, ExportJobStatus, ReviewerStatus
 
 if TYPE_CHECKING:
@@ -34,8 +34,8 @@ class ResumeDraft(Base, TimestampMixin):
     )
     locale: Mapped[str] = mapped_column(String(16), default="zh-CN", nullable=False)
     template_id: Mapped[str] = mapped_column(String(64), nullable=False)
-    sections: Mapped[dict[str, Any]] = mapped_column(JSONText, nullable=False, default=dict)
-    elevation_map: Mapped[list[Any]] = mapped_column(JSONText, nullable=False, default=list)
+    sections: Mapped[dict[str, Any]] = mapped_column(JSONLongText, nullable=False, default=dict)
+    elevation_map: Mapped[list[Any]] = mapped_column(JSONLongText, nullable=False, default=list)
     reviewer_status: Mapped[str] = mapped_column(
         String(16), default=ReviewerStatus.PENDING, nullable=False
     )

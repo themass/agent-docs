@@ -1,0 +1,543 @@
+{
+  "scope": "live-model writing semantics: angle variance, honesty invariance, reviewer gate under angle pressure, coverage-threshold calibration. Not a check of extraction quality, HTTP contracts or rendering.",
+  "sample": "黄炎久-技术高P（底座方向）-加州格林.docx",
+  "role_family": "operations",
+  "job_title": "技术",
+  "max_emphases": 2,
+  "resolved_default_angles": [
+    "outcome",
+    "scope"
+  ],
+  "arms": [
+    {
+      "emphases": [
+        "ownership",
+        "collaboration"
+      ],
+      "ok": true,
+      "error": null,
+      "elapsed_ms": 39106,
+      "bullet_count": 28,
+      "coverage": {
+        "source_highlights": 36,
+        "covered": 27,
+        "ratio": 0.75,
+        "projects_missing": false
+      },
+      "estimated_pages": 1.6,
+      "invariants": {
+        "holds": false,
+        "fabrication_count": 2,
+        "attributed_bullets": 26,
+        "draft_bullets": 28,
+        "findings": [
+          {
+            "kind": "unattributed_bullet",
+            "severity": "attention",
+            "field_path": "experience_blocks[0].bullets[3]",
+            "draft_text": "面向优先打车需求，开发支持多种优先策略灵活配置的框架，并基于该框架实现用户付费优先打车功能。",
+            "source_text": "",
+            "detail": "没有找到与这条要点对应的源文（最高重合 0.25）。可能是合并了多条，也可能是凭空生成。"
+          },
+          {
+            "kind": "unsupported_term",
+            "severity": "attention",
+            "field_path": "experience_blocks[1].bullets[0]",
+            "draft_text": "负责QQ浏览器信息流业务CI/CD流程及工具设计开发，将交付Lead Time从25天缩短至8天，缺陷覆盖率降低25%。",
+            "source_text": "QQ浏览器信息流后台架构升级以及研发流程升级：同时负责业务CI&CD流程及工具的设计开发，对研发流程进行升级，实现了交付指标Lead Time从原先的25天降低",
+            "detail": "术语 `ci/cd` 不在档案里。可能是中文词的英文写法，也可能是新增的技术栈声明。"
+          },
+          {
+            "kind": "unsupported_number",
+            "severity": "fabrication",
+            "field_path": "experience_blocks[1].bullets[1]",
+            "draft_text": "作为QQ浏览器知识付费业务技术负责人，主导整体技术方案与关键模块开发，实现业务从0到1落地，业务达成年度GMV 100万目标。",
+            "source_text": "知识付费业务：该业务也实现了GMV 100w的既定年度目标。",
+            "detail": "数字 `100万` 在档案任何位置都找不到依据。"
+          },
+          {
+            "kind": "unsupported_number",
+            "severity": "fabrication",
+            "field_path": "experience_blocks[2].bullets[2]",
+            "draft_text": "重新设计PUSH整体架构，使4000万规模的全量推送到达率达到55%以上，并将推送延时降低至3分钟。",
+            "source_text": "PUSH架构优化：通过整体推送架构的重新设计，实现了全量推送（4kw）到达率达到了55%以上，推送延时降低到了3分钟。",
+            "detail": "数字 `4000万` 在档案任何位置都找不到依据。"
+          },
+          {
+            "kind": "unattributed_bullet",
+            "severity": "attention",
+            "field_path": "experience_blocks[2].bullets[11]",
+            "draft_text": "在中台服务框架中支持请求追踪、熔断、限流与服务发现，为中台服务提供治理能力。",
+            "source_text": "",
+            "detail": "没有找到与这条要点对应的源文（最高重合 0.15）。可能是合并了多条，也可能是凭空生成。"
+          }
+        ]
+      }
+    },
+    {
+      "emphases": [
+        "outcome",
+        "scope"
+      ],
+      "ok": true,
+      "error": null,
+      "elapsed_ms": 50865,
+      "bullet_count": 30,
+      "coverage": {
+        "source_highlights": 36,
+        "covered": 23,
+        "ratio": 0.64,
+        "projects_missing": false
+      },
+      "estimated_pages": 1.6,
+      "invariants": {
+        "holds": false,
+        "fabrication_count": 3,
+        "attributed_bullets": 28,
+        "draft_bullets": 30,
+        "findings": [
+          {
+            "kind": "unsupported_number",
+            "severity": "fabrication",
+            "field_path": "experience_blocks[1].bullets[0]",
+            "draft_text": "作为 QQ 浏览器知识付费业务技术负责人，主导整体方案与关键模块开发，实现业务从 0 到 1 落地，达成年度 GMV 100 万目标。",
+            "source_text": "知识付费业务：该业务也实现了GMV 100w的既定年度目标。",
+            "detail": "数字 `100万` 在档案任何位置都找不到依据。"
+          },
+          {
+            "kind": "unsupported_number",
+            "severity": "fabrication",
+            "field_path": "experience_blocks[1].bullets[0]",
+            "draft_text": "作为 QQ 浏览器知识付费业务技术负责人，主导整体方案与关键模块开发，实现业务从 0 到 1 落地，达成年度 GMV 100 万目标。",
+            "source_text": "知识付费业务：该业务也实现了GMV 100w的既定年度目标。",
+            "detail": "数字 `gmv` 在档案任何位置都找不到依据。"
+          },
+          {
+            "kind": "unsupported_term",
+            "severity": "attention",
+            "field_path": "experience_blocks[1].bullets[2]",
+            "draft_text": "设计开发业务 CI/CD 流程及工具，将交付 Lead Time 从 25 天缩短至 8 天，并将缺陷覆盖率降低 25%。",
+            "source_text": "QQ浏览器信息流后台架构升级以及研发流程升级：同时负责业务CI&CD流程及工具的设计开发，对研发流程进行升级，实现了交付指标Lead Time从原先的25天降低",
+            "detail": "术语 `ci/cd` 不在档案里。可能是中文词的英文写法，也可能是新增的技术栈声明。"
+          },
+          {
+            "kind": "unattributed_bullet",
+            "severity": "attention",
+            "field_path": "experience_blocks[1].bullets[3]",
+            "draft_text": "设计并实现基于消息队列与 DB 存储的分布式事务，为知识付费业务提供分布式事务能力。",
+            "source_text": "",
+            "detail": "没有找到与这条要点对应的源文（最高重合 0.26）。可能是合并了多条，也可能是凭空生成。"
+          },
+          {
+            "kind": "unsupported_number",
+            "severity": "fabrication",
+            "field_path": "experience_blocks[2].bullets[3]",
+            "draft_text": "重新设计整体推送架构，在全量推送 4000 万规模下实现到达率 55% 以上，并将推送延时降至 3 分钟。",
+            "source_text": "PUSH架构优化：通过整体推送架构的重新设计，实现了全量推送（4kw）到达率达到了55%以上，推送延时降低到了3分钟。",
+            "detail": "数字 `4000万` 在档案任何位置都找不到依据。"
+          },
+          {
+            "kind": "unattributed_bullet",
+            "severity": "attention",
+            "field_path": "experience_blocks[2].bullets[8]",
+            "draft_text": "参与图片业务分布式存储及业务端图片服务的实现、开发与调优，覆盖图片服务的存储与业务支撑环节。",
+            "source_text": "",
+            "detail": "没有找到与这条要点对应的源文（最高重合 0.24）。可能是合并了多条，也可能是凭空生成。"
+          }
+        ]
+      }
+    },
+    {
+      "emphases": [
+        "depth",
+        "jd_fit"
+      ],
+      "ok": true,
+      "error": null,
+      "elapsed_ms": 44801,
+      "bullet_count": 30,
+      "coverage": {
+        "source_highlights": 36,
+        "covered": 28,
+        "ratio": 0.78,
+        "projects_missing": false
+      },
+      "estimated_pages": 1.6,
+      "invariants": {
+        "holds": false,
+        "fabrication_count": 2,
+        "attributed_bullets": 28,
+        "draft_bullets": 30,
+        "findings": [
+          {
+            "kind": "unsupported_number",
+            "severity": "fabrication",
+            "field_path": "experience_blocks[1].bullets[0]",
+            "draft_text": "担任QQ浏览器知识付费业务技术负责人，主导整体方案及关键模块开发，设计实现基于消息队列与DB存储的分布式事务，支撑业务从0到1落地并达成年度GMV 100万目标",
+            "source_text": "2021.06 — 2022.02，知识付费业务：作为QQ浏览器知识付费业务的技术负责人，实现该业务从0到1的整体落地，并主导了该业务技术方案的整体设计，以及关",
+            "detail": "数字 `100万` 在档案任何位置都找不到依据。"
+          },
+          {
+            "kind": "unsupported_number",
+            "severity": "fabrication",
+            "field_path": "experience_blocks[2].bullets[2]",
+            "draft_text": "重新设计PUSH整体架构，在全量推送规模4000万下，实现到达率55%以上，并将推送延时降至3分钟。",
+            "source_text": "PUSH架构优化：通过整体推送架构的重新设计，实现了全量推送（4kw）到达率达到了55%以上，推送延时降低到了3分钟。",
+            "detail": "数字 `4000万` 在档案任何位置都找不到依据。"
+          },
+          {
+            "kind": "unattributed_bullet",
+            "severity": "attention",
+            "field_path": "experience_blocks[2].bullets[11]",
+            "draft_text": "在中台服务框架中支持请求追踪、熔断、限流及服务发现，完善服务治理能力。",
+            "source_text": "",
+            "detail": "没有找到与这条要点对应的源文（最高重合 0.16）。可能是合并了多条，也可能是凭空生成。"
+          },
+          {
+            "kind": "unattributed_bullet",
+            "severity": "attention",
+            "field_path": "experience_blocks[4].bullets[1]",
+            "draft_text": "该产品面向移动搜索，提供搜索结果与浏览体验。",
+            "source_text": "",
+            "detail": "没有找到与这条要点对应的源文（最高重合 0.13）。可能是合并了多条，也可能是凭空生成。"
+          }
+        ]
+      }
+    }
+  ],
+  "angle_variance": {
+    "sameness_ceiling": 0.9,
+    "comparisons": [
+      {
+        "left": [
+          "ownership",
+          "collaboration"
+        ],
+        "right": [
+          "outcome",
+          "scope"
+        ],
+        "sameness": 0.805,
+        "indistinguishable": false
+      },
+      {
+        "left": [
+          "ownership",
+          "collaboration"
+        ],
+        "right": [
+          "depth",
+          "jd_fit"
+        ],
+        "sameness": 0.856,
+        "indistinguishable": false
+      },
+      {
+        "left": [
+          "outcome",
+          "scope"
+        ],
+        "right": [
+          "depth",
+          "jd_fit"
+        ],
+        "sameness": 0.867,
+        "indistinguishable": false
+      }
+    ]
+  },
+  "reviewer_gate": {
+    "ran": true,
+    "planted_from": "profile",
+    "planted_bullet_excerpt": "Multi Taxi Type 多车型订单：作为项目负责人，负责从0开始组建团队",
+    "status": "failed",
+    "blocked": true,
+    "issue_codes": [
+      "experience_blocks[0].bullets[0]",
+      "summary",
+      "experience_blocks[0].bullets[2]"
+    ],
+    "named_ownership": true,
+    "under_angles": [
+      "ownership",
+      "collaboration"
+    ]
+  },
+  "reviewer_vs_invariants": [
+    {
+      "ran": true,
+      "status": "failed",
+      "available": true,
+      "fabrications_found_by_invariants": 2,
+      "fabrications_caught_by_reviewer": 0,
+      "fabrications_missed_by_reviewer": [
+        {
+          "kind": "unsupported_number",
+          "field_path": "experience_blocks[1].bullets[1]",
+          "detail": "数字 `100万` 在档案任何位置都找不到依据。"
+        },
+        {
+          "kind": "unsupported_number",
+          "field_path": "experience_blocks[2].bullets[2]",
+          "detail": "数字 `4000万` 在档案任何位置都找不到依据。"
+        }
+      ],
+      "issue_count": 1,
+      "angles": [
+        "ownership",
+        "collaboration"
+      ]
+    },
+    {
+      "ran": true,
+      "status": "passed",
+      "available": true,
+      "fabrications_found_by_invariants": 3,
+      "fabrications_caught_by_reviewer": 0,
+      "fabrications_missed_by_reviewer": [
+        {
+          "kind": "unsupported_number",
+          "field_path": "experience_blocks[1].bullets[0]",
+          "detail": "数字 `100万` 在档案任何位置都找不到依据。"
+        },
+        {
+          "kind": "unsupported_number",
+          "field_path": "experience_blocks[1].bullets[0]",
+          "detail": "数字 `gmv` 在档案任何位置都找不到依据。"
+        },
+        {
+          "kind": "unsupported_number",
+          "field_path": "experience_blocks[2].bullets[3]",
+          "detail": "数字 `4000万` 在档案任何位置都找不到依据。"
+        }
+      ],
+      "issue_count": 0,
+      "angles": [
+        "outcome",
+        "scope"
+      ]
+    },
+    {
+      "ran": true,
+      "status": "passed",
+      "available": true,
+      "fabrications_found_by_invariants": 2,
+      "fabrications_caught_by_reviewer": 0,
+      "fabrications_missed_by_reviewer": [
+        {
+          "kind": "unsupported_number",
+          "field_path": "experience_blocks[1].bullets[0]",
+          "detail": "数字 `100万` 在档案任何位置都找不到依据。"
+        },
+        {
+          "kind": "unsupported_number",
+          "field_path": "experience_blocks[2].bullets[2]",
+          "detail": "数字 `4000万` 在档案任何位置都找不到依据。"
+        }
+      ],
+      "issue_count": 0,
+      "angles": [
+        "depth",
+        "jd_fit"
+      ]
+    }
+  ],
+  "coverage_calibration": {
+    "match_threshold": 0.42,
+    "note": "False-positive rate for the coverage threshold. `near_miss` items scored just under the threshold and are the ones to read: if most flagged items are near misses the threshold is too strict for real output.",
+    "source_highlights": 36,
+    "flagged_total": 30,
+    "near_miss_total": 28,
+    "flagged": [
+      {
+        "angles": [
+          "ownership",
+          "collaboration"
+        ],
+        "where": "Grab · 高级经理",
+        "best_match": 0.31,
+        "source_excerpt": "2022.07 – 至今，Multi Taxi Type 多车型订单：Grab 首次实现多车型同时派单的功能。"
+      },
+      {
+        "angles": [
+          "ownership",
+          "collaboration"
+        ],
+        "where": "Grab · 高级经理",
+        "best_match": 0.35,
+        "source_excerpt": "Multi Taxi Type 多车型订单：对已有的下单、派单系统进行了较大的重构和升级，支持多车型同时派单的能力，实现"
+      },
+      {
+        "angles": [
+          "ownership",
+          "collaboration"
+        ],
+        "where": "Grab · 高级经理",
+        "best_match": 0.27,
+        "source_excerpt": "2023.01 – 2023.06，Paid Priority Allocation 付费优先打车：为了提升打车业务的G"
+      },
+      {
+        "angles": [
+          "ownership",
+          "collaboration"
+        ],
+        "where": "腾讯 · T11",
+        "best_match": 0.33,
+        "source_excerpt": "2020.05 — 2020.10，看点快报架构重构：主导了看点快报后台的架构重构，通过将原先PHP遗留单体服务改造成基"
+      },
+      {
+        "angles": [
+          "ownership",
+          "collaboration"
+        ],
+        "where": "腾讯 · T11",
+        "best_match": 0.39,
+        "source_excerpt": "2021.06 — 2022.02，知识付费业务：作为QQ浏览器知识付费业务的技术负责人，实现该业务从0到1的整体落地，"
+      },
+      {
+        "angles": [
+          "ownership",
+          "collaboration"
+        ],
+        "where": "一点资讯 · 运营中台负责人",
+        "best_match": 0.33,
+        "source_excerpt": "下属人数：20人"
+      },
+      {
+        "angles": [
+          "ownership",
+          "collaboration"
+        ],
+        "where": "一点资讯 · 运营中台负责人",
+        "best_match": 0.39,
+        "source_excerpt": "早期作为图片服务的负责人，主导和参与了上述图片服务相关项目的设计和开发，也包括现有图片服务团队的组建。"
+      },
+      {
+        "angles": [
+          "ownership",
+          "collaboration"
+        ],
+        "where": "一点资讯 · 运营中台负责人",
+        "best_match": 0.38,
+        "source_excerpt": "中台架构升级：主导了中台技术架构的升级，自研了基于Golang的服务框架gokitter，进行了技术架构从PHP到Gol"
+      },
+      {
+        "angles": [
+          "ownership",
+          "collaboration"
+        ],
+        "where": "Zynga 北京工作室 · 开发工程师 / 高级研发工程师",
+        "best_match": 0.42,
+        "source_excerpt": "后期开始主要负责后端的开发。"
+      },
+      {
+        "angles": [
+          "outcome",
+          "scope"
+        ],
+        "where": "Grab · 高级经理",
+        "best_match": 0.31,
+        "source_excerpt": "2022.07 – 至今，Multi Taxi Type 多车型订单：Grab 首次实现多车型同时派单的功能。"
+      },
+      {
+        "angles": [
+          "outcome",
+          "scope"
+        ],
+        "where": "Grab · 高级经理",
+        "best_match": 0.37,
+        "source_excerpt": "Multi Taxi Type 多车型订单：对已有的下单、派单系统进行了较大的重构和升级，支持多车型同时派单的能力，实现"
+      },
+      {
+        "angles": [
+          "outcome",
+          "scope"
+        ],
+        "where": "Grab · 高级经理",
+        "best_match": 0.42,
+        "source_excerpt": "Multi Taxi Type 多车型订单：作为项目负责人，负责从0开始组建团队、负责系统方案设计，以及推动项目方案的实"
+      },
+      {
+        "angles": [
+          "outcome",
+          "scope"
+        ],
+        "where": "Grab · 高级经理",
+        "best_match": 0.33,
+        "source_excerpt": "2023.01 – 2023.06，Paid Priority Allocation 付费优先打车：为了提升打车业务的G"
+      },
+      {
+        "angles": [
+          "outcome",
+          "scope"
+        ],
+        "where": "腾讯 · T11",
+        "best_match": 0.28,
+        "source_excerpt": "2020.05 — 2020.10，看点快报架构重构：主导了看点快报后台的架构重构，通过将原先PHP遗留单体服务改造成基"
+      },
+      {
+        "angles": [
+          "outcome",
+          "scope"
+        ],
+        "where": "腾讯 · T11",
+        "best_match": 0.4,
+        "source_excerpt": "看点快报架构重构：实现了成本20%的优化目标。"
+      },
+      {
+        "angles": [
+          "outcome",
+          "scope"
+        ],
+        "where": "腾讯 · T11",
+        "best_match": 0.4,
+        "source_excerpt": "QQ浏览器信息流后台架构升级以及研发流程升级：同时负责业务CI&CD流程及工具的设计开发，对研发流程进行升级，实现了交付"
+      },
+      {
+        "angles": [
+          "outcome",
+          "scope"
+        ],
+        "where": "腾讯 · T11",
+        "best_match": 0.38,
+        "source_excerpt": "2021.06 — 2022.02，知识付费业务：作为QQ浏览器知识付费业务的技术负责人，实现该业务从0到1的整体落地，"
+      },
+      {
+        "angles": [
+          "outcome",
+          "scope"
+        ],
+        "where": "一点资讯 · 运营中台负责人",
+        "best_match": 0.33,
+        "source_excerpt": "下属人数：20人"
+      },
+      {
+        "angles": [
+          "outcome",
+          "scope"
+        ],
+        "where": "一点资讯 · 运营中台负责人",
+        "best_match": 0.39,
+        "source_excerpt": "早期作为图片服务的负责人，主导和参与了上述图片服务相关项目的设计和开发，也包括现有图片服务团队的组建。"
+      },
+      {
+        "angles": [
+          "outcome",
+          "scope"
+        ],
+        "where": "一点资讯 · 运营中台负责人",
+        "best_match": 0.39,
+        "source_excerpt": "参与的项目包括一点资讯与图片服务相关的所有项目，包括分布式存储、支持业务端的图片服务、广告图识别、图片分类、图片物体识别"
+      }
+    ]
+  },
+  "failures": [
+    "angle ['ownership', 'collaboration'] asserted unsupported content (unsupported_number): 数字 `100万` 在档案任何位置都找不到依据。",
+    "angle ['ownership', 'collaboration'] asserted unsupported content (unsupported_number): 数字 `4000万` 在档案任何位置都找不到依据。",
+    "angle ['outcome', 'scope'] asserted unsupported content (unsupported_number): 数字 `100万` 在档案任何位置都找不到依据。",
+    "angle ['outcome', 'scope'] asserted unsupported content (unsupported_number): 数字 `gmv` 在档案任何位置都找不到依据。",
+    "angle ['outcome', 'scope'] asserted unsupported content (unsupported_number): 数字 `4000万` 在档案任何位置都找不到依据。",
+    "angle ['depth', 'jd_fit'] asserted unsupported content (unsupported_number): 数字 `100万` 在档案任何位置都找不到依据。",
+    "angle ['depth', 'jd_fit'] asserted unsupported content (unsupported_number): 数字 `4000万` 在档案任何位置都找不到依据。"
+  ]
+}

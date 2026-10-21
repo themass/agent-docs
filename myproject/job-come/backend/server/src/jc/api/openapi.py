@@ -41,7 +41,8 @@ JC 后端 API（MVP）。
 - Cookie 名称：
   - `jc_session` — 登录用户
   - `jc_guest` — 访客会话
-- 在 Swagger UI 中调试：先调用 `GET /auth/context` 或 `POST /auth/login`，浏览器会保存 Set-Cookie，后续请求自动携带。
+- 在 Swagger UI 中调试：先调用 `GET /auth/context` 或 `POST /auth/login`，
+  浏览器会保存 Set-Cookie，后续请求自动携带。
 
 ## 典型流程
 

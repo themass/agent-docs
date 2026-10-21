@@ -1,21 +1,18 @@
 "use client";
 
-import { userFacingApiError } from "@/lib/api/user-error";
-
-import { useEffect, useState } from "react";
-
 import {
-  updateProfile,
   type Profile,
   type ProfileEducation,
   type ProfileExperience,
-  type ProfilePayload,
 } from "@/lib/api/profile";
+import type { ProfileDraftController } from "@/lib/hooks/useProfileDraft";
+import { ProfilePhotoField } from "@/components/resume/ProfilePhotoField";
 import { ZHOUKA_NAME } from "@/lib/brand";
 import { experienceLabel, type AgentUiFocus } from "@/lib/ui-context";
 
 type Props = {
   profile: Profile;
+  editor: ProfileDraftController;
   onSaved: (profile: Profile) => void;
   focusPath?: string | null;
   onUiFocus?: (focus: AgentUiFocus) => void;
@@ -45,14 +42,10 @@ function emptyEducation(): ProfileEducation {
   return { id: newEduId(), school: "", degree: null, major: null };
 }
 
-export function ProfileStudioEditor({ profile, onSaved, focusPath = null, onUiFocus }: Props) {
-  const [payload, setPayload] = useState<ProfilePayload>(profile.payload);
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    setPayload(profile.payload);
-  }, [profile.id, profile.version, profile.payload]);
+export function ProfileStudioEditor({ profile, editor, onSaved, focusPath = null, onUiFocus }: Props) {
+  const { draft, setPayload } = editor;
+  if (!draft || draft.base.id !== profile.id) return null;
+  const payload = draft.payload;
 
   function patchExperience(index: number, patch: Partial<ProfileExperience>) {
     setPayload((prev) => {
@@ -81,35 +74,34 @@ export function ProfileStudioEditor({ profile, onSaved, focusPath = null, onUiFo
     });
   }
 
-  async function save() {
-    setBusy(true);
-    setMessage(null);
-    try {
-      const cleaned: ProfilePayload = {
-        ...payload,
-        experiences: payload.experiences.map((exp) => ({
-          ...exp,
-          highlights: (exp.highlights ?? []).map((h) => h.trim()).filter(Boolean),
-        })),
-      };
-      const next = await updateProfile(profile.id, cleaned, profile.version);
-      onSaved(next);
-      setMessage("已保存");
-    } catch (err) {
-      setMessage(userFacingApiError(err, "保存失败"));
-    } finally {
-      setBusy(false);
-    }
-  }
-
   // Shared control style lives in globals.css so every form in the app matches.
   const inputClass = "field";
 
   return (
     <div className="space-y-5">
+      <div role="status" className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-surface-border bg-surface p-3 shadow-sm">
+        <span className="text-sm text-ink-700">{editor.busy ? "保存中…" : editor.dirty ? "有未保存的修改" : "档案已保存"}</span>
+        <button type="button" onClick={() => void editor.save()} disabled={editor.busy || !editor.dirty || Boolean(draft.conflict)} className="btn btn-sm btn-primary">
+          {editor.busy ? "保存中…" : "保存修改"}
+        </button>
+        {editor.message ? <p className="w-full text-sm text-ink-700">{editor.message}</p> : null}
+        {draft.conflict ? <div role="alert" className="w-full text-sm text-danger-700">
+          档案已在其他位置更新。你的输入已保留，尚未覆盖服务器内容。可先下载未保存内容留作备份，再加载最新档案重新合并。
+          <button type="button" onClick={editor.downloadDraft} className="btn btn-sm btn-secondary mt-2">下载未保存内容</button>
+          <button type="button" onClick={editor.discard} disabled={editor.busy} className="btn btn-sm btn-secondary mt-2">放弃本次编辑，加载最新档案</button>
+        </div> : null}
+      </div>
       <section className="card card-pad">
         <h3 className="label-meta">基本信息</h3>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        {/* The photo saves through its own endpoints the moment it changes, so it sits
+            above the form fields rather than inside the block this form's Save button
+            commits — see the note in `ProfilePhotoField`. `onSaved` is the editor's
+            own handler, which refreshes `profile` and therefore `expected_version`. */}
+        <div className="mt-4">
+          <p className="mb-2 text-sm font-medium text-ink-800">简历照片</p>
+          <ProfilePhotoField profile={profile} onSaved={onSaved} />
+        </div>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <label className="block text-sm sm:col-span-2">
             <span className="mb-1.5 block font-medium text-ink-800">姓名</span>
             <input
@@ -256,6 +248,28 @@ export function ProfileStudioEditor({ profile, onSaved, focusPath = null, onUiFo
                   </label>
                 </div>
 
+                {/* The scope line. Edited here as well as asked in the interview,
+                    because an uploaded resume rarely states it and the generated block
+                    opens with it: without this field the 先总后分 layer is only
+                    reachable by users who came in through the interview. */}
+                <label className="mt-3 block text-sm">
+                  <span className="mb-1.5 block font-medium text-ink-800">
+                    负责范围与量级
+                  </span>
+                  <textarea
+                    data-path={`experiences[${expIndex}].scope`}
+                    className={`${inputClass} min-h-[3.5rem] leading-relaxed`}
+                    placeholder="例如：带 8 人后端团队，负责订单与结算两条主链路"
+                    value={exp.scope ?? ""}
+                    onChange={(e) =>
+                      patchExperience(expIndex, { scope: e.target.value || null })
+                    }
+                  />
+                  <span className="mt-1 block text-xs leading-relaxed text-ink-500">
+                    这句会成为这段经历的开头，决定招聘方如何理解下面每一条要点。
+                  </span>
+                </label>
+
                 <div className="mt-3">
                   <div className="mb-2 flex items-center justify-between">
                     <span className="label-meta">工作要点</span>
@@ -351,24 +365,7 @@ export function ProfileStudioEditor({ profile, onSaved, focusPath = null, onUiFo
         </div>
       </section>
 
-      <div className="sticky bottom-0 -mx-1 flex items-center gap-3 border-t border-surface-border bg-surface/90 px-1 py-3 backdrop-blur">
-        <button
-          type="button"
-          onClick={save}
-          disabled={busy}
-          className="btn btn-md btn-primary-emphasis"
-        >
-          {busy ? "保存中…" : "保存档案"}
-        </button>
-        {message ? (
-          <p
-            className={`text-sm ${message === "已保存" ? "text-success-700" : "text-danger-700"}`}
-            role="status"
-          >
-            {message}
-          </p>
-        ) : null}
-      </div>
+
     </div>
   );
 }

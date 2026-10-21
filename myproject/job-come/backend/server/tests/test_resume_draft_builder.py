@@ -175,7 +175,45 @@ def test_projects_are_ordered_before_education_and_skills() -> None:
     order = sections["section_order"]
     assert order.index("projects") < order.index("education")
     assert order.index("projects") < order.index("skills")
+
+
+def test_experience_leads_when_it_carries_the_evidence() -> None:
+    """The default reading order is employment-first, and stays that way.
+
+    Content-aware promotion exists for one case only. A profile whose experience bullets
+    are as strong as its projects must render experience first, otherwise the ordering
+    would look unstable to a user who changed nothing material.
+    """
+    profile = _profile_with_projects()
+    profile.experiences[0].highlights = [
+        "主导订单服务从单体拆分为 6 个微服务，发布耗时从 40 分钟降到 6 分钟",
+        "搭建容量保障体系，支撑日均 1200 万单，大促期间零事故",
+    ]
+    sections, _ = ResumeDraftBuilder().build(profile, elevation_level=ElevationLevel.ELEVATED)
+    order = sections["section_order"]
     assert order.index("experience") < order.index("projects")
+    assert sections["structure"]["section_order_changed"] is False
+
+
+def test_projects_are_promoted_when_the_evidence_lives_there() -> None:
+    """A career whose proof is in projects must not be read experience-first.
+
+    This is the early-career / one-long-employer / contractor shape: employment history
+    is a title with little under it, and the real work is in the project list. Reading
+    experience first makes that candidate look thin, which is the exact failure the
+    promotion rule exists to prevent — so the reason is reported to the user rather than
+    applied silently.
+    """
+    sections, _ = ResumeDraftBuilder().build(
+        _profile_with_projects(),
+        elevation_level=ElevationLevel.ELEVATED,
+    )
+    structure = sections["structure"]
+    assert sections["section_order"].index("projects") < sections["section_order"].index(
+        "experience"
+    )
+    assert structure["section_order_changed"] is True
+    assert "项目经历" in structure["section_order_reason"]
 
 
 def test_project_bullets_stay_truth_preserving() -> None:

@@ -11,6 +11,11 @@ from pydantic import BaseModel, Field
 class AdminSessionListItem(BaseModel):
     id: str
     user_id: str
+    #: Denormalised from the owning user so an audit row is readable without a second
+    #: lookup. A session whose user was hard-deleted keeps the id and reports no name
+    #: rather than dropping out of the audit list.
+    user_display_name: str | None = None
+    user_email: str | None = None
     profile_id: str | None
     job_id: str | None
     kind: str
@@ -28,6 +33,11 @@ class AdminSessionListResponse(BaseModel):
     total: int
     limit: int
     offset: int
+    #: What the server actually sorted by, echoed so a clickable table header
+    #: renders its arrow from the applied order rather than the requested one —
+    #: a defaulted or rejected sort would otherwise mark the wrong column.
+    sort_by: str
+    sort_dir: str
 
 
 class AdminSessionDetailResponse(AdminSessionListItem):
@@ -124,3 +134,42 @@ class AdminInventoryResponse(BaseModel):
     models: list[dict[str, Any]] = Field(default_factory=list)
     subagents: list[dict[str, Any]] = Field(default_factory=list)
     product_rules_preview: str | None = None
+
+
+class AdminMessageItem(BaseModel):
+    id: str
+    session_id: str
+    role: str
+    event_type: str
+    content: str | None = None
+    payload: dict[str, Any] | None = None
+    created_at: datetime
+
+
+class AdminMessageListResponse(BaseModel):
+    session_id: str
+    messages: list[AdminMessageItem]
+    total: int
+
+
+class AdminTraceItem(BaseModel):
+    id: str
+    session_id: str
+    seq: int
+    user_id: str | None = None
+    profile_id: str | None = None
+    job_id: str | None = None
+    mock_session_id: str | None = None
+    trace_id: str | None = None
+    llm_call_id: str | None = None
+    event_type: str
+    role: str
+    payload: Any = None
+    attachments: list[Any] | None = None
+    created_at: datetime
+
+
+class AdminTraceListResponse(BaseModel):
+    session_id: str
+    events: list[AdminTraceItem]
+    total: int

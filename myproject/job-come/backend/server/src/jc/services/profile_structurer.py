@@ -2,54 +2,20 @@
 
 from __future__ import annotations
 
-import json
-import re
-from pathlib import Path
 from typing import Any
 
-from pydantic import ValidationError
-
 from jc.config import settings
+from jc.llm.call_context import llm_context
 from jc.llm.router import get_llm_router
+from jc.paths import prompt_file
 from jc.schemas.profile_payload import ProfilePayload
-
-_PROMPT_PATH = (
-    Path(__file__).resolve().parents[3].parent
-    / "agent"
-    / "prompts"
-    / "ingest"
-    / "profile_structurer.md"
+from jc.services.profile_ingest_contract import (
+    ProfileStructureError,
+    parse_profile_json as parse_profile_json,
+    validate_profile_content,
 )
-_CODE_FENCE_RE = re.compile(r"^```(?:json)?\s*\n?(.*?)\n?```$", re.IGNORECASE | re.DOTALL)
 
-
-class ProfileStructureError(RuntimeError):
-    """A safe, actionable reason why a model response cannot form a profile."""
-
-
-def parse_profile_json(content: str) -> dict[str, Any]:
-    """Parse one JSON object, tolerating a model's accidental Markdown fence.
-
-    Do not include response content in error messages: resumes can contain personal data and
-    errors are persisted in ingest logs.
-    """
-    text = content.strip()
-    if not text:
-        raise ProfileStructureError("empty_model_response")
-
-    fenced = _CODE_FENCE_RE.match(text)
-    if fenced:
-        text = fenced.group(1).strip()
-    if not text:
-        raise ProfileStructureError("empty_model_response")
-
-    try:
-        value = json.loads(text)
-    except json.JSONDecodeError as exc:
-        raise ProfileStructureError("invalid_json_response") from exc
-    if not isinstance(value, dict):
-        raise ProfileStructureError("invalid_json_object")
-    return value
+_PROMPT_PATH = prompt_file("ingest", "profile_structurer.md")
 
 
 class ProfileStructurer:
@@ -65,27 +31,46 @@ class ProfileStructurer:
         router = get_llm_router()
 
         def validate_response(response: Any) -> ProfilePayload:
-            data = parse_profile_json(router.content_from_response(response))
-            try:
-                profile = ProfilePayload.model_validate(data)
-            except ValidationError as exc:
-                raise ProfileStructureError("invalid_profile_schema") from exc
-            profile.meta.source_file = source_file
-            return profile
+            return validate_profile_content(
+                router.content_from_response(response), source_file=source_file
+            )
 
-        profile = await router.acompletion(
-            "ingest_fast",
-            messages=[
-                {"role": "system", "content": self._system_prompt},
-                {
-                    "role": "user",
-                    "content": f"Source file: {source_file}\n\nResume text:\n{text[:30_000]}",
-                },
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.1,
-            response_validator=validate_response,
-        )
+        try:
+            profile = await router.acompletion(
+                "ingest_fast",
+                log_context=llm_context("profile_structurer"),
+                messages=[
+                    {"role": "system", "content": self._system_prompt},
+                    {
+                        "role": "user",
+                        "content": (
+                            f"Source file: {source_file}\n\nResume text:\n{text}"
+                        ),
+                    },
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.1,
+                timeout_seconds=settings.jc_ingest_attempt_timeout_seconds,
+                buffered_stream=True,
+                stream_attempt_timeout_seconds=settings.jc_ingest_stream_attempt_seconds,
+                response_validator=validate_response,
+            )
+        except ProfileStructureError:
+            # Raised by validate_response (bad JSON/schema) and re-raised as-is by
+            # litellm once every endpoint in the fallback chain has rejected the
+            # same malformed answer. The reason code set above is still accurate.
+            raise
+        except Exception as exc:  # noqa: BLE001
+            # Every endpoint in the fallback chain failed for a reason other than
+            # the validator rejecting their answer - connection/timeout/auth, not
+            # a schema problem. Keep that distinction: collapsing it into
+            # "invalid_profile_schema" hides real gateway outages behind a label
+            # that reads like a model-quality issue and sends whoever is
+            # debugging looking at the prompt instead of the network.
+            from jc.llm.call_log import error_code_for
+
+            code = "llm_timeout" if error_code_for(exc) == "timeout" else "llm_call_failed"
+            raise ProfileStructureError(code) from exc
         if not isinstance(profile, ProfilePayload):  # Defensive guard for custom routers/tests.
             raise ProfileStructureError("invalid_profile_response")
         return profile

@@ -15,6 +15,7 @@ from jc.api.cookies import (
     set_session_cookie,
 )
 from jc.api.deps import get_auth_service, require_user
+from jc.config import settings
 from jc.exceptions import AppError, AuthError, ConflictError
 from jc.schemas.auth import (
     AccountResponse,
@@ -137,7 +138,15 @@ async def forgot_password(
     auth: AuthService = Depends(get_auth_service),
 ) -> MessageResponse:
     await auth.request_password_reset(body.email)
-    return MessageResponse(message="若该邮箱已注册，我们已发送重置密码邮件，请查收。")
+    # The validity window is configurable, so it is stated here rather than hardcoded in
+    # the page: a form promising "24 小时" against a 1-hour token teaches users to trust a
+    # link that has already died.
+    hours = settings.jc_password_reset_ttl_hours
+    return MessageResponse(
+        message=(
+            f"若该邮箱已注册，我们已发送重置密码邮件，请查收。链接 {hours} 小时内有效。"
+        )
+    )
 
 
 @router.post(
@@ -257,7 +266,7 @@ async def resolve_merge(
     clear_guest_cookie(response)
     user = await auth._users.get_by_id(actor.user_id)
     if user is None:
-        raise AuthError("User not found", code="session_invalid")
+        raise AuthError("登录状态已失效，请重新登录。", code="session_invalid")
     return AuthSuccessResponse(
         user=AuthService._to_user_context(user),
         active_profile_id=claim.active_profile_id,

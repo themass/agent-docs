@@ -4,12 +4,16 @@ from __future__ import annotations
 
 from typing import Any
 
+from jc.domain.role_families import get_playbook, playbook_for_title
 from jc.models.enums import ElevationLevel
 from jc.resume_locale import is_english_locale
 from jc.schemas.profile_payload import ProfilePayload
 from jc.services.elevation_techniques import annotate_elevation_map
+from jc.services.framing_presets import resolve_emphases
+from jc.services.approved_resume_text import preserve_confirmed
 from jc.services.profile_i18n import overlay_profile
-from jc.services.role_families import get_playbook, playbook_for_title
+from jc.services.profile_photo_service import photo_data_uri
+from jc.services.resume_structure import compose_document
 
 
 class ResumeDraftBuilder:
@@ -52,6 +56,22 @@ class ResumeDraftBuilder:
             "headline": profile.experiences[0].title if profile.experiences else default_headline,
             "contact_line": " · ".join(contact_parts),
         }
+        # Carried as an inline `data:` URI, not the signed URL: the PDF renderer aborts
+        # every network request from the print page, so a remote `src` renders a blank
+        # box (see `profile_photo_service.photo_data_uri`). `None` when the user has not
+        # uploaded one or has the switch off, which the masthead treats as "no photo".
+        #
+        # Stored on the draft's header rather than resolved at render time so that what
+        # gets exported is the photo as it was when the draft was generated -- the same
+        # snapshot rule the rest of these sections follow.
+        #
+        # `locale` decides as much as the switch does: the English track never draws a
+        # headshot (several markets screen resumes out for carrying one) and bilingual
+        # is opt-in. That rule lives on `ProfilePhoto.renders_for_locale`, so the three
+        # tracks cannot drift apart across the export formats.
+        photo_uri = photo_data_uri(profile.contact.photo, locale=locale)
+        if photo_uri:
+            header["photo_data_uri"] = photo_uri
         experience_blocks = []
         elevation_map: list[dict[str, Any]] = []
         for idx, exp in enumerate(profile.experiences):
@@ -80,6 +100,7 @@ class ResumeDraftBuilder:
                     "title": exp.title,
                     "date_range": date_range,
                     "location": exp.location,
+                    "scope_line": self._scope_line(exp, english=en),
                     "bullets": bullets,
                 }
             )
@@ -129,6 +150,7 @@ class ResumeDraftBuilder:
                     "role": proj.role,
                     "date_range": proj_range,
                     "description": note,
+                    "scope_line": None if en else ((proj.scope or "").strip() or None),
                     "bullets": proj_bullets,
                 }
             )
@@ -158,12 +180,52 @@ class ResumeDraftBuilder:
             # a sales recruiter wants numbers before tooling.
             "section_order": list(playbook.section_priority),
             "role_family": playbook.id,
+            # Stamp the resolved value even for deterministic/source-layout drafts.
+            # Otherwise cache freshness sees a missing value as stale forever.
+            "framing_emphases": resolve_emphases(
+                profile.preferences.framing_emphases, role_family=playbook.id
+            ),
         }
+        sections = preserve_confirmed(sections, profile)
+        # The conservative baseline is also what the diff is computed against, and a diff
+        # whose two sides are ordered differently is unreadable. So composition runs only
+        # on the levels that are a document in their own right.
+        if elevation_level != ElevationLevel.CONSERVATIVE:
+            structure = compose_document(
+                sections, role_family=playbook.id, job_keywords=job_keywords
+            )
+            sections["structure"] = structure.to_dict()
         # Keep the deterministic fallback path consistent with the LLM path: the UI
         # always receives technique labels, whether or not the model was reachable.
+        sections = preserve_confirmed(sections, profile)
         return sections, annotate_elevation_map(
             elevation_map, job_keywords=job_keywords, role_family=playbook.id
         )
+
+    @staticmethod
+    def _scope_line(exp: Any, *, english: bool) -> str | None:
+        """One line of 角色与范围.
+
+        Prefers `exp.scope` — the user's own answer to "你负责什么、管多大的范围", which is
+        the only source that actually knows the team size and the mandate. Falls back to
+        restating structured fields, which is a weaker line but a true one, and keeps the
+        fallback document structurally the same shape as the model one rather than
+        silently dropping the layer.
+
+        The stored scope is used as typed and only in the locale it was typed in: a
+        Chinese answer rendered into the English track would be worse than the derived
+        English line, and this path has no translator.
+        """
+        stated = (getattr(exp, "scope", None) or "").strip()
+        if stated and not english:
+            return stated
+        title = (exp.title or "").strip()
+        company = (exp.company or "").strip()
+        if not title or not company:
+            return None
+        if english:
+            return f"{title} at {company}"
+        return f"在{company}担任{title}"
 
     # Verbs that already carry ownership; nothing to upgrade.
     _STRONG_PREFIXES = ("主导", "负责", "牵头", "搭建", "设计", "优化", "重构", "推动", "治理")

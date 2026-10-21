@@ -13,7 +13,7 @@ def test_resolve_mcp_python_rewrites_bare_python(tmp_path: Path) -> None:
                     "jc": {
                         "command": "python",
                         "args": ["-m", "jc.mcp.server"],
-                        "env": {"JC_MCP_USER_ID": "$JC_MCP_USER_ID"},
+                        "env": {"SOME_OTHER_VAR": "$SOME_OTHER_VAR"},
                     }
                 }
             }

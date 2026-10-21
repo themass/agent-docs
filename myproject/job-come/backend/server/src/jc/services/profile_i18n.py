@@ -85,7 +85,9 @@ def align_i18n_pack(profile: ProfilePayload, pack: ProfileI18nPack) -> ProfileI1
         education.append(
             ProfileI18nEducation(
                 id=edu.id,
-                degree_line=(overlay.degree_line if overlay and overlay.degree_line else source_line),
+                degree_line=(
+                overlay.degree_line if overlay and overlay.degree_line else source_line
+            ),
             )
         )
     projects: list[ProfileI18nProject] = []
@@ -123,6 +125,12 @@ def align_i18n_pack(profile: ProfilePayload, pack: ProfileI18nPack) -> ProfileI1
 def overlay_profile(profile: ProfilePayload, locale: str) -> ProfilePayload:
     """Apply i18n display fields; company/dates/contact stay on the source profile."""
     track = TRACK_EN if normalize_track(locale) == TRACK_EN else TRACK_ZH
+    # Source fields are authoritative; an old translated cache must not undo edits.
+    if (
+        track == detect_profile_source_locale(profile)
+        or profile.meta.i18n_status.get(track) == "stale"
+    ):
+        return profile
     pack = profile.i18n.get(track)
     if pack is None:
         return profile

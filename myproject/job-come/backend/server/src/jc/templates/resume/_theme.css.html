@@ -1,0 +1,291 @@
+{#
+  JC resume design system — single source of truth for every export template.
+
+  Constraints this stylesheet is built around:
+  - Must render identically in Chromium headless (PDF) and a standalone browser (HTML export).
+  - Self-contained: no @import, no <link>, no webfonts. Export quality checks reject those.
+  - Print-first: A4 page box, physical units for anything that affects pagination.
+  - ATS-safe: real headings and lists, single text column, no text inside images or pseudo-elements.
+  - Legible in grayscale; color is emphasis only, never the sole carrier of meaning.
+#}
+:root {
+  --ink: #16202e;
+  --ink-soft: #46556b;
+  --ink-muted: #6b7a90;
+  --rule: #d4dbe6;
+  --rule-strong: #16202e;
+  --accent: #2f5bb8;
+
+  /* Type scale, 1.2 ratio off a 10.5pt body. Print units keep PDF and paper identical. */
+  --fs-name: 21pt;
+  --fs-headline: 11.5pt;
+  --fs-section: 9.5pt;
+  --fs-body: 10.5pt;
+  --fs-meta: 9.5pt;
+  --fs-contact: 9.5pt;
+
+  --lh-tight: 1.25;
+  --lh-body: 1.5;
+
+  /* Vertical rhythm. Section gap is the largest signal of grouping. */
+  --space-section: 13pt;
+  --space-block: 7pt;
+  --space-bullet: 2.5pt;
+}
+
+@page {
+  size: A4;
+  margin: 15mm 14mm;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #ffffff;
+}
+
+body {
+  color: var(--ink);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  /* Latin first, then CJK: Latin glyphs in a mixed line come from the Latin face,
+     which avoids the wide, loose look of CJK fonts rendering ASCII. */
+  font-family: "Helvetica Neue", Helvetica, Arial, "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", "Heiti SC", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Screen preview only: center the sheet and show its edges. Print ignores this. */
+.sheet {
+  max-width: 190mm;
+  margin: 0 auto;
+  padding: 0;
+}
+
+@media screen {
+  body {
+    background: #eef1f6;
+    padding: 10mm 6mm;
+  }
+  .sheet {
+    background: #ffffff;
+    padding: 14mm 13mm;
+    box-shadow: 0 1px 2px rgba(22, 32, 46, 0.08), 0 10px 30px rgba(22, 32, 46, 0.1);
+    border-radius: 2px;
+  }
+}
+
+@media print {
+  body { background: #ffffff; padding: 0; }
+  .sheet { max-width: none; padding: 0; box-shadow: none; }
+}
+
+/* ---------- Masthead ---------- */
+
+.masthead {
+  border-bottom: 1.6pt solid var(--rule-strong);
+  padding-bottom: 7pt;
+  margin-bottom: var(--space-section);
+}
+
+/* Only engages when a headshot is actually rendered, so a photo-less resume keeps
+   the original block layout rather than becoming a one-cell flex container. */
+.masthead--with-photo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10pt;
+}
+
+.masthead--with-photo .masthead-identity {
+  /* Lets the name/contact column shrink instead of pushing the photo off the page
+     when a contact line is long. */
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.masthead-photo {
+  /* 25mm is the Chinese resume convention for a 一寸照 (roughly passport size).
+     Fixed width with 4:5 aspect and `object-fit: cover` means any crop the user
+     submitted lands at the same printed size, so the masthead height never shifts
+     with the uploaded file's proportions. */
+  flex: 0 0 auto;
+  width: 25mm;
+  height: 31.25mm;
+  object-fit: cover;
+  object-position: center top;
+  border-radius: 1.5pt;
+  /* Keeps a white or very light background from bleeding into the page. */
+  border: 0.5pt solid var(--rule);
+}
+
+.name {
+  font-size: var(--fs-name);
+  line-height: var(--lh-tight);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0;
+  color: var(--ink);
+}
+
+.headline {
+  font-size: var(--fs-headline);
+  color: var(--accent);
+  font-weight: 600;
+  margin-top: 2pt;
+  line-height: var(--lh-tight);
+}
+
+.contact {
+  font-size: var(--fs-contact);
+  color: var(--ink-soft);
+  margin-top: 4pt;
+  line-height: var(--lh-tight);
+}
+
+/* ---------- Sections ---------- */
+
+.section { margin-bottom: var(--space-section); }
+
+/* A heading must never be the last thing on a page. */
+.section-title {
+  font-size: var(--fs-section);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink);
+  margin: 0 0 6pt;
+  padding-bottom: 3pt;
+  border-bottom: 0.6pt solid var(--rule);
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+.summary {
+  margin: 0;
+  line-height: var(--lh-body);
+  text-align: justify;
+  text-justify: inter-ideograph;
+}
+
+/* ---------- Entries (experience / education / projects) ---------- */
+
+/* Keep an entry whole when it fits; long histories may still split across pages. */
+.entry {
+  margin-bottom: var(--space-block);
+  break-inside: avoid-page;
+  page-break-inside: avoid;
+}
+
+.entry:last-child { margin-bottom: 0; }
+
+/* Title left, dates hard right — the scan pattern recruiters expect. */
+.entry-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10pt;
+}
+
+.entry-name {
+  font-weight: 700;
+  font-size: var(--fs-body);
+  line-height: var(--lh-tight);
+  color: var(--ink);
+}
+
+.entry-role {
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+.entry-dates {
+  flex: 0 0 auto;
+  font-size: var(--fs-meta);
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.entry-meta {
+  font-size: var(--fs-meta);
+  color: var(--ink-muted);
+  line-height: var(--lh-tight);
+  margin-top: 1pt;
+}
+
+.entry-note {
+  margin: 3pt 0 0;
+  line-height: var(--lh-body);
+}
+
+/* Scope line: the 先总后分 lead for an entry. Must read as the frame for the bullets
+   below it, not as another bullet — hence no marker, slightly muted, and set tight to
+   the heading above rather than floating between the two. */
+.entry-scope {
+  margin: 2.5pt 0 0;
+  line-height: var(--lh-body);
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+/* ---------- Bullets ---------- */
+
+.bullets {
+  margin: 4pt 0 0;
+  padding-left: 13pt;
+  list-style: none;
+}
+
+.bullets > li {
+  position: relative;
+  margin-bottom: var(--space-bullet);
+  line-height: var(--lh-body);
+  /* Avoid a single trailing line stranded on the next page. */
+  orphans: 2;
+  widows: 2;
+}
+
+.bullets > li:last-child { margin-bottom: 0; }
+
+/* Marker drawn with a border box, not a text glyph: stays crisp in PDF and is
+   invisible to ATS text extraction, which should only see the bullet content. */
+.bullets > li::before {
+  content: "";
+  position: absolute;
+  left: -10pt;
+  top: 0.52em;
+  width: 3pt;
+  height: 3pt;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* ---------- Skills ---------- */
+
+.skills { margin: 0; line-height: var(--lh-body); }
+
+/* ---------- Bilingual ---------- */
+
+.track + .track {
+  break-before: page;
+  page-break-before: always;
+  padding-top: 2pt;
+}
+
+@media screen {
+  .track + .track {
+    margin-top: 10mm;
+    padding-top: 10mm;
+    border-top: 1pt dashed var(--rule);
+  }
+}
+
+.track-en {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.track-en .summary { text-align: left; }

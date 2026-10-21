@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 import yaml
 
-_STAR_PATH = Path(__file__).resolve().parents[3].parent / "agent" / "prompts" / "coach" / "star_followup_templates.md"
-_INDUSTRY_PATH = Path(__file__).resolve().parents[3].parent / "agent" / "prompts" / "coach" / "industry_followups.yaml"
+from jc.paths import prompt_file
+
+_STAR_PATH = prompt_file("coach", "star_followup_templates.md")
+_INDUSTRY_PATH = prompt_file("coach", "industry_followups.yaml")
 
 
 def load_star_followup_markdown() -> str:

@@ -35,8 +35,31 @@ class ProfileResponse(BaseModel):
     updated_at: datetime
 
 
+class ProfileTextIngestRequest(BaseModel):
+    """Pasted or typed resume content.
+
+    The bounds are repeated in `ProfileIngestService.validate_text`, which is the
+    authority: pydantic refuses the request with a generic validation error, while the
+    service can say *why* in the user's language. Keeping both means a malformed API
+    call is cheap to reject and a real user gets a sentence they can act on.
+    """
+
+    raw_text: str = Field(
+        min_length=1,
+        max_length=50_000,
+        description="简历原文或一段自述（至少 80 字）",
+    )
+    title: str | None = Field(
+        default=None,
+        max_length=80,
+        description="这段内容的名字，用于在来源列表里识别；留空即「粘贴的内容」",
+    )
+
+
 class ProfileUpdateRequest(BaseModel):
-    payload: ProfilePayload = Field(description="完整档案 JSON（contact / experiences / education 等）")
+    payload: ProfilePayload = Field(
+        description="完整档案 JSON（contact / experiences / education 等）"
+    )
     expected_version: int | None = Field(
         default=None,
         description="乐观锁：与当前 version 不一致时返回 409",

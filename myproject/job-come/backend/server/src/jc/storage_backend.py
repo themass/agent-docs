@@ -31,8 +31,13 @@ class StorageBackend:
         return self._local_path(key).read_bytes()
 
     def _local_path(self, key: str) -> Path:
-        safe = key.lstrip("/").replace("..", "")
-        return self._local_root / safe
+        normalized = key.lstrip("/")
+        if not normalized or ".." in normalized or "\\" in normalized:
+            raise ValueError("invalid storage key")
+        path = (self._local_root / normalized).resolve()
+        if not path.is_relative_to(self._local_root):
+            raise ValueError("invalid storage key")
+        return path
 
 
 _backend: StorageBackend | None = None

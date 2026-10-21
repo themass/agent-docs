@@ -5,12 +5,13 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, String, Text
+from sqlalchemy import ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from jc.db.base import Base
 from jc.db.mixins import SoftDeleteMixin, TimestampMixin
-from jc.models.enums import ElevationLevel, UserStatus
+from jc.db.types import UTCDateTime
+from jc.models.enums import ElevationLevel, UserRole, UserStatus
 
 if TYPE_CHECKING:
     from jc.models.agent import AgentSession
@@ -23,9 +24,14 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
-    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    email_verified_at: Mapped[datetime | None] = mapped_column(
+        UTCDateTime, nullable=True
+    )
     status: Mapped[str] = mapped_column(String(16), default=UserStatus.ACTIVE, nullable=False)
-    password_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    role: Mapped[str] = mapped_column(String(16), default=UserRole.USER, nullable=False)
+    password_changed_at: Mapped[datetime | None] = mapped_column(
+        UTCDateTime, nullable=True
+    )
 
     meta: Mapped[UserMeta | None] = relationship(back_populates="user", uselist=False)
     profiles: Mapped[list[Profile]] = relationship(back_populates="user")

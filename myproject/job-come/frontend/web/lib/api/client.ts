@@ -2,7 +2,7 @@ import { ApiError, USER_NETWORK_ERROR, type ApiErrorBody } from "@/lib/api/error
 
 export { ApiError, type ApiErrorBody } from "@/lib/api/errors";
 
-async function parseApiError(res: Response): Promise<ApiError> {
+export async function parseApiError(res: Response): Promise<ApiError> {
   let body: ApiErrorBody = {};
   try {
     body = (await res.json()) as ApiErrorBody;
@@ -26,7 +26,8 @@ export async function apiJson<T>(path: string, init?: RequestInit): Promise<T> {
       credentials: "include",
       headers,
     });
-  } catch {
+  } catch (error) {
+    if (init?.signal?.aborted) throw error;
     throw new Error(USER_NETWORK_ERROR);
   }
   if (!res.ok) {
@@ -36,4 +37,17 @@ export async function apiJson<T>(path: string, init?: RequestInit): Promise<T> {
     return undefined as T;
   }
   return res.json() as Promise<T>;
+}
+
+/** Authenticated binary read with the same error semantics as JSON endpoints. */
+export async function apiBlob(path: string, signal?: AbortSignal): Promise<Blob> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, { credentials: "include", signal });
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    throw new Error(USER_NETWORK_ERROR);
+  }
+  if (!response.ok) throw await parseApiError(response);
+  return response.blob();
 }

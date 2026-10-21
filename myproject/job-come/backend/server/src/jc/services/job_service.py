@@ -7,14 +7,14 @@ from agentkit.web.auth import Actor, UserActor
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from jc.db.session import release_db_connection
-from jc.exceptions import NotFoundError
+from jc.domain.role_families import infer_role_family
+from jc.exceptions import AppError, NotFoundError
 from jc.models.job import Job
 from jc.schemas.job import FitScoreRequest, FitScoreResponse, JobParseRequest, JobResponse
 from jc.services.application_service import ApplicationService
 from jc.services.fit_score_service import FitScoreService
 from jc.services.jd_parser_service import JdParserService
 from jc.services.profile_service import ProfileService
-from jc.services.role_families import infer_role_family
 from jc.stores.job_store import JobStore
 
 
@@ -102,13 +102,15 @@ class JobService:
         if body.job_id:
             job = await self._jobs.get_by_id(body.job_id)
             if job is None or job.profile_id != profile_id:
-                raise NotFoundError("Job not found")
+                raise NotFoundError("职位不存在或已删除。", code="job_not_found")
             job_id = job.id
             raw_text = job.raw_text
             requirements = dict(job.requirements or {})
 
         if job_id is None and not body.raw_jd:
-            raise NotFoundError("Provide job_id or raw_jd")
+            # Not a 404: nothing was looked up. A missing argument is a bad request, and
+            #「请求的内容不存在」 would send the user hunting for a job that was never named.
+            raise AppError("请先选择一个职位或粘贴 JD 原文。", code="invalid_request")
 
         # Snapshot what the models need, then end the read transaction: JD parse plus fit
         # scoring can run for minutes and a remote MySQL server drops the idle connection.
@@ -124,16 +126,19 @@ class JobService:
             jd = await self._jd.parse(raw_text=body.raw_jd)
 
         result = await self._fit.score(profile=profile, jd=jd)
+        result = result.model_copy(update={"evidence_profile_version": profile_resp.version})
         if job_id is not None:
             # The pooled connection was released above, so the ORM row must be re-loaded.
             job = await self._jobs.get_by_id(job_id)
             if job is None or job.profile_id != profile_id:
-                raise NotFoundError("Job not found")
+                raise NotFoundError("职位不存在或已删除。", code="job_not_found")
             job.fit_score = result.score
             job.fit_recommendation = result.recommendation
             job.fit_gaps = result.gaps
             job.fit_blockers = result.blockers
             job.fit_report = {
+                "evidence_profile_version": result.evidence_profile_version,
+                "requirement_evidence": [item.model_dump() for item in result.requirement_evidence],
                 "summary": result.summary,
                 "elevate_hints": result.elevate_hints,
                 "dimensions": result.dimensions,
@@ -167,6 +172,8 @@ class JobService:
             fit_gaps=job.fit_gaps if isinstance(job.fit_gaps, list) else [],
             fit_blockers=job.fit_blockers if isinstance(job.fit_blockers, list) else [],
             parsed=parsed,
+            evidence_profile_version=report.get("evidence_profile_version"),
+            requirement_evidence=report.get("requirement_evidence") or [],
             fit_summary=report.get("summary"),
             elevate_hints=list(report.get("elevate_hints") or []),
             fit_dimensions=dict(report.get("dimensions") or {}),

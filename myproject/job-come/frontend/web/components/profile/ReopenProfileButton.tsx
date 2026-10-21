@@ -34,10 +34,15 @@ export function ReopenProfileButton({ profile, onReopened }: Props) {
             setBusy(false);
           }
         }}
-        className="btn btn-sm btn-secondary"
+        className="btn btn-sm btn-secondary shrink-0"
         title="退回后可继续编辑档案"
       >
-        {busy ? "处理中…" : "退回修改"}
+        {busy ? "处理中…" : (
+          <>
+            <span className="sm:hidden">退回</span>
+            <span className="hidden sm:inline">退回修改</span>
+          </>
+        )}
       </button>
       {error ? <span className="text-xs text-danger-600">{error}</span> : null}
     </div>

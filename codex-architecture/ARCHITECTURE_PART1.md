@@ -1,6 +1,7 @@
     # Codex 完整架构设计文档（第一部分）
 
 > **版本**: 2.19（2026-09-03）· **分析方法**: 源码阅读（`codex/codex-rs/`）  
+> **v2.21**: §1.2.1 rollout 增量 append；§1.2.3 类图补 `LiveThread` / `InputQueue` / `RunningTask` / `TurnInputQueue` 等（修正「Session 直接写 jsonl」误读）。  
 > **v2.20**: 链至 [PLAN_AND_MULTI_AGENT.md](./PLAN_AND_MULTI_AGENT.md)（Plan / `update_plan` / MA 合一、持久化校正）。  
 > **v2.19**: §8.3.1–§8.3.2 校正 InterAgentCommunication / AgentControl 用户补充稿；链至 [FULL_LIFECYCLE_SEQUENCE.md](./FULL_LIFECYCLE_SEQUENCE.md) 全链路时序与 OpenAI Agents Python SDK 对比。  
 > **v2.18**: §8.9 主子 Agent 同步/异步与 delegate 语义；链至 [RUNTIME_PROMPTS.md](./RUNTIME_PROMPTS.md) 完整运行时 Prompt 中文全览。  
@@ -176,20 +177,27 @@ sequenceDiagram
     participant SL as submission_loop
     participant TI as turn_input::handle
     participant S as Session
+    participant ROL as Rollout jsonl<br/>(LiveThread)
     participant AT as ActiveTurn
     participant RK as RegularTask::run
     participant RT as run_turn
     participant LLM as Responses API
 
     Note over RT: run_turn 在 RunningTask 的 tokio 任务内；非独立子系统
+    Note over ROL: 每行一条 RolloutItem；append 经 persist_rollout_items → live_thread.append_items
 
     Note over App,THM: 冷启动（每个 Thread 一次）
     App->>THM: start_thread(config)
-    THM->>S: Session::spawn()
-    S-->>THM: (Arc Session, SessionIo)
-    THM-->>App: Arc CodexThread
-    S->>SIO: tx_event SessionConfigured
+    THM->>S: Session::spawn → Session::new
+    S->>ROL: LiveThread::create → 新建 rollout 文件
+    ROL-->>ROL: jsonl: SessionMeta（thread/session 元数据）
+    S->>SIO: send_event_raw SessionConfigured（含 rollout_path）
+    ROL-->>ROL: jsonl: EventMsg SessionConfigured
     SIO-->>App: rx_event SessionConfigured
+    S->>S: record_initial_history(New)<br/>不写对话行；首条上下文延到首 Turn
+    S->>ROL: live_thread_init.commit（持久化边界落定）
+    S->>SL: tokio::spawn submission_loop
+    THM-->>App: Arc CodexThread
 
     Note over App,LLM: 用户首问「修这个 bug」（turn/start）
     App->>CT: start_or_steer_turn / submit(Op::TurnInput)
@@ -197,39 +205,139 @@ sequenceDiagram
     SIO->>SL: rx_sub.recv（async_channel 串行）
     SL->>TI: Op::TurnInput mode StartOrSteer
     TI->>S: steer_input → NoActiveTurn
+    TI->>S: apply_started → 可选 ThreadSettingsApplied
+    opt 本回合改了 thread settings
+        S->>ROL: jsonl: EventMsg ThreadSettingsApplied
+    end
     TI->>S: spawn_task(RegularTask) → start_task
     S->>AT: active_turn = Some；挂载 RunningTask
     TI-->>App: oneshot Started(turn_id)
 
     AT->>RK: tokio::spawn RegularTask::run
-    RK->>RT: run_turn(...)
-    RT->>S: record 首条 user → history
+    RK->>S: emit_turn_started
+    S->>ROL: jsonl: EventMsg TurnStarted
     S->>SIO: tx_event TurnStarted
     SIO-->>App: Event TurnStarted
+    RK->>RT: run_turn(...)
+    RT->>S: run_hooks_and_record_inputs<br/>(PersistContext::TurnStart)
+    S->>S: history += 首条 user（ResponseItem）
+    S->>ROL: jsonl: ResponseItem（user message）
+    RT->>S: record_context_updates…（首 step 上下文 diff）
+    S->>ROL: jsonl: ResponseItem / WorldState（若有）
 
-    loop Agent 流式循环
-        RT->>LLM: 采样（读 history / StepContext）
-        S->>SIO: AgentMessageContentDelta
-        SIO-->>App: Event Delta
+    loop run_turn Step 循环（同一 turn_id）
+        RT->>RT: run_sampling_request（一次 Responses 调用）
+        loop 流式 OutputItemDone
+            RT->>S: record_completed_response_item
+            S->>ROL: jsonl: ResponseItem（assistant / FunctionCall 等）
+            S->>SIO: Delta / Item*（EQ）
+        end
+        RT->>S: drain_in_flight（tool 收尾）
+        S->>ROL: jsonl: ResponseItem（FunctionCallOutput…）
+        Note over RT: needs_follow_up → 同一 Turn 再进 Step；否则退出 loop
     end
 
-    RT->>S: TurnComplete
+    RT->>S: emit TurnComplete
+    S->>ROL: jsonl: EventMsg TurnComplete
     S->>SIO: tx_event TurnComplete
     SIO-->>App: Event TurnComplete
     S->>S: active_turn = None
+    S->>ROL: flush_rollout（durability barrier，按需）
 
     Note over App,S: Turn 运行中追加 steer「再加测试」
     App->>CT: start_or_steer_turn(steer 文本)
     CT->>SIO: tx_sub.send(Submission)
     SIO->>SL: recv
     SL->>TI: Op::TurnInput mode StartOrSteer
-    TI->>S: steer_input → 写入 TurnState.pending_input
+    TI->>S: steer_input → TurnState.pending_input
+    Note over ROL: steer 提交瞬间不写 jsonl
+    TI->>S: apply_steered（仅持久化 settings，若有）
     TI-->>App: oneshot Steered(turn_id)
 
-    Note over AT,RT: steer 不打断当前采样；pending_input 在 run_turn Step loop drain
-    RT->>S: get_pending_input → record → history
+    Note over AT,RT: 不打断当前采样；Step loop can_drain_pending_input 后合并
+    RT->>S: get_pending_input
+    RT->>S: run_hooks_and_record_inputs<br/>(PersistContext::SteeredUserInput)
+    S->>S: history += steer user
+    S->>ROL: jsonl: ResponseItem（steer 用户消息）
     RT->>LLM: 下一轮采样已含 steer
 ```
+
+**Rollout jsonl 写入时机（与上图编号对照）**
+
+| 阶段 | 何时 append | 典型 `RolloutItem` | 源码锚点 |
+|------|-------------|-------------------|----------|
+| 冷启动 | `Session::new` 内 `LiveThread::create` | `SessionMeta` | `session/session.rs`（`CreateThreadParams`） |
+| 冷启动 | `send_event_raw(SessionConfigured)` | `EventMsg::SessionConfigured` | `session/session.rs` → `send_event_raw_with_persistence` |
+| 冷启动 | `InitialHistory::New` | **无**对话行（上下文延到首 Turn） | `record_initial_history` |
+| turn/start | `apply_started`（若改了 settings） | `ThreadSettingsApplied` | `turn_input.rs` → `thread_settings::emit_applied` |
+| turn/start | `RegularTask::run` 入口 | `TurnStarted` | `tasks/regular.rs` → `emit_turn_started` |
+| turn/start | `run_turn` 内 hooks 接受输入后 | `ResponseItem`（user） | `turn.rs` `run_hooks_and_record_inputs` + `record_conversation_items` |
+| 运行中 | 上下文 / world-state 变更 | `ResponseItem` / `WorldState` | `record_context_updates…`、`record_step_world_state_if_changed` |
+| 运行中 | Steer **仅入队** | **无** | `Session::steer_input` → `pending_input` |
+| 运行中 | Step loop drain steer 后 | `ResponseItem`（user） | `PersistContext::SteeredUserInput` |
+| 运行中 | 流式 Delta | **通常无**（EQ 事件）；完成项才持久化 | `AgentMessageContentDelta` vs `record_response_item…` |
+| Turn 结束 | `TurnComplete` | `EventMsg::TurnComplete` | `send_event` → `persist_rollout_items` |
+| 屏障 | 关键路径末尾 | `flush_rollout` | `Session::flush_rollout` / `ensure_rollout_materialized` |
+| 单 Turn 多轮 | **非** Turn 结束才写对话行；见下节 | 多行 `ResponseItem` 交错 append | `run_turn` Step × `run_sampling_request` × `handle_output_item_done` |
+
+> Resume/Fork 会在 `record_initial_history` 里 **回放**已有 jsonl 进 `history`，并可能追加 `ThreadSettingsApplied`；上图按 **新 Thread 冷启动** 路径绘制。
+
+##### 谁读写 jsonl？单 Turn 内多轮 LLM × 多次 tool 如何 append？
+
+**职责拆分（避免「全是 Session 直接写文件」的误解）**
+
+| 层 | 角色 |
+|----|------|
+| **`Session`** | 编排：何时记、记什么；`record_conversation_items` 先更新 **`SessionState.history`（`ContextManager`）**，再 `persist_rollout_items` |
+| **`LiveThread` / ThreadStore** | 执行：`append_items` 追加 jsonl 行；冷启动 `LiveThread::create` / Resume `resume` 建文件或打开已有 rollout |
+| **运行时采样** | 模型读的是 **内存 history**，不是每步重扫 jsonl；Resume 时由 `record_initial_history` + `apply_rollout_reconstruction` 一次性灌入 |
+
+**不是 Turn 结束才打包写 message**：整轮只有 **一条 `turn_id`（`TurnContext.sub_id`）**，jsonl 在 Step 循环里 **完成一项就 append 一行**（`stream_events_utils` 注释：即使 Turn 后来被 cancel，history 与 rollout 也已对齐）。
+
+**两层循环（同一 Turn）**
+
+```text
+run_turn 外层 loop（Step，turn.rs）
+  ├─（可选）drain pending_input / steer → record → jsonl user 行
+  ├─ record_step_world_state_if_changed → 若有则 jsonl WorldState / ResponseItem
+  ├─ run_sampling_request（一次「调模型」）
+  │     ├─ Responses 流：每个 OutputItemDone
+  │     │     · assistant → record_completed_response_item → history + jsonl
+  │     │     · FunctionCall → 同上（先落盘 call，tool 进 in_flight 队列）
+  │     ├─ 流结束 → drain_in_flight（FuturesOrdered，按 tool 完成顺序）
+  │     │     · 每个 output → record_annotated_conversation_items → jsonl FunctionCallOutput
+  │     └─ needs_follow_up（有 tool 或需续写）→ 返回 true
+  └─ needs_follow_up → 外层 loop 再次 run_sampling_request（history 已含 call+output）
+      否则 → TurnComplete EventMsg + 按需 flush_rollout
+```
+
+```mermaid
+flowchart TD
+    A[TurnStarted → jsonl] --> B[user 首条 → jsonl ResponseItem]
+    B --> C{run_turn Step loop}
+    C --> D[run_sampling_request]
+    D --> E[OutputItemDone: assistant / FunctionCall → jsonl 各 +1 行]
+    E --> F[drain_in_flight: 每个 tool output → jsonl +1 行]
+    F --> G{needs_follow_up?}
+    G -->|是，同一 turn_id| C
+    G -->|否| H[TurnComplete → jsonl + flush?]
+```
+
+**示例：用户一问 → 第 1 次采样 2 个 tool → 第 2 次采样给最终答案**
+
+| 顺序 | 内存 history | jsonl 新增（同一文件顺序 append） |
+|------|--------------|----------------------------------|
+| Turn 开始 | — | `TurnStarted`（已在 `RegularTask::run` 入口写入） |
+| 用户消息 | +user | `ResponseItem` user |
+| 采样 #1：`FunctionCall` A | +call A | `ResponseItem` call A |
+| 采样 #1：`FunctionCall` B | +call B | `ResponseItem` call B |
+| 采样 #1 结束，`drain_in_flight` | +output A, +output B | 两行 `FunctionCallOutput` |
+| 采样 #2：assistant 终稿 | +assistant | `ResponseItem` assistant |
+| Turn 结束 | — | `TurnComplete`；`flush_rollout` 作 durability barrier |
+
+**与 UI 流式**：`AgentMessageContentDelta` 走 **EQ**，一般 **不落 jsonl**；落盘的是 **OutputItemDone** 后的完成态 `ResponseItem`（及 tool output）。
+
+**源码锚点**：`session/turn.rs`（`run_turn` Step loop、`run_sampling_request`、`drain_in_flight`）· `stream_events_utils.rs`（`handle_output_item_done`、`record_completed_response_item`）· `session/mod.rs`（`record_conversation_items` → `persist_rollout_items`）。
 
 ##### 常见误图 vs 源码事实
 
@@ -242,6 +350,8 @@ sequenceDiagram
 | `turn_input::handle` 直接 `spawn run_turn` | `handle` 在 Start 路径调 **`spawn_task` / `start_task`**，由 **`RegularTask::run`** 进入 `run_turn`；Steer 路径**只写 `pending_input` 并 oneshot 返回**，不 spawn |
 | `Op::CancelTurn` / `Op::Approve` | 实际是 **`Op::Interrupt`**、**`Op::ExecApproval`** / **`Op::PatchApproval`** 等（`protocol.rs`） |
 | 模型读 `active_turn.items` | 模型上下文来自 **`SessionState.history`（`ContextManager`）** + 当轮 **`StepContext`**；steer drain 后进 **history**，不是 Turn 上挂的 `items` 向量 |
+| Turn 结束才把本轮所有 message 写入 jsonl | ❌ **增量 append**：每个完成的 `ResponseItem`（user / call / output / assistant）经 `record_conversation_items` 立刻写一行；Turn 结束多写 **`TurnComplete`** + 可选 **`flush_rollout`**，不是首次落盘 |
+| jsonl 由 Session 直接 `write()` 文件 | ❌ **`Session` 编排** + **`LiveThread::append_items`** 落盘；采样读 **内存 history** |
 
 ##### Turn 提交与 Steer 完整链路（文字版）
 
@@ -526,7 +636,53 @@ classDiagram
 
 #### 1.2.3 运行时核心实体（源码级 classDiagram）
 
-下图与 §1.2.2 互补：只画 **`codex-rs` 进程内** 的真实 Rust 类型与字段关系。领域术语 Turn/Step 对应 `ActiveTurn` + `run_turn` 与 `StepContext`。
+下图与 §1.2.2 互补：只画 **`codex-rs` 进程内** 的真实 Rust 类型与字段关系。领域术语 Turn/Step 对应 `ActiveTurn` + **`run_turn`（函数，非 struct）** 与 `StepContext`。
+
+**易混点（类图刻意画出）**
+
+| 误读 | 类图中的正确对象 |
+|------|------------------|
+| `Submission` 进 `Session.input_queue` | ❌ **`InputQueue` 只管子 Agent 邮箱**（`mailbox_pending_mails`）；SQ 由 **`submission_loop`** 从 `SessionIo.tx_sub` 直接 dispatch |
+| Steer 写 jsonl 或 `active_turn.items` | ❌ Steer → **`TurnState.pending_input`（`TurnInputQueue`）**；落盘在 drain 后 `record_conversation_items` |
+| `Session` 直接写 rollout 文件 | ❌ **`Session::persist_rollout_items` → `SessionServices.live_thread.append_items`** |
+| `RolloutRecorder` 是运行时 append 主路径 | ❌ 运行时 append 走 **`LiveThread`**；`RolloutRecorder` 多用于 **Resume/测试加载** jsonl |
+| **`run_turn` 循环「属于」`RunningTask` 对象** | ⚠️ **`RunningTask` 只是 Tokio 任务壳**（`handle` + `turn_context` + `AnySessionTask`）；**Step 循环在 `run_turn` 函数里**，且全程持有 **`Arc<Session>`** 回调 `record_*` / `send_event` — 计算在子任务里，**状态与持久化归属 Session** |
+| **`LiveThread` 是 Session 上挂的「另一个 loop」** | ❌ **`LiveThread` = 该 `ThreadId` 的 rollout 写盘句柄**（`codex-thread-store`），装在 **`SessionServices`**，**与 Session 同寿命**；**不**参与采样循环。多轮 Turn 共用 **同一个** `LiveThread` / 同一 jsonl 文件 |
+
+**三条并发轴（别画成一棵树）**
+
+| 轴 | 是什么 | 寿命 | 与 loop 的关系 |
+|----|--------|------|----------------|
+| **控制** | `submission_loop`（`rx_sub` → `Op` handler） | 与 `Session` 同寿命 | 串行 SQ；`Start` 时 **`start_task` → spawn `RunningTask`** |
+| **计算** | `RunningTask` 内的 `RegularTask::run` → **`run_turn`** | **单 Turn**（`active_turn` 存在期间） | **Agent Step 循环在这里**；结束时 `active_turn` 清空 |
+| **耐久** | **`SessionServices.live_thread: Option<LiveThread>`** | 与 `Session` 同寿命（非 ephemeral） | **无 loop**；`persist_rollout_items` / `flush_rollout` 在 `run_turn` **内外**被 `Session` 方法调用 |
+
+```mermaid
+flowchart TB
+    subgraph SLIFE["Session 生命周期（一个 ThreadId）"]
+        S[Arc Session]
+        SVC[SessionServices]
+        LT[LiveThread 写盘句柄]
+        HIST[SessionState.history]
+        SL[submission_loop 任务]
+        S --> SVC
+        SVC --> LT
+        S --> HIST
+        S --> SL
+    end
+    subgraph TLIFE["单 Turn 生命周期"]
+        AT[ActiveTurn]
+        RT[RunningTask + tokio::spawn]
+        RUN["run_turn() Step 循环"]
+        AT --> RT
+        RT --> RUN
+    end
+    SL -->|Op TurnInput Start| AT
+    RUN -->|"record_conversation_items<br/>（先 HIST 再 LT）"| S
+    RUN -->|"send_event / TurnComplete"| S
+```
+
+> **`LiveThread` 命名**：表示 **Thread 在磁盘上的 live 持久化会话**，不是「正在跑的 agent 循环」。`CodexThread.rollout_path` 是同一文件路径的 **客户端缓存**，真 append 仍在 `Session` → `live_thread()`。
 
 ```mermaid
 classDiagram
@@ -536,10 +692,9 @@ classDiagram
         +Arc~ThreadManagerState~ state
     }
     class ThreadManagerState {
-        +HashMap threads
-        +Arc~McpManager~ mcp_manager
+        +HashMap~ThreadId,CodexThread~ threads
         +Arc~ThreadStore~ thread_store
-        +Arc~AuthManager~ auth_manager
+        +Arc~McpManager~ mcp_manager
     }
     class CodexThread {
         +Arc~Session~ session
@@ -552,36 +707,73 @@ classDiagram
         +Receiver~Event~ rx_event
         +Shared session_loop_termination
     }
+    class submission_loop {
+        <<async fn>>
+        rx_sub.recv → dispatch Op
+    }
     class Session {
         +ThreadId thread_id
         +Mutex~SessionState~ state
         +Mutex~Option~ActiveTurn~~ active_turn
-        +SessionServices services
         +InputQueue input_queue
+        +SessionServices services
         +Sender~Event~ tx_event
+        +persist_rollout_items()
+        +record_conversation_items()
     }
     class SessionState {
         +SessionConfiguration session_configuration
         +ContextManager history
-        +AutoCompactWindow auto_compact_window
     }
     class SessionServices {
-        +Arc~McpRuntime~ mcp_runtime
-        +Arc~McpManager~ mcp_manager
-        +AgentControl agent_control
+        +Option~LiveThread~ live_thread
+        +Arc~dyn ThreadStore~ thread_store
         +ModelClient model_client
+        +Arc~McpRuntime~ mcp_runtime
+        +Arc~dyn AgentControl~ agent_control
+    }
+    class LiveThread {
+        +append_items(RolloutItem[])
+        +local_rollout_path()
+        +flush()
+    }
+    class ThreadStore {
+        <<trait>>
+        create / resume thread
+    }
+    class InputQueue {
+        +mailbox_pending_mails VecDeque
+        +drain_mailbox → pending_input
     }
     class ActiveTurn {
         +Option~RunningTask~ task
+        +Option~CancellationToken~ finishing
         +Arc~Mutex~TurnState~~ turn_state
+    }
+    class RunningTask {
+        <<Turn 级 Tokio 壳, 无 LiveThread>>
+        +Arc~TurnContext~ turn_context
+        +Arc~dyn AnySessionTask~ task
+        +AbortOnDropHandle handle
+    }
+    class RegularTask {
+        <<SessionTask>>
+        +run(Arc~Session~ session, …)
+    }
+    class run_turn {
+        <<async fn, Step 循环>>
+        在 RunningTask 内执行
     }
     class TurnState {
         +TurnInputQueue pending_input
         +HashMap pending_approvals
         +MailboxDeliveryPhase mailbox_delivery_phase
     }
+    class TurnInputQueue {
+        +Vec~TurnInput~ items
+    }
     class TurnContext {
-        +String sub_id
+        +String sub_id turn_id
         +Arc~Config~ config
         +TurnEnvironmentSnapshot environments
     }
@@ -589,71 +781,76 @@ classDiagram
         +Arc~TurnContext~ turn
         +Arc~ToolRouter~ tool_router
         +Arc~McpBinding~ mcp
-        +Arc~ModelInfo~ model_info
     }
     class ContextManager {
         +Arc~Vec~ResponseItemEnvelope~~ items
-        +u64 history_version
+        +record_annotated_items()
     }
     class ResponseItemEnvelope {
         +ResponseItem item
-        +Option~CodexHarnessMetadata~ metadata
+        +Option metadata
+    }
+    class RolloutItem {
+        <<enum history>>
+        SessionMeta
+        ResponseItem
+        EventMsg
+        WorldState
+    }
+    class RolloutRecorder {
+        <<load / resume>>
+        get_rollout_history()
+        load_rollout_items()
     }
     class Submission {
         +String id
         +Op op
-        +Option~W3cTraceContext~ trace
     }
     class Event {
         +String id
         +EventMsg msg
     }
-    class RolloutRecorder {
-        +Sender~RolloutCmd~ tx
-        +PathBuf rollout_path
-    }
     class ToolRouter {
         +ToolRegistry registry
-        +Arc~ToolSpec~ model_visible_specs
-    }
-    class ToolOrchestrator {
-        +SandboxManager sandbox
-    }
-    class McpBinding {
-        +Arc~McpConnectionSet~ connections
-        +Vec~ToolInfo~ tools
     }
     class AgentControl {
-        +SessionId session_id
-        +Weak~ThreadManagerState~ manager
+        +spawn child threads
     }
 
-  ThreadManager "1" --> "1" ThreadManagerState
-  ThreadManagerState "1" --> "*" CodexThread
-  CodexThread "1" --> "1" Session
-  CodexThread "1" --> "1" SessionIo
-  Session "1" --> "1" InputQueue
-  SessionIo ..> Submission : enqueue
-  Session ..> Event : send_event / tx_event
-  SessionIo ..> Event : rx_event subscribe
-  Session "1" --> "1" SessionState
-  Session "1" --> "1" SessionServices
-  Session "0..1" --> "1" ActiveTurn
-  SessionState "1" --> "1" ContextManager
-  ActiveTurn "1" --> "1" TurnState
-  ActiveTurn "0..1" --> "1" TurnContext : via RunningTask
-  StepContext "1" --> "1" TurnContext
-  StepContext "1" --> "1" ToolRouter
-  StepContext "1" --> "1" McpBinding
-  ContextManager "1" --> "*" ResponseItemEnvelope
-  Submission "1" --> "1" Op
-  Event "1" --> "1" EventMsg
-  Session ..> RolloutRecorder : append RolloutItem
-  ToolRouter ..> ToolOrchestrator : execute
-  SessionServices "1" --> "1" McpRuntime
-  McpRuntime ..> McpBinding : publish snapshot
-  AgentControl ..> ThreadManagerState : Weak
+    ThreadManager --> ThreadManagerState
+    ThreadManagerState --> CodexThread
+    CodexThread --> Session
+    CodexThread --> SessionIo
+    SessionIo --> submission_loop
+    submission_loop --> Session : handlers
+    Session --> SessionState
+    Session --> SessionServices
+    Session --> InputQueue
+    Session --> ActiveTurn
+    SessionState --> ContextManager
+    ContextManager --> ResponseItemEnvelope
+    SessionServices --> LiveThread
+    SessionServices --> ThreadStore
+    LiveThread --> RolloutItem : jsonl append
+    ThreadStore ..> LiveThread : create / resume 装入 SessionServices
+    InputQueue ..> TurnState : steer / mailbox → pending_input
+    ActiveTurn --> RunningTask
+    ActiveTurn --> TurnState
+    TurnState *-- TurnInputQueue
+    RunningTask --> TurnContext
+    RunningTask --> RegularTask
+    RegularTask ..> run_turn : 同一 tokio 任务
+    run_turn ..> Session : Arc~Session~ record_* / persist
+    StepContext --> TurnContext
+    Session ..> ContextManager : record_* 先写内存
+    Session ..> Event : send_event_raw → persist EventMsg
+    RolloutRecorder ..> RolloutItem : 冷读历史
+    Submission --> Op
+    Event --> EventMsg
+    AgentControl ..> ThreadManagerState
 ```
+
+> **`submission_loop`**：`session/handlers.rs` 中的长期 Tokio 任务，**不是** struct；从 `rx_sub` 串行处理 `Submission`，**不**经过 `InputQueue`。
 
 #### 1.2.4 核心实体属性速查
 
@@ -666,9 +863,16 @@ classDiagram
 | **Session** | `core/src/session/session.rs` | `thread_id`, `state`, `active_turn`, `services`, `input_queue`, `tx_event` | 0..1 `ActiveTurn` |
 | **SessionState** | `core/src/state/session.rs` | `session_configuration`, `history: ContextManager`, `auto_compact_window` | 可变会话状态 |
 | **SessionConfiguration** | `session/session.rs` | `provider`, `approval_policy`, `base_instructions`, `history_mode`, `parent_thread_id` | Turn 启动时冻结进 `TurnContext` |
-| **SessionServices** | `core/src/state/service.rs` | `mcp_runtime`, `mcp_manager`, `agent_control`, `model_client`, `hooks` | 依赖注入容器 |
-| **ActiveTurn** | `core/src/state/turn.rs` | `task: Option<RunningTask>`, `turn_state` | 与 `run_turn` 任务 1:1 |
-| **TurnState** | 同上 | `pending_approvals`, `pending_input`, `mailbox_delivery_phase`, `token_usage_at_turn_start` | Turn 内可变 |
+| **SessionServices** | `core/src/state/service.rs` | `live_thread`, `thread_store`, `mcp_runtime`, `model_client`, `agent_control`, `executed_tool_calls` | 依赖注入；**jsonl append 经 `live_thread`** |
+| **LiveThread** | `codex-thread-store` | `append_items`, `flush`, `local_rollout_path` | **Session 级**写盘句柄（`SessionServices` 字段）；**跨 Turn 共用**；非 agent loop |
+| **ThreadStore** | 同上 trait | `create` / `resume` / 元数据 | 与 `ThreadManager` 共享；冷启动 `LiveThread::create` |
+| **InputQueue** | `session/input_queue.rs` | `mailbox_pending_mails`（**非** `Submission` 队列） | 子 Agent 邮箱 → drain 进 **`TurnState.pending_input`** |
+| **TurnInputQueue** | `session/input_queue.rs` | `Vec<TurnInput>` | **Steer / 同 Turn 插队**；挂在 `TurnState.pending_input` |
+| **RunningTask** | `state/turn.rs` | `turn_context`, `task: AnySessionTask`, `handle` | **Turn 级 Tokio 壳**；`spawn` 里 `Arc::clone(session)` 传入 `task.run`；**不持有** `LiveThread` |
+| **RegularTask** | `tasks/regular.rs` | `SessionTask::run` → **`run_turn`** | 默认用户 Turn 任务 |
+| **run_turn** | `session/turn.rs` | **函数**；Step loop + `run_sampling_request` | 非长期对象；见 §1.2.1 时序 |
+| **ActiveTurn** | `core/src/state/turn.rs` | `task: Option<RunningTask>`, `finishing`, `turn_state` | 进程内至多一个活跃 Turn |
+| **TurnState** | 同上 | `pending_input: TurnInputQueue`, `pending_approvals`, `mailbox_delivery_phase` | Turn 内可变 |
 | **TurnContext** | `session/turn_context.rs` | `sub_id`, `config`, `environments`, `dynamic_tools` | 一整轮用户 Turn |
 | **StepContext** | `session/step_context.rs` | `turn`, `tool_router`, `mcp`, `model_info`, `approval_policy` | **每次采样**冻结工具表 |
 | **ContextManager** | `context_manager/history.rs` | `items: Arc<Vec<ResponseItemEnvelope>>`, `history_version` | 模型真相；常规 **只追加**；压缩/回滚 **整体 replace**（§5.8） |
@@ -676,7 +880,9 @@ classDiagram
 | **Op** | 同上 | `TurnInput`, `Interrupt`, `ExecApproval`, `Compact`, `ThreadRollback`, … | 控制面载荷 |
 | **Event / EventMsg** | 同上 | `TurnStarted`, `AgentMessage*`, `ExecCommand*`, `ContextCompacted`, … | UI/审计投影 |
 | **ResponseItem** | `protocol/src/models.rs` | `Message`, `FunctionCall`, `FunctionCallOutput`, `Reasoning`, `Compaction`, … | 模型历史条目 |
-| **RolloutItem** | `history/src/lib.rs` | `SessionMeta`, `ResponseItem`, `EventMsg`, `Compacted`, `TurnContext`, … | jsonl 行类型 |
+| **RolloutItem** | `history/src/lib.rs` | `SessionMeta`, `ResponseItem`, `EventMsg`, `Compacted`, `TurnContext`, … | jsonl **一行一种**；增量 append（§1.2.1） |
+| **RolloutRecorder** | `codex-rollout` / `core/rollout` | `get_rollout_history`, `load_rollout_items` | **读** rollout / 测试；**非**热路径 append |
+| **submission_loop** | `session/handlers.rs` | `async fn`；`rx_sub` → `Op` handler | SQ 串行调度；与 `InputQueue` 无关 |
 | **ToolRouter** | `tools/router.rs` | `registry`, `model_visible_specs` | Step 快照 |
 | **ToolOrchestrator** | `tools/orchestrator.rs` | `sandbox: SandboxManager` | 审批 → 沙箱 → 执行 |
 | **McpBinding** | `codex-mcp/src/binding.rs` | `connections`, `tools`, `calls` | Step 级 MCP 快照 |

@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from sqlalchemy import ForeignKey, String, Text
+from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from jc.db.base import Base
 from jc.db.mixins import TimestampMixin
+from jc.db.types import LongText
 
 
 class AgentMessage(Base, TimestampMixin):
@@ -23,5 +24,5 @@ class AgentMessage(Base, TimestampMixin):
     )
     role: Mapped[str] = mapped_column(String(16), nullable=False)
     event_type: Mapped[str] = mapped_column(String(32), nullable=False, default="message")
-    content: Mapped[str | None] = mapped_column(Text, nullable=True)
-    payload_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    content: Mapped[str | None] = mapped_column(LongText, nullable=True)
+    payload_json: Mapped[str | None] = mapped_column(LongText, nullable=True)

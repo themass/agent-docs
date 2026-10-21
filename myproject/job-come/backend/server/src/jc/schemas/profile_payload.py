@@ -5,14 +5,85 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from jc.models.enums import ConfidenceLevel
+from jc.resume_locale import TRACK_BILINGUAL, TRACK_EN, normalize_track
 
 
 class ProfileLink(BaseModel):
     type: str
     url: str
+
+
+class ProfilePhoto(BaseModel):
+    """The candidate's headshot, stored as an object-storage pointer plus a switch.
+
+    `storage_key` is the durable record and `download_url` is a short-lived signed
+    URL re-derived on read (same contract as `jc_agent_message` attachments) — a
+    payload that persisted only the signed URL would render a broken image as soon
+    as it expired.
+
+    `enabled` defaults to False, so uploading a photo never silently changes what an
+    export looks like: a resume gains a headshot only when the user asks for one.
+    The flag is kept separate from `storage_key` rather than encoding "off" as a
+    cleared key, because turning the photo off must not destroy the upload the user
+    may turn back on in the next breath.
+    """
+
+    storage_key: str | None = None
+    download_url: str | None = None
+    mime_type: str | None = None
+    width: int | None = None
+    height: int | None = None
+    enabled: bool = False
+    #: Whether the bilingual track draws the photo too. Separate from `enabled`
+    #: because the switch means "show it on my Chinese resume", and a bilingual
+    #: document is usually read by the English-market side of a hiring process,
+    #: where a headshot is at best noise and in several jurisdictions something
+    #: recruiters are instructed to discard. Defaulting it off means a user who
+    #: turned the photo on for 中文 does not silently ship it abroad; opting in
+    #: is one checkbox. The English-only track ignores both flags (see
+    #: `renders_for_locale`), because there the answer is never.
+    show_in_bilingual: bool = False
+
+    @property
+    def renderable(self) -> bool:
+        """Whether an exporter *could* draw this photo — switch on and bytes stored.
+
+        Locale is a separate question: see `renders_for_locale`, which is what the
+        draft builder asks. This property stays locale-free so the editor preview and
+        the profile API can report "the user has it on" without knowing which track
+        is being exported.
+        """
+        return bool(self.enabled and self.storage_key)
+
+    def renders_for_locale(self, locale: str | None) -> bool:
+        """Whether this photo belongs on the resume for a given output track.
+
+        The rule is per-market convention rather than per-user preference, so it
+        lives here instead of being re-derived at each export site:
+
+        * **zh-CN** — a headshot is standard on a Chinese resume, so the user's
+          switch decides.
+        * **en-US** — never. US/UK/EU screening guidance commonly tells recruiters
+          to reject or redact resumes carrying a photo (bias exposure), so drawing
+          one because a Chinese-track switch was on would actively damage the
+          application. No flag overrides this; that is why it is not a setting.
+        * **zh-en bilingual** — off unless explicitly opted in, because the reason
+          a bilingual document exists is usually an English-reading audience.
+
+        Returns False for an unrenderable photo regardless of track, so callers do
+        not need to check `renderable` as well.
+        """
+        if not self.renderable:
+            return False
+        track = normalize_track(locale)
+        if track == TRACK_EN:
+            return False
+        if track == TRACK_BILINGUAL:
+            return self.show_in_bilingual
+        return True
 
 
 class ProfileContact(BaseModel):
@@ -21,15 +92,34 @@ class ProfileContact(BaseModel):
     phone: str | None = None
     location: str | None = None
     links: list[ProfileLink] = Field(default_factory=list)
+    # Lives on `contact` rather than at the payload root because a headshot is
+    # identity material, read by the same masthead that renders name and contact
+    # line -- keeping it here means one section owns everything that appears above
+    # the first horizontal rule.
+    photo: ProfilePhoto = Field(default_factory=ProfilePhoto)
 
 
 class ProfileExperience(BaseModel):
+    """One role. `highlights` carries the evidence; `scope` frames it.
+
+    `scope` is the 先总后分 layer as a **source fact**: what the person owned and how big
+    it was, in their own words. It is kept on the profile rather than derived at write
+    time because it cannot be derived — a list of accomplishments does not reveal the
+    team size, the budget, or the mandate behind them. Without it a reader has to infer
+    scale from the bullets, which is the single most common reason a senior career reads
+    as a mid-level one.
+    """
+
     id: str
     company: str
     title: str
     start_date: str
     end_date: str | None = None
     location: str | None = None
+    scope: str | None = Field(
+        default=None,
+        description="一句话说明这段经历里你负责的范围与量级，作为真实事实由用户提供。",
+    )
     highlights: list[str] = Field(default_factory=list)
     skills: list[str] = Field(default_factory=list)
     confidence: ConfidenceLevel = ConfidenceLevel.NEEDS_REVIEW
@@ -66,6 +156,10 @@ class ProfileProject(BaseModel):
     start_date: str | None = None
     end_date: str | None = None
     description: str | None = None
+    scope: str | None = Field(
+        default=None,
+        description="一句话说明项目的量级与你的角色，作为真实事实由用户提供。",
+    )
     highlights: list[str] = Field(default_factory=list)
     confidence: ConfidenceLevel = ConfidenceLevel.NEEDS_REVIEW
 
@@ -88,7 +182,25 @@ class EvidenceAnswer(BaseModel):
     answered_at: datetime | None = None
 
 
+class RetractedClaim(BaseModel):
+    claim: str = Field(min_length=2, max_length=500)
+    correction: str = Field(min_length=1, max_length=1000)
+    scope: Literal["profile", "experience", "project"]
+    entity_id: str | None = Field(default=None, max_length=128)
+
+    @model_validator(mode="after")
+    def validate_scope(self) -> RetractedClaim:
+        if not self.claim.strip() or not self.correction.strip():
+            raise ValueError("Claim and correction must not be blank")
+        if self.scope == "profile" and self.entity_id is not None:
+            raise ValueError("Profile-wide correction must not carry an entity_id")
+        if self.scope != "profile" and not (self.entity_id or "").strip():
+            raise ValueError("Entity-scoped correction requires a stable entity_id")
+        return self
+
+
 class ProfileConstraints(BaseModel):
+    retracted_claims: list[RetractedClaim] = Field(default_factory=list, max_length=100)
     forbidden_companies: list[str] = Field(default_factory=list)
     forbidden_keywords: list[str] = Field(default_factory=list)
     must_include: list[str] = Field(default_factory=list)
@@ -116,6 +228,8 @@ class ProfilePreferences(BaseModel):
 
 
 class ProfileMeta(BaseModel):
+    # Request-local projection of applied confirmations, keyed by stable entity ID.
+    approved_resume_fields: dict[str, list[str]] = Field(default_factory=dict)
     source_file: str | None = None
     created_at: datetime | None = None
     confirmed_at: datetime | None = None

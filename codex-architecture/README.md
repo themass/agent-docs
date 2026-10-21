@@ -101,3 +101,60 @@ OpenAI Codex CLI 是一个**本地运行的编码 Agent**：TUI / IDE / exec / a
 推荐先阅读 [SOURCE_DEEP_DIVE_2026.md](./SOURCE_DEEP_DIVE_2026.md)，再回到 PART1/2/3 对照核心循环、工具安全和持久化实现。
 
 新增专题：[覆盖与改动记录](./COVERAGE_AND_CHANGES.md)。原文 2026-08 快照说明保留；本次增补以 commit `b7ba02f88095cd3c039709157618c03909d47a26` 为基线，历史行号、平台能力与 feature 默认值需要按实际 checkout/config 核对。
+
+```mermaid
+sequenceDiagram
+    participant CLI/TUI
+    participant LiveThread
+    participant record_canonical_items
+    participant RolloutRecorder
+    participant mpsc_channel[Bounded mpsc channel]
+    participant RolloutWriterTask[Background Writer Task]
+    participant FS[rollout-xxx.jsonl]
+    participant StateDB[state.sqlite]
+
+    Note over CLI/TUI,FS: 1. 新建/恢复会话
+    CLI/TUI->>LiveThread: new LiveThread(thread_id)
+    LiveThread->>RolloutRecorder: RolloutRecorder::new(path)
+    RolloutRecorder->>RolloutWriterTask: spawn writer task, open file handle
+    RolloutRecorder->>mpsc_channel: AddItems([SessionMeta])
+    RolloutWriterTask->>FS: append SessionMeta line (pending buffer, wait flush)
+
+    Note over CLI/TUI,FS: 2. 开启一个Turn
+    CLI/TUI->>LiveThread: start_turn(user_input)
+    LiveThread->>record_canonical_items: record_canonical_items([TurnStart, UserMessage])
+    record_canonical_items->>RolloutRecorder: send_add_items(items)
+    RolloutRecorder->>mpsc_channel: RolloutCmd::AddItems(items)
+    Note over LiveThread,mpsc_channel: LiveThread不阻塞，继续执行Agent loop
+
+    Note over LiveThread,FS: 3. Agent循环，LLM流式输出 + 工具调用
+    loop Agent turn loop
+        LiveThread->>LLM: request LLM
+        LLM-->>LiveThread: stream response items (reasoning / function_call)
+        LiveThread->>record_canonical_items: record_canonical_items([AgentMessage/FunctionCall])
+        record_canonical_items->>RolloutRecorder: send_add_items
+        RolloutRecorder->>mpsc_channel: AddItems
+        alt LLM输出FunctionCall
+            LiveThread->>MCP: execute tool
+            MCP-->>LiveThread: tool output
+            LiveThread->>record_canonical_items: record FunctionCallOutput
+            record_canonical_items->>RolloutRecorder: send_add_items
+            RolloutRecorder->>mpsc_channel: AddItems
+        end
+    end
+
+    Note over CLI/TUI,FS: 4. Turn结束，触发强制Flush（源码关键）
+    LiveThread->>record_canonical_items: record_canonical_items([TurnEnd])
+    record_canonical_items->>RolloutRecorder: send_add_items([TurnEnd])
+    RolloutRecorder->>mpsc_channel: AddItems + RolloutCmd::Flush
+    RolloutWriterTask->>FS: serialize pending items, write_all + fsync
+    RolloutWriterTask->>StateDB: apply_rollout_item, update sqlite metadata
+    RolloutWriterTask-->>RolloutRecorder: Flush ack(oneshot)
+
+    Note over CLI/TUI,FS: 5. 会话shutdown
+    CLI/TUI->>LiveThread: shutdown thread
+    LiveThread->>RolloutRecorder: shutdown recorder
+    RolloutRecorder->>mpsc_channel: RolloutCmd::Shutdown
+    RolloutWriterTask->>FS: flush remaining buffer, close fd
+    RolloutWriterTask-->>RolloutRecorder: shutdown ack
+```

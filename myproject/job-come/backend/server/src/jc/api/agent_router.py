@@ -8,9 +8,10 @@ from collections.abc import AsyncIterator
 from agentkit.common.trace import get_trace_id
 from agentkit.web.auth import UserActor
 from fastapi import APIRouter, Depends, Path, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 
 from jc.api.deps import get_agent_service, require_user
+from jc.api.sse import with_heartbeat
 from jc.schemas.agent import (
     AgentConfirmRequest,
     AgentConfirmResponse,
@@ -125,18 +126,35 @@ async def agent_message_stream(
     agents: AgentService = Depends(get_agent_service),
 ) -> StreamingResponse:
     async def event_stream() -> AsyncIterator[bytes]:
-        async for event in agents.stream_message(
+        upstream = agents.stream_message(
             session_id,
             actor=actor,
             content=body.content,
             attachments=body.attachments,
             reply_locale=body.reply_locale,
             ui_context=body.ui_context,
-        ):
+        )
+        async for event in with_heartbeat(upstream):
             yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n".encode()
 
     return StreamingResponse(
         event_stream(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@router.get(
+    "/sessions/{session_id}/messages/{message_id}/images/{attachment_index}",
+    summary="读取当前用户会话图片用于前端头像裁剪",
+)
+async def read_agent_image(
+    session_id: str,
+    message_id: str,
+    attachment_index: int = Path(ge=0),
+    actor: UserActor = Depends(require_user),
+    agents: AgentService = Depends(get_agent_service),
+) -> Response:
+    return await agents.read_photo_source(
+        session_id, message_id=message_id, attachment_index=attachment_index, actor=actor,
     )

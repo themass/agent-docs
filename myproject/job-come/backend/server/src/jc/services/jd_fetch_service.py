@@ -15,6 +15,7 @@ from urllib.parse import urljoin, urlsplit, urlunsplit
 import httpcore
 from httpcore._backends.anyio import AnyIOBackend
 
+from jc.domain.jd_integrity import inspect_jd_text
 from jc.exceptions import AppError
 
 
@@ -87,7 +88,7 @@ class PublicNetworkBackend(httpcore.AsyncNetworkBackend):
         )
 
     async def connect_unix_socket(self, *args, **kwargs):
-        raise AppError("Unix sockets are not allowed", code="unsafe_url")
+        raise AppError("这个链接地址不被支持，请改用公开网页地址。", code="unsafe_url")
 
     async def sleep(self, seconds):
         await self._backend.sleep(seconds)
@@ -104,6 +105,7 @@ class FetchedPage:
     sha256: str
     method: str = "http"
     untrusted_content: bool = True
+    integrity: dict | None = None
 
     def as_dict(self) -> dict:
         return asdict(self)
@@ -199,6 +201,7 @@ class JdFetchService:
             unescape(title.group(1)).strip()[:300] if title else "",
             text,
             hashlib.sha256(raw).hexdigest(),
+            integrity=inspect_jd_text(html),
         )
 
     async def fetch_text(self, url: str) -> str:

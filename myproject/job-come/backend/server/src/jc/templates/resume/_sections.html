@@ -1,0 +1,136 @@
+{#
+  Shared resume body markup. Every export template renders through these macros so
+  PDF, DOCX-adjacent HTML and the standalone HTML export cannot drift apart.
+
+  `labels` carries the localized section titles; the caller owns language choice.
+#}
+
+{# `photo_data_uri` is set only when the user uploaded a headshot *and* left the
+   display switch on (see ProfilePhoto.renderable). It is an inline data URI because
+   the PDF renderer blocks every network request from the print page. When absent,
+   the identity block keeps its original single-column layout untouched -- the photo
+   is additive, so an export without one is byte-identical to before this feature. #}
+{% macro masthead(header) -%}
+<header class="masthead{% if header.photo_data_uri %} masthead--with-photo{% endif %}">
+  <div class="masthead-identity">
+    <h1 class="name">{{ header.name }}</h1>
+    {% if header.headline %}<div class="headline">{{ header.headline }}</div>{% endif %}
+    {% if header.contact_line %}<div class="contact">{{ header.contact_line }}</div>{% endif %}
+  </div>
+  {% if header.photo_data_uri %}
+  {# Empty alt: the name sits immediately beside it, so announcing the photo would
+     make a screen reader repeat the candidate's identity twice. #}
+  <img class="masthead-photo" src="{{ header.photo_data_uri }}" alt="" />
+  {% endif %}
+</header>
+{%- endmacro %}
+
+{% macro summary_section(text, title) -%}
+{% if text %}
+<section class="section">
+  <h2 class="section-title">{{ title }}</h2>
+  <p class="summary">{{ text }}</p>
+</section>
+{% endif %}
+{%- endmacro %}
+
+{% macro experience_section(blocks, title) -%}
+{% if blocks %}
+<section class="section">
+  <h2 class="section-title">{{ title }}</h2>
+  {% for exp in blocks %}
+  <article class="entry">
+    <div class="entry-head">
+      <div class="entry-name">
+        {{ exp.company }}{% if exp.title %} <span class="entry-role">· {{ exp.title }}</span>{% endif %}
+      </div>
+      {% if exp.date_range %}<div class="entry-dates">{{ exp.date_range }}</div>{% endif %}
+    </div>
+    {% if exp.location %}<div class="entry-meta">{{ exp.location }}</div>{% endif %}
+    {# 先总后分: one line of role + scope before the evidence. Rendered as real text in
+       the normal flow so ATS extraction and grayscale printing both keep it. #}
+    {% if exp.scope_line %}<p class="entry-scope">{{ exp.scope_line }}</p>{% endif %}
+    {% if exp.bullets %}
+    <ul class="bullets">
+      {% for bullet in exp.bullets %}<li>{{ bullet }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+  </article>
+  {% endfor %}
+</section>
+{% endif %}
+{%- endmacro %}
+
+{% macro project_section(blocks, title) -%}
+{% if blocks %}
+<section class="section">
+  <h2 class="section-title">{{ title }}</h2>
+  {% for proj in blocks %}
+  <article class="entry">
+    <div class="entry-head">
+      <div class="entry-name">{{ proj.name }}{% if proj.role %} <span class="entry-role">· {{ proj.role }}</span>{% endif %}</div>
+      {% if proj.date_range %}<div class="entry-dates">{{ proj.date_range }}</div>{% endif %}
+    </div>
+    {% if proj.scope_line %}<p class="entry-scope">{{ proj.scope_line }}</p>{% endif %}
+    {% if proj.description %}<p class="entry-note">{{ proj.description }}</p>{% endif %}
+    {% if proj.bullets %}
+    <ul class="bullets">
+      {% for bullet in proj.bullets %}<li>{{ bullet }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+  </article>
+  {% endfor %}
+</section>
+{% endif %}
+{%- endmacro %}
+
+{% macro education_section(blocks, title) -%}
+{% if blocks %}
+<section class="section">
+  <h2 class="section-title">{{ title }}</h2>
+  {% for edu in blocks %}
+  <article class="entry">
+    <div class="entry-head">
+      <div class="entry-name">{{ edu.school }}</div>
+      {% if edu.date_range %}<div class="entry-dates">{{ edu.date_range }}</div>{% endif %}
+    </div>
+    {% if edu.degree_line %}<div class="entry-meta">{{ edu.degree_line }}</div>{% endif %}
+  </article>
+  {% endfor %}
+</section>
+{% endif %}
+{%- endmacro %}
+
+{% macro skills_section(block, fallback_title) -%}
+{% if block and block.content %}
+<section class="section">
+  <h2 class="section-title">{{ block.title or fallback_title }}</h2>
+  <p class="skills">{{ block.content }}</p>
+</section>
+{% endif %}
+{%- endmacro %}
+
+{#
+  Render the whole body in a stable, recruiter-scannable order:
+  summary → experience → projects → education → skills.
+
+  `section_order` from the writer model is honored when present, but the renderer
+  — not the model — decides which sections may exist, so a malformed order
+  cannot drop or duplicate content.
+#}
+{% macro body(sections, labels) -%}
+{{ masthead(sections.header or {}) }}
+{% set order = sections.section_order or ["summary", "experience", "projects", "education", "skills"] %}
+{% set known = ["summary", "experience", "projects", "education", "skills"] %}
+{% set effective = [] %}
+{% for key in order %}{% if key in known and key not in effective %}{% set _ = effective.append(key) %}{% endif %}{% endfor %}
+{% for key in known %}{% if key not in effective %}{% set _ = effective.append(key) %}{% endif %}{% endfor %}
+{% for key in effective %}
+  {%- if key == "summary" -%}{{ summary_section(sections.summary, labels.summary) }}
+  {%- elif key == "experience" -%}{{ experience_section(sections.experience_blocks, labels.experience) }}
+  {%- elif key == "projects" -%}{{ project_section(sections.project_blocks, labels.projects) }}
+  {%- elif key == "education" -%}{{ education_section(sections.education_blocks, labels.education) }}
+  {%- elif key == "skills" -%}{{ skills_section(sections.skills_block, labels.skills) }}
+  {%- endif -%}
+{% endfor %}
+{%- endmacro %}

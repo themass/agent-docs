@@ -15,21 +15,41 @@ providers:
 
 scenarios:
   ingest_fast:
+    # Ingestion is a structured extraction task, not an agent turn. Explicitly
+    # disable hidden reasoning here; the previous default spent 60 seconds
+    # emitting reasoning with zero JSON content and timed out. This policy is
+    # scoped to ingest_fast, so conversational agent thinking remains enabled.
     - model: openai/deepseek-v4-flash
       provider: gateway
       timeout_sec: 120
-    - model: openai/claude-haiku-5-5
+      reasoning_effort: none
+      # DeepSeek-compatible gateways may ignore reasoning_effort; this explicit
+      # body flag disables their thinking mode without changing agent turns.
+      extra_body:
+        thinking:
+          type: disabled
+    - model: openai/glm-5-3-flash
       provider: gateway
       timeout_sec: 120
-    - model: openai/gpt-6-1-sol
+      reasoning_effort: none
+      extra_body:
+        thinking:
+          type: disabled
+    - model: openai/doubao-seed-2-0-lite-260215
       provider: gateway
       timeout_sec: 120
+      reasoning_effort: none
+      # DeepSeek-compatible gateways may ignore reasoning_effort; this explicit
+      # body flag disables their thinking mode without changing agent turns.
+      extra_body:
+        thinking:
+          type: disabled
 
   writer:
     - model: openai/gpt-6-1-sol
       provider: gateway
       timeout_sec: 180
-    - model: openai/claude-haiku-5-5
+    - model: openai/doubao-seed-2-0-lite-260215
       provider: gateway
       timeout_sec: 180
     - model: openai/deepseek-v4-flash
@@ -40,7 +60,7 @@ scenarios:
     - model: openai/gpt-6-1-sol
       provider: gateway
       timeout_sec: 180
-    - model: openai/claude-haiku-5-5
+    - model: openai/doubao-seed-2-0-lite-260215
       provider: gateway
       timeout_sec: 180
     - model: openai/deepseek-v4-flash
@@ -56,7 +76,7 @@ scenarios:
     - model: openai/deepseek-v4-flash
       provider: gateway
       timeout_sec: 60
-    - model: openai/claude-haiku-5-5
+    - model: openai/doubao-seed-2-0-lite-260215
       provider: gateway
       timeout_sec: 60
     - model: openai/gpt-6-1-sol
@@ -68,3 +88,29 @@ defaults:
   api_base_env: JC_LLM_API_BASE
   api_key_env: JC_LLM_API_KEY
   temperature: 0.1
+  # Requested output ceiling, not context capacity or per-run usage budget.
+  # Override on a deployment only when its actual gateway limit is verified.
+  max_tokens: 100000
+
+# Gateway prices, USD per 1M tokens. Only needed for models litellm's bundled price
+# map does not know -- which is all of the vendor-neutral names below, so without
+# this block the admin LLM list's 花费 column stays empty. Public model names that
+# litellm already prices can be left out. A model with no entry here and none in
+# litellm reports an empty cost rather than 0.
+#
+# Left commented out on purpose: a placeholder rate card would make the 花费 column
+# show confident numbers that are wrong, which is worse than showing nothing.
+# Uncomment and fill in your gateway's real rates to turn the column on.
+# pricing:
+#   openai/gpt-6-1-sol:
+#     prompt_usd_per_1m: 2.5
+#     completion_usd_per_1m: 10.0
+#   openai/claude-haiku-5-5:
+#     prompt_usd_per_1m: 1.0
+#     completion_usd_per_1m: 5.0
+#   openai/deepseek-v4-flash:
+#     prompt_usd_per_1m: 0.3
+#     completion_usd_per_1m: 1.2
+#   openai/qwen-vl-ocr:
+#     prompt_usd_per_1m: 0.5
+#     completion_usd_per_1m: 1.5

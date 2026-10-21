@@ -1,0 +1,89 @@
+{
+  "status": "passed",
+  "scope": "real Chromium + built frontend; mocked API",
+  "column_scroll": {
+    "step3_collapsed": {
+      "content": 2106,
+      "visible": 760,
+      "hidden": 1346
+    },
+    "step3_expanded": {
+      "content": 2495,
+      "visible": 760,
+      "hidden": 1735
+    },
+    "step4": {
+      "content": 1168,
+      "visible": 760,
+      "hidden": 408
+    }
+  },
+  "preview_offset_px": 18,
+  "step3_layout": {
+    "offset": 18,
+    "inView": true,
+    "columns": false,
+    "docWidth": 930,
+    "docFirst": true
+  },
+  "evidence_answer_calls": 0,
+  "page_errors": [],
+  "requests": [
+    {
+      "path": "/auth/context",
+      "method": "GET"
+    },
+    {
+      "path": "/profiles",
+      "method": "GET"
+    },
+    {
+      "path": "/agent/sessions?profile_id=profile_fixture&kind=resume&limit=20",
+      "method": "GET"
+    },
+    {
+      "path": "/profiles/profile_fixture",
+      "method": "GET"
+    },
+    {
+      "path": "/notifications",
+      "method": "GET"
+    },
+    {
+      "path": "/profiles/profile_fixture/intake?limit=6",
+      "method": "GET"
+    },
+    {
+      "path": "/profiles/profile_fixture/intake-answers",
+      "method": "POST"
+    },
+    {
+      "path": "/profiles/profile_fixture",
+      "method": "GET"
+    },
+    {
+      "path": "/profiles/profile_fixture/writing-options",
+      "method": "GET"
+    },
+    {
+      "path": "/profiles/profile_fixture/evidence-gaps?limit=12",
+      "method": "GET"
+    },
+    {
+      "path": "/profiles/profile_fixture/resume-tracks?elevation_level=standard",
+      "method": "GET"
+    },
+    {
+      "path": "/profiles/profile_fixture/elevate/preview?elevation_level=standard&locale=zh-CN",
+      "method": "GET"
+    },
+    {
+      "path": "/profiles/profile_fixture/resume-tracks?elevation_level=standard",
+      "method": "GET"
+    },
+    {
+      "path": "/profiles/profile_fixture/export/review?elevation_level=elevated&locale=zh-CN&draft_id=rdft_fixture",
+      "method": "GET"
+    }
+  ]
+}

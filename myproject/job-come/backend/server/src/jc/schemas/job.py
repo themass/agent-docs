@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictBool
 
 
 class JDParseResult(BaseModel):
+    integrity: dict = Field(default_factory=dict, description="服务端 JD 正文安全诊断；非安全保证")
     company: str | None = None
     role_title: str
     location: str | None = None
@@ -26,6 +27,22 @@ class JobParseRequest(BaseModel):
     save: bool = Field(default=True, description="Persist to jc_job")
 
 
+class EvidenceCitation(BaseModel):
+    field_path: str = Field(max_length=256)
+    quote: str = Field(min_length=1, max_length=8000)
+    entity_id: str | None = None
+
+
+class RequirementEvidence(BaseModel):
+    requirement: str = Field(min_length=1, max_length=4000)
+    importance: Literal["required", "preferred", "unspecified"] = "unspecified"
+    importance_basis: Literal["jd_explicit", "jd_structure", "estimated"] = "estimated"
+    status: Literal["supported", "partial", "unverified"] = "unverified"
+    evidence: list[EvidenceCitation] = Field(default_factory=list, max_length=20)
+    citation_status: Literal["verified", "unverified"] = "unverified"
+    next_question: str | None = Field(default=None, max_length=2000)
+
+
 class JobResponse(BaseModel):
     id: str
     profile_id: str
@@ -39,6 +56,8 @@ class JobResponse(BaseModel):
     fit_blockers: list
     provenance: dict | None = None
     parsed: JDParseResult | None = None
+    evidence_profile_version: int | None = None
+    requirement_evidence: list[RequirementEvidence] = Field(default_factory=list)
     fit_summary: str | None = None
     elevate_hints: list[str] = Field(default_factory=list)
     fit_dimensions: dict[str, int] = Field(default_factory=dict)
@@ -51,13 +70,17 @@ class FitScoreRequest(BaseModel):
 
 
 class FitScoreResponse(BaseModel):
+    evidence_profile_version: int | None = None
+    requirement_evidence: list[RequirementEvidence] = Field(default_factory=list, max_length=200)
     job_id: str | None
     score: int
     recommendation: Literal["go", "caution", "no"]
     gaps: list[str]
     blockers: list[str]
     summary: str | None = None
-    elevate_hints: list[str] = Field(default_factory=list, description="按该岗可拔高的方向，不编造经历")
+    elevate_hints: list[str] = Field(
+        default_factory=list, description="按该岗可拔高的方向，不编造经历"
+    )
     dimensions: dict[str, int] = Field(
         default_factory=dict,
         description="分维 0–100：match / target / comp / culture / red_flags",
@@ -80,7 +103,9 @@ class ApplyPipelineRequest(BaseModel):
     source_url: str | None = None
     elevation_level: str = Field(default="elevated")
     export_format: Literal["pdf", "docx"] = Field(default="pdf")
-    create_application: bool = Field(default=True, description="导出后写入投递归档")
+    create_application: StrictBool = Field(
+        default=False, description="仅用户明确确认已实际投递时设为 true；材料导出不等于投递"
+    )
 
 
 class ApplyPipelineResponse(BaseModel):

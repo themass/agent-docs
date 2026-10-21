@@ -154,3 +154,29 @@ class ParseStatus(StrEnum):
     PROCESSING = "processing"
     DONE = "done"
     FAILED = "failed"
+
+
+class UserRole(StrEnum):
+    USER = "user"
+    ADMIN = "admin"
+
+
+class FeedbackStatus(StrEnum):
+    """Thread-level lifecycle, independent of who spoke last."""
+
+    OPEN = "open"
+    REPLYING = "replying"
+    RESOLVED = "resolved"
+    CLOSED = "closed"
+
+
+class FeedbackCategory(StrEnum):
+    BUG = "bug"
+    FEATURE = "feature"
+    QUESTION = "question"
+    OTHER = "other"
+
+
+class FeedbackMessageRole(StrEnum):
+    USER = "user"
+    ADMIN = "admin"

@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { IconArrowRight, IconChat } from "@/components/ui/Icon";
 import { getQuestionDetail, type QuestionDetail } from "@/lib/api/coach";
 import { userFacingApiError } from "@/lib/api/user-error";
+import { formatDateTime } from "@/lib/datetime";
 
 const TYPE_LABEL: Record<string, string> = {
   behavioral: "行为/STAR",
@@ -135,7 +136,7 @@ export default function QuestionDetailPage() {
                   </span>
                   {a.is_best ? <span className="badge badge-success">最佳</span> : null}
                   <span className="text-micro text-ink-500">
-                    {new Date(a.created_at).toLocaleString("zh-CN")}
+                    {formatDateTime(a.created_at)}
                   </span>
                 </p>
                 <p className="mt-2.5 whitespace-pre-wrap text-sm leading-relaxed text-ink-800">
@@ -172,7 +173,7 @@ export default function QuestionDetailPage() {
               <li key={a.id} className="card card-pad">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-micro text-ink-500">
-                    {new Date(a.created_at).toLocaleString("zh-CN")}
+                    {formatDateTime(a.created_at)}
                   </span>
                   {a.is_best ? <span className="badge badge-success">最佳</span> : null}
                 </div>

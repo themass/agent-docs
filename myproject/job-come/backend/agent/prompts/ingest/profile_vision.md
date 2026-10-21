@@ -24,16 +24,18 @@ image shows; let the writer decide what to cut.
 
 - **Never summarize, merge or sample.** If a role shows 9 bullets, `highlights` has 9 entries.
   Do not keep "the best few".
-- **One accomplishment per `highlights` entry.** Split a bullet packing several results into
-  separate entries.
+- **One source unit per `highlights` entry.** Do not split one source bullet or project
+  paragraph at semicolons, sentence endings or visual line wraps. Keep background,
+  implementation and outcome of the same project together, with its project heading.
+  Distinct source bullets stay distinct and ordered under the same project.
 - **Preserve specifics exactly as shown**: numbers, units, percentages, QPS, 人数, 业务线数, tech
   and system names, and before/after pairs (`25 天 → 8 天`). These carry the whole resume.
 - **Keep every role and every project**, including short ones and internal promotions.
 - `项目经历` / `Projects` becomes `projects` entries and is rendered as its own section. A project
   described under a job stays in that job's `highlights` instead — never duplicate it in both.
-- A project's bullets go in its `highlights`, one accomplishment per entry, under the same
-  lossless rule as experiences. `description` is a one-line overview only, never a merged
-  paragraph of accomplishments.
+- A project's source bullets go in its `highlights`, one source bullet/semantic paragraph
+  per entry, under the same lossless rule as experiences. Preserve the full source overview
+  in `description`; never force a project narrative into disconnected achievements.
 - `skills` lists every technology, tool and platform named anywhere in the image.
 
 ## Rules

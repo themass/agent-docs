@@ -22,13 +22,37 @@ export function isSourceParseSettled(status: string | undefined): boolean {
 }
 
 export function latestProfileSource(profile: Profile | null | undefined): ProfileSource | undefined {
-  return profile?.sources[0];
+  return profile?.sources?.reduce<ProfileSource | undefined>((latest, source) => {
+    if (!latest) return source;
+    const timestamp = Date.parse(source.created_at ?? "");
+    const previous = Date.parse(latest.created_at ?? "");
+    return Number.isFinite(timestamp) && (!Number.isFinite(previous) || timestamp > previous)
+      ? source : latest;
+  }, undefined);
 }
 
 export function isProfileParseInFlight(profile: Profile | null | undefined): boolean {
   const source = latestProfileSource(profile);
   if (!source) return false;
   return !isSourceParseSettled(source.parse_status);
+}
+
+/** Facts are independent of upload records: a failed source is not a profile. */
+export function hasProfileFacts(profile: Profile | null | undefined): boolean {
+  const payload = profile?.payload;
+  return Boolean(
+    payload?.contact?.name?.trim() || payload?.contact?.email?.trim() ||
+    payload?.contact?.phone?.trim() || payload?.summary?.trim() ||
+    payload?.experiences?.length || payload?.education?.length ||
+    payload?.projects?.length || payload?.skills?.length,
+  );
+}
+
+/** A failed replacement may keep the old facts; a failed first upload cannot be confirmed. */
+export function isProfileParseBlocking(profile: Profile | null | undefined): boolean {
+  return isProfileParseInFlight(profile) || (
+    latestProfileSource(profile)?.parse_status === "failed" && !hasProfileFacts(profile)
+  );
 }
 
 /** Maps backend phases to user-facing status without exposing model/provider implementation details. */
@@ -38,6 +62,15 @@ export function parseProgressState(phase: string | null | undefined): ParseProgr
   if (key === "queued") return { currentStep: 0, currentLabel: "已收到简历，等待开始处理", steps: PARSE_STEPS };
   if (key === "load_file" || key === "classify") {
     return { currentStep: 1, currentLabel: "正在读取文档内容", steps: PARSE_STEPS };
+  }
+  if (key === "inspect_document") {
+    return { currentStep: 1, currentLabel: "正在判断文字是否完整，选择解析方式", steps: PARSE_STEPS };
+  }
+  if (key === "extract_markdown") {
+    return { currentStep: 1, currentLabel: "正在尝试另一种本地文字提取方式", steps: PARSE_STEPS };
+  }
+  if (key.startsWith("llm_vision_")) {
+    return { currentStep: 2, currentLabel: "正在识别扫描内容并整理档案", steps: PARSE_STEPS };
   }
   if (key === "extract_text") {
     return { currentStep: 1, currentLabel: "正在提取文档文字与结构", steps: PARSE_STEPS };

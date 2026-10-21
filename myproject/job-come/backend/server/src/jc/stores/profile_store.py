@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -51,6 +51,17 @@ class ProfileStore:
             .order_by(Profile.updated_at.desc())
         )
         return list((await self._db.execute(stmt)).scalars().all())
+
+    async def profile_counts_by_user(self, user_ids: list[str]) -> dict[str, int]:
+        if not user_ids:
+            return {}
+        stmt = (
+            select(Profile.user_id, func.count())
+            .where(Profile.user_id.in_(user_ids), Profile.deleted_at.is_(None))
+            .group_by(Profile.user_id)
+        )
+        rows = (await self._db.execute(stmt)).all()
+        return {user_id: int(count) for user_id, count in rows}
 
     async def get_for_user(self, user_id: str, profile_id: str) -> Profile | None:
         stmt = select(Profile).where(
