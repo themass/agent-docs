@@ -12,7 +12,39 @@ http://jc.sspacee.com
       └─ /api/v1/ → FastAPI + embedded DeerFlow Agent
 ```
 
-主站和 API 必须使用同一域名下的相对 `/api/v1`，避免生产跨域与 cookie 域问题。当前对外地址为 `http://jc.sspacee.com`；若切换 HTTPS，需同步启用 `JC_COOKIE_SECURE=true` 并校验 Nginx 代理头和重定向。
+主站和 API 必须使用同一域名下的相对 `/api/v1`，避免生产跨域与 cookie 域问题。当前对外地址为 `http://jc.sspacee.com`；切换 HTTPS 见下节。
+
+## 1.1 切换 HTTPS
+
+参考配置已备好：`backend/server/nginx/jc.sspacee.com.https.conf`（含 80→443 301 跳转与 ACME 续期放行）。
+
+**证书必须由公共 CA 签发。** 自签名证书在公网站点上不成立：浏览器整页拦截，Googlebot 与 Baiduspider 直接拒绝握手——结果不是排名下降，是完全抓不到。内网自签名那套经验在这里不适用。
+
+签发方式三选一，都免费：
+
+| 方式 | 适用 | 有效期 |
+|---|---|---|
+| Let's Encrypt + certbot | 服务器 80/443 公网可达 | 90 天，自动续期 |
+| 阿里云 / 腾讯云免费 DV 证书 | 域名或服务器在该云商 | 3 个月～1 年，手动换 |
+| 云厂商负载均衡托管证书 | 已有 SLB/CLB | 自动 |
+
+certbot 路径：
+
+```bash
+certbot certonly --webroot -w /var/www/certbot -d jc.sspacee.com
+```
+
+**四处必须同时改**，漏掉任何一处都会留下难查的半截状态：
+
+1. Nginx 换成 `jc.sspacee.com.https.conf`，`nginx -t && nginx -s reload`
+2. `frontend/web/.env.production` → `NEXT_PUBLIC_SITE_URL=https://jc.sspacee.com`，
+   **然后重新 `npm run build`**（构建期变量，重启不生效）
+3. `backend/server/.env` → `JC_COOKIE_SECURE=true`、`JC_PUBLIC_URL=https://jc.sspacee.com`
+4. 搜索引擎后台：Google Search Console 把 `http://` 与 `https://` 视为两个不同资源，
+   需重新添加 https 资源并重新提交 sitemap（建议改用 DNS 验证的「网域」资源，一次覆盖两者）；
+   百度资源平台同样需要重新验证与提交
+
+漏掉第 3 项的症状是页面能开但登录态持续丢失（Secure cookie 未下发）；漏掉第 2 项的症状是 canonical 与 sitemap 仍指向 http，搜索引擎看到的正式地址和实际服务的不一致。
 
 ## 2. 生产构建与启动
 

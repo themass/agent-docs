@@ -30,8 +30,12 @@
    - 国内备案（ICP）若用大陆服务器，通常影响百度收录与稳定性
 
 4. **HTTPS 与跳转**  
-   - 全站 HTTPS  
+   - 全站 HTTPS。证书必须公共 CA 签发；自签名会被爬虫直接拒绝握手，
+     结果是完全不收录而非排名下降。免费签发方式与四处同步改动见
+     [`operations/OPS-DEPLOYMENT.md`](operations/OPS-DEPLOYMENT.md) 的「切换 HTTPS」。
    - `www` / 裸域 301 统一到一处（与 `NEXT_PUBLIC_SITE_URL` 一致）
+   - 注意：GSC 把 `http://` 与 `https://` 当成两个资源。若先用 http 提交过，
+     切 HTTPS 后要重新添加并提交；用 DNS 验证的「网域」资源可一次覆盖两者。
 
 ### 建议做（上线后 1–2 周）
 
