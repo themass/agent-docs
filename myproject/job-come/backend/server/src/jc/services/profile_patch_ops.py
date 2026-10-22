@@ -35,6 +35,30 @@ def _invalid(message: str) -> AppError:
     return AppError(message, code="invalid_profile_patch")
 
 
+def _schema_failure(exc: ValidationError) -> AppError:
+    """Name the fields Pydantic rejected, so the model can fix the patch it sent.
+
+    Every other refusal in this module says what is wrong ("修改目标不存在",
+    "修改路径互相重叠"). This one used to say only that the result did not fit the
+    schema, which is the least actionable message in the file and the one most
+    likely to need detail — the model has no way to tell a wrong enum from a
+    missing required field, so it re-sends a variant of the same patch and fails
+    identically. A tool error is a prompt: it has to carry the fix.
+
+    Locations only, never `error["input"]`. The input is resume prose the model
+    already has, and repeating it here would copy personal data into every log
+    line and error payload for no diagnostic gain.
+    """
+    seen: list[str] = []
+    for error in exc.errors()[:5]:
+        location = ".".join(str(part) for part in error["loc"]) or "(根对象)"
+        seen.append(f"{location}: {error['msg']}")
+    detail = "；".join(seen)
+    if len(exc.errors()) > 5:
+        detail += f"（另有 {len(exc.errors()) - 5} 处）"
+    return _invalid(f"修改内容不符合档案结构：{detail}。请按档案字段定义修正后重新提交。")
+
+
 def _tokens(path: str) -> tuple[str | int, ...]:
     if not isinstance(path, str) or len(path) > 256 or not _PATH.fullmatch(path):
         raise _invalid("修改路径格式不正确，请基于档案字段重新生成修改。")
@@ -52,16 +76,21 @@ def _merge(base: Any, value: Any) -> Any:
     return copy.deepcopy(value)
 
 
-def _assert_fields_survive(raw: Any, validated: Any) -> None:
+def _assert_fields_survive(raw: Any, validated: Any, path: tuple[str, ...] = ()) -> None:
     """Disallow unknown fields at any depth, including replaced list items."""
     if isinstance(raw, dict) and isinstance(validated, dict):
         for key, value in raw.items():
             if key not in validated:
-                raise _invalid("修改包含不存在的档案字段，请读取最新档案后重新生成。")
-            _assert_fields_survive(value, validated[key])
+                # Name the field: this fires when the model invents a key, and
+                # "some field does not exist" leaves it guessing which one.
+                where = ".".join((*path, str(key)))
+                raise _invalid(
+                    f"修改包含不存在的档案字段 `{where}`，请读取最新档案后重新生成。"
+                )
+            _assert_fields_survive(value, validated[key], (*path, str(key)))
     elif isinstance(raw, list) and isinstance(validated, list):
-        for left, right in zip(raw, validated, strict=True):
-            _assert_fields_survive(left, right)
+        for index, (left, right) in enumerate(zip(raw, validated, strict=True)):
+            _assert_fields_survive(left, right, (*path, str(index)))
 
 
 def apply_profile_patch(base: dict[str, Any], patch: dict[str, Any]) -> ProfilePayload:
@@ -95,7 +124,7 @@ def apply_profile_patch(base: dict[str, Any], patch: dict[str, Any]) -> ProfileP
     try:
         payload = ProfilePayload.model_validate(out)
     except ValidationError as exc:
-        raise _invalid("修改内容不符合档案结构，请基于最新档案重新生成。") from exc
+        raise _schema_failure(exc) from exc
     prior_rules = ProfilePayload.model_validate(before).constraints.retracted_claims
     for rule in payload.constraints.retracted_claims:
         # Existing rules remain attached to their IDs when a source entity is removed.
