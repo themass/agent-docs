@@ -2,16 +2,18 @@
 # Each provider maps to api_base_env + api_key_env (never put secrets in this file).
 #
 # Gateway: http://gpt.sspacee.com/v1 (set in .env, not here). Every model it
-# lists was probed on 2026-10-23 with both a text and an image request:
-#   deepseek-v4-flash           text OK, reads images too — leads extraction
-#   deepseek-v4-pro             text OK, refuses images — leads writer/coach
-#   gpt-5.6-luna                text OK, reads images — the vision stand-in
-#   qwen3-vl-plus               404 on every request (gateway channel broken)
-#   doubao-seed-2-0-pro-260215  404 on every request (same)
+# lists was probed on 2026-10-23 with both a text and an image request, and
+# timed on a long-JSON workload like the one these chains actually run:
+#   deepseek-v4-flash           152 tok/s, reads images — leads extraction
+#   gpt-5.6-luna                125 tok/s, reads images — the vision second hop
+#   deepseek-v4-pro             117 tok/s, refuses images — leads writer/coach
+#   qwen3-vl-plus               reads images, max_tokens ceiling 32768 — leads vision
+#   doubao-seed-2-0-pro-260215   46 tok/s — in no chain, and keep it that way:
+#                               it is 3.3x slower than flash for the same output
+#                               and would blow any per-attempt budget on its own
 #
-# The 404 body is `bad_response_status_code`, which is the gateway reporting that
-# its own upstream call failed — not a request we can fix from here. So a chain
-# must not depend on either 404 model alone.
+# This is a NewAPI relay, so each hop adds its own latency on top of the upstream
+# model. Budgets live in config.py, which carries the measurements behind them.
 #
 # Plain http, not https: the host answers 443 with a self-signed certificate,
 # which litellm (correctly) refuses, and that refusal is a connection error at
@@ -88,24 +90,18 @@ scenarios:
       timeout_sec: 180
       # Must be set explicitly, and must not be lowered casually.
       #
-      # The `defaults.max_tokens` of 100000 is above every Qwen-VL ceiling, and
-      # such a gateway rejects it with a 400 before reading any image — not a
-      # timeout, so it fails instantly and identically every time. That is
+      # Measured 2026-10-23, not guessed: this endpoint accepts 32768 and rejects
+      # 65536 with `InvalidParameter: Range of max_tokens should be [1, 32768]`.
+      # The `defaults.max_tokens` of 100000 therefore draws that same rejection —
+      # before any image is read, and instantly rather than as a timeout. That is
       # exactly how every screenshot silently became "unreadable" once before.
       #
-      # 8192 is a floor as much as a cap: `profile_vision` sends all pages in one
-      # call and expects a full structured resume JSON back, which for a
-      # multi-page resume runs several thousand tokens. A smaller ceiling
-      # truncates mid-JSON and fails parsing instead of failing the request.
-      #
-      # Probed 2026-10-23: this model is listed by /v1/models but returns 404
-      # (`bad_response_status_code`) for every request — with an image, without
-      # one, and at every max_tokens — so the ceiling above is still the
-      # documented value rather than a measured one. The 404 is the gateway
-      # reporting its upstream channel failed, not a request problem, so it has
-      # to be fixed in the gateway's channel config. Until then every vision
-      # call is served by the hop below.
-      max_tokens: 8192
+      # 32768 rather than something smaller: `profile_vision` sends every page in
+      # one call and expects a whole structured resume JSON back, so a low
+      # ceiling truncates mid-JSON and fails parsing instead of failing the
+      # request — the quieter of the two failures. Sitting at the measured
+      # maximum is safe because the hop below catches a 400 if it ever drops.
+      max_tokens: 32768
     # Second vision endpoint, which this chain has never had before. The earlier
     # outage was total precisely because `Fallbacks=None`: one rejected request
     # and the model was told the attachment was unreadable. Probed 2026-10-23 to

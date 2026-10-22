@@ -10,6 +10,31 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
+# Model-call budgets below are sized from a measurement, not a guess.
+#
+# Benchmarked 2026-10-23 against the NewAPI gateway at gpt.sspacee.com, asking
+# each model for the shape of output these pipelines actually produce (a long
+# structured JSON, ~2.5-3k output tokens, from a ~2.6k-token input):
+#
+#     deepseek-v4-flash            16.3s   152 tok/s
+#     gpt-5.6-luna                 21.0s   125 tok/s
+#     deepseek-v4-pro              26.6s   117 tok/s
+#     doubao-seed-2-0-pro-260215   56.5s    46 tok/s   (in no chain; do not add)
+#
+# Output length dominates: the same models answer a short question in 3-5s. So a
+# per-attempt budget has to clear the *slowest useful* model's full generation,
+# and the old 25s cleared none of them with margin — production logs showed the
+# reviewer burning its whole 90s chain (two 25s timeouts plus overhead, median
+# 59.9s, max 75.6s) and the writer falling back to `source_layout` twice, which
+# is the unoptimised rule-based layout a user reads as "it did nothing".
+#
+# A too-short attempt budget is the worst of both: it pays for a generation it
+# then throws away, and the failure surfaces as a fast, plausible-looking draft
+# rather than an error. Hence 45s per attempt and 120s per chain, which leaves
+# the writer 120/2.5 = 48s per hop — nearly 2x the slowest chain member's
+# measured time. Worst-case preview is writer 120 + repair 40 = 160s, still
+# inside the 240s SSE budget and the frontend's 255s watchdog.
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -22,7 +47,7 @@ class Settings(BaseSettings):
     jc_api_prefix: str = Field("/api/v1", alias="JC_API_PREFIX")
     jc_docs_enabled: bool = Field(True, alias="JC_DOCS_ENABLED")
     jc_preview_writer_timeout_seconds: float = Field(
-        90, gt=0, le=120, alias="JC_PREVIEW_WRITER_TIMEOUT_SECONDS",
+        120, gt=0, le=120, alias="JC_PREVIEW_WRITER_TIMEOUT_SECONDS",
         description="Whole writer fallback-chain budget, not a per-model timeout",
     )
     jc_preview_repair_enabled: bool = Field(
@@ -38,18 +63,18 @@ class Settings(BaseSettings):
         ),
     )
     jc_export_review_timeout_seconds: float = Field(
-        90, gt=0, le=120, alias="JC_EXPORT_REVIEW_TIMEOUT_SECONDS"
+        120, gt=0, le=120, alias="JC_EXPORT_REVIEW_TIMEOUT_SECONDS"
     )
     jc_export_review_attempt_timeout_seconds: float = Field(
-        25, gt=0, le=60, alias="JC_EXPORT_REVIEW_ATTEMPT_TIMEOUT_SECONDS",
+        45, gt=0, le=60, alias="JC_EXPORT_REVIEW_ATTEMPT_TIMEOUT_SECONDS",
         description="Per-model reviewer timeout within the shared total review budget",
     )
     jc_ingest_timeout_seconds: float = Field(
-        90, gt=0, le=120, alias="JC_INGEST_TIMEOUT_SECONDS",
+        120, gt=0, le=120, alias="JC_INGEST_TIMEOUT_SECONDS",
         description="Whole ingest deadline including local extraction and model failover",
     )
     jc_ingest_attempt_timeout_seconds: float = Field(
-        25, gt=0, le=60, alias="JC_INGEST_ATTEMPT_TIMEOUT_SECONDS",
+        45, gt=0, le=60, alias="JC_INGEST_ATTEMPT_TIMEOUT_SECONDS",
         description="Text connection/read-idle timeout; vision single-request timeout",
     )
     jc_ingest_stream_attempt_seconds: float = Field(
