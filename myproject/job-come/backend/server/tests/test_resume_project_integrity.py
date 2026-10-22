@@ -190,3 +190,45 @@ async def test_text_ingest_validator_preserves_original_project_unit(monkeypatch
     result = await ProfileStructurer().structure(text=PROJECT, source_file="fixture.txt")
     assert len(result.projects) == 1
     assert result.projects[0].highlights == [PROJECT]
+
+
+def test_a_scope_line_that_only_restates_the_heading_is_dropped() -> None:
+    """The entry heading already carries company and title.
+
+    Both the writer model and the old deterministic fallback produced lines like
+    "在贝壳担任商业化/服务端leader P8", which spent the block's most valuable line
+    repeating the heading and pushed the evidence further down the page.
+    """
+    from jc.services.resume_elevator import ResumeElevator
+
+    sections = {
+        "experience_blocks": [
+            {
+                "company": "贝壳",
+                "title": "商业化/服务端leader P8",
+                "scope_line": "在贝壳担任商业化/服务端leader P8",
+                "bullets": ["负责商业化平台系统架构设计"],
+            },
+            {
+                "company": "快手",
+                "title": "服务端leader",
+                "scope_line": "带 10 人团队，支撑日均数亿级内容安全审核",
+                "bullets": ["负责审核方向后端团队管理"],
+            },
+        ],
+        "project_blocks": [
+            {
+                "name": "商业化平台",
+                "role": "负责人",
+                "scope_line": "商业化平台负责人",
+                "bullets": ["从 0 搭建平台"],
+            }
+        ],
+    }
+    out = ResumeElevator._normalize_sections(sections)
+    assert out["experience_blocks"][0]["scope_line"] is None
+    # A line carrying real scale survives untouched.
+    assert out["experience_blocks"][1]["scope_line"] == "带 10 人团队，支撑日均数亿级内容安全审核"
+    assert out["project_blocks"][0]["scope_line"] is None
+    # Evidence is never dropped by this guard.
+    assert out["experience_blocks"][0]["bullets"] == ["负责商业化平台系统架构设计"]

@@ -6,6 +6,18 @@ import { experienceLabel, type AgentUiFocus } from "@/lib/ui-context";
 import type { PreviewProgress } from "@/lib/preview-progress";
 import { ElevatePreviewGenerating } from "./ElevatePreviewGenerating";
 
+/**
+ * Scope values at or under this length are role metadata ("带 7 人团队") and sit on the
+ * title row; longer ones are a sentence and keep their own lead paragraph. Mirrors the
+ * export templates (`templates/resume/_sections.html`, `resume_render_engine`) so the
+ * preview shows the same shape the downloaded file has.
+ */
+const INLINE_SCOPE_MAX = 14;
+const inlineScope = (scope?: string | null) => {
+  const text = (scope ?? "").trim();
+  return text && text.length <= INLINE_SCOPE_MAX ? text : null;
+};
+
 type ExperienceBlock = {
   company?: string;
   title?: string;
@@ -147,6 +159,11 @@ export function ResumeStructuredPreview({
                 <div>
                   <p className="text-base font-semibold tracking-tight text-ink-900">
                     {exp.title ?? "职位"}
+                    {inlineScope(exp.scope_line) ? (
+                      <span className="ml-2 text-sm font-medium text-ink-500">
+                        · {inlineScope(exp.scope_line)}
+                      </span>
+                    ) : null}
                   </p>
                   <p className="mt-0.5 text-sm font-medium text-brand-700">
                     {exp.company ?? "公司"}
@@ -160,7 +177,7 @@ export function ResumeStructuredPreview({
               </div>
               {/* The scope line, visually set apart from the bullets: it is a summary of
                   the role, not one more accomplishment. */}
-              {exp.scope_line ? (
+              {exp.scope_line && !inlineScope(exp.scope_line) ? (
                 <p className="mt-2.5 border-l-2 border-brand-200 pl-2.5 text-sm leading-relaxed text-ink-600">
                   {exp.scope_line}
                 </p>
@@ -232,11 +249,16 @@ export function ResumeStructuredPreview({
                   </span>
                 ) : null}
               </div>
-              {(proj.scope_line ?? proj.description) ? (
-                <p className="mt-2.5 border-l-2 border-brand-200 pl-2.5 text-sm leading-relaxed text-ink-600">
-                  {proj.scope_line ?? proj.description}
-                </p>
-              ) : null}
+              {(() => {
+                const lead = inlineScope(proj.scope_line)
+                  ? proj.description
+                  : (proj.scope_line ?? proj.description);
+                return lead ? (
+                  <p className="mt-2.5 border-l-2 border-brand-200 pl-2.5 text-sm leading-relaxed text-ink-600">
+                    {lead}
+                  </p>
+                ) : null;
+              })()}
               <ul className="mt-3 space-y-2">
                 {(proj.bullets ?? []).map((bullet, bIdx) => (
                   <li

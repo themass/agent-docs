@@ -48,7 +48,6 @@ class ResumeDraftBuilder:
         en = is_english_locale(locale)
         pending_name = "Name pending" if en else "姓名待填"
         default_headline = "Candidate" if en else "求职者"
-        pending_bullet = "(Add experience highlights)" if en else "（待补充经历要点）"
         present = "Present" if en else "至今"
         skills_title = "Skills" if en else "技能"
         header = {
@@ -76,7 +75,11 @@ class ResumeDraftBuilder:
         elevation_map: list[dict[str, Any]] = []
         for idx, exp in enumerate(profile.experiences):
             bullets: list[str] = []
-            for b_idx, raw in enumerate(exp.highlights or [pending_bullet]):
+            # An entry with no highlights renders as heading + dates only. Printing a
+            # "（待补充经历要点）" placeholder put an editor prompt into the exported PDF,
+            # which the user then sent to recruiters. Coverage reporting flags the empty
+            # entry in the app instead.
+            for b_idx, raw in enumerate(exp.highlights or []):
                 written = self._elevate_bullet(raw, elevation_level, english=en)
                 bullets.append(written)
                 if written != raw:
@@ -204,28 +207,23 @@ class ResumeDraftBuilder:
 
     @staticmethod
     def _scope_line(exp: Any, *, english: bool) -> str | None:
-        """One line of 角色与范围.
+        """The 先总后分 lead for an entry, or None when there is nothing to lead with.
 
-        Prefers `exp.scope` — the user's own answer to "你负责什么、管多大的范围", which is
-        the only source that actually knows the team size and the mandate. Falls back to
-        restating structured fields, which is a weaker line but a true one, and keeps the
-        fallback document structurally the same shape as the model one rather than
-        silently dropping the layer.
+        Only the user's own `scope` answer qualifies. Restating `company` + `title` was
+        tried and removed: the entry heading one line above already shows both, so the
+        derived line ("在贝壳担任商业化/服务端leader P8") printed the heading twice and
+        pushed the real evidence further down the page. A missing scope is reported by
+        `resume_structure` as `missing_scope_line` so the user can fill it in, which is
+        the honest fix -- padding the document with a tautology is not.
 
         The stored scope is used as typed and only in the locale it was typed in: a
-        Chinese answer rendered into the English track would be worse than the derived
-        English line, and this path has no translator.
+        Chinese answer rendered into the English track would be worse than nothing, and
+        this path has no translator.
         """
         stated = (getattr(exp, "scope", None) or "").strip()
         if stated and not english:
             return stated
-        title = (exp.title or "").strip()
-        company = (exp.company or "").strip()
-        if not title or not company:
-            return None
-        if english:
-            return f"{title} at {company}"
-        return f"在{company}担任{title}"
+        return None
 
     # Verbs that already carry ownership; nothing to upgrade.
     _STRONG_PREFIXES = ("主导", "负责", "牵头", "搭建", "设计", "优化", "重构", "推动", "治理")

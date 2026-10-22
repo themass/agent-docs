@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Start JC API (uvicorn) + web (Next.js dev).
-# Prerequisite: ./scripts/setup-venv.sh, .env (migrations run automatically).
+# Prerequisite: .env (Python deps auto-sync via uv on first start; migrations run automatically).
 #
 # Usage:
 #   ./scripts/dev.sh
@@ -17,6 +17,7 @@
 #   JC_WEB_PORT=3000
 #   JC_PYTHON=/path/to/python   # default: deepagents/venv/bin/python
 #   JC_SKIP_DB_UPGRADE=1        # start without executing Alembic migrations
+#   JC_SKIP_VENV_SYNC=1         # do not auto-run setup-venv.sh when deps are missing
 #   JC_API_RELOAD=false          # disable Uvicorn file watcher
 #   JC_WEB_CLEAN=false           # keep .next cache instead of wiping it
 #   JC_DEV_LOG_DIR=/path/to/logs # default: <project>/.data/logs/dev
@@ -37,6 +38,13 @@ PYTHON="$(jc_python "$JC_ROOT")" || {
   echo "[dev] ERROR: cannot find deepagents/venv above ${JC_ROOT}" >&2
   exit 1
 }
+# shellcheck source=lib/ensure_python_env.sh
+source "${JC_ROOT}/scripts/lib/ensure_python_env.sh"
+if [[ ! -x "$PYTHON" ]]; then
+  echo "[dev] ERROR: Python not found: $PYTHON (create monorepo venv: python3.12 -m venv venv)" >&2
+  exit 1
+fi
+jc_ensure_python_env "$JC_ROOT" "$PYTHON" || exit 1
 
 API_HOST="${JC_API_HOST:-0.0.0.0}"
 API_PORT="${JC_API_PORT:-8001}"
@@ -92,10 +100,6 @@ log "Local logs: ${LOG_DIR} (dev.log / api.log / web.log; 10 MiB × 4 each)"
 log "Ensuring ports ${API_PORT} and ${WEB_PORT} are free before starting"
 free_port "${API_PORT}"
 free_port "${WEB_PORT}"
-
-if [[ ! -x "$PYTHON" ]]; then
-  die "Python not found: $PYTHON (run ./scripts/setup-venv.sh first)"
-fi
 
 if [[ ! -f "${SERVER_ROOT}/.env" ]]; then
   die "Missing .env — copy .env.example to .env and configure it"

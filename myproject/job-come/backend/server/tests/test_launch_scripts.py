@@ -19,6 +19,7 @@ def test_launch_scripts_are_valid_bash() -> None:
             "scripts/db_upgrade.sh",
             "scripts/setup-venv.sh",
             "scripts/lib/project_paths.sh",
+            "scripts/lib/ensure_python_env.sh",
             "scripts/test-local.sh",
             "scripts/test-live.sh",
         ],
@@ -35,6 +36,20 @@ def test_alembic_ini_lives_with_server_migrations() -> None:
     assert ini.is_file(), f"missing {ini} (Alembic cwd is backend/server)"
     assert (SERVER_ROOT / "alembic" / "env.py").is_file()
     assert "script_location" in ini.read_text(encoding="utf-8")
+
+
+def test_db_upgrade_uses_venv_alembic_cli() -> None:
+    text = (PROJECT_ROOT / "scripts" / "db_upgrade.sh").read_text(encoding="utf-8")
+    assert 'exec "$ALEMBIC_BIN"' in text
+    assert 'exec "$PYTHON" -m alembic' not in text
+    assert "jc_ensure_python_env" in text
+
+
+def test_dev_bootstraps_python_env_before_logs() -> None:
+    text = (PROJECT_ROOT / "scripts" / "dev.sh").read_text(encoding="utf-8")
+    ensure_pos = text.index("jc_ensure_python_env")
+    log_redirect_pos = text.index('exec > >("$PYTHON"')
+    assert ensure_pos < log_redirect_pos
 
 
 def test_monorepo_discovery_finds_deepagents_venv() -> None:

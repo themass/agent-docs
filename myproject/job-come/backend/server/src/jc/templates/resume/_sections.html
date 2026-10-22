@@ -40,16 +40,20 @@
   <h2 class="section-title">{{ title }}</h2>
   {% for exp in blocks %}
   <article class="entry">
+    {# A short scope value ("带 7 人团队") is a property of the role, so it belongs on the
+       heading row beside the title; given its own paragraph it reads as a one-word bullet
+       and costs a full line per entry. Longer scope statements stay a lead paragraph,
+       where they still read as the 先总后分 sentence they are. Both render as real text in
+       the normal flow, so ATS extraction and grayscale printing keep the layer either way. #}
+    {% set scope_inline = exp.scope_line and exp.scope_line|length <= 14 %}
     <div class="entry-head">
       <div class="entry-name">
-        {{ exp.company }}{% if exp.title %} <span class="entry-role">· {{ exp.title }}</span>{% endif %}
+        {{ exp.company }}{% if exp.title %} <span class="entry-role">· {{ exp.title }}</span>{% endif %}{% if scope_inline %} <span class="entry-scope-inline">· {{ exp.scope_line }}</span>{% endif %}
       </div>
       {% if exp.date_range %}<div class="entry-dates">{{ exp.date_range }}</div>{% endif %}
     </div>
     {% if exp.location %}<div class="entry-meta">{{ exp.location }}</div>{% endif %}
-    {# 先总后分: one line of role + scope before the evidence. Rendered as real text in
-       the normal flow so ATS extraction and grayscale printing both keep it. #}
-    {% if exp.scope_line %}<p class="entry-scope">{{ exp.scope_line }}</p>{% endif %}
+    {% if exp.scope_line and not scope_inline %}<p class="entry-scope">{{ exp.scope_line }}</p>{% endif %}
     {% if exp.bullets %}
     <ul class="bullets">
       {% for bullet in exp.bullets %}<li>{{ bullet }}</li>{% endfor %}
@@ -67,11 +71,12 @@
   <h2 class="section-title">{{ title }}</h2>
   {% for proj in blocks %}
   <article class="entry">
+    {% set proj_scope_inline = proj.scope_line and proj.scope_line|length <= 14 %}
     <div class="entry-head">
-      <div class="entry-name">{{ proj.name }}{% if proj.role %} <span class="entry-role">· {{ proj.role }}</span>{% endif %}</div>
+      <div class="entry-name">{{ proj.name }}{% if proj.role %} <span class="entry-role">· {{ proj.role }}</span>{% endif %}{% if proj_scope_inline %} <span class="entry-scope-inline">· {{ proj.scope_line }}</span>{% endif %}</div>
       {% if proj.date_range %}<div class="entry-dates">{{ proj.date_range }}</div>{% endif %}
     </div>
-    {% if proj.scope_line %}<p class="entry-scope">{{ proj.scope_line }}</p>{% endif %}
+    {% if proj.scope_line and not proj_scope_inline %}<p class="entry-scope">{{ proj.scope_line }}</p>{% endif %}
     {% if proj.description %}<p class="entry-note">{{ proj.description }}</p>{% endif %}
     {% if proj.bullets %}
     <ul class="bullets">

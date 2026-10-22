@@ -610,7 +610,7 @@ wheels = [
 
 [[package]]
 name = "deerflow-extension-api"
-version = "0.2.7"
+version = "0.2.8"
 source = { editable = "../../../../../libs/agentkit/vendor/deer-flow/backend/packages/extension-api" }
 
 [[package]]

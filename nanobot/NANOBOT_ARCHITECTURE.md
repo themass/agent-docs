@@ -2942,16 +2942,16 @@ entrypoint
 sequenceDiagram
     participant CH as Channel
     participant BUS as MessageBus
-    participant LOOP as AgentLoop
+    participant AGENT_LOOP as AgentLoop
     participant RUN as AgentRunner
     participant OUT as ChannelManager
 
     CH->>BUS: publish_inbound(InboundMessage)
-    LOOP->>BUS: consume_inbound()
-    LOOP->>LOOP: _dispatch() with session lock
-    LOOP->>RUN: run(AgentRunSpec)
-    RUN-->>LOOP: AgentRunResult
-    LOOP->>BUS: publish_outbound(OutboundMessage)
+    AGENT_LOOP->>BUS: consume_inbound()
+    AGENT_LOOP->>AGENT_LOOP: _dispatch() with session lock
+    AGENT_LOOP->>RUN: run(AgentRunSpec)
+    RUN-->AGENT_LOOP: AgentRunResult
+    AGENT_LOOP->>BUS: publish_outbound(OutboundMessage)
     OUT->>BUS: consume_outbound()
     OUT->>CH: send response
 ```

@@ -291,3 +291,62 @@ def test_project_rewrites_are_recorded_in_the_elevation_map() -> None:
     )
     paths = [entry["field_path"] for entry in elevation_map]
     assert "project_blocks[0].bullets[0]" in paths
+
+
+def _exp(**kwargs) -> ProfileExperience:
+    base = {
+        "id": "exp1",
+        "company": "贝壳",
+        "title": "商业化/服务端leader P8",
+        "start_date": "2015-07",
+        "end_date": "2019-05",
+        "highlights": ["负责商业化平台系统架构设计"],
+    }
+    return ProfileExperience(**{**base, **kwargs})
+
+
+def test_an_entry_without_a_stated_scope_has_no_scope_line() -> None:
+    """A derived "在{company}担任{title}" line only restated the heading above it.
+
+    The exported PDF showed the company and title on the entry heading and then
+    repeated both as the scope line, which cost a line per entry and told the
+    reader nothing. Absent scope is reported by `resume_structure`, not padded.
+    """
+    sections, _ = ResumeDraftBuilder().build(
+        ProfilePayload(contact=ProfileContact(name="李国庆"), experiences=[_exp(scope=None)]),
+        elevation_level=ElevationLevel.STANDARD,
+    )
+    block = sections["experience_blocks"][0]
+    assert block["scope_line"] is None
+    assert "担任" not in str(block)
+
+
+def test_a_stated_scope_is_still_used_verbatim() -> None:
+    sections, _ = ResumeDraftBuilder().build(
+        ProfilePayload(
+            contact=ProfileContact(name="李国庆"),
+            experiences=[_exp(scope="带 12 人团队，负责商业化全链路")],
+        ),
+        elevation_level=ElevationLevel.STANDARD,
+    )
+    assert sections["experience_blocks"][0]["scope_line"] == "带 12 人团队，负责商业化全链路"
+
+
+def test_an_entry_without_highlights_does_not_print_an_editor_placeholder() -> None:
+    """"（待补充经历要点）" is a prompt for the editor, not resume content.
+
+    It was rendering into the exported PDF the user sends to recruiters.
+    """
+    for locale in ("zh-CN", "en-US"):
+        sections, _ = ResumeDraftBuilder().build(
+            ProfilePayload(
+                contact=ProfileContact(name="李国庆"), experiences=[_exp(highlights=[])]
+            ),
+            elevation_level=ElevationLevel.STANDARD,
+            locale=locale,
+        )
+        block = sections["experience_blocks"][0]
+        assert block["bullets"] == []
+        assert "待补充" not in str(sections) and "Add experience" not in str(sections)
+        # The entry itself must survive: dropping the role would lose real history.
+        assert block["company"] == "贝壳"

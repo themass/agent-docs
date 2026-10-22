@@ -149,3 +149,60 @@ def test_project_section_renders_before_education_and_skills():
     assert html.index("项目经历") < html.index("教育背景")
     assert html.index("项目经历") < html.index("统一配置中心") + len(html)
     assert html.index("工作经历") < html.index("项目经历")
+
+
+def _sections(scope: str | None) -> dict:
+    return {
+        "locale": "zh-CN",
+        "header": {"name": "李国庆", "headline": "AI研发工程师", "contact_line": "a@b.com"},
+        "summary": "",
+        "experience_blocks": [
+            {
+                "company": "快手",
+                "title": "风控/审核系统组/服务端leader",
+                "date_range": "2021-07 – 2024-02",
+                "scope_line": scope,
+                "bullets": ["负责风控团队审核方向的后端团队管理与架构演进"],
+            }
+        ],
+        "education_blocks": [],
+        "project_blocks": [],
+        "skills_block": {"title": "技能", "content": "java"},
+    }
+
+
+def test_a_short_scope_rides_the_title_row_instead_of_taking_its_own_line():
+    """"带10人团队" is role metadata, not a one-phrase paragraph.
+
+    On its own line it read as an orphan bullet and cost a full line per entry.
+    """
+    html = ResumeRenderEngine().render_html(_sections("带10人团队"), template_id="zh-one-page")
+    head = html[html.index('class="entry-head"') : html.index("<ul")]
+    assert "带10人团队" in head
+    assert 'class="entry-scope"' not in html
+    assert 'class="entry-scope-inline"' in html
+
+
+def test_a_full_scope_sentence_keeps_its_own_lead_paragraph():
+    scope = "带 10 人团队，支撑视频、直播、评论与电商的内容安全审核，服务 5000+ 审核人员"
+    html = ResumeRenderEngine().render_html(_sections(scope), template_id="zh-one-page")
+    assert 'class="entry-scope"' in html
+    assert 'class="entry-scope-inline"' not in html
+    head = html[html.index('class="entry-head"') : html.index('class="entry-scope"')]
+    assert scope not in head
+
+
+def test_the_word_export_applies_the_same_scope_rule():
+    """DOCX goes to the same recruiters; the two formats must not disagree."""
+    from docx import Document
+    import io
+
+    short = Document(io.BytesIO(ResumeRenderEngine().render_docx(_sections("带10人团队"))))
+    texts = [p.text for p in short.paragraphs]
+    assert any("风控/审核系统组/服务端leader · 带10人团队" in t for t in texts)
+    assert "带10人团队" not in [t.strip() for t in texts]
+
+    sentence = "带 10 人团队，支撑视频、直播、评论与电商的内容安全审核，服务 5000+ 审核人员"
+    long = Document(io.BytesIO(ResumeRenderEngine().render_docx(_sections(sentence))))
+    long_texts = [p.text.strip() for p in long.paragraphs]
+    assert sentence in long_texts
