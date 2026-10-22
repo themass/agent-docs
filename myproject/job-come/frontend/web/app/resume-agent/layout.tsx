@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
 
 import { PageJsonLd } from "@/components/seo/PageJsonLd";
-import { pageMetadata } from "@/lib/seo/site";
+import { pageMetadata, SITE_KEYWORDS_FORMAT_EN, SITE_KEYWORDS_FORMAT_ZH } from "@/lib/seo/site";
 
 const SEO = {
   title: "简历优化",
+  // The format vocabulary is spelled out here rather than only in `keywords`: Google has
+  // ignored the keywords meta since 2009, so the description and the page body are the
+  // only parts of this file that can actually rank for 简历 PDF 转 Word.
   description:
-    "上传简历，AI 解析为可编辑档案；舟卡协助改稿、拔高表述、导出 PDF/Word。面向互联网与知识工作者的求职准备工具。",
+    "上传 PDF / Word / 图片简历，AI 解析为可编辑档案；改稿、重排版式，一键导出 PDF 或 Word。支持简历 PDF 转 Word、Word 转 PDF 与格式调整。",
   path: "/resume-agent",
   keywords: [
     "简历优化",
@@ -16,6 +19,8 @@ const SEO = {
     "求职简历",
     "舟卡",
     "JobCome",
+    ...SITE_KEYWORDS_FORMAT_ZH,
+    ...SITE_KEYWORDS_FORMAT_EN,
   ],
 };
 

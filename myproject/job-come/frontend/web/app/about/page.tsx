@@ -30,6 +30,18 @@ export default function AboutPage() {
       <section className="card space-y-2 px-5 py-4">
         <h2 className="text-sm font-semibold text-ink-900">产品介绍</h2>
         <p className="text-sm leading-relaxed text-ink-600">{DOCUMENT_DESCRIPTION}</p>
+        {/* Both public pages link to each other: a landing page reachable only from the
+            sitemap is an orphan, and orphans carry almost no weight. */}
+        <p className="pt-1 text-xs text-ink-500">
+          想了解简历格式转换与排版？看{" "}
+          <Link
+            href="/resume-format"
+            className="font-medium text-brand-700 hover:text-brand-800"
+          >
+            简历格式转换与排版
+          </Link>
+          。
+        </p>
       </section>
 
       <section className="card space-y-2 px-5 py-4">
