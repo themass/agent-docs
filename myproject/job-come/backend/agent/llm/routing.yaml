@@ -1,16 +1,21 @@
 # JC LLM routing — per-model provider (base/key) via named profiles in .env
 # Each provider maps to api_base_env + api_key_env (never put secrets in this file).
 #
-# Gateway: https://gpt.sspacee.com/v1 (set in .env, not here). It serves three
-# models, so every chain below is drawn from the same three — there is no fourth
-# name to fail over to:
+# Gateway: https://gpt.sspacee.com/v1 (set in .env, not here). Verified against
+# /v1/models on 2026-10-23 — it serves four:
 #   deepseek-v4-flash  cheap/fast, leads the extraction and lightweight chains
 #   deepseek-v4-pro    stronger, leads the chains whose output a user reads
-#   qwen-vl-max        vision/OCR
+#   qwen-vl-max        vision/OCR — listed but currently answering 404
+#   gpt-5.6-luna       general + multimodal, stands in for vision while that lasts
 #
-# Chains are two deep rather than three. With one gateway and three models, a
-# third hop could only repeat a model already tried, which costs a second
-# timeout without adding a chance of success.
+# The text chains are two deep. With one gateway, a third hop could only repeat
+# a model already tried, which costs a second timeout without adding a chance
+# of success.
+#
+# Note on names: the gateway echoes `deepseek-v4-flash` back as `deepseek-flash`
+# in the response, and that echoed name is what gets logged as `final_model`.
+# Anything keyed on the served name — the `pricing` block below — needs the
+# echoed spelling, not the requested one.
 
 providers:
   gateway:
@@ -75,17 +80,32 @@ scenarios:
       #
       # The `defaults.max_tokens` of 100000 is above every Qwen-VL ceiling, and
       # the gateway rejects it with a 400 before reading any image — not a
-      # timeout, so it fails instantly and identically every time, and with a
-      # single vision endpoint there is nothing to fail over to. That is exactly
-      # how every screenshot silently became "unreadable" once before.
+      # timeout, so it fails instantly and identically every time. That is
+      # exactly how every screenshot silently became "unreadable" once before.
       #
       # 8192 is a floor as much as a cap: `profile_vision` sends all pages in one
       # call and expects a full structured resume JSON back, which for a
       # multi-page resume runs several thousand tokens. A smaller ceiling
       # truncates mid-JSON and fails parsing instead of failing the request.
-      # So if this gateway rejects 8192 for qwen-vl-max, the answer is a
-      # different vision model, not a smaller number.
+      #
+      # Probed 2026-10-23: this model is listed by /v1/models but returns 404
+      # (`bad_response_status_code`) for every request — with an image, without
+      # one, and at every max_tokens — so the ceiling above is still the
+      # documented value rather than a measured one. The 404 is the gateway
+      # reporting its upstream channel failed, not a request problem.
       max_tokens: 8192
+    # Second vision endpoint, which this chain has never had before. The earlier
+    # outage was total precisely because `Fallbacks=None`: one rejected request
+    # and the model was told the attachment was unreadable. Verified on the same
+    # date to read a test image back verbatim, and to accept max_tokens=100000
+    # without complaint, so it needs no ceiling override.
+    #
+    # Kept second, not first: `qwen-vl-max` is the intended OCR model and a
+    # general model is the understudy. If the channel above is fixed, this hop
+    # goes back to being unused.
+    - model: openai/gpt-5.6-luna
+      provider: vision
+      timeout_sec: 180
 
   flash:
     - model: openai/deepseek-v4-flash
