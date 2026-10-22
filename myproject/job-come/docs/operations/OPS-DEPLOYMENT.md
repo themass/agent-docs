@@ -48,28 +48,74 @@ certbot certonly --webroot -w /var/www/certbot -d jc.sspacee.com
 
 ## 2. 生产构建与启动
 
+### 首次部署
+
 ```bash
-cd /Users/gqli/work/deepagents/docs/myproject/job-come
-./scripts/install-production.sh
+cd /opt/jc
+./scripts/install-production.sh        # 锁文件非 editable 安装 Python 依赖
+cp backend/server/.env.example backend/server/.env   # 然后填写生产配置
+./scripts/start-production.sh          # migration + npm ci + build + 启动两个进程
 ```
 
-该脚本使用锁文件进行非 editable 安装；DeerFlow 源码来自锁定的 vendor 目录。随后：
+`install-production.sh` **只装 Python 依赖**，不构建前端、不启动任何进程。
+构建与启动在 `start-production.sh`：它按顺序做 Alembic migration、`npm ci`、
+`npm run build`，再前台拉起 uvicorn 与 `next start`。
 
-1. 创建 `backend/server/.env` 并写入生产配置；
-2. 在 `backend/server/` 运行 Alembic migration；
-3. 构建 `frontend/web`：`npm ci && npm run build`；
-4. 以进程管理器启动 FastAPI 和 Next.js；
-5. 由 Nginx 代理 `/` 与 `/api/v1/`；
-6. 对健康检查、登录、上传、导出、Agent、邮件做上线后 smoke test。
+启动前它会先校验两件最容易出错且报错最晚的配置，不通过直接拒绝启动：
 
-具体 systemd/进程管理命令应随目标服务器运行时固化在部署配置中，不应把密钥写入仓库。
+- `NEXT_PUBLIC_SITE_URL` 未设或是 localhost —— 否则构建出的 sitemap 与 canonical
+  全指向 localhost，几周后才以「一条都没收录」的形式暴露
+- `JC_COOKIE_SECURE` 与站点协议不匹配 —— https 站点配 `false` 会丢掉所有登录态，
+  而症状（页面能开、登录不生效）离病因很远
+
+### 常驻运行（推荐）
+
+前台脚本适合首次部署与排障；长期运行用 `deploy/systemd/` 下的两个 unit，
+分开托管两个进程（一个脚本同时持有两者时，任一崩溃会带走另一个）：
+
+```bash
+sudo cp deploy/systemd/jc-{api,web}.service /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable --now jc-api jc-web
+```
+
+unit 里的 `WorkingDirectory`、`User`、venv 路径按目标机器修改；密钥仍只在
+`backend/server/.env`，由 `EnvironmentFile` 加载，不入仓库。
+
+### 发布一次新版本
+
+```bash
+git pull && ./scripts/install-production.sh
+./scripts/start-production.sh --build-only
+sudo systemctl restart jc-api jc-web
+```
+
+**`--build-only` 不能省。** `next start` 读的是 `.next` 目录，不重新构建就
+`systemctl restart`，服务会静默继续提供上一个版本——没有任何报错。
+
+### 验证
+
+```bash
+curl -sf http://127.0.0.1:8000/health && echo API-OK
+curl -sI http://jc.sspacee.com/ | head -1
+curl -s http://jc.sspacee.com/sitemap.xml | head -5    # 确认不是 localhost
+```
+
+随后对登录、上传、导出、Agent、邮件做 smoke test（见 [`QA-TESTING.md`](QA-TESTING.md)）。
+
+### 端口约定
+
+`3000`（web）与 `8000`（API）在四处必须一致：Nginx 的 `upstream`、
+`start-production.sh` 的默认值、两个 systemd unit。改一处就要改四处。
+注意 **dev 的 API 端口是 8001**（`dev.sh`），与生产不同，这是有意的——
+本地起着 dev 时不会占用生产端口。
 
 ## 3. 必需环境配置
 
 | 类别 | 关键配置 |
 |---|---|
 | 应用 | `JC_ENV=production`、`JC_PUBLIC_URL=http://jc.sspacee.com`、`JC_API_PREFIX=/api/v1` |
-| 前端 | `NEXT_PUBLIC_SITE_URL`（已提交在 `frontend/web/.env.production`，当前 `http://jc.sspacee.com`）。**构建期生效**：改完必须重新 `npm run build`，重启不生效 || MySQL | `JC_DB_*`，并确认 schema migration 成功 |
+| 前端 | `NEXT_PUBLIC_SITE_URL`（已提交在 `frontend/web/.env.production`，当前 `http://jc.sspacee.com`）。**构建期生效**：改完必须重新 `npm run build`，重启不生效 |
+| MySQL | `JC_DB_*`，并确认 schema migration 成功 |
 | Redis | `JC_REDIS_URL`、`JC_REDIS_KEY_PREFIX=jc:prod:` |
 | TOS | endpoint、bucket、region、AK/SK，写入 `jc/prod/` |
 | LLM | `JC_LLM_ENABLED`、路由配置、供应商 API key/模型 slug |
