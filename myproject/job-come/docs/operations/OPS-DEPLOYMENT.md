@@ -37,7 +37,7 @@ cd /Users/gqli/work/deepagents/docs/myproject/job-come
 | 类别 | 关键配置 |
 |---|---|
 | 应用 | `JC_ENV=production`、`JC_PUBLIC_URL=http://jc.sspacee.com`、`JC_API_PREFIX=/api/v1` |
-| MySQL | `JC_DB_*`，并确认 schema migration 成功 |
+| 前端 | `NEXT_PUBLIC_SITE_URL`（已提交在 `frontend/web/.env.production`，当前 `http://jc.sspacee.com`）。**构建期生效**：改完必须重新 `npm run build`，重启不生效 || MySQL | `JC_DB_*`，并确认 schema migration 成功 |
 | Redis | `JC_REDIS_URL`、`JC_REDIS_KEY_PREFIX=jc:prod:` |
 | TOS | endpoint、bucket、region、AK/SK，写入 `jc/prod/` |
 | LLM | `JC_LLM_ENABLED`、路由配置、供应商 API key/模型 slug |
