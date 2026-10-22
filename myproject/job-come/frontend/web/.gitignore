@@ -1,3 +1,13 @@
 node_modules/
 .next/
 .env.local
+
+# The repo root ignores `.env.*`, which would also swallow `.env.production`.
+# That file holds only NEXT_PUBLIC_* values — compiled into the client bundle,
+# so secret by nobody's definition — and it must ship with the code: an unset
+# NEXT_PUBLIC_SITE_URL does not fail the build, it silently falls back to
+# localhost and publishes a sitemap full of localhost URLs.
+#
+# Real production secrets belong in `.env.production.local`, which the root
+# `.env.*.local` rule keeps ignored and this exception does not touch.
+!.env.production
