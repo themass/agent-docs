@@ -142,8 +142,19 @@ export function ResumeExportStep({
   const errors = (review?.issues ?? []).filter(
     (i) => String(i.severity ?? i.code ?? "error").toLowerCase() !== "warning",
   );
+  // What this file *is*, as opposed to how good it reads. These two need no model, so
+  // they are shown even when the reviewer produced no verdict -- an unavailable
+  // reviewer is precisely when "the writer never ran" would otherwise go unmentioned,
+  // and a failed optimization downloads under the same filename as a successful one.
+  const DELIVERY_CODES = ["generation_not_optimized", "placeholder_bullet"];
+  const deliveryIssues = (review?.issues ?? []).filter((i) =>
+    DELIVERY_CODES.includes(String(i.code ?? "")),
+  );
   const unavailable = review?.status === "unavailable" || review?.reviewed === false || reviewError != null;
-  const clean = review != null && !unavailable && errors.length === 0;
+  // A delivery finding keeps this out of "直接选择格式下载": the headline must not say the
+  // document is fine while a warning underneath says the AI writer never ran.
+  const clean =
+    review != null && !unavailable && errors.length === 0 && deliveryIssues.length === 0;
   const needsAck = !unavailable && errors.length > 0 && !acknowledged;
   const settled = !reviewBusy || review != null || reviewError != null || skipped;
   const downloadable = settled && !needsAck;
@@ -181,6 +192,13 @@ export function ResumeExportStep({
             startedAt={quality.reviewStartedAt}
             busy={reviewBusy}
           />
+        ) : null}
+        {deliveryIssues.length > 0 ? (
+          <div className="notice notice-warn mt-2" role="status">
+            <ul className="space-y-1 text-xs leading-relaxed">
+              {deliveryIssues.map((issue, i) => <li key={i}>{issue.message}</li>)}
+            </ul>
+          </div>
         ) : null}
         {errors.length > 0 && !unavailable ? (
           <ul className="mt-2 space-y-1 text-xs text-warn-700">

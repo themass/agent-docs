@@ -245,9 +245,15 @@ class ResumeService:
             stale = draft is not None and await self._is_stale_for_profile(
                 draft, profile_id=profile_id, actor=actor
             )
+            # `writer_failed` is separated from the generic staleness label so the log can
+            # answer "why is this regenerating": a retried outage and an edited profile
+            # are the same event under one label, and only one of them is a problem.
             cache_reason = (
                 "forced" if force else "missing" if draft is None else
                 "template_changed" if draft.template_id != template_id else
+                "writer_failed" if stale and self._writer_failed(
+                    draft.sections if isinstance(draft.sections, dict) else {}
+                ) else
                 "profile_or_options_changed" if stale else "hit"
             )
             logger.info("preview_cache profile_id=%s locale=%s level=%s reason=%s draft_id=%s",
@@ -558,6 +564,15 @@ class ResumeService:
             result = self._review_unavailable_payload(
                 notes="自动质检服务暂时不可用，本次没有核对简历内容。"
             )
+            # "The reviewer is down" is exactly when the user most needs to know the
+            # writer was also down. These two findings need no model, so losing the
+            # reviewer must not lose them as well.
+            result["issues"] = self._with_delivery_issues(
+                result.get("issues") or [],
+                (draft_sections.get("zh_sections") or {})
+                if normalize_track(draft.locale) == TRACK_BILINGUAL
+                else draft_sections,
+            )
         report("model", status="done" if result.get("reviewed") else "unavailable")
         report("save")
         # _review_draft releases the pooled MySQL connection during the review model call,
@@ -753,6 +768,23 @@ class ResumeService:
     def _job_context_hash(hints: JobHints) -> str:
         return hashlib.sha256(json.dumps(asdict(hints), ensure_ascii=False, sort_keys=True).encode()).hexdigest()
 
+    @staticmethod
+    def _writer_failed(sections: dict[str, Any]) -> bool:
+        """Whether this draft is the writer-down fallback rather than a written document.
+
+        `source_layout` only. `structure_guarded` is excluded on purpose: there the
+        writer did run and produced prose, and only the blocks whose paragraph
+        boundaries it changed were restored — regenerating costs another call without
+        being any more likely to succeed.
+
+        Note a draft generated with `JC_LLM_ENABLED=false` carries no `generation` key at
+        all, so it is not caught here. That matters: treating it as permanently stale
+        would make every preview regenerate forever in a deployment that has the writer
+        deliberately switched off.
+        """
+        generation = sections.get("generation")
+        return isinstance(generation, dict) and generation.get("mode") == "source_layout"
+
     async def _is_stale_for_profile(
         self,
         draft: ResumeDraft,
@@ -776,10 +808,18 @@ class ResumeService:
         which already reflects a previous resolution and would make this check compare
         a value against itself.
         """
+        sections = draft.sections if isinstance(draft.sections, dict) else {}
+        if self._writer_failed(sections):
+            # Not a draft of this profile so much as a record that the writer was down.
+            # Serving it from cache means a transient gateway failure makes the profile's
+            # own wording the permanent "optimized" resume: the user reopens the preview,
+            # gets the identical unoptimized document, and concludes the optimizer is
+            # useless. Costs one writer attempt per preview while the outage lasts, which
+            # is the better side of that trade.
+            return True
         profile_resp = await self._profiles.get(profile_id, actor=actor)
         if draft.profile_version != profile_resp.version:
             return True
-        sections = draft.sections if isinstance(draft.sections, dict) else {}
         stamped_family = sections.get("role_family")
         stamped_emphases = sections.get("framing_emphases")
         hints = await self._job_hints(profile_id, draft.job_id)
@@ -950,9 +990,12 @@ class ResumeService:
             check_sections = (
                 (sections.get("zh_sections") or {}) if locale == TRACK_BILINGUAL else sections
             )
-            issues = self._with_structure_issues(
-                self._with_invariant_issues([], check_sections, source_profile),
-                check_sections, role_family,
+            issues = self._with_delivery_issues(
+                self._with_structure_issues(
+                    self._with_invariant_issues([], check_sections, source_profile),
+                    check_sections, role_family,
+                ),
+                check_sections,
             )
             issues.append({
                 "code": "reviewer_timeout", "severity": "warning",
@@ -992,12 +1035,18 @@ class ResumeService:
             # same facts), so it is attached to the zh half rather than run twice.
             issues = [
                 {**issue, "track": TRACK_ZH}
-                for issue in self._with_structure_issues(
-                    self._with_invariant_issues(zh_review.issues, zh_sec, source_profile),
+                for issue in self._with_delivery_issues(
+                    self._with_structure_issues(
+                        self._with_invariant_issues(zh_review.issues, zh_sec, source_profile),
+                        zh_sec,
+                        self._track_role_family(zh_sec, role_family),
+                    ),
                     zh_sec,
-                    self._track_role_family(zh_sec, role_family),
                 )
-            ] + [{**issue, "track": TRACK_EN} for issue in en_review.issues]
+            ] + [
+                {**issue, "track": TRACK_EN}
+                for issue in self._with_delivery_issues(en_review.issues, en_sec)
+            ]
             # Either track failing to produce a verdict means we have no verdict for
             # the pair; see `_review_payload` for why that is not a failure.
             available = zh_review.available and en_review.available
@@ -1015,10 +1064,13 @@ class ResumeService:
         review = await self._reviewer.review(
             sections=sections, source_profile=source_profile, role_family=role_family
         )
-        issues = self._with_structure_issues(
-            self._with_invariant_issues(review.issues, sections, source_profile),
+        issues = self._with_delivery_issues(
+            self._with_structure_issues(
+                self._with_invariant_issues(review.issues, sections, source_profile),
+                sections,
+                role_family,
+            ),
             sections,
-            role_family,
         )
         return self._review_payload(
             passed=review.status == ReviewerStatus.PASSED,
@@ -1155,6 +1207,77 @@ class ResumeService:
                     "message": f"{finding.detail}如果确实发生过，把它补进档案再重新生成。",
                 }
             )
+        return out
+
+    #: Placeholders the deterministic builder writes into a block with no source
+    #: highlights. They are ours, not the model's, so they never reach the reviewer's
+    #: "placeholder text" rule — which reads the draft as if a model wrote all of it.
+    _PENDING_PLACEHOLDERS = ("（待补充经历要点）", "(Add experience highlights)")
+
+    @classmethod
+    def _with_delivery_issues(
+        cls,
+        issues: list[dict[str, Any]],
+        sections: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        """Report what this file *is* before the user sends it to an employer.
+
+        Two defects neither the reviewer nor the structure audit can see, because both
+        read the draft as a document rather than asking how it was produced:
+
+        1. **The AI writer never ran.** `generation.mode == "source_layout"` means the
+           writer chain failed and the document is the profile's own wording, laid out.
+           The preview panel says so; the export screen did not read the field at all,
+           so a failed optimization downloaded under the same filename as a successful
+           one. That is what makes "优化效果不好" indistinguishable from "优化没有发生".
+        2. **A placeholder is on the page.** `（待补充经历要点）` is written by our own
+           builder for a role with no highlights, so the reviewer's placeholder rule
+           never sees it as model output. Shipping it to an employer is strictly worse
+           than shipping a shorter resume.
+
+        `warning`, consistent with every other deterministic finding here: a structural
+        judgement must not lock a user out of their own document (see
+        `_with_invariant_issues`). The point is that the export screen can no longer be
+        silent about it — the user decides, but from here on they are told.
+        """
+        out = list(issues)
+        generation = sections.get("generation")
+        mode = (generation or {}).get("mode") if isinstance(generation, dict) else None
+        if mode in {"source_layout", "structure_guarded"}:
+            known = {str(i.get("code") or "") for i in out}
+            if "generation_not_optimized" not in known:
+                out.append(
+                    {
+                        "severity": "warning",
+                        "code": "generation_not_optimized",
+                        "field": "generation.mode",
+                        "message": (
+                            str((generation or {}).get("warning") or "").strip()
+                            or "AI 写作未完成，当前内容按档案原文排版。"
+                        )
+                        + "导出前建议回到优化预览点「重新生成」。",
+                    }
+                )
+        for key, label in (("experience_blocks", "经历"), ("project_blocks", "项目")):
+            for index, block in enumerate(sections.get(key) or []):
+                if not isinstance(block, dict):
+                    continue
+                for b_index, bullet in enumerate(block.get("bullets") or []):
+                    if not isinstance(bullet, str):
+                        continue
+                    if bullet.strip() not in cls._PENDING_PLACEHOLDERS:
+                        continue
+                    out.append(
+                        {
+                            "severity": "warning",
+                            "code": "placeholder_bullet",
+                            "field": f"{key}[{index}].bullets[{b_index}]",
+                            "message": (
+                                f"这段{label}还是占位文字「{bullet.strip()}」，会原样印进导出文件。"
+                                "请补充这段经历的要点，或在档案里删掉这段经历。"
+                            ),
+                        }
+                    )
         return out
 
     @staticmethod

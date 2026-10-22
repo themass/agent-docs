@@ -41,6 +41,10 @@ tasks.
 - It is not a summary of the bullets and it is not a duty list. `负责后端开发工作` says
   nothing; `带 8 人后端团队，负责订单与结算两条主链路（日均 1200 万单）` is a scope line.
 - Earlier, shorter roles may legitimately have `null`.
+- `null` means **the source carries no scope fact**, never "I chose not to write this line".
+  When the role has a `scope` field, or states a team size or scale anywhere, the line is
+  required. Returning `null` there deletes the one fact a reader needs to size the career,
+  and to the user it reads as the optimizer losing what they just supplied.
 
 ### 3. 项目叙事完整 — keep source units and order
 

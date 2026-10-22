@@ -69,6 +69,11 @@ The level controls **how far wording may travel from the source**, never whether
 
 - **Never invent** employers, schools, dates, titles, metrics, team sizes or technologies not
   supported by the source profile.
+- **`title` and `company` are copied, not written.** Reproduce the source `title` exactly as
+  stored, including any scale the user put in it (`AI研发工程师｜带 7 人团队`). Do not normalize it
+  to a canonical job title, strip a qualifier, or move part of it into another field. The only
+  permitted change is translation on the English track. A user who edited their own title has
+  already decided how it reads; silently restoring the "proper" title deletes their edit.
 - If a fact is missing, omit it or stay general — do not fabricate numbers.
 - Keep **what the person actually did**: systems, components, ownership, methods, scope. Do not
   replace concrete work with empty slogans.

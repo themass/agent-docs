@@ -215,17 +215,20 @@ class ResumeDraftBuilder:
         The stored scope is used as typed and only in the locale it was typed in: a
         Chinese answer rendered into the English track would be worse than the derived
         English line, and this path has no translator.
+
+        With no stored `scope` the answer is `None`. The former fallback restated the
+        heading (`在{company}担任{title}` under a block already titled "title · company"),
+        which filled the one line a reader uses to size the role with a sentence that
+        carries no scale, no mandate and no new fact. A structurally present but empty
+        layer is worse than an absent one: it reads as the optimizer having nothing to
+        say, and it crowds out the real scope line if the user later supplies one.
+        `resume_blueprint` already reports a missing scope line as an unmet requirement,
+        so the gap stays visible instead of being papered over.
         """
         stated = (getattr(exp, "scope", None) or "").strip()
         if stated and not english:
             return stated
-        title = (exp.title or "").strip()
-        company = (exp.company or "").strip()
-        if not title or not company:
-            return None
-        if english:
-            return f"{title} at {company}"
-        return f"在{company}担任{title}"
+        return None
 
     # Verbs that already carry ownership; nothing to upgrade.
     _STRONG_PREFIXES = ("主导", "负责", "牵头", "搭建", "设计", "优化", "重构", "推动", "治理")

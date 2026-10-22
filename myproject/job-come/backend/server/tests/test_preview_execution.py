@@ -16,6 +16,7 @@ from jc.schemas.profile_payload import ProfilePayload
 from jc.services.approved_resume_text import confirmed_fields, preserve_confirmed
 from jc.services.preview_progress import report, stream_preview
 from jc.services.profile_patch_service import propose_patch
+from jc.services.resume_draft_builder import ResumeDraftBuilder
 from jc.services.resume_elevator import ResumeElevator
 from jc.services.resume_service import ResumeService
 from test_profile_confirmations import env, click, scope  # noqa: F401
@@ -63,6 +64,11 @@ async def test_click_persists_exact_text_and_generated_preview_and_draft_keep_it
     router = SimpleNamespace(acompletion=AsyncMock(return_value=model_sections))
     monkeypatch.setattr(mod, "get_llm_router", lambda: router)
     monkeypatch.setattr(mod.settings, "jc_llm_enabled", True)
+    # This fixture is a minimal draft, so the repair pass would legitimately fire on it.
+    # Off here: the subject is that a confirmed sentence survives generation verbatim,
+    # and a second writer call would make the single-call assertion below measure the
+    # repair instead. Repair acceptance has its own tests.
+    monkeypatch.setattr(mod.settings, "jc_preview_repair_enabled", False)
     async with env.sessions() as db:
         svc = ResumeService(db)
         result = await svc.preview("prof_owned", actor=UserActor(user_id="usr_owner", session_id="auth_test"),
@@ -74,6 +80,100 @@ async def test_click_persists_exact_text_and_generated_preview_and_draft_keep_it
         assert (await db.get(Profile, "prof_owned")).payload["experiences"][0]["highlights"][0] == TEXT
         assert result.draft.profile_version == response.json()["version"]
     router.acompletion.assert_awaited_once()
+
+
+def test_confirmed_title_and_scope_survive_a_writer_that_normalizes_them():
+    """A confirmed identity field is the user's wording, not display text.
+
+    The writer returning a canonical job title is the same silent overwrite the
+    highlight locks exist to prevent: the archive keeps the edit, the document does not.
+    """
+    source = copy.deepcopy(BASE)
+    source["experiences"][0].update(title="技术负责人｜带 7 人团队", scope="带 7 人团队，负责交付链路")
+    p = ProfilePayload.model_validate(source)
+    patch = {
+        "experiences[0].title": "技术负责人｜带 7 人团队",
+        "experiences[0].scope": "带 7 人团队，负责交付链路",
+    }
+    assert confirmed_fields(p, [patch]) == {"experiences/exp_tencent": ["scope", "title"]}
+    p.meta.approved_resume_fields = confirmed_fields(p, [patch])
+    out = preserve_confirmed(
+        {"locale": "zh-CN", "experience_blocks": [
+            {"id": "exp_tencent", "company": "腾讯", "title": "技术负责人",
+             "scope_line": None, "bullets": []}]},
+        p,
+    )
+    assert out["experience_blocks"][0]["title"] == "技术负责人｜带 7 人团队"
+    assert out["experience_blocks"][0]["scope_line"] == "带 7 人团队，负责交付链路"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "scope,written,expected",
+    [
+        # A user-authored scope survives a writer that returned null: `null` means "the
+        # source carries no scope fact", and when the user typed one it plainly does.
+        # That line is the only place team size lives.
+        ("带 7 人团队，负责交付链路", None, "带 7 人团队，负责交付链路"),
+        # A line the writer actually wrote is never overwritten.
+        ("带 7 人团队，负责交付链路", "带 7 人团队，负责订单与结算两条主链路",
+         "带 7 人团队，负责订单与结算两条主链路"),
+        # With no stated scope the line stays empty rather than restating the heading.
+        # `在{company}担任{title}` sits under a heading that already says exactly that:
+        # it occupies the one line a reader uses to size the role while adding no fact.
+        (None, None, None),
+    ],
+)
+async def test_the_scope_line_is_restored_only_from_what_the_user_stated(
+    monkeypatch, scope, written, expected
+):
+    from jc.services import resume_elevator as mod
+    source = copy.deepcopy(BASE)
+    source["experiences"][0]["scope"] = scope
+    model_sections = {"header": {"name": "测试"}, "experience_blocks": [
+        {"id": "exp_tencent", "company": "腾讯", "title": "技术负责人",
+         "scope_line": written, "bullets": ["原来的内容", "保留的另一条"]}]}
+    monkeypatch.setattr(mod, "get_llm_router", lambda: SimpleNamespace(
+        acompletion=AsyncMock(return_value=model_sections)))
+    monkeypatch.setattr(mod.settings, "jc_llm_enabled", True)
+    monkeypatch.setattr(mod.settings, "jc_preview_repair_enabled", False)
+    payload = ProfilePayload.model_validate(source)
+    sections, _ = await ResumeElevator().build_sections(payload, elevation_level="standard")
+    assert sections["experience_blocks"][0]["scope_line"] == expected
+    if scope is None:
+        # The deterministic builder must agree: it is where the tautology came from.
+        builder, _ = ResumeDraftBuilder().build(payload, elevation_level="conservative")
+        assert builder["experience_blocks"][0]["scope_line"] is None
+
+
+@pytest.mark.asyncio
+async def test_writer_attempt_budget_leaves_room_for_the_fallback_models(monkeypatch):
+    """A slow primary must not consume the whole chain's budget.
+
+    `routing.yaml` gives each writer endpoint 180s while the total budget is 90s, so
+    without a per-attempt share the first model alone exhausts the deadline and the
+    two fallbacks are never asked — a three-model chain behaving as a one-model chain
+    precisely when the primary is unhealthy.
+    """
+    from jc.services import resume_elevator as mod
+    seen = {}
+
+    async def capture(*args, **kwargs):
+        seen.update(kwargs)
+        return {"header": {"name": "测试"}, "experience_blocks": [
+            {"id": "exp_tencent", "company": "腾讯", "title": "技术负责人",
+             "bullets": ["原来的内容", "保留的另一条"]}]}
+
+    monkeypatch.setattr(mod, "get_llm_router", lambda: SimpleNamespace(
+        acompletion=capture, chain_for=lambda _: [object()] * 3))
+    monkeypatch.setattr(mod.settings, "jc_llm_enabled", True)
+    monkeypatch.setattr(mod.settings, "jc_preview_writer_timeout_seconds", 90)
+    # The repair pass has its own budget and would overwrite `seen` with it.
+    monkeypatch.setattr(mod.settings, "jc_preview_repair_enabled", False)
+    await ResumeElevator().build_sections(
+        ProfilePayload.model_validate(BASE), elevation_level="standard")
+    assert seen["timeout_seconds"] == pytest.approx(90 / 3.5)
+    assert seen["timeout_seconds"] * 3 < 90
 
 
 @pytest.mark.asyncio
@@ -391,6 +491,45 @@ async def test_unchanged_preview_reuses_draft_force_and_profile_change_regenerat
         changed = await svc.preview("prof_owned", actor=actor, elevation_level="standard")
         assert changed.draft.id != forced.draft.id
         assert writer.await_count == 3
+
+
+@pytest.mark.asyncio
+async def test_a_writer_failure_is_never_served_from_cache(env, monkeypatch):
+    """`source_layout` is a record that the writer was down, not a draft of this profile.
+
+    Caching it means one transient gateway failure makes the profile's own wording the
+    permanent "optimized" resume: the user reopens the preview, gets the identical
+    unoptimized document, and concludes the optimizer does nothing. `structure_guarded`
+    is excluded — there the writer did run, so a retry costs a call without being more
+    likely to succeed. A draft generated with the writer switched off carries no
+    `generation` key at all and must stay cacheable, or such a deployment would
+    regenerate on every preview forever.
+    """
+    from jc.services.resume_service import ResumeService
+
+    failed = SimpleNamespace(
+        sections={"generation": {"mode": "source_layout"}, "role_family": "backend"},
+        profile_version=1, template_id="zh-one-page", job_id=None,
+    )
+    assert ResumeService._writer_failed(failed.sections) is True
+    assert ResumeService._writer_failed({"generation": {"mode": "structure_guarded"}}) is False
+    assert ResumeService._writer_failed({"role_family": "backend"}) is False
+
+    actor = UserActor(user_id="usr_owner", session_id="auth")
+    async with env.sessions() as db:
+        svc = ResumeService(db)
+        # A real stored draft: the staleness check must reject it even though the
+        # profile version matches exactly.
+        fresh = await svc.preview("prof_owned", actor=actor, elevation_level="standard")
+        stored = await db.get(ResumeDraft, fresh.draft.id)
+        assert await svc._is_stale_for_profile(
+            stored, profile_id="prof_owned", actor=actor
+        ) is False
+        stored.sections = {**stored.sections, "generation": {"mode": "source_layout"}}
+        await db.commit()
+        assert await svc._is_stale_for_profile(
+            stored, profile_id="prof_owned", actor=actor
+        ) is True
 
 
 @pytest.mark.asyncio

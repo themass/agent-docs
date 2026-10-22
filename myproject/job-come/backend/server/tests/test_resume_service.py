@@ -504,6 +504,47 @@ async def test_a_malformed_source_payload_does_not_break_the_export_review() -> 
     )
 
 
+def test_export_review_says_what_the_file_is_before_it_reaches_an_employer() -> None:
+    """Two defects about how the document was produced, not about how it reads.
+
+    `source_layout` means the writer chain failed and this is the profile's own wording
+    laid out — the preview panel said so, the export screen read no such field, so a
+    failed optimization downloaded under the same filename as a successful one. That is
+    what makes "优化效果不好" indistinguishable from "优化根本没发生".
+
+    `（待补充经历要点）` is written by our own builder, so the reviewer's placeholder rule
+    — which reads the draft as model output — never sees it, and it printed straight into
+    the delivered PDF.
+
+    Both advisory, like every other deterministic finding here: a structural judgement
+    must not withhold the user's own file. What changed is that the export screen can no
+    longer be silent about it.
+    """
+    from jc.services.resume_service import ResumeService
+
+    sections = {
+        "generation": {"mode": "source_layout", "warning": "AI 写作未完成，当前显示档案原文排版；"},
+        "experience_blocks": [
+            {"id": "e1", "bullets": ["负责订单服务拆分"]},
+            {"id": "e2", "bullets": ["（待补充经历要点）"]},
+        ],
+        "project_blocks": [{"id": "p1", "bullets": ["(Add experience highlights)"]}],
+    }
+    issues = ResumeService._with_delivery_issues([], sections)
+    assert all(i["severity"] == "warning" for i in issues)
+
+    not_optimized = [i for i in issues if i["code"] == "generation_not_optimized"]
+    assert len(not_optimized) == 1
+    assert "AI 写作未完成" in not_optimized[0]["message"]
+    assert "重新生成" in not_optimized[0]["message"]
+
+    assert [i["field"] for i in issues if i["code"] == "placeholder_bullet"] == [
+        "experience_blocks[1].bullets[0]", "project_blocks[0].bullets[0]"
+    ]
+    # A normally generated draft says nothing at all.
+    assert ResumeService._with_delivery_issues([], {"experience_blocks": []}) == []
+
+
 def _draft_response_stub(d, sections=None):
     from datetime import UTC, datetime
 

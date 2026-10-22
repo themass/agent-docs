@@ -17,6 +17,29 @@ from jc.models.profile_patch_confirm import ProfilePatchConfirm
 from jc.schemas.profile_payload import ProfilePayload
 
 
+#: Which fields a confirmation may lock, per source section. Identity fields
+#: (`title` / `company` / `name` / `role`) are lockable because the user confirms them
+#: as facts, not as display text: a job title the user approved carrying their team size
+#: is their own wording, and the writer normalizing it back to a canonical title is the
+#: same silent overwrite the highlight locks already exist to prevent. Dates, location
+#: and skills are deliberately absent — nothing rewrites them.
+_LOCKABLE_FIELDS = {
+    "experiences": {"highlights", "scope", "title", "company"},
+    "projects": {"highlights", "scope", "description", "name", "role"},
+}
+
+#: Source field -> the key it occupies in a rendered section block.
+_BLOCK_FIELD = {
+    "highlights": "bullets",
+    "scope": "scope_line",
+    "description": "description",
+    "title": "title",
+    "company": "company",
+    "name": "name",
+    "role": "role",
+}
+
+
 def _leaves(value: Any, path: tuple = ()):
     if isinstance(value, dict):
         for key, child in value.items():
@@ -46,9 +69,9 @@ def confirmed_fields(profile: ProfilePayload, patches: list[dict]) -> dict[str, 
                 continue
             if path == ("summary",):
                 fields.setdefault("summary", set()).add("summary")
-            elif (len(path) >= 3 and path[0] in {"experiences", "projects"}
+            elif (len(path) >= 3 and path[0] in _LOCKABLE_FIELDS
                   and isinstance(path[1], int)
-                  and path[2] in {"highlights", "scope", "description"}):
+                  and path[2] in _LOCKABLE_FIELDS[path[0]]):
                 entity = raw[path[0]][path[1]]
                 fields.setdefault(f"{path[0]}/{entity['id']}", set()).add(path[2])
     return {key: sorted(value) for key, value in fields.items()}
@@ -103,6 +126,8 @@ def preserve_confirmed(sections: dict[str, Any], profile: ProfilePayload,
             block = matches[0]
             block["id"] = entity.id
             for field in fields:
-                target = {"highlights": "bullets", "scope": "scope_line", "description": "description"}[field]
+                target = _BLOCK_FIELD.get(field)
+                if target is None:
+                    continue
                 block[target] = copy.deepcopy(getattr(entity, field))
     return out

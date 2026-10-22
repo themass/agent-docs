@@ -25,6 +25,18 @@ class Settings(BaseSettings):
         90, gt=0, le=120, alias="JC_PREVIEW_WRITER_TIMEOUT_SECONDS",
         description="Whole writer fallback-chain budget, not a per-model timeout",
     )
+    jc_preview_repair_enabled: bool = Field(
+        True,
+        alias="JC_PREVIEW_REPAIR_ENABLED",
+        description="One targeted rewrite when the generated draft measurably misses its blueprint",
+    )
+    jc_preview_repair_timeout_seconds: float = Field(
+        40, gt=0, le=60, alias="JC_PREVIEW_REPAIR_TIMEOUT_SECONDS",
+        description=(
+            "Budget for the repair pass alone. Separate from the writer budget rather "
+            "than carved out of it: the first pass writes the whole document."
+        ),
+    )
     jc_export_review_timeout_seconds: float = Field(
         90, gt=0, le=120, alias="JC_EXPORT_REVIEW_TIMEOUT_SECONDS"
     )
@@ -172,7 +184,7 @@ class Settings(BaseSettings):
         description="Hard per-run token ceiling via DeerFlow's token_budget middleware.",
     )
     jc_token_budget_max_tokens: int = Field(
-        150_000,
+        200_000,
         alias="JC_TOKEN_BUDGET_MAX_TOKENS",
         description="Total input+output tokens allowed per agent run before a forced stop.",
     )
