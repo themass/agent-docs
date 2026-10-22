@@ -107,8 +107,8 @@ class LLMRouter:
     def price_for_model(self, model: str | None) -> Any:
         """Configured price for a served model name, or `None` if unpriced.
 
-        Accepts either spelling (`openai/gpt-6-1-sol` as written in the config, or
-        the bare `gpt-6-1-sol` the gateway echoes back in the response).
+        Accepts either spelling (`openai/deepseek-v4-pro` as written in the config,
+        or the bare `deepseek-v4-pro` the gateway echoes back in the response).
         """
         from jc.llm.pricing import price_for
 

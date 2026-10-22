@@ -4,8 +4,8 @@ Why this file exists
 --------------------
 `cost_micro_usd` asks `litellm.completion_cost`, which looks the served model up in
 litellm's bundled price map. Every model in `routing.yaml` is reached through a
-gateway under a vendor-neutral name (`gpt-6-1-sol`, `deepseek-v4-flash`,
-`claude-haiku-5-5`, `qwen-vl-ocr`), and none of those names are in that map — so
+gateway under a vendor-neutral name (`deepseek-v4-pro`, `deepseek-v4-flash`,
+`qwen-vl-max`), and none of those names are in that map — so
 `completion_cost` raises, the helper returns `None`, and the admin LLM list showed an
 empty 花费 column for every single row. The number was never wrong; it was absent.
 
@@ -14,7 +14,7 @@ belong in configuration rather than in code. `routing.yaml` is where a model is 
 exactly once, which makes it the right place to say what that name costs:
 
     pricing:
-      openai/gpt-6-1-sol:
+      openai/deepseek-v4-pro:
         prompt_usd_per_1m: 2.5
         completion_usd_per_1m: 10.0
 
@@ -84,9 +84,9 @@ def parse_pricing(raw: object) -> dict[str, ModelPrice]:
 def _normalise(model: str) -> str:
     """Strip the litellm provider prefix so both spellings resolve to one entry.
 
-    `routing.yaml` names models as `openai/gpt-6-1-sol` (litellm needs the prefix to
+    `routing.yaml` names models as `openai/deepseek-v4-pro` (litellm needs the prefix to
     pick an adapter), but what the gateway echoes back in the response — which is what
-    gets logged as `final_model` — is the bare `gpt-6-1-sol`. Without this, a price
+    gets logged as `final_model` — is the bare `deepseek-v4-pro`. Without this, a price
     configured under one spelling would silently never match the other.
     """
     name = model.strip()

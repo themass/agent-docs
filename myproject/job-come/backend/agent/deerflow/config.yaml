@@ -20,12 +20,12 @@ models:
     # thinking-capable (has_thinking_settings=True) and forwards reasoning_effort
     # to ChatLiteLLMRouter's constructor on every call where thinking_enabled is
     # true (the client default for the main agent loop). Probed against the
-    # gateway directly: the lead model behind the `coach` scenario
-    # (openai/gpt-6-1-sol) returns reasoning_content for reasoning_effort=low;
-    # the deepseek-v4-flash failover hop also returns it (ignoring the effort
-    # hint); the claude-haiku-5-5 failover hop does not surface reasoning_content
-    # through this gateway regardless of dialect, so failover calls simply run
-    # without visible thinking (drop_params keeps the request from erroring).
+    # gateway directly on the previous model set: the lead model returned
+    # reasoning_content for reasoning_effort=low and the failover hop returned it
+    # too (ignoring the effort hint), while one hop surfaced none at all, so
+    # failover calls simply ran without visible thinking (drop_params keeps the
+    # request from erroring). Not re-probed against deepseek-v4-pro/flash — if
+    # thinking stops appearing in the coach UI, this pair is the thing to check.
     supports_thinking: true
     supports_reasoning_effort: true
     when_thinking_enabled:

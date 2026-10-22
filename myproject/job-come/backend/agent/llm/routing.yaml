@@ -1,5 +1,16 @@
 # JC LLM routing — per-model provider (base/key) via named profiles in .env
 # Each provider maps to api_base_env + api_key_env (never put secrets in this file).
+#
+# Gateway: https://gpt.sspacee.com/v1 (set in .env, not here). It serves three
+# models, so every chain below is drawn from the same three — there is no fourth
+# name to fail over to:
+#   deepseek-v4-flash  cheap/fast, leads the extraction and lightweight chains
+#   deepseek-v4-pro    stronger, leads the chains whose output a user reads
+#   qwen-vl-max        vision/OCR
+#
+# Chains are two deep rather than three. With one gateway and three models, a
+# third hop could only repeat a model already tried, which costs a second
+# timeout without adding a chance of success.
 
 providers:
   gateway:
@@ -28,28 +39,20 @@ scenarios:
       extra_body:
         thinking:
           type: disabled
-    - model: openai/glm-5-3-flash
+    - model: openai/deepseek-v4-pro
       provider: gateway
       timeout_sec: 120
       reasoning_effort: none
-      extra_body:
-        thinking:
-          type: disabled
-    - model: openai/doubao-seed-2-0-lite-260215
-      provider: gateway
-      timeout_sec: 120
-      reasoning_effort: none
-      # DeepSeek-compatible gateways may ignore reasoning_effort; this explicit
-      # body flag disables their thinking mode without changing agent turns.
       extra_body:
         thinking:
           type: disabled
 
   writer:
-    - model: openai/gpt-6-1-sol
-      provider: gateway
-      timeout_sec: 180
-    - model: openai/doubao-seed-2-0-lite-260215
+    # `pro` leads: this chain produces the document the user reads and exports,
+    # and it is also the chain the repair pass reuses. `flash` is the fallback
+    # rather than the lead because a weak first draft is what the whole
+    # evaluate-repair loop exists to avoid paying for twice.
+    - model: openai/deepseek-v4-pro
       provider: gateway
       timeout_sec: 180
     - model: openai/deepseek-v4-flash
@@ -57,10 +60,7 @@ scenarios:
       timeout_sec: 180
 
   coach:
-    - model: openai/gpt-6-1-sol
-      provider: gateway
-      timeout_sec: 180
-    - model: openai/doubao-seed-2-0-lite-260215
+    - model: openai/deepseek-v4-pro
       provider: gateway
       timeout_sec: 180
     - model: openai/deepseek-v4-flash
@@ -68,24 +68,30 @@ scenarios:
       timeout_sec: 180
 
   vision:
-    - model: openai/qwen-vl-ocr
+    - model: openai/qwen-vl-max
       provider: vision
       timeout_sec: 180
-      # qwen-vl-ocr rejects anything above 8192 with
-      # `InvalidParameter: Range of max_tokens should be [1, 8192]`, and the
-      # rejection is a 400 — not a timeout — so every image request failed
-      # instantly. There is no second vision endpoint to fail over to, so the
-      # chain ended there and the model was told the attachment was unreadable.
+      # Must be set explicitly, and must not be lowered casually.
+      #
+      # The `defaults.max_tokens` of 100000 is above every Qwen-VL ceiling, and
+      # the gateway rejects it with a 400 before reading any image — not a
+      # timeout, so it fails instantly and identically every time, and with a
+      # single vision endpoint there is nothing to fail over to. That is exactly
+      # how every screenshot silently became "unreadable" once before.
+      #
+      # 8192 is a floor as much as a cap: `profile_vision` sends all pages in one
+      # call and expects a full structured resume JSON back, which for a
+      # multi-page resume runs several thousand tokens. A smaller ceiling
+      # truncates mid-JSON and fails parsing instead of failing the request.
+      # So if this gateway rejects 8192 for qwen-vl-max, the answer is a
+      # different vision model, not a smaller number.
       max_tokens: 8192
 
   flash:
     - model: openai/deepseek-v4-flash
       provider: gateway
       timeout_sec: 60
-    - model: openai/doubao-seed-2-0-lite-260215
-      provider: gateway
-      timeout_sec: 60
-    - model: openai/gpt-6-1-sol
+    - model: openai/deepseek-v4-pro
       provider: gateway
       timeout_sec: 60
 
@@ -108,15 +114,12 @@ defaults:
 # show confident numbers that are wrong, which is worse than showing nothing.
 # Uncomment and fill in your gateway's real rates to turn the column on.
 # pricing:
-#   openai/gpt-6-1-sol:
+#   openai/deepseek-v4-pro:
 #     prompt_usd_per_1m: 2.5
 #     completion_usd_per_1m: 10.0
-#   openai/claude-haiku-5-5:
-#     prompt_usd_per_1m: 1.0
-#     completion_usd_per_1m: 5.0
 #   openai/deepseek-v4-flash:
 #     prompt_usd_per_1m: 0.3
 #     completion_usd_per_1m: 1.2
-#   openai/qwen-vl-ocr:
+#   openai/qwen-vl-max:
 #     prompt_usd_per_1m: 0.5
 #     completion_usd_per_1m: 1.5

@@ -28,7 +28,7 @@ scenarios:
       extra_body:
         thinking:
           type: disabled
-    - model: openai/claude-haiku-5-5
+    - model: openai/deepseek-v4-pro
       provider: gateway
       # provider: anthropic   # when Claude uses a different host/key
       timeout_sec: 120
@@ -40,17 +40,17 @@ scenarios:
           type: disabled
 
   writer:
-    - model: openai/gpt-6-1-sol
+    - model: openai/deepseek-v4-pro
       provider: gateway
       timeout_sec: 180
 
   coach:
-    - model: openai/gpt-6-1-sol
+    - model: openai/deepseek-v4-pro
       provider: gateway
       timeout_sec: 180
 
   vision:
-    - model: openai/qwen-vl-ocr
+    - model: openai/qwen-vl-max
       provider: vision
       timeout_sec: 180
 
@@ -76,15 +76,12 @@ defaults:
 #
 # These are placeholders: replace with your gateway's actual rate card.
 pricing:
-  openai/gpt-6-1-sol:
+  openai/deepseek-v4-pro:
     prompt_usd_per_1m: 2.5
     completion_usd_per_1m: 10.0
-  openai/claude-haiku-5-5:
-    prompt_usd_per_1m: 1.0
-    completion_usd_per_1m: 5.0
   openai/deepseek-v4-flash:
     prompt_usd_per_1m: 0.3
     completion_usd_per_1m: 1.2
-  openai/qwen-vl-ocr:
+  openai/qwen-vl-max:
     prompt_usd_per_1m: 0.5
     completion_usd_per_1m: 1.5
