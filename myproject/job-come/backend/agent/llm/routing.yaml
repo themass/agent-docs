@@ -71,6 +71,12 @@ scenarios:
     - model: openai/qwen-vl-ocr
       provider: vision
       timeout_sec: 180
+      # qwen-vl-ocr rejects anything above 8192 with
+      # `InvalidParameter: Range of max_tokens should be [1, 8192]`, and the
+      # rejection is a 400 — not a timeout — so every image request failed
+      # instantly. There is no second vision endpoint to fail over to, so the
+      # chain ended there and the model was told the attachment was unreadable.
+      max_tokens: 8192
 
   flash:
     - model: openai/deepseek-v4-flash

@@ -75,6 +75,28 @@ def test_agent_chains_do_not_inherit_ingestion_reasoning_policy() -> None:
     assert router._scenarios["writer"][0].max_tokens == 100000
 
 
+def test_vision_respects_its_gateway_ceiling_and_repair_reuses_the_writer_chain() -> None:
+    """Two ways a routing config silently disables a feature.
+
+    qwen-vl-ocr rejects `max_tokens > 8192` with a 400, not a timeout, so inheriting the
+    shipped `defaults.max_tokens` of 100000 made every image request fail before any
+    image was read — and with a single vision endpoint there is nothing to fail over to.
+
+    The repair pass runs on the `writer` chain rather than one of its own: a second
+    scenario would be a second place a model is named for resume writing, which is the
+    drift this file exists to prevent.
+    """
+    path = Path(__file__).resolve().parents[1] / ".." / "agent" / "llm" / "routing.yaml"
+    router = LLMRouter(path)
+    for endpoint in router._scenarios["vision"]:
+        assert endpoint.max_tokens is not None
+        assert endpoint.max_tokens <= 8192, (
+            f"{endpoint.model} would be rejected by its gateway before any image is read"
+        )
+    assert "writer" in router._scenarios
+    assert "repair" not in router._scenarios
+
+
 def test_output_policy_defaults_overrides_and_positive_validation(tmp_path):
     import pytest
 

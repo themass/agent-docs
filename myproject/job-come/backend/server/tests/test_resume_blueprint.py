@@ -210,3 +210,34 @@ def test_prompt_block_states_the_numbers_it_will_be_measured_on() -> None:
     assert "never invent work" in block
     assert "advisory, not quotas" in block
     assert "never split a project" in block
+
+
+def test_a_weak_project_lead_is_reported_against_project_blocks() -> None:
+    """The check iterates `experience + projects`, so the index must name the right one.
+
+    Formatting it as `experience_blocks[...]` unconditionally produced paths that do not
+    exist: one experience plus a weak-leading project reported `experience_blocks[1]`,
+    out of range, while the real offender was `project_blocks[0]`. Display-only noise
+    until something uses the path to pick the block to rewrite — which the repair pass
+    now does.
+    """
+    strong = "主导订单链路微服务化，日均 1200 万单，P99 从 800ms 降到 120ms"
+    report = evaluate_blueprint(
+        {
+            "summary": "x",
+            "experience_blocks": [{"id": "e1", "bullets": [strong]}],
+            "project_blocks": [{"id": "p1", "bullets": ["参与相关工作"]}],
+        },
+        role_family="backend",
+    )
+    assert _finding(report, "strong_lead_bullets").field_path == "project_blocks[0].bullets[0]"
+
+    swapped = evaluate_blueprint(
+        {
+            "summary": "x",
+            "experience_blocks": [{"id": "e1", "bullets": ["参与相关工作"]}],
+            "project_blocks": [{"id": "p1", "bullets": [strong]}],
+        },
+        role_family="backend",
+    )
+    assert _finding(swapped, "strong_lead_bullets").field_path == "experience_blocks[0].bullets[0]"

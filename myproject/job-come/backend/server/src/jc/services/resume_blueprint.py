@@ -326,6 +326,21 @@ def _bullets(block: dict[str, Any]) -> list[str]:
     return [b for b in (block.get("bullets") or []) if isinstance(b, str) and b.strip()]
 
 
+def _block_path(index: int, experience_count: int) -> str:
+    """Name the collection an index into `experience + projects` actually belongs to.
+
+    The checks below iterate the concatenation, so an index past the experience blocks
+    addresses a project. Formatting it as `experience_blocks[...]` unconditionally
+    produced paths that do not exist — one experience plus a weak-leading project
+    reported `experience_blocks[1]`, which is out of range, while the real offender was
+    `project_blocks[0]`. Harmless while the path was only display text; actively wrong
+    once anything uses it to locate the block to rewrite.
+    """
+    if index < experience_count:
+        return f"experience_blocks[{index}]"
+    return f"project_blocks[{index - experience_count}]"
+
+
 def _requirement_checks(
     blueprint: ResumeBlueprint,
     sections: dict[str, Any],
@@ -401,7 +416,9 @@ def _requirement_checks(
             detail="全部段落以强证据开头"
             if not weak_leads
             else f"{len(weak_leads)}/{len(all_blocks)} 段开头偏弱",
-            field_path=None if not weak_leads else f"experience_blocks[{weak_leads[0]}].bullets[0]",
+            field_path=None
+            if not weak_leads
+            else f"{_block_path(weak_leads[0], len(experience))}.bullets[0]",
         )
     )
 

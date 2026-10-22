@@ -47,6 +47,10 @@ tasks.
   rendered beside the title, so do not pad it into a sentence either.
 - Do not repeat the scope line inside a bullet of the same entry. Say the team size once.
 - Earlier, shorter roles may legitimately have `null`.
+- `null` means **the source carries no scope fact**, never "I chose not to write this line".
+  When the role has a `scope` field, or states a team size or scale anywhere, the line is
+  required. Returning `null` there deletes the one fact a reader needs to size the career,
+  and to the user it reads as the optimizer losing what they just supplied.
 
 ### 3. 项目叙事完整 — keep source units and order
 
