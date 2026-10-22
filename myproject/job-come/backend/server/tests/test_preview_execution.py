@@ -515,6 +515,13 @@ async def test_a_writer_failure_is_never_served_from_cache(env, monkeypatch):
     assert ResumeService._writer_failed({"generation": {"mode": "structure_guarded"}}) is False
     assert ResumeService._writer_failed({"role_family": "backend"}) is False
 
+    # No live writer: this test is about the cache decision, and a real gateway call
+    # would make it depend on whether that gateway is up. The deterministic builder
+    # sets no `generation` key, which is also the "writer switched off" case asserted
+    # below.
+    from jc.services import resume_elevator as elevator_mod
+    monkeypatch.setattr(elevator_mod.settings, "jc_llm_enabled", False)
+
     actor = UserActor(user_id="usr_owner", session_id="auth")
     async with env.sessions() as db:
         svc = ResumeService(db)
