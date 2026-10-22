@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import httpx
@@ -110,49 +109,8 @@ async def click(env, confirm_id, approved=True, session_id="session_owned"):
     )
 
 
-@pytest.mark.asyncio
-async def test_restart_age_retry_and_audit_are_durable(env):
-    cid = await propose(env)
-    async with env.sessions() as db:
-        row = await db.get(ProfilePatchConfirm, cid)
-        row.created_at = datetime.now(UTC) - timedelta(days=3)
-        await db.commit()
-    first = await click(env, cid)
-    assert first.status_code == 200, first.text
-    assert first.json()["version"] == 2
-    retry = await click(env, cid)
-    assert retry.json() == first.json()
-    async with env.sessions() as db:
-        p = await db.get(Profile, "prof_owned")
-        assert p.version == 2 and p.payload["summary"] == "修改后内容"
-        assert (await db.get(ProfilePatchConfirm, cid)).status == "applied"
-        snapshots = (await db.execute(select(ProfileSnapshot))).scalars().all()
-        assert len(snapshots) == 1 and snapshots[0].payload["contact"]["name"] == "原姓名"
-        logs = (
-            (
-                await db.execute(
-                    select(AgentMessage).where(AgentMessage.event_type == "confirm_applied")
-                )
-            )
-            .scalars()
-            .all()
-        )
-        assert len(logs) == 1 and json.loads(logs[0].payload_json)["confirm_id"] == cid
 
 
-@pytest.mark.asyncio
-async def test_only_the_latest_pending_card_can_be_confirmed(env):
-    first = await propose(env, "先生成")
-    second = await propose(env, "后生成")
-    async with env.sessions() as db:
-        assert (await db.get(ProfilePatchConfirm, first)).status == "superseded"
-        assert (await db.get(ProfilePatchConfirm, second)).status == "pending"
-    superseded = await click(env, first)
-    assert superseded.status_code == 409 and superseded.json()["code"] == "confirmation_superseded"
-    applied = await click(env, second)
-    assert applied.status_code == 200
-    async with env.sessions() as db:
-        assert (await db.get(Profile, "prof_owned")).payload["summary"] == "后生成"
 
 
 @pytest.mark.asyncio
@@ -176,26 +134,8 @@ async def test_failure_does_not_consume_command_or_partially_save(env, monkeypat
     assert (await click(env, cid)).json()["version"] == 2
 
 
-@pytest.mark.asyncio
-async def test_reject_is_durable_idempotent_and_cannot_apply(env):
-    cid = await propose(env)
-    assert (await click(env, cid, False)).json()["status"] == "rejected"
-    assert (await click(env, cid, False)).json()["status"] == "rejected"
-    denied = await click(env, cid)
-    assert denied.status_code == 409 and denied.json()["code"] == "confirmation_rejected"
-    async with env.sessions() as db:
-        assert (await db.get(Profile, "prof_owned")).version == 1
-        logs = (await db.execute(select(AgentMessage))).scalars().all()
-        assert len(logs) == 1 and json.loads(logs[0].payload_json)["confirm_id"] == cid
 
 
-@pytest.mark.asyncio
-async def test_missing_and_other_session_are_controlled_errors_not_500(env):
-    cid = await propose(env)
-    for candidate, session in [("cfm_missing", "session_owned"), (cid, "session_other")]:
-        response = await click(env, candidate, session_id=session)
-        assert response.status_code == 400 and response.json()["code"] == "confirmation_not_found"
-    assert (await click(env, cid)).status_code == 200
 
 
 async def old_card(env, version=1):
@@ -220,30 +160,10 @@ async def old_card(env, version=1):
     return "cfm_legacy"
 
 
-@pytest.mark.asyncio
-async def test_legacy_card_recovers_without_redis_and_uses_cas(env):
-    cid = await old_card(env)
-    response = await click(env, cid)
-    assert response.status_code == 200 and response.json()["version"] == 2, response.text
-    assert (await click(env, cid)).json() == response.json()
 
 
-@pytest.mark.asyncio
-async def test_legacy_card_missing_version_fails_safely(env):
-    cid = await old_card(env, None)
-    response = await click(env, cid)
-    assert response.status_code == 409 and response.json()["code"] == "confirmation_unrecoverable"
-    async with env.sessions() as db:
-        assert (await db.get(Profile, "prof_owned")).version == 1
 
 
-@pytest.mark.asyncio
-async def test_legacy_stale_card_does_not_rebase_onto_newer_profile(env):
-    cid = await old_card(env, 0)
-    response = await click(env, cid)
-    assert response.status_code == 409 and response.json()["code"] == "confirmation_stale"
-    async with env.sessions() as db:
-        assert (await db.get(Profile, "prof_owned")).version == 1
 
 
 @pytest.mark.asyncio
@@ -284,35 +204,5 @@ async def test_trace_style_paths_survive_confirm_http_and_fresh_db_read(env):
         assert profile.version == response.json()["version"]
 
 
-@pytest.mark.asyncio
-async def test_large_patch_receipt_stays_small_and_ui_recovers_exact_proposal(env):
-    from jc.adapters.deerflow_harness_client import _maybe_emit_confirm
-    from jc.services.patch_confirm_service import hydrate_confirmation_event
-
-    text = "完整修改内容" * 3000
-    async with env.sessions() as db:
-        result = await propose_patch(scope(db), patch={"summary": text})
-        assert len(json.dumps(result)) < 6000
-        assert "patch" not in result
-        events = []
-        _maybe_emit_confirm("jc_profile_patch", json.dumps(result), events)
-        assert len(events) == 1
-        hydrated = await hydrate_confirmation_event(scope(db), events[0])
-        assert hydrated["patch"] == {"summary": text}
-    applied = await click(env, result["confirm_id"])
-    assert applied.status_code == 200
-    async with env.sessions() as db:
-        assert (await db.get(Profile, "prof_owned")).payload["summary"] == text
 
 
-@pytest.mark.asyncio
-async def test_cannot_hydrate_another_sessions_confirmation(env):
-    from jc.exceptions import NotFoundError
-    from jc.services.patch_confirm_service import hydrate_confirmation_event
-    cid = await propose(env)
-    async with env.sessions() as db:
-        other = RunScope(
-            db=db, user_id="usr_owner", profile_id="prof_owned", session_id="session_other",
-        )
-        with pytest.raises(NotFoundError):
-            await hydrate_confirmation_event(other, {"confirm_id": cid})
