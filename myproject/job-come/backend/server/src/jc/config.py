@@ -291,3 +291,40 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+# Settings are `extra="ignore"`, so a retired or misspelled JC_* name in .env is
+# accepted in silence. That is fine for most of them, but a *model* name reads as
+# authoritative: `JC_LLM_VISION_MODEL=qwen-vl-ocr` sat in a live .env looking like
+# the setting that chose the OCR model, and editing it changed nothing — models
+# are named only in routing.yaml (see the docstring in llm/chat_litellm.py for why
+# the second source of truth was removed).
+#
+# Warn rather than raise: a stale line in a deployment's .env must not stop the
+# service from booting.
+_RETIRED_ENV = {
+    "JC_LLM_VISION_MODEL": "改 backend/agent/llm/routing.yaml 的 vision 链",
+    "JC_LLM_MODEL_FAST": "改 routing.yaml 的 flash / ingest_fast 链",
+    "JC_LLM_MODEL_VISION": "改 routing.yaml 的 vision 链",
+    "JC_LLM_MODEL_WRITER": "改 routing.yaml 的 writer 链",
+    "JC_LLM_MODEL_COACH": "改 routing.yaml 的 coach 链",
+}
+
+
+def warn_retired_env() -> list[str]:
+    """Report retired JC_* names present in the environment or .env file."""
+    import os
+
+    present: list[str] = []
+    env_file = _PROJECT_ROOT / ".env"
+    from_file: set[str] = set()
+    if env_file.is_file():
+        for line in env_file.read_text(encoding="utf-8", errors="ignore").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                from_file.add(line.split("=", 1)[0].strip())
+    for name, advice in _RETIRED_ENV.items():
+        if name in os.environ or name in from_file:
+            present.append(f"{name} 已停用，没有任何代码读取它；{advice}。")
+    return present
+

@@ -27,6 +27,14 @@ async def lifespan(_app: FastAPI):
     from jc.observability.logging_setup import configure_application_logging
 
     configure_application_logging(json_logs=settings.jc_log_json, level=settings.jc_log_level)
+    from jc.config import warn_retired_env
+
+    # Logged at startup rather than left to be noticed: a retired model name in
+    # .env reads as the setting that picks the model, and editing it changes
+    # nothing at all.
+    for message in warn_retired_env():
+        logger.warning("retired configuration: %s", message)
+
     from jc.llm.bootstrap import configure_litellm
     from jc.observability.langfuse_setup import setup_langfuse_callbacks
 
