@@ -18,6 +18,12 @@ logger = logging.getLogger(__name__)
 
 _TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "templates" / "resume"
 
+#: Scope values at or under this length are role metadata ("带 7 人团队") and ride on the
+#: entry heading; longer ones are a sentence and keep their own lead paragraph. Mirrors
+#: the `scope_inline` rule in `templates/resume/_sections.html` so PDF, HTML and DOCX
+#: cannot drift apart.
+_INLINE_SCOPE_MAX = 14
+
 _DOCX_LABELS_ZH = {
     "summary": "个人总结",
     "experience": "工作经历",
@@ -124,25 +130,39 @@ class ResumeRenderEngine:
         if sections.get("experience_blocks"):
             doc.add_heading(labels["experience"], level=1)
         for exp in sections.get("experience_blocks") or []:
-            doc.add_heading(f"{exp.get('company')} — {exp.get('title')}", level=2)
+            # 先总后分: the scope layer must survive into Word too -- Word exports go to
+            # recruiters who paste into an ATS, so a layer that existed only in HTML/PDF
+            # would silently make the DOCX the weaker document. It follows the same rule
+            # as the HTML template: a short value ("带 7 人团队") is part of the heading,
+            # a longer statement is the lead paragraph.
+            scope = str(exp.get("scope_line") or "").strip()
+            inline_scope = scope if len(scope) <= _INLINE_SCOPE_MAX else ""
+            heading = f"{exp.get('company')} — {exp.get('title')}"
+            if inline_scope:
+                heading = f"{heading} · {inline_scope}"
+            doc.add_heading(heading, level=2)
             meta = " · ".join(
                 str(exp[key]) for key in ("date_range", "location") if exp.get(key)
             )
             if meta:
                 doc.add_paragraph(meta)
-            # 先总后分: the scope line must survive into Word too. Word exports go to
-            # recruiters who paste into an ATS, so a layer that exists only in HTML/PDF
-            # would silently make the DOCX the weaker document.
-            if exp.get("scope_line"):
-                doc.add_paragraph(str(exp["scope_line"]))
+            if scope and not inline_scope:
+                doc.add_paragraph(scope)
             for bullet in exp.get("bullets", []):
                 doc.add_paragraph(str(bullet), style="List Bullet")
 
         if sections.get("project_blocks"):
             doc.add_heading(labels["projects"], level=1)
         for project in sections.get("project_blocks") or []:
-            doc.add_heading(str(project.get("name", "")), level=2)
+            proj_scope = str(project.get("scope_line") or "").strip()
+            proj_inline = proj_scope if len(proj_scope) <= _INLINE_SCOPE_MAX else ""
+            proj_heading = str(project.get("name", ""))
+            if proj_inline:
+                proj_heading = f"{proj_heading} · {proj_inline}"
+            doc.add_heading(proj_heading, level=2)
             for key in ("date_range", "scope_line", "description"):
+                if key == "scope_line" and (proj_inline or not proj_scope):
+                    continue
                 if project.get(key):
                     doc.add_paragraph(str(project[key]))
             for bullet in project.get("bullets") or []:

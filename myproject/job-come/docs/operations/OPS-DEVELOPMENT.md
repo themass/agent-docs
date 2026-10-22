@@ -7,11 +7,11 @@
 
 ```bash
 cd /Users/gqli/work/deepagents/docs/myproject/job-come
-./scripts/setup-venv.sh
 cp backend/server/.env.example backend/server/.env
+./scripts/dev.sh   # 首次启动会自动 uv sync；也可先单独跑 ./scripts/setup-venv.sh
 ```
 
-Python 依赖使用 deepagents 根目录的共享 `venv`，不要在 JC 根目录再创建 `.venv`。填写 `.env` 时只在本机/密钥管理系统中保存真实凭据。
+Python 依赖使用 deepagents 根目录的共享 `venv`，不要在 JC 根目录再创建 `.venv`。迁移通过 `venv/bin/alembic` 执行（勿在 `backend/server` 下 `python -m alembic`，会与迁移目录 `alembic/` 冲突）。填写 `.env` 时只在本机/密钥管理系统中保存真实凭据。
 
 ## 2. 开发启动
 

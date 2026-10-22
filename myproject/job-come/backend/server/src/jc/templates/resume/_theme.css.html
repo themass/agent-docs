@@ -225,6 +225,14 @@ body {
 /* Scope line: the 先总后分 lead for an entry. Must read as the frame for the bullets
    below it, not as another bullet — hence no marker, slightly muted, and set tight to
    the heading above rather than floating between the two. */
+/* Inline scope: same weight as the role it qualifies, muted so the company still
+   leads the row. Never wraps away from the title -- it is part of the heading. */
+.entry-scope-inline {
+  font-weight: 500;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
 .entry-scope {
   margin: 2.5pt 0 0;
   line-height: var(--lh-body);

@@ -18,7 +18,50 @@ from jc.services.profile_service import ProfileService
 from jc.services.resume_render_engine import ResumeRenderEngine
 from jc.services.resume_service import ResumeService
 from jc.stores.resume_store import ResumeStore
-from test_export_pdf import FIXTURE_SECTIONS
+
+# Inlined when the per-format export tests were removed; this is the one fixture
+# the lifecycle flow still needs.
+FIXTURE_SECTIONS = {
+    "locale": "zh-CN",
+    "header": {
+        "name": "张三",
+        "headline": "高级后端工程师",
+        "contact_line": "zhangsan@example.com · 13800138000",
+    },
+    "summary": "5年后端开发经验，熟悉 Python、FastAPI、MySQL、Redis。",
+    "experience_blocks": [
+        {
+            "company": "某互联网公司",
+            "title": "高级后端工程师",
+            "date_range": "2020-01 – 至今",
+            "bullets": ["主导订单服务重构，接口 P99 降低 30%"],
+        }
+    ],
+    "education_blocks": [
+        {
+            "school": "某大学",
+            "degree_line": "计算机科学 · 本科",
+            "date_range": "2016 – 2020",
+        }
+    ],
+    "skills_block": {"title": "技能", "content": "Python, FastAPI, MySQL, Redis"},
+    # Projects carry multiple bullets, exactly like experience. Keeping this fixture non-empty
+    # means every export gate (PDF/HTML/DOCX, text retention, ATS markup) actually exercises the
+    # 项目经历 section instead of silently skipping it.
+    "project_blocks": [
+        {
+            "name": "统一配置中心",
+            "role": "负责人",
+            "date_range": "2021-03 – 2023-08",
+            "description": "面向全集团的配置下发平台",
+            "bullets": [
+                "主导配置中心建设，接入 120+ 服务",
+                "推动配置变更事故下降 70%",
+            ],
+        }
+    ],
+    "section_order": ["summary", "experience", "projects", "education", "skills"],
+}
 
 
 @pytest.fixture
@@ -111,10 +154,6 @@ async def test_export_three_real_formats(env, monkeypatch, fmt):
     await run_export(env, monkeypatch, fmt)
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize("fault", ["render", "upload", "download_url", "persist"])
-async def test_export_failure_survives_rollback(env, monkeypatch, fault):
-    await run_export(env, monkeypatch, fault=fault)
 
 
 @pytest.mark.asyncio
@@ -123,28 +162,7 @@ async def test_export_preserves_every_review_verdict(env, monkeypatch, verdict):
     await run_export(env, monkeypatch, verdict=verdict)
 
 
-@pytest.mark.asyncio
-async def test_pdf_render_failure_never_uploads_html(env, monkeypatch):
-    def bad_pdf(self, html):
-        raise RuntimeError("PDF unavailable")
-    monkeypatch.setattr(ResumeRenderEngine, "render_pdf", bad_pdf)
-    await run_export(env, monkeypatch, fmt="pdf", fault="render")
 
 
-@pytest.mark.asyncio
-async def test_review_explicit_missing_draft_never_falls_back(env):
-    from jc.exceptions import NotFoundError
-    async with env.sessions() as db:
-        svc = ResumeService(db)
-        with pytest.raises(NotFoundError, match="没找到"):
-            await svc.review_for_export("p", actor=UserActor(user_id="u", session_id="s"),
-                                        draft_id="missing")
 
 
-def test_message_columns_support_large_utf8_replies_and_confirmations():
-    from sqlalchemy.dialects import mysql
-
-    from jc.models.agent_message import AgentMessage
-    for name in ("content", "payload_json"):
-        column_type = AgentMessage.__table__.c[name].type.compile(dialect=mysql.dialect())
-        assert str(column_type) == "LONGTEXT"

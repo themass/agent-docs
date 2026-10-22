@@ -40,6 +40,12 @@ tasks.
   fact, because it frames everything under it.
 - It is not a summary of the bullets and it is not a duty list. `负责后端开发工作` says
   nothing; `带 8 人后端团队，负责订单与结算两条主链路（日均 1200 万单）` is a scope line.
+- **Never restate the heading.** The rendered entry already shows company, title and
+  dates on the line above, so `在贝壳担任商业化/服务端leader P8` adds nothing and wastes
+  the most valuable line of the block. If the only thing you can say is the company and
+  the title, return `null`. A line that is just a team size (`带 10 人团队`) is kept and
+  rendered beside the title, so do not pad it into a sentence either.
+- Do not repeat the scope line inside a bullet of the same entry. Say the team size once.
 - Earlier, shorter roles may legitimately have `null`.
 - `null` means **the source carries no scope fact**, never "I chose not to write this line".
   When the role has a `scope` field, or states a team size or scale anywhere, the line is

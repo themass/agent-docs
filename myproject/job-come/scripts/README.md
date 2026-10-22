@@ -6,8 +6,8 @@
 
 | 命令 | 何时使用 | 是否需要真实外部依赖 |
 |---|---|---|
-| `./scripts/setup-venv.sh` | 首次准备开发环境或依赖变更后 | 需要本机 Python/包安装 |
-| `./scripts/dev.sh` | 启动本地 API、Web 和内嵌 Agent | MySQL/Redis/LLM/TOS 按 `.env` 配置 |
+| `./scripts/setup-venv.sh` | 手动同步 Python 依赖（`dev.sh` 首次启动也会自动调用） | 需要本机 `uv` |
+| `./scripts/dev.sh` | 启动本地 API、Web 和内嵌 Agent（缺依赖时自动 `uv sync`） | MySQL/Redis/LLM/TOS 按 `.env` 配置 |
 | `./scripts/test-local.sh` | 提交前、本地回归、候选版本代码检查 | 否；不会调用真实 API/Agent/TOS/邮件 |
 | `./scripts/test-live.sh smoke` | 本地或 staging 的核心 API + PDF/DOCX 导出联调 | 是，需 API、账号及相关服务 |
 | `./scripts/test-live.sh agent` | Agent/DeerFlow、SSE、消息持久化、取消联调 | 是 |

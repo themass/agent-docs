@@ -623,6 +623,15 @@ class ResumeElevator:
                 # paragraph or a list there would push the bullets off the first screen
                 # of the block, which defeats the point of having it.
                 block["scope_line"] = cls._clean_scope_line(block.get("scope_line"))
+                if cls._restates_heading(
+                    block.get("scope_line"),
+                    block.get("company") or block.get("name"),
+                    block.get("title") or block.get("role"),
+                ):
+                    # The entry heading already shows company and title one line above.
+                    # A scope line that carries nothing else ("在贝壳担任商业化/服务端
+                    # leader P8") spends a line repeating it and pushes the evidence down.
+                    block["scope_line"] = None
         return sections
 
     #: Longest scope line that still reads as one line in the rendered document. Measured
@@ -648,6 +657,24 @@ class ResumeElevator:
         parts = [p for p in re.split(r"[。；;]", text) if p.strip()]
         head = parts[0].strip() if parts else text
         return head[: cls._SCOPE_LINE_MAX].strip() or None
+
+    #: Connectives that carry no scope information on their own, so a line made only of
+    #: these plus the heading fields is a restatement rather than a 角色与范围 statement.
+    _SCOPE_FILLER = ("在", "担任", "任职", "负责", "的", "工作", "职位", "岗位", "at", "as", "the")
+
+    @classmethod
+    def _restates_heading(cls, scope: Any, company: Any, title: Any) -> bool:
+        """True when the scope line says nothing the entry heading does not already say."""
+        if not isinstance(scope, str) or not scope.strip():
+            return False
+        residue = re.sub(r"[\s·,，.。;；:：\-—()（）/]+", "", scope)
+        for field in (company, title):
+            if isinstance(field, str) and field.strip():
+                residue = residue.replace(re.sub(r"[\s·,，.。;；:：\-—()（）/]+", "", field), "")
+        for filler in cls._SCOPE_FILLER:
+            residue = residue.replace(filler, "")
+        # A couple of leftover characters cannot state a mandate or a team size.
+        return len(residue) < 4
 
     @classmethod
     def _split_bullet(cls, text: str) -> list[str]:
