@@ -863,13 +863,22 @@ export function useAgentSession({
   const confirmationInFlight = useRef(new Set<string>());
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const resolveConfirm = useCallback(
-    async (confirmId: string, approved: boolean) => {
+    async (confirmId: string, approved: boolean, editedPatch?: Record<string, unknown>) => {
       if (!sessionId || disabled || confirmationInFlight.current.has(confirmId)) return;
       confirmationInFlight.current.add(confirmId);
       setConfirmingId(confirmId);
       setError(null);
       try {
-        await confirmAgentPatch(sessionId, { confirm_id: confirmId, approved });
+        // `edited_patch` only when there is one: an empty object would still be sent
+        // and would read server-side as "the user explicitly edited to nothing",
+        // which is a different (and wrong) signal from "the user changed nothing".
+        await confirmAgentPatch(sessionId, {
+          confirm_id: confirmId,
+          approved,
+          ...(editedPatch && Object.keys(editedPatch).length > 0
+            ? { edited_patch: editedPatch }
+            : {}),
+        });
         setItems((prev) =>
           prev.map((item) =>
             item.kind === "confirm" && item.confirmId === confirmId

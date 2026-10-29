@@ -14,7 +14,11 @@ export type AgentConversationThreadProps = {
   variant?: "default" | "sidebar";
   labels: AgentConversationThreadLabels;
   chrome: AgentConversationChrome;
-  onConfirm?: (confirmId: string, approved: boolean) => void;
+  onConfirm?: (
+    confirmId: string,
+    approved: boolean,
+    editedPatch?: Record<string, unknown>,
+  ) => void;
   confirmingId?: string | null;
   onRetry?: (itemId: string) => void;
 };

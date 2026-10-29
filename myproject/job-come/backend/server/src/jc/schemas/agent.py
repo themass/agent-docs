@@ -115,6 +115,14 @@ class AgentMessageListResponse(BaseModel):
 class AgentConfirmRequest(BaseModel):
     confirm_id: str = Field(min_length=8, max_length=64)
     approved: bool = True
+    #: User-edited values for a subset of the paths the model already proposed in
+    #: `ProfilePatchConfirm.patch`. Never a path outside that set -- the model still
+    #: decides *what* is up for confirmation (ADR-003: it proposes, the user disposes
+    #: on exactly that), this only lets the user adjust *how it reads* before
+    #: accepting. Ignored when `approved` is false. Merged over the stored proposal
+    #: and re-validated through the same `apply_profile_patch` pipeline the original
+    #: proposal went through -- an edit gets no less scrutiny than a model's own patch.
+    edited_patch: dict[str, Any] | None = None
 
 
 class AgentConfirmResponse(BaseModel):
@@ -122,3 +130,8 @@ class AgentConfirmResponse(BaseModel):
     confirm_id: str
     profile_id: str | None = None
     version: int | None = None
+    #: True when `edited_patch` changed what was written relative to the original
+    #: proposal. The UI uses this to say "已按你的修改保存" instead of "已应用" --
+    #: different enough from the model's own proposal that silently calling it
+    #: "applied" would misreport whose wording ended up on the page.
+    edited: bool = False

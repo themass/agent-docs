@@ -98,7 +98,15 @@ export type AgentConversationEvents = {
     mode?: AgentSendMode,
   ) => void | Promise<void>;
   onStop?: () => void;
-  onConfirm?: (confirmId: string, approved: boolean) => void;
+  /** `editedPatch` carries user-edited values for a subset of the paths in the
+   * confirm item's own `patch` — never a path outside it, enforced server-side.
+   * Omitted (or passed as the original values) when the user did not change
+   * anything before approving. */
+  onConfirm?: (
+    confirmId: string,
+    approved: boolean,
+    editedPatch?: Record<string, unknown>,
+  ) => void;
   /** Re-send a user message whose turn ended without a reply (`item.failed`). */
   onRetry?: (itemId: string) => void;
   onQueueRemove: (id: string) => void;

@@ -54,8 +54,14 @@ export function listAgentMessages(sessionId: string): Promise<{ session_id: stri
 
 export function confirmAgentPatch(
   sessionId: string,
-  body: { confirm_id: string; approved: boolean },
-): Promise<{ status: string; confirm_id: string; profile_id?: string; version?: number }> {
+  body: { confirm_id: string; approved: boolean; edited_patch?: Record<string, unknown> },
+): Promise<{
+  status: string;
+  confirm_id: string;
+  profile_id?: string;
+  version?: number;
+  edited?: boolean;
+}> {
   return apiJson(`/agent/sessions/${sessionId}/confirm`, {
     method: "POST",
     body: JSON.stringify(body),

@@ -112,8 +112,22 @@ async def propose_patch(
     return result
 
 
-async def apply_confirmed_patch(scope: RunScope, *, confirm_id: str) -> dict[str, Any]:
-    """Consume a confirmation the user accepted and write the merged profile."""
+async def apply_confirmed_patch(
+    scope: RunScope, *, confirm_id: str, edited_patch: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Consume a confirmation the user accepted and write the merged profile.
+
+    `edited_patch` carries the user's own edits to a subset of the paths the model
+    already proposed -- never a path outside that set. The model still decides what is
+    up for confirmation; this only lets the user adjust the wording within that scope
+    before accepting it, which is why the paths are checked against `pending.patch`
+    rather than accepted as free-form client input. `_recover_historical_card`'s rule
+    ("never a client-supplied patch") is about a different boundary -- replay safety
+    for a card recovered from the message log -- and does not apply here: `pending.patch`
+    is always the row this confirm_id's owner loaded, and the edit is re-validated
+    through the exact same `apply_profile_patch` pipeline a model's own proposal goes
+    through, so an edit gets no less scrutiny than the proposal it adjusts.
+    """
     pending = await load_confirmation(scope, confirm_id)
     if pending.status == "applied":
         return {
@@ -138,7 +152,23 @@ async def apply_confirmed_patch(scope: RunScope, *, confirm_id: str) -> dict[str
             code="confirmation_stale",
         )
 
-    payload = apply_profile_patch(profile.payload or {}, pending.patch)
+    edited = False
+    patch_to_apply = pending.patch
+    if edited_patch:
+        unknown_paths = set(edited_patch) - set(pending.patch)
+        if unknown_paths:
+            raise ConflictError(
+                "修改内容超出了本次确认提议的范围，请让舟卡基于最新档案重新生成修改。",
+                code="confirmation_edit_out_of_scope",
+            )
+        # Merge rather than replace: the user may have only touched one of several
+        # proposed fields, and the rest of the proposal must still apply unedited.
+        if edited_patch != {k: pending.patch[k] for k in edited_patch}:
+            patch_to_apply = {**pending.patch, **edited_patch}
+            edited = True
+
+    payload = apply_profile_patch(profile.payload or {}, patch_to_apply)
+
 
     expected_version = int(pending.preview["version_before"])
     # Issued as a bare `UPDATE ... WHERE version = expected_version`, not an
@@ -191,4 +221,5 @@ async def apply_confirmed_patch(scope: RunScope, *, confirm_id: str) -> dict[str
         "id": profile.id,
         "version": profile.version,
         "payload": merged,
+        "edited": edited,
     }

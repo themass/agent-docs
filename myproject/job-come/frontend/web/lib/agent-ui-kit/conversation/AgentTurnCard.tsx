@@ -49,6 +49,25 @@ function JsonBlock({ value }: { value: unknown }) {
   );
 }
 
+/** A patch value as editable plain text. Strings edit as themselves; anything else
+ * (an array, a nested object) round-trips through JSON so the textarea never has to
+ * understand the profile schema — it only has to get back what `JSON.parse` put in. */
+function formatPatchValue(value: unknown): string {
+  return typeof value === "string" ? value : JSON.stringify(value, null, 2);
+}
+
+function parsePatchValue(
+  original: unknown,
+  text: string,
+): { ok: true; value: unknown } | { ok: false; error: string } {
+  if (typeof original === "string") return { ok: true, value: text };
+  try {
+    return { ok: true, value: JSON.parse(text) };
+  } catch {
+    return { ok: false, error: "不是合法的 JSON，字符串记得加引号。" };
+  }
+}
+
 function ActivityLine({
   activity,
   expanded,
@@ -151,6 +170,16 @@ function ActivityLine({
  * one thing in the turn that *requires* an action). `ActivityLine` has no
  * `confirm` branch and returns null for it, so routing a confirm through there
  * silently drops the buttons.
+ *
+ * The pending, prominent case also renders `item.patch` as editable text, one
+ * field per proposed path. Before this, the card showed no content at all —
+ * "确认档案修改" and two buttons — so approving meant trusting the model's own
+ * description of its edit, with no way to fix a line that was 90% right. Editing
+ * is scoped to exactly the paths the model proposed: a user can change *what a
+ * proposed field says*, never add a field the model did not put up for review —
+ * that boundary is enforced again server-side (`apply_confirmed_patch` rejects
+ * any edited path outside `item.patch`), so this is a convenience, not the only
+ * guard.
  */
 function ConfirmCard({
   item,
@@ -161,7 +190,11 @@ function ConfirmCard({
 }: {
   item: Extract<AgentUiDisplayItem, { kind: "confirm" }>;
   labels: AgentConversationThreadLabels;
-  onConfirm: (confirmId: string, approved: boolean) => void;
+  onConfirm: (
+    confirmId: string,
+    approved: boolean,
+    editedPatch?: Record<string, unknown>,
+  ) => void;
   /** `prominent` is the standalone pending row; `inline` is the activity trail. */
   emphasis: "prominent" | "inline";
   saving?: boolean;
@@ -170,6 +203,52 @@ function ConfirmCard({
   const applied = item.status === "applied";
   const rejected = item.status === "rejected";
   const superseded = item.status === "superseded";
+  const pending = item.status === "pending";
+  // Editing only makes sense on the one row a user can still act on. The inline
+  // trail renders the same `pending` item as a compact duplicate while a prominent
+  // row exists for it elsewhere in the turn, so letting both be editable would
+  // mean two independent drafts of the same confirm silently diverging.
+  const editable = pending && prominent;
+  const patchEntries = Object.entries(item.patch ?? {});
+
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [draftErrors, setDraftErrors] = useState<Record<string, string>>({});
+
+  function draftFor(path: string, original: unknown): string {
+    return path in drafts ? drafts[path] : formatPatchValue(original);
+  }
+
+  function handleDraftChange(path: string, text: string) {
+    setDrafts((prev) => ({ ...prev, [path]: text }));
+    if (path in draftErrors) {
+      setDraftErrors((prev) => {
+        const next = { ...prev };
+        delete next[path];
+        return next;
+      });
+    }
+  }
+
+  function handleApprove() {
+    if (!editable) {
+      onConfirm(item.confirmId, true);
+      return;
+    }
+    const edited: Record<string, unknown> = {};
+    const errors: Record<string, string> = {};
+    for (const [path, original] of patchEntries) {
+      if (!(path in drafts) || drafts[path] === formatPatchValue(original)) continue;
+      const parsed = parsePatchValue(original, drafts[path]);
+      if (parsed.ok) edited[path] = parsed.value;
+      else errors[path] = parsed.error;
+    }
+    if (Object.keys(errors).length > 0) {
+      setDraftErrors(errors);
+      return;
+    }
+    onConfirm(item.confirmId, true, Object.keys(edited).length > 0 ? edited : undefined);
+  }
+
   const shell = applied
     ? prominent
       ? "rounded-xl border border-success-300 bg-success-50 p-3 shadow-xs"
@@ -193,17 +272,51 @@ function ConfirmCard({
   return (
     <div className={shell}>
       <p className={titleClass}>{labels.confirmTitle}</p>
-      {item.status === "pending" ? (
+      {patchEntries.length > 0 ? (
+        <div className="mt-2 space-y-2.5">
+          {patchEntries.map(([path, value]) => (
+            <div key={path}>
+              <p className="label-meta text-[11px] text-ink-500">{path}</p>
+              {editable ? (
+                <>
+                  <textarea
+                    className="mt-0.5 w-full resize-y rounded-md border border-surface-border bg-white px-2 py-1.5 font-mono text-xs leading-relaxed text-ink-800 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/10"
+                    rows={
+                      typeof value === "string"
+                        ? Math.min(8, Math.max(2, Math.ceil(value.length / 36)))
+                        : 4
+                    }
+                    value={draftFor(path, value)}
+                    onChange={(e) => handleDraftChange(path, e.target.value)}
+                    disabled={saving}
+                    aria-label={`编辑 ${path}`}
+                  />
+                  {draftErrors[path] ? (
+                    <p className="mt-0.5 text-micro text-danger-600">{draftErrors[path]}</p>
+                  ) : null}
+                </>
+              ) : (
+                <JsonBlock value={value} />
+              )}
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {pending ? (
         <>
           {prominent ? (
-            <p className="mt-1 text-xs leading-relaxed text-warn-800">{labels.confirmPendingHint}</p>
+            <p className="mt-2 text-xs leading-relaxed text-warn-800">
+              {editable && patchEntries.length > 0
+                ? "可以直接改上面的文字再确认，舟卡只会按你确认的内容保存。"
+                : labels.confirmPendingHint}
+            </p>
           ) : null}
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <button
               type="button"
               className="btn btn-sm btn-primary"
               disabled={saving}
-              onClick={() => onConfirm(item.confirmId, true)}
+              onClick={handleApprove}
             >
               {saving ? labels.confirmSaving : labels.confirmApprove}
             </button>
@@ -243,7 +356,11 @@ export type AgentTurnCardProps = {
   turn: AgentTurn;
   labels: AgentConversationThreadLabels;
   chrome: AgentConversationChrome;
-  onConfirm?: (confirmId: string, approved: boolean) => void;
+  onConfirm?: (
+    confirmId: string,
+    approved: boolean,
+    editedPatch?: Record<string, unknown>,
+  ) => void;
   confirmingId?: string | null;
   onRetry?: (itemId: string) => void;
 };

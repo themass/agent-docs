@@ -102,10 +102,13 @@ async def propose(env, text="修改后内容"):
         return result["confirm_id"]
 
 
-async def click(env, confirm_id, approved=True, session_id="session_owned"):
+async def click(env, confirm_id, approved=True, session_id="session_owned", edited_patch=None):
+    body = {"confirm_id": confirm_id, "approved": approved}
+    if edited_patch is not None:
+        body["edited_patch"] = edited_patch
     return await env.client.post(
         f"/api/v1/agent/sessions/{session_id}/confirm",
-        json={"confirm_id": confirm_id, "approved": approved},
+        json=body,
     )
 
 
@@ -206,3 +209,47 @@ async def test_trace_style_paths_survive_confirm_http_and_fresh_db_read(env):
 
 
 
+
+
+@pytest.mark.asyncio
+async def test_user_edit_is_applied_and_flagged_unless_it_matches_the_proposal(env):
+    """The HITL gap: before this, approving a card meant accepting the model's wording
+    verbatim -- a 90%-right proposal had to be rejected outright and re-asked for in
+    chat. `edited_patch` lets the user fix the last 10% inline; `edited` tells the
+    caller whether that actually changed what got written.
+    """
+    cid = await propose(env, text="模型的原始提议")
+    response = await click(env, cid, edited_patch={"summary": "用户改过的版本"})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["edited"] is True
+    async with env.sessions() as db:
+        assert (await db.get(Profile, "prof_owned")).payload["summary"] == "用户改过的版本"
+
+    # An edited_patch that matches the proposal byte-for-byte is not an edit -- the
+    # user opened the field and left it alone, which must read the same as never
+    # touching it, not as "the user approved their own rewrite".
+    cid2 = await propose(env, text="第二次提议")
+    response2 = await click(env, cid2, edited_patch={"summary": "第二次提议"})
+    assert response2.json()["edited"] is False
+
+
+@pytest.mark.asyncio
+async def test_edited_patch_cannot_reach_outside_what_was_proposed(env):
+    """The scope check: the model still decides what is up for confirmation.
+
+    Without this, the confirm card would be a second, unguarded entry point into
+    `apply_profile_patch` reachable without the model proposing anything at all --
+    exactly the split `propose_patch`/`apply_confirmed_patch` exists to prevent
+    (see the module docstring). Rejected before anything is written or consumed, so
+    the user can retry with an edit that stays in scope.
+    """
+    cid = await propose(env, text="仅提议了 summary")
+    response = await click(
+        env, cid, edited_patch={"summary": "改了", "contact.name": "顺手改名字"}
+    )
+    assert response.status_code == 409
+    assert response.json()["code"] == "confirmation_edit_out_of_scope"
+    async with env.sessions() as db:
+        assert (await db.get(Profile, "prof_owned")).payload["contact"]["name"] == "原姓名"
+        assert (await db.get(ProfilePatchConfirm, cid)).status == "pending"

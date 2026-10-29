@@ -595,7 +595,10 @@ class AgentService:
             return AgentConfirmResponse(status="rejected", confirm_id=body.confirm_id,
                                         profile_id=session.profile_id)
 
-        result = await apply_confirmed_patch(scope, confirm_id=body.confirm_id)
+        result = await apply_confirmed_patch(
+            scope, confirm_id=body.confirm_id, edited_patch=body.edited_patch
+        )
+        edited = bool(result.get("edited"))
         if not result.pop("already_applied", False):
             await self._messages.append(
                 message_id=new_id("agm"),
@@ -604,7 +607,8 @@ class AgentService:
                 event_type="confirm_applied",
                 content=f"Profile updated to version {result.get('version')}",
                 payload={"confirm_id": body.confirm_id, "profile_id": result.get("id"),
-                         "version": result.get("version"), "status": "applied"},
+                         "version": result.get("version"), "status": "applied",
+                         "edited": edited},
             )
         await self._db.commit()
         return AgentConfirmResponse(
@@ -612,6 +616,7 @@ class AgentService:
             confirm_id=body.confirm_id,
             profile_id=result.get("id") or session.profile_id,
             version=result.get("version"),
+            edited=edited,
         )
 
     async def read_photo_source(
