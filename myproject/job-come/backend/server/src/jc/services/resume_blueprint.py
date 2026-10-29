@@ -52,6 +52,15 @@ _DEFAULT_TAIL_BULLETS = 2
 _DEFAULT_OUTCOME_RATIO = 0.6
 _SOFT_OUTCOME_RATIO = 0.4
 
+#: The per-bullet floor `document_depth` multiplies `lead_bullets`/`tail_bullets` by,
+#: to turn a bullet-count reference into a character-volume one. Deliberately low —
+#: about a third of `method.md`'s worked example (57 chars) — so a few dense,
+#: complete paragraphs clear the bar without needing to approach the old count's
+#: total length. Raw character count, not locale-weighted: a flat measure is no less
+#: accurate than the bullet count it replaces (which was never locale-aware either),
+#: and it is invariant to splitting a sentence, which is the property this exists for.
+_MIN_CHARS_PER_UNIT = 20
+
 
 @dataclass(frozen=True, slots=True)
 class BlueprintSpec:
@@ -432,29 +441,45 @@ def _requirement_checks(
     )
 
     # 4. 篇幅与深度
-    lead_count = len(_bullets(experience[0])) if experience else 0
+    #
+    # Measured by character volume, not bullet count. Counting bullets rewards
+    # fragmentation: one fused paragraph that preserves a source unit (exactly what
+    # `_preserve_source_units` and the ingest contract both require) scored as "1
+    # bullet" and failed this check, while the same content split into several short
+    # sentences scored as "4 bullets" and passed — so the measurement was pulling
+    # directly against the structural rule the rest of the pipeline enforces.
+    # Verified: a single 120-character fused block and the same text cut into six
+    # fragments carry the same character count and must be judged identically: this
+    # check asks "is there enough material here", and splitting a sentence creates no
+    # material. `_MIN_CHARS_PER_UNIT` is deliberately low — about a third of the
+    # worked example in method.md (57 chars) — so a few dense, complete bullets clear
+    # it without needing to approach the old count's total length.
+    lead_chars = sum(len(b.strip()) for b in _bullets(experience[0])) if experience else 0
     thin_tail = [
         idx
         for idx, block in enumerate(experience[1:], start=1)
-        if len(_bullets(block)) < blueprint.tail_bullets
+        if sum(len(b.strip()) for b in _bullets(block)) < blueprint.tail_bullets * _MIN_CHARS_PER_UNIT
     ]
-    depth_met = bool(experience) and lead_count >= blueprint.lead_bullets and not thin_tail
+    depth_met = (
+        bool(experience)
+        and lead_chars >= blueprint.lead_bullets * _MIN_CHARS_PER_UNIT
+        and not thin_tail
+    )
     findings.append(
         BlueprintFinding(
             requirement=BlueprintRequirement(
                 id="document_depth",
                 label="分量与经历相称",
                 why=(
-                    f"完整性参考：最近经历约 {blueprint.lead_bullets} 段、"
-                    f"更早经历约 {blueprint.tail_bullets} 段。不是条数配额；"
-                    "原文项目与段落完整性优先，少于参考值不等于经历不足。"
+                    "衡量的是内容体量，不是条数：一段完整叙述和拆成几条短句，信息量相同就算"
+                    "同样达标。体量不够通常意味着源档案材料本身薄，而不是写法问题。"
                 ),
-                fix="保留项目与段落完整性；如有遗漏，补回独立的原始经历，不要为凑条数拆散同一项目。",
+                fix="材料不够就问用户要更具体的经历或结果；不要为了凑条数拆散已有的完整段落。",
             ),
             met=depth_met,
             detail=(
-                f"最近一段 {lead_count} 条"
-                + (f"，{len(thin_tail)} 段更早经历过薄" if thin_tail else "")
+                f"最近一段约 {lead_chars} 字"
+                + (f"，{len(thin_tail)} 段更早经历内容偏薄" if thin_tail else "")
             )
             if experience
             else "还没有工作经历",

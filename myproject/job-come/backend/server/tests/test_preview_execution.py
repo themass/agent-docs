@@ -258,3 +258,36 @@ def test_every_declared_prompt_fragment_actually_exists():
         playbook = get_playbook(family)
         assert writer.reference(f"family-{playbook.id}"), f"no writer fragment for {family}"
     assert writer.reference(_QUALITATIVE_FRAGMENT)
+
+
+def test_document_depth_is_not_fooled_by_sentence_splitting():
+    """A fused paragraph and the same content cut into sentences must score alike.
+
+    Before this fix, `document_depth` counted bullets: one fused paragraph that keeps a
+    source unit whole (exactly what `_preserve_source_units` and the ingest contract both
+    require) counted as "1 bullet" and failed, while the same text split into six short
+    sentences counted as "4+ bullets" and passed. The check was rewarding the one failure
+    mode the rest of the pipeline exists to prevent. It now measures character volume,
+    which both versions share — splitting a sentence creates no new material.
+    """
+    from jc.services.resume_blueprint import evaluate_blueprint
+
+    intact = ("负责快手审核中台的后端架构与团队管理。该系统支撑 8 大基地、5000+ 审核人员，"
+              "日均处理 2000 万条内容。主导从单体到微服务的拆分，引入多样化媒体标注能力，"
+              "支持 100+ 种审核模板，P99 从 800ms 降到 120ms。")
+    fragments = ["负责快手审核中台的后端架构与团队管理。", "该系统支撑 8 大基地、5000+ 审核人员。",
+                 "日均处理 2000 万条内容。", "主导从单体到微服务的拆分。",
+                 "引入多样化媒体标注能力，支持 100+ 种审核模板。", "P99 从 800ms 降到 120ms。"]
+
+    def depth_met(bullets):
+        sections = {"role_family": "backend", "experience_blocks": [
+            {"id": "e1", "company": "快手", "title": "服务端 leader", "bullets": bullets}]}
+        findings = evaluate_blueprint(sections, role_family="backend").findings
+        return next(f.met for f in findings if f.requirement.id == "document_depth")
+
+    assert depth_met([intact]) is True
+    assert depth_met(fragments) is True
+
+    # A real one-liner still fails — this must stay a genuine thinness check, not a
+    # no-op that passes everything.
+    assert depth_met(["参与相关工作"]) is False
