@@ -129,6 +129,16 @@ async def test_a_repair_that_restores_a_dropped_fact_reaches_the_document(monkey
         sections["generation"]["repair"]
     assert "5000+ 审核人员" in sections["experience_blocks"][0]["bullets"][0]
 
+    # The stamped structure report must describe the draft that shipped, not the one
+    # the repair replaced. `preview()` prefers this stamped copy over re-auditing, and
+    # `-len(structure.issues)` is part of the score a repair must improve to be
+    # accepted — so a stale report shows the user precisely the defects just fixed.
+    from jc.services.resume_structure import audit_structure
+
+    stamped = sorted(i["code"] for i in (sections.get("structure") or {}).get("issues", []))
+    fresh = sorted(i.code for i in audit_structure(sections, role_family="backend").issues)
+    assert stamped == fresh, f"stamped report is stale: {stamped} != {fresh}"
+
 
 def test_a_repair_is_refused_unless_it_is_honest_lossless_and_better():
     """The three gates, each on its own candidate.

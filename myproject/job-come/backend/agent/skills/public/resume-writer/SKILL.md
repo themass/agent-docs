@@ -82,9 +82,8 @@ The level controls **how far wording may travel from the source**, never whether
   per source `highlights` entry, in source order. Never split background, action and
   outcome into separate achievements; never move a project's statement to another project
   or employer. Preserve complete project descriptions, not just a one-line fragment.
-- Counts and sentence lengths are advisory, never quotas. Do not split a source paragraph
-  to meet a minimum count or a character/word limit. A longer complete project narrative
-  is better than several short, disconnected fragments. Never drop source material.
+  A longer complete project narrative is better than several short, disconnected
+  fragments. Never drop source material to fit a length.
 - No duplicate claims across roles. If the same achievement appears twice in the source, keep it in
   the role where it was owned.
 - `contact_line` = location · email · phone, using only fields present in the source.

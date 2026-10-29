@@ -57,8 +57,7 @@ tasks.
 Keep each source paragraph and the original order inside a role/project. A project's
 background, actions and results form one narrative, not competing bullets. Highlight
 supported outcomes within that paragraph; never rank individual sentences by metrics
-or move a result away from the project that explains it. No count or length guideline
-may override this boundary.
+or move a result away from the project that explains it.
 
 ### 4. 节序 — put the section carrying the evidence first
 
@@ -69,20 +68,14 @@ candidate's real evidence lives in `project_blocks` rather than in employment hi
 
 ### 5. 分量 — the document must clear the family's bar
 
-`document_requirements` contains a source-unit preservation contract and advisory
-completeness references. The source boundaries take precedence over every count or
-length reference. Diagnostics may suggest missing evidence, never quota-driven splitting.
+`document_requirements` states the source-unit contract and the measurable bar:
 
-- `lead_role_reference_bullets` and `other_roles_reference_bullets` are completeness
-  references only, never minimum output quotas. Source unit count takes precedence.
+- **One rewritten paragraph per source highlight, in source order.** This is the only
+  thing that decides length. A role with two source paragraphs gets two, a role with
+  nine gets nine. If the career needs more material, ask the user for it; never
+  manufacture it and never split one paragraph to look fuller.
 - `min_outcome_ratio` — at least this share of all bullets must end in a result.
 - `summary_formula` — the three parts of `summary`, in that order.
-
-These counts are advisory completeness signals, not output quotas. Preserve the number
-of source highlights and their boundaries. A role with two source paragraphs gets two
-rewritten paragraphs even if the playbook suggests more. Never split one project or
-separate its background, method and result to reach a count. If more independent work
-is needed, ask the user to supply it; never manufacture it.
 
 ### Across the whole document
 

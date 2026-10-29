@@ -32,6 +32,30 @@ what reads as concrete, and which warnings are legitimate.** It may never change
 what counts as a fact or relax the prohibition on inventing one. That boundary is
 restated in the shared layers rather than per family, so a family fragment cannot
 be written in a way that quietly overrides it.
+
+Why `backend/agent/prompts/` still exists
+-----------------------------------------
+Two prompt systems live side by side, and the split is deliberate rather than a
+migration someone abandoned halfway:
+
+- **`backend/agent/skills/`** — composed here. For tasks that *write resume prose*:
+  the writer, the reviewer, the coach, the interview. These share a methodology and
+  one definition of what counts as a fact, which is exactly what layering buys.
+- **`backend/agent/prompts/`** — flat files loaded by `prompt_file()`. For tasks that
+  *read* rather than write: ingestion, vision OCR, JD parsing, fit scoring,
+  localization. Each is a single-purpose extraction contract with its own output
+  schema. They share no methodology with each other or with the writer, so layering
+  them would build an abstraction over one user apiece.
+
+Both say "do not invent facts", and that is **not** the duplication this module
+exists to prevent. "Do not invent a fact while extracting what a PDF says" and "do
+not invent a fact while rewriting an achievement" are different rules about different
+inputs that happen to read alike in English. Merging them would couple the extraction
+contract to the writing methodology, which is a worse outcome than the shared
+sentence.
+
+The line to hold: a prompt that produces resume prose belongs in `skills/`. If one is
+ever added under `prompts/`, that is the drift to stop.
 """
 
 from __future__ import annotations
@@ -104,6 +128,61 @@ def family_reference_name(playbook: RolePlaybook) -> str:
     return f"family-{playbook.id}"
 
 
+def _select_layers(
+    skill_id: str,
+    playbook: RolePlaybook | None,
+    *,
+    include_identity: bool = True,
+    borrow_family_from: str | None = None,
+) -> list[tuple[str, str]]:
+    """Pick the fragments for one composition, as `(layer_name, text)` in prompt order.
+
+    The three public functions below differ only in what they *render* — a system
+    prompt, a user-message appendix, a static baseline for the generated runtime
+    config. They used to differ in how they *selected* too, each re-walking
+    `_ALWAYS_LOADED` then family then qualitative with slightly different fallbacks.
+    Three copies of a selection order drift the same way sixteen copies of a prompt
+    would, and worse: the drift lives in control flow rather than in markdown, where
+    nobody re-reads it. The selection exists once, here.
+
+    `include_identity=False` drops the skill's own contract text, for the one caller
+    whose runtime already carries it. `borrow_family_from` names a skill to fall back
+    to for the family layer only — never for identity or output contract.
+    """
+    skill = require_skill(skill_id)
+    layers: list[tuple[str, str]] = []
+    if include_identity:
+        layers.append((f"{skill_id}:base", skill.body))
+
+    for topic in _ALWAYS_LOADED.get(skill_id, ()):
+        fragment = skill.reference(topic)
+        if fragment:
+            layers.append((f"{skill_id}:{topic}", fragment))
+
+    if playbook is None:
+        return layers
+
+    topic = family_reference_name(playbook)
+    family_fragment = skill.reference(topic)
+    if family_fragment:
+        layers.append((f"{skill_id}:{topic}", family_fragment))
+    elif borrow_family_from and playbook.id != "general":
+        borrowed = require_skill(borrow_family_from).reference(topic)
+        if borrowed:
+            layers.append((f"{borrow_family_from}:{topic}", borrowed))
+
+    if playbook.quantification_optional:
+        qualitative = skill.reference(_QUALITATIVE_FRAGMENT)
+        owner = skill_id
+        if not qualitative and borrow_family_from:
+            qualitative = require_skill(borrow_family_from).reference(_QUALITATIVE_FRAGMENT)
+            owner = borrow_family_from
+        if qualitative:
+            layers.append((f"{owner}:{_QUALITATIVE_FRAGMENT}", qualitative))
+
+    return layers
+
+
 def compose_writing_prompt(
     *,
     skill_id: str,
@@ -118,26 +197,9 @@ def compose_writing_prompt(
     that lacks a requested fragment contributes nothing for it — reference sets
     differ by role on purpose and a missing topic is not an error.
     """
-    skill = require_skill(skill_id)
-    parts: list[str] = [skill.body]
-    layers: list[str] = [f"{skill_id}:base"]
-
-    for topic in _ALWAYS_LOADED.get(skill_id, ()):
-        fragment = skill.reference(topic)
-        if fragment:
-            parts.append(fragment)
-            layers.append(f"{skill_id}:{topic}")
-
-    family_fragment = skill.reference(family_reference_name(playbook))
-    if family_fragment:
-        parts.append(family_fragment)
-        layers.append(f"{skill_id}:{family_reference_name(playbook)}")
-
-    if playbook.quantification_optional:
-        qualitative = skill.reference(_QUALITATIVE_FRAGMENT)
-        if qualitative:
-            parts.append(qualitative)
-            layers.append(f"{skill_id}:{_QUALITATIVE_FRAGMENT}")
+    selected = _select_layers(skill_id, playbook)
+    parts = [text for _, text in selected]
+    layers = [name for name, _ in selected]
 
     # The playbook is rendered rather than stored as a fragment: it is already the
     # single source of role vocabulary for the reviewer and the UI, and a second
@@ -173,13 +235,7 @@ def compose_role_baseline(skill_id: str) -> str:
     with `compose_writing_prompt`, which is what actually runs today. The result is one
     source of truth with a documented seam, rather than two sources pretending to agree.
     """
-    skill = require_skill(skill_id)
-    parts: list[str] = [skill.body]
-    for topic in _ALWAYS_LOADED.get(skill_id, ()):
-        fragment = skill.reference(topic)
-        if fragment:
-            parts.append(fragment)
-    return "\n\n".join(parts)
+    return "\n\n".join(text for _, text in _select_layers(skill_id, None))
 
 
 def compose_coach_guidance(*, skill_id: str, playbook: RolePlaybook) -> str:
@@ -197,38 +253,20 @@ def compose_coach_guidance(*, skill_id: str, playbook: RolePlaybook) -> str:
 
     Returns an empty string when the skill ships no fragments, so a caller can
     append unconditionally.
+
+    The coach keeps no per-family fragments of its own: the writer's are written for
+    the same audience, and saying it twice in two voices is how the two drift. The
+    borrow is deliberate, and only for the family layer — never for identity or
+    output contract.
     """
-    skill = require_skill(skill_id)
-    parts: list[str] = []
-    if skill_id != _REGISTERED_AGENT_SKILL:
-        parts.append(skill.body)
-
-    for topic in _ALWAYS_LOADED.get(skill_id, ()):
-        fragment = skill.reference(topic)
-        if fragment:
-            parts.append(fragment)
-
-    family_fragment = skill.reference(family_reference_name(playbook))
-    if family_fragment:
-        parts.append(family_fragment)
-    elif playbook.id != "general":
-        # The coach keeps no per-family fragments of its own: the writer's are
-        # written for the same audience and saying it twice in two voices is how
-        # the two drift. Falling back to the writer's is deliberate, and only for
-        # the family layer — never for identity or output contract.
-        writer = require_skill("resume-writer")
-        borrowed = writer.reference(family_reference_name(playbook))
-        if borrowed:
-            parts.append(borrowed)
-
-    if playbook.quantification_optional:
-        qualitative = skill.reference(_QUALITATIVE_FRAGMENT) or require_skill(
-            "resume-writer"
-        ).reference(_QUALITATIVE_FRAGMENT)
-        if qualitative:
-            parts.append(qualitative)
-
-    if not parts:
+    selected = _select_layers(
+        skill_id,
+        playbook,
+        include_identity=skill_id != _REGISTERED_AGENT_SKILL,
+        borrow_family_from="resume-writer",
+    )
+    if not selected:
         return ""
+    parts = [text for _, text in selected]
     parts.append(_section("这份档案的岗位族", playbook.as_prompt_block()))
     return "\n\n".join(parts)

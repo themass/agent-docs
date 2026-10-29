@@ -128,13 +128,18 @@ class ResumeElevator:
                 "job_keywords": job_keywords or [],
                 "role_family": playbook.id,
                 "framing_emphases": emphases,
-                # Source units are invariant. Family counts are advisory completeness
-                # references, never quotas that license splitting a project narrative.
                 # Supplied as data as well as prose because the model satisfied the prose
                 # version while producing documents that met none of these.
+                #
+                # No bullet counts here either, for the reason given on
+                # `ResumeBlueprint.as_prompt_block`: a number in the payload steers the
+                # output toward it just as strongly as a number in the prose, and the
+                # prose version is now gone. Length is decided by the source — one
+                # rewritten paragraph per highlight — which `_preserve_source_units`
+                # enforces after the fact. `evaluate_blueprint` still scores the result
+                # against the family's counts; that is where they belong.
                 "document_requirements": {
-                    "lead_role_reference_bullets": blueprint.lead_bullets,
-                    "other_roles_reference_bullets": blueprint.tail_bullets,
+                    "one_paragraph_per_source_highlight": True,
                     "preserve_source_units": True,
                     "min_outcome_ratio": blueprint.outcome_ratio,
                     "scope_line_must_state": list(blueprint.scope_dimensions),
@@ -251,6 +256,7 @@ class ResumeElevator:
                 emphases=emphases,
                 baseline_sections=baseline_sections,
                 locale=locale,
+                job_keywords=job_keywords,
             )
 
             elevation_map = annotate_elevation_map(
@@ -300,6 +306,7 @@ class ResumeElevator:
         emphases: list[str],
         baseline_sections: dict[str, Any],
         locale: str,
+        job_keywords: list[str] | None = None,
     ) -> dict[str, Any]:
         """Rewrite the blocks that measurably missed, once, and keep it only if better.
 
@@ -398,6 +405,24 @@ class ResumeElevator:
             len(plan.blocks), verdict.accepted, verdict.reason,
         )
         result = candidate if verdict.accepted else sections
+        if verdict.accepted:
+            # The stamped report describes the draft as it was *before* this rewrite,
+            # and `merge_repaired_blocks` deep-copies it forward unchanged. `preview()`
+            # prefers the stamped report over re-auditing (it is the only record of what
+            # composition moved), so leaving it would show the user exactly the defects
+            # this repair just removed — and `-len(structure.issues)` is part of the
+            # score the repair had to improve to be accepted here, so a stale report is
+            # near-certain rather than a corner case.
+            #
+            # `apply_changes=False`: section order was already decided for the first
+            # draft and a repair rewrites wording, never ordering. This is a pure audit,
+            # the same way the export-time check uses it.
+            result["structure"] = compose_document(
+                result,
+                role_family=playbook.id,
+                job_keywords=job_keywords,
+                apply_changes=False,
+            ).to_dict()
         result["generation"] = generation
         return result
 

@@ -248,6 +248,17 @@ class ResumeBlueprint:
         Written as a document contract rather than as advice, because the previous
         playbook block was advice and the model routinely satisfied the sentence-level
         rules while producing a document that met none of these.
+
+        `lead_bullets` / `tail_bullets` are deliberately **not** sent. They were, as a
+        "completeness reference", and the prompt then spent seven separate sentences
+        across three files telling the model they were not quotas — the giveaway that
+        the instruction was fighting itself. A model given a number writes toward it;
+        that is not a wording problem a stronger warning fixes. The real constraint is
+        the source: one rewritten paragraph per source highlight, which
+        `_preserve_source_units` already enforces deterministically and
+        `evaluate_blueprint` still measures against these counts afterwards. Keeping
+        them in the evaluator and out of the prompt is the whole point of having an
+        evaluator.
         """
         lines = [
             f"Document blueprint for {self.label} (`{self.family}`).",
@@ -257,10 +268,8 @@ class ResumeBlueprint:
             + "、".join(self.scope_dimensions)
             + ". Write it only from what the source supports; omit it if the source "
             "carries none of these.",
-            f"Completeness reference: {self.lead_bullets} bullets for the most recent role; "
-            f"{self.tail_bullets} for earlier roles. These are advisory, not quotas. "
-            "Preserve source paragraph count and project grouping; never split a project "
-            "narrative; never invent work to reach a number.",
+            "Write one paragraph per source highlight, in source order. Never split a "
+            "project narrative, never merge two, never invent work.",
             f"At least {int(self.outcome_ratio * 100)}% of bullets must end in a result.",
             "Lead bullets with evidence in this order: " + " > ".join(self.evidence_ladder),
         ]
