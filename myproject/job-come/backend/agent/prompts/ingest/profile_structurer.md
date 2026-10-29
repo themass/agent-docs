@@ -31,7 +31,10 @@ silently gone from the user's resume. Extract everything; let the writer decide 
 
 - **Preserve source units and their order.** One original bullet or semantic project
   paragraph becomes one `highlights` entry. If a role lists 9 bullets, retain 9 entries.
-  Do not split a source unit on semicolons, sentences, metrics or visual line wraps;
+  Do not split a source unit on semicolons, sentences, metrics or visual line wraps —
+  `fragment_guard.py` checks this after you return, using the source's own bullet
+  markers as ground truth, and merges back what it can prove was over-split; it has no
+  way to recover a unit you merged or dropped in the other direction;
   do not merge independent source bullets or sample only the best few.
 - **Keep project narratives together.** Background, responsibility, implementation and
   outcome of the same project belong to that source unit, even when it has several

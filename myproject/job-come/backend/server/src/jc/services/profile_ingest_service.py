@@ -33,6 +33,7 @@ from jc.services.profile_ingest_quality import (
     is_low_quality_payload,
 )
 from jc.services.profile_normalizer import ProfileNormalizer
+from jc.services.fragment_guard import merge_oversplit_highlights
 from jc.services.profile_structurer import ProfileStructurer
 from jc.services.profile_vision import ProfileVisionExtractor
 
@@ -204,6 +205,12 @@ class ProfileIngestService:
                     )
                     mode = extraction_source = "vision_docx_media"
                 await phase("pick_best")  # Retain persisted phase vocabulary for older clients.
+                if plan.route == IngestRoute.TEXT:
+                    # Only this route has the model's own source text to check its
+                    # extraction against. The vision routes read images directly with no
+                    # intermediate text, so there is nothing to compare `highlights`
+                    # against and the guard no-ops safely on an empty string anyway.
+                    payload = merge_oversplit_highlights(payload, text)
                 payload = self._normalizer.normalize(payload)
                 warning = (
                     USER_PARSE_INCOMPLETE
