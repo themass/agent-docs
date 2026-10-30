@@ -111,7 +111,15 @@ if [[ "$DO_BUILD" == true ]]; then
   # node_modules first, so a deploy cannot inherit a half-upgraded tree.
   npm ci
   log "Building web (npm run build)"
-  npm run build
+  # `JC_API_PROXY_TARGET` must be set HERE, not only on `npm run start` below.
+  # `next.config.ts` reads it while evaluating `rewrites()`, which happens at build
+  # time and is frozen into `.next/routes-manifest.json`. Setting it only at start
+  # produced a production build whose rewrite pointed at the dev default 8001 while
+  # the API listens on 8000 — verified in the manifest. Nginx routes `/api/v1`
+  # straight to the API so the broken rewrite is normally unreachable, which is what
+  # makes it dangerous: any request that does fall through proxies to a dead port
+  # and returns 502 with nothing pointing at the cause.
+  JC_API_PROXY_TARGET="http://127.0.0.1:${API_PORT}" npm run build
 else
   [[ -d "${WEB_ROOT}/.next" ]] || die "--no-build given but ${WEB_ROOT}/.next does not exist"
   log "Skipping build, reusing existing .next"
