@@ -48,11 +48,39 @@ certbot certonly --webroot -w /var/www/certbot -d jc.sspacee.com
 
 ## 2. 生产构建与启动
 
+### 服务器不需要整个 monorepo
+
+`backend/server/pyproject.toml` 把 `agentkit`、`deerflow-harness`、
+`deerflow-extension-api` 声明成本地路径依赖（`{ path = ..., editable = true }`），
+这是**构建期**的写法，不代表生产机需要带着 200M+ 的 vendored 源码树跑。
+部署机只需要 `docs/myproject/job-come/` 这一个目录，另外两样东西二选一：
+
+- **推荐：发布包**（见下）——在有完整 monorepo 的机器上把这三个包编成 wheel，
+  部署机不碰源码，`install-production.sh` 检测到 `dist/` 就自动走这条路。
+- **兜底：带着源码**——部署机也 clone 整个 monorepo（含 `libs/`），
+  `install-production.sh` 检测不到 `dist/` 时自动退回 `uv sync --frozen --no-editable`。
+  适合临时在一台已有完整 checkout 的机器上部署。
+
+### 构建发布包（在 dev 机器 / 有 monorepo 的机器上）
+
+```bash
+cd docs/myproject/job-come
+./scripts/build-release.sh
+```
+
+产物在 `dist/`：三个 wheel + 一份已过滤路径依赖的 `requirements.txt` + `RELEASE`
+（记录构建时间与 git commit，方便事后核对"服务器跑的是哪个版本"）。
+只需要把 `dist/` 拷到服务器上同一目录即可，**不需要**拷 `libs/` 或整个 monorepo：
+
+```bash
+rsync -avz dist/ user@server:/opt/jc/dist/
+```
+
 ### 首次部署
 
 ```bash
 cd /opt/jc
-./scripts/install-production.sh        # 锁文件非 editable 安装 Python 依赖
+./scripts/install-production.sh        # 有 dist/ 用发布包；没有则退回源码安装
 cp backend/server/.env.example backend/server/.env   # 然后填写生产配置
 ./scripts/start-production.sh          # migration + npm ci + build + 启动两个进程
 ```
@@ -84,7 +112,15 @@ unit 里的 `WorkingDirectory`、`User`、venv 路径按目标机器修改；密
 ### 发布一次新版本
 
 ```bash
-git pull && ./scripts/install-production.sh
+# 在 dev 机器：
+./scripts/build-release.sh && rsync -avz dist/ user@server:/opt/jc/dist/
+```
+
+```bash
+# 在服务器：
+cd /opt/jc
+git pull    # 只更新代码本身；dist/ 走 rsync 不走 git
+./scripts/install-production.sh
 ./scripts/start-production.sh --build-only
 sudo systemctl restart jc-api jc-web
 ```

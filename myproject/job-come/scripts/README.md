@@ -8,7 +8,8 @@
 |---|---|---|
 | `./scripts/setup-venv.sh` | 手动同步 Python 依赖（`dev.sh` 首次启动也会自动调用） | 需要本机 `uv` |
 | `./scripts/dev.sh` | 启动本地 API、Web 和内嵌 Agent（缺依赖时自动 `uv sync`） | MySQL/Redis/LLM/TOS 按 `.env` 配置 |
-| `./scripts/install-production.sh` | 生产机安装 Python 依赖（**只装依赖，不构建前端、不启动进程**） | 需要本机 `uv` |
+| `./scripts/build-release.sh` | **在有完整 monorepo 的机器上**把 `agentkit`/`deerflow-harness`/`deerflow-extension-api` 三个路径依赖编成 wheel，连同过滤掉本地路径的 `requirements.txt` 一起写入 `dist/`。部署机不需要这三个包的源码，只需要 `rsync dist/` 过去 | 需要本机 `uv`，且必须在 monorepo checkout 内运行 |
+| `./scripts/install-production.sh` | 生产机安装 Python 依赖（**只装依赖，不构建前端、不启动进程**）。检测到 `dist/` 就从发布包安装，不需要 monorepo 源码；没有则退回 `uv sync --frozen --no-editable`，这时才需要完整 checkout | 需要本机 `uv` |
 | `./scripts/start-production.sh` | 生产机构建与启动：migration + `npm ci` + build + 拉起两个进程。`--build-only` 只构建（发版时配合 `systemctl restart` 用），`--no-build` 复用现有 `.next` | MySQL/Redis/LLM/TOS |
 | `./scripts/test-local.sh` | 提交前、本地回归、候选版本代码检查 | 否；不会调用真实 API/Agent/TOS/邮件 |
 | `./scripts/test-live.sh smoke` | 本地或 staging 的核心 API + PDF/DOCX 导出联调 | 是，需 API、账号及相关服务 |
