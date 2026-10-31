@@ -132,8 +132,27 @@ if [[ "$DO_FRONTEND" == true ]]; then
 
   log "installing web dependencies (npm ci)"
   cd "${WEB_ROOT}"
+  # Every `resolved` URL in package-lock.json points at registry.npmjs.org — and
+  # `npm ci` honours those literal URLs, so setting `registry=` alone changes
+  # nothing. On a mainland cloud host those connections are throttled or left
+  # half-open, and the download then hangs for tens of minutes with the process
+  # alive and the heartbeat still ticking (observed: past 1500s, not the OOM kill
+  # seen when the machine was merely short on memory). `replace-registry-host=always`
+  # rewrites the host of each lockfile URL to whatever registry is configured, so
+  # the mirror is actually used while the lockfile itself stays untouched and
+  # `npm ci` keeps its exact-version guarantee.
+  #
+  # The timeouts are the other half: without them a stalled socket waits on npm's
+  # (very long) defaults. With them the worst case is a fast, repeated failure that
+  # says which package could not be fetched instead of an unbounded silence.
   jc_run_with_heartbeat "npm ci" "$HEARTBEAT" \
     env NPM_CONFIG_LOGLEVEL="${NPM_CONFIG_LOGLEVEL:-info}" \
+        NPM_CONFIG_REGISTRY="${JC_NPM_REGISTRY:-https://registry.npmmirror.com}" \
+        NPM_CONFIG_REPLACE_REGISTRY_HOST="${JC_NPM_REPLACE_REGISTRY_HOST:-always}" \
+        NPM_CONFIG_FETCH_TIMEOUT="${JC_NPM_FETCH_TIMEOUT:-60000}" \
+        NPM_CONFIG_FETCH_RETRIES="${JC_NPM_FETCH_RETRIES:-3}" \
+        NPM_CONFIG_FETCH_RETRY_MINTIMEOUT="${JC_NPM_FETCH_RETRY_MINTIMEOUT:-10000}" \
+        NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT="${JC_NPM_FETCH_RETRY_MAXTIMEOUT:-60000}" \
     npm ci --no-audit --no-fund
 
   log "building web (npm run build)"
