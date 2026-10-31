@@ -12,6 +12,7 @@
 # Python: needs 3.12.x. The system python3 is never modified; uv installs a private
 # 3.12 on first deploy. --python-default additionally puts shims in ~/.local/bin so a
 # new shell's `python3` is 3.12 too (existing shells need `source ~/.local/bin/env`).
+#   JC_DEPLOY_HEARTBEAT_SEC=30   # stdout heartbeat during uv/npm (SSH keepalive)
 #
 # After this: ./scripts/backend.sh restart && ./scripts/frontend.sh restart
 set -euo pipefail
@@ -19,9 +20,13 @@ set -euo pipefail
 JC_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SERVER_ROOT="${JC_ROOT}/backend/server"
 WEB_ROOT="${JC_ROOT}/frontend/web"
+# shellcheck source=lib/run_with_heartbeat.sh
+source "${JC_ROOT}/scripts/lib/run_with_heartbeat.sh"
 
 log() { printf '[deploy] %s\n' "$*"; }
+jc_heartbeat_log=log
 die() { printf '[deploy] ERROR: %s\n' "$*" >&2; exit 1; }
+HEARTBEAT="${JC_DEPLOY_HEARTBEAT_SEC:-30}"
 
 DO_BACKEND=true
 DO_FRONTEND=true
@@ -71,7 +76,9 @@ if [[ "$DO_BACKEND" == true ]]; then
   # runtime with "playwright not installed" — long after a deploy that looked
   # clean, and only for users who export (the DOCX and HTML paths do not touch
   # playwright, so a smoke test that exports Word would pass and prove nothing).
-  ( cd "$SERVER_ROOT" && UV_PROJECT_ENVIRONMENT="${VENV}" uv sync --frozen --no-dev --extra export --no-editable )
+  jc_run_with_heartbeat "uv sync (backend, export extra)" "$HEARTBEAT" \
+    bash -c 'cd "$1" && UV_PROJECT_ENVIRONMENT="$2" uv sync --frozen --no-dev --extra export --no-editable' \
+    _ "$SERVER_ROOT" "$VENV"
 
   log "verifying the three in-repo packages import"
   "${VENV}/bin/python" - <<'PY'
@@ -107,18 +114,14 @@ if [[ "$DO_FRONTEND" == true ]]; then
 
   log "installing web dependencies (npm ci)"
   cd "${WEB_ROOT}"
-  # `npm ci` not `npm install`: it honours the lockfile exactly and wipes
-  # node_modules first, so a deploy cannot inherit a half-upgraded tree.
-  npm ci
+  jc_run_with_heartbeat "npm ci" "$HEARTBEAT" \
+    env NPM_CONFIG_LOGLEVEL="${NPM_CONFIG_LOGLEVEL:-info}" \
+    npm ci --no-audit --no-fund
 
   log "building web (npm run build)"
-  # JC_API_PORT, not JC_API_PROXY_TARGET directly: next.config.ts reads this at
-  # build time (rewrites() is frozen into .next/routes-manifest.json), and it must
-  # agree with the port backend.sh actually binds. Nginx routes /api/v1 straight to
-  # the API so this rewrite is normally unreachable — which is exactly why a wrong
-  # port here stays invisible until the one request that does hit it 502s with
-  # nothing pointing at a stale build as the cause.
-  JC_API_PROXY_TARGET="http://127.0.0.1:${JC_API_PORT:-8000}" npm run build
+  jc_run_with_heartbeat "npm run build" "$HEARTBEAT" \
+    env JC_API_PROXY_TARGET="http://127.0.0.1:${JC_API_PORT:-8000}" \
+    npm run build
 fi
 
 log "done. Start/restart with: ./scripts/backend.sh restart && ./scripts/frontend.sh restart"
