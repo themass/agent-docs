@@ -44,7 +44,12 @@ if [[ "$DO_BACKEND" == true ]]; then
   [[ -f "${SERVER_ROOT}/.env" ]] || die "missing ${SERVER_ROOT}/.env (copy from .env.example)"
 
   log "installing Python dependencies into ${VENV}"
-  ( cd "$SERVER_ROOT" && UV_PROJECT_ENVIRONMENT="${VENV}" uv sync --frozen --no-dev --no-editable )
+  # `--extra export` is not optional here: it is what installs playwright, which
+  # `resume_render_engine.render_pdf` needs. Without it every PDF export dies at
+  # runtime with "playwright not installed" — long after a deploy that looked
+  # clean, and only for users who export (the DOCX and HTML paths do not touch
+  # playwright, so a smoke test that exports Word would pass and prove nothing).
+  ( cd "$SERVER_ROOT" && UV_PROJECT_ENVIRONMENT="${VENV}" uv sync --frozen --no-dev --extra export --no-editable )
 
   log "verifying the three in-repo packages import"
   "${VENV}/bin/python" - <<'PY'
