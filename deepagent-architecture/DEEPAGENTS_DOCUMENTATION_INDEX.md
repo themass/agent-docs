@@ -1,8 +1,8 @@
 # Deep Agents 框架文档索引
 
 > **本文档**：提供 Deep Agents 完整设计方案系列文档的导航与快速检索。  
-> **更新时间**：2026-09-01  
-> **适用版本**：`deepagents==0.6.6`、`deepagents-code==0.1.x`、`deepagents-cli==0.1.x`
+> **更新时间**：2026-10-31  
+> **适用版本**：发布版 `deepagents==0.7.32`；当前源码 HEAD `3a217cec7`（含 0.7.32 之后未发布提交）
 
 ---
 
@@ -20,6 +20,14 @@
 DeepTutor 仓库内旧长文 [`DeepTutor/docs/DEEPTUTOR_DEEP_DIVE.md`](../DeepTutor/docs/DEEPTUTOR_DEEP_DIVE.md) 部分章节（两段式 exploring loop、双层记忆）已过时，以 `docs/deeptutor-architecture/` 为准。
 
 ---
+
+## 🚨 当前源码更新（优先阅读）
+
+### 0d. [v0.7.32 源码更新与架构补全](./DEEPAGENTS_V0.7.32_UPDATE.md)
+
+**内容**：以当前源码为准，补齐主请求链、真实 middleware 顺序、`messages/checkpoint/store/backend` 边界、同步/异步子 Agent 生命周期、`enqueue` follow-up、HITL/权限、摘要/offload、Profile 双层模型，并标明 0.7.32 发布版与 HEAD 未发布改动。
+
+**建议**：任何要理解当前实现的人先读本文 §2 的整体请求链，再回到旧专题文档查细节。
 
 ## 📚 核心文档清单
 
@@ -144,7 +152,7 @@ DeepTutor 仓库内旧长文 [`DeepTutor/docs/DEEPTUTOR_DEEP_DIVE.md`](../DeepTu
 | `graph.py` | [框架完整设计方案](./DEEPAGENTS_FRAMEWORK_COMPLETE_DESIGN.md) | §4.1 |
 | `middleware/subagents.py` | [Middleware Chain 深度设计](./DEEPAGENTS_MIDDLEWARE_CHAIN_DEEP_DESIGN.md) | §2.4 |
 | | [Prompt 系统完整运行时](./DEEPAGENTS_PROMPT_RUNTIME_COMPLETE.md) | §四 |
-| `middleware/async_subagents.py` | [Middleware Chain 深度设计](./DEEPAGENTS_MIDDLEWARE_CHAIN_DEEP_DESIGN.md) | §3.3 |
+| `middleware/async_subagents.py` | [v0.7.32 更新与架构补全](./DEEPAGENTS_V0.7.32_UPDATE.md) · [Middleware Chain 深度设计](./DEEPAGENTS_MIDDLEWARE_CHAIN_DEEP_DESIGN.md) | §5、§6 |
 | | [Prompt 系统完整运行时](./DEEPAGENTS_PROMPT_RUNTIME_COMPLETE.md) | §五 |
 | `middleware/summarization.py` | [Middleware Chain 深度设计](./DEEPAGENTS_MIDDLEWARE_CHAIN_DEEP_DESIGN.md) | §3.1 |
 | `middleware/skills.py` | [Middleware Chain 深度设计](./DEEPAGENTS_MIDDLEWARE_CHAIN_DEEP_DESIGN.md) | §2.2 |
@@ -237,6 +245,7 @@ DeepTutor 仓库内旧长文 [`DeepTutor/docs/DEEPTUTOR_DEEP_DIVE.md`](../DeepTu
 
 | 日期 | 版本 | 变更内容 |
 |------|------|---------|
+| 2026-10-31 | v1.7 | 基于源码 HEAD 3a217cec7 补充 deepagents 0.7.32：主链、DeltaChannel、Profile 双层、async enqueue/follow-up、notify_parent/webhook、权限与摘要修正；新增 DEEPAGENTS_V0.7.32_UPDATE.md |
 | 2026-09-01 | v1.6 | Prime Agent 全套扩写至 Codex §1.2/§4 深度（7 文件共 ~3130 行，§1.2 实体全景 + §7 runAgentLoop 五层深潜） |
 | 2026-09-01 | v1.5 | Codex PART2/PART3 扩写至 PART1 §4 深度（1828 + 1601 行，87 张 Mermaid 图） |
 | 2026-09-01 | v1.4 | DeepTutor 全套扩写至 Codex §1.2/§4 深度（PART1–3 + ENTITY，共 ~3720 行） |

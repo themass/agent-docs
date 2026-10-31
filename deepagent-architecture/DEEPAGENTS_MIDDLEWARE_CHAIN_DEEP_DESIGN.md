@@ -2,9 +2,12 @@
 
 > **本文目标**：深入解析 `create_deep_agent` 中的 10+ 个中间件，从源码级揭示执行流程、钩子机制、状态变更。  
 > **参考 DeerFlow 范式**：采用 DeerFlow Harness 的中间件分析风格（见 `deer-flow/backend/docs/DEERFLOW_FRAMEWORK_QA_ARCHIVE.md` §9）。  
-> **适用版本**：`deepagents==0.5.1`、`langchain>=0.3.x`。
+> **历史基线**：`deepagents==0.5.1`（原文保留用于对照）；当前以 `deepagents==0.7.32` / HEAD `3a217cec7` 更新文档为准。。
 
 ---
+
+
+> **当前源码校正（2026-10-31）**：本文的 0.5.x middleware 顺序已经过时，尤其是 `_ParentNotifierMiddleware`、异步子 Agent、profile extra、Skills、prompt caching、Memory、HITL 与 ToolExclusion 的装配位置。请先阅读 [v0.7.32 源码更新与架构补全 §2.2](./DEEPAGENTS_V0.7.32_UPDATE.md#22-主-agent-的真实-middleware-装配顺序)。原章节保留用于历史对照。
 
 ## 阅读地图
 

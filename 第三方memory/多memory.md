@@ -79,9 +79,20 @@
 
 本文件是选型总览，不替代各项目的源码对齐文档：
 
-- [Hindsight 完整核心技术文档](./Hindsight 分层记忆系统 完整核心技术文档（终版）.md)：Retain / Recall / Reflect、分层实体、时序图和接口。
+**记忆项目（本目录）**
+
+- [Hindsight 完整核心技术文档](./hindsight-architecture/Hindsight%20分层记忆系统%20完整核心技术文档（终版）.md)：Retain / Recall / Reflect、分层实体、时序图和接口。
 - [TencentDB-Agent-Memory 设计文档](./TencentDB-Agent-Memory.md)：L0-L3 ChatMemory、四类资产、MemoryCore / Knowledge / Proxy / Hub。
-- [agentmemory 架构文档](../agent-memory/ARCHITECTURE.md) 与 [记忆分层文档](../agent-memory/MEMORY_LAYERS.md)：源码对齐的四类认知功能层。
+- [agentmemory 架构文档](./agent-memory/ARCHITECTURE.md) 与 [记忆分层文档](./agent-memory/MEMORY_LAYERS.md)：源码对齐的四类认知功能层。
+- [ReMe 设计文档](./ReMe-architecture/DESIGN.md) 与 [REME_ARCHITECTURE.md](./ReMe-architecture/REME_ARCHITECTURE.md)：session/resource → daily → digest 的文件优先路线。
+
+**对照：agent harness 自己怎么做记忆**（不是记忆中间件，但它决定"记忆能长到什么程度"）
+
+- [CowAgent 完整设计文档](../cowagent-architecture/CowAgent-完整设计文档.md)：Markdown 寿命分层（context → daily → core）+ Deep Dream 蒸馏 + Self-Evolution 自成长；其 §17 与本页全部记忆项目横向对照。
+- [agno 完整设计文档](../agno-architecture/agno-完整设计文档.md)：记忆是 run 账本（`agno_runs`）的**派生视图**（`agno_memories` + `agno_learnings` + `agno_compactions` + 折叠/压缩/外置三件套可回读）；§23 表结构与方言能力矩阵、§24 行级实例、§25 与记忆类项目对比。
+- [ai-memory 完整设计文档](../ai-memory-architecture/ai-memory-完整设计文档.md)：tier（保留策略）× kind（内容类别）两轴分层与 `page_evidence` 证据链。
+
+> **选型的第一问不是"选哪个记忆系统"，而是"你的 harness 有没有账本"。**有 run 级账本（agno 的 `agno_runs`、CowAgent 的 `runs/messages`）时，记忆可以是账本的派生视图，随时重建与审计；没有账本时，记忆系统就必须自己存证据（Hindsight 的原始轨迹、ai-memory 的 `page_evidence`、agentmemory 的 observation 流）。这也是 §7 组合架构的根据。
 
 ## 4. 五个项目的一句话定位
 
