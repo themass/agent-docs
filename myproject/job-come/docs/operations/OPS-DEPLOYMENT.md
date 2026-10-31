@@ -48,53 +48,55 @@ certbot certonly --webroot -w /var/www/certbot -d jc.sspacee.com
 
 ## 2. 生产构建与启动
 
-### 服务器不需要整个 monorepo
+### 服务器只需要 job-come 这一个目录
 
-`backend/server/pyproject.toml` 把 `agentkit`、`deerflow-harness`、
-`deerflow-extension-api` 声明成本地路径依赖（`{ path = ..., editable = true }`），
-这是**构建期**的写法，不代表生产机需要带着 200M+ 的 vendored 源码树跑。
-部署机只需要 `docs/myproject/job-come/` 这一个目录，另外两样东西二选一：
+`agentkit`、`deerflow-harness`、`deerflow-extension-api` 三个包以**预编译 wheel**
+的形式提交在 `backend/server/wheels/`（约 2.8MB），`pyproject.toml` 从这些 wheel 取源：
 
-- **推荐：发布包**（见下）——在有完整 monorepo 的机器上把这三个包编成 wheel，
-  部署机不碰源码，`install-production.sh` 检测到 `dist/` 就自动走这条路。
-- **兜底：带着源码**——部署机也把整个 monorepo（含 `libs/`）用 `rsync` 传过去，
-  `install-production.sh` 检测不到 `dist/` 时自动退回 `uv sync --frozen --no-editable`。
-  适合临时在一台机器上部署。monorepo 没有可供服务器 `git clone` 的私有远端——
-  唯一配置的 `origin` 是公开的 `github.com/langchain-ai/deepagents` 上游仓库，
-  不是部署目标——所以这条路径也是靠 `rsync`，不是 `git clone`。
-
-### 构建发布包（在 dev 机器 / 有 monorepo 的机器上）
-
-```bash
-cd docs/myproject/job-come
-./scripts/build-release.sh
+```toml
+[tool.uv.sources]
+agentkit = { path = "wheels/agentkit-0.1.0-py3-none-any.whl" }
 ```
 
-产物在 `dist/`：三个 wheel + 一份已过滤路径依赖的 `requirements.txt` + `RELEASE`
-（记录构建时间与 git commit，方便事后核对"服务器跑的是哪个版本"）。
-只需要把 `dist/` 拷到服务器上同一目录即可，**不需要**拷 `libs/` 或整个 monorepo：
+所以部署机上：
 
 ```bash
-rsync -avz dist/ user@server:/opt/jc/dist/
+cd backend/server && uv sync --frozen --no-dev --no-editable
+```
+
+就是一个普通的 Python 项目安装——**不需要 `libs/agentkit`、不需要 monorepo 源码、
+不需要在意目录深度**。执行 `./scripts/install-production.sh` 即可，它跑的就是这条命令。
+
+### 何时需要重建 wheel（在 dev 机器上）
+
+改了 vendored DeerFlow 或 `libs/agentkit` 的源码之后：
+
+```bash
+./scripts/build-release.sh --update    # 重建 wheel + 改写版本 pin + 重新 lock
+```
+
+不重建的后果是**静默的**：装得上、import 得通，跑的还是旧代码。建议把这条接进 CI：
+
+```bash
+./scripts/build-release.sh --check     # 源码版本与 wheel 不符则失败
 ```
 
 ### 首次部署
 
-先把 `job-come` 目录本身传到服务器——这一步前面的「构建发布包」只同步了
-`dist/`，源码还没传。同样用 `rsync`，不是 `git clone`：
+先把 `job-come` 目录传到服务器（monorepo 没有可 `git clone` 的私有远端——
+唯一配置的 `origin` 是公开的 `github.com/langchain-ai/deepagents` 上游，不是部署目标）：
 
 ```bash
 # 在 dev 机器：
 rsync -avz --exclude 'node_modules' --exclude '.next' --exclude '__pycache__' \
-  --exclude 'dist' /Users/gqli/work/deepagents/docs/myproject/job-come/ \
+  /Users/gqli/work/deepagents/docs/myproject/job-come/ \
   user@server:/opt/jc/
-rsync -avz dist/ user@server:/opt/jc/dist/
 ```
 
 ```bash
 # 在服务器：
 cd /opt/jc
-./scripts/install-production.sh        # 有 dist/ 用发布包；没有则退回源码安装
+./scripts/install-production.sh        # uv sync --frozen，三个本地包从 wheels/ 解析
 cp backend/server/.env.example backend/server/.env   # 然后填写生产配置
 ./scripts/start-production.sh          # migration + npm ci + build + 启动两个进程
 ```
@@ -127,15 +129,12 @@ unit 里的 `WorkingDirectory`、`User`、venv 路径按目标机器修改；密
 
 job-come 没有独立 git 仓库，是嵌在 deepagents monorepo 里的一个目录，而该
 monorepo 唯一配置的远端是公开的 `github.com/langchain-ai/deepagents`——那是
-上游开源项目，不是部署目标，不能也不该往那推送。代码和 `dist/` 一样，走
-`rsync` 到服务器，不走 `git pull`。
+上游开源项目，不是部署目标，不能也不该往那推送。代码走 `rsync` 到服务器。
 
 ```bash
-# 在 dev 机器：
-./scripts/build-release.sh
+# 在 dev 机器（改过 vendored DeerFlow / agentkit 的话先跑 build-release.sh --update）：
 rsync -avz --exclude 'node_modules' --exclude '.next' --exclude '__pycache__' \
-  --exclude 'dist' . user@server:/opt/jc/
-rsync -avz dist/ user@server:/opt/jc/dist/
+  . user@server:/opt/jc/
 ```
 
 ```bash

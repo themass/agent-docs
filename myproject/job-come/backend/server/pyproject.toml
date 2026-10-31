@@ -5,9 +5,9 @@ description = "JC API — resume, interview coach, DeerFlow agents"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-    "agentkit",
-    "deerflow-extension-api==0.2.5",
-    "deerflow-harness",
+    "agentkit==0.1.0",
+    "deerflow-extension-api==0.2.9",
+    "deerflow-harness==2.3.0.dev0",
     "sqlalchemy[asyncio]>=2.0.36",
     "uvicorn[standard]>=0.32.0",
     "aiomysql>=0.2.0",
@@ -23,7 +23,7 @@ dependencies = [
     "python-docx>=1.1.0",
     "jinja2>=3.1.0",
     "litellm>=1.55.0",
-    "langgraph==1.2.9",
+    "langgraph==1.2.19",
     "pyyaml>=6.0.0",
     "mcp>=1.26,<2",
     "markitdown==0.1.5",
@@ -35,10 +35,23 @@ dependencies = [
     "pillow>=11.0.0",
 ]
 
+# Prebuilt wheels for the three in-repo packages, checked in under `wheels/`.
+#
+# These used to point at `../../../../../libs/agentkit/...` with `editable = true`.
+# That made the project un-installable anywhere the monorepo was not present — the
+# reported symptom was `uv sync` on a deployment host failing with "Distribution not
+# found at: file:///.../libs/agentkit", because a path the install could not see was
+# a hard requirement of `uv sync`. A wheel is the same code in the form every other
+# dependency already ships in: `uv sync` needs no source tree and no checkout depth.
+#
+# Refresh with `./scripts/build-release.sh --update-lock`, which rebuilds these files,
+# rewrites the `==` pins above from what was actually built, and re-locks. Running it
+# is mandatory whenever the vendored DeerFlow or agentkit source changes — a stale
+# wheel is silently the old code, which is worse than a broken install.
 [tool.uv.sources]
-agentkit = { path = "../../../../../libs/agentkit", editable = true }
-deerflow-harness = { path = "../../../../../libs/agentkit/vendor/deer-flow/backend/packages/harness", editable = true }
-deerflow-extension-api = { path = "../../../../../libs/agentkit/vendor/deer-flow/backend/packages/extension-api", editable = true }
+agentkit = { path = "wheels/agentkit-0.1.0-py3-none-any.whl" }
+deerflow-harness = { path = "wheels/deerflow_harness-2.3.0.dev0-py3-none-any.whl" }
+deerflow-extension-api = { path = "wheels/deerflow_extension_api-0.2.9-py3-none-any.whl" }
 
 [project.optional-dependencies]
 dev = [

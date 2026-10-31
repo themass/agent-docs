@@ -1,0 +1,19 @@
+# These wheels ARE tracked, unlike the usual convention.
+#
+# `backend/server/pyproject.toml` sources `agentkit`, `deerflow-harness` and
+# `deerflow-extension-api` from the .whl files in this directory rather than from the
+# monorepo source tree. That is what makes `uv sync` work on a machine that has only
+# this project directory: the three in-repo packages resolve like any other
+# dependency, with no `libs/agentkit` checkout and no assumed directory depth.
+#
+# Ignoring them (`*`, as this file used to say) breaks that completely — the lock
+# pins `wheels/agentkit-0.1.0-py3-none-any.whl`, so a checkout without it fails to
+# install. Total size is ~2.8MB, dominated by the 2.8MB harness wheel.
+#
+# Regenerate with `./scripts/build-release.sh --update` after ANY change to the
+# vendored DeerFlow source or agentkit — a stale wheel silently installs old code,
+# which is worse than a failed install.
+*
+!*.whl
+!README.md
+!.gitignore
