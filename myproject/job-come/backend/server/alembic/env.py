@@ -39,7 +39,16 @@ def do_run_migrations(connection: Connection) -> None:
 
 
 async def run_async_migrations() -> None:
-    connectable = create_async_engine(settings.database_url, poolclass=pool.NullPool)
+    # Same connect_args as the app engine (jc/db/session.py): without an explicit
+    # connect_timeout, aiomysql falls back to the OS TCP connect timeout, which on
+    # an unreachable host (wrong JC_DB_HOST, a firewall that drops instead of
+    # rejects) can run for minutes with zero output — exactly what makes
+    # `alembic upgrade head` look like it hung instead of failing.
+    connectable = create_async_engine(
+        settings.database_url,
+        poolclass=pool.NullPool,
+        connect_args={"connect_timeout": settings.jc_db_connect_timeout_seconds},
+    )
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
     await connectable.dispose()

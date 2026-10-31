@@ -55,7 +55,11 @@ if [[ "$DO_BACKEND" == true ]]; then
   [[ "$PYTHON_DEFAULT" == true ]] && ensure_args=(--install-default)
   # `${arr[@]+"${arr[@]}"}` not `"${arr[@]}"`: bash 3.2 (macOS /bin/bash) treats an
   # empty array under `set -u` as an unbound variable and aborts the script.
-  jc_ensure_python ${ensure_args[@]+"${ensure_args[@]}"} || die "no Python 3.12 and uv could not install one.
+  # Heartbeat-wrapped: the steady-state path (uv already has 3.12) is instant and
+  # this stays silent, but a cold host downloads a standalone CPython build with
+  # no progress output of its own — without this it looks identical to a hang.
+  jc_run_with_heartbeat "python 3.12 resolve/install" "$HEARTBEAT" \
+    jc_ensure_python ${ensure_args[@]+"${ensure_args[@]}"} || die "no Python 3.12 and uv could not install one.
        Required by pyproject.toml (>=3.12,<3.13). The system python3 is deliberately
        left alone — apt/yum depend on it — and uv installs a private 3.12 instead.
        To also make it this user's default: ./scripts/deploy.sh --python-default"
@@ -90,7 +94,13 @@ print("  imports OK")
 PY
 
   log "applying database migrations (alembic upgrade head)"
-  JC_PYTHON="${VENV}/bin/python" JC_SERVER_ROOT="$SERVER_ROOT" "${JC_ROOT}/scripts/db_upgrade.sh"
+  # Heartbeat-wrapped, and alembic/env.py now sets the same connect_timeout as the
+  # app engine (jc/db/session.py) — before this fix, an unreachable JC_DB_HOST hung
+  # silently for however long the OS TCP connect takes (minutes on some cloud
+  # firewalls that drop instead of reject), indistinguishable from a working deploy
+  # that is just slow.
+  jc_run_with_heartbeat "alembic upgrade head" "$HEARTBEAT" \
+    env JC_PYTHON="${VENV}/bin/python" JC_SERVER_ROOT="$SERVER_ROOT" "${JC_ROOT}/scripts/db_upgrade.sh"
 fi
 
 if [[ "$DO_FRONTEND" == true ]]; then
