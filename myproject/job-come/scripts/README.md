@@ -9,8 +9,9 @@
 | `./scripts/setup-venv.sh` | 手动同步 Python 依赖（`dev.sh` 首次启动也会自动调用） | 需要本机 `uv` |
 | `./scripts/dev.sh` | 启动本地 API、Web 和内嵌 Agent（缺依赖时自动 `uv sync`） | MySQL/Redis/LLM/TOS 按 `.env` 配置 |
 | `./scripts/build-release.sh --update` | **在有完整 monorepo 的机器上**重建 `backend/server/wheels/` 里的三个预编译 wheel（`agentkit`/`deerflow-harness`/`deerflow-extension-api`），同步改写 `pyproject.toml` 的版本 pin 并重新 lock。改过 vendored DeerFlow 或 agentkit 源码后**必须**跑，否则装上去的是旧代码且不会报错。`--check` 只校验不重建，适合接进 CI | 需要本机 `uv`，且必须在 monorepo checkout 内运行 |
-| `./scripts/install-production.sh` | 生产机安装 Python 依赖（**只装依赖，不构建前端、不启动进程**）。跑的就是 `uv sync --frozen --no-dev --no-editable`——三个本地包从已入库的 `backend/server/wheels/*.whl` 解析，**不需要 monorepo 源码** | 需要本机 `uv` |
-| `./scripts/start-production.sh` | 生产机构建与启动：migration + `npm ci` + build + 拉起两个进程。`--build-only` 只构建（发版时配合 `systemctl restart` 用），`--no-build` 复用现有 `.next` | MySQL/Redis/LLM/TOS |
+| `./scripts/deploy.sh` | **生产部署**：装 Python 依赖（三个本地包从 `wheels/*.whl` 解析，不需要 monorepo 源码）、跑 migration、`npm ci` + `npm run build`。只准备产物，**不启动任何进程**——改完代码之后先跑这个，再用下面两个脚本重启服务。`--skip-backend` / `--skip-frontend` 只做其中一半 | MySQL（migration）、npm |
+| `./scripts/backend.sh start\|stop\|restart\|status` | 管理 API 进程（uvicorn），PID 文件追踪，不依赖 systemd/sudo。`start`/`restart` 会轮询 `/health` 最多 30s，失败打印最近日志并以非零退出——不会把"进程起来了"误报成"服务正常" | 需要 `deploy.sh` 先装好依赖 |
+| `./scripts/frontend.sh start\|stop\|restart\|status` | 管理 Web 进程（`next start`），同样基于 PID 文件。**注意**：`next start` 的 CLI 进程完成子进程交接后会自行退出，`$!` 不可信，这个脚本改用 `lsof` 反查端口上真正监听的 PID 来追踪——如果你想照搬这个模式管别的服务，这个坑要知道 | 需要 `deploy.sh` 先构建好 `.next` |
 | `./scripts/test-local.sh` | 提交前、本地回归、候选版本代码检查 | 否；不会调用真实 API/Agent/TOS/邮件 |
 | `./scripts/test-live.sh smoke` | 本地或 staging 的核心 API + PDF/DOCX 导出联调 | 是，需 API、账号及相关服务 |
 | `./scripts/test-live.sh agent` | Agent/DeerFlow、SSE、消息持久化、取消联调 | 是 |
@@ -96,7 +97,7 @@ cp backend/server/.env.example backend/server/.env  # 首次时
 
 - `dev.sh`：开发启动入口。
 - `db_upgrade.sh`：在 `backend/server/` 执行 Alembic migration（使用同目录 `alembic.ini`）。
-- `install-production.sh`：以锁定依赖安装生产运行时。
+- `deploy.sh` / `backend.sh` / `frontend.sh`：生产部署三件套，见上表。
 - `prune_llm_log.py`：对 `jc_llm_call` / `jc_llm_call_attempt` 执行留存清理。审计表里存着 prompt 与
   模型响应全文，对 JC 来说就是简历正文，所以它**必须有人定期删**。默认 dry-run 只报数，
   `--apply` 才真删；`--forget-payload-after N` 是中间档——只清三列正文、保留指标与失败码，

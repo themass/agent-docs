@@ -5,19 +5,24 @@
 
 ## 1. V1 方案
 
-V1 采用 **vendored DeerFlow 源码 + 非 editable 安装**。上游源码固定在：
+V1 采用 **vendored DeerFlow 源码**，编译成预编译 wheel 后入库，而不是生产机现场从源码安装
+（见 [ADR-002](../decisions/ADR-002-vendored-deerflow.md)）。上游源码固定在：
 
 ```text
 /Users/gqli/work/deepagents/libs/agentkit/vendor/deer-flow/
 ```
 
-生产依赖通过 [`../../scripts/install-production.sh`](../../scripts/install-production.sh) 执行：
+生产依赖通过 [`../../scripts/deploy.sh`](../../scripts/deploy.sh) 执行：
 
 ```bash
 uv sync --frozen --no-dev --no-editable
 ```
 
-这让生产构建使用锁定源代码，而不是漂移的远程包版本。业务服务在 `backend/server/`，配置与可审查 Agent 资产在 `backend/agent/`。
+三个本地包（`agentkit`/`deerflow-harness`/`deerflow-extension-api`）从
+`backend/server/wheels/*.whl` 解析，部署机不需要这段 monorepo 源码——wheel 本身就是
+锁定的、可复现的构建产物。改过 vendored DeerFlow 后用
+`./scripts/build-release.sh --update` 重建。业务服务在 `backend/server/`，配置与可审查
+Agent 资产在 `backend/agent/`。
 
 ## 2. 资产布局
 

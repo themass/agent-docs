@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# Start / stop / restart / status for the JC API (uvicorn), tracked by a PID file.
+#
+# No systemd, no sudo: it runs the process detached with `setsid` so it survives
+# this script (and the SSH session that launched it) exiting, and self-checks
+# `/health` before `start` reports success — a process that launches but never
+# answers is exactly the failure a bare "it's running" check would miss.
+#
+# Usage:
+#   ./scripts/backend.sh start|stop|restart|status
+#
+# Env:
+#   JC_API_HOST=127.0.0.1   bind loopback only; Nginx is the public listener
+#   JC_API_PORT=8000        must match the jc_api upstream in the Nginx conf
+#   JC_API_WORKERS=2
+#   JC_VENV=/path/to/venv   default: backend/server/.venv (./scripts/deploy.sh)
+set -euo pipefail
+
+JC_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SERVER_ROOT="${JC_ROOT}/backend/server"
+# shellcheck source=lib/daemon.sh
+source "${JC_ROOT}/scripts/lib/daemon.sh"
+
+VENV="${JC_VENV:-${SERVER_ROOT}/.venv}"
+API_HOST="${JC_API_HOST:-127.0.0.1}"
+API_PORT="${JC_API_PORT:-8000}"
+API_WORKERS="${JC_API_WORKERS:-2}"
+
+RUN_DIR="${JC_ROOT}/.data/run"
+LOG_DIR="${JC_PROD_LOG_DIR:-${JC_ROOT}/.data/logs/production}"
+PIDFILE="${RUN_DIR}/api.pid"
+LOGFILE="${LOG_DIR}/api.log"
+MARKER="jc.main:app"
+
+log() { printf '[backend] %s\n' "$*"; }
+die() { printf '[backend] ERROR: %s\n' "$*" >&2; exit 1; }
+
+check_health() { curl -sf "http://127.0.0.1:${API_PORT}/health" >/dev/null 2>&1; }
+
+cmd_start() {
+  [[ -x "${VENV}/bin/python" ]] || die "no venv at ${VENV} — run ./scripts/deploy.sh first"
+  [[ -f "${SERVER_ROOT}/.env" ]] || die "missing ${SERVER_ROOT}/.env"
+
+  # Checked on every start, not only at deploy time, because it is read from
+  # .env — a file someone can edit without re-running deploy.sh — and the
+  # failure it prevents (pages load, every login silently fails to persist)
+  # is otherwise nowhere near its cause.
+  local cookie_secure public_url
+  cookie_secure="$(grep -hE '^JC_COOKIE_SECURE=' "${SERVER_ROOT}/.env" 2>/dev/null \
+    | tail -1 | cut -d= -f2- | tr '[:upper:]' '[:lower:]' || true)"
+  public_url="$(grep -hE '^JC_PUBLIC_URL=' "${SERVER_ROOT}/.env" 2>/dev/null \
+    | tail -1 | cut -d= -f2- || true)"
+  if [[ "$public_url" == https://* && "$cookie_secure" != "true" ]]; then
+    die "JC_PUBLIC_URL is https but JC_COOKIE_SECURE=${cookie_secure:-unset} — sessions will not persist.
+       Set JC_COOKIE_SECURE=true in ${SERVER_ROOT}/.env."
+  fi
+  if [[ "$public_url" == http://* && "$cookie_secure" == "true" ]]; then
+    die "JC_COOKIE_SECURE=true but JC_PUBLIC_URL is plain http — the browser will drop every cookie."
+  fi
+
+  daemon_start backend "$PIDFILE" "$LOGFILE" "$MARKER" check_health - \
+    "${VENV}/bin/python" -m uvicorn jc.main:app \
+    --app-dir "${SERVER_ROOT}/src" \
+    --host "$API_HOST" --port "$API_PORT" \
+    --workers "$API_WORKERS" \
+    --proxy-headers --forwarded-allow-ips='127.0.0.1'
+    # The `-` above means "trust $!, no pid resolver needed": uvicorn's master
+    # process supervises its workers for the whole run and never hands off and
+    # exits the way `next start` does (see frontend.sh), so $! stays valid.
+}
+
+case "${1:-}" in
+  start) cd "$SERVER_ROOT"; cmd_start ;;
+  stop) daemon_stop backend "$PIDFILE" ;;
+  restart) daemon_stop backend "$PIDFILE"; cd "$SERVER_ROOT"; cmd_start ;;
+  status) daemon_status backend "$PIDFILE" "$MARKER" ;;
+  *) die "usage: $0 start|stop|restart|status" ;;
+esac

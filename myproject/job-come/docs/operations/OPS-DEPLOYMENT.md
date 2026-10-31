@@ -48,43 +48,32 @@ certbot certonly --webroot -w /var/www/certbot -d jc.sspacee.com
 
 ## 2. 生产构建与启动
 
+三个脚本覆盖全部日常操作：`deploy.sh`（装依赖、跑 migration、构建前端，不启动任何进程）、
+`backend.sh`、`frontend.sh`（各自 `start|stop|restart|status`，PID 文件追踪，**不需要
+systemd、不需要 sudo**——两者都基于 PID 文件自行管理进程，这也是实际部署环境
+（无 sudo 权限的云主机）验证过的路径）。
+
 ### 服务器只需要 job-come 这一个目录
 
 `agentkit`、`deerflow-harness`、`deerflow-extension-api` 三个包以**预编译 wheel**
-的形式提交在 `backend/server/wheels/`（约 2.8MB），`pyproject.toml` 从这些 wheel 取源：
+的形式提交在 `backend/server/wheels/`（约 2.8MB），`pyproject.toml` 从这些 wheel 取源，
+所以 `deploy.sh` 跑的 `uv sync --frozen --no-dev --no-editable` 是一次普通的 Python
+项目安装——**不需要 `libs/agentkit`、不需要 monorepo 源码、不需要在意目录深度**。
 
-```toml
-[tool.uv.sources]
-agentkit = { path = "wheels/agentkit-0.1.0-py3-none-any.whl" }
-```
-
-所以部署机上：
-
-```bash
-cd backend/server && uv sync --frozen --no-dev --no-editable
-```
-
-就是一个普通的 Python 项目安装——**不需要 `libs/agentkit`、不需要 monorepo 源码、
-不需要在意目录深度**。执行 `./scripts/install-production.sh` 即可，它跑的就是这条命令。
-
-### 何时需要重建 wheel（在 dev 机器上）
-
-改了 vendored DeerFlow 或 `libs/agentkit` 的源码之后：
+改了 vendored DeerFlow 或 `libs/agentkit` 源码之后，在**有完整 monorepo 的机器**上：
 
 ```bash
 ./scripts/build-release.sh --update    # 重建 wheel + 改写版本 pin + 重新 lock
 ```
 
-不重建的后果是**静默的**：装得上、import 得通，跑的还是旧代码。建议把这条接进 CI：
-
-```bash
-./scripts/build-release.sh --check     # 源码版本与 wheel 不符则失败
-```
+不重建的后果是**静默的**：装得上、import 得通，跑的还是旧代码。`--check` 只校验不重建，
+适合接进 CI。
 
 ### 首次部署
 
-先把 `job-come` 目录传到服务器（monorepo 没有可 `git clone` 的私有远端——
-唯一配置的 `origin` 是公开的 `github.com/langchain-ai/deepagents` 上游，不是部署目标）：
+job-come 没有独立 git 仓库，是嵌在 deepagents monorepo 里的一个目录，而该 monorepo
+唯一配置的远端是公开的 `github.com/langchain-ai/deepagents`——那是上游开源项目，
+不是部署目标，不能也不该往那推送。代码走 `rsync` 到服务器：
 
 ```bash
 # 在 dev 机器：
@@ -96,40 +85,22 @@ rsync -avz --exclude 'node_modules' --exclude '.next' --exclude '__pycache__' \
 ```bash
 # 在服务器：
 cd /opt/jc
-./scripts/install-production.sh        # uv sync --frozen，三个本地包从 wheels/ 解析
 cp backend/server/.env.example backend/server/.env   # 然后填写生产配置
-./scripts/start-production.sh          # migration + npm ci + build + 启动两个进程
+./scripts/deploy.sh
+./scripts/backend.sh start
+./scripts/frontend.sh start
 ```
 
-`install-production.sh` **只装 Python 依赖**，不构建前端、不启动任何进程。
-构建与启动在 `start-production.sh`：它按顺序做 Alembic migration、`npm ci`、
-`npm run build`，再前台拉起 uvicorn 与 `next start`。
+`deploy.sh` 启动前会校验 `NEXT_PUBLIC_SITE_URL`（未设或是 localhost 就拒绝构建——
+否则生成的 sitemap/canonical 全指向 localhost，几周后才以「一条都没收录」的形式暴露）；
+`backend.sh start` 启动前会校验 `JC_COOKIE_SECURE` 与 `JC_PUBLIC_URL` 协议是否一致
+（不一致要么丢登录态要么浏览器直接拒收 cookie）。两者都不通过就直接报错退出，不会
+带着错误配置硬启动。
 
-启动前它会先校验两件最容易出错且报错最晚的配置，不通过直接拒绝启动：
-
-- `NEXT_PUBLIC_SITE_URL` 未设或是 localhost —— 否则构建出的 sitemap 与 canonical
-  全指向 localhost，几周后才以「一条都没收录」的形式暴露
-- `JC_COOKIE_SECURE` 与站点协议不匹配 —— https 站点配 `false` 会丢掉所有登录态，
-  而症状（页面能开、登录不生效）离病因很远
-
-### 常驻运行（推荐）
-
-前台脚本适合首次部署与排障；长期运行用 `deploy/systemd/` 下的两个 unit，
-分开托管两个进程（一个脚本同时持有两者时，任一崩溃会带走另一个）：
-
-```bash
-sudo cp deploy/systemd/jc-{api,web}.service /etc/systemd/system/
-sudo systemctl daemon-reload && sudo systemctl enable --now jc-api jc-web
-```
-
-unit 里的 `WorkingDirectory`、`User`、venv 路径按目标机器修改；密钥仍只在
-`backend/server/.env`，由 `EnvironmentFile` 加载，不入仓库。
+`start` 会自检：`backend.sh` 轮询 `/health` 最多 30s，`frontend.sh` 轮询首页响应，
+失败会打印最近日志并以非零退出——不会把"进程起来了"误报成"服务正常"。
 
 ### 发布一次新版本
-
-job-come 没有独立 git 仓库，是嵌在 deepagents monorepo 里的一个目录，而该
-monorepo 唯一配置的远端是公开的 `github.com/langchain-ai/deepagents`——那是
-上游开源项目，不是部署目标，不能也不该往那推送。代码走 `rsync` 到服务器。
 
 ```bash
 # 在 dev 机器（改过 vendored DeerFlow / agentkit 的话先跑 build-release.sh --update）：
@@ -140,17 +111,27 @@ rsync -avz --exclude 'node_modules' --exclude '.next' --exclude '__pycache__' \
 ```bash
 # 在服务器：
 cd /opt/jc
-./scripts/install-production.sh
-./scripts/start-production.sh --build-only
-sudo systemctl restart jc-api jc-web
+./scripts/deploy.sh
+./scripts/backend.sh restart
+./scripts/frontend.sh restart
 ```
 
-**`--build-only` 不能省。** `next start` 读的是 `.next` 目录，不重新构建就
-`systemctl restart`，服务会静默继续提供上一个版本——没有任何报错。
+`restart` 内部是「先 stop 再 start」，同样带自检；`deploy.sh` 不能省——`next start`
+读的是 `.next` 目录，不重新构建就 `restart`，服务会静默继续提供上一个版本，没有
+任何报错。
+
+### 日常运维
+
+```bash
+./scripts/backend.sh status     # 或 frontend.sh status
+```
+
+日志固定在 `.data/logs/production/{api,web}.log`；PID 文件在 `.data/run/{api,web}.pid`。
 
 ### 验证
 
 ```bash
+./scripts/backend.sh status && ./scripts/frontend.sh status
 curl -sf http://127.0.0.1:8000/health && echo API-OK
 curl -sI http://jc.sspacee.com/ | head -1
 curl -s http://jc.sspacee.com/sitemap.xml | head -5    # 确认不是 localhost
@@ -160,10 +141,20 @@ curl -s http://jc.sspacee.com/sitemap.xml | head -5    # 确认不是 localhost
 
 ### 端口约定
 
-`3000`（web）与 `8000`（API）在四处必须一致：Nginx 的 `upstream`、
-`start-production.sh` 的默认值、两个 systemd unit。改一处就要改四处。
+`3000`（web）与 `8000`（API）在三处必须一致：Nginx 的 `upstream`、
+`backend.sh`/`frontend.sh` 的默认值（`JC_API_PORT`/`JC_WEB_PORT` 可覆盖）。改一处就要改三处。
 注意 **dev 的 API 端口是 8001**（`dev.sh`），与生产不同，这是有意的——
 本地起着 dev 时不会占用生产端口。
+
+### 一个真实踩过的坑：不要用 `$!` 追踪 `next start` 的 PID
+
+`next start` 的 CLI 进程会 fork 出真正长期运行的 `next-server`，然后**自己退出**——
+`$!` 捕获到的是那个已经退出的 launcher PID，而不是真正监听端口、一直存活的进程。
+实测复现：健康检查第一次能通过（此时 launcher 还没退出），但几秒后用 `$!` 再查就会
+误判成"进程已死"，即使服务其实一直在正常响应。`uvicorn` 没有这个问题（master 进程
+整个生命周期都存在，不会中途交接退出）。`frontend.sh` 的修法是健康检查通过后用
+`lsof -t -iTCP:$PORT -sTCP:LISTEN` 反查端口上真正的监听 PID，而不是信任 `$!`
+（见 `scripts/lib/daemon.sh` 的 `daemon_start`）。
 
 ## 3. 必需环境配置
 
