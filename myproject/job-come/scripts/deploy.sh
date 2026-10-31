@@ -4,9 +4,14 @@
 # inspect a build before flipping the running service onto it.
 #
 # Usage:
-#   ./scripts/deploy.sh                # everything
-#   ./scripts/deploy.sh --skip-backend # frontend build + install only
-#   ./scripts/deploy.sh --skip-frontend
+#   ./scripts/deploy.sh                  # everything
+#   ./scripts/deploy.sh --skip-backend   # frontend build only
+#   ./scripts/deploy.sh --skip-frontend  # backend install + migrate only
+#   ./scripts/deploy.sh --python-default # also make CPython 3.12 this user's python3
+#
+# Python: needs 3.12.x. The system python3 is never modified; uv installs a private
+# 3.12 on first deploy. --python-default additionally puts shims in ~/.local/bin so a
+# new shell's `python3` is 3.12 too (existing shells need `source ~/.local/bin/env`).
 #
 # After this: ./scripts/backend.sh restart && ./scripts/frontend.sh restart
 set -euo pipefail
@@ -20,11 +25,13 @@ die() { printf '[deploy] ERROR: %s\n' "$*" >&2; exit 1; }
 
 DO_BACKEND=true
 DO_FRONTEND=true
+PYTHON_DEFAULT=false
 for arg in "$@"; do
   case "$arg" in
     --skip-backend) DO_BACKEND=false ;;
     --skip-frontend) DO_FRONTEND=false ;;
-    -h|--help) sed -n '2,12p' "$0"; exit 0 ;;
+    --python-default) PYTHON_DEFAULT=true ;;
+    -h|--help) sed -n '2,16p' "$0"; exit 0 ;;
     *) die "unknown argument: $arg" ;;
   esac
 done
@@ -33,6 +40,21 @@ command -v uv >/dev/null 2>&1 || die "uv is required (https://docs.astral.sh/uv/
 
 if [[ "$DO_BACKEND" == true ]]; then
   VENV="${JC_VENV:-${SERVER_ROOT}/.venv}"
+  # shellcheck source=lib/python_env.sh
+  source "${JC_ROOT}/scripts/lib/python_env.sh"
+  # `--python-default` (opt-in) also makes uv's 3.12 what plain `python3` resolves
+  # to for this user, via shims in ~/.local/bin. Left off by default because it
+  # changes the user's PATH resolution; --update-style surprises are worse than an
+  # explicit flag.
+  ensure_args=()
+  [[ "$PYTHON_DEFAULT" == true ]] && ensure_args=(--install-default)
+  # `${arr[@]+"${arr[@]}"}` not `"${arr[@]}"`: bash 3.2 (macOS /bin/bash) treats an
+  # empty array under `set -u` as an unbound variable and aborts the script.
+  jc_ensure_python ${ensure_args[@]+"${ensure_args[@]}"} || die "no Python 3.12 and uv could not install one.
+       Required by pyproject.toml (>=3.12,<3.13). The system python3 is deliberately
+       left alone — apt/yum depend on it — and uv installs a private 3.12 instead.
+       To also make it this user's default: ./scripts/deploy.sh --python-default"
+  log "python: ${JC_PYTHON_BIN} ($("$JC_PYTHON_BIN" -V 2>&1))"
 
   if ! compgen -G "${SERVER_ROOT}/wheels/*.whl" >/dev/null; then
     die "no wheels in ${SERVER_ROOT}/wheels/.

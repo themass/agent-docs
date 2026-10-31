@@ -41,6 +41,17 @@ cmd_start() {
   [[ -x "${VENV}/bin/python" ]] || die "no venv at ${VENV} — run ./scripts/deploy.sh first"
   [[ -f "${SERVER_ROOT}/.env" ]] || die "missing ${SERVER_ROOT}/.env"
 
+  # The venv's interpreter, not the system `python3`: they are unrelated once
+  # the venv exists, and on a host whose python3 is 3.10 the two versions in
+  # play are far enough apart that "which one is this actually running on" is
+  # a question worth answering in the log rather than at the next crash.
+  local py_version
+  py_version="$("${VENV}/bin/python" -c 'import sys; print("%d.%d.%d" % sys.version_info[:3])' 2>/dev/null || true)"
+  [[ -n "$py_version" ]] || die "${VENV}/bin/python does not run — the venv is broken, re-run ./scripts/deploy.sh"
+  [[ "$py_version" == 3.12.* ]] || die "venv runs Python ${py_version}, project requires 3.12.x.
+       Rebuild it: rm -rf ${VENV} && ./scripts/deploy.sh --skip-frontend"
+  log "python: ${VENV}/bin/python (${py_version})"
+
   # Checked on every start, not only at deploy time, because it is read from
   # .env — a file someone can edit without re-running deploy.sh — and the
   # failure it prevents (pages load, every login silently fails to persist)

@@ -69,6 +69,26 @@ systemd、不需要 sudo**——两者都基于 PID 文件自行管理进程，�
 不重建的后果是**静默的**：装得上、import 得通，跑的还是旧代码。`--check` 只校验不重建，
 适合接进 CI。
 
+### Python 3.12（唯一需要关心的运行时前置）
+
+项目要求 `>=3.12,<3.13`。部署机的 `python3` 常常更旧（Ubuntu 20.04 是 3.10，CentOS 8 是 3.6），
+但**不要去升级系统解释器**：apt/yum 自己的工具链绑在它上面，换掉会在别处、在之后才炸。
+
+`deploy.sh` 的处理是：先找已有的 uv 3.12，找不到就让 `uv python install 3.12` 装一份私有的到用户目录，
+再把项目 venv 建在这份解释器上（`scripts/lib/python_env.sh`）。全程不碰系统 Python，也不需要 sudo。
+
+想让这个用户的 `python3` 直接就是 3.12（例如以后手动跑脚本），加一次 `--python-default`：
+
+```bash
+./scripts/deploy.sh --python-default
+```
+
+它在 `~/.local/bin` 写 shim。**已经打开的 shell 不会生效**，需要 `source ~/.local/bin/env` 或重新登录；
+新窗口就是 3.12。这是一个纯用户级 PATH 变更，删掉那个目录即可撤销。
+
+`backend.sh start` 会打印实际使用的解释器和版本，并在 venv 不是 3.12 时直接报错退出，
+而不是等到某个依赖 import 失败才暴露。
+
 ### 首次部署
 
 job-come 没有独立 git 仓库，是嵌在 deepagents monorepo 里的一个目录，而该 monorepo
