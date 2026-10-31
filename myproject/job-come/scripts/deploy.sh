@@ -106,6 +106,14 @@ fi
 if [[ "$DO_FRONTEND" == true ]]; then
   command -v npm >/dev/null 2>&1 || die "npm not found in PATH"
 
+  # The Next.js CLI prompts interactively the first time it runs on a machine
+  # ("Would you like to send anonymous usage data to Vercel? (Y/n)") whenever
+  # stdout is a TTY — true for `npm run build` run attached to a live SSH
+  # session. The heartbeat wrapper keeps printing progress from its own timer
+  # regardless, so the result looks identical to a slow build instead of what
+  # it actually is: blocked forever on a keypress nobody is watching for.
+  export NEXT_TELEMETRY_DISABLED=1
+
   # Refuse to build with a localhost site URL: NEXT_PUBLIC_SITE_URL is baked into
   # the build (canonical tags, sitemap, OG urls) and has a silent localhost
   # fallback, so an unset value only shows up weeks later as "nothing got indexed".

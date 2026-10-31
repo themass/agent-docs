@@ -67,6 +67,7 @@ cmd_start() {
   # pointed at the real port anyway so a stray direct hit does not silently proxy
   # to the dev default 8001 (far harder to diagnose than a clean 502).
   JC_API_PROXY_TARGET="http://127.0.0.1:${API_PORT}" \
+  NEXT_TELEMETRY_DISABLED=1 \
     daemon_start frontend "$PIDFILE" "$LOGFILE" "$MARKER" check_health resolve_web_pid \
     "$next_bin" start --port "$WEB_PORT"
 }
