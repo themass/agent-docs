@@ -57,9 +57,11 @@ certbot certonly --webroot -w /var/www/certbot -d jc.sspacee.com
 
 - **推荐：发布包**（见下）——在有完整 monorepo 的机器上把这三个包编成 wheel，
   部署机不碰源码，`install-production.sh` 检测到 `dist/` 就自动走这条路。
-- **兜底：带着源码**——部署机也 clone 整个 monorepo（含 `libs/`），
+- **兜底：带着源码**——部署机也把整个 monorepo（含 `libs/`）用 `rsync` 传过去，
   `install-production.sh` 检测不到 `dist/` 时自动退回 `uv sync --frozen --no-editable`。
-  适合临时在一台已有完整 checkout 的机器上部署。
+  适合临时在一台机器上部署。monorepo 没有可供服务器 `git clone` 的私有远端——
+  唯一配置的 `origin` 是公开的 `github.com/langchain-ai/deepagents` 上游仓库，
+  不是部署目标——所以这条路径也是靠 `rsync`，不是 `git clone`。
 
 ### 构建发布包（在 dev 机器 / 有 monorepo 的机器上）
 
@@ -78,7 +80,19 @@ rsync -avz dist/ user@server:/opt/jc/dist/
 
 ### 首次部署
 
+先把 `job-come` 目录本身传到服务器——这一步前面的「构建发布包」只同步了
+`dist/`，源码还没传。同样用 `rsync`，不是 `git clone`：
+
 ```bash
+# 在 dev 机器：
+rsync -avz --exclude 'node_modules' --exclude '.next' --exclude '__pycache__' \
+  --exclude 'dist' /Users/gqli/work/deepagents/docs/myproject/job-come/ \
+  user@server:/opt/jc/
+rsync -avz dist/ user@server:/opt/jc/dist/
+```
+
+```bash
+# 在服务器：
 cd /opt/jc
 ./scripts/install-production.sh        # 有 dist/ 用发布包；没有则退回源码安装
 cp backend/server/.env.example backend/server/.env   # 然后填写生产配置
@@ -111,15 +125,22 @@ unit 里的 `WorkingDirectory`、`User`、venv 路径按目标机器修改；密
 
 ### 发布一次新版本
 
+job-come 没有独立 git 仓库，是嵌在 deepagents monorepo 里的一个目录，而该
+monorepo 唯一配置的远端是公开的 `github.com/langchain-ai/deepagents`——那是
+上游开源项目，不是部署目标，不能也不该往那推送。代码和 `dist/` 一样，走
+`rsync` 到服务器，不走 `git pull`。
+
 ```bash
 # 在 dev 机器：
-./scripts/build-release.sh && rsync -avz dist/ user@server:/opt/jc/dist/
+./scripts/build-release.sh
+rsync -avz --exclude 'node_modules' --exclude '.next' --exclude '__pycache__' \
+  --exclude 'dist' . user@server:/opt/jc/
+rsync -avz dist/ user@server:/opt/jc/dist/
 ```
 
 ```bash
 # 在服务器：
 cd /opt/jc
-git pull    # 只更新代码本身；dist/ 走 rsync 不走 git
 ./scripts/install-production.sh
 ./scripts/start-production.sh --build-only
 sudo systemctl restart jc-api jc-web
