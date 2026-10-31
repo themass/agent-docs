@@ -6,6 +6,9 @@
 
 ---
 
+
+> **当前源码校正（2026-10-31）**：本文原有版本基线较旧。当前主链、DeltaChannel 消息状态、Provider/Harness Profile、异步子 Agent 的 enqueue follow-up、`notify_parent`/`webhook` 以及权限与 symlink 双重检查，请以 [v0.7.32 源码更新与架构补全](./DEEPAGENTS_V0.7.32_UPDATE.md) 为准。原文内容保留作为历史设计背景。
+
 ## 阅读地图
 
 | 章节 | 内容 |

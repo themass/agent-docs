@@ -6,6 +6,9 @@
 
 ---
 
+
+> **当前源码校正（2026-10-31）**：CLI/App 的版本基线已从 0.6.6 之后继续演进；不要把产品层会话文件等同于 SDK checkpoint。SDK 的 `messages`、LangGraph checkpoint、Store 和 Backend 的边界见 [v0.7.32 源码更新与架构补全 §3](./DEEPAGENTS_V0.7.32_UPDATE.md#3-状态消息checkpointstore四件事的边界)。
+
 ## 阅读地图
 
 | 章节 | 内容 |

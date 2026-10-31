@@ -24,6 +24,10 @@
 | 崩溃/重启后会 restore 吗？结果如何回聊天/页面？ | [§4.13 恢复](#sec-7-kanban-recovery) · [§4.14 通知/wake](#sec-7-kanban-delivery) |
 | 能否把一张任务从创建到验收完整走一遍？ | [§4.15 示例](#sec-7-kanban-example) |
 | 看板还有哪些功能？接下来从哪里读源码？ | [§4.16 能力清单](#sec-7-kanban-surface) · [§4.17 源码地图](#sec-7-kanban-reading-map) |
+| 模型到底看见哪些看板工具？人工能把卡拖到哪一列？ | [§4.18 工具面](#sec-7-kanban-toolface) · [§4.19 移动矩阵](#sec-7-kanban-workflow) |
+| 失败、超时、断线各烧哪本账？哪些只是暂停？ | [§4.20 失败账本](#sec-7-kanban-ledger) · [§4.23 诊断信号](#sec-7-kanban-diagnostics) |
+| 卡片执行正在搬进 profile 网关意味着什么？多网关怎么分工？ | [§4.21 owner 准入](#sec-7-kanban-owner-admission) · [§4.22 多网关](#sec-7-kanban-multi-gateway) |
+| 第三方看板插件能碰什么数据？最近改了什么？ | [§4.24 插件生态](#sec-7-kanban-plugins) · [§4.25 变更台账](#sec-7-kanban-changelog) |
 | MoA、busy、steer、聊天租约与以上机制如何区别？ | [§5 MoA](#5-moa多模型参考仍是一轮父-agent) · [§6 忙时与租约](#6-与-busy--steer--租约) · [§7 核心类索引](#7-包与核心类) |
 
 ### 目录（锚点跳转）
@@ -32,7 +36,7 @@
 - **§1** [架构流程](#1-架构流程)  
 - **§2** [谁调用谁](#2-谁调用谁)  
 - **§3** [delegate_task E2E](#sec-7-delegate-lifecycle) — [3.1](#31-子-agent-prompt--工具面权威) · [3.2](#32-tui-子会话镜像呈现) · [3.3](#33-插件-hook子集)
-- **§4** [Kanban 整体设计与 worker 全链路](#4-看板-worker-端到端) — 架构、数据、依赖、调度、执行、审核、恢复、通知与完整示例
+- **§4** [Kanban 整体设计与 worker 全链路](#4-看板-worker-端到端) — 架构、数据、依赖、调度、执行、审核、恢复、通知与完整示例 — [4.18 工具面](#sec-7-kanban-toolface) · [4.19 移动矩阵](#sec-7-kanban-workflow) · [4.20 失败账本](#sec-7-kanban-ledger) · [4.21 owner 准入](#sec-7-kanban-owner-admission) · [4.22 多网关](#sec-7-kanban-multi-gateway) · [4.23 诊断](#sec-7-kanban-diagnostics) · [4.24 插件](#sec-7-kanban-plugins) · [4.25 台账](#sec-7-kanban-changelog)
 - **§5** [MoA](#5-moa多模型参考仍是一轮父-agent)  
 - **§6** [busy / steer / 租约](#6-与-busy--steer--租约) — [6.1](#sec-7-6-1) · [6.2](#sec-7-6-2) · [6.3](#sec-7-6-3)  
 - **§7** [包与核心类](#7-包与核心类)  
@@ -777,6 +781,299 @@ Dashboard 后端入口是 `plugins/kanban/dashboard/plugin_api.py` 的 FastAPI `
 | 页面为何会更新 | `plugins/kanban/dashboard/plugin_api.py::stream_events` → `apps/desktop/src/plugins/kanban/api.ts / board.tsx` |
 
 **本专题总结**：Kanban 的主轴不是“多开几个 Agent”，而是 **持久任务图 → 受约束认领 → 独立执行 → 显式交接/结算 → 对账恢复 → 按目的地交付**。与卷三的工作区 messages/SessionDB、卷六的聊天队列、卷八的在线审批相邻，但状态和所有权不能互相替代。
+---
+
+<a id="sec-7-kanban-toolface"></a>
+### 4.18 模型侧工具面：15 个 `kanban_*` 工具各自被谁看见？
+
+§4.9 讲了 worker 怎样被启动，这里补上**模型实际拿到的工具契约**，因为「谁看得见哪个工具」本身就是权限设计。schema 定义在 `tools/kanban_tools_schemas.py`（面向模型的字符串，byte-frozen），实现在 `tools/kanban_tools.py`。
+
+| 工具 | 必填 | 语义要点 | 可见范围 |
+|---|---|---|---|
+| `kanban_show` | — | 读整张卡：标题/正文/负责人/前置交接/自己以往尝试/评论/近期事件，并返回可直接引用的 `worker_context` 字符串 | worker + 编排者 |
+| `kanban_list` | — | 编排者发现可路由工作；默认 50 行、上限 200，带截断元数据；列出前会重算 ready | **仅编排者** |
+| `kanban_complete` | schema 无必填；**运行时**要求 `summary`/`result` 至少一个 | `metadata` 放机器可读事实；`created_cards` 由内核核验存在性（防幻影引用）；`artifacts` 声明交付物 | worker（自己的卡）+ 人工/CLI |
+| `kanban_block` | `reason` | `kind` 四选一决定路由；同类复发会升级 triage | worker |
+| `kanban_schedule` | — | 停放：**不创建定时器**，只是让卡片不可派工，唤醒标记写进 `reason` | worker |
+| `kanban_request_review` | `summary` | 送审；**不计入** unblock-loop 计数，所以反复送审不会被误升级 triage | worker |
+| `kanban_request_changes` | `reason` | 审核者裁决：关闭审核 Run、重加前置门禁、退回原实现者，不走 block 计数 | 仅从 review 认领的 Run |
+| `kanban_heartbeat` | — | 长操作的活性信号，纯副作用 | worker |
+| `kanban_comment` | `task_id`, `body` | 跨尝试持久；临时推理不该写这里 | worker（自己的卡）；对他人卡片是编排者能力 |
+| `kanban_attach` / `kanban_attach_url` / `kanban_attachments` | `filename` + `content_base64` / `url` / — | 真实附件（25 MB 上限），不是评论里的链接 | worker + 编排者 |
+| `kanban_create` | `title`, `assignee` | 扇出；有未完成前置时返回 `gated: true` + `gated_by` | **仅编排者** |
+| `kanban_unblock` | `task_id` | 回原阶段（review/ready）或前置未清时回 todo | **仅编排者** |
+| `kanban_link` | `parent_id`, `child_id` | 事后加边；已 running 的子卡被拒（边无法串行化已开始的 Run） | **仅编排者** |
+
+所有工具都带可选 `board` 参数，用于显式覆盖 env 固定的活动板；**显式参数压过 env pin**（见 §4.3 的 pin-first 讨论）。
+
+**schema 的 `required` 与领域门禁不是一回事**：`kanban_complete` 在 schema 里没有必填项，但「必须有交接证据」这条规则住在 `kanban_db` 的领域函数里；`kanban_request_changes` 的「必须是当前从 review 认领的 Run」、`kanban_link` 的「拒绝 running 子卡」同理。只读 JSON schema 会低估约束，权限与证据门禁要回到领域层核对。
+
+**默认零 schema 足迹**：普通 `hermes chat` 会话里这 15 个工具一个都不注入。注入条件是 `HERMES_KANBAN_TASK`（dispatcher 派工的 worker）或 profile 显式启用 `kanban` toolset（编排者）。`tools/kanban_toolset_context.py` 用 ContextVar 而不是进程环境变量携带「本次 schema 构建是否显式点名 kanban」，因为网关会在同一 profile 内并发为多个平台构建 schema。
+
+**为什么不让模型 shell out 到 `hermes kanban`**（官方给的三条理由，属于设计解释）：① terminal 后端可能是 Docker/Modal/SSH，容器里没有 `hermes` 也没挂 board DB；② 避免 `--metadata '{...}'` 过 shlex+argparse 的引号地雷；③ 工具结果是结构化 JSON，模型能推理，而不是要解析的 stderr。
+
+**同一 lineage 的下游进程被栅栏**：带 `HERMES_DELEGATED_CHILD_CONTEXT`（见 `agent/delegation_context.py`）的进程即使继承 `HERMES_KANBAN_TASK`，也拿不到 worker 指导块，其自动心跳会记一次 `refused` 警告，`kanban_complete` / `kanban_request_review` 直接拒绝。修法是让 dispatcher 重新派工，而不是把标记删掉继续跑。
+
+<a id="sec-7-kanban-workflow"></a>
+### 4.19 人工移动矩阵与 workflow 单一真源
+
+§4.4 的状态表回答「每列意味着什么」，但**人在面板上能把卡片拖到哪一列**是另一张表，来源是 `hermes_cli/kanban_workflow.py` 的 `kanban_workflow.DEFAULT_WORKFLOW`。这一模块 2026-09-24 落地（`96db175da7`），把此前散落的 `VALID_STATUSES`、board 列定义、工具 enum、CLI 图标收敛成一处。
+
+`kanban_workflow.Column` 保存 `key`（写进 `tasks.status`，稳定标识）、`label`（仅展示）、`icon`（CLI 单字形）、`drag_target`（是否作为拖拽/菜单目标）。默认列与顺序：
+
+| 顺序 | key | 标签 | 图标 | `drag_target` | 为什么不是拖拽目标 |
+|---|---|---|---|---|---|
+| 1 | `triage` | Triage | ◇ | ✅ | — |
+| 2 | `todo` | Todo | ◻ | ✅ | — |
+| 3 | `scheduled` | Scheduled | ⏱ | ❌ | 需要唤醒条件，属额外输入动词 |
+| 4 | `ready` | Ready | ▶ | ✅ | — |
+| 5 | `running` | Running | ● | ❌ | 内核专属，人工不能直接置位 |
+| 6 | `blocked` | Blocked | ⊘ | ✅ | — |
+| 7 | `review` | Review | ◎ | ❌ | 需要 reviewer |
+| 8 | `done` | Done | ✓ | ✅ | — |
+
+人工移动 allow-list（`kanban_workflow.can_move`，源 → 允许目标；归档到 `archived` 永远允许且不在表内）：
+
+| 源 | 允许目标 |
+|---|---|
+| `triage` | todo, ready |
+| `todo` | triage, scheduled, ready |
+| `scheduled` | triage, todo, ready |
+| `ready` | triage, todo, scheduled, blocked, review, done |
+| `running` | triage, todo, scheduled, ready, blocked, review, done |
+| `blocked` | triage, todo, scheduled, ready, done |
+| `review` | triage, todo, ready, done |
+| `done` | triage, todo, ready |
+| `archived` | triage, todo, ready（从归档筛选恢复） |
+
+读这张表必须注意四点，都是源码里明确写下的：
+
+1. **`archived` 不是列**，是筛选开关，但允许作为移动**源**（恢复）；`Workflow.keys()` 永不含它，`Workflow.validate()` 还禁止自定义工作流把它当列名。
+2. **允许 ≠ 保证**：动词自身的门禁（未完成父任务、完成证据、goal 门禁）仍会拒绝。
+3. **已知怪癖被刻意保留**：`review → todo` 实际落在 `ready`（`reopen_review_task` 忽略请求目标），注释写明 Phase 1 修；矩阵测试不掩盖它。
+4. `can_move` 对**所有状态全定义**（total），`hermes kanban stats` 的列从工作流派生，因此不会出现「DB 里有状态但统计缺列」。
+
+**这块刻意没有建模的东西**（模块 docstring 原文意思）：列对 dispatcher 的内核含义（可认领、终结、父门禁）与内核驱动的转移（约 20 处条件状态写：block 路由、崩溃/回收回位、父重开、导入）都**不在这里**，要和内核切换一起设计，「本模块绝不发布半成品契约」。2026-10-01 两个回退（丢掉未执行的 column traits、丢掉部分内核事件模型）就是这条原则的执行证据。
+
+面板通过 `GET /api/plugins/kanban/workflow` 读同一份定义（`plugins/kanban/dashboard/plugin_api.py` 的 `get_workflow`），注释说明所有板今天都用默认工作流，**每板自定义工作流（`board.json`）是后续阶段**，不要从接口存在推断已支持任意自定义流转。
+
+<a id="sec-7-kanban-ledger"></a>
+### 4.20 失败与暂停账本：哪些计入熔断、哪些只是 hold？
+
+§4.13 给了对账现场的分类，这里把**一次派工尝试是怎么被记账的**摊开，因为「重试次数」这个词掩盖了至少四套互不相同的账。常量都在 `hermes_cli/kanban_db_dispatch.py` 顶部。
+
+**worker 退出码即协议**（dispatcher-spawned worker）：
+
+| 退出码 | 含义 | 记账 |
+|---|---|---|
+| 0 但卡片仍 `running` | 协议违例（模型输出文本就退出，没做终结性看板调用） | `protocol_violation` 事件 + 独立连续违例预算 `_PROTOCOL_VIOLATION_FAILURE_LIMIT = 3`，超预算 `gave_up` 并 sticky blocked |
+| 0 且已终结 | 正常 | Run 按终结类型关闭 |
+| 1 | 普通失败 | 计入 `consecutive_failures` |
+| 75 `EX_TEMPFAIL` | provider 限流/过载/5xx/超时/配额账单墙 | run 记 `rate_limited`，**不计失败**，回 ready |
+| 78 `EX_CONFIG` | provider 拒绝了重试也修不好的东西（凭据 401/403、模型 404、TLS 链） | **首次即熔断**：run 记 `crashed` + `exit_kind: terminal_provider`，`gave_up` 带 `terminal_provider: true`，卡片 sticky blocked（`recompute_ready` 不会自动恢复） |
+
+worker 还会把退出码写进自己日志的最后一行 `[kanban-worker-exit] rc=<code>`，这样「每 tick 跑一次 `hermes kanban dispatch`、从未回收过该进程、读不到退出状态」的部署方式也能同样记账；在那之前就被杀掉的进程按普通 `crashed` 处理。内核伪文件与文本读取都强制 UTF-8 解码（避免 Windows/语言环境把这条尾行读成乱码）。
+
+**四类账，各自阈值**：
+
+| 账本 | 位置 | 默认阈值 | 触发后果 | 是否计入任务失败 |
+|---|---|---|---|---|
+| 熔断 `gave_up` | `DEFAULT_FAILURE_LIMIT` | 2 | blocked，带最后一次错误 | ✅ |
+| 协议违例 | `_PROTOCOL_VIOLATION_FAILURE_LIMIT` | 3（只数**连续**干净退出违例，中间穿插 rate-limited 重排中性、其他失败种类重置连续段） | `gave_up` + sticky blocked | 独立预算 |
+| 阻塞复发 | `kanban_db.py` 的 `BLOCK_RECURRENCE_LIMIT` | 2 | 路由到 `triage` 而不是 `blocked`，防 cron 无限转圈 | ❌（**只有成功完成才清零**；unblock 清零正是让循环无界的失忆） |
+| 陈旧活性 | `kanban_db_dispatch.py` 的 `_STALE_HEARTBEAT_GAP_SECONDS` + `dispatch_stale_timeout_seconds` | 心跳间隔 3600 s / 超时 4 h | `detect_stale_running` 回源阶段、Run 关闭 `outcome='stale'`、必要时终止本机 worker | ❌（调度侧缺席检测不是 worker 过错） |
+
+**只做 hold、不烧预算的暂停**（`respawn_guarded` 事件携带 reason）：
+
+| reason | 条件 | 常量 |
+|---|---|---|
+| `blocker_auth` | 上次失败文本命中配额/鉴权族正则 | `_RESPAWN_BLOCKER_RE`（刻意用枚举词表，不用 `auth\w*` 开集：那个词根会匹配 "author/authoritative"，曾把健康卡片永久停放） |
+| `recent_success` | 1 小时内有成功 Run | `_RESPAWN_GUARD_SUCCESS_WINDOW = 3600` |
+| `active_pr` | 近期评论出现 GitHub PR URL | `_RESPAWN_GUARD_PR_WINDOW = 86400` |
+| `rate_limit_cooldown` | 刚被配额墙重排 | `DEFAULT_RATE_LIMIT_COOLDOWN_SECONDS = 300`，可用 `HERMES_KANBAN_RATE_LIMIT_COOLDOWN_SECONDS` 覆盖 |
+| `infrastructure_cooldown` | 宿主拒绝安置 worker（无 restart-safe scope） | 同上窗口 |
+
+`recent_success` 与 `active_pr` 只拦 **ready** 列：它们是「送审的输入信号」，不是对送审本身的阻止。要让 reviewer/closer 接手已开 PR 的卡，用 `request-review`（`ready` 也接受）或先 `assign` 给该 profile——**在 PR 评论之后发生的分派会解除该卡当前负责人的 `active_pr`**，因为那张 PR 正是它要做的活；只有换成**不同** profile 才算，重复分给同一 profile、取消分派、dispatcher 自己的 `default_assignee` 填充都不解除。
+
+**其他容易漏的记账分支**：
+
+- `reconcile_orphaned_running`：卡片 `running` 但 `claim_lock`/`claim_expires` 为 NULL（claim 中途崩溃、手工 SQL、DB 还原）时，TTL/崩溃/陈旧三条路都救不了它，会成为永久僵尸；该路径带注释地重回 ready、关闭泄漏 Run、写 `reconciled`，**有本机活跃 PID 的行被推迟**以免重复 spawn。由 `kanban.reconcile_orphans` 控制，默认开。
+- `terminal_worker_reaped`：`kanban_complete`/`request_review` 之后健康 worker 还会活一会儿（收尾轮次、会话持久化），所以只有 `ended_at` 至少 `TERMINAL_WORKER_REAP_GRACE_SECONDS = 120`（≈两个默认 tick）前才收割；匹配要求 PID **与**启动指纹同时成立（`kanban_db_dispatch.py` 的 `_process_fingerprint`），重启后复用的 PID 永不会被误发信号。
+- `skipped_nonspawnable`：负责人 profile 不存在或不在 `kanban.dispatch_profiles` 白名单内时，**每卡只写一次**（中间有新事件才再写），避免每 tick 刷一张事件；卡片留在 ready，改派或装 profile。白名单缺失才是「任意存在 profile」，空列表/`null`/读取失败都 fail-closed 什么都不认领。
+- `memory_pressure`：内存感知的派工护栏（见 §4.25 的 2026-10-25 条目）。
+- `hermes kanban dispatch --dry-run` 会逐张列出 `Guarded (<reason>)`；网关与独立 daemon 的「dispatcher 卡住」告警也会点名上一 tick 拦下了什么，例如 `Last tick held back: active_pr=1`。
+
+终结性看板调用属于 worker 协议，因此**退出前 Hermes 会注入最多两次合成 nudging**（`agent/kanban_stop.py`，可用 `HERMES_KANBAN_STOP_NUDGE=0` 关闭），针对「模型说了下一步就 `finish_reason=stop`」的常见形态；已经交接过的卡片（`request_review` 或审核者的 `request_changes`）绝不会被 nudge 去 `complete`。nudge 只对拥有该卡片的 dispatcher-spawned worker 生效，`delegate_task` 子 Agent 与 worker 内触发的 cron 继承环境变量但没有看板工具，因此从不 nudge。
+
+```mermaid
+flowchart TD
+    X[worker 进程结束] --> Q{卡片状态?}
+    Q -->|已 complete/review/block| N[按终结类型关闭 Run]
+    Q -->|仍 running| C{退出码}
+    C -->|75| RL[rate_limited：回 ready，不计失败]
+    C -->|78| TP[terminal_provider：首次即熔断，sticky blocked]
+    C -->|1| F[crashed/failed：计 consecutive_failures]
+    C -->|0| PV[protocol_violation：独立连续预算 3]
+    PV -->|未超预算| R[回 ready 再试一次]
+    PV -->|达上限| G[gave_up + sticky blocked]
+    F --> B{consecutive_failures ≥ effective_limit?}
+    B -->|否| R
+    B -->|是| G
+    RL -.->|下一 tick 前先过| CD[rate_limit_cooldown 300s]
+    TP -.->|修复方式| FIX[改负责人的 provider：auth/setup 后手工 unblock]
+```
+
+有效阈值的解析顺序是：任务级 `max_retries` → 调度器 `failure_limit` / `kanban.failure_limit` → 内置默认 2。图上 `terminal_provider` 分支**跳过**这条解析，第一次就熔断。
+
+<a id="sec-7-kanban-owner-admission"></a>
+### 4.21 受管 worker 与 owner 准入：卡片执行正在被移进 profile 网关
+
+> **快照边界（必读）**：本节依据 **`origin/main` = `fa78e686fa`（2026-10-30）**，本地工作树 HEAD 是 `60d00c5633`（历史最晚 2026-10-12），**不含**下列文件。§4.9 描述的是 HEAD 的子进程形态；上游正在把它换成「owner 网关内的受管 worker」。读代码前先确认自己在哪个快照上。
+
+新增模块（origin/main）：`hermes_cli/kanban_worker_client.py`（模块 docstring 直译：**「Dispatcher 子进程：向它的 profile owner 提交一次认领；绝不运行 agent」**）、`hermes_cli/kanban_owner_recovery.py`（docstring：**「供 dispatcher 回收路径使用的只读、规范化准入栅栏」**）、`gateway/session_kanban.py`、`hermes_cli/kanban_worker_log.py`；对应文档 `website/docs/user-guide/features/kanban-multi-gateway.md`。
+
+变化实质：dispatcher 不再自己跑 agent，而是启动一个瘦客户端，通过本地控制 socket 向**该 assignee profile 的网关 owner** 提交认领（`kanban.run`）并读收据（`prompt.receipt`）；卡片轮次在 owner 内作为受管 worker 会话执行。owner 校验 task/run/claim 并冻结其策略，transport 携带 dispatcher 的**精确 board DB 路径**（含自定义路径与跨 profile 共享板），不会另起一个 transcript 写入者。
+
+关键机制与它们在 10 月的收紧轨迹：
+
+| 机制 | 事实（读到的常量/函数级证据） | 变更日期 |
+|---|---|---|
+| worker 断线**不结束轮次**，而是重拨 | `OWNER_WAIT_S = 180.0`（owner 允许静默的最长时长）；`kanban.run` 每次尝试幂等、`prompt.receipt` 是只读，所以重复询问安全 | 10-26 重拨；10-26 重连成功后重置重拨预算；10-27 只有收据有进展才重置 |
+| 瞬态 owner 状态不烧卡片预算 | `_TRANSIENT_OWNER_STATES = {draining, starting}`、`_TRANSIENT_RPC_REASONS = {runtime_draining, runtime_retired}`；注释：这是宿主的状况，不是卡片的 | 10-13/10-14 网关 drain 与 restart 期间的 wake；10-28 统一 owner-refusal 规则与放弃消息 |
+| 准入等待有预算上界 | `ADMISSION_ANSWER_MARGIN_S = 60`，`admission_answer_budget()` = `write_txn` 对 `BEGIN IMMEDIATE` 的重试次数 × busy timeout + margin | 10-17、10-18 |
+| 收据与准入账本 | `owner_admitted` 事件载荷是 owner 指向自己账本的指针；`kanban_owner_recovery.py` 的 `_owner_receipt` / `_admission_row` 只读查 `session_admissions(status, outcome)` | 09-10 起 |
+| **模糊尝试不自动重跑** | `owner_reclaim_paused()`：收据缺失/不可读/`queued`/`unknown` → 暂停通用回收；`interrupted` 也先暂停，由 `owner_attempt_provably_over` 判定「没有任何东西还能执行它」 | 10-18/10-19/10-20（回收事务内复查；dead bound interpreter 归崩溃清扫） |
+| 收据无法解析导致的**永久卡死**被修 | `kanban-worker-lanes.md` 新增一条：卡片停在 `running`、占着该 profile 的 `max_in_progress_per_profile` 名额，告警只点名排在它后面的卡；现在「无可执行证据」即失效，并在诊断里以 `stale_running`（按年龄升级，origin/main 配置 `kanban.diagnostics.stale_running_grace_seconds`，默认 1 h）暴露真因 | 10-28 文档 + 10-26/10-28 回收条件收紧 |
+| 「一个工作目录只有一个写者」 | 10-26：真实派工下成立；重试的 worktree 卡不能认领一张活跃卡持有的 checkout；10-01 worktree 共享守卫折叠成单一 helper | 10-01 → 10-26 |
+| 卡片尝试的轮次作者 | 作者是 **dispatcher（在 owner 网关上）**，不是操作员；10-26 移除 spawn env 里的 turn author | 10-12、10-26 |
+| worker 内的 `delegate_task` | 由 owner 在 worker 执行下预留子代理：每个子代理有自己的 session（作为卡片会话的 subagent 列出）、计入 `delegation.max_concurrent_children` / `max_spawn_depth`、结果在卡片轮次内返回、随 worker 结束；网关中途挂掉则子代理退役、永不恢复 | 10-20 支持；10-19 缺失时给出解释；10-21 拒绝受管 worker 内的 profile 路由 |
+
+```mermaid
+sequenceDiagram
+    participant D as dispatcher（kanban_db_dispatch）
+    participant W as kanban_worker_client（瘦客户端）
+    participant O as profile 网关 owner（session_kanban）
+    participant DB as board DB（task_events / task_runs）
+    D->>W: 启动子进程（claim 已建立）
+    W->>O: kanban.run（携带精确 board DB 路径）
+    O->>DB: 写 owner_admitted 收据（指向 owner 账本）
+    O-->>W: admission_id / session_id
+    Note over W,O: OWNER_WAIT_S=180s；draining/starting 属瞬态 → 等待而非失败退出
+    alt socket 断开 / owner 重启
+        W->>O: 重拨（prompt.receipt 只读确认同一次尝试）
+        O-->>W: 收据进展 → 重置重拨预算
+    else owner 与 worker 双双消失，准入状态 unknown
+        O--xW: 无应答
+        Note over D,DB: owner_reclaim_paused() → 不重跑模糊尝试
+        D->>DB: 只有「bound interpreter 已死」等可证条件成立，才按 crashed 回收
+    end
+    O->>DB: 终结结算（complete / review / block）
+    D->>DB: 崩溃清扫、reclaim、stats
+```
+
+**未核对边界**（诚实标注）：本节读的是这些模块的 docstring、常量块与关键函数，**不是逐行审计**，也没有运行时的多网关实测；`session_admissions` 账本的完整状态机、控制 socket 的鉴权模型（`invalid_control_peer` 等拒绝分支）需要单独专题。不要把本节当作已验证的部署手册。
+
+<a id="sec-7-kanban-multi-gateway"></a>
+### 4.22 多网关部署：单调度器 + 按 Profile 归属的投递
+
+§4.14 讲清了「谁订阅、怎么投递」，多网关场景再加一条所有权约束：**派工只有一个 owner，投递按 profile 归属**。
+
+| 网关角色 | `dispatch_in_gateway` | 打开已订阅的板 DB？ | 派工 | 投递 |
+|---|---|---|---|---|
+| 调度所有者（通常 `default`） | `true`（默认） | 是 | 是 | 自有 profile + 无戳的历史订阅 |
+| `writer` / `admin` / `coder` … | `false` | 仅当该 profile 有订阅时 | 否 | 本网关自有 profile |
+
+配置：在非调度网关的 `config.yaml` 写 `kanban: dispatch_in_gateway: false`，或设 `HERMES_KANBAN_DISPATCH_IN_GATEWAY=false`。理由不是「防重复投递」——原子的事件领取本来就能防重复投递——而是**多个网关不应竞争同一份工作的派工权**。
+
+审核反馈也走同一条订阅链：`changes_requested` 作为可操作的 review-BLOCK 通知投递；用 `notify+wake` 的订阅会**唤起恰好那张卡片 originating 的聊天/线程/会话**去检视现有卡片与当前 Run；`notify` 保持纯被动，`wake` 保持只唤起。审核反馈**从不**创建、unblock、重排或以其他方式改写任务。
+
+<a id="sec-7-kanban-diagnostics"></a>
+### 4.23 诊断信号目录与只读运维端点
+
+`hermes_cli/kanban_diagnostics.py` 是一个规则引擎，不是日志 grep：每条规则产出 `Diagnostic(kind, severity, title/detail, actions)`，`DiagnosticAction` 里可能是 `cli_hint`（给一条可直接执行的命令）、`reclaim`、`reassign`、`comment`。`hermes kanban diagnostics [--json]` 与面板 `GET /diagnostics` 共用同一引擎，`severity_at_or_above` 负责按阈值过滤。
+
+默认规则集（`_RULES` 顺序即同严重级下的展示顺序）：
+
+| kind | 默认严重级 | 说明与阈值 |
+|---|---|---|
+| `hallucinated_cards` | error | 完成时声明的 `created_cards` 不存在 |
+| `triage_aux_unavailable` | warning | triage 的 specify/decompose 拿不到辅助 LLM 客户端 |
+| `prose_phantom_refs` | warning | 正文里引用了不存在的卡片 id |
+| `repeated_failures` | error（失败数 ≥ 2× 阈值时 critical） | 阈值与 `kanban.failure_limit` 对齐，避免诊断比熔断还晚 |
+| `repeated_crashes` | error（同上升级） | `crash_threshold` 默认 2 |
+| `review_dependency_deadlock` | error | 父卡被 `review-required:` 粘住而直接子卡仍被依赖门控在 `todo` |
+| `running_with_open_parents` | warning | 运行中卡片的父卡不是 done/archived：门禁没串行化两者，`kanban_complete` 会被拒；建议 `unlink` |
+| `stuck_in_blocked` | warning | `blocked` 停滞超过 `blocked_stale_hours`（默认 24 h） |
+| `block_unblock_cycling` | warning | 反复 block/unblock 循环 |
+| `stranded_in_ready` | warning → error（2×）→ critical（6×） | 有负责人、`ready` 且未被认领 ≥ `stranded_threshold_seconds`（默认 30 min）；低于 30 min 的信号被下一 tick 的正常认领淹没 |
+
+`DEFAULT_CONFIG` 的取舍值得照抄到运维手册：`failure_threshold` 默认 2 且**刻意与 `kanban.failure_limit` 对齐**（`config_from_kanban_config` 只允许 `kanban.diagnostics.failure_threshold` 显式覆盖），`spawn_failure_threshold` 只作为读取期兼容别名。
+
+**诊断是只读的**：它建议「补评论 / unblock / 改派 / unlink / reclaim」，但不会自动解除用户施加的 block，也不会自动删依赖边。
+
+运维面（`plugins/kanban/dashboard/plugin_api.py`，都在 `/api/plugins/kanban/` 下，受面板鉴权约束）：`GET /workers/active`（当前 worker 的 PID/profile/task/started/last heartbeat）、`GET /runs/{run_id}`、`GET /runs/{run_id}/inspect`、`POST /runs/{run_id}/terminate`、`POST /tasks/{id}/reclaim`、`GET /diagnostics`、`GET /stats`、`GET /assignees`、`GET /tasks/{id}/log`、`POST /dispatch`（跳过 60 s 等待手动催一轮）、`GET /workflow`、`GET|PUT /orchestration`、`POST /estimate`、`GET /model-options`、`GET /home-channels`、板级 `GET|POST|PATCH|DELETE /boards…` 与 `export|import|switch`。这些端点全部复用 §4.11–§4.13 的同一批领域函数：路由的存在不等于某个错误分支已被解读，新界面也不该绕过领域门禁直写 `status`。
+
+<a id="sec-7-kanban-plugins"></a>
+### 4.24 第三方看板插件与 Desktop 卡片扩展位
+
+看板成了第三方插件的高价值落点，`plugin-catalog/` 里当前有 5 个条目。它们对**本地 board DB 与 profile `state.db` 的读写面**各不相同，选型时应按披露（disclosure）而不是按截图判断。
+
+| 插件 | 版本 | 类别 | 数据面要点 |
+|---|---|---|---|
+| `kanban-gantt` | 1.7.3 | desktop | 三视图（List / Timeline 真实时间戳 / Graph 依赖图 + 传递归约 + 血缘高亮）；页内建卡（project/workspace/skills/model override/goal mode）、拖拽改父、**带子卡跨板移动**（目标验证通过后才删源行与链接）、批量归档/删除、附件预览与下载、worker 日志读取；`/events` WS，可用 `KANBAN_GANTT_WS=0` 关掉改 60 s 轮询 |
+| `kanban-live-gantt` | 0.1.3 | desktop | `kanban-gantt` 的 GPL-3.0 fork：以「现在」为中心的 72 h 可滑动窗口、轮到小时刻度、lifecycle 渲染（虚线等待 vs 实线执行）；后端可转换/改派/评论/**永久删除**任意板的任务 |
+| `kanban-graph` | 0.2.1 | desktop | 只读依赖图；点卡片显示 Run、最后一次失败、**运行中 worker 的最新工具调用**——它读 assignee profile 的 `state.db`，这条数据面要单独评估 |
+| `kanban-stream` | 1.0.2 | automation | 把 worker 活动以「每任务一条就地编辑消息」推到 Telegram（工具调用历史、计时、tokens/sec、思考指示、终结态）；`/steer` 经配套 daemon 把 Telegram 文本写成任务评论，**直达正在运行的 worker**；默认关闭，需独立运维 bot token 与 allowlist；出口只有 `api.telegram.org` |
+| `hermes-worker-monitor` | 0.1.1 | automation | 只读计数看板（`kanban.db` + 各 profile `state.db`）；fork 时移除了上游所有网络出口与凭据读取路径 |
+
+Desktop 侧新增 per-card 扩展位：贡献区 `KANBAN_CARD_AREAS.badges`（10-23 落地，同日把 board 的 tenant 列表传给 badge 装饰器）。同时文档明确 **dashboard 没有 per-card slot**，卡片级标签只在 desktop 板上成立。第三方插件与官方看板插件的关系见 [卷五 §Plugins](05-capabilities-extensions.md)：官方插件刻意薄（≈700 行 router + WS tail + bulk batcher + config reader，不含业务逻辑），第三方插件因此**可以**直接读写领域函数所在的后端路由，风险也随之从 UI 层转移到数据层。
+
+<a id="sec-7-kanban-changelog"></a>
+### 4.25 版本口径与变更台账（2026-09 → 2026-10-30）
+
+**先固定口径，否则「最新」无意义**：
+
+| 项 | 值 |
+|---|---|
+| 源码 root | `hermes-dev/hermes-agent/`（上游 `NousResearch/hermes-agent`） |
+| 本卷既有正文依据 | 本地 HEAD `60d00c5633ad76f3dd8e3ecd79f77f1c6f8e6fdd`（作者日期 09-06，提交日期 10-12；历史最晚作者日期 2026-10-12），工作树干净 |
+| 已 fetch 的 `origin/main` | `fa78e686fa`（2026-10-30），领先 HEAD **9159** 个提交 |
+| 本节台账来源 | `git log origin/main --grep=kanban -i` 与按路径 `'*kanban*'` 的历史；**未执行任何 Hermes 运行时测试** |
+
+按性质分组（日期为 author date）：
+
+**A. 结构性变化（会改变你对 §4.9 的理解）**
+
+| 日期 | 内容 |
+|---|---|
+| 09-10 | owner 准入进入：受认领卡片经「可信 owner 准入」路由（`kanban_worker_client`、`gateway/session_kanban` 首次出现） |
+| 09-13 | 新增 `kanban-multi-gateway.md`，文档站收编 |
+| 10-07 | workflow 单一真源落地收尾：`kanban_db` 改为从 workflow 导入 `VALID_STATUSES`；`can_move` 全定义；`stats` 由工作流派生；文档补「archived 可作人工移动源」 |
+| 10-06 | 板身份硬化：身份要求 `board.json`、归档留 tombstone、`connect()/init_db()` 拒绝重建死板、面板拒绝过期的已归档/已删除 slug；抽出 `kanban_db_boards` |
+| 10-06 | `kanban_resume_guard` 落地：拒绝把 Kanban 拥有的 worker 会话当作未受跟踪的写者恢复 |
+| 10-20 | 受管 worker 支持 `delegate_task`（owner 预留子代理）；worker 日志轮转拆到 `kanban_worker_log` |
+| 10-14 / 10-20 | 插件目录新增 `kanban-graph`、`kanban-stream` |
+| 10-23 | Desktop `KANBAN_CARD_AREAS.badges` + tenant 列表入参 |
+| 10-25 | provider 用量到顶时 hold 网关轮次与看板卡片；宿主内存吃紧时 hold 新轮次并把子代理设为 OOM 首选受害者 |
+
+**B. 记账与恢复正确性（10-18 → 10-28 集中修复）**
+
+`release a dead attempt's claim when its owner receipt cannot be resolved`（10-18）、`bound kanban.run's admission wait by the board lock budget`（10-18）、`a dead bound interpreter stays the crash sweep's to book`（10-19）、`a card attempt lost across an owner restart settles interrupted`（10-19）、`re-check owner recovery inside the reclaim transaction` / `an exited, unreaped owner no longer holds its slot` / `a timed-out managed run is booked timed_out, not crashed` / `stale_running reads only the current attempt's pids`（10-20）、`the dead-interpreter override applies only after a local kill`（10-20）、`dispose of a lost managed worker within one tick`（10-22）、重拨预算三连（10-26/10-27）、`a lost worker's clean exit is a crash, not also a protocol violation` + `keep the worker's last output when a lost worker's clean exit is rebooked` + `the protocol-violation streak never matches a worker's quoted output` + `a bound run stays the crash sweep's; no recorded pid is no proof inside the claim TTL` + `one owner-refusal rule and one give-up message for a recovering worker`（10-28）。
+
+**C. 并发与工作区安全**
+
+`keep a scratch dir another live task still uses` / `check containment before the shared-scratch scan` / `tighten the shared-scratch guard` / `fold the worktree sharing guard into one helper`（10-01）、`fence the explicit-board override to unfenced callers`（10-02）、`a retried worktree card cannot claim into a checkout a live card holds` + `one writer per workspace holds under real dispatch`（10-26）、`gate kanban_schedule like the other lifecycle tools`（10-01）。更早一轮（09-26/09-27）修掉 `gc must never delete the scratch workspaces root itself` 与「只统计真实删除」。
+
+**D. 交付与界面**
+
+`deliver Kanban wakes, heartbeats and cron results into local chats`（10-25）、`/skills and /kanban with a quote in the argument are classified, not an internal error`（10-17）、`admit owner-run card turns as finite`（10-15）、`keep Kanban workers and tool sessions on the profile's toolsets`（10-15）、`point bare kanban_show/comment calls at kanban_list outside a worker`（10-02）、`unknown-assignee skip is recorded once per card, never once per tick`（09-28）、`show why a Kanban task is blocked and let it be unblocked`（09-27，desktop）。
+
+**E. 测试基座**（09-24 起）真进程板 harness：scratch home + fake provider + CLI tick，按 worker 进程计 provider 请求；覆盖 SIGKILL/restart 行完整性、artifact/pinned-skill worker 契约、auto-decompose 计费边界，并用 `strict-xfail` 钉住已知缺陷（#119155、#121255、#119618、#119070 等）。**这些是上游测试，本仓库没有执行它们**，不能写成「已验证通过」。
+
+**读这份台账时应避免的推论**：commit 标题的措辞不等于已发布的稳定契约（A 组里多条是「正在收紧」的中间态）；上游文档与本地快照可能不同步——`kanban.md` 在 HEAD 与 origin/main 之间只差 31 行，但 §4.21 描述的执行模型差异发生在更早的代码层。
+
+> **补充小结**：§4.18–§4.25 补的是「权限面、移动矩阵、账本、网关所有权、诊断、插件生态、时间轴」六个此前缺失的维度。看板的设计重心始终是**同一套领域门禁不能被任何门面绕过**：CLI、工具、REST、插件、第三方页面都必须经过 `kanban_db` 的同一批函数；新增能力如果只出现在某一层而没落到领域层，就是设计债，不是功能。
+
 ---
 
 ## 5. MoA（多模型参考，仍是一轮父 Agent）

@@ -2697,3 +2697,11 @@ hermes kanban watch
 ```
 
 享受高效的多 Agent 协作体验！🚀
+
+---
+
+## 快照澄清（2026-10-31）
+
+本文基线仍是 `60d00c5633ad`（本地 HEAD，历史最晚 2026-10-12），其中的 worker 启动形态是「dispatcher 用 `_default_spawn` 拉起 `HermesCLI` 子进程」。**上游 `origin/main` = `fa78e686fa`（2026-10-30，领先 9159 个提交）正在把它换成「受管 worker + profile 网关 owner 准入」**：断线重拨、`owner_admitted` 收据、「模糊尝试不自动重跑」的回收栅栏、单调度器多网关分工，以及 provider 用量/宿主内存两类不烧重试预算的 hold。
+
+现行结论不在本文里更新，统一看：[卷七 §4.18–4.25](../../volumes/07-multi-agent-and-kanban.md#sec-7-kanban-toolface)。

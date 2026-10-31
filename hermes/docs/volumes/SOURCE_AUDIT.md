@@ -67,8 +67,11 @@
 | PM 被当安装脚本 | 独立 worker、工件发布、配置快照检查、恢复 journal 与 receipt | [卷十二](12-automation-and-package-runtime.md#ops-pm) |
 | 支撑状态隐形 | profile home、multiplex secret scope、resolver、日志与 monitoring 的不同证据强度 | [卷十三](13-config-secrets-and-observability.md) |
 | 维护入口冲突 | 缺失标准补齐；旧重建说明澄清；新总目录与机械审计 | [标准](VOLUME_STANDARD.md) · [入口](README.md) |
+| 看板只讲链路，没讲权限面/账本/所有权 | 15 个 `kanban_*` 工具的可见性矩阵、人工移动矩阵与 workflow 单一真源、四套互不相同的失败账本、owner 准入与多网关分工、诊断规则目录、第三方插件数据面、带日期的变更台账 | [卷七 §4.18–4.25](07-multi-agent-and-kanban.md#sec-7-kanban-toolface) |
 
 这里“补齐”指表中专题的核心说明，不指整包全分支覆盖。源码符号解析验证也不是运行正确性的证明。
+
+§4.18–4.24 依据本地 HEAD `60d00c5633`；**§4.21 与 §4.25 另用已 fetch 的 `origin/main` = `fa78e686fa`（2026-10-30，领先 HEAD 9159 个提交）作为快照**，并在正文显式标注哪些模块只存在于该快照。两个快照的模块清单不同，不能把 origin/main 的文件当作 HEAD 的事实。
 
 <a id="audit-next"></a>
 ## 4. 仍需继续深潜的缺口
@@ -81,6 +84,7 @@
 | P1 | CLI 命令与配置迁移地图 | 大量 `hermes_cli/` 模块如何路由；设置修改何时生效、哪些会延迟到下轮/新会话 |
 | P1 | Browser 能力完整链 | provider → browser tool → 页面会话 → 下载/上传 → 权限 → 异常与销毁；不是只有 MCP 名字 |
 | P1 | 媒体与语音完整链 | IM 附件抓取、图片 token/eviction、转写/TTS、缓存与 provider 错误路径 |
+| P1 | Kanban owner 准入与多网关运行时 | `kanban_worker_client` / `kanban_owner_recovery` / `session_kanban` 的准入状态机、控制 socket 鉴权、`session_admissions` 账本与回收判定；当前只有 docstring 与关键函数级阅读，没有多网关实测 |
 | P1 | Dashboard / Desktop 页面/API | RPC/HTTP 路由与 UI state、账号/连接器/MCP OAuth；现有卷二不是所有页面的契约 |
 | P2 | 每个 IM adapter 的差异矩阵 | auth、thread/topic identity、编辑/流式、附件上限、限流、重连、审批回传 |
 | P2 | Hosted rooms / relay / rendezvous | 成员活动、peer HTTP/WS、信任、断线重连和跨 host ownership |

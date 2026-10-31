@@ -41,6 +41,7 @@
 - [卷三 §4.7–4.10](03-runtime-session-and-loop.md#sec-4-lightweight)：按后续提问补充轻量整理、消息投影与 DB 原子提交；原第4章内容仍保留，仅在第5章前插入新节并增补目录。
 - [卷五 §7](05-capabilities-extensions.md#cap-plugin-lifecycle)：插件能力与注册生命周期。
 - [卷七 §6](07-multi-agent-and-kanban.md#multi-runtime-boundaries)：多 Agent 运行时边界。
+- [卷七 §4.18–4.25](07-multi-agent-and-kanban.md#sec-7-kanban-toolface)：看板工具可见性矩阵、人工移动矩阵与 workflow 单一真源、失败与暂停账本、owner 准入（`origin/main` 快照并标注边界）、多网关分工、诊断规则目录、第三方插件数据面、2026-09→10-30 变更台账；§4 目录与锚点同步扩充，旧文未改写。
 - [卷一增补](01-platform-and-architecture.md#source-supplement)：完整系统责任地图、状态存放位置与深读入口。
 - [卷九增补](09-reference-history-and-versions.md#source-supplement)：源码快照与现行增量维护。
 - [MANIFEST 增补](MANIFEST.md#source-supplement)：四个新卷与覆盖等级。

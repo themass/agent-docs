@@ -2,9 +2,12 @@
 
 > **本文目标**：提供 `create_deep_agent` 在运行时的**完整 system prompt** 与 **工具 description**，包括 Plan 模式（`write_todos`）、子 Agent（`task`）、异步子 Agent（5个异步工具）的完整提示词。  
 > **参考 DeerFlow 范式**：采用 DeerFlow Harness 的运行时快照风格（见 `deer-flow/backend/docs/SYSTEM_PROMPT_RUNTIME_DEEPAGENTS.md`）。  
-> **适用版本**：`deepagents==0.5.1`、`langchain>=0.3.x`。
+> **历史基线**：`deepagents==0.5.1`；当前以 `deepagents==0.7.32` / HEAD `3a217cec7` 更新文档为准。、`langchain>=0.3.x`。
 
 ---
+
+
+> **当前源码校正（2026-10-31）**：Async subagent 已支持 `enqueue` follow-up、`waiting`、server cancellation、`notify_parent` 与 `webhook`；内部 notification 也开始带 metadata。请以 [v0.7.32 源码更新与架构补全](./DEEPAGENTS_V0.7.32_UPDATE.md) 的 §5、§6、§9 为当前运行时补充。
 
 ## 阅读地图
 

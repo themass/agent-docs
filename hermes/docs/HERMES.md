@@ -474,6 +474,11 @@ flowchart TB
 | 谁调度 | 父模型决定叫谁 | Dispatcher 按状态把任务派给 worker |
 | 人怎么看 | 聊天里的进度；新版本可看子 Agent 实况 | 看板 / REST / `hermes kanban` |
 
+**两条补充，读上面两张图时记住**：
+
+- 上图的 worker 是**本地 HEAD `60d00c5633`（2026-10-12）**的形态：dispatcher 用 `_default_spawn` 拉起 `HermesCLI` 子进程。上游 `origin/main`（`fa78e686fa`，2026-10-30）正在把它换成「dispatcher 起一个瘦客户端，把认领提交给该 profile 的网关 owner，卡片轮次在 owner 内作为受管 worker 执行」，含断线重拨、准入收据与「模糊尝试不自动重跑」的回收栅栏 → [卷七 §4.21](volumes/07-multi-agent-and-kanban.md#sec-7-kanban-owner-admission)。
+- 看板的难点不在「多开几个 Agent」，而在**同一套领域门禁不能被任何门面绕过**：工具面与可见性 → [§4.18](volumes/07-multi-agent-and-kanban.md#sec-7-kanban-toolface)；人工移动矩阵 → [§4.19](volumes/07-multi-agent-and-kanban.md#sec-7-kanban-workflow)；哪些错误烧重试预算、哪些只是暂停 → [§4.20](volumes/07-multi-agent-and-kanban.md#sec-7-kanban-ledger)；多网关所有权 → [§4.22](volumes/07-multi-agent-and-kanban.md#sec-7-kanban-multi-gateway)；诊断与第三方插件数据面 → [§4.23](volumes/07-multi-agent-and-kanban.md#sec-7-kanban-diagnostics) · [§4.24](volumes/07-multi-agent-and-kanban.md#sec-7-kanban-plugins)。
+
 ```mermaid
 sequenceDiagram
     participant D as _KanbanDispatcher

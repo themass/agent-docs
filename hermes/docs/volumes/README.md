@@ -72,6 +72,9 @@ flowchart TD
 | 定时任务执行了为什么没收到通知 | [卷十二 §3–4](12-automation-and-package-runtime.md#ops-execution) |
 | 插件卸载如何不误删别人注册的能力 | [卷五 §7](05-capabilities-extensions.md#cap-plugin-lifecycle) |
 | 子 Agent 能否跨进程重启恢复 | [卷七 §6](07-multi-agent-and-kanban.md#multi-runtime-boundaries) |
+| 看板卡片失败几次会被停放，哪些错误不计失败 | [卷七 §4.20](07-multi-agent-and-kanban.md#sec-7-kanban-ledger) |
+| 谁看得见哪个 `kanban_*` 工具，人工能把卡拖到哪一列 | [卷七 §4.18–4.19](07-multi-agent-and-kanban.md#sec-7-kanban-toolface) |
+| 看板任务能否跨网关、跨重启安全重跑 | [卷七 §4.21–4.22](07-multi-agent-and-kanban.md#sec-7-kanban-owner-admission) |
 | 为什么缺少密钥时有时不能回退全局 env | [卷十三 §2](13-config-secrets-and-observability.md#support-secrets) |
 | 哪些模块仍只有索引，没有完整深潜 | [覆盖审计](SOURCE_AUDIT.md) |
 
