@@ -45,7 +45,6 @@ LOG_DIR="${NGINX_LINK}/logs"
 
 TARBALL="nginx-${NGINX_VERSION}.tar.gz"
 DOWNLOAD_URL="https://nginx.org/download/${TARBALL}"
-BUILD_DIR="${SOFT_ROOT}/nginx-${NGINX_VERSION}-build"
 EXTRACT_DIR="${SOFT_ROOT}/nginx-${NGINX_VERSION}"
 
 CONFIG_ONLY=false
@@ -104,16 +103,20 @@ compile_nginx() {
     wget -q --show-progress -O "${TARBALL}" "${DOWNLOAD_URL}"
   fi
 
-  rm -rf "$EXTRACT_DIR" "$BUILD_DIR"
+  rm -rf "$EXTRACT_DIR"
   tar -xzf "${TARBALL}"
   # The nginx.org tarball extracts into "nginx-${NGINX_VERSION}/" directly, which
   # is already what EXTRACT_DIR names — moving it onto itself used to fail here
   # ("mv: cannot move 'nginx-1.26.3' to a subdirectory of itself") on every run.
-  mkdir -p "$BUILD_DIR"
 
   log "configuring nginx → prefix ${PREFIX}"
-  cd "$BUILD_DIR"
-  "${EXTRACT_DIR}/configure" \
+  # nginx's `configure` is not autoconf-generated: it sources `auto/options` etc.
+  # relative to the current directory, not relative to the script's own path, so
+  # it only works run as `./configure` from inside the extracted source tree — an
+  # out-of-tree build (cd elsewhere, invoke configure by absolute/relative path)
+  # fails immediately with ".: Can't open auto/options", before any compilation.
+  cd "$EXTRACT_DIR"
+  ./configure \
     --prefix="${PREFIX}" \
     --sbin-path="${PREFIX}/sbin/nginx" \
     --conf-path="${PREFIX}/conf/nginx.conf" \
