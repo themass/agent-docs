@@ -106,7 +106,9 @@ compile_nginx() {
 
   rm -rf "$EXTRACT_DIR" "$BUILD_DIR"
   tar -xzf "${TARBALL}"
-  mv "${SOFT_ROOT}/nginx-${NGINX_VERSION}" "$EXTRACT_DIR"
+  # The nginx.org tarball extracts into "nginx-${NGINX_VERSION}/" directly, which
+  # is already what EXTRACT_DIR names — moving it onto itself used to fail here
+  # ("mv: cannot move 'nginx-1.26.3' to a subdirectory of itself") on every run.
   mkdir -p "$BUILD_DIR"
 
   log "configuring nginx → prefix ${PREFIX}"
