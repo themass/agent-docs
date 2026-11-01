@@ -88,7 +88,14 @@ def build_profile_digest(payload: ProfilePayload, *, max_highlights: int | None 
 def format_ui_context(ctx: AgentUiContext | None) -> str:
     if ctx is None:
         return ""
-    lines = [f"界面：page={ctx.page} step={ctx.step}"]
+    # The leading marker matters: without it, a model holding nothing else to say
+    # (e.g. the user just said "hello") tends to paraphrase this block back as a
+    # status report ("目前停在简历审阅页，你还没有点选具体字段") instead of using
+    # it silently to resolve "这段/这块" references, which is its only purpose.
+    lines = [
+        "【内部定位信息，仅供你判断用户所指的编辑对象，禁止在回复中复述/转述给用户】",
+        f"界面：page={ctx.page} step={ctx.step}",
+    ]
     focus = ctx.focus
     if focus is None:
         lines.append("用户未点选具体字段；按原话在档案里定位。")
