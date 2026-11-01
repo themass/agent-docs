@@ -8,6 +8,7 @@
 # Usage (from job-come repo on the server):
 #   sudo ./scripts/nginx/install-jc-nginx.sh              # full install
 #   sudo ./scripts/nginx/install-jc-nginx.sh --config-only # refresh conf + cert, reload
+#   sudo ./scripts/nginx/install-jc-nginx.sh --http-only   # never attempt :443, even if free
 #   sudo ./scripts/nginx/install-jc-nginx.sh --reload
 #   sudo ./scripts/nginx/install-jc-nginx.sh --stop
 #
@@ -19,6 +20,13 @@
 #   JC_NGINX_SOFT_ROOT=/root/soft
 #   JC_NGINX_FORCE_REBUILD=1             # recompile even if prefix exists
 #   JC_NGINX_REGEN_CERT=1                # replace self-signed cert
+#
+# Port 443: if something else already owns it (checked with `ss`; a prior run of
+# this same nginx does not count), HTTPS is skipped automatically with a warning
+# instead of failing nginx's startup entirely — binding :443 is one `listen`
+# directive among several, and nginx refuses to start AT ALL if any of them
+# fails, which would otherwise take the working HTTP site down over an
+# unrelated port conflict. Use --http-only to skip it unconditionally.
 #
 # Cookie / public URL (backend + frontend build) must match how users open the site:
 #   http://...  → JC_PUBLIC_URL=http://..., JC_COOKIE_SECURE=false
@@ -50,13 +58,15 @@ EXTRACT_DIR="${SOFT_ROOT}/nginx-${NGINX_VERSION}"
 CONFIG_ONLY=false
 DO_RELOAD=false
 DO_STOP=false
+FORCE_HTTP_ONLY=false
 
 for arg in "$@"; do
   case "$arg" in
     --config-only) CONFIG_ONLY=true ;;
+    --http-only) FORCE_HTTP_ONLY=true ;;
     --reload) DO_RELOAD=true ;;
     --stop) DO_STOP=true ;;
-    -h|--help) sed -n '2,32p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,33p' "$0"; exit 0 ;;
     *) echo "Unknown argument: $arg" >&2; exit 1 ;;
   esac
 done
@@ -66,6 +76,18 @@ die() { printf '[jc-nginx] ERROR: %s\n' "$*" >&2; exit 1; }
 
 require_root() {
   [[ "$(id -u)" -eq 0 ]] || die "run as root (sudo $0)"
+}
+
+# True (0) when :443 is free for us to bind — nothing listening, or the only
+# listener is our own already-running nginx (a reload, not a conflict). False
+# when some other process owns it, e.g. a proxy service unrelated to this
+# deploy; attempting to bind there would fail nginx's startup entirely.
+https_port_available() {
+  local line owner
+  line="$(ss -H -ltnp 2>/dev/null | awk '$4 ~ /:443$/')"
+  [[ -z "$line" ]] && return 0
+  owner="$(printf '%s\n' "$line" | grep -o 'users:(("[^"]*"' | head -1 | sed -E 's/^users:\(\("//; s/"$//')"
+  [[ "$owner" == "nginx" ]]
 }
 
 install_build_deps() {
@@ -160,12 +182,28 @@ install_config() {
   [[ -d "$TEMPLATE_DIR" ]] || die "missing templates: ${TEMPLATE_DIR}"
   mkdir -p "$CONF_D" "$SSL_DIR" "$LOG_DIR"
 
+  # Pre-split-layout leftover: a combined jc-site.conf from before this script
+  # separated HTTP/HTTPS into their own files would duplicate the `upstream`
+  # blocks now in jc-upstreams.conf and make nginx refuse to start.
+  rm -f "${CONF_D}/jc-site.conf"
+
   render_template "${TEMPLATE_DIR}/nginx.conf" "${CONF_DIR}/nginx.conf"
-  render_template "${TEMPLATE_DIR}/jc-site.conf" "${CONF_D}/jc-site.conf"
-  log "wrote ${CONF_DIR}/nginx.conf and ${CONF_D}/jc-site.conf"
+  render_template "${TEMPLATE_DIR}/jc-upstreams.conf" "${CONF_D}/jc-upstreams.conf"
+  render_template "${TEMPLATE_DIR}/jc-site-http.conf" "${CONF_D}/jc-site-http.conf"
+  log "wrote ${CONF_DIR}/nginx.conf, jc-upstreams.conf, jc-site-http.conf"
+
+  if [[ "$ENABLE_HTTPS" == true ]]; then
+    render_template "${TEMPLATE_DIR}/jc-site-https.conf" "${CONF_D}/jc-site-https.conf"
+    log "wrote jc-site-https.conf"
+  else
+    # Remove a previous run's https conf — leaving it would make nginx try (and
+    # fail) to bind :443 again even though this run decided to skip it.
+    rm -f "${CONF_D}/jc-site-https.conf"
+  fi
 }
 
 generate_self_signed_cert() {
+  [[ "$ENABLE_HTTPS" == true ]] || return 0
   local cert="${SSL_DIR}/jc-selfsigned.crt"
   local key="${SSL_DIR}/jc-selfsigned.key"
   local cnf="${SSL_DIR}/openssl.cnf"
@@ -227,17 +265,25 @@ nginx_stop() {
 }
 
 print_summary() {
+  local https_line
+  if [[ "$ENABLE_HTTPS" == true ]]; then
+    https_line="  HTTPS: https://${SERVER_NAME}/        (browser will warn — self-signed)"
+  else
+    https_line="  HTTPS: skipped — :443 is already in use by another process on this host.
+         Free it and re-run without --http-only, or run with --config-only
+         once it is free, to turn HTTPS on without rebuilding nginx."
+  fi
   cat <<EOF
 
 [jc-nginx] Done.
   Binary:   ${NGINX_BIN}
   Config:   ${CONF_DIR}/nginx.conf
-  Site:     ${CONF_D}/jc-site.conf
+  Site:     ${CONF_D}/jc-site-http.conf$([[ "$ENABLE_HTTPS" == true ]] && echo ", jc-site-https.conf")
   TLS:      ${SSL_DIR}/jc-selfsigned.{crt,key}
   Logs:     ${LOG_DIR}/
 
   HTTP:  http://${SERVER_NAME}/          (also http://<server-ip>/ if DNS points here)
-  HTTPS: https://${SERVER_NAME}/        (browser will warn — self-signed)
+${https_line}
 
   Upstream (must be running on this host):
     Web 127.0.0.1:${WEB_PORT}   → ./scripts/frontend.sh start
@@ -266,6 +312,17 @@ main() {
     nginx_test
     nginx_start_or_reload
     exit 0
+  fi
+
+  if [[ "$FORCE_HTTP_ONLY" == true ]]; then
+    ENABLE_HTTPS=false
+    log "--http-only: skipping :443 unconditionally"
+  elif https_port_available; then
+    ENABLE_HTTPS=true
+  else
+    ENABLE_HTTPS=false
+    log "WARNING: :443 is already in use by another process on this host — skipping HTTPS."
+    log "         The site will serve HTTP only. See --http-only / port 443 note in --help."
   fi
 
   if [[ "$CONFIG_ONLY" == false ]]; then
