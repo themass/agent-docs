@@ -89,6 +89,25 @@ export function deleteRedeemCode(id: string): Promise<void> {
   return apiJson(`/admin/redeem-codes/${id}`, { method: "DELETE" });
 }
 
+export type MembershipGift = {
+  user_id: string;
+  email: string;
+  days: number;
+  vip_expires_at: string;
+  code_id: string;
+};
+
+export function giftMembership(body: {
+  email: string;
+  days: number;
+  note?: string;
+}): Promise<MembershipGift> {
+  return apiJson("/admin/membership/gift", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export function getPurchaseUrlSetting(): Promise<{ url: string | null }> {
   return apiJson("/admin/membership/purchase-url");
 }

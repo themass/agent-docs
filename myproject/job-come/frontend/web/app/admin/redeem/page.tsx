@@ -7,6 +7,7 @@ import {
   deleteRedeemCode,
   downloadRedeemCodesCsv,
   getPurchaseUrlSetting,
+  giftMembership,
   listRedeemCodes,
   setPurchaseUrlSetting,
   updateRedeemNote,
@@ -103,6 +104,11 @@ export default function AdminRedeemPage() {
   const [purchaseUrl, setPurchaseUrl] = useState("");
   const [savingUrl, setSavingUrl] = useState(false);
 
+  const [giftEmail, setGiftEmail] = useState("");
+  const [giftDays, setGiftDays] = useState(30);
+  const [giftNote, setGiftNote] = useState("");
+  const [gifting, setGifting] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -155,6 +161,31 @@ export default function AdminRedeemPage() {
     event.preventDefault();
     setApplied({ ...filters });
     setOffset(0);
+  }
+
+  async function gift(event: FormEvent) {
+    event.preventDefault();
+    const email = giftEmail.trim();
+    if (!email || gifting) return;
+    if (!window.confirm(`给 ${email} 赠送 ${giftDays} 天会员？赠送后立即生效，不能撤销。`)) return;
+    setGifting(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await giftMembership({
+        email,
+        days: giftDays,
+        note: giftNote.trim() || undefined,
+      });
+      setNotice(`已赠送 ${result.days} 天给 ${result.email}，会员有效期至 ${formatDateTime(result.vip_expires_at)}。`);
+      setGiftEmail("");
+      setGiftNote("");
+      void load();
+    } catch (err) {
+      setError(userFacingApiError(err, "赠送失败，请稍后重试。"));
+    } finally {
+      setGifting(false);
+    }
   }
 
   async function saveUrl(event: FormEvent) {
@@ -244,7 +275,7 @@ export default function AdminRedeemPage() {
         <p className="notice shrink-0 text-xs" role="status">{notice}</p>
       ) : null}
 
-      <div className="grid shrink-0 gap-3 lg:grid-cols-2">
+      <div className="grid shrink-0 gap-3 lg:grid-cols-3">
         <section className="card card-pad">
           <h2 className="text-sm font-semibold text-ink-900">批量生成</h2>
           <form onSubmit={generate} className="mt-3 grid gap-2.5 sm:grid-cols-2">
@@ -289,6 +320,55 @@ export default function AdminRedeemPage() {
                   <span className="text-xs text-ink-500">刚生成的码已在下方列表中，可直接导出。</span>
                 </>
               ) : null}
+            </div>
+          </form>
+        </section>
+
+        <section className="card card-pad">
+          <h2 className="text-sm font-semibold text-ink-900">赠送会员</h2>
+          <p className="mt-1 text-xs text-ink-500">
+            按账号邮箱直接开通，立即生效，时长接在对方当前到期日之后。会留下一条“赠送”记录。
+          </p>
+          <form onSubmit={gift} className="mt-3 grid gap-2.5 sm:grid-cols-3">
+            <label className="text-xs text-ink-600 sm:col-span-2">
+              账号邮箱
+              <input
+                type="email"
+                value={giftEmail}
+                onChange={(event) => setGiftEmail(event.target.value)}
+                placeholder="user@example.com"
+                autoComplete="off"
+                className="field mt-1 h-8 py-0 text-xs"
+              />
+            </label>
+            <label className="text-xs text-ink-600">
+              天数（1–365）
+              <input
+                type="number"
+                min={1}
+                max={365}
+                value={giftDays}
+                onChange={(event) => setGiftDays(Number(event.target.value))}
+                className="field mt-1 h-8 py-0 text-xs"
+              />
+            </label>
+            <label className="text-xs text-ink-600 sm:col-span-3">
+              备注（原因，如：导出失败补偿）
+              <input
+                value={giftNote}
+                maxLength={255}
+                onChange={(event) => setGiftNote(event.target.value)}
+                className="field mt-1 h-8 py-0 text-xs"
+              />
+            </label>
+            <div className="sm:col-span-3">
+              <button
+                type="submit"
+                className="btn btn-sm btn-primary"
+                disabled={gifting || !giftEmail.trim() || giftDays < 1 || giftDays > 365}
+              >
+                {gifting ? "赠送中…" : "赠送"}
+              </button>
             </div>
           </form>
         </section>
@@ -360,7 +440,13 @@ export default function AdminRedeemPage() {
             <tbody>
               {(data?.items ?? []).map((item) => (
                 <tr key={item.id} className="border-t border-surface-border align-middle">
-                  <td className="px-3 py-2 font-mono text-xs tracking-wide text-ink-900">{item.code}</td>
+                  <td className="px-3 py-2 font-mono text-xs tracking-wide text-ink-900">
+                    {item.plan === "gift" ? (
+                      <span className="badge badge-warn">赠送 · {item.duration_days} 天</span>
+                    ) : (
+                      item.code
+                    )}
+                  </td>
                   <td className="px-3 py-2">
                     <span className={`badge ${STATUS_BADGE[item.status as RedeemCodeStatus] ?? "badge-neutral"}`}>
                       {STATUS_LABEL[item.status as RedeemCodeStatus] ?? item.status}

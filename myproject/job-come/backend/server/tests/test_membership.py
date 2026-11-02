@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 import jc.models  # noqa: F401 — registers every table on Base.metadata
 from jc.db.base import Base
-from jc.exceptions import AppError, ConflictError, ForbiddenError
+from jc.exceptions import AppError, ConflictError, ForbiddenError, NotFoundError
 from jc.models.membership import AdminAuditLog, MembershipLedger, RedeemCode
 from jc.models.profile import Profile
 from jc.models.resume import ExportJob, ResumeDraft
@@ -428,3 +428,99 @@ async def test_failed_export_leaves_the_free_download_available(sessions, export
     async with sessions() as db:
         retried = await _resume_service(db, uploaded).export("p", actor=actor, body=body)
         assert retried.status == "done"
+
+
+# -- admin gifts ------------------------------------------------------------------------
+
+
+async def test_gift_grants_days_and_records_the_grant(db):
+    await _user(db, "target")
+    admin = RedeemAdminService(db)
+
+    result = await admin.gift_membership(
+        actor_user_id="admin_1", email="target@example.test", days=30, note="补偿一次导出失败"
+    )
+
+    assert result.user_id == "target" and result.days == 30
+    assert _close((await _reload(db, "target")).vip_expires_at, _now() + timedelta(days=30))
+    assert (await MembershipService(db).snapshot("target")).tier == "vip"
+
+    row = (await db.execute(select(RedeemCode).where(RedeemCode.id == result.code_id))).scalar_one()
+    assert row.status == "redeemed" and row.plan == "gift" and row.redeemed_by_user_id == "target"
+    assert row.created_by == "admin_1" and row.note == "补偿一次导出失败"
+    ledger = (await db.execute(select(MembershipLedger))).scalars().all()
+    assert [(entry.source, entry.user_id, entry.days) for entry in ledger] == [
+        ("gift", "target", 30)
+    ]
+    audits = (await db.execute(select(AdminAuditLog))).scalars().all()
+    assert [a.action for a in audits] == ["membership.gift"]
+    assert audits[0].target_id == "target" and audits[0].detail["days"] == 30
+
+
+async def test_gift_stacks_on_a_live_membership(db):
+    current = _now() + timedelta(days=12)
+    await _user(db, "member", vip_expires_at=current)
+
+    await RedeemAdminService(db).gift_membership(
+        actor_user_id="admin_1", email="member@example.test", days=7, note=None
+    )
+    assert _close((await _reload(db, "member")).vip_expires_at, current + timedelta(days=7))
+
+
+async def test_gift_after_lapse_starts_from_now(db):
+    await _user(db, "lapsed2", vip_expires_at=_now() - timedelta(days=40))
+
+    await RedeemAdminService(db).gift_membership(
+        actor_user_id="admin_1", email="lapsed2@example.test", days=10, note=None
+    )
+    assert _close((await _reload(db, "lapsed2")).vip_expires_at, _now() + timedelta(days=10))
+
+
+async def test_gift_matches_email_ignoring_case_and_spaces(db):
+    await _user(db, "casey")
+
+    result = await RedeemAdminService(db).gift_membership(
+        actor_user_id="admin_1", email="  CASEY@Example.TEST ", days=5, note=None
+    )
+    assert result.user_id == "casey"
+
+
+async def test_gift_to_unknown_or_deleted_account_changes_nothing(db):
+    await _user(db, "gone")
+    await db.execute(update(User).where(User.id == "gone").values(deleted_at=_now()))
+    await db.commit()
+    admin = RedeemAdminService(db)
+
+    for address in ("nobody@example.test", "gone@example.test"):
+        with pytest.raises(NotFoundError) as exc:
+            await admin.gift_membership(actor_user_id="admin_1", email=address, days=30, note=None)
+        assert exc.value.code == "gift_user_not_found"
+
+    assert (await db.execute(select(RedeemCode))).scalars().all() == []
+    assert (await db.execute(select(MembershipLedger))).scalars().all() == []
+    assert (await db.execute(select(AdminAuditLog))).scalars().all() == []
+
+
+@pytest.mark.parametrize("days", [0, -3, 366])
+async def test_gift_rejects_out_of_range_days(db, days):
+    await _user(db, "ranged")
+    with pytest.raises(AppError) as exc:
+        await RedeemAdminService(db).gift_membership(
+            actor_user_id="admin_1", email="ranged@example.test", days=days, note=None
+        )
+    assert exc.value.code == "invalid_gift_days"
+    assert (await _reload(db, "ranged")).vip_expires_at is None
+
+
+async def test_gifts_never_appear_in_the_default_csv_or_count_as_unused(db):
+    await _user(db, "recipient")
+    admin = RedeemAdminService(db)
+    await admin.create_batch(actor_user_id="admin_1", count=2, note=None, expires_at=None)
+    await admin.gift_membership(
+        actor_user_id="admin_1", email="recipient@example.test", days=30, note=None
+    )
+
+    rows = await admin.export_csv_rows(actor_user_id="admin_1", status=None, batch_id=None)
+    assert len(rows) == 2 and all(row.plan == "monthly" for row in rows)
+    listing = await admin.list_codes(status=None, batch_id=None, search=None, limit=10, offset=0)
+    assert listing.stats.unused == 2 and listing.stats.redeemed == 1

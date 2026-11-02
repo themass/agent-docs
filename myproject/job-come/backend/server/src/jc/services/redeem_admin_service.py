@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+import secrets
+from datetime import UTC, datetime, timedelta
 
 from agentkit.common.ids import new_id
 from sqlalchemy import func, or_, select
@@ -12,11 +13,13 @@ from jc.exceptions import AppError, ConflictError, NotFoundError
 from jc.models.membership import (
     AdminAuditLog,
     AppSetting,
+    MembershipLedger,
     RedeemCode,
     RedeemCodeStatus,
 )
 from jc.models.user import User
 from jc.schemas.admin_redeem import (
+    MembershipGiftResponse,
     RedeemCodeBatchResponse,
     RedeemCodeItem,
     RedeemCodeListResponse,
@@ -26,12 +29,16 @@ from jc.services.membership_service import (
     MONTHLY_DAYS,
     PLAN_MONTHLY,
     PURCHASE_URL_KEY,
+    extend_vip,
     format_code,
     normalize_code,
     random_code,
     read_purchase_url,
 )
 
+PLAN_GIFT = "gift"
+GIFT_MIN_DAYS = 1
+GIFT_MAX_DAYS = 365
 _MAX_BATCH = 500
 _CODE_GENERATION_ATTEMPTS = 10
 
@@ -78,6 +85,82 @@ class RedeemAdminService:
             batch_id=batch_id,
             count=count,
             codes=[format_code(code) for code in codes],
+        )
+
+    async def gift_membership(
+        self,
+        *,
+        actor_user_id: str,
+        email: str,
+        days: int,
+        note: str | None,
+    ) -> MembershipGiftResponse:
+        """Grant paid days to one account by email, recorded as an already-redeemed code.
+
+        Writing the grant as a redeemed code row keeps one history of who received paid
+        time and from which operator, instead of a second list that has to be reconciled
+        with the first.
+        """
+        if not GIFT_MIN_DAYS <= days <= GIFT_MAX_DAYS:
+            raise AppError(
+                f"赠送天数需要在 {GIFT_MIN_DAYS} 到 {GIFT_MAX_DAYS} 之间。",
+                code="invalid_gift_days",
+            )
+        address = email.strip().lower()
+        user = (
+            await self._db.execute(
+                select(User)
+                .where(func.lower(User.email) == address, User.deleted_at.is_(None))
+                .with_for_update()
+            )
+        ).scalar_one_or_none()
+        if user is None:
+            raise NotFoundError("没有找到这个邮箱对应的账号。", code="gift_user_not_found")
+
+        now = datetime.now(UTC)
+        _, ends_at = extend_vip(user, days, now)
+        code_id = new_id("rdc")
+        batch_id = new_id("rdb")
+        self._db.add(
+            RedeemCode(
+                id=code_id,
+                code=f"GIFT{secrets.token_hex(6).upper()}",
+                batch_id=batch_id,
+                plan=PLAN_GIFT,
+                duration_days=days,
+                status=RedeemCodeStatus.REDEEMED,
+                note=note or "管理员赠送",
+                created_by=actor_user_id,
+                redeemed_by_user_id=user.id,
+                redeemed_at=now,
+            )
+        )
+        await self._db.flush()
+        self._db.add(
+            MembershipLedger(
+                id=new_id("mbl"),
+                user_id=user.id,
+                source="gift",
+                redeem_code_id=code_id,
+                days=days,
+                starts_at=ends_at - timedelta(days=days),
+                ends_at=ends_at,
+            )
+        )
+        self._audit(
+            actor_user_id,
+            "membership.gift",
+            "user",
+            user.id,
+            {"email": user.email, "days": days, "code_id": code_id, "note": note},
+        )
+        await self._db.commit()
+        return MembershipGiftResponse(
+            user_id=user.id,
+            email=user.email,
+            days=days,
+            vip_expires_at=ends_at,
+            code_id=code_id,
         )
 
     async def _unused_codes(self, count: int) -> list[str]:

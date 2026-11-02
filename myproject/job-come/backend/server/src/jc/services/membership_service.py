@@ -70,6 +70,18 @@ async def read_purchase_url(db: AsyncSession) -> str | None:
     return row.value if row is not None and row.value else None
 
 
+def extend_vip(user: User, days: int, now: datetime) -> tuple[datetime, datetime]:
+    """Add paid days. Time stacks on a live membership; a lapsed one is not backfilled."""
+    starts_at = (
+        user.vip_expires_at
+        if user.vip_expires_at is not None and user.vip_expires_at > now
+        else now
+    )
+    ends_at = starts_at + timedelta(days=days)
+    user.vip_expires_at = ends_at
+    return starts_at, ends_at
+
+
 def tier_of(user: User, now: datetime) -> str:
     if user.role == UserRole.ADMIN:
         return TIER_ADMIN
@@ -209,13 +221,7 @@ class MembershipService:
         if claimed.rowcount != 1:
             raise ConflictError("这个兑换码刚刚已被使用。", code="redeem_code_used")
 
-        starts_at = (
-            user.vip_expires_at
-            if user.vip_expires_at is not None and user.vip_expires_at > now
-            else now
-        )
-        ends_at = starts_at + timedelta(days=code.duration_days)
-        user.vip_expires_at = ends_at
+        starts_at, ends_at = extend_vip(user, code.duration_days, now)
         user.redeem_failed_count = 0
         user.redeem_locked_until = None
         self._db.add(

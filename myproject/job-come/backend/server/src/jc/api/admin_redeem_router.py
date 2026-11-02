@@ -12,6 +12,8 @@ from fastapi import APIRouter, Depends, Query, Response
 
 from jc.api.deps import get_redeem_admin_service, require_admin
 from jc.schemas.admin_redeem import (
+    MembershipGiftRequest,
+    MembershipGiftResponse,
     PurchaseUrlRequest,
     PurchaseUrlResponse,
     RedeemCodeBatchRequest,
@@ -192,6 +194,25 @@ async def admin_delete_redeem_code(
 ) -> Response:
     await service.delete_code(actor_user_id=actor.user_id, code_id=code_id)
     return Response(status_code=204)
+
+
+@router.post(
+    "/membership/gift",
+    response_model=MembershipGiftResponse,
+    summary="按邮箱赠送会员",
+    description="立即生效，时长接在对方当前到期日之后。会写入一条已兑换的记录和审计日志。",
+)
+async def admin_gift_membership(
+    body: MembershipGiftRequest,
+    actor: UserActor = Depends(require_admin),
+    service: RedeemAdminService = Depends(get_redeem_admin_service),
+) -> MembershipGiftResponse:
+    return await service.gift_membership(
+        actor_user_id=actor.user_id,
+        email=body.email,
+        days=body.days,
+        note=body.note,
+    )
 
 
 @router.get(

@@ -56,6 +56,20 @@ class RedeemCodeNoteRequest(BaseModel):
     note: str | None = Field(default=None, max_length=255)
 
 
+class MembershipGiftRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=255)
+    days: int = Field(default=30, ge=1, le=365)
+    note: str | None = Field(default=None, max_length=255)
+
+
+class MembershipGiftResponse(BaseModel):
+    user_id: str
+    email: str
+    days: int
+    vip_expires_at: datetime
+    code_id: str
+
+
 class PurchaseUrlRequest(BaseModel):
     url: str | None = Field(default=None, max_length=512)
 
