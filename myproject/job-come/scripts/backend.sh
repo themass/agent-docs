@@ -69,7 +69,7 @@ cmd_start() {
     die "JC_COOKIE_SECURE=true but JC_PUBLIC_URL is plain http — the browser will drop every cookie."
   fi
 
-  daemon_start backend "$PIDFILE" "$LOGFILE" "$MARKER" check_health - \
+  DAEMON_PORT="${API_PORT}" daemon_start backend "$PIDFILE" "$LOGFILE" "$MARKER" check_health - \
     "${VENV}/bin/python" -m uvicorn jc.main:app \
     --app-dir "${SERVER_ROOT}/src" \
     --host "$API_HOST" --port "$API_PORT" \
@@ -82,8 +82,8 @@ cmd_start() {
 
 case "${1:-}" in
   start) cd "$SERVER_ROOT"; cmd_start ;;
-  stop) daemon_stop backend "$PIDFILE" ;;
-  restart) daemon_stop backend "$PIDFILE"; cd "$SERVER_ROOT"; cmd_start ;;
+  stop) daemon_stop backend "$PIDFILE" "$MARKER" ;;
+  restart) daemon_stop backend "$PIDFILE" "$MARKER"; cd "$SERVER_ROOT"; cmd_start ;;
   status) daemon_status backend "$PIDFILE" "$MARKER" ;;
   *) die "usage: $0 start|stop|restart|status" ;;
 esac

@@ -76,14 +76,14 @@ cmd_start() {
   # to the dev default 8001 (far harder to diagnose than a clean 502).
   JC_API_PROXY_TARGET="http://127.0.0.1:${API_PORT}" \
   NEXT_TELEMETRY_DISABLED=1 \
-    daemon_start frontend "$PIDFILE" "$LOGFILE" "$MARKER" check_health resolve_web_pid \
+    DAEMON_PORT="${WEB_PORT}" daemon_start frontend "$PIDFILE" "$LOGFILE" "$MARKER" check_health resolve_web_pid \
     "$next_bin" start --port "$WEB_PORT"
 }
 
 case "${1:-}" in
   start) cd "$WEB_ROOT"; cmd_start ;;
-  stop) daemon_stop frontend "$PIDFILE" ;;
-  restart) daemon_stop frontend "$PIDFILE"; cd "$WEB_ROOT"; cmd_start ;;
+  stop) daemon_stop frontend "$PIDFILE" "$MARKER" ;;
+  restart) daemon_stop frontend "$PIDFILE" "$MARKER"; cd "$WEB_ROOT"; cmd_start ;;
   status) daemon_status frontend "$PIDFILE" "$MARKER" ;;
   *) die "usage: $0 start|stop|restart|status" ;;
 esac

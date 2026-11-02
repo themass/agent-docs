@@ -40,6 +40,23 @@ daemon_is_running() {
 # health check first passes — not `$!` — and `$!`'s own liveness is not used
 # to fail the loop early, since for a handoff-style process that PID dying is
 # expected, not a crash.
+# Prints "<pid> <command> <cwd>" for the process listening on a TCP port, or nothing when the
+# port is free. The working directory is what tells an operator WHICH deployment holds it
+# (an old checkout and a new deploy directory use the same ports).
+daemon_port_owner() {
+  local port="$1" pid="" cmd cwd
+  if command -v lsof >/dev/null 2>&1; then
+    pid="$(lsof -t -iTCP:"$port" -sTCP:LISTEN 2>/dev/null | head -1 || true)"
+  fi
+  if [[ -z "$pid" ]] && command -v ss >/dev/null 2>&1; then
+    pid="$(ss -H -ltnp 2>/dev/null | awk -v p=":${port}\$" '$4 ~ p' | grep -o 'pid=[0-9]*' | head -1 | cut -d= -f2 || true)"
+  fi
+  [[ -n "$pid" ]] || return 0
+  cmd="$(ps -o args= -p "$pid" 2>/dev/null | cut -c1-80 || true)"
+  cwd="$(readlink "/proc/${pid}/cwd" 2>/dev/null || true)"
+  printf '%s %s %s\n' "$pid" "${cmd:-?}" "${cwd:-?}"
+}
+
 daemon_start() {
   local name="$1" pidfile="$2" logfile="$3" marker="$4" check_fn="$5" resolve_fn="$6"
   shift 6
@@ -50,6 +67,21 @@ daemon_start() {
   fi
   rm -f "$pidfile"
   mkdir -p "$(dirname "$pidfile")" "$(dirname "$logfile")"
+
+  # Refuse before starting when something else already listens on the port. Otherwise the
+  # new process dies with EADDRINUSE, and the health check - which only asks "does anything
+  # answer on this port" - is satisfied by the other process and reports a healthy start.
+  if [[ -n "${DAEMON_PORT:-}" ]]; then
+    local owner; owner="$(daemon_port_owner "$DAEMON_PORT")"
+    if [[ -n "$owner" ]]; then
+      printf '[%s] ERROR: port %s is already in use, not starting.\n' "$name" "$DAEMON_PORT" >&2
+      printf '[%s]   held by: pid %s\n' "$name" "${owner%% *}" >&2
+      printf '[%s]   command / directory: %s\n' "$name" "${owner#* }" >&2
+      printf '[%s]   If that is an older deployment of this app, stop it from its own directory first:\n' "$name" >&2
+      printf '[%s]       cd <that directory> && ./scripts/%s.sh stop\n' "$name" "$name" >&2
+      return 1
+    fi
+  fi
 
   printf '[%s] starting: %s\n' "$name" "$*"
   # `setsid` detaches into a new session so the process survives this shell (and
@@ -114,7 +146,7 @@ daemon_start() {
 # would cut off an in-flight SSE preview stream or an export mid-write instead
 # of letting the process close it out.
 daemon_stop() {
-  local name="$1" pidfile="$2"
+  local name="$1" pidfile="$2" marker="${3:-}"
   if [[ ! -f "$pidfile" ]]; then
     printf '[%s] not running (no pidfile)\n' "$name"
     return 0
@@ -122,6 +154,16 @@ daemon_stop() {
   local pid; pid="$(cat "$pidfile" 2>/dev/null)"
   if [[ -z "$pid" ]] || ! kill -0 "$pid" 2>/dev/null; then
     printf '[%s] not running (stale pidfile)\n' "$name"
+    rm -f "$pidfile"
+    return 0
+  fi
+  # The pid file alone is not proof the pid is ours: pids are reused, and a pid file written
+  # by an earlier version of this script could name an unrelated program. Signalling the
+  # wrong one is not recoverable, so a process whose command line lacks the marker is left
+  # alone and the stale file is dropped.
+  if [[ -n "$marker" ]] && ! ps -o command= -p "$pid" 2>/dev/null | grep -qF "$marker"; then
+    printf '[%s] pid %s in the pid file is not this service (%s) - not stopping it, removing the pid file\n' \
+      "$name" "$pid" "$(ps -o comm= -p "$pid" 2>/dev/null || echo '?')" >&2
     rm -f "$pidfile"
     return 0
   fi
