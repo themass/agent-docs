@@ -14,30 +14,48 @@
 #
 # Env (optional):
 #   JC_NGINX_VERSION=1.26.3
-#   JC_NGINX_SERVER_NAME=jc.sspacee.com    # also used in self-signed SAN
+#   JC_NGINX_SERVER_NAME="jc.sspacee.com"  # one or more host names/IPs, space or comma
+#                                          # separated; all go into nginx server_name and
+#                                          # the certificate SAN. The first is the primary.
+#   JC_NGINX_HTTPS_PORT=443                # port for the HTTPS site (see below)
 #   JC_WEB_PORT=3000  JC_API_PORT=8000
 #   JC_NGINX_INSTALL_ROOT=/root/local
 #   JC_NGINX_SOFT_ROOT=/root/soft
 #   JC_NGINX_FORCE_REBUILD=1             # recompile even if prefix exists
-#   JC_NGINX_REGEN_CERT=1                # replace self-signed cert
+#   JC_NGINX_REGEN_CERT=1                # replace self-signed cert unconditionally
+#
+# Adding a domain:
+#   JC_NGINX_SERVER_NAME="jc.sspacee.com jc2.example.com" sudo -E ./scripts/nginx/install-jc-nginx.sh --config-only
+# The certificate is regenerated automatically whenever a requested name is not already
+# in its SAN, so a new domain never ends up served with a certificate that names only the
+# old one. A certificate that already covers every requested name is left alone, so a
+# browser exception or an imported trust anchor keeps working across runs.
 #
 # Port 443: if something else already owns it (checked with `ss`; a prior run of
 # this same nginx does not count), HTTPS is skipped automatically with a warning
-# instead of failing nginx's startup entirely — binding :443 is one `listen`
+# instead of failing nginx's startup entirely — binding the HTTPS port is one `listen`
 # directive among several, and nginx refuses to start AT ALL if any of them
 # fails, which would otherwise take the working HTTP site down over an
-# unrelated port conflict. Use --http-only to skip it unconditionally.
+# unrelated port conflict. Use --http-only to skip it unconditionally. To serve HTTPS
+# next to a program that owns 443, set JC_NGINX_HTTPS_PORT to a free port (for example
+# 8443); that port must also be opened in the cloud security group, and URLs then need
+# the port (https://host:8443/).
 #
 # Cookie / public URL (backend + frontend build) must match how users open the site:
 #   http://...  → JC_PUBLIC_URL=http://..., JC_COOKIE_SECURE=false
 #   https://... → JC_PUBLIC_URL=https://..., JC_COOKIE_SECURE=true (browser will warn on self-signed)
+# While HTTP stays the main address, keep JC_COOKIE_SECURE=false: a Secure cookie is never
+# sent over http, so the login would silently stop working there.
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_DIR="${SCRIPT_DIR}/templates"
 
 NGINX_VERSION="${JC_NGINX_VERSION:-1.26.3}"
-SERVER_NAME="${JC_NGINX_SERVER_NAME:-jc.sspacee.com}"
+# Commas are accepted as separators too; the list is stored space separated.
+SERVER_NAMES="$(printf '%s' "${JC_NGINX_SERVER_NAME:-jc.sspacee.com}" | tr ',' ' ' | xargs)"
+SERVER_NAME="${SERVER_NAMES%% *}"
+HTTPS_PORT="${JC_NGINX_HTTPS_PORT:-443}"
 WEB_PORT="${JC_WEB_PORT:-3000}"
 API_PORT="${JC_API_PORT:-8000}"
 INSTALL_ROOT="${JC_NGINX_INSTALL_ROOT:-/root/local}"
@@ -66,7 +84,7 @@ for arg in "$@"; do
     --http-only) FORCE_HTTP_ONLY=true ;;
     --reload) DO_RELOAD=true ;;
     --stop) DO_STOP=true ;;
-    -h|--help) sed -n '2,33p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,48p' "$0"; exit 0 ;;
     *) echo "Unknown argument: $arg" >&2; exit 1 ;;
   esac
 done
@@ -78,13 +96,49 @@ require_root() {
   [[ "$(id -u)" -eq 0 ]] || die "run as root (sudo $0)"
 }
 
+is_ipv4() {
+  [[ "$1" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]
+}
+
+# The names land in three syntaxes at once — a sed replacement, an nginx `server_name`
+# and an openssl config — and none of them tolerates a stray `|`, `;`, quote or newline.
+# Restricting to hostname characters here is cheaper than escaping correctly in each.
+validate_names_and_ports() {
+  [[ -n "$SERVER_NAMES" ]] || die "JC_NGINX_SERVER_NAME is empty"
+  local name
+  for name in $SERVER_NAMES; do
+    if is_ipv4 "$name"; then
+      continue
+    fi
+    [[ "$name" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$ ]] \
+      || die "invalid server name: '${name}' (use host names or IPv4 addresses only)"
+  done
+
+  # `10#` so a value like 0443 is read as decimal, not rejected or read as octal.
+  [[ "$HTTPS_PORT" =~ ^[0-9]{1,5}$ ]] || die "JC_NGINX_HTTPS_PORT must be a number, got '${HTTPS_PORT}'"
+  HTTPS_PORT=$((10#$HTTPS_PORT))
+  (( HTTPS_PORT >= 1 && HTTPS_PORT <= 65535 )) || die "JC_NGINX_HTTPS_PORT out of range: ${HTTPS_PORT}"
+  (( HTTPS_PORT != 80 )) || die "JC_NGINX_HTTPS_PORT cannot be 80, it serves the plain HTTP site"
+  (( HTTPS_PORT != WEB_PORT && HTTPS_PORT != API_PORT )) \
+    || die "JC_NGINX_HTTPS_PORT (${HTTPS_PORT}) collides with the web/API upstream port"
+}
+
+# "https://host" for the default port, "https://host:8443" otherwise.
+https_origin() {
+  if (( HTTPS_PORT == 443 )); then
+    printf 'https://%s' "$1"
+  else
+    printf 'https://%s:%s' "$1" "$HTTPS_PORT"
+  fi
+}
+
 # True (0) when :443 is free for us to bind — nothing listening, or the only
 # listener is our own already-running nginx (a reload, not a conflict). False
 # when some other process owns it, e.g. a proxy service unrelated to this
 # deploy; attempting to bind there would fail nginx's startup entirely.
 https_port_available() {
   local line owner
-  line="$(ss -H -ltnp 2>/dev/null | awk '$4 ~ /:443$/')"
+  line="$(ss -H -ltnp 2>/dev/null | awk -v port="$HTTPS_PORT" '$4 ~ (":" port "$")')"
   [[ -z "$line" ]] && return 0
   owner="$(printf '%s\n' "$line" | grep -o 'users:(("[^"]*"' | head -1 | sed -E 's/^users:\(\("//; s/"$//')"
   [[ "$owner" == "nginx" ]]
@@ -172,7 +226,8 @@ render_template() {
     -e "s|__JC_NGINX_CONF__|${CONF_DIR}|g" \
     -e "s|__JC_NGINX_LOGS__|${LOG_DIR}|g" \
     -e "s|__JC_SSL_DIR__|${SSL_DIR}|g" \
-    -e "s|__JC_SERVER_NAME__|${SERVER_NAME}|g" \
+    -e "s|__JC_SERVER_NAME__|${SERVER_NAMES}|g" \
+    -e "s|__JC_HTTPS_PORT__|${HTTPS_PORT}|g" \
     -e "s|__JC_WEB_PORT__|${WEB_PORT}|g" \
     -e "s|__JC_API_PORT__|${API_PORT}|g" \
     "$src" >"$dest"
@@ -202,6 +257,31 @@ install_config() {
   fi
 }
 
+# Every name the site is reachable by, plus loopback, as `DNS:` / `IP Address:` entries.
+cert_wanted_entries() {
+  local name
+  for name in $SERVER_NAMES localhost 127.0.0.1; do
+    if is_ipv4 "$name"; then
+      printf 'IP Address:%s\n' "$name"
+    else
+      printf 'DNS:%s\n' "$name"
+    fi
+  done | sort -u
+}
+
+# True when the existing certificate already names everything we want to serve. Anything
+# less — an older certificate that predates a newly added domain, or one we cannot read —
+# means regenerating, because nginx would otherwise serve a name the certificate does not
+# carry and every browser would report a name mismatch on top of the self-signed warning.
+cert_covers_names() {
+  local cert="$1" have want
+  have="$(openssl x509 -in "$cert" -noout -ext subjectAltName 2>/dev/null \
+    | tr ',' '\n' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' | grep -E '^(DNS|IP Address):' | sort -u)"
+  [[ -n "$have" ]] || return 1
+  want="$(cert_wanted_entries)"
+  [[ -z "$(comm -23 <(printf '%s\n' "$want") <(printf '%s\n' "$have"))" ]]
+}
+
 generate_self_signed_cert() {
   [[ "$ENABLE_HTTPS" == true ]] || return 0
   local cert="${SSL_DIR}/jc-selfsigned.crt"
@@ -209,12 +289,16 @@ generate_self_signed_cert() {
   local cnf="${SSL_DIR}/openssl.cnf"
 
   if [[ -f "$cert" && -f "$key" && "${JC_NGINX_REGEN_CERT:-0}" != "1" ]]; then
-    log "keeping existing self-signed cert in ${SSL_DIR}"
-    return 0
+    if cert_covers_names "$cert"; then
+      log "keeping existing self-signed cert in ${SSL_DIR} (already covers: ${SERVER_NAMES})"
+      return 0
+    fi
+    log "existing certificate does not cover every requested name — regenerating"
   fi
 
-  log "generating self-signed certificate (10 years, SAN: ${SERVER_NAME}, localhost, 127.0.0.1)"
-  cat >"$cnf" <<EOF
+  log "generating self-signed certificate (10 years, names: ${SERVER_NAMES}, localhost, 127.0.0.1)"
+  {
+    cat <<EOF
 [req]
 default_bits = 2048
 prompt = no
@@ -226,13 +310,26 @@ x509_extensions = v3_req
 CN = ${SERVER_NAME}
 
 [v3_req]
+basicConstraints = CA:FALSE
+keyUsage = digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
 subjectAltName = @alt_names
 
 [alt_names]
-DNS.1 = ${SERVER_NAME}
-DNS.2 = localhost
-IP.1 = 127.0.0.1
 EOF
+    local dns_index=0 ip_index=0 name
+    for name in $SERVER_NAMES localhost; do
+      if is_ipv4 "$name"; then
+        ip_index=$((ip_index + 1))
+        printf 'IP.%d = %s\n' "$ip_index" "$name"
+      else
+        dns_index=$((dns_index + 1))
+        printf 'DNS.%d = %s\n' "$dns_index" "$name"
+      fi
+    done
+    ip_index=$((ip_index + 1))
+    printf 'IP.%d = 127.0.0.1\n' "$ip_index"
+  } >"$cnf"
 
   openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
     -keyout "$key" -out "$cert" -config "$cnf" -extensions v3_req
@@ -265,13 +362,23 @@ nginx_stop() {
 }
 
 print_summary() {
-  local https_line
+  local name http_lines="" https_lines="" security_group=""
+  for name in $SERVER_NAMES; do
+    http_lines+="    http://${name}/"$'\n'
+  done
   if [[ "$ENABLE_HTTPS" == true ]]; then
-    https_line="  HTTPS: https://${SERVER_NAME}/        (browser will warn — self-signed)"
+    for name in $SERVER_NAMES; do
+      https_lines+="    $(https_origin "$name")/"$'\n'
+    done
+    https_lines+="    (self-signed: browsers show a warning until the certificate is trusted)"
+    if (( HTTPS_PORT != 443 )); then
+      security_group="
+  Open TCP ${HTTPS_PORT} in the cloud security group / firewall, or HTTPS will time out from outside."
+    fi
   else
-    https_line="  HTTPS: skipped — :443 is already in use by another process on this host.
-         Free it and re-run without --http-only, or run with --config-only
-         once it is free, to turn HTTPS on without rebuilding nginx."
+    https_lines="    skipped — port ${HTTPS_PORT} is already in use by another process on this host.
+    Set JC_NGINX_HTTPS_PORT to a free port (e.g. 8443), or free the port, then re-run with
+    --config-only; nginx does not need to be rebuilt."
   fi
   cat <<EOF
 
@@ -282,17 +389,20 @@ print_summary() {
   TLS:      ${SSL_DIR}/jc-selfsigned.{crt,key}
   Logs:     ${LOG_DIR}/
 
-  HTTP:  http://${SERVER_NAME}/          (also http://<server-ip>/ if DNS points here)
-${https_line}
+  HTTP:
+${http_lines%$'\n'}
+  HTTPS:
+${https_lines}${security_group}
 
   Upstream (must be running on this host):
     Web 127.0.0.1:${WEB_PORT}   → ./scripts/frontend.sh start
     API 127.0.0.1:${API_PORT}   → ./scripts/backend.sh start
 
   Align job-come env with the URL users use:
-    http only  → JC_PUBLIC_URL=http://${SERVER_NAME}  JC_COOKIE_SECURE=false
-    https      → JC_PUBLIC_URL=https://${SERVER_NAME} JC_COOKIE_SECURE=true
-    frontend   → NEXT_PUBLIC_SITE_URL same scheme, then npm run build
+    http is the main address  → JC_PUBLIC_URL=http://${SERVER_NAME}  JC_COOKIE_SECURE=false
+    https is the main address → JC_PUBLIC_URL=$(https_origin "$SERVER_NAME") JC_COOKIE_SECURE=true
+    frontend                  → NEXT_PUBLIC_SITE_URL same scheme, then rebuild the frontend
+  With both addresses live, keep JC_COOKIE_SECURE=false so the login works on either.
 
   Reload after template changes: sudo $0 --config-only
 EOF
@@ -300,6 +410,7 @@ EOF
 
 main() {
   require_root
+  validate_names_and_ports
 
   if [[ "$DO_STOP" == true ]]; then
     [[ -x "$NGINX_BIN" ]] || die "nginx not installed at ${NGINX_LINK}"
@@ -316,13 +427,13 @@ main() {
 
   if [[ "$FORCE_HTTP_ONLY" == true ]]; then
     ENABLE_HTTPS=false
-    log "--http-only: skipping :443 unconditionally"
+    log "--http-only: skipping HTTPS unconditionally"
   elif https_port_available; then
     ENABLE_HTTPS=true
   else
     ENABLE_HTTPS=false
-    log "WARNING: :443 is already in use by another process on this host — skipping HTTPS."
-    log "         The site will serve HTTP only. See --http-only / port 443 note in --help."
+    log "WARNING: port ${HTTPS_PORT} is already in use by another process on this host — skipping HTTPS."
+    log "         The site will serve HTTP only. Set JC_NGINX_HTTPS_PORT to a free port to enable it."
   fi
 
   if [[ "$CONFIG_ONLY" == false ]]; then
@@ -340,4 +451,6 @@ main() {
   print_summary
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi
