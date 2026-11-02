@@ -24,7 +24,7 @@ export function LegalDocument({
         <p className="mt-1.5 text-xs text-ink-500">最后更新：{LEGAL_UPDATED}</p>
         {LEGAL_DRAFT ? (
           <p className="notice notice-warn mt-4 text-xs leading-relaxed" role="note">
-            这是草稿。主体信息尚未填写完整，且未经法律审阅，正式启用前不具备约束力。
+            这是草稿，尚未经过法律审阅；标有“待确认”的条款还没有定稿，正式启用前不具备约束力。
           </p>
         ) : null}
         {intro ? <div className="mt-4 text-sm leading-relaxed text-ink-600">{intro}</div> : null}
