@@ -28,6 +28,7 @@ from jc.services.intake_service import IntakeService
 from jc.services.interview_service import InterviewService
 from jc.services.job_service import JobService
 from jc.services.profile_service import ProfileService
+from jc.services.redeem_admin_service import RedeemAdminService
 from jc.services.resume_service import ResumeService
 from jc.services.session_audit_service import SessionAuditService
 from jc.services.writing_options_service import WritingOptionsService
@@ -79,6 +80,10 @@ async def get_admin_user_service(db: AsyncSession = Depends(get_db)) -> AdminUse
 
 async def get_feedback_service(db: AsyncSession = Depends(get_db)) -> FeedbackService:
     return FeedbackService(db)
+
+
+async def get_redeem_admin_service(db: AsyncSession = Depends(get_db)) -> RedeemAdminService:
+    return RedeemAdminService(db)
 
 
 async def get_coach_service(db: AsyncSession = Depends(get_db)) -> InterviewService:

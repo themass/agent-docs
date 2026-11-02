@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, String, Text
+from sqlalchemy import ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from jc.db.base import Base
@@ -32,6 +32,18 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     password_changed_at: Mapped[datetime | None] = mapped_column(
         UTCDateTime, nullable=True
     )
+    #: Paid membership runs until this instant. Null or past means not a member.
+    vip_expires_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    #: The one lifetime free download. Set only when an export actually succeeds.
+    free_download_used_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    #: Export job currently holding the free download. Cleared on success or failure, and
+    #: taken over after `free_download_reserved_at` goes stale (a crashed render).
+    free_download_job_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    free_download_reserved_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    redeem_failed_count: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
+    redeem_locked_until: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
 
     meta: Mapped[UserMeta | None] = relationship(back_populates="user", uselist=False)
     profiles: Mapped[list[Profile]] = relationship(back_populates="user")

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 const ADMIN_TABS = [
   { href: "/admin/users", label: "用户目录" },
+  { href: "/admin/redeem", label: "兑换码" },
   { href: "/admin/sessions", label: "Session 审计" },
   { href: "/admin/llm", label: "LLM 调用" },
   { href: "/admin/feedback", label: "用户反馈" },

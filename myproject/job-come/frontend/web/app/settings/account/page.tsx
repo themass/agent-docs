@@ -1,6 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/layout/PageHeader";
+import { MembershipPanel } from "@/components/membership/MembershipPanel";
 import { Select } from "@/components/ui/Select";
 import { userFacingApiError } from "@/lib/api/user-error";
 
@@ -245,6 +246,8 @@ export default function AccountSettingsPage() {
           </>
         )}
       </section>
+
+      <MembershipPanel />
 
       <section className="card card-pad">
         <h2 className="text-base font-semibold text-ink-900">登录安全</h2>

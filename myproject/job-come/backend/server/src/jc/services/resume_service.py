@@ -45,6 +45,7 @@ from jc.services.delivery_report import (
 )
 from jc.services.framing_presets import resolve_emphases
 from jc.services.localize_service import LocalizeService
+from jc.services.membership_service import MembershipService
 from jc.services.preview_progress import report
 from jc.services.profile_i18n import (
     detect_profile_source_locale,
@@ -389,6 +390,10 @@ class ResumeService:
         job_id = new_id("expj")
         job_format = body.format.value
         await release_db_connection(self._db)
+        # Reserve the download in the same transaction that creates the job, so a job
+        # never exists without its claim and a claim never outlives a rolled-back job.
+        membership = MembershipService(self._db)
+        await membership.claim_download(actor.user_id, job_id)
         job = ExportJob(
             id=job_id,
             user_id=actor.user_id,
@@ -447,6 +452,7 @@ class ResumeService:
             if job is None:
                 raise RuntimeError("Export job disappeared during rendering")
             await self._resumes.mark_export_done(job, storage_key=object_key)
+            await membership.consume_download(actor.user_id, job_id)
             await self._db.commit()
             return ExportJobResponse(
                 id=job_id,
@@ -459,6 +465,7 @@ class ResumeService:
             # A flush/commit failure leaves the session unusable until rollback.
             # Reload by scalar ID, never read expired attributes from the old job.
             await self._db.rollback()
+            await membership.release_download(actor.user_id, job_id)
             job = await self._resumes.get_export_job(job_id)
             if job is None:
                 raise

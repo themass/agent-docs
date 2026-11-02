@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 
 import { AppHeader } from "@/components/layout/AppHeader";
+import { SiteFooter } from "@/components/layout/SiteFooter";
+import { ConsentBanner } from "@/components/consent/ConsentBanner";
 import { FeedbackLauncher } from "@/components/feedback/FeedbackLauncher";
 import { AuthProvider } from "@/lib/auth/AuthProvider";
 import { NotificationProvider } from "@/lib/notifications/NotificationProvider";
@@ -59,7 +61,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <main className="mx-auto flex min-h-0 w-full max-w-shell flex-1 flex-col px-3 py-3 sm:px-4 sm:py-4">
               {children}
             </main>
+            <SiteFooter />
             <FeedbackLauncher />
+            <ConsentBanner />
           </NotificationProvider>
         </AuthProvider>
       </body>

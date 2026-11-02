@@ -23,6 +23,12 @@ from jc.models.interview import (
 )
 from jc.models.job import Campaign, Job
 from jc.models.llm_call import LlmCall, LlmCallAttempt
+from jc.models.membership import (
+    AdminAuditLog,
+    AppSetting,
+    MembershipLedger,
+    RedeemCode,
+)
 from jc.models.profile import Profile, ProfileSource
 from jc.models.profile_patch_confirm import ProfilePatchConfirm
 from jc.models.profile_snapshot import ProfileSnapshot
@@ -30,10 +36,12 @@ from jc.models.resume import ExportJob, ResumeDraft
 from jc.models.user import User, UserMeta
 
 __all__ = [
+    "AdminAuditLog",
     "AgentMessage",
     "AgentSession",
     "AgentTrace",
     "AnswerAttempt",
+    "AppSetting",
     "Application",
     "Campaign",
     "ExportJob",
@@ -45,6 +53,7 @@ __all__ = [
     "Job",
     "LlmCall",
     "LlmCallAttempt",
+    "MembershipLedger",
     "MockSession",
     "OfferTrack",
     "PasswordResetToken",
@@ -52,6 +61,7 @@ __all__ = [
     "ProfilePatchConfirm",
     "ProfileSnapshot",
     "ProfileSource",
+    "RedeemCode",
     "ResumeDraft",
     "User",
     "UserMeta",

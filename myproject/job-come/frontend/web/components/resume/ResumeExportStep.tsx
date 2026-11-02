@@ -2,12 +2,16 @@
 
 import { useEffect, useState } from "react";
 
+import { MembershipDialog } from "@/components/membership/MembershipDialog";
+import { ApiError } from "@/lib/api/errors";
+import { getMembership, type Membership } from "@/lib/api/membership";
 import {
   exportProfile,
   type ExportFormat,
   type ResumeTrack,
 } from "@/lib/api/resume";
 import { userFacingExportError } from "@/lib/api/user-error";
+import { formatDateTime } from "@/lib/datetime";
 import type { ResumeQualityReview } from "@/lib/hooks/useResumeQualityReview";
 import { ExportReviewProgress } from "./ExportReviewProgress";
 
@@ -84,10 +88,23 @@ export function ResumeExportStep({
   const [busyFormat, setBusyFormat] = useState<ExportFormat | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [files, setFiles] = useState<DoneFile[]>([]);
+  const [membership, setMembership] = useState<Membership | null>(null);
+  const [quotaDialogOpen, setQuotaDialogOpen] = useState(false);
   useEffect(() => {
     setFiles([]);
     setExportError(null);
   }, [profileId, locale, elevationLevel, draftId]);
+  useEffect(() => {
+    if (canExport) void refreshMembership();
+  }, [canExport]);
+
+  async function refreshMembership() {
+    try {
+      setMembership(await getMembership());
+    } catch {
+      setMembership(null);
+    }
+  }
 
   async function runExport(format: ExportFormat) {
     setBusyFormat(format);
@@ -104,11 +121,17 @@ export function ResumeExportStep({
           ...prev.filter((f) => f.format !== format),
         ]);
         onExported?.();
+        void refreshMembership();
       } else {
         setExportError(job.error_message ?? `导出未完成（状态：${job.status}）`);
       }
     } catch (err) {
-      setExportError(userFacingExportError(err));
+      if (err instanceof ApiError && err.code === "download_quota_exhausted") {
+        setQuotaDialogOpen(true);
+        void refreshMembership();
+      } else {
+        setExportError(userFacingExportError(err));
+      }
     } finally {
       setBusyFormat(null);
     }
@@ -214,6 +237,9 @@ export function ResumeExportStep({
 
       {/* Download. Only ever waits on the user reading the findings -- never on the
           check succeeding. An unavailable reviewer leaves this fully enabled. */}
+      {membership ? (
+        <DownloadQuotaNotice membership={membership} onUpgrade={() => setQuotaDialogOpen(true)} />
+      ) : null}
       <section className={`card card-pad transition ${downloadable ? "" : "opacity-60"}`}>
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-sm font-semibold text-ink-900">选择格式下载</h2>
@@ -290,6 +316,45 @@ export function ResumeExportStep({
           </p>
         ) : null}
       </section>
+
+      <MembershipDialog
+        open={quotaDialogOpen}
+        reason="quota_exhausted"
+        onClose={() => setQuotaDialogOpen(false)}
+        onMembershipChanged={setMembership}
+      />
+    </div>
+  );
+}
+
+function DownloadQuotaNotice({
+  membership,
+  onUpgrade,
+}: {
+  membership: Membership;
+  onUpgrade: () => void;
+}) {
+  if (membership.tier === "admin") return null;
+  if (membership.tier === "vip") {
+    return (
+      <p className="text-xs text-ink-600">
+        会员有效期至 {formatDateTime(membership.vip_expires_at)}，下载不限次数。
+      </p>
+    );
+  }
+  if (membership.free_download_available) {
+    return (
+      <p className="text-xs text-ink-600">
+        这是你的免费下载机会（终身一次），下载成功后计入。开通会员后不限次数。
+      </p>
+    );
+  }
+  return (
+    <div className="notice notice-warn flex flex-wrap items-center justify-between gap-2 text-xs" role="status">
+      <span>免费下载次数已用完。开通会员后可以不限次数下载。</span>
+      <button type="button" onClick={onUpgrade} className="btn btn-sm btn-primary">
+        开通会员
+      </button>
     </div>
   );
 }
