@@ -392,7 +392,7 @@ export default function AdminRedeemPage() {
         </section>
       </div>
 
-      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-surface-border bg-surface shadow-card">
+      <section className="flex shrink-0 flex-col overflow-hidden rounded-xl border border-surface-border bg-surface shadow-card">
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-surface-border p-3">
           <form onSubmit={applyFilters} className="flex flex-wrap items-center gap-2">
             <select
@@ -424,7 +424,10 @@ export default function AdminRedeemPage() {
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-auto">
+        {/* A fixed viewport-relative height, not "whatever is left": the three cards above
+            take most of a laptop screen, and a flex-1 table was squeezed to a few pixels
+            with its rows clipped. The page scrolls; the table keeps room to be read. */}
+        <div className="max-h-[70vh] min-h-[22rem] overflow-auto">
           <table className="w-full border-collapse text-sm">
             <thead className="sticky top-0 z-10 bg-surface-sunken text-xs text-ink-500">
               <tr>
