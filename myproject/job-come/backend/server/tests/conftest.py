@@ -21,18 +21,13 @@ from __future__ import annotations
 import os
 
 os.environ.setdefault("JC_BOOTSTRAP_SKIP_REEXEC", "1")
-# `test_evaluate_writing_script.py` loads `scripts/evaluate_writing.py` by path at
-# *collection* time (module-level `ew = _load()`), and that script's first import is
-# `lib.bootstrap.ensure_project_env()`, which calls `os.execv` to re-exec under the
-# monorepo venv's interpreter whenever the running interpreter is not already it (see
-# that module's docstring). Collection happens inside pytest's own process, so an
-# unguarded `execv` there replaces the *pytest process itself* with the re-exec'd
-# script — which hangs or exits on its own, silently eating whatever else pytest was
-# about to run with zero output and no error. Setting this before any test module
-# imports anything makes `ensure_project_env()` a no-op for the whole suite,
-# regardless of which interpreter invoked pytest; a developer or CI job running the
-# full `tests/` directory should never have the collector's own process replaced out
-# from under it.
+# `scripts/lib/bootstrap.ensure_project_env()` calls `os.execv` to re-exec under the project
+# interpreter whenever the running one is not already it. A test that imports one of the
+# scripts that call it, at collection time, would then replace the pytest process itself with
+# the re-exec'd script - which hangs or exits on its own and silently eats whatever else pytest
+# was about to run, with no output and no error. Setting this before any test module imports
+# anything makes `ensure_project_env()` a no-op for the whole suite, whichever interpreter
+# started pytest.
 
 from collections.abc import Iterator
 from contextlib import contextmanager

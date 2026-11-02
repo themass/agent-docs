@@ -3,7 +3,7 @@
 Why this exists
 ----------------
 Fifteen scripts each recomputed `PROJECT_ROOT` as `Path(__file__).resolve().parents[N]`
-and hand-rolled a `sys.path.insert`. Two of them (`verify_exports.py`, `seed_demo.py`)
+and hand-rolled a `sys.path.insert`. Two of them (`verify_exports.py` and `seed_demo.py`, both since removed)
 had the index wrong and pointed at `<repo>/src`, which does not exist — the kind of
 defect `jc/paths.py` documents as "caught by nothing, because the fallback never
 raises". A third, independent failure mode sits one level further out and `jc/paths.py`

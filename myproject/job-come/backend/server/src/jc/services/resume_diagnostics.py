@@ -33,7 +33,8 @@ from typing import Any
 #   zh-one-page:  page 2 starts at ~1226 chars, page 3 at ~2778  → 1st ~1200, then ~1550
 #   en-two-page:  page 2 starts at ~1997 chars, page 3 at ~4117  → 1st ~1950, then ~2120
 #
-# Re-measure with scripts/calibrate_resume_pages.py after changing template typography.
+# Re-measure after changing template typography. The old calibrate_resume_pages.py script is in
+# git history (see scripts/README.md).
 _PAGE_BUDGET = {
     "cjk": (1200, 1550),
     "latin": (1950, 2120),

@@ -3,6 +3,11 @@
 - **状态**：当前 V1 验收基线
 - **最后更新**：2026-10-17
 
+> **注意（2026-11）：** 本文提到的验收脚本（`verify_*.py`、`audit_visual.py`、`evaluate_*.py`、
+> `v1_acceptance.sh`、`test-live.sh` 等）已从 `scripts/` 删除，代码在 git 历史里，取回方法见
+> [`../../scripts/README.md`](../../scripts/README.md) 的「已删除的脚本」。下面的内容记录的是当时的验收做法和结论，
+> 现在 `./scripts/test-local.sh` 只做字节码编译、后端测试、shell 语法检查和前端构建。
+
 ## 1. 当前结论
 
 **V1 是可上线候选版本，已完成本地代码与构建验证；尚未获得生产发布批准。**

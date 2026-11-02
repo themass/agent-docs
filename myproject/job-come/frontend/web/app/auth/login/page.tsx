@@ -105,7 +105,7 @@ export default function LoginPage() {
             }}
             className="w-full rounded-md border border-dashed border-surface-border-strong py-2 text-xs text-ink-500 transition hover:bg-ink-50 disabled:opacity-50"
           >
-            一键登录演示账号（需先跑 scripts/seed_demo.py）
+            一键登录演示账号（开发环境，需要本地已有 demo@jc.local 账号）
           </button>
         ) : null}
       </form>

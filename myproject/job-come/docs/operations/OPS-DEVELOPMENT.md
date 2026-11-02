@@ -58,49 +58,17 @@ cd backend/server
 cd frontend/web
 npm run build
 
-# 本地综合检查（会生成 docs/evidence/document-evaluation.json）
+# 本地综合检查：字节码编译、后端测试、shell 语法、前端构建
 cd docs/myproject/job-come        # 从 monorepo 根目录进入；目录搬了就换成实际位置
 ./scripts/test-local.sh
 ```
 
-### 版面与交互验收脚本
+浏览器界面验收、真实服务联调、写作语义验收等脚本已经删除，见
+[`../../scripts/README.md`](../../scripts/README.md) 的「已删除的脚本」（代码在 git 历史里）。
 
-这几个脚本用真实 Chromium 打**构建产物**（不是 dev server），API 全部走夹具路由，
-所以不需要后端和 LLM：
-
-```bash
-cd frontend/web && npm run build        # 必须先构建
-npx next start -p 3138 &                # 换个没被占用的端口
-
-# 等页面真的能打开再跑，见下面的注意事项
-cd docs/myproject/job-come        # 从 monorepo 根目录进入；目录搬了就换成实际位置
-../../../venv/bin/python scripts/verify_ui.py           --base http://127.0.0.1:3138
-../../../venv/bin/python scripts/verify_resume_steps.py  --base http://127.0.0.1:3138
-../../../venv/bin/python scripts/verify_agent_rail.py    --base http://127.0.0.1:3138
-```
-
-两个注意事项，都踩过：
-
-- **就绪探测要打真实页面并要求 200**，不要只探 `/auth/login`。超时被中断的
-  `next start` 会留下一个占着端口的进程，它对所有路径返回 404；脚本于是跑在一个
-  404 页面上，症状是定位器全部为空而不是报错。
-- **改过 `globals.css` 或 `tailwind.config.ts` 必须重新 `npm run build`**，
-  `tsc --noEmit` 不校验 CSS。dev server 占着 `.next` 时 build 会冲突
-  （`Cannot find module './611.js'`），解法是停掉 dev server 后 `rm -rf .next && npm run build`。
-
-## 5. 真实服务联调
-
-启动本地服务后，使用统一入口：
-
-```bash
-export JC_E2E_EMAIL=...
-export JC_E2E_PASSWORD=...
-./scripts/test-live.sh smoke       # 核心流程 + PDF/DOCX 导出
-./scripts/test-live.sh agent       # Agent/SSE/取消
-./scripts/test-live.sh regression  # 回归样本
-```
-
-完整脚本说明见 [`../../scripts/README.md`](../../scripts/README.md)。
+**改过 `globals.css` 或 `tailwind.config.ts` 必须重新 `npm run build`**，`tsc --noEmit` 不校验 CSS。
+dev server 占着 `.next` 时 build 会冲突（`Cannot find module './611.js'`），解法是停掉 dev server 后
+`rm -rf .next && npm run build`。
 
 ## 6. 常见问题
 

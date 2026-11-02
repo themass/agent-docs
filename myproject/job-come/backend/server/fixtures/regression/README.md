@@ -1,6 +1,6 @@
 # 回归样本集
 
-匿名化素材，供 `scripts/regression_smoke.sh` 与人工验收使用。
+匿名化素材，供人工验收使用（原来的 `regression_smoke.sh` 已删除，见 `scripts/README.md`）。
 
 ```text
 fixtures/regression/
@@ -28,6 +28,3 @@ fixtures/regression/
 | `05_mismatch_ios_startup.txt` | 不匹配 | 不匹配 | 不匹配 |
 | `06_mismatch_data_scientist_en.txt` | 不匹配 | 不匹配 | 不匹配 |
 
-```bash
-./scripts/regression_smoke.sh
-```

@@ -32,8 +32,8 @@ block. Two reasons:
 
 What it is for is the question nobody could answer before: **does the pipeline actually
 hold its honesty invariant, run after run, across framing angles and models.**
-`scripts/evaluate_writing.py` runs this against live model output; the reviewer keeps its
-own independent judgement.
+`evaluate_writing.py` (since removed from scripts/, still in git history) ran this against live
+model output; the reviewer keeps its own independent judgement.
 
 Attribution, and why it needs its own threshold
 ----------------------------------------------
