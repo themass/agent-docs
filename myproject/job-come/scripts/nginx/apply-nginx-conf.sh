@@ -310,11 +310,24 @@ nginx_apply() {
 # Non-fatal: the upstreams may simply not be started yet.
 smoke_check() {
   command -v curl >/dev/null 2>&1 || return 0
-  local code
-  code="$(curl -s -o /dev/null -m 5 -H "Host: ${SERVER_NAME}" -w '%{http_code}' http://127.0.0.1/health 2>/dev/null || true)"
+  # Right after a reload the old workers can still be answering with the old configuration,
+  # which does not have this site yet. On a shared nginx that request lands on whichever
+  # other site holds default_server, and its 502 reads like a fault of this app. Asking again
+  # for a few seconds lets the new workers take over before anything is concluded.
+  local code="" attempt
+  for attempt in 1 2 3 4 5 6; do
+    code="$(curl -s -o /dev/null -m 5 -H "Host: ${SERVER_NAME}" -w '%{http_code}' http://127.0.0.1/health 2>/dev/null || true)"
+    [[ "$code" == 200 ]] && break
+    sleep 1
+  done
   case "$code" in
     200) log "check: http://${SERVER_NAME}/health answered 200 through nginx" ;;
-    502 | 503 | 504) log "check: nginx answered ${code} - it cannot reach the API on 127.0.0.1:${API_PORT}; start backend.sh" ;;
+    502 | 503 | 504)
+      log "check: nginx still answers ${code} for Host ${SERVER_NAME} after 6s."
+      log "       On a shared nginx this can come from another site rather than from this app."
+      log "       Ask it directly:  curl -sI -H 'Host: ${SERVER_NAME}' http://127.0.0.1/ | head -3"
+      log "       and confirm the API itself:  curl -s http://127.0.0.1:${API_PORT}/health"
+      ;;
     "" | 000) log "check: nothing answered on port 80 of this host" ;;
     *) log "check: /health answered ${code}" ;;
   esac
