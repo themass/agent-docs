@@ -67,8 +67,13 @@ daemon_start() {
   echo "$pid" > "$pidfile"
   disown "$pid" 2>/dev/null || true
 
-  local i
-  for i in $(seq 1 60); do
+  # How long to wait for the first healthy answer. A cold start of the API loads the whole
+  # agent stack and takes well over 30s on a small machine, so the default is generous and
+  # JC_START_TIMEOUT overrides it.
+  local timeout_s="${JC_START_TIMEOUT:-90}" i max
+  [[ "$timeout_s" =~ ^[0-9]+$ ]] && ((timeout_s > 0)) || timeout_s=90
+  max=$((timeout_s * 2))
+  for i in $(seq 1 "$max"); do
     if [[ "$resolve_fn" == "-" ]] && ! kill -0 "$launcher_pid" 2>/dev/null; then
       printf '[%s] ERROR: process exited before becoming healthy — see %s\n' "$name" "$logfile" >&2
       tail -20 "$logfile" >&2 2>/dev/null || true
@@ -86,10 +91,20 @@ daemon_start() {
       printf '[%s] healthy (pid %s). Logs: %s\n' "$name" "$pid" "$logfile"
       return 0
     fi
+    # One line every 10s, so a slow start reads as progress and not as a hang.
+    if ((i % 20 == 0)); then
+      printf '[%s] still starting... (%ss of %ss)\n' "$name" "$((i / 2))" "$timeout_s"
+    fi
     sleep 0.5
   done
-  printf '[%s] ERROR: not healthy after 30s — see %s\n' "$name" "$logfile" >&2
+  printf '[%s] ERROR: not healthy after %ss — see %s\n' "$name" "$timeout_s" "$logfile" >&2
   tail -20 "$logfile" >&2 2>/dev/null || true
+  # The process was not stopped, on purpose: a start that is only slow would otherwise be
+  # killed just before it came up. Say so, because the error above reads as a failure.
+  if daemon_is_running "$pidfile" "$marker"; then
+    printf '[%s] The process is still running (pid %s) - it may only be slow to start.\n' "$name" "$(cat "$pidfile")" >&2
+    printf '[%s] Check again with: ./scripts/%s.sh status   or wait longer: JC_START_TIMEOUT=300 ./scripts/%s.sh restart\n' "$name" "$name" "$name" >&2
+  fi
   return 1
 }
 
