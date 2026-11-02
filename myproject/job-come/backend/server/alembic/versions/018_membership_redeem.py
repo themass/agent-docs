@@ -88,6 +88,17 @@ def upgrade() -> None:
     )
     op.create_index("ix_jc_admin_audit_log_actor_user_id", "jc_admin_audit_log", ["actor_user_id"])
 
+    # Accounts that already exported before this migration have used their one free download.
+    op.execute(
+        sa.text(
+            "UPDATE jc_user SET free_download_used_at = ("
+            " SELECT COALESCE(MIN(j.completed_at), MIN(j.created_at)) FROM jc_export_job j"
+            " WHERE j.user_id = jc_user.id AND j.status = 'done')"
+            " WHERE EXISTS ("
+            " SELECT 1 FROM jc_export_job j WHERE j.user_id = jc_user.id AND j.status = 'done')"
+        )
+    )
+
 
 def downgrade() -> None:
     op.drop_index("ix_jc_admin_audit_log_actor_user_id", table_name="jc_admin_audit_log")
