@@ -21,6 +21,8 @@ JC_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 WEB_ROOT="${JC_ROOT}/frontend/web"
 # shellcheck source=lib/daemon.sh
 source "${JC_ROOT}/scripts/lib/daemon.sh"
+# shellcheck source=lib/tools_env.sh
+source "${JC_ROOT}/scripts/lib/tools_env.sh"
 
 WEB_PORT="${JC_WEB_PORT:-3000}"
 API_PORT="${JC_API_PORT:-8000}"
@@ -33,6 +35,11 @@ MARKER="next-server"
 
 log() { printf '[frontend] %s\n' "$*"; }
 die() { printf '[frontend] ERROR: %s\n' "$*" >&2; exit 1; }
+
+# `next` starts with `#!/usr/bin/env node`, so the Node that deploy.sh installed under ~/.local
+# has to be on PATH here too - a non-interactive shell (cron, ssh host cmd) never reads the
+# profile that would put it there.
+jc_use_local_tools
 
 # No dedicated health route on the Next side, so "healthy" means "a request to
 # the port got an HTTP response at all" — any status code, including a login
@@ -59,6 +66,7 @@ cmd_start() {
   local next_bin="${WEB_ROOT}/node_modules/.bin/next"
   [[ -x "$next_bin" ]] || die "missing ${next_bin} — run ./scripts/deploy.sh first"
   command -v lsof >/dev/null 2>&1 || die "lsof not found — needed to track the real next-server pid"
+  jc_node_usable || die "no usable node (>= 18.18) on PATH - run ./scripts/deploy.sh --env-only"
 
   # `next` directly, not `npm run start`: npm runs the script in a child shell, so
   # the PID this script would track is npm's wrapper, not the Next server itself.

@@ -160,6 +160,18 @@ cd myproject/job-come
   `backend/server/.env`、`.venv`、`frontend/web/node_modules`、`.next`、`.data` 永远不在清单里，不会被碰。
 - 不能用 root 运行（root 复制出来的文件 web 用户更新不了）。
 
+### 新机器：先备环境
+
+web 用户直接运行，不需要 sudo：
+
+```bash
+./scripts/deploy.sh --env-only
+```
+
+缺 `uv`、Python 3.12、Node 20 就装到当前用户的家目录里；已经够用的不动。只有 `curl`、`tar`、`gzip`、`lsof`
+要管理员装，缺的会一次列全并给出 `apt-get install` 命令。`frontend.sh` 自己会把 `~/.local/node` 加进 PATH，
+不需要改 `.bashrc`。网络受限时用 `JC_NODE_DIST_URLS` 换 Node 镜像，`UV_INSTALLER_GITHUB_BASE_URL` 换 uv 的下载源。
+
 ### 首次部署
 
 ```bash

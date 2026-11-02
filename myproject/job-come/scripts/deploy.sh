@@ -1,18 +1,28 @@
 #!/usr/bin/env bash
-# One-shot deploy: install backend deps, migrate the database, build the frontend.
-# Starts nothing — that is backend.sh / frontend.sh's job, run separately so you can
-# inspect a build before flipping the running service onto it.
+# Get a host ready and deploy the app on it: install the tools that are missing, install the
+# Python dependencies, migrate the database, build the frontend. Starts nothing - that is
+# backend.sh / frontend.sh's job, run separately so a build can be inspected before the
+# running service is switched onto it.
 #
 # Usage:
 #   ./scripts/deploy.sh                  # everything
+#   ./scripts/deploy.sh --env-only       # only install what is missing, deploy nothing
 #   ./scripts/deploy.sh --skip-backend   # frontend build only
 #   ./scripts/deploy.sh --skip-frontend  # backend install + migrate only
 #   ./scripts/deploy.sh --python-default # also make CPython 3.12 this user's python3
 #
-# Python: needs 3.12.x. The system python3 is never modified; uv installs a private
-# 3.12 on first deploy. --python-default additionally puts shims in ~/.local/bin so a
-# new shell's `python3` is 3.12 too (existing shells need `source ~/.local/bin/env`).
-#   JC_DEPLOY_HEARTBEAT_SEC=30   # stdout heartbeat during uv/npm (SSH keepalive)
+# Tools. Everything below is installed into the invoking user's home, without sudo and
+# without editing shell profiles, so the web user can prepare a bare machine by itself:
+#   uv        into ~/.local/bin, when missing
+#   Python    3.12 by uv, privately; the system python3 is never touched. --python-default
+#             also puts shims in ~/.local/bin so a new shell's `python3` is 3.12 too
+#             (existing shells need `source ~/.local/bin/env`)
+#   Node      20, under ~/.local/node, when none >= 18.18 is on PATH. Checksum-verified
+# Only these need an administrator, and are reported together before anything is
+# downloaded: curl or wget, tar, gzip, and lsof for the frontend.
+#
+#   JC_DEPLOY_HEARTBEAT_SEC=30   # stdout heartbeat during long steps (SSH keepalive)
+#   JC_NODE_DIST_URLS, JC_UV_INSTALLER_URL     # mirrors for the tool downloads
 #   JC_NPM_REGISTRY, JC_NPM_REPLACE_REGISTRY_HOST=always   # npm ci via a mirror
 #   JC_SKIP_NPM_CI=1             # use an already-extracted node_modules, skip npm ci
 #                                 entirely (for a host where even the mirror is too
@@ -27,6 +37,8 @@ SERVER_ROOT="${JC_ROOT}/backend/server"
 WEB_ROOT="${JC_ROOT}/frontend/web"
 # shellcheck source=lib/run_with_heartbeat.sh
 source "${JC_ROOT}/scripts/lib/run_with_heartbeat.sh"
+# shellcheck source=lib/tools_env.sh
+source "${JC_ROOT}/scripts/lib/tools_env.sh"
 
 log() { printf '[deploy] %s\n' "$*"; }
 jc_heartbeat_log=log
@@ -36,20 +48,64 @@ HEARTBEAT="${JC_DEPLOY_HEARTBEAT_SEC:-30}"
 DO_BACKEND=true
 DO_FRONTEND=true
 PYTHON_DEFAULT=false
+ENV_ONLY=false
 for arg in "$@"; do
   case "$arg" in
     --skip-backend) DO_BACKEND=false ;;
     --skip-frontend) DO_FRONTEND=false ;;
     --python-default) PYTHON_DEFAULT=true ;;
-    -h|--help) sed -n '2,22p' "$0"; exit 0 ;;
+    --env-only) ENV_ONLY=true ;;
+    -h|--help) sed -n '2,32p' "$0"; exit 0 ;;
     *) die "unknown argument: $arg" ;;
   esac
 done
 
-command -v uv >/dev/null 2>&1 || die "uv is required (https://docs.astral.sh/uv/)"
+VENV="${JC_VENV:-${SERVER_ROOT}/.venv}"
 
+# 1. What only an administrator can install. Reported together, before any download, so a
+#    bare machine is not discovered missing one thing at a time.
+if [[ "$DO_FRONTEND" == true ]]; then
+  jc_check_system_tools lsof || exit 1
+else
+  jc_check_system_tools || exit 1
+fi
+
+# 2. Checks on the checkout itself, which need no network. They run before the tools are
+#    installed so a missing .env is reported in a second, not after a download.
+if [[ "$ENV_ONLY" != true ]]; then
+  if [[ "$DO_BACKEND" == true ]]; then
+    if ! compgen -G "${SERVER_ROOT}/wheels/*.whl" >/dev/null; then
+      die "no wheels in ${SERVER_ROOT}/wheels/.
+       pyproject.toml sources agentkit/deerflow-harness/deerflow-extension-api from
+       those files. Build them on a machine with the monorepo checkout:
+         ./scripts/build-release.sh --update
+       and commit backend/server/wheels/."
+    fi
+    [[ -f "${SERVER_ROOT}/.env" ]] || die "missing ${SERVER_ROOT}/.env (copy from .env.example)"
+  fi
+  if [[ "$DO_FRONTEND" == true ]]; then
+    # Refuse to build with a localhost site URL: NEXT_PUBLIC_SITE_URL is baked into
+    # the build (canonical tags, sitemap, OG urls) and has a silent localhost
+    # fallback, so an unset value only shows up weeks later as "nothing got indexed".
+    #
+    # `|| true` on both reads: grep exits 1 on no match and 2 on a missing file
+    # (.env.production.local is optional), and under `set -e` a nonzero command
+    # substitution would abort the assignment before the check below can report it.
+    SITE_URL="$(grep -hE '^NEXT_PUBLIC_SITE_URL=' "${WEB_ROOT}/.env.production" "${WEB_ROOT}/.env.production.local" 2>/dev/null | tail -1 | cut -d= -f2- || true)"
+    SITE_URL="${NEXT_PUBLIC_SITE_URL:-$SITE_URL}"
+    case "$SITE_URL" in
+      http://localhost*|http://127.0.0.1*|"")
+        die "NEXT_PUBLIC_SITE_URL is unset or localhost (got: '${SITE_URL:-unset}').
+         Set it in frontend/web/.env.production." ;;
+    esac
+    log "site URL: ${SITE_URL}"
+
+  fi
+fi
+
+# 3. The tools themselves.
 if [[ "$DO_BACKEND" == true ]]; then
-  VENV="${JC_VENV:-${SERVER_ROOT}/.venv}"
+  jc_ensure_uv || exit 1
   # shellcheck source=lib/python_env.sh
   source "${JC_ROOT}/scripts/lib/python_env.sh"
   # `--python-default` (opt-in) also makes uv's 3.12 what plain `python3` resolves
@@ -62,23 +118,25 @@ if [[ "$DO_BACKEND" == true ]]; then
   # empty array under `set -u` as an unbound variable and aborts the script.
   # Heartbeat-wrapped: the steady-state path (uv already has 3.12) is instant and
   # this stays silent, but a cold host downloads a standalone CPython build with
-  # no progress output of its own — without this it looks identical to a hang.
+  # no progress output of its own - without this it looks identical to a hang.
   jc_run_with_heartbeat "python 3.12 resolve/install" "$HEARTBEAT" \
     jc_ensure_python ${ensure_args[@]+"${ensure_args[@]}"} || die "no Python 3.12 and uv could not install one.
        Required by pyproject.toml (>=3.12,<3.13). The system python3 is deliberately
-       left alone — apt/yum depend on it — and uv installs a private 3.12 instead.
+       left alone - apt/yum depend on it - and uv installs a private 3.12 instead.
        To also make it this user's default: ./scripts/deploy.sh --python-default"
-  log "python: ${JC_PYTHON_BIN} ($("$JC_PYTHON_BIN" -V 2>&1))"
+  log "uv:      $(uv --version 2>&1)"
+  log "python:  ${JC_PYTHON_BIN} ($("$JC_PYTHON_BIN" -V 2>&1))"
+fi
+if [[ "$DO_FRONTEND" == true ]]; then
+  jc_run_with_heartbeat "node ${JC_NODE_MAJOR} resolve/install" "$HEARTBEAT" jc_ensure_node || exit 1
+  log "node:    $(node -v)   npm: $(npm -v)   ($(command -v node))"
+fi
+if [[ "$ENV_ONLY" == true ]]; then
+  log "environment ready - nothing was deployed (--env-only)"
+  exit 0
+fi
 
-  if ! compgen -G "${SERVER_ROOT}/wheels/*.whl" >/dev/null; then
-    die "no wheels in ${SERVER_ROOT}/wheels/.
-       pyproject.toml sources agentkit/deerflow-harness/deerflow-extension-api from
-       those files. Build them on a machine with the monorepo checkout:
-         ./scripts/build-release.sh --update
-       and commit backend/server/wheels/."
-  fi
-  [[ -f "${SERVER_ROOT}/.env" ]] || die "missing ${SERVER_ROOT}/.env (copy from .env.example)"
-
+if [[ "$DO_BACKEND" == true ]]; then
   log "installing Python dependencies into ${VENV}"
   # `--extra export` is not optional here: it is what installs playwright, which
   # `resume_render_engine.render_pdf` needs. Without it every PDF export dies at
@@ -109,8 +167,6 @@ PY
 fi
 
 if [[ "$DO_FRONTEND" == true ]]; then
-  command -v npm >/dev/null 2>&1 || die "npm not found in PATH"
-
   # The Next.js CLI prompts interactively the first time it runs on a machine
   # ("Would you like to send anonymous usage data to Vercel? (Y/n)") whenever
   # stdout is a TTY — true for `npm run build` run attached to a live SSH
@@ -118,22 +174,6 @@ if [[ "$DO_FRONTEND" == true ]]; then
   # regardless, so the result looks identical to a slow build instead of what
   # it actually is: blocked forever on a keypress nobody is watching for.
   export NEXT_TELEMETRY_DISABLED=1
-
-  # Refuse to build with a localhost site URL: NEXT_PUBLIC_SITE_URL is baked into
-  # the build (canonical tags, sitemap, OG urls) and has a silent localhost
-  # fallback, so an unset value only shows up weeks later as "nothing got indexed".
-  #
-  # `|| true` on both reads: grep exits 1 on no match and 2 on a missing file
-  # (.env.production.local is optional), and under `set -e` a nonzero command
-  # substitution would abort the assignment before the check below can report it.
-  SITE_URL="$(grep -hE '^NEXT_PUBLIC_SITE_URL=' "${WEB_ROOT}/.env.production" "${WEB_ROOT}/.env.production.local" 2>/dev/null | tail -1 | cut -d= -f2- || true)"
-  SITE_URL="${NEXT_PUBLIC_SITE_URL:-$SITE_URL}"
-  case "$SITE_URL" in
-    http://localhost*|http://127.0.0.1*|"")
-      die "NEXT_PUBLIC_SITE_URL is unset or localhost (got: '${SITE_URL:-unset}').
-       Set it in frontend/web/.env.production." ;;
-  esac
-  log "site URL: ${SITE_URL}"
 
   log "installing web dependencies (npm ci)"
   cd "${WEB_ROOT}"

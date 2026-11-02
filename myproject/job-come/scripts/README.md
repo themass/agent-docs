@@ -10,7 +10,7 @@
 | 脚本 | 做什么 |
 |---|---|
 | `publish.sh` | 把 git 已提交的代码同步到 `/home/web/webroot/job-come`（`JC_DEPLOY_DIR` 可改）。只删上次发布放进去、这次已经没有的文件；目标自己生成的 `.env`、`.venv`、`node_modules`、`.next`、`.data` 不碰。`--dry-run` 先看差异；`--deploy` / `--restart` 接着在目标目录跑 `deploy.sh` 和重启，`--` 之后的参数传给 `deploy.sh`。不能用 root |
-| `deploy.sh` | 装 Python 依赖（三个本地包从 `backend/server/wheels/*.whl` 装，不需要 monorepo）、跑数据库迁移、装前端依赖并构建。**不启动任何进程**。`--skip-backend` / `--skip-frontend` 只做一半；`--python-default` 额外把 3.12 设为该用户的 `python3`；`JC_SKIP_NPM_CI=1` 使用已解压好的 `node_modules`。需要 Python 3.12，系统的不动，缺时由 `uv` 装一份 |
+| `deploy.sh` | 先把环境备齐，再部署。缺什么装什么，都装在当前用户的家目录里，不要 sudo、不改 shell 配置：`uv`（`~/.local/bin`）、Python 3.12（由 uv 装，系统的 python3 不动）、Node 20（`~/.local/node`，校验 SHA256；已有 18.18 以上的就不装）。然后装 Python 依赖、跑数据库迁移、装前端依赖并构建。**不启动任何进程**。只有 curl、tar、gzip、lsof 需要管理员装，缺的会在下载之前一次报全。先做不联网的检查（`.env`、wheel、站点地址），所以缺 `.env` 时不会先下载一堆东西。`--env-only` 只备环境不部署；`--skip-backend` / `--skip-frontend` 只做一半；`--python-default` 额外把 3.12 设为该用户的 `python3`；`JC_SKIP_NPM_CI=1` 使用已解压好的 `node_modules`；`JC_NODE_DIST_URLS` 换 Node 镜像 |
 | `backend.sh start\|stop\|restart\|status` | 管理 API 进程（uvicorn），PID 文件追踪，不依赖 systemd 和 sudo。`start` 会轮询 `/health` 最多 30 秒，失败打印日志并以非零退出 |
 | `frontend.sh start\|stop\|restart\|status` | 管理 Web 进程（`next start`）。`next start` 会把 `$!` 对应的进程换掉，所以用 `lsof` 反查端口上真正监听的 PID |
 | `db_upgrade.sh` | 单独执行数据库迁移（`deploy.sh` 已经包含这一步） |
@@ -57,6 +57,7 @@ cp backend/server/.env.example backend/server/.env   # 首次
 |---|---|
 | `project_paths.sh` | 找项目目录和 Python 解释器 |
 | `ensure_python_env.sh` | 缺依赖时调用 `setup-venv.sh` |
+| `tools_env.sh` | 找或安装 uv 和 Node，检查系统工具（`deploy.sh`、`frontend.sh` 用；`frontend.sh` 靠它找到用户目录下的 Node） |
 | `python_env.sh` | 找或安装 Python 3.12（`deploy.sh` 用） |
 | `daemon.sh` | PID 文件管理（`backend.sh`、`frontend.sh` 用） |
 | `run_with_heartbeat.sh` | 长命令执行时每隔一段时间打印一行（`deploy.sh` 用，防 SSH 断开） |
