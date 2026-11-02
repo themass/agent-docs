@@ -114,7 +114,10 @@ https_port_available() {
 compute_listen_flags() {
   local version default_flag=""
   version="$(nginx_version_number)"
-  if ((version >= 1025001)); then
+  if ! nginx_has_http2; then
+    # No HTTP/2 support compiled in: serve HTTPS over HTTP/1.1. Browsers do not mind.
+    log "this nginx was built without --with-http_v2_module - HTTPS will use HTTP/1.1"
+  elif ((version >= 1025001)); then
     HTTP2_ON_LINE="http2 on;"
   else
     HTTPS_LISTEN_FLAGS=" http2"

@@ -39,6 +39,14 @@ nginx_version_number() {
   echo $((major * 1000000 + minor * 1000 + patch))
 }
 
+# True when this nginx was built with HTTP/2. It is a compile-time option: an nginx built
+# without --with-http_v2_module rejects the `http2` parameter with
+# "the http2 parameter requires ngx_http_v2_module", and that error takes the whole config
+# down. Checked on the binary that will read the file, not guessed from the version number.
+nginx_has_http2() {
+  "$NGINX_BIN" -V 2>&1 | grep -q -- '--with-http_v2_module'
+}
+
 # nginx rewrites its process title to "nginx: master process <argv>", so the binary path it was
 # started with shows up there. /root/local/nginx is a symlink and a service manager may have
 # started the real path, so both spellings count.
