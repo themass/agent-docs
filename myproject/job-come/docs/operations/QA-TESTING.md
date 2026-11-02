@@ -526,7 +526,7 @@ Playwright Chromium。受限沙箱里它们会报 7 个失败——**这是环�
    **cron 已配置并至少成功执行一次**，不是改完配置就算：
 
    ```cron
-   17 4 * * *  cd /srv/jc && ./scripts/prune_llm_log.sh >> /var/log/jc/prune.log 2>&1
+   17 4 * * *  cd /home/web/webroot/job-come && ./scripts/prune_llm_log.sh >> .data/logs/production/prune.log 2>&1
    ```
 
    窗口由 `.env` 的 `JC_LLM_LOG_RETENTION_DAYS=90` 与 `JC_LLM_LOG_PAYLOAD_DAYS=14`

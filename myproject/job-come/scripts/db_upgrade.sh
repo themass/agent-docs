@@ -9,7 +9,8 @@ source "${JC_ROOT}/scripts/lib/project_paths.sh"
 source "${JC_ROOT}/scripts/lib/ensure_python_env.sh"
 SERVER_ROOT="${JC_SERVER_ROOT:-$(jc_server_root "$JC_ROOT")}"
 PYTHON="$(jc_python "$JC_ROOT")" || {
-  echo "[db-upgrade] ERROR: cannot find deepagents/venv above ${JC_ROOT}" >&2
+  echo "[db-upgrade] ERROR: no Python found. Looked for the monorepo venv above ${JC_ROOT} and for" >&2
+  echo "[db-upgrade]        ${JC_ROOT}/backend/server/.venv (built by ./scripts/deploy.sh). Or set JC_PYTHON." >&2
   exit 1
 }
 

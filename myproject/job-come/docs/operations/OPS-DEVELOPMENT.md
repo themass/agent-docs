@@ -6,7 +6,7 @@
 ## 1. 首次准备
 
 ```bash
-cd /Users/gqli/work/deepagents/docs/myproject/job-come
+cd docs/myproject/job-come        # 从 monorepo 根目录进入；目录搬了就换成实际位置
 cp backend/server/.env.example backend/server/.env
 ./scripts/dev.sh   # 首次启动会自动 uv sync；也可先单独跑 ./scripts/setup-venv.sh
 ```
@@ -16,7 +16,7 @@ Python 依赖使用 deepagents 根目录的共享 `venv`，不要在 JC 根目�
 ## 2. 开发启动
 
 ```bash
-cd /Users/gqli/work/deepagents/docs/myproject/job-come
+cd docs/myproject/job-come        # 从 monorepo 根目录进入；目录搬了就换成实际位置
 ./scripts/dev.sh
 ```
 
@@ -59,7 +59,7 @@ cd frontend/web
 npm run build
 
 # 本地综合检查（会生成 docs/evidence/document-evaluation.json）
-cd /Users/gqli/work/deepagents/docs/myproject/job-come
+cd docs/myproject/job-come        # 从 monorepo 根目录进入；目录搬了就换成实际位置
 ./scripts/test-local.sh
 ```
 
@@ -73,7 +73,7 @@ cd frontend/web && npm run build        # 必须先构建
 npx next start -p 3138 &                # 换个没被占用的端口
 
 # 等页面真的能打开再跑，见下面的注意事项
-cd /Users/gqli/work/deepagents/docs/myproject/job-come
+cd docs/myproject/job-come        # 从 monorepo 根目录进入；目录搬了就换成实际位置
 ../../../venv/bin/python scripts/verify_ui.py           --base http://127.0.0.1:3138
 ../../../venv/bin/python scripts/verify_resume_steps.py  --base http://127.0.0.1:3138
 ../../../venv/bin/python scripts/verify_agent_rail.py    --base http://127.0.0.1:3138

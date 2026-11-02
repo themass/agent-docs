@@ -10,8 +10,8 @@
 #   --forget-payload-after  prompt/response/reasoning text (resume personal data)
 #   --days                  the whole row, metrics included
 #
-# crontab:
-#   17 4 * * *  cd /srv/jc && ./scripts/prune_llm_log.sh >> /var/log/jc/prune.log 2>&1
+# crontab (as the web user, in the deploy directory; the script finds backend/server/.venv itself):
+#   17 4 * * *  cd /home/web/webroot/job-come && ./scripts/prune_llm_log.sh >> .data/logs/production/prune.log 2>&1
 #
 # Defaults to --apply: a cron job that reports what it would do and changes nothing is
 # the failure mode this script exists to prevent. Pass JC_PRUNE_DRY_RUN=1 to inspect.
@@ -21,7 +21,8 @@ JC_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=lib/project_paths.sh
 source "${JC_ROOT}/scripts/lib/project_paths.sh"
 PYTHON="$(jc_python "$JC_ROOT")" || {
-  echo "[prune-llm-log] ERROR: cannot find deepagents/venv above ${JC_ROOT}" >&2
+  echo "[prune-llm-log] ERROR: no Python found. Looked for the monorepo venv above ${JC_ROOT} and for" >&2
+  echo "[prune-llm-log]        ${JC_ROOT}/backend/server/.venv (built by ./scripts/deploy.sh). Or set JC_PYTHON." >&2
   exit 1
 }
 

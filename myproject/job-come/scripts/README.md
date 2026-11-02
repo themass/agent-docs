@@ -1,28 +1,43 @@
 # JC Scripts
 
+## 服务器上（部署目录 `/home/web/webroot/job-come`，不需要 monorepo）
+
+日常发布：在克隆里 `git pull --ff-only && ./scripts/publish.sh --deploy --restart`。
+所有脚本按自己所在位置找路径，目录搬走不用改；Python 依次找 `JC_PYTHON`、monorepo 的 `venv`、`backend/server/.venv`。
+
+### web 用户
+
+| 命令 | 何时使用 | 前提 |
+|---|---|---|
+| `./scripts/deploy.sh` | **生产部署**：装 Python 依赖（三个本地包从 `wheels/*.whl` 解析，不需要 monorepo 源码）、跑 migration、`npm ci` + `npm run build`。只准备产物，**不启动任何进程**——改完代码之后先跑这个，再用下面两个脚本重启服务。`--skip-backend` / `--skip-frontend` 只做其中一半。**Python 需 3.12.x**：系统 python3 不动，首次部署由 `uv` 装一份私有 3.12；加 `--python-default` 额外把 3.12 变成该用户的 `python3`（shim 在 `~/.local/bin`，已有 shell 需 `source ~/.local/bin/env`） | MySQL（migration）、npm |
+| `./scripts/publish.sh` | **web 用户**在克隆里运行：把已提交（git 跟踪）的代码同步到 `/home/web/webroot/job-come`（`JC_DEPLOY_DIR` 可改）。只删上次发布放进去、这次提交已经没有的文件，目标自己生成的 `.env`、`.venv`、`node_modules`、`.next`、`.data` 不碰。`--dry-run` 先看差异，`--deploy` / `--restart` 接着在目标目录跑 `deploy.sh` 和重启，`--` 之后的参数传给 `deploy.sh`。不能用 root | git、tar |
+| `./scripts/backend.sh start\|stop\|restart\|status` | 管理 API 进程（uvicorn），PID 文件追踪，不依赖 systemd/sudo。`start`/`restart` 会轮询 `/health` 最多 30s，失败打印最近日志并以非零退出——不会把"进程起来了"误报成"服务正常" | 需要 `deploy.sh` 先装好依赖 |
+| `./scripts/frontend.sh start\|stop\|restart\|status` | 管理 Web 进程（`next start`），同样基于 PID 文件。**注意**：`next start` 的 CLI 进程完成子进程交接后会自行退出，`$!` 不可信，这个脚本改用 `lsof` 反查端口上真正监听的 PID 来追踪——如果你想照搬这个模式管别的服务，这个坑要知道 | 需要 `deploy.sh` 先构建好 `.next` |
+| `./scripts/db_upgrade.sh` | 明确执行数据库 migration | MySQL |
+| `./scripts/prune_llm_log.sh` | 按留存窗口清理 LLM 调用审计日志（生产 cron） | MySQL |
+
+### root（Nginx，配置在 `/root/local/nginx/conf/server/`）
+
+| 命令 | 何时使用 | 前提 |
+|---|---|---|
+| `sudo ./scripts/nginx/build-nginx.sh` | **root，每台机器一次**：编译安装 nginx 到 `/root/local/nginx-<版本>` 并建软链 `/root/local/nginx`，写 `nginx.conf`（只 include `conf/server/*.conf`）。已安装则不重编译、不改软链，手写的 `nginx.conf` 不动；不写任何站点 | 联网、编译器 |
+| `sudo ./scripts/nginx/apply-nginx-conf.sh` | **root，配置变更时**：把站点写入 `/root/local/nginx/conf/server/`，`nginx -t` 通过且确认 nginx 会加载后 reload（`--restart` 为 stop 再 start）。失败原样退回，不影响同一 nginx 上的其它站点。`JC_NGINX_SERVER_NAME` 多域名、`JC_NGINX_HTTPS_PORT` 指定端口（被占用时自动只配 HTTP）。详见 `docs/operations/OPS-DEPLOYMENT.md` 1.2 | 先跑过 `build-nginx.sh`，`backend.sh` / `frontend.sh` 已启动 |
+
+## 开发机（在 monorepo 里）
+
 > **日常开发只需要两个入口：** `./scripts/dev.sh` 启动本地服务，`./scripts/test-local.sh` 运行不依赖真实外部服务的本地检查。
 
-## 常用入口
-
-| 命令 | 何时使用 | 是否需要真实外部依赖 |
+| 命令 | 何时使用 | 前提 |
 |---|---|---|
 | `./scripts/setup-venv.sh` | 手动同步 Python 依赖（`dev.sh` 首次启动也会自动调用） | 需要本机 `uv` |
 | `./scripts/dev.sh` | 启动本地 API、Web 和内嵌 Agent（缺依赖时自动 `uv sync`） | MySQL/Redis/LLM/TOS 按 `.env` 配置 |
 | `./scripts/build-release.sh --update` | **在有完整 monorepo 的机器上**重建 `backend/server/wheels/` 里的三个预编译 wheel（`agentkit`/`deerflow-harness`/`deerflow-extension-api`），同步改写 `pyproject.toml` 的版本 pin 并重新 lock。改过 vendored DeerFlow 或 agentkit 源码后**必须**跑，否则装上去的是旧代码且不会报错。`--check` 只校验不重建，适合接进 CI | 需要本机 `uv`，且必须在 monorepo checkout 内运行 |
-| `./scripts/deploy.sh` | **生产部署**：装 Python 依赖（三个本地包从 `wheels/*.whl` 解析，不需要 monorepo 源码）、跑 migration、`npm ci` + `npm run build`。只准备产物，**不启动任何进程**——改完代码之后先跑这个，再用下面两个脚本重启服务。`--skip-backend` / `--skip-frontend` 只做其中一半。**Python 需 3.12.x**：系统 python3 不动，首次部署由 `uv` 装一份私有 3.12；加 `--python-default` 额外把 3.12 变成该用户的 `python3`（shim 在 `~/.local/bin`，已有 shell 需 `source ~/.local/bin/env`） | MySQL（migration）、npm |
-| `./scripts/publish.sh` | **web 用户**在克隆里运行：把已提交（git 跟踪）的代码同步到 `/home/web/webroot/job-come`（`JC_DEPLOY_DIR` 可改）。只删上次发布放进去、这次提交已经没有的文件，目标自己生成的 `.env`、`.venv`、`node_modules`、`.next`、`.data` 不碰。`--dry-run` 先看差异，`--deploy` / `--restart` 接着在目标目录跑 `deploy.sh` 和重启，`--` 之后的参数传给 `deploy.sh`。不能用 root | git、tar |
-| `sudo ./scripts/nginx/build-nginx.sh` | **root，每台机器一次**：编译安装 nginx 到 `/root/local/nginx-<版本>` 并建软链 `/root/local/nginx`，写 `nginx.conf`（只 include `conf/server/*.conf`）。已安装则不重编译、不改软链，手写的 `nginx.conf` 不动；不写任何站点 | 联网、编译器 |
-| `sudo ./scripts/nginx/apply-nginx-conf.sh` | **root，配置变更时**：把站点写入 `/root/local/nginx/conf/server/`，`nginx -t` 通过且确认 nginx 会加载后 reload（`--restart` 为 stop 再 start）。失败原样退回，不影响同一 nginx 上的其它站点。`JC_NGINX_SERVER_NAME` 多域名、`JC_NGINX_HTTPS_PORT` 指定端口（被占用时自动只配 HTTP）。详见 `docs/operations/OPS-DEPLOYMENT.md` 1.2 | 先跑过 `build-nginx.sh`，`backend.sh` / `frontend.sh` 已启动 |
-| `./scripts/backend.sh start\|stop\|restart\|status` | 管理 API 进程（uvicorn），PID 文件追踪，不依赖 systemd/sudo。`start`/`restart` 会轮询 `/health` 最多 30s，失败打印最近日志并以非零退出——不会把"进程起来了"误报成"服务正常" | 需要 `deploy.sh` 先装好依赖 |
-| `./scripts/frontend.sh start\|stop\|restart\|status` | 管理 Web 进程（`next start`），同样基于 PID 文件。**注意**：`next start` 的 CLI 进程完成子进程交接后会自行退出，`$!` 不可信，这个脚本改用 `lsof` 反查端口上真正监听的 PID 来追踪——如果你想照搬这个模式管别的服务，这个坑要知道 | 需要 `deploy.sh` 先构建好 `.next` |
 | `./scripts/test-local.sh` | 提交前、本地回归、候选版本代码检查 | 否；不会调用真实 API/Agent/TOS/邮件 |
 | `./scripts/test-live.sh smoke` | 本地或 staging 的核心 API + PDF/DOCX 导出联调 | 是，需 API、账号及相关服务 |
 | `./scripts/test-live.sh agent` | Agent/DeerFlow、SSE、消息持久化、取消联调 | 是 |
 | `./scripts/test-live.sh regression` | 回归样本的简历、JD、双语预览联调 | 是 |
 | `./scripts/v1_acceptance.sh` | V1 上线前四项真机验收的统一入口（见下方「真实服务联调」） | 是，且需要生产构建 Web |
-| `./scripts/db_upgrade.sh` | 明确执行数据库 migration | MySQL |
 | `./scripts/seed_demo.py` | 创建本地演示账号/数据 | MySQL/Redis |
-| `./scripts/prune_llm_log.py` | 按留存窗口清理 LLM 调用审计日志（生产 cron） | MySQL |
 
 ## 本地运行日志（自动保存）
 
@@ -85,7 +100,7 @@ ensure_project_env()
 ## 本地开发推荐流程
 
 ```bash
-cd /Users/gqli/work/deepagents/docs/myproject/job-come
+cd docs/myproject/job-come        # 从 monorepo 根目录进入；目录搬了就换成实际位置
 ./scripts/setup-venv.sh                # 首次或依赖变更时
 cp backend/server/.env.example backend/server/.env  # 首次时
 ./scripts/dev.sh                        # 终端 1：启动 API + Web

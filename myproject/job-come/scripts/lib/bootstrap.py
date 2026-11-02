@@ -71,6 +71,32 @@ def _find_monorepo_root(start: Path) -> Path:
         probe = probe.parent
 
 
+def _target_python(project_root: Path) -> Path:
+    """The interpreter the scripts should run under. Same order as `jc_python` in
+    `scripts/lib/project_paths.sh`, so shell and Python callers agree:
+
+    1. ``$JC_PYTHON``.
+    2. The monorepo's ``venv`` when this checkout sits inside the monorepo (development).
+    3. ``backend/server/.venv``, the venv ``deploy.sh`` builds. On a server job-come is
+       deployed on its own, there is no monorepo above it, and a script that insisted on
+       finding one would fail before doing anything -- including the cron job that prunes
+       the LLM audit log.
+
+    The monorepo comes before the project venv because a leftover ``backend/server/.venv``
+    on a dev machine lacks the dev dependencies.
+    """
+    configured = os.environ.get("JC_PYTHON")
+    if configured:
+        return Path(configured)
+    try:
+        return _find_monorepo_root(project_root) / "venv" / "bin" / "python"
+    except ProjectEnvError:
+        project_python = project_root / "backend" / "server" / ".venv" / "bin" / "python"
+        if project_python.exists():
+            return project_python
+        raise
+
+
 def _project_root(this_file: Path) -> Path:
     """`<repo>/myproject/job-come` — holds `docs/`, `scripts/`, `backend/`, `frontend/`."""
     # this_file is scripts/lib/bootstrap.py; job-come root is two levels up.
@@ -95,12 +121,7 @@ def ensure_project_env() -> Path:
     if server_src_str not in sys.path:
         sys.path.insert(0, server_src_str)
 
-    configured = os.environ.get("JC_PYTHON")
-    if configured:
-        target_python = Path(configured)
-    else:
-        monorepo_root = _find_monorepo_root(project_root)
-        target_python = monorepo_root / "venv" / "bin" / "python"
+    target_python = _target_python(project_root)
 
     if os.environ.get("JC_BOOTSTRAP_SKIP_REEXEC"):
         return project_root
