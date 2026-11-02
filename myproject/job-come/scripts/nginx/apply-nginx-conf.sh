@@ -36,6 +36,14 @@ LOG_TAG=apply-nginx
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 
+# The deployment directory is two levels above this script. Reading its .data/deploy.env here
+# is what keeps the ports nginx proxies to equal to the ones backend.sh and frontend.sh use,
+# whichever user runs this and whether or not sudo kept the environment.
+JC_DEPLOY_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=../lib/deploy_env.sh
+source "${JC_DEPLOY_ROOT}/scripts/lib/deploy_env.sh"
+jc_load_deploy_env "$JC_DEPLOY_ROOT"
+
 # Commas are accepted as separators; the list is stored space separated.
 SERVER_NAMES="$(printf '%s' "${JC_NGINX_SERVER_NAME:-jc.sspacee.com}" | tr ',' ' ' | xargs)"
 SERVER_NAME="${SERVER_NAMES%% *}"
@@ -150,7 +158,30 @@ cert_covers_names() {
   [[ -z "$(comm -23 <(printf '%s\n' "$want") <(printf '%s\n' "$have"))" ]]
 }
 
+# A Let's Encrypt certificate for the primary name, if certbot has issued one. The `live/` paths
+# are symlinks certbot repoints at each renewal, so the nginx config never has to change when
+# the certificate is renewed - only a reload picks the new file up. It is used only when it
+# really covers the primary name; a certificate for some other domain must not be served here.
+LETSENCRYPT_DIR="${JC_LETSENCRYPT_DIR:-/etc/letsencrypt/live}"
+use_letsencrypt_cert() {
+  local dir="${LETSENCRYPT_DIR}/${SERVER_NAME}"
+  [[ -r "${dir}/fullchain.pem" && -r "${dir}/privkey.pem" ]] || return 1
+  openssl x509 -in "${dir}/fullchain.pem" -noout -checkend 0 >/dev/null 2>&1 || {
+    log "WARNING: the Let's Encrypt certificate in ${dir} has expired - using the self-signed one"
+    return 1
+  }
+  openssl x509 -in "${dir}/fullchain.pem" -noout -ext subjectAltName 2>/dev/null | grep -qF "DNS:${SERVER_NAME}" || return 1
+  CERT_FILE="${dir}/fullchain.pem"
+  CERT_KEY="${dir}/privkey.pem"
+  return 0
+}
+
 ensure_certificate() {
+  # A trusted certificate means no self-signed one has to exist at all.
+  if use_letsencrypt_cert; then
+    log "using the Let's Encrypt certificate for ${SERVER_NAME} (${CERT_FILE})"
+    return 0
+  fi
   local cert="${SSL_DIR}/jc-selfsigned.crt" key="${SSL_DIR}/jc-selfsigned.key" cnf="${SSL_DIR}/openssl.cnf"
   mkdir -p "$SSL_DIR"
 
@@ -338,7 +369,9 @@ print_summary() {
   log "done. Site files: ${SERVER_DIR}/jc-*.conf"
   for name in $SERVER_NAMES; do log "  http://${name}/"; done
   if [[ "$ENABLE_HTTPS" == true ]]; then
-    for name in $SERVER_NAMES; do log "  $(https_origin "$name")/   (self-signed: browsers warn)"; done
+    local cert_note="self-signed: browsers warn"
+    [[ "${CERT_FILE:-}" == "${LETSENCRYPT_DIR}"/* ]] && cert_note="Let's Encrypt: trusted by browsers"
+    for name in $SERVER_NAMES; do log "  $(https_origin "$name")/   (${cert_note})"; done
     ((HTTPS_PORT == 443)) || log "  open TCP ${HTTPS_PORT} in the cloud security group, or HTTPS times out from outside"
   else
     log "  HTTPS skipped"
@@ -365,8 +398,9 @@ main() {
 
   compute_listen_flags
   trap cleanup EXIT
-  stage_files
+  # The certificate is chosen first: the rendered site file names it by path.
   [[ "$ENABLE_HTTPS" == true ]] && ensure_certificate
+  stage_files
 
   backup_owned_files
   TOUCHED=true

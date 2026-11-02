@@ -20,6 +20,9 @@ JC_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SERVER_ROOT="${JC_ROOT}/backend/server"
 # shellcheck source=lib/daemon.sh
 source "${JC_ROOT}/scripts/lib/daemon.sh"
+# shellcheck source=lib/deploy_env.sh
+source "${JC_ROOT}/scripts/lib/deploy_env.sh"
+jc_load_deploy_env "$JC_ROOT"
 
 VENV="${JC_VENV:-${SERVER_ROOT}/.venv}"
 API_HOST="${JC_API_HOST:-127.0.0.1}"

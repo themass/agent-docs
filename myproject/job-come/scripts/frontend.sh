@@ -23,6 +23,9 @@ WEB_ROOT="${JC_ROOT}/frontend/web"
 source "${JC_ROOT}/scripts/lib/daemon.sh"
 # shellcheck source=lib/tools_env.sh
 source "${JC_ROOT}/scripts/lib/tools_env.sh"
+# shellcheck source=lib/deploy_env.sh
+source "${JC_ROOT}/scripts/lib/deploy_env.sh"
+jc_load_deploy_env "$JC_ROOT"
 
 WEB_PORT="${JC_WEB_PORT:-3000}"
 API_PORT="${JC_API_PORT:-8000}"

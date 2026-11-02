@@ -74,6 +74,8 @@ render_template() {
     -e "s|__JC_NGINX_LOGS__|${LOG_DIR}|g" \
     -e "s|__JC_SERVER_DIR__|${SERVER_DIR}|g" \
     -e "s|__JC_SSL_DIR__|${SSL_DIR}|g" \
+    -e "s|__JC_CERT_FILE__|${CERT_FILE:-${SSL_DIR}/jc-selfsigned.crt}|g" \
+    -e "s|__JC_CERT_KEY__|${CERT_KEY:-${SSL_DIR}/jc-selfsigned.key}|g" \
     -e "s|__JC_SERVER_NAME__|${SERVER_NAMES:-}|g" \
     -e "s|__JC_HTTPS_PORT__|${HTTPS_PORT:-443}|g" \
     -e "s|__JC_WEB_PORT__|${WEB_PORT:-3000}|g" \
