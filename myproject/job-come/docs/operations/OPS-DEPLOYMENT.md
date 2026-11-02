@@ -46,6 +46,46 @@ certbot certonly --webroot -w /var/www/certbot -d jc.sspacee.com
 
 漏掉第 3 项的症状是页面能开但登录态持续丢失（Secure cookie 未下发）；漏掉第 2 项的症状是 canonical 与 sitemap 仍指向 http，搜索引擎看到的正式地址和实际服务的不一致。
 
+## 1.2 用脚本部署 Nginx（`scripts/nginx/install-jc-nginx.sh`）
+
+脚本在应用机上以 root 运行，目录约定：
+
+```text
+/root/local/nginx            → nginx-1.26.3（软链）
+/root/local/nginx/conf/nginx.conf          # include conf/server/*.conf
+/root/local/nginx/conf/server/             # 每个站点一个文件
+    jc-upstreams.conf  jc-site-http.conf  jc-site-https.conf
+/root/local/nginx/ssl/jc-selfsigned.{crt,key}
+```
+
+常用命令（都在 job-come 目录下执行）：
+
+```bash
+sudo ./scripts/nginx/install-jc-nginx.sh                 # 没有 nginx 就编译安装，再写站点配置
+sudo ./scripts/nginx/install-jc-nginx.sh --config-only   # 只更新站点配置和证书，然后重载
+```
+
+**HTTPS 端口与域名**通过环境变量指定（`sudo -E` 才能把变量传进去）：
+
+```bash
+JC_NGINX_SERVER_NAME="jc.sspacee.com 另一个域名" JC_NGINX_HTTPS_PORT=443 \
+  sudo -E ./scripts/nginx/install-jc-nginx.sh --config-only
+```
+
+- 新增域名时，证书会自动重签以包含它；已经覆盖全部域名的证书不会被替换。
+- HTTPS 端口被别的进程占用时（例如 443 被代理服务占着），脚本自动只配 HTTP 并给出警告，不会让整个 nginx 起不来。要用别的端口就设 `JC_NGINX_HTTPS_PORT=8443`，并在云安全组放行该端口。
+
+**机器上已经有 nginx 时**，脚本不会重新编译或替换它：
+
+- `nginx.conf` 是脚本写的、或仍是安装后未改过的原始文件，脚本才会重写它。
+- `nginx.conf` 是你自己维护的，脚本不动它，只写 `conf/server/` 下的三个站点文件，然后用 `nginx -T` 确认这些文件真的被加载。没被加载就停下来，并告诉你该在 `http {}` 里加哪一行 `include`。
+- 这种情况下脚本不会声明 `default_server`，避免与你已有的站点冲突（同一端口两个 `default_server` 会让 `nginx -t` 失败）。要强制声明设 `JC_NGINX_DEFAULT_SERVER=1`。
+- `http2` 的写法按这台机器的 nginx 版本自动选择（1.25.1 起是 `http2 on;`，更早是 `listen` 上的 `http2` 参数）。
+
+**换机器时**：域名和目录不变的话，在新机器上拉代码后直接运行同一个脚本即可。只拷贝 `conf/server/` 下的文件不够，`jc-site-https.conf` 用绝对路径引用证书，证书目录 `/root/local/nginx/ssl` 也要在新机器上存在，否则 `nginx -t` 会报找不到证书。运行脚本会自动生成。
+
+**自签证书的限制**：浏览器会弹出安全警告，用户要手动继续访问；搜索引擎抓取和 AdSense 都不友好（见 1.1）。自签 HTTPS 适合内部使用或临时验证，面向公众和做 SEO、广告的页面请继续使用 HTTP 域名，或按 1.1 换成公共 CA 证书。同时保持 `JC_COOKIE_SECURE=false`：设成 `true` 后，通过 http 访问就收不到登录 cookie。
+
 ## 2. 生产构建与启动
 
 三个脚本覆盖全部日常操作：`deploy.sh`（装依赖、跑 migration、构建前端，不启动任何进程）、
