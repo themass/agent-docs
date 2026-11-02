@@ -46,45 +46,58 @@ certbot certonly --webroot -w /var/www/certbot -d jc.sspacee.com
 
 漏掉第 3 项的症状是页面能开但登录态持续丢失（Secure cookie 未下发）；漏掉第 2 项的症状是 canonical 与 sitemap 仍指向 http，搜索引擎看到的正式地址和实际服务的不一致。
 
-## 1.2 用脚本部署 Nginx（`scripts/nginx/install-jc-nginx.sh`）
+## 1.2 Nginx：两个脚本（root）
 
-脚本在应用机上以 root 运行，目录约定：
+所有机器的 nginx 目录一致：
 
 ```text
-/root/local/nginx            → nginx-1.26.3（软链）
-/root/local/nginx/conf/nginx.conf          # include conf/server/*.conf
-/root/local/nginx/conf/server/             # 每个站点一个文件
-    jc-upstreams.conf  jc-site-http.conf  jc-site-https.conf
-/root/local/nginx/ssl/jc-selfsigned.{crt,key}
+/root/local/nginx                 → 软链到 /root/local/nginx-<版本>
+/root/local/nginx/conf/nginx.conf # 只做一件事：include conf/server/*.conf
+/root/local/nginx/conf/server/    # 每个站点一个文件；我们的是 jc-upstreams / jc-site-http / jc-site-https
+/root/local/nginx/ssl/            # 我们的自签证书
 ```
 
-常用命令（都在 job-come 目录下执行）：
+**1. 机器上没有 nginx：编译安装（每台机器一次）**
 
 ```bash
-sudo ./scripts/nginx/install-jc-nginx.sh                 # 没有 nginx 就编译安装，再写站点配置
-sudo ./scripts/nginx/install-jc-nginx.sh --config-only   # 只更新站点配置和证书，然后重载
+sudo ./scripts/nginx/build-nginx.sh
 ```
 
-**HTTPS 端口与域名**通过环境变量指定（`sudo -E` 才能把变量传进去）：
+下载校验（损坏的压缩包会重新下载）、编译、建软链、建目录、写 `nginx.conf`。已经装好的机器上再运行
+不会重新编译，也不会改软链；`--force` 才会原地重建同版本。**它不写任何站点**。
+
+**2. 配置变更：测试并重载（新装的和已有 nginx 的机器都一样）**
 
 ```bash
-JC_NGINX_SERVER_NAME="jc.sspacee.com 另一个域名" JC_NGINX_HTTPS_PORT=443 \
-  sudo -E ./scripts/nginx/install-jc-nginx.sh --config-only
+sudo ./scripts/nginx/apply-nginx-conf.sh              # 测试通过后 reload（没在运行就 start）
+sudo ./scripts/nginx/apply-nginx-conf.sh --restart    # 测试通过后 stop 再 start
 ```
 
-- 新增域名时，证书会自动重签以包含它；已经覆盖全部域名的证书不会被替换。
-- HTTPS 端口被别的进程占用时（例如 443 被代理服务占着），脚本自动只配 HTTP 并给出警告，不会让整个 nginx 起不来。要用别的端口就设 `JC_NGINX_HTTPS_PORT=8443`，并在云安全组放行该端口。
+只写 `conf/server/` 下我们自己的三个文件和 `ssl/` 里的证书，别的站点和 `nginx.conf` 不动。
+整个变更是**要么全部生效、要么原样退回**：`nginx -t` 不通过，或者 nginx 实际上不会加载这些文件，
+就把原来的文件放回去，不重载，共用这个 nginx 的其它站点不受影响。
 
-**机器上已经有 nginx 时**，脚本不会重新编译或替换它：
+可调项（用 `sudo -E` 或 `sudo VAR=值 ...` 传进去）：
 
-- `nginx.conf` 是脚本写的、或仍是安装后未改过的原始文件，脚本才会重写它。
-- `nginx.conf` 是你自己维护的，脚本不动它，只写 `conf/server/` 下的三个站点文件，然后用 `nginx -T` 确认这些文件真的被加载。没被加载就停下来，并告诉你该在 `http {}` 里加哪一行 `include`。
-- 这种情况下脚本不会声明 `default_server`，避免与你已有的站点冲突（同一端口两个 `default_server` 会让 `nginx -t` 失败）。要强制声明设 `JC_NGINX_DEFAULT_SERVER=1`。
-- `http2` 的写法按这台机器的 nginx 版本自动选择（1.25.1 起是 `http2 on;`，更早是 `listen` 上的 `http2` 参数）。
+| 变量 | 默认 | 说明 |
+|---|---|---|
+| `JC_NGINX_SERVER_NAME` | `jc.sspacee.com` | 一个或多个域名/IPv4，空格或逗号分隔；全部写入 `server_name` 和证书，第一个为主域名 |
+| `JC_NGINX_HTTPS_PORT` | `443` | 被别的程序占用时自动只配 HTTP 并给出警告；用别的端口要在云安全组放行 |
+| `JC_WEB_PORT` / `JC_API_PORT` | `3000` / `8000` | 上游端口 |
+| `JC_NGINX_DEFAULT_SERVER` | 关 | 共用 nginx 上通常别的站点已经有 `default_server`，同一端口两个会让 `nginx -t` 失败 |
 
-**换机器时**：域名和目录不变的话，在新机器上拉代码后直接运行同一个脚本即可。只拷贝 `conf/server/` 下的文件不够，`jc-site-https.conf` 用绝对路径引用证书，证书目录 `/root/local/nginx/ssl` 也要在新机器上存在，否则 `nginx -t` 会报找不到证书。运行脚本会自动生成。
+- 新增域名时证书会自动重签；已经覆盖全部域名的证书不会被替换（浏览器里信任过的证书不会每次变）。
+- `http2` 的写法按这台机器的 nginx 版本自动选（1.25.1 起是 `http2 on;`）。
+- 机器上别的服务也有自己的自签 HTTPS，没有冲突：证书按站点分开，靠 `server_name`（SNI）区分。
+- 手写的 `nginx.conf` 如果没有 `include .../conf/server/*.conf;`，`apply-nginx-conf.sh` 会拒绝并告诉你
+  要加哪一行，而不是写一个看起来部署了、实际不生效的站点。
 
-**自签证书的限制**：浏览器会弹出安全警告，用户要手动继续访问；搜索引擎抓取和 AdSense 都不友好（见 1.1）。自签 HTTPS 适合内部使用或临时验证，面向公众和做 SEO、广告的页面请继续使用 HTTP 域名，或按 1.1 换成公共 CA 证书。同时保持 `JC_COOKIE_SECURE=false`：设成 `true` 后，通过 http 访问就收不到登录 cookie。
+**换机器**：域名和目录不变，在新机器上依次运行这两个脚本即可。只拷贝 `conf/server/` 不够，
+站点文件用绝对路径引用 `/root/local/nginx/ssl` 里的证书，没有证书 `nginx -t` 会报找不到证书；运行脚本会生成。
+
+**自签证书的限制**：浏览器会警告，搜索引擎抓取和 AdSense 都不友好（见 1.1）。面向公众和做 SEO、广告的页面
+请继续用 HTTP 域名，或按 1.1 换公共 CA 证书。`JC_COOKIE_SECURE` 保持 `false`：设成 `true` 后通过 http
+访问就收不到登录 cookie，登录会静默失效。
 
 ## 2. 生产构建与启动
 
@@ -129,27 +142,39 @@ systemd、不需要 sudo**——两者都基于 PID 文件自行管理进程，�
 `backend.sh start` 会打印实际使用的解释器和版本，并在 venv 不是 3.12 时直接报错退出，
 而不是等到某个依赖 import 失败才暴露。
 
-### 首次部署
+### 代码放在哪里，怎么到那里
 
-job-come 没有独立 git 仓库，是嵌在 deepagents monorepo 里的一个目录，而该 monorepo
-唯一配置的远端是公开的 `github.com/langchain-ai/deepagents`——那是上游开源项目，
-不是部署目标，不能也不该往那推送。代码走 `rsync` 到服务器：
+仓库克隆在服务器上的任意位置（`~/work/agent-docs`），服务**不从克隆里运行**，运行目录是
+`/home/web/webroot/job-come`（`JC_DEPLOY_DIR` 可改）。两者之间用 `scripts/publish.sh` 同步，由 web 用户运行：
 
 ```bash
-# 在 dev 机器：
-rsync -avz --exclude 'node_modules' --exclude '.next' --exclude '__pycache__' \
-  /Users/gqli/work/deepagents/docs/myproject/job-come/ \
-  user@server:/opt/jc/
+cd ~/work/agent-docs && git pull --ff-only
+cd myproject/job-come
+./scripts/publish.sh --dry-run     # 先看会新增、修改、删除哪些文件
+./scripts/publish.sh               # 同步
 ```
 
+- 复制的是 **git 已跟踪的文件**（当前提交），所以不会带 `.git`、`node_modules`、没提交的临时文件；
+  有未提交的改动会拒绝，`--allow-dirty` 才按磁盘上的现状复制，并在 `.deploy-version` 里注明。
+- 只删除**上一次发布放进去、这次提交里已经没有**的文件（清单在 `.deploy-manifest`）。目标目录自己生成的
+  `backend/server/.env`、`.venv`、`frontend/web/node_modules`、`.next`、`.data` 永远不在清单里，不会被碰。
+- 不能用 root 运行（root 复制出来的文件 web 用户更新不了）。
+
+### 首次部署
+
 ```bash
-# 在服务器：
-cd /opt/jc
-cp backend/server/.env.example backend/server/.env   # 然后填写生产配置
-./scripts/deploy.sh
+# web 用户，在克隆里：
+./scripts/publish.sh
+cd /home/web/webroot/job-come
+cp backend/server/.env.example backend/server/.env   # 或从旧部署拷过来，填写生产配置
+./scripts/deploy.sh --skip-frontend                  # 前端产物另传，见下
 ./scripts/backend.sh start
 ./scripts/frontend.sh start
 ```
+
+服务器内存小（不到 1GB）时，`next build` 要跑半小时以上，建议在别处构建后把 `.next` 打包传来：
+解压到 `frontend/web/` 即可，之后 `deploy.sh` 加 `--skip-frontend` 跳过构建。依赖也同理：
+`JC_SKIP_NPM_CI=1` 使用已经解压好的 `node_modules`。
 
 `deploy.sh` 启动前会校验 `NEXT_PUBLIC_SITE_URL`（未设或是 localhost 就拒绝构建——
 否则生成的 sitemap/canonical 全指向 localhost，几周后才以「一条都没收录」的形式暴露）；
@@ -160,21 +185,21 @@ cp backend/server/.env.example backend/server/.env   # 然后填写生产配置
 `start` 会自检：`backend.sh` 轮询 `/health` 最多 30s，`frontend.sh` 轮询首页响应，
 失败会打印最近日志并以非零退出——不会把"进程起来了"误报成"服务正常"。
 
+**从旧位置迁移**：旧目录里的服务占着 3000/8000，新目录的服务起不来。先在旧目录
+`./scripts/backend.sh stop && ./scripts/frontend.sh stop`，再按上面首次部署做。`.venv` 里的脚本写死了
+绝对路径，不能搬，`deploy.sh` 会在新位置重建；`.env` 直接拷。想保留对话的 checkpoint，
+同时拷 `backend/server/.data/`（其中 `.data/deerflow`）。
+
 ### 发布一次新版本
 
 ```bash
-# 在 dev 机器（改过 vendored DeerFlow / agentkit 的话先跑 build-release.sh --update）：
-rsync -avz --exclude 'node_modules' --exclude '.next' --exclude '__pycache__' \
-  . user@server:/opt/jc/
+# web 用户，在克隆里（改过 vendored DeerFlow / agentkit 的话先在有完整 monorepo 的机器上跑 build-release.sh --update）：
+git pull --ff-only
+./scripts/publish.sh --deploy --restart
 ```
 
-```bash
-# 在服务器：
-cd /opt/jc
-./scripts/deploy.sh
-./scripts/backend.sh restart
-./scripts/frontend.sh restart
-```
+等价于 `publish.sh` 之后在运行目录里依次执行 `deploy.sh`、`backend.sh restart`、`frontend.sh restart`。
+`--deploy` 后面用 `--` 给 `deploy.sh` 传参，例如 `./scripts/publish.sh --deploy -- --skip-frontend`。
 
 `restart` 内部是「先 stop 再 start」，同样带自检；`deploy.sh` 不能省——`next start`
 读的是 `.next` 目录，不重新构建就 `restart`，服务会静默继续提供上一个版本，没有
