@@ -19,7 +19,8 @@ from typing import Any
 
 import yaml
 
-from jc.agent.roles import SKILL_PROMPT_PREFIX, hints_by_skill, roles, subagent_specs
+from jc.agent.roles import SKILL_PROMPT_PREFIX, hints_by_skill, subagent_specs
+from jc.agent.roles import skills as declared_skills
 from jc.agent.tool_catalog import OPENAI_TOOLS, tool_names
 from jc.config import settings
 from jc.mcp.handlers import TOOL_HANDLERS
@@ -158,7 +159,7 @@ def build_harness_inventory() -> AdminInventoryResponse:
         )
 
     tool_skills: dict[str, list[str]] = {}
-    for declared in roles().values():
+    for declared in declared_skills().values():
         for tool_name in declared.tools:
             tool_skills.setdefault(tool_name, []).append(declared.id)
 
@@ -180,7 +181,7 @@ def build_harness_inventory() -> AdminInventoryResponse:
 
     skills: list[AdminSkillInfo] = []
     all_skill_ids = sorted(
-        set(skills_cfg.keys()) | set(roles()) | set(skill_bodies.keys())
+        set(skills_cfg.keys()) | set(declared_skills()) | set(skill_bodies.keys())
     )
     for skill_id in all_skill_ids:
         cfg_row = skills_cfg.get(skill_id) if isinstance(skills_cfg.get(skill_id), dict) else {}
@@ -188,12 +189,12 @@ def build_harness_inventory() -> AdminInventoryResponse:
         # read its SKILL.md". No skill body is model-readable in JC: the host composes
         # the text (see jc.skills.composer) and the agent has no file tools. A skill is
         # therefore considered enabled when the harness config says so, and otherwise
-        # when it is a declared role in roles.yaml. A skill that has a SKILL.md but
+        # when it is a declared skill in roles.yaml. A skill that has a SKILL.md but
         # neither of those is methodology the host does not currently route to anything.
         enabled = (
             bool(cfg_row.get("enabled", True))
             if skill_id in skills_cfg
-            else skill_id in roles()
+            else skill_id in declared_skills()
         )
         body = skill_bodies.get(skill_id, "")
         desc = None
@@ -208,7 +209,9 @@ def build_harness_inventory() -> AdminInventoryResponse:
                 enabled=enabled,
                 description=desc,
                 body_preview=body[:1200] if body else None,
-                tools=list(roles()[skill_id].tools) if skill_id in roles() else [],
+                tools=(
+                    list(declared_skills()[skill_id].tools) if skill_id in declared_skills() else []
+                ),
                 scope_for_hints=scope_reverse.get(skill_id, []),
             )
         )

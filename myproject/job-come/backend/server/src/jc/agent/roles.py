@@ -1,12 +1,17 @@
-"""Agent roles: the loader for `backend/agent/roles.yaml`, the one declaration of every role.
+"""Agent roles and skills: the loader for `backend/agent/roles.yaml`, the one declaration of both.
 
-A role is a skill package plus a tool allowlist, a run mode, a model scenario and its
-delegation. Those used to be spelled out separately in five modules and a harness config file,
-and they drifted. Every consumer now reads this module instead:
+A **role** is who the agent is to the user and what it may do: its product, whether a session can
+be opened on it, its run mode, its model scenario and its delegation. A **skill** is one way of
+working: a methodology package under `skills/public/<id>/` together with the tools that way of
+working needs. A role owns one or more skills; a run executes as exactly one of them and holds
+only that skill's tools. These used to be spelled out separately in five modules and a harness
+config file, and they drifted. Every consumer now reads this module instead:
 
-- the harness takes a run's tool surface, model, plan mode and delegates from `role(...)`;
+- the harness takes a run's tool surface from `skill(...)`, and its model, plan mode and delegates
+  from `role_of(...)`;
 - `subagent_specs()` gives DeerFlow the subagent definitions, generated at boot;
 - the API accepts only `entry_roles()` as a session's `skill_hint`;
+- the composer reads each skill's `always_loaded` fragments from here;
 - the isolation tests read each role's product and tools from here.
 
 Skill *methodology* reaches the model through host-side composition in `jc.skills.composer`,
@@ -34,12 +39,13 @@ SKILL_PROMPT_PREFIX = "skill:"
 MODES = frozenset({"session", "subtask", "single"})
 PRODUCTS = frozenset({"resume", "interview", "apply", "shared"})
 
-_FIELDS = frozenset(
+_ROLE_FIELDS = frozenset(
     {
-        "product", "entry", "mode", "scenario", "tools", "mcp", "delegates", "swap_to",
-        "plan_mode", "max_turns", "timeout_seconds",
+        "product", "entry", "mode", "scenario", "plan_mode",
+        "max_turns", "timeout_seconds", "skills",
     }
 )
+_SKILL_FIELDS = frozenset({"tools", "mcp", "always_loaded", "delegates"})
 
 
 class RoleConfigError(ValueError):
@@ -47,7 +53,21 @@ class RoleConfigError(ValueError):
 
 
 class UnknownRoleError(LookupError):
-    """A skill hint that names no declared role."""
+    """A name that matches no declared role."""
+
+
+class UnknownSkillError(LookupError):
+    """A name that matches no declared skill."""
+
+
+@dataclass(frozen=True, slots=True)
+class Skill:
+    id: str
+    role_id: str
+    tools: tuple[str, ...]
+    mcp: tuple[str, ...]
+    always_loaded: tuple[str, ...]
+    delegates: tuple[str, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,13 +77,23 @@ class Role:
     mode: str
     scenario: str
     entry: bool
-    tools: tuple[str, ...]
-    mcp: tuple[str, ...]
-    delegates: tuple[str, ...]
-    swap_to: tuple[str, ...]
     plan_mode: bool
     max_turns: int | None
     timeout_seconds: int | None
+    skills: tuple[Skill, ...]
+
+    @property
+    def default_skill(self) -> Skill:
+        """The skill a session on this role starts as; it carries the role's own id."""
+        return self.skills[0]
+
+    @property
+    def tools(self) -> tuple[str, ...]:
+        """Every tool any of the role's skills may use. A single run holds only its skill's."""
+        seen: dict[str, None] = {}
+        for skill in self.skills:
+            seen.update(dict.fromkeys(skill.tools))
+        return tuple(seen)
 
     @property
     def model_name(self) -> str | None:
@@ -71,19 +101,38 @@ class Role:
         return None if self.mode == "single" else f"jc-{self.scenario}"
 
 
-def _names(role_id: str, spec: dict[str, Any], key: str) -> tuple[str, ...]:
+def _names(owner: str, spec: dict[str, Any], key: str) -> tuple[str, ...]:
     raw = spec.get(key) or []
     if not isinstance(raw, list) or not all(isinstance(item, str) and item for item in raw):
-        raise RoleConfigError(f"{role_id}.{key} must be a list of names")
+        raise RoleConfigError(f"{owner}.{key} must be a list of names")
     if len(set(raw)) != len(raw):
-        raise RoleConfigError(f"{role_id}.{key} lists a name twice")
+        raise RoleConfigError(f"{owner}.{key} lists a name twice")
     return tuple(raw)
+
+
+def _build_skill(role_id: str, skill_id: str, spec: Any) -> Skill:
+    owner = f"{role_id}.skills.{skill_id}"
+    if spec is None:
+        spec = {}
+    if not isinstance(spec, dict):
+        raise RoleConfigError(f"{owner} must be a mapping")
+    unknown = set(spec) - _SKILL_FIELDS
+    if unknown:
+        raise RoleConfigError(f"{owner} has unknown fields: {sorted(unknown)}")
+    return Skill(
+        id=skill_id,
+        role_id=role_id,
+        tools=_names(owner, spec, "tools"),
+        mcp=_names(owner, spec, "mcp"),
+        always_loaded=_names(owner, spec, "always_loaded"),
+        delegates=_names(owner, spec, "delegates"),
+    )
 
 
 def _build(role_id: str, spec: Any) -> Role:
     if not isinstance(spec, dict):
         raise RoleConfigError(f"{role_id} must be a mapping")
-    unknown = set(spec) - _FIELDS
+    unknown = set(spec) - _ROLE_FIELDS
     if unknown:
         raise RoleConfigError(f"{role_id} has unknown fields: {sorted(unknown)}")
     product, mode, scenario = spec.get("product"), spec.get("mode"), spec.get("scenario")
@@ -97,47 +146,58 @@ def _build(role_id: str, spec: Any) -> Role:
     plan_mode = spec.get("plan_mode", False)
     if not isinstance(entry, bool) or not isinstance(plan_mode, bool):
         raise RoleConfigError(f"{role_id}.entry and plan_mode must be true or false")
+    raw_skills = spec.get("skills")
+    if not isinstance(raw_skills, dict) or not raw_skills:
+        raise RoleConfigError(f"{role_id}.skills must map skill ids to their declarations")
     return Role(
         id=role_id,
         product=product,
         mode=mode,
         scenario=scenario,
         entry=entry,
-        tools=_names(role_id, spec, "tools"),
-        mcp=_names(role_id, spec, "mcp"),
-        delegates=_names(role_id, spec, "delegates"),
-        swap_to=_names(role_id, spec, "swap_to"),
         plan_mode=plan_mode,
         max_turns=spec.get("max_turns"),
         timeout_seconds=spec.get("timeout_seconds"),
+        skills=tuple(_build_skill(role_id, str(sid), s) for sid, s in raw_skills.items()),
     )
 
 
 def _check(by_id: dict[str, Role]) -> None:
+    owner_of: dict[str, str] = {}
     for role in by_id.values():
+        if role.default_skill.id != role.id:
+            raise RoleConfigError(
+                f"{role.id}: the first skill must be the role's own, not {role.default_skill.id}"
+            )
+        for skill in role.skills:
+            if skill.id in owner_of:
+                raise RoleConfigError(
+                    f"skill {skill.id} is declared by {owner_of[skill.id]} and {role.id}"
+                )
+            owner_of[skill.id] = role.id
+
         if role.entry and role.mode != "session":
             raise RoleConfigError(f"{role.id} is an entry role, so its mode must be session")
-        if role.mode == "single" and (role.tools or role.mcp or role.delegates or role.swap_to):
-            raise RoleConfigError(f"{role.id} is a single call: no tools or delegates")
-        if role.mode != "session" and (role.delegates or role.swap_to or role.plan_mode):
-            raise RoleConfigError(f"{role.id} is not a session, so it cannot delegate or swap")
+        if role.mode != "session" and (role.plan_mode or any(s.delegates for s in role.skills)):
+            raise RoleConfigError(f"{role.id} is not a session, so it cannot delegate or plan")
+        if role.mode != "session" and len(role.skills) != 1:
+            raise RoleConfigError(f"{role.id} is not a session, so it has exactly one skill")
+        if role.mode == "single" and any(s.tools or s.mcp for s in role.skills):
+            raise RoleConfigError(f"{role.id} is a single call: no tools")
         if role.mode == "subtask":
             for key in ("max_turns", "timeout_seconds"):
                 value = getattr(role, key)
                 if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
                     raise RoleConfigError(f"{role.id} is a subtask: {key} must be a positive int")
-        for target_id in role.delegates:
-            target = by_id.get(target_id)
-            if target is None or target.mode != "subtask":
-                raise RoleConfigError(f"{role.id} delegates to {target_id}, which is not a subtask")
-            if target.product not in {role.product, "shared"}:
-                raise RoleConfigError(f"{role.id} delegates across products to {target_id}")
-        for target_id in role.swap_to:
-            target = by_id.get(target_id)
-            if target is None or target.mode != "session" or target.product != role.product:
-                raise RoleConfigError(
-                    f"{role.id} swaps to {target_id}, which is not a session role of its product"
-                )
+        for skill in role.skills:
+            for target_id in skill.delegates:
+                target = by_id.get(target_id)
+                if target is None or target.mode != "subtask":
+                    raise RoleConfigError(
+                        f"{skill.id} delegates to {target_id}, which is not a subtask"
+                    )
+                if target.product not in {role.product, "shared"}:
+                    raise RoleConfigError(f"{skill.id} delegates across products to {target_id}")
 
 
 @functools.cache
@@ -161,18 +221,31 @@ def role(role_id: str) -> Role:
         raise UnknownRoleError(f"no role named {role_id!r}") from None
 
 
+def skills() -> dict[str, Skill]:
+    """Every declared skill, by id."""
+    return {skill.id: skill for r in roles().values() for skill in r.skills}
+
+
+def skill(skill_id: str) -> Skill:
+    try:
+        return skills()[skill_id]
+    except KeyError:
+        raise UnknownSkillError(f"no skill named {skill_id!r}") from None
+
+
+def role_of(skill_id: str) -> Role:
+    """The role a skill belongs to, and so the model, run mode and delegation a run of it gets."""
+    return role(skill(skill_id).role_id)
+
+
 def entry_roles() -> tuple[str, ...]:
     """Roles a user may open a session on, in declaration order."""
     return tuple(r.id for r in roles().values() if r.entry)
 
 
 def hints_by_skill() -> dict[str, list[str]]:
-    """Reverse index: which hints reach each skill, directly or by swapping it in."""
-    out: dict[str, list[str]] = {}
-    for r in roles().values():
-        for skill in (r.id, *r.swap_to):
-            out.setdefault(skill, []).append(r.id)
-    return out
+    """Reverse index: which role each skill belongs to. For operator reporting."""
+    return {s.id: [s.role_id] for s in skills().values()}
 
 
 def subagent_specs() -> dict[str, dict[str, Any]]:
@@ -183,8 +256,8 @@ def subagent_specs() -> dict[str, dict[str, Any]]:
         r.id: {
             "description": require_skill(r.id).description,
             "system_prompt": f"{SKILL_PROMPT_PREFIX}{r.id}",
-            "tools": list(r.tools),
-            "skills": [r.id],
+            "tools": list(r.default_skill.tools),
+            "skills": [r.default_skill.id],
             "model": r.model_name,
             "max_turns": r.max_turns,
             "timeout_seconds": r.timeout_seconds,

@@ -1,108 +1,75 @@
-# The one declaration of every agent role. Anything else that needs to know what a role is
-# (tool surface, model, delegation, subagent spec, product boundary) derives it from here.
-# Loaded and validated by jc.agent.roles; docs/architecture/AGENT-ROLES.md explains the rules.
+# The one declaration of every agent role and of the skills each role works with. Anything else
+# that needs to know what a role or a skill is (tool surface, model, delegation, subagent spec,
+# fragments, product boundary) derives it from here. Loaded and validated by jc.agent.roles;
+# docs/architecture/AGENT-ROLES.md explains the rules.
 #
-# A role's id is also the id of its skill package under backend/agent/skills/public/.
+# A role is who the agent is to the user and what it may do: product, entry, mode, scenario,
+# delegation. A skill is one way of working, a methodology package under
+# backend/agent/skills/public/<skill-id>/ together with the tools that way of working needs.
+# A role owns one or more skills. The first is its default and carries the role's id; a run
+# executes as exactly one of them, and holds only that skill's tools.
 #
-#   product      resume | interview | apply | shared. Used by the isolation tests: a role may
-#                not hold another product's tools, or delegate across products.
+# Role fields
+#   product      resume | interview | apply | shared. A role may not hold another product's tools,
+#                or delegate across products (checked in tests).
 #   entry        true when a user may open a session on this role (the API accepts only these).
-#   mode         session  - talks to the user, runs turn after turn
-#                subtask  - delegated to by a session role, runs on its own tools and model
-#                single   - one model call whose whole input is in the prompt; holds no tools
+#   mode         session  - talks to the user, runs turn after turn; one or more skills
+#                subtask  - delegated to by a session role, runs on its own tools and model; one skill
+#                single   - one model call whose whole input is in the prompt; one skill, no tools
 #   scenario     routing.yaml scenario. Session and subtask roles run on DeerFlow model
 #                jc-<scenario>, which config.yaml must declare.
-#   tools        the role's complete tool allowlist (names registered on the jc MCP server).
-#   mcp          external MCP tools the role may use. Reserved, empty everywhere for now.
-#   delegates    subtask roles this role may hand work to through DeerFlow's `task` tool.
-#   swap_to      session roles of the same product whose methodology the host may swap in
-#                for a turn (the run then executes as that role, with that role's tools).
 #   plan_mode    run in DeerFlow plan mode.
 #   max_turns, timeout_seconds    required for subtask roles; they become the subagent limits.
+#
+# Skill fields (the key is the skill id, globally unique, and must have a package on disk)
+#   tools          the skill's complete tool allowlist (names registered on the jc MCP server).
+#   mcp            external MCP tools the skill may use. Reserved, empty everywhere for now.
+#   delegates      subtask roles a run of this skill may hand work to through DeerFlow's
+#                  `task` tool. Only skills that list some are given `task`.
+#   always_loaded  reference fragments from the package's references/ that every composition of
+#                  this skill carries, in prompt order. Family and qualitative layers are chosen
+#                  per request by the composer, not listed here.
 
 resume-coach:
   product: resume
   entry: true
   mode: session
   scenario: coach
-  # Reads the plan but cannot record answers: on a profile that can already generate, the open
-  # questions are enrichment prompts, and "record this as an interview answer" is not what
-  # "make this stronger" means. Writing goes through the confirmation-gated patch path.
-  tools: [jc_profile_photo_set, jc_profile_get, jc_profile_patch, jc_intake_plan]
-  mcp: []
-  swap_to: [profile-interview]
-
-profile-interview:
-  product: resume
-  entry: false
-  mode: session
-  scenario: coach
-  # The coach's read/patch pair plus the plan and the recorder, so a transcribed answer lands
-  # in the slot the plan named instead of becoming a confirm card for the user's own sentence.
-  tools: [jc_profile_photo_set, jc_profile_get, jc_profile_patch, jc_intake_plan, jc_intake_record]
-  mcp: []
-
-resume-writer:
-  product: resume
-  entry: false
-  mode: single
-  scenario: writer
-  tools: []
-  mcp: []
-
-resume-reviewer:
-  product: resume
-  entry: false
-  mode: single
-  scenario: flash
-  tools: []
-  mcp: []
+  skills:
+    resume-coach:
+      # Reads the plan but cannot record answers: on a profile that can already generate, the
+      # open questions are enrichment prompts, and "record this as an interview answer" is not
+      # what "make this stronger" means. Writing goes through the confirmation-gated patch path.
+      tools: [jc_profile_photo_set, jc_profile_get, jc_profile_patch, jc_intake_plan]
+      always_loaded: [method]
+    # Used instead of resume-coach on a turn where the profile cannot yet produce a resume. It
+    # adds the recorder, so a transcribed answer lands in the slot the plan named instead of
+    # becoming a confirm card for the user's own sentence.
+    profile-interview:
+      tools: [jc_profile_photo_set, jc_profile_get, jc_profile_patch, jc_intake_plan, jc_intake_record]
+      always_loaded: [method]
 
 coach-mock:
   product: interview
   entry: true
   mode: session
   scenario: coach
-  tools:
-    - jc_profile_get
-    - jc_bank_search_questions
-    - jc_question_upsert
-    - jc_answer_save_attempt
-    - jc_mock_session_history
-    - jc_mock_plan
-    - jc_mock_ask
-    - jc_mock_end
-    - jc_mock_review
-  mcp: []
-  delegates: [interview-reviewer]
-
-coach-archive:
-  product: interview
-  entry: false
-  mode: session
-  scenario: coach
-  tools: [jc_profile_get, jc_question_upsert, jc_interview_save]
-  mcp: []
-
-# The independent reviewer: reads the finished session and writes the report. It holds no ask,
-# end or question-write tool, so it cannot put a question to the candidate (AGENTS-DESIGN 4.2).
-interview-reviewer:
-  product: interview
-  entry: false
-  mode: subtask
-  scenario: reviewer
-  tools: [jc_profile_get, jc_mock_session_history, jc_mock_report_write]
-  mcp: []
-  max_turns: 20
-  timeout_seconds: 300
-
-jd-parser:
-  product: shared
-  entry: false
-  mode: single
-  scenario: ingest_fast
-  tools: []
-  mcp: []
+  skills:
+    coach-mock:
+      delegates: [interview-reviewer]
+      tools:
+        - jc_profile_get
+        - jc_bank_search_questions
+        - jc_question_upsert
+        - jc_answer_save_attempt
+        - jc_mock_session_history
+        - jc_mock_plan
+        - jc_mock_ask
+        - jc_mock_end
+        - jc_mock_review
+    # Recording a real interview. No entry point switches to it yet.
+    coach-archive:
+      tools: [jc_profile_get, jc_question_upsert, jc_interview_save]
 
 # Reaches resume work only through jc_apply_pipeline, which runs fit, the writer, the review and
 # the export inside the service. It holds no resume skill and no resume tool of its own.
@@ -112,11 +79,51 @@ apply-pipeline:
   mode: session
   scenario: coach
   plan_mode: true
-  tools:
-    - jc_profile_get
-    - jc_job_fetch
-    - jc_job_parse
-    - jc_fit_score
-    - jc_profile_patch
-    - jc_apply_pipeline
-  mcp: []
+  skills:
+    apply-pipeline:
+      tools:
+        - jc_profile_get
+        - jc_job_fetch
+        - jc_job_parse
+        - jc_fit_score
+        - jc_profile_patch
+        - jc_apply_pipeline
+
+# The independent reviewer: reads the finished session and writes the report. It holds no ask,
+# end or question-write tool, so it cannot put a question to the candidate (AGENTS-DESIGN 4.2).
+interview-reviewer:
+  product: interview
+  entry: false
+  mode: subtask
+  scenario: reviewer
+  max_turns: 20
+  timeout_seconds: 300
+  skills:
+    interview-reviewer:
+      tools: [jc_profile_get, jc_mock_session_history, jc_mock_report_write]
+
+resume-writer:
+  product: resume
+  entry: false
+  mode: single
+  scenario: writer
+  skills:
+    resume-writer:
+      always_loaded: [structure, method, targeting]
+
+resume-reviewer:
+  product: resume
+  entry: false
+  mode: single
+  scenario: flash
+  skills:
+    resume-reviewer:
+      always_loaded: [severity, method, structure, evidence]
+
+jd-parser:
+  product: shared
+  entry: false
+  mode: single
+  scenario: ingest_fast
+  skills:
+    jd-parser: {}

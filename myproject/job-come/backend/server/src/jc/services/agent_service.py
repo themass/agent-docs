@@ -293,10 +293,19 @@ class AgentService:
         )
 
         skill = session.skill_hint or "resume-coach"
+        if skill not in entry_roles():
+            # A session opened on an agent that has since been retired. Running it would
+            # mean a turn with no tool surface, which looks like a working agent that does
+            # nothing.
+            raise AppError(
+                "This conversation belongs to an agent that is no longer available. "
+                "Please start a new one.",
+                code="agent_retired",
+            )
         # The skill this turn actually runs as. It differs from the session's hint only
         # for the interview, and it has to be decided *before* the run metadata is
         # built: the hint is what bounds the turn's tool surface
-        # (`roles.yaml` `tools`), so leaving it at `resume-coach` while
+        # (the skill's `tools` in `roles.yaml`), so leaving it at `resume-coach` while
         # sending interview methodology produced an agent told to interview and holding
         # no way to record an answer — the intake tools were registered and
         # unreachable.

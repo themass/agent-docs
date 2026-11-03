@@ -18,10 +18,14 @@ import yaml
 from jc.agent.roles import (
     RoleConfigError,
     UnknownRoleError,
+    UnknownSkillError,
     entry_roles,
     hints_by_skill,
     role,
+    role_of,
     roles,
+    skill,
+    skills,
 )
 from jc.agent.tool_catalog import OPENAI_TOOLS
 from jc.mcp.handlers import TOOL_HANDLERS
@@ -34,9 +38,14 @@ def _yaml(*parts: str) -> dict:
     return yaml.safe_load(BACKEND.joinpath(*parts).read_text("utf-8"))
 
 
-def test_every_role_has_exactly_one_skill_package():
+def test_every_declared_skill_has_exactly_one_package_and_no_package_is_orphaned():
     packages = {p.name for p in SKILLS.iterdir() if p.is_dir()}
-    assert set(roles()) == packages, "a skill package and a role are the same thing"
+    assert set(skills()) == packages
+
+
+def test_a_role_leads_with_the_skill_of_its_own_name():
+    for r in roles().values():
+        assert r.default_skill.id == r.id
 
 
 def test_every_role_scenario_is_routed():
@@ -62,8 +71,8 @@ def test_config_yaml_does_not_redeclare_subagents():
 def test_the_extensions_skill_switches_name_exactly_the_roles():
     for name in ("extensions_config.json", "extensions_config.example.json"):
         text = BACKEND.joinpath("agent", "deerflow", name).read_text("utf-8")
-        skills = json.loads(re.sub(r"^\s*//.*$", "", text, flags=re.M))["skills"]
-        assert set(skills) == set(roles()), name
+        switches = json.loads(re.sub(r"^\s*//.*$", "", text, flags=re.M))["skills"]
+        assert set(switches) == set(skills()), name
 
 
 def test_the_tool_catalog_the_handlers_and_the_server_agree():
@@ -75,48 +84,73 @@ def test_the_tool_catalog_the_handlers_and_the_server_agree():
 
 def test_every_tool_a_role_names_exists():
     catalog = {t["function"]["name"] for t in OPENAI_TOOLS}
-    for r in roles().values():
-        unknown = sorted(set(r.tools) - catalog)
-        assert not unknown, f"{r.id} names unknown tools {unknown}"
+    for s in skills().values():
+        unknown = sorted(set(s.tools) - catalog)
+        assert not unknown, f"{s.id} names unknown tools {unknown}"
 
 
 def test_no_external_mcp_is_declared_yet():
-    for r in roles().values():
-        assert r.mcp == (), f"{r.id}: external MCP is reserved, not connected"
+    for s in skills().values():
+        assert s.mcp == (), f"{s.id}: external MCP is reserved, not connected"
 
 
-def test_a_skill_text_names_only_tools_its_role_holds():
-    for r in roles().values():
-        text = (SKILLS / r.id / "SKILL.md").read_text("utf-8")
+def test_a_skill_text_names_only_tools_that_skill_holds():
+    for s in skills().values():
+        text = (SKILLS / s.id / "SKILL.md").read_text("utf-8")
         named = set(re.findall(r"\bjc_[a-z_]+\b", text))
-        extra = sorted(named - set(r.tools))
-        assert not extra, f"{r.id} SKILL.md names tools it cannot call: {extra}"
+        extra = sorted(named - set(s.tools))
+        assert not extra, f"{s.id} SKILL.md names tools it cannot call: {extra}"
 
 
 def test_only_session_roles_open_sessions_and_the_public_ones_are_the_three_agents():
     assert entry_roles() == ("resume-coach", "coach-mock", "apply-pipeline")
 
 
-def test_a_swapped_in_role_is_reachable_only_through_its_host():
-    assert role("resume-coach").swap_to == ("profile-interview",)
-    assert hints_by_skill()["profile-interview"] == ["resume-coach", "profile-interview"]
+def test_a_skill_belongs_to_exactly_one_role():
+    assert role_of("profile-interview").id == "resume-coach"
+    assert role_of("coach-archive").id == "coach-mock"
+    assert hints_by_skill()["profile-interview"] == ["resume-coach"]
+    owners = [s.role_id for r in roles().values() for s in r.skills]
+    assert len(owners) == len(set(s.id for r in roles().values() for s in r.skills))
+
+
+def test_a_run_holds_only_the_tools_of_the_skill_it_runs_as():
+    assert "jc_intake_record" not in skill("resume-coach").tools
+    assert "jc_intake_record" in skill("profile-interview").tools
+    assert "jc_interview_save" not in skill("coach-mock").tools
+    assert "jc_interview_save" in skill("coach-archive").tools
+
+
+def test_the_fragments_a_skill_loads_are_declared_on_the_skill():
+    assert skill("resume-writer").always_loaded == ("structure", "method", "targeting")
+    assert skill("resume-reviewer").always_loaded == ("severity", "method", "structure", "evidence")
+    assert skill("interview-reviewer").always_loaded == ()
 
 
 def test_an_unknown_role_is_an_error_not_a_default():
     with pytest.raises(UnknownRoleError):
         role("no-such-role")
+    with pytest.raises(UnknownSkillError):
+        skill("no-such-skill")
 
 
 @pytest.mark.parametrize(
     "mutate",
     [
         lambda d: d["coach-mock"].update(mode="single"),
-        lambda d: d["resume-writer"].update(tools=["jc_profile_get"]),
+        lambda d: d["resume-writer"]["skills"]["resume-writer"].update(tools=["jc_profile_get"]),
         lambda d: d["interview-reviewer"].pop("timeout_seconds"),
-        lambda d: d["coach-mock"].update(delegates=["resume-coach"]),
-        lambda d: d["resume-coach"].update(swap_to=["coach-mock"]),
+        lambda d: d["coach-mock"]["skills"]["coach-mock"].update(delegates=["resume-coach"]),
+        lambda d: d["resume-writer"]["skills"]["resume-writer"].update(
+            delegates=["interview-reviewer"]
+        ),
         lambda d: d["jd-parser"].update(product="elsewhere"),
         lambda d: d["jd-parser"].update(surprise=1),
+        lambda d: d["jd-parser"]["skills"]["jd-parser"].update(surprise=1),
+        lambda d: d["jd-parser"].update(skills={"other": {}}),
+        lambda d: d["jd-parser"]["skills"].update({"resume-coach": {}}),
+        lambda d: d["resume-writer"]["skills"].update({"extra": {}}),
+        lambda d: d["resume-coach"].pop("skills"),
     ],
 )
 def test_a_contradictory_declaration_fails_at_load(mutate, tmp_path, monkeypatch):

@@ -40,10 +40,11 @@ def test_a_role_holds_no_tool_of_another_product(role_id):
         assert not leaked, f"{role_id} ({product}) holds {other} tools: {sorted(leaked)}"
 
 
-def test_the_apply_agent_holds_no_resume_tool_and_swaps_to_nothing():
+def test_the_apply_agent_holds_no_resume_tool_and_has_one_skill_and_no_delegates():
     apply = roles()["apply-pipeline"]
     assert not set(apply.tools) & PRODUCT_TOOLS["resume"]
-    assert apply.swap_to == () and apply.delegates == ()
+    assert [s.id for s in apply.skills] == ["apply-pipeline"]
+    assert not any(s.delegates for s in apply.skills)
 
 
 def test_reviewer_holds_exactly_the_read_and_report_tools():

@@ -107,14 +107,14 @@ backend/server/src/jc/skills/
 - skill 内容是**第一方、随仓库发布**的，所以可以作为 system prompt 的可信输入
   （与 profile / JD 这类用户数据不同，后者一律按不可信处理）。
 
-角色的 `tools` 只决定**工具面**（哪个角色能调哪些 `jc_*`），不决定方法论可达性。
+技能的 `tools` 只决定**工具面**（一次运行能调哪些 `jc_*`），不决定方法论可达性。
 这两件事容易混为一谈，改动前请分清。
 
 ### 角色只能定义一次
 
-每个角色的产品、运行方式、模型场景、工具白名单、委派和方法论切换，只写在
+每个角色的产品、运行方式、模型场景，和它拥有的每个技能的工具白名单、委派、常驻片段，只写在
 `backend/agent/roles.yaml` 一处，由 `jc.agent.roles` 加载并在加载时校验结构。其余各处都是派生：
-harness 的工具面、模型（`jc-<scenario>`）、计划模式、委派；DeerFlow 的子 agent 定义；
+harness 的工具面（取自技能）、模型（`jc-<scenario>`）、计划模式（取自角色）、委派（取自技能）；组合器的常驻片段；DeerFlow 的子 agent 定义；
 API 允许的 `skill_hint`（只接受 `entry: true` 的角色）；管理端 inventory；隔离测试。
 字段说明见 `roles.yaml` 文件头，设计与完整角色表见 [AGENT-ROLES.md](AGENT-ROLES.md)。
 
@@ -152,17 +152,17 @@ API 允许的 `skill_hint`（只接受 `entry: true` 的角色）；管理端 in
 每段的 `question_id` 由服务端按 plan 的同一条规则生成——客户端自己推导 id
 会出现「答案标记了错误的问题」这种静默故障，表现是访谈反复问一条已经有了的要点。
 
-### 访谈轮的角色与工具面
+### 访谈轮的技能与工具面
 
-舟卡在一轮对话里**不是同一个角色**：档案已经够生成简历时是 `resume-coach`（优化已有内容），
-还不够时是 `profile-interview`（把档案问出来）。这个判定在
+简历顾问是同一个角色，但一轮对话**以不同的技能运行**：档案已经够生成简历时是 `resume-coach` 技能（优化已有内容），
+还不够时是 `profile-interview` 技能（把档案问出来）。两个技能都归 `resume-coach` 角色，各有自己的工具白名单。这个判定在
 `services/agent_service.stream_message` 里完成。
 
 一个必须知道的实现约束：**工具面只由 `metadata.skill_hint` 决定**。
 `deerflow_harness_client._get_tools` 读的是 `_get_embedded_client(config, metadata.skill_hint)`
-解析出的 skill，再据此查 `roles.yaml` 里该角色的 `tools`。所以：
+解析出的 skill，再据此查 `roles.yaml` 里该技能的 `tools`。所以：
 
-- 只在 `roles.yaml` 里给 `profile-interview` 写 `tools` 而不切换 `skill_hint`，
+- 只在 `roles.yaml` 里给 `profile-interview` 技能写 `tools` 而不切换 `skill_hint`，
   那份声明就是**死代码**，永远不会被查到；
 - `metadata` 必须在 skill 判定**之后**构造。原来的顺序下 `metadata` 先建好，
   判定结果无处可去，于是访谈轮始终带着 `resume-coach` 的工具面跑——

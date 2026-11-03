@@ -235,20 +235,21 @@ async def test_a_writer_failure_is_never_served_from_cache(env, monkeypatch):
 
 
 def test_every_declared_prompt_fragment_actually_exists():
-    """`_ALWAYS_LOADED` names files; a typo there silently thins the prompt.
+    """A skill's `always_loaded` in roles.yaml names files; a typo there silently thins the prompt.
 
     The composer skips a missing fragment on purpose — reference sets differ by role
     and an absent topic is not an error. The cost is that a renamed or misspelled
     entry removes a whole methodology layer with no failure anywhere: the model just
     writes worse. This is the only check that can catch it.
     """
+    from jc.agent.roles import skills
     from jc.domain.role_families import get_playbook
-    from jc.skills.composer import _ALWAYS_LOADED, _QUALITATIVE_FRAGMENT
+    from jc.skills.composer import _QUALITATIVE_FRAGMENT
     from jc.skills.loader import require_skill
 
-    for skill_id, topics in _ALWAYS_LOADED.items():
+    for skill_id, declared in skills().items():
         skill = require_skill(skill_id)
-        for topic in topics:
+        for topic in declared.always_loaded:
             assert skill.reference(topic), f"{skill_id} declares missing fragment '{topic}'"
 
     # The writer is the borrow target for every other skill's family layer, so its

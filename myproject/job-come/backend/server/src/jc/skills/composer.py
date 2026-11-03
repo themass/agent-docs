@@ -62,34 +62,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from jc.agent.roles import role_of
+from jc.agent.roles import skill as declared_skill
 from jc.domain.role_families import RolePlaybook
 from jc.skills.loader import require_skill
-
-#: Fragments a skill always loads, in prompt order. These carry the rules that must
-#: not vary by audience, which is why they sit outside the per-family selection.
-#:
-#: Keyed by skill because the writer and the reviewer need different universal
-#: layers: the writer is told how to build a document, the reviewer is told what
-#: severity to assign and what counts as source evidence. A skill not listed here
-#: contributes only its SKILL.md plus whatever family fragment applies.
-_ALWAYS_LOADED: dict[str, tuple[str, ...]] = {
-    "resume-writer": ("structure", "method", "targeting"),
-    "resume-reviewer": ("severity", "method", "structure", "evidence"),
-    "resume-coach": ("method",),
-    "profile-interview": ("method",),
-}
-
-#: The skill whose identity the agent runtime already carries, via `config.yaml` and the
-#: turn wrapper. Guidance for *this* skill omits its own contract text, because sending
-#: it again inside the user message duplicates the role definition at the weaker of the
-#: two positions.
-#:
-#: Guidance for any *other* skill must include the contract, and that is not symmetry for
-#: its own sake: `profile-interview`'s contract is precisely the instruction that this
-#: turn is for asking rather than editing, which contradicts the registered identity.
-#: Drop it and the model keeps behaving like an editor while holding interview
-#: methodology — the worst of both, and it would look like the skill was loaded.
-_REGISTERED_AGENT_SKILL = "resume-coach"
 
 #: Role families whose outcomes are often qualitative share one fragment rather
 #: than each carrying a near-copy. `quantification_optional` on the playbook is the
@@ -139,8 +115,8 @@ def _select_layers(
 
     The three public functions below differ only in what they *render* — a system
     prompt, a user-message appendix, a static baseline for the generated runtime
-    config. They used to differ in how they *selected* too, each re-walking
-    `_ALWAYS_LOADED` then family then qualitative with slightly different fallbacks.
+    config. They used to differ in how they *selected* too, each re-walking the skill's
+    `always_loaded` fragments, then family, then qualitative, with slightly different fallbacks.
     Three copies of a selection order drift the same way sixteen copies of a prompt
     would, and worse: the drift lives in control flow rather than in markdown, where
     nobody re-reads it. The selection exists once, here.
@@ -154,7 +130,7 @@ def _select_layers(
     if include_identity:
         layers.append((f"{skill_id}:base", skill.body))
 
-    for topic in _ALWAYS_LOADED.get(skill_id, ()):
+    for topic in declared_skill(skill_id).always_loaded:
         fragment = skill.reference(topic)
         if fragment:
             layers.append((f"{skill_id}:{topic}", fragment))
@@ -262,7 +238,15 @@ def compose_coach_guidance(*, skill_id: str, playbook: RolePlaybook) -> str:
     selected = _select_layers(
         skill_id,
         playbook,
-        include_identity=skill_id != _REGISTERED_AGENT_SKILL,
+        # The role's default skill is the one the agent runtime already carries, through
+        # `config.yaml` and the turn wrapper. Guidance for it omits its own contract text,
+        # because sending it again inside the user message duplicates the role definition at
+        # the weaker of the two positions. Guidance for any *other* skill of the role must
+        # include the contract, and that is not symmetry for its own sake: the interview
+        # skill's contract is precisely the instruction that this turn is for asking rather
+        # than editing, which contradicts the registered identity. Drop it and the model keeps
+        # behaving like an editor while holding interview methodology.
+        include_identity=skill_id != role_of(skill_id).default_skill.id,
         borrow_family_from="resume-writer",
     )
     if not selected:

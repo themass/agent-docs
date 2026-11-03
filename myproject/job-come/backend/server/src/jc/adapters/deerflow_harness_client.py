@@ -24,7 +24,7 @@ from agentkit.adapters.deerflow.client import (
 from agentkit.common.ids import new_id
 
 from jc.agent import system_prompt_capture
-from jc.agent.roles import role, subagent_specs
+from jc.agent.roles import role_of, skill, subagent_specs
 from jc.config import settings
 from jc.paths import SERVER_ROOT
 
@@ -294,7 +294,7 @@ def _jc_deerflow_client_class() -> type:
 
         def _get_tools(self, *, model_name=None, subagent_enabled=False, mcp_plugins=None):
             scope = self._available_skills or set()
-            allowed = {name for skill in scope for name in role(skill).tools}
+            allowed = {name for skill_id in scope for name in skill(skill_id).tools}
             # No host file, shell, browser or generic network tools in V1. `task` is the one
             # framework tool a run may hold, and only when its skill declares delegates.
             tools = super()._get_tools(
@@ -321,9 +321,9 @@ def _jc_deerflow_client_class() -> type:
     return JCDeerFlowClient
 
 
-def _get_embedded_client(config: DeerFlowClientConfig, skill: str) -> Any:
-    available = frozenset({role(skill).id})
-    model_name = role(skill).model_name
+def _get_embedded_client(config: DeerFlowClientConfig, skill_id: str) -> Any:
+    available = frozenset({skill_id})
+    model_name = role_of(skill_id).model_name
     key = ":".join(
         [
             config.extensions_config_path,
@@ -736,8 +736,8 @@ class DeerFlowHarnessSessionClient(DeerFlowSessionClient):
         if thread_id not in self._thread_state:
             self._thread_state[thread_id] = _ThreadState(metadata=meta)
 
-        skill = meta.skill_hint or "resume-coach"
-        yield {"type": "skill", "name": skill}
+        skill_id = meta.skill_hint or "resume-coach"
+        yield {"type": "skill", "name": skill_id}
 
         authz_attributes = {
             k: v
@@ -757,8 +757,8 @@ class DeerFlowHarnessSessionClient(DeerFlowSessionClient):
             }.items()
             if v
         }
-        declared = role(skill)
-        delegates = sorted(declared.delegates)
+        declared = role_of(skill_id)
+        delegates = sorted(skill(skill_id).delegates)
         stream_kwargs: dict[str, Any] = {
             "user_id": meta.user_id or "default",
             "subagent_enabled": bool(delegates),
