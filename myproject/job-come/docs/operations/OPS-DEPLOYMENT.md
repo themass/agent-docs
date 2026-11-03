@@ -14,37 +14,30 @@ http://jc.sspacee.com
 
 主站和 API 必须使用同一域名下的相对 `/api/v1`，避免生产跨域与 cookie 域问题。当前对外地址为 `http://jc.sspacee.com`；切换 HTTPS 见下节。
 
-## 1.1 切换 HTTPS
+## 1.1 HTTPS（http 与 https 同时可用）
 
-参考配置已备好：`backend/server/nginx/jc.sspacee.com.https.conf`（含 80→443 301 跳转与 ACME 续期放行）。
+线上 `http://jc.sspacee.com` 与 `https://jc.sspacee.com` 都提供服务，不做跳转。这是有意的选择，
+由此得出两条约束：
 
-**证书必须由公共 CA 签发。** 自签名证书在公网站点上不成立：浏览器整页拦截，Googlebot 与 Baiduspider 直接拒绝握手——结果不是排名下降，是完全抓不到。内网自签名那套经验在这里不适用。
+- **`JC_COOKIE_SECURE` 保持 `false`**。设成 `true` 后通过 http 访问的用户拿不到登录 cookie，登录会静默失效。
+- **`JC_PUBLIC_URL` 保持 `http://jc.sspacee.com`**，邮件里的重置和验证链接都指向 http，两种访问方式都能完成登录。
 
-签发方式三选一，都免费：
-
-| 方式 | 适用 | 有效期 |
-|---|---|---|
-| Let's Encrypt + certbot | 服务器 80/443 公网可达 | 90 天，自动续期 |
-| 阿里云 / 腾讯云免费 DV 证书 | 域名或服务器在该云商 | 3 个月～1 年，手动换 |
-| 云厂商负载均衡托管证书 | 已有 SLB/CLB | 自动 |
-
-certbot 路径：
+证书由 Let's Encrypt 签发：
 
 ```bash
-certbot certonly --webroot -w /var/www/certbot -d jc.sspacee.com
+sudo /etc/letsencrypt/renewal-hooks/pre/stop-nginx.sh      # 释放 80 端口
+sudo certbot certonly --standalone -d jc.sspacee.com
+sudo /etc/letsencrypt/renewal-hooks/deploy/start-nginx.sh
 ```
 
-**四处必须同时改**，漏掉任何一处都会留下难查的半截状态：
+签发后 `apply-nginx-conf.sh` 会自动引用 `/etc/letsencrypt/live/jc.sspacee.com/`（需要证书包含该域名且未过期），
+否则退回自签证书。续期由 `certbot.timer` 自动完成（到期前 30 天内），沿用同一套钩子。
+钩子里的 `nginx -s stop` 没有指定配置文件，续期前应确认它能停掉实际运行的 nginx（见 1.2 的 pid 说明）。
 
-1. Nginx 换成 `jc.sspacee.com.https.conf`，`nginx -t && nginx -s reload`
-2. `frontend/web/.env.production` → `NEXT_PUBLIC_SITE_URL=https://jc.sspacee.com`，
-   **然后重新 `npm run build`**（构建期变量，重启不生效）
-3. `backend/server/.env` → `JC_COOKIE_SECURE=true`、`JC_PUBLIC_URL=https://jc.sspacee.com`
-4. 搜索引擎后台：Google Search Console 把 `http://` 与 `https://` 视为两个不同资源，
-   需重新添加 https 资源并重新提交 sitemap（建议改用 DNS 验证的「网域」资源，一次覆盖两者）；
-   百度资源平台同样需要重新验证与提交
+证书续期后 nginx 需要重载才会读到新文件，`apply-nginx-conf.sh` 的 `live/` 路径是符号链接，续期后只需 `nginx -s reload`。
 
-漏掉第 3 项的症状是页面能开但登录态持续丢失（Secure cookie 未下发）；漏掉第 2 项的症状是 canonical 与 sitemap 仍指向 http，搜索引擎看到的正式地址和实际服务的不一致。
+搜索引擎：http 与 https 是两个资源，Google Search Console、百度资源平台需要分别验证；建议在 Search Console
+使用 DNS 验证的「网域」资源，一次覆盖两者。
 
 ## 1.2 Nginx：两个脚本（root）
 
@@ -172,6 +165,11 @@ web 用户直接运行，不需要 sudo：
 要管理员装，缺的会一次列全并给出 `apt-get install` 命令。`frontend.sh` 自己会把 `~/.local/node` 加进 PATH，
 不需要改 `.bashrc`。网络受限时用 `JC_NODE_DIST_URLS` 换 Node 镜像，`UV_INSTALLER_GITHUB_BASE_URL` 换 uv 的下载源。
 
+`deploy.sh` 还会检查 PDF 导出需要的两样东西，缺哪样就停下并给出要执行的命令（需要管理员）：
+
+- **Chromium 的系统库**：`sudo apt-get install -y libxkbcommon0 libgbm1`。脚本会实际启动一次浏览器来验证。
+- **中文字体**：`sudo apt-get install -y fonts-noto-cjk && sudo fc-cache -f`。没有中文字体时 PDF 里的中文无法提取，导出会失败。
+
 ### 首次部署
 
 ```bash
@@ -238,10 +236,16 @@ curl -s http://jc.sspacee.com/sitemap.xml | head -5    # 确认不是 localhost
 
 ### 端口约定
 
-`3000`（web）与 `8000`（API）在三处必须一致：Nginx 的 `upstream`、
-`backend.sh`/`frontend.sh` 的默认值（`JC_API_PORT`/`JC_WEB_PORT` 可覆盖）。改一处就要改三处。
+`3000`（web）与 `8000`（API）是默认值。**本机的实际端口写在 `<部署目录>/.data/deploy.env`**，
+例如 `JC_WEB_PORT=3001`。`backend.sh`、`frontend.sh`、`apply-nginx-conf.sh` 都读这个文件，所以
+不带环境变量、不带 `sudo -E`、cron 里运行，结果一致；环境变量仍可临时覆盖。改了端口后必须重新运行
+`apply-nginx-conf.sh`，否则 nginx 还指向旧端口。
+
 注意 **dev 的 API 端口是 8001**（`dev.sh`），与生产不同，这是有意的——
 本地起着 dev 时不会占用生产端口。
+
+启动前会检查端口：被其它程序占用时直接拒绝启动，并打印占用者的 PID、命令和工作目录。
+停止前会核对进程命令行，不会误杀别的服务。
 
 ### 一个真实踩过的坑：不要用 `$!` 追踪 `next start` 的 PID
 
