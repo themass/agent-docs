@@ -200,7 +200,7 @@ class InterviewService:
             profile_id=body.profile_id,
             user_id=actor.user_id,
             mode=body.mode,
-            style=body.kind,
+            style=body.style,
             quota_counted=counted,
             job_id=body.job_id,
             resume_variant_id=None,

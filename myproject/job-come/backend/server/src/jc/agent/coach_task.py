@@ -37,8 +37,10 @@ def wrap_coach_mock_message(
         f"模拟会话 mock_session_id={session}。\n"
         f"{draw_rule}\n"
         f"{history_rule}\n"
-        "每次出题后调用 jc_question_upsert（带 job_id 与 mock_session_id）。"
-        "用户作答后点评，并调用 jc_answer_save_attempt。\n"
+        "每次出题后调用 jc_question_upsert（带 job_id 与 mock_session_id），"
+        "再调用 jc_mock_ask 登记提问（主问题或追问）。"
+        "用户作答后调用 jc_answer_save_attempt 保存原话；本场不点评、不打分，"
+        "评分由独立评审在场次结束后完成。\n"
         "用户原话：\n"
         f"{user_text.strip()}\n"
     )

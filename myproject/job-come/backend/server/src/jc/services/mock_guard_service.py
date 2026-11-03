@@ -10,7 +10,7 @@ session to have ended.
 from __future__ import annotations
 
 import copy
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from jc.authz.ownership import require_owned_profile
@@ -24,6 +24,9 @@ from jc.stores.interview_store import InterviewStore
 FULL_MAIN, FULL_FOLLOWUPS = 20, 2
 WARMUP_MAIN, WARMUP_FOLLOWUPS = 5, 1
 END_REASONS = ("completed", "user_ended")
+#: An active session with no new question for this long is ended as "timeout" and reported as
+#: unfinished (SPEC-MOCK-INTERVIEW §5). Activity is the last question asked, or the start.
+IDLE_LIMIT = timedelta(hours=24)
 
 
 def limits(session: MockSession) -> tuple[int, int]:
@@ -43,11 +46,31 @@ def _state(session: MockSession) -> dict[str, Any]:
     return state
 
 
+def _naive_utc(moment: datetime) -> datetime:
+    """The UTCDateTime column reads back naive UTC; keep every comparison on that footing."""
+    return moment.astimezone(UTC).replace(tzinfo=None) if moment.tzinfo else moment
+
+
+def _close(session: MockSession, state: dict[str, Any], *, reason: str) -> None:
+    session.status = MockSessionStatus.COMPLETED
+    session.completed_at = datetime.now(UTC)
+    state["ended_reason"] = reason
+    state["ended_early"] = reason in ("user_ended", "timeout")
+    session.coverage = state
+
+
 async def _owned_session(scope: RunScope, mock_session_id: str) -> MockSession:
     await require_owned_profile(scope)
     session = await InterviewStore(scope.db).get_mock_session(mock_session_id)
     if session is None or session.profile_id != scope.profile_id:
         raise PermissionError("Mock session outside this profile")
+    state = _state(session)
+    if session.status == MockSessionStatus.ACTIVE:
+        last = state.get("last_activity")
+        last_at = datetime.fromisoformat(last) if last else _naive_utc(session.started_at)
+        if datetime.now(UTC).replace(tzinfo=None) - last_at > IDLE_LIMIT:
+            _close(session, state, reason="timeout")
+            await scope.db.commit()
     return session
 
 
@@ -150,6 +173,7 @@ async def ask(
         "parent_question_id": parent,
         "experience": experience,
     })
+    state["last_activity"] = datetime.now(UTC).replace(tzinfo=None).isoformat()
     session.coverage = state
     qids = list(session.question_ids or [])
     if question_id not in qids:
@@ -186,12 +210,7 @@ async def end(
             uncovered=coverage.missing,
         )
 
-    now = datetime.now(UTC)
-    session.status = MockSessionStatus.COMPLETED
-    session.completed_at = now
-    state["ended_reason"] = reason
-    state["ended_early"] = reason == "user_ended"
-    session.coverage = state
+    _close(session, state, reason=reason)
     await scope.db.commit()
     return {"accepted": True, "status": MockSessionStatus.COMPLETED.value,
             "asked_main": len(mains), "ended_early": state["ended_early"]}

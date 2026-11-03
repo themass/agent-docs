@@ -3,7 +3,7 @@ session."""
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import select
@@ -51,7 +51,7 @@ async def db(tmp_path):
         session.add(MockSession(
             id="ms1", profile_id="p1", user_id="u1", mode="target", job_id="j1",
             question_ids=[], bank_draw_count=0, generated_count=0, status="active",
-            started_at=datetime(2026, 11, 1, tzinfo=UTC), style="standard",
+            started_at=datetime.now(UTC), style="standard",
         ))
         await session.commit()
     yield maker
@@ -176,3 +176,30 @@ async def test_another_profiles_session_is_refused(db):
     async with db() as s:
         with pytest.raises(PermissionError):
             await guard.plan(_scope(s, profile_id="p2"), mock_session_id="ms1")
+
+
+@pytest.mark.asyncio
+async def test_session_idle_for_a_day_is_ended_as_timeout_and_refuses_more_questions(db):
+    assert (await _ask(db, "q1"))["accepted"]
+    async with db() as s:
+        session = await s.get(MockSession, "ms1")
+        state = dict(session.coverage)
+        stale = datetime.now(UTC) - timedelta(hours=25)
+        state["last_activity"] = stale.replace(tzinfo=None).isoformat()
+        session.coverage = state
+        await s.commit()
+    async with db() as s:
+        plan = await guard.plan(_scope(s), mock_session_id="ms1")
+    assert plan["status"] == "completed"
+    session = await _session(db)
+    assert session.coverage["ended_reason"] == "timeout"
+    assert session.coverage["ended_early"] is True
+    assert (await _ask(db, "q2"))["code"] == "session_closed"
+
+
+@pytest.mark.asyncio
+async def test_recent_question_keeps_the_session_open(db):
+    assert (await _ask(db, "q1"))["accepted"]
+    async with db() as s:
+        plan = await guard.plan(_scope(s), mock_session_id="ms1")
+    assert plan["status"] == "active"

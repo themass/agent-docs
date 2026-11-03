@@ -94,6 +94,9 @@ class MockSessionCreateRequest(BaseModel):
     #: "warmup" (5 questions, unlimited) or "full" (20 questions, metered for free accounts).
     #: Separate from `mode`, which is about the target job, not the length of the session.
     kind: Literal["warmup", "full"] = "warmup"
+    #: The interviewer's manner (SPEC-MOCK-INTERVIEW §3). Changes how questions are put, never what
+    #: is covered or how it is scored.
+    style: Literal["gentle", "standard", "pressure", "deep"] = "standard"
 
 
 class MockSessionQuestion(BaseModel):

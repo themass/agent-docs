@@ -84,9 +84,12 @@ async def test_warmup_is_never_refused_even_after_the_full_run(sessions):
 async def test_a_full_run_is_recorded_as_counted_with_its_style(sessions):
     async with sessions() as db:
         created = await InterviewService(db).create_mock_session(
-            actor=ACTOR, body=MockSessionCreateRequest(profile_id="p1", mode="warmup", kind="full")
+            actor=ACTOR,
+            body=MockSessionCreateRequest(
+                profile_id="p1", mode="warmup", kind="full", style="pressure"
+            ),
         )
     async with sessions() as db:
         row = await db.get(MockSession, created.id)
     assert row.quota_counted is True
-    assert row.style == "full"
+    assert row.style == "pressure"
