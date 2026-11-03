@@ -107,31 +107,26 @@ backend/server/src/jc/skills/
 - skill 内容是**第一方、随仓库发布**的，所以可以作为 system prompt 的可信输入
   （与 profile / JD 这类用户数据不同，后者一律按不可信处理）。
 
-`_SKILL_SCOPE` 只决定**工具面**（哪个角色能调哪些 `jc_*`），不决定方法论可达性。
+角色的 `tools` 只决定**工具面**（哪个角色能调哪些 `jc_*`），不决定方法论可达性。
 这两件事容易混为一谈，改动前请分清。
 
 ### 角色只能定义一次
 
-`config.yaml` 把 JC 的角色声明为 DeerFlow subagent，而 harness 的 schema 要求每个
-subagent 带一个 `system_prompt` 字符串。这个要求曾经直接导致同一个角色有两份定义：
-`config.yaml` 里三行英文摘要，和 skill 包里 101 行的完整契约。两份不一致时，
-**没有任何东西会失败**——这跟 `jc-writer` 指向 deepseek 而 `writer` 链头是 gpt 是同一类错误，
-在同一个文件里，出于同一个原因。
+每个角色的产品、运行方式、模型场景、工具白名单、委派和方法论切换，只写在
+`backend/agent/roles.yaml` 一处，由 `jc.agent.roles` 加载并在加载时校验结构。其余各处都是派生：
+harness 的工具面、模型（`jc-<scenario>`）、计划模式、委派；DeerFlow 的子 agent 定义；
+API 允许的 `skill_hint`（只接受 `entry: true` 的角色）；管理端 inventory；隔离测试。
+字段说明见 `roles.yaml` 文件头，设计与完整角色表见 [AGENT-ROLES.md](AGENT-ROLES.md)。
 
-所以现在存的是指针：
+这条规则来自一次实际的漂移：`config.yaml` 里为每个子 agent 手写三行英文摘要，和 skill 包里
+101 行的完整契约并存。两份不一致时**没有任何东西会失败**，`jc-writer` 指向 deepseek 而 `writer`
+链头是 gpt 是同一类错误。所以 `config.yaml` 不再声明 `subagents.custom_agents`，写了会在启动时抛异常。
 
-```yaml
-subagents:
-  custom_agents:
-    resume-writer:
-      system_prompt: skill:resume-writer
-```
-
-启动时 `deerflow_harness_client.resolve_subagent_prompts_in_config` 把它替换成
-`jc.skills.composer.compose_role_baseline(skill_id)` 的结果，写到
-`.data/deerflow/config.runtime.yaml`，再把 `DEER_FLOW_CONFIG_PATH` 指向那份。
-指针指向不存在的 skill，或组装出空串，都**抛异常而不回退**——
-静默回退意味着某个角色拿自己的 id 当指令运行，或者拿空 prompt 运行，而配置看起来是好的。
+子 agent 的 `system_prompt` 在启动时生成：
+`deerflow_harness_client.resolve_subagent_prompts_in_config` 读 `jc.agent.roles.subagent_specs()`，
+对每个子任务角色调用 `jc.skills.composer.compose_role_baseline(skill_id)`，连同 `config.yaml`
+写到 `.data/deerflow/config.runtime.yaml`，再把 `DEER_FLOW_CONFIG_PATH` 指向那份。
+组装出空串会**抛异常而不回退**：静默回退意味着某个角色拿自己的 id 当指令运行，而配置看起来是好的。
 
 `compose_role_baseline` 只放**与读者无关**的那几层（skill 自身契约 + 始终加载的方法论）。
 岗位族那一层是**按请求选的**（取决于用户的目标岗位），而启动时写的文件没有请求。
@@ -165,10 +160,10 @@ subagents:
 
 一个必须知道的实现约束：**工具面只由 `metadata.skill_hint` 决定**。
 `deerflow_harness_client._get_tools` 读的是 `_get_embedded_client(config, metadata.skill_hint)`
-解析出的 skill，再据此查 `agent/tool_catalog.py` 的 `SKILL_TOOLS`。所以：
+解析出的 skill，再据此查 `roles.yaml` 里该角色的 `tools`。所以：
 
-- 只在 registry 里加 `SKILL_TOOLS["profile-interview"]` 条目而不切换 `skill_hint`，
-  那个条目就是**死代码**，永远不会被查到；
+- 只在 `roles.yaml` 里给 `profile-interview` 写 `tools` 而不切换 `skill_hint`，
+  那份声明就是**死代码**，永远不会被查到；
 - `metadata` 必须在 skill 判定**之后**构造。原来的顺序下 `metadata` 先建好，
   判定结果无处可去，于是访谈轮始终带着 `resume-coach` 的工具面跑——
   这是「对话建档」一直不好用的结构原因。

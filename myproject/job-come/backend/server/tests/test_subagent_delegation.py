@@ -1,61 +1,48 @@
 """Delegation is for runs that need another agent's judgment mid-turn.
 
-Everything else runs as one main agent.
-
-These tests pin the rules that keep a delegated run inside its own role: which skill may delegate,
-to whom, with which tools, and that `task` is offered to no other run.
+Everything else runs as one main agent. These tests pin the rules that keep a delegated run inside
+its own role: which role may delegate, to whom, with which tools, and that no subagent can delegate
+again.
 """
 
 from __future__ import annotations
 
-from pathlib import Path
-
-import yaml
-
-from jc.adapters.deerflow_harness_client import DELEGATES, delegates_for_skill
-from jc.agent.tool_catalog import SKILL_TOOLS
-
-BACKEND = Path(__file__).resolve().parents[2]
+from jc.agent.roles import roles, subagent_specs
 
 # Tools that put a question to the candidate or change interview state. A delegated reviewer must
-# hold none of them, whatever its config says.
+# hold none of them, whatever the declaration says.
 CANDIDATE_FACING = {
     "jc_mock_ask", "jc_mock_end", "jc_mock_plan", "jc_question_upsert",
     "jc_answer_save_attempt", "jc_interview_save",
 }
 
 
-def _custom_agents() -> dict:
-    config = yaml.safe_load((BACKEND / "agent" / "deerflow" / "config.yaml").read_text("utf-8"))
-    return config["subagents"]["custom_agents"]
-
-
 def test_only_the_interview_coach_delegates_and_only_to_the_reviewer():
-    assert DELEGATES == {"coach-mock": frozenset({"interview-reviewer"})}
-    assert delegates_for_skill("coach-mock") == {"interview-reviewer"}
-    for skill in ("resume-coach", "resume-writer", "interview-reviewer", "apply-pipeline"):
-        assert delegates_for_skill(skill) == frozenset(), skill
+    delegating = {r.id: set(r.delegates) for r in roles().values() if r.delegates}
+    assert delegating == {"coach-mock": {"interview-reviewer"}}
 
 
-def test_each_delegate_is_a_declared_subagent_with_a_matching_role():
-    custom = _custom_agents()
-    for skill, targets in DELEGATES.items():
-        for target in targets:
-            assert target in custom, f"{skill} delegates to undeclared subagent {target}"
-            assert custom[target]["system_prompt"] == f"skill:{target}"
+def test_each_delegate_is_a_subagent_spec_whose_prompt_points_at_its_skill():
+    specs = subagent_specs()
+    for role in roles().values():
+        for target in role.delegates:
+            assert specs[target]["system_prompt"] == f"skill:{target}"
 
 
-def test_the_reviewer_subagent_holds_only_its_own_skill_tools():
-    reviewer = _custom_agents()["interview-reviewer"]
-    assert set(reviewer["tools"]) <= set(SKILL_TOOLS["interview-reviewer"])
-    assert not set(reviewer["tools"]) & CANDIDATE_FACING
-    assert reviewer["skills"] == ["interview-reviewer"]
-    assert reviewer["model"] == "jc-reviewer"
+def test_the_reviewer_subagent_holds_only_its_own_tools_and_model():
+    spec = subagent_specs()["interview-reviewer"]
+    assert set(spec["tools"]) == set(roles()["interview-reviewer"].tools)
+    assert not set(spec["tools"]) & CANDIDATE_FACING
+    assert spec["skills"] == ["interview-reviewer"]
+    assert spec["model"] == "jc-reviewer"
+
+
+def test_every_subtask_role_is_a_subagent_and_nothing_else_is():
+    assert set(subagent_specs()) == {r.id for r in roles().values() if r.mode == "subtask"}
 
 
 def test_no_subagent_can_reach_the_framework_task_tool_itself():
-    # `task` is added by the harness per run, never through a subagent's own allowlist, so a
-    # delegated run cannot delegate again.
-    for name, spec in _custom_agents().items():
-        assert "task" not in spec["tools"], name
-
+    # `task` is added by the harness per run, never through a role's tools, so a delegated run
+    # cannot delegate again.
+    for role in roles().values():
+        assert "task" not in role.tools, role.id

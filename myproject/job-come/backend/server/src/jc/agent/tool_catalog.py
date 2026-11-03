@@ -1,16 +1,14 @@
-"""The agent's tool catalog: what exists, and which role may call it.
+"""The agent's tool catalog: which tools exist and what each one accepts.
 
-This is declarative configuration, not an adapter. It names tools and maps each
-agent role to the subset it is allowed to call; it holds no handler, no database
-handle and no transport. That is why it lives on the harness-facing side rather
-than inside `jc.mcp`: the harness client needs the per-role tool surface to build a
-turn, and the admin inventory needs the catalog to report what the agent carries.
-Neither of those should have to import the MCP tool surface to find out.
+This is declarative configuration, not an adapter. It holds no handler, no database handle
+and no transport. Which role may call which tool is not decided here: that is the `tools`
+list of each role in `backend/agent/roles.yaml` (see `jc.agent.roles`).
 
-Adding a tool means touching three places on purpose: this catalog, the handler
-adapter in `jc.mcp.handlers`, and the stdio surface in `jc.mcp.server`. A test
-asserts all three agree, because a tool the model can see but the server cannot
-serve is worse than a tool that does not exist.
+Adding a tool means touching three places on purpose: this catalog, the handler adapter in
+`jc.mcp.handlers`, and the stdio surface in `jc.mcp.server`; then naming it in the `tools` of
+the roles that may use it. `tests/test_roles.py` asserts that the catalog, the handlers and the
+server agree, and that every tool a role names is one of them, because a tool the model can see
+but the server cannot serve is worse than a tool that does not exist.
 """
 
 from __future__ import annotations
@@ -450,62 +448,6 @@ OPENAI_TOOLS: list[dict[str, Any]] = [
         },
     },
 ]
-
-SKILL_TOOLS: dict[str, list[str]] = {
-    # The coach reads the plan but cannot write answers: on a profile that can already
-    # generate, the open questions are enrichment prompts, and "record this as an
-    # interview answer" is not what 「把这条改得更有力」 means. Writing stays on the
-    # confirmation-gated patch path there.
-    "resume-coach": [
-        "jc_profile_photo_set", "jc_profile_get", "jc_profile_patch", "jc_intake_plan",
-    ],
-    # profile-interview runs on the coach's turn (the host swaps the methodology,
-    # not the runtime registration). It gets the coach's read/patch pair plus the two
-    # intake tools: the plan, so it can see what is still missing after it writes, and
-    # the recorder, so a transcribed answer lands in the slot the plan named instead of
-    # becoming a confirm card the user has to approve for their own sentence.
-    "profile-interview": [
-        "jc_profile_photo_set",
-        "jc_profile_get",
-        "jc_profile_patch",
-        "jc_intake_plan",
-        "jc_intake_record",
-    ],
-    "resume-writer": ["jc_profile_get", "jc_resume_review"],
-    "resume-reviewer": ["jc_profile_get", "jc_resume_review"],
-    "coach-mock": [
-        "jc_profile_get",
-        "jc_bank_search_questions",
-        "jc_question_upsert",
-        "jc_answer_save_attempt",
-        "jc_mock_session_history",
-        "jc_mock_plan",
-        "jc_mock_ask",
-        "jc_mock_end",
-        "jc_mock_review",
-    ],
-    "coach-archive": ["jc_profile_get", "jc_question_upsert", "jc_interview_save"],
-    # Reads the finished session and writes the report. No ask, end or upsert tool (R3).
-    "interview-reviewer": [
-        "jc_profile_get",
-        "jc_mock_session_history",
-        "jc_mock_report_write",
-    ],
-    "coach-answer": ["jc_bank_search_questions", "jc_answer_save_attempt"],
-    "jd-parser": ["jc_profile_get", "jc_job_fetch", "jc_job_parse", "jc_fit_score"],
-    "apply-pipeline": [
-        "jc_profile_get",
-        "jc_job_fetch", "jc_job_parse",
-        "jc_fit_score",
-        "jc_profile_patch",
-        "jc_apply_pipeline",
-    ],
-}
-
-
-def tools_for_skill(skill: str) -> list[dict[str, Any]]:
-    names = set(SKILL_TOOLS.get(skill, ["jc_profile_get"]))
-    return [t for t in OPENAI_TOOLS if t["function"]["name"] in names]
 
 
 def tool_names() -> list[str]:

@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 import jc.models  # noqa: F401
-from jc.adapters.deerflow_harness_client import model_for_skill
+from jc.agent.roles import role
 from jc.db.base import Base
 from jc.models.interview import AnswerAttempt, InterviewQuestion, MockSession
 from jc.models.profile import Profile
@@ -120,8 +120,8 @@ async def test_an_unfinished_session_never_starts_a_run(maker, monkeypatch):
 
 
 def test_the_reviewer_skill_runs_on_the_reviewer_model():
-    assert model_for_skill("interview-reviewer") == "jc-reviewer"
-    assert model_for_skill("coach-mock") is None
+    assert role("interview-reviewer").model_name == "jc-reviewer"
+    assert role("coach-mock").model_name == "jc-coach"
 
 
 def test_the_reviewer_model_is_configured_on_the_reviewer_scenario():

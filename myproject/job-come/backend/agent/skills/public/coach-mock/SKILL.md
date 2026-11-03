@@ -8,7 +8,7 @@ description: 文字模拟面试的面试官：按所选风格提问、追问、�
 
 ## 开场
 
-1. 读取档案（`jc_profile_get`）和岗位（如有 job_id，用 `jc_job_fetch`）。
+1. 读取档案（`jc_profile_get`）。岗位的必备项在第 3 步的 `jc_mock_plan` 里。
 2. 一句话告诉用户：本场的风格、题数上限、随时可以说“结束”。
 3. 调用 `jc_mock_plan`，了解题数上限、JD 必备项和已覆盖情况。
 

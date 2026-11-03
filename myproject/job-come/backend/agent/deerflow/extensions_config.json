@@ -51,10 +51,10 @@
     "coach-mock": {
       "enabled": true
     },
-    "coach-answer": {
+    "coach-archive": {
       "enabled": true
     },
-    "coach-archive": {
+    "interview-reviewer": {
       "enabled": true
     },
     "jd-parser": {

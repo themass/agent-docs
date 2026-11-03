@@ -9,15 +9,15 @@ from jc.config import settings
 from jc.domain.jd_integrity import inspect_jd_text
 from jc.llm.call_context import llm_context
 from jc.llm.router import get_llm_router
-from jc.paths import prompt_file
 from jc.schemas.job import JDParseResult
+from jc.skills.loader import require_skill
 
-_PROMPT_PATH = prompt_file("ingest", "jd_parser.md")
+_ROLE = "jd-parser"
 
 
 class JdParserService:
     def __init__(self) -> None:
-        self._system_prompt = _PROMPT_PATH.read_text(encoding="utf-8")
+        self._system_prompt = require_skill(_ROLE).body
 
     async def parse(self, *, raw_text: str) -> JDParseResult:
         integrity = inspect_jd_text(raw_text)

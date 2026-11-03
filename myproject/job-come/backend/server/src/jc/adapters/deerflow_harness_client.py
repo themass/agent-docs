@@ -24,7 +24,7 @@ from agentkit.adapters.deerflow.client import (
 from agentkit.common.ids import new_id
 
 from jc.agent import system_prompt_capture
-from jc.agent.roles import SKILL_PROMPT_PREFIX, skills_in_scope
+from jc.agent.roles import role, subagent_specs
 from jc.config import settings
 from jc.paths import SERVER_ROOT
 
@@ -39,7 +39,6 @@ logger = logging.getLogger(__name__)
 _CLIENT_CACHE: dict[str, Any] = {}
 _THREAD_META: dict[str, AgentRunMetadata] = {}
 _SESSION_CANCEL: dict[str, threading.Event] = {}
-_PLAN_MODE_SKILLS = frozenset({"apply-pipeline"})
 
 
 @contextmanager
@@ -180,41 +179,36 @@ def resolve_mcp_python_in_extensions(
 
 
 def resolve_subagent_prompts_in_config(src: Path, *, dest: Path) -> Path:
-    """Fill each declared role's `system_prompt` from its skill package.
+    """Write the runtime DeerFlow config: `config.yaml` plus the subagents the roles declare.
 
-    `config.yaml` declares JC's roles as DeerFlow subagents, and the harness schema
-    requires a `system_prompt` string on each. That requirement produced the problem this
-    function removes: three hand-written English lines per role, checked in beside the
-    skill package that defines the same role in full. Two definitions of one role is the
-    drift this codebase keeps paying for — `jc-writer` once named a different model than
-    the chain it was supposed to use, in this same file, for this same reason.
+    The harness schema wants JC's delegated roles as `subagents.custom_agents`, each with a
+    `system_prompt` string. Those entries are not written in `config.yaml`: they are generated
+    here from `roles.yaml` (`jc.agent.roles.subagent_specs`), because a second hand-written
+    definition of a role is the drift this codebase keeps paying for. `jc-writer` once named a
+    different model than the chain it was meant to use, in this same file, for this reason. A
+    `custom_agents` block in `config.yaml` therefore raises instead of being merged.
 
-    So the checked-in value is a pointer (`skill:resume-writer`) and the real text is
-    composed at boot from the skill. Only the audience-independent layers go in, because
-    a file written at boot has no request and the family layer is chosen from the user's
-    target role; the per-request composition stays in `compose_writing_prompt`, which is
-    what the live elevate and review paths already use.
-
-    A pointer that names an unknown skill raises rather than falling back to the literal
-    string: a silent fallback here means a role runs with its own id as its instructions.
+    The prompt is composed at boot from the role's skill package. Only the audience-independent
+    layers go in, because a file written at boot has no request and the family layer is chosen
+    from the user's target role; the per-request composition stays in `compose_writing_prompt`.
+    A role whose skill composes to nothing raises: a silent fallback would run it with its own
+    id as its instructions.
     """
     from jc.skills.composer import compose_role_baseline
 
     data = yaml.safe_load(src.read_text(encoding="utf-8")) or {}
-    custom = ((data.get("subagents") or {}).get("custom_agents") or {})
+    subagents = data.setdefault("subagents", {})
+    if subagents.get("custom_agents"):
+        raise RuntimeError(
+            "config.yaml must not declare subagents.custom_agents; they come from roles.yaml"
+        )
+    custom = subagent_specs()
     for name, spec in custom.items():
-        if not isinstance(spec, dict):
-            continue
-        declared = str(spec.get("system_prompt") or "").strip()
-        if not declared.startswith(SKILL_PROMPT_PREFIX):
-            continue
-        skill_id = declared[len(SKILL_PROMPT_PREFIX) :].strip()
-        composed = compose_role_baseline(skill_id)
+        composed = compose_role_baseline(name)
         if not composed.strip():
-            raise RuntimeError(
-                f"subagent {name!r} points at skill {skill_id!r}, which composed to nothing"
-            )
+            raise RuntimeError(f"subagent {name!r} has a skill that composed to nothing")
         spec["system_prompt"] = composed
+    subagents["custom_agents"] = custom
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(
         yaml.safe_dump(data, allow_unicode=True, sort_keys=False),
@@ -299,9 +293,8 @@ def _jc_deerflow_client_class() -> type:
         """Embedded client with JC defaults (no blocking human-input tools)."""
 
         def _get_tools(self, *, model_name=None, subagent_enabled=False, mcp_plugins=None):
-            from jc.agent.tool_catalog import SKILL_TOOLS
             scope = self._available_skills or set()
-            allowed = {name for skill in scope for name in SKILL_TOOLS.get(skill, [])}
+            allowed = {name for skill in scope for name in role(skill).tools}
             # No host file, shell, browser or generic network tools in V1. `task` is the one
             # framework tool a run may hold, and only when its skill declares delegates.
             tools = super()._get_tools(
@@ -328,29 +321,9 @@ def _jc_deerflow_client_class() -> type:
     return JCDeerFlowClient
 
 
-# Skills that run on a model other than the agent's default, named by its entry in config.yaml.
-# The reviewer is one: its report must not come from the interviewer's own model (AGENTS-DESIGN §5).
-_SKILL_MODEL: dict[str, str] = {"interview-reviewer": "jc-reviewer"}
-
-
-def model_for_skill(skill: str) -> str | None:
-    return _SKILL_MODEL.get(skill)
-
-
-# Runs whose main agent may delegate to another JC agent through DeerFlow's `task` tool.
-# A skill is listed only when it genuinely needs another agent's judgment mid-turn; everything
-# else runs as a single main agent. Each target must be a `subagents.custom_agents` entry in
-# config.yaml, whose tool allowlist bounds what the delegated run can reach.
-DELEGATES: dict[str, frozenset[str]] = {"coach-mock": frozenset({"interview-reviewer"})}
-
-
-def delegates_for_skill(skill: str) -> frozenset[str]:
-    return DELEGATES.get(skill, frozenset())
-
-
 def _get_embedded_client(config: DeerFlowClientConfig, skill: str) -> Any:
-    available = skills_in_scope(skill, default_companion="resume-coach")
-    model_name = model_for_skill(skill)
+    available = frozenset({role(skill).id})
+    model_name = role(skill).model_name
     key = ":".join(
         [
             config.extensions_config_path,
@@ -784,12 +757,13 @@ class DeerFlowHarnessSessionClient(DeerFlowSessionClient):
             }.items()
             if v
         }
-        delegates = sorted(delegates_for_skill(skill))
+        declared = role(skill)
+        delegates = sorted(declared.delegates)
         stream_kwargs: dict[str, Any] = {
             "user_id": meta.user_id or "default",
             "subagent_enabled": bool(delegates),
             "allowed_subagents": delegates,
-            "plan_mode": skill in _PLAN_MODE_SKILLS,
+            "plan_mode": declared.plan_mode,
             "authz_attributes": authz_attributes,
         }
         if meta.trace_id:

@@ -10,7 +10,7 @@ that have to be fixed in different ways:
 1. **The agent path could not read a skill body at all.** DeerFlow injects only a
    skill's *name, description and location* into the system prompt; the body is
    loaded when the model calls `read_file` on that location. JC's tool allowlist
-   (`deerflow_harness_client._get_tools`) strips every tool outside `SKILL_TOOLS`,
+   (`deerflow_harness_client._get_tools`) strips every tool outside the role's `tools`,
    and `read_file` is deliberately not in it — V1 does not give the agent host file
    access. So the progressive-loading contract DeerFlow advertises to the model
    could never complete, and every SKILL.md body was dead text.

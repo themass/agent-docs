@@ -101,49 +101,7 @@ subagent_runtime:
 subagents:
   max_total_per_run: 6
   timeout_seconds: 1800
-  custom_agents:
-    resume-writer:
-      description: Generate job-tailored elevated resume sections from verified profile facts only.
-      # `skill:<id>` means "compose this prompt from that skill package at boot" — see
-      # `deerflow_harness_client.resolve_subagent_prompts_in_config`. A literal prompt
-      # here would be a second definition of a role the skill already defines, which is
-      # how the two drift: this field used to hold three English lines summarising a
-      # 101-line contract, and nothing failed when they disagreed.
-      system_prompt: skill:resume-writer
-      tools:
-        - jc_profile_get
-        - jc_resume_review
-      skills:
-        - resume-writer
-      model: jc-writer
-      max_turns: 30
-      timeout_seconds: 600
-    resume-reviewer:
-      description: Review resume draft for factual consistency before export or apply pipeline.
-      system_prompt: skill:resume-reviewer
-      tools:
-        - jc_profile_get
-        - jc_resume_review
-      skills:
-        - resume-reviewer
-      model: jc-coach
-      max_turns: 20
-      timeout_seconds: 300
-    # Delegated by the interview coach (`coach-mock`, see DELEGATES in deerflow_harness_client).
-    # The allowlist is the reviewer's own SKILL_TOOLS entry: no ask, end or question-write tool,
-    # so a delegated review cannot put a question to the candidate (AGENTS-DESIGN §4.2).
-    interview-reviewer:
-      description: Independent reviewer of a finished mock interview; writes the report and never asks the candidate.
-      system_prompt: skill:interview-reviewer
-      tools:
-        - jc_profile_get
-        - jc_mock_session_history
-        - jc_mock_report_write
-      skills:
-        - interview-reviewer
-      model: jc-reviewer
-      max_turns: 20
-      timeout_seconds: 300
+  # custom_agents are generated at boot from backend/agent/roles.yaml (subtask roles).
 
 memory:
   enabled: false

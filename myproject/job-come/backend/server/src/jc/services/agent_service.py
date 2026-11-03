@@ -18,9 +18,10 @@ from jc.adapters.deerflow_client import get_deerflow_client
 from jc.adapters.deerflow_harness_client import _extract_text
 from jc.agent.context_usage import build_context_usage_event
 from jc.agent.message_content import flatten_message_for_text_agent
+from jc.agent.roles import entry_roles
 from jc.authz import RunScope, require_owned_references
 from jc.config import settings
-from jc.exceptions import ConflictError, NotFoundError
+from jc.exceptions import AppError, ConflictError, NotFoundError
 from jc.models.agent import AgentSession
 from jc.models.agent_message import AgentMessage
 from jc.models.enums import AgentSessionKind, AgentSessionStatus
@@ -136,6 +137,11 @@ class AgentService:
         body: AgentSessionCreateRequest,
         trace_id: str,
     ) -> AgentSessionResponse:
+        if body.skill_hint not in entry_roles():
+            raise AppError(
+                f"{body.skill_hint!r} is not an agent a session can be opened on.",
+                code="invalid_request",
+            )
         profile_id = body.profile_id
         if profile_id:
             await self._profiles.get(profile_id, actor=actor)
@@ -290,7 +296,7 @@ class AgentService:
         # The skill this turn actually runs as. It differs from the session's hint only
         # for the interview, and it has to be decided *before* the run metadata is
         # built: the hint is what bounds the turn's tool surface
-        # (`SKILL_SCOPE` -> `SKILL_TOOLS`), so leaving it at `resume-coach` while
+        # (`roles.yaml` `tools`), so leaving it at `resume-coach` while
         # sending interview methodology produced an agent told to interview and holding
         # no way to record an answer — the intake tools were registered and
         # unreachable.
@@ -346,7 +352,7 @@ class AgentService:
                 include_digest=True,
                 shortfall=shortfall,
             )
-        elif skill in {"coach-mock", "coach-answer"}:
+        elif skill == "coach-mock":
             from jc.agent.coach_task import wrap_coach_mock_message
             from jc.stores.interview_store import InterviewStore
 
