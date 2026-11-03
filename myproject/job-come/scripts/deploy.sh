@@ -171,6 +171,16 @@ with sync_playwright() as p:
   fi
   rm -f "$CHECK_LOG"
 
+  # The PDF's Chinese text comes from an installed font. A host with none falls back to a face
+  # with no CJK glyphs, and the export then fails its text check. fc-list is absent on macOS,
+  # where the template's own PingFang face is always present, so the check only runs where it exists.
+  if command -v fc-list >/dev/null 2>&1 && [[ -z "$(fc-list ':lang=zh' family 2>/dev/null | head -1)" ]]; then
+    die "no Chinese font is installed, so PDF export cannot place Chinese text.
+       An administrator runs once:
+           sudo apt-get install -y fonts-noto-cjk && sudo fc-cache -f
+       then run this deploy again."
+  fi
+
   log "verifying the three in-repo packages import"
   "${VENV}/bin/python" - <<'PY'
 import importlib.metadata as m

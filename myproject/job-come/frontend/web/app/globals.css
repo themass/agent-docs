@@ -75,6 +75,12 @@ main:has(.jc-workbench-surface) {
   }
 }
 
+/* The agent workbench fills the viewport, so on those pages the footer is drawn underneath
+   it. Hide the footer there; every other page keeps it. */
+body:has(.jc-workbench-surface) footer {
+  display: none;
+}
+
 /* Headings should not inherit the body's generous CJK leading. */
 h1, h2, h3, h4 {
   text-wrap: pretty;
