@@ -9,7 +9,7 @@ from agentkit.web.auth import Actor
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from jc.models.enums import ApplicationStatus, CampaignPhase, MockSessionStatus
+from jc.models.enums import ApplicationStatus, CampaignPhase, JobTag, MockSessionStatus
 from jc.models.interview import InterviewRecord, MockSession
 from jc.models.job import Campaign, Job
 from jc.schemas.job import CampaignStatsResponse
@@ -124,15 +124,13 @@ class CampaignService:
 
         return {"sample_size": len(jobs), "bands": bands}
 
-    async def tag_job(
-        self,
-        profile_id: str,
-        job_id: str,
-        *,
-        actor: Actor,
-        tag: str,
-    ) -> CampaignStatsResponse:
-        await self._profiles.get(profile_id, actor=actor)
+    async def set_job_tag(self, profile_id: str, job_id: str, *, tag: str) -> None:
+        """The only writer of a job's tag. Caller has already checked the profile is theirs.
+
+        A job sits in at most one campaign list, and the job row carries the same tag, so the
+        campaign board and the job list cannot show different things. `tag` is "target" or
+        "warmup"; anything else is treated as warm-up, as before.
+        """
         campaign = await self._campaigns.get_for_profile(profile_id)
         if campaign is None:
             campaign = Campaign(
@@ -145,17 +143,27 @@ class CampaignService:
             )
             await self._campaigns.create(campaign)
 
-        if tag == "target":
-            ids = list(campaign.target_job_ids or [])
-            if job_id not in ids:
-                ids.append(job_id)
-            campaign.target_job_ids = ids
-        else:
-            ids = list(campaign.warmup_job_ids or [])
-            if job_id not in ids:
-                ids.append(job_id)
-            campaign.warmup_job_ids = ids
-
+        is_target = tag == JobTag.TARGET.value
+        warmup = [j for j in (campaign.warmup_job_ids or []) if j != job_id]
+        target = [j for j in (campaign.target_job_ids or []) if j != job_id]
+        (target if is_target else warmup).append(job_id)
+        campaign.warmup_job_ids = warmup
+        campaign.target_job_ids = target
         await self._campaigns.save(campaign)
+
+        job = await self._db.get(Job, job_id)
+        if job is not None and job.profile_id == profile_id:
+            job.tag = JobTag.TARGET if is_target else JobTag.WARMUP
+
+    async def tag_job(
+        self,
+        profile_id: str,
+        job_id: str,
+        *,
+        actor: Actor,
+        tag: str,
+    ) -> CampaignStatsResponse:
+        await self._profiles.get(profile_id, actor=actor)
+        await self.set_job_tag(profile_id, job_id, tag=tag)
         await self._db.commit()
         return await self.get_stats(profile_id, actor=actor)

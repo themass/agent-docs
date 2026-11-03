@@ -16,6 +16,7 @@ from jc.schemas.job import (
 )
 from jc.schemas.resume import ExportRequest
 from jc.services.application_service import ApplicationService
+from jc.services.campaign_service import CampaignService
 from jc.services.job_service import JobService
 from jc.services.profile_service import ProfileService
 from jc.services.resume_service import ResumeService
@@ -113,10 +114,11 @@ class ApplyPipelineService:
                 note=f"export:{export_resp.id}",
             )
             application_id = app.id
-            job = await self._job_store.get_by_id(job_id)
-            if job is not None:
-                job.tag = JobTag.TARGET if fit.recommendation == "go" else JobTag.WARMUP
-                await self._job_store.save(job)
+            await CampaignService(self._db).set_job_tag(
+                profile_id,
+                job_id,
+                tag=JobTag.TARGET.value if fit.recommendation == "go" else JobTag.WARMUP.value,
+            )
             await self._db.commit()
 
         log_product_event(
