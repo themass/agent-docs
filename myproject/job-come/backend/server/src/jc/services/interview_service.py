@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from jc.authz import RunScope, require_owned_references
 from jc.coach.planner import select_bank_draws
+from jc.coach.report_insights import insights
 from jc.exceptions import ConflictError, NotFoundError
 from jc.models.enums import MockSessionStatus
 from jc.models.interview import InterviewQuestion, InterviewRecord, MockSession
@@ -37,6 +38,7 @@ from jc.schemas.coach import (
     QuestionUpsertRequest,
 )
 from jc.services.answer_attempt_service import save_answer_attempt
+from jc.services.mock_guard_service import must_have_of
 from jc.services.mock_quota_service import MockQuotaService
 from jc.services.profile_service import ProfileService
 from jc.services.question_bank_service import question_upsert
@@ -356,7 +358,10 @@ class InterviewService:
         from jc.services.mock_report_service import session_transcript
 
         transcript = await session_transcript(self._store, session)
-        return _report_view(session, base, transcript)
+        scope = RunScope(db=self._db, user_id=actor.user_id, profile_id=session.profile_id,
+                         mock_session_id=session_id)
+        must = await must_have_of(scope, session)
+        return _report_view(session, base, transcript, must)
 
     async def log_question(
         self,
@@ -442,9 +447,13 @@ class InterviewService:
 
 
 def _report_view(
-    session: MockSession, base: dict, transcript: list[dict[str, str]]
+    session: MockSession,
+    base: dict,
+    transcript: list[dict[str, str]],
+    must_have: list[str],
 ) -> MockReportResponse:
-    """Shape a stored report for the page: each question with its stem and the answer."""
+    """Shape a stored report for the page. A warm-up gets the brief view: the averages and the
+    suggestions, without the per-question detail (SPEC §2)."""
     report = session.report or {}
     by_id = {turn["question_id"]: turn for turn in transcript}
     questions = []
@@ -461,10 +470,17 @@ def _report_view(
             "fixes": item.get("fixes", []),
             "reference": item.get("reference", []),
         })
+    stems = {turn["question_id"]: turn["stem"] for turn in transcript}
+    derived = insights(report.get("questions", []), report.get("overall", {}), must_have, stems)
+    brief = not session.quota_counted
     return MockReportResponse(
         status="ready",
         overall=report.get("overall", {}),
         checks=report.get("checks", {}),
-        questions=questions,
+        brief=brief,
+        questions=[] if brief else questions,
+        trend=derived["trend"],
+        coverage=derived["coverage"],
+        suggestions=derived["suggestions"],
         **base,
     )

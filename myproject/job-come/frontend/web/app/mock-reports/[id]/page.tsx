@@ -220,9 +220,63 @@ export default function MockReportPage() {
         )}
       </section>
 
-      {report.questions.map((item, index) => (
-        <QuestionBlock key={item.question_id} item={item} index={index} />
-      ))}
+      {report.trend && report.trend.first_five != null && report.trend.last_five != null ? (
+        <section className="card p-5">
+          <h2 className="text-sm font-semibold text-ink-900">前后对比</h2>
+          <p className="mt-2 text-sm text-ink-800">
+            前 5 题平均 {report.trend.first_five}，后 5 题平均 {report.trend.last_five}。
+            <span className="ml-1 text-ink-500">
+              {report.trend.last_five - report.trend.first_five >= 1
+                ? "越答越好。"
+                : report.trend.last_five - report.trend.first_five <= -1
+                  ? "后面的回答掉了下来。"
+                  : "前后基本持平。"}
+            </span>
+          </p>
+        </section>
+      ) : null}
+
+      {report.coverage && report.coverage.total > 0 ? (
+        <section className="card p-5">
+          <h2 className="text-sm font-semibold text-ink-900">必备项覆盖</h2>
+          <p className="mt-2 text-sm text-ink-800">
+            岗位必备项 {report.coverage.total} 项：问到 {report.coverage.asked} 项，回答达标{" "}
+            {report.coverage.meet} 项。
+          </p>
+        </section>
+      ) : null}
+
+      {report.suggestions.length > 0 ? (
+        <section className="card flex flex-col gap-3 p-5">
+          <h2 className="text-sm font-semibold text-ink-900">改进建议</h2>
+          {report.suggestions.map((item) => (
+            <div key={item.dimension} className="flex flex-col gap-1 rounded-md bg-ink-50 p-3">
+              <p className="text-sm font-medium text-ink-900">
+                {item.label}（均分 {item.average}）
+              </p>
+              <p className="text-sm text-ink-800">练习：{item.practice}</p>
+              {item.question_id ? (
+                <Link
+                  href={`/bank/${encodeURIComponent(item.question_id)}`}
+                  className="text-xs font-medium text-brand-700 hover:text-brand-800"
+                >
+                  回到这一题练习
+                </Link>
+              ) : null}
+            </div>
+          ))}
+        </section>
+      ) : null}
+
+      {report.brief ? (
+        <p className="text-xs text-ink-500">
+          这是热身的简版报告。完整模拟（20 题）会给出逐题的回答、证据、修正和合理答案。
+        </p>
+      ) : (
+        report.questions.map((item, index) => (
+          <QuestionBlock key={item.question_id} item={item} index={index} />
+        ))
+      )}
     </div>
   );
 }

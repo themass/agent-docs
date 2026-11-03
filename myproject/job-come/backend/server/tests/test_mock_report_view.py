@@ -44,7 +44,7 @@ async def maker(tmp_path):
         session.add(MockSession(
             id="ms1", profile_id="p1", user_id="u1", mode="target", question_ids=["q1"],
             bank_draw_count=0, generated_count=0, status="active",
-            started_at=datetime.now(UTC), style="gentle",
+            started_at=datetime.now(UTC), style="gentle", quota_counted=True,
         ))
         await session.commit()
     yield factory
@@ -116,3 +116,24 @@ async def test_finish_button_ends_the_session_as_an_early_end(maker):
         session = await s.get(MockSession, "ms1")
     assert session.coverage["ended_reason"] == "user_ended"
     assert session.coverage["ended_early"] is True
+
+
+@pytest.mark.asyncio
+async def test_a_warmup_gets_the_brief_report_without_question_detail(maker, monkeypatch):
+    async with maker() as s:
+        session = await s.get(MockSession, "ms1")
+        session.status = "completed"
+        session.quota_counted = False
+        await s.commit()
+    agent = FakeReviewerAgent(maker, report={"questions": [{
+        "question_id": "q1", "scores": {"depth": 6}, "evidence": {"depth": "拆成两张表"},
+    }]})
+    monkeypatch.setattr(interview_reviewer, "get_deerflow_client", FakeClientFactory(agent))
+    async with maker() as s:
+        out = await InterviewService(s).get_mock_report("ms1", actor=OWNER)
+    assert out.status == "ready" and out.brief is True
+    assert out.questions == []
+    assert out.overall["depth"] == 6.0
+    assert out.suggestions[0].dimension == "depth"
+    assert out.suggestions[0].question_id == "q1"
+    assert out.trend is None

@@ -27,7 +27,8 @@ END_REASONS = ("completed", "user_ended")
 #: An active session with no new question for this long is ended as "timeout" and reported as
 #: unfinished (SPEC-MOCK-INTERVIEW §5). Activity is the last question asked, or the start.
 IDLE_LIMIT = timedelta(hours=24)
-#: How many times a candidate may ask for a different question in one session (SPEC-MOCK-INTERVIEW §5).
+#: How many times a candidate may ask for a different question in one session
+#: (SPEC-MOCK-INTERVIEW §5).
 SWAP_LIMIT = 3
 
 
@@ -76,7 +77,7 @@ async def _owned_session(scope: RunScope, mock_session_id: str) -> MockSession:
     return session
 
 
-async def _must_have(scope: RunScope, session: MockSession) -> list[str]:
+async def must_have_of(scope: RunScope, session: MockSession) -> list[str]:
     if not session.job_id:
         return []
     job = await scope.db.get(Job, session.job_id)
@@ -121,7 +122,7 @@ async def plan(scope: RunScope, *, mock_session_id: str) -> dict[str, Any]:
     asked = state["asked"]
     main_limit, _ = limits(session)
     mains = [a for a in asked if a["kind"] == "main" and not a.get("skipped")]
-    must = await _must_have(scope, session)
+    must = await must_have_of(scope, session)
     coverage = coverage_of(must, await _asked_stems(store, asked))
     followups: dict[str, int] = {}
     for entry in asked:
@@ -266,7 +267,7 @@ async def end(
     asked = state["asked"]
     main_limit, _ = limits(session)
     mains = [a for a in asked if a["kind"] == "main" and not a.get("skipped")]
-    must = await _must_have(scope, session)
+    must = await must_have_of(scope, session)
     coverage = coverage_of(must, await _asked_stems(InterviewStore(scope.db), asked))
 
     if reason == "completed" and len(mains) < main_limit and coverage.missing:

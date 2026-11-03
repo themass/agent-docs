@@ -171,6 +171,26 @@ class MockReportQuestion(BaseModel):
     reference: list[MockReportReference] = Field(default_factory=list)
 
 
+class MockReportSuggestion(BaseModel):
+    dimension: str
+    label: str
+    average: float
+    practice: str
+    #: The question where this dimension scored lowest, to open from the bank.
+    question_id: str | None = None
+
+
+class MockReportCoverage(BaseModel):
+    total: int
+    asked: int
+    meet: int
+
+
+class MockReportTrend(BaseModel):
+    first_five: float | None
+    last_five: float | None
+
+
 class MockReportResponse(BaseModel):
     """The read-only report page. `status` is "active" while the session is still running, and
     "pending" when the session has ended but the independent review has not produced a report."""
@@ -185,7 +205,13 @@ class MockReportResponse(BaseModel):
     message: str | None = None
     overall: dict[str, float | None] = Field(default_factory=dict)
     checks: dict[str, int] = Field(default_factory=dict)
+    #: A warm-up gets the brief report: the five averages and three suggestions, no per-question
+    #: detail (SPEC §2).
+    brief: bool = False
     questions: list[MockReportQuestion] = Field(default_factory=list)
+    trend: MockReportTrend | None = None
+    coverage: MockReportCoverage | None = None
+    suggestions: list[MockReportSuggestion] = Field(default_factory=list)
 
 
 class MockActionRequest(BaseModel):

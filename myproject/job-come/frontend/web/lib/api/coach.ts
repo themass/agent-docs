@@ -97,7 +97,20 @@ export type MockReport = {
   message: string | null;
   overall: Record<string, number | null>;
   checks: { rejected_evidence?: number; pending_facts?: number };
+  /** A warm-up's report: averages and suggestions only, no per-question detail. */
+  brief: boolean;
   questions: MockReportQuestion[];
+  trend: { first_five: number | null; last_five: number | null } | null;
+  coverage: { total: number; asked: number; meet: number } | null;
+  suggestions: MockReportSuggestion[];
+};
+
+export type MockReportSuggestion = {
+  dimension: string;
+  label: string;
+  average: number;
+  practice: string;
+  question_id: string | null;
 };
 
 export type MockSessionListItem = {
