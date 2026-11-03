@@ -264,6 +264,7 @@ curl -s http://jc.sspacee.com/sitemap.xml | head -5    # 确认不是 localhost
 | 应用 | `JC_ENV=production`、`JC_PUBLIC_URL=http://jc.sspacee.com`、`JC_API_PREFIX=/api/v1` |
 | 前端 | `NEXT_PUBLIC_SITE_URL`（已提交在 `frontend/web/.env.production`，当前 `http://jc.sspacee.com`）。**构建期生效**：改完必须重新 `npm run build`，重启不生效 |
 | MySQL | `JC_DB_*`，并确认 schema migration 成功 |
+| 模拟面试 | 迁移 `019_mock_interview_quota` 已执行（`deploy.sh` 会执行）；`deerflow/config.yaml` 含 `jc-reviewer` 模型，且 `routing.yaml` 含 `reviewer` 场景；改动后重启 backend |
 | Redis | `JC_REDIS_URL`、`JC_REDIS_KEY_PREFIX=jc:prod:` |
 | TOS | endpoint、bucket、region、AK/SK，写入 `jc/prod/` |
 | LLM | `JC_LLM_ENABLED`、路由配置、供应商 API key/模型 slug |
