@@ -129,6 +129,21 @@ subagents:
       model: jc-coach
       max_turns: 20
       timeout_seconds: 300
+    # Delegated by the interview coach (`coach-mock`, see DELEGATES in deerflow_harness_client).
+    # The allowlist is the reviewer's own SKILL_TOOLS entry: no ask, end or question-write tool,
+    # so a delegated review cannot put a question to the candidate (AGENTS-DESIGN §4.2).
+    interview-reviewer:
+      description: Independent reviewer of a finished mock interview; writes the report and never asks the candidate.
+      system_prompt: skill:interview-reviewer
+      tools:
+        - jc_profile_get
+        - jc_mock_session_history
+        - jc_mock_report_write
+      skills:
+        - interview-reviewer
+      model: jc-reviewer
+      max_turns: 20
+      timeout_seconds: 300
 
 memory:
   enabled: false

@@ -302,21 +302,27 @@ def _jc_deerflow_client_class() -> type:
             from jc.agent.tool_catalog import SKILL_TOOLS
             scope = self._available_skills or set()
             allowed = {name for skill in scope for name in SKILL_TOOLS.get(skill, [])}
-            # No host file, shell, browser or generic network tools in V1.
+            # No host file, shell, browser or generic network tools in V1. `task` is the one
+            # framework tool a run may hold, and only when its skill declares delegates.
             tools = super()._get_tools(
-                model_name=model_name, subagent_enabled=False, mcp_plugins=mcp_plugins
+                model_name=model_name, subagent_enabled=subagent_enabled, mcp_plugins=mcp_plugins
             )
             return [tool for tool in tools if tool.name.removeprefix("jc_") in allowed
-                    or tool.name in allowed or tool.name == "write_todos"]
+                    or tool.name in allowed or tool.name == "write_todos"
+                    or (subagent_enabled and tool.name == "task")]
 
         def _get_runnable_config(self, thread_id: str, **overrides) -> RunnableConfig:
             base = super()._get_runnable_config(thread_id, **overrides)
             configurable = dict(base.get("configurable") or {})
             configurable["non_interactive"] = True
+            # DeerFlow's `task` tool reads `allowed_subagents` from run metadata. Without it the
+            # framework offers its built-in subagents too, which are not JC roles.
+            metadata = {"allowed_subagents": list(overrides.get("allowed_subagents") or [])}
             return RunnableConfig(
                 configurable=configurable,
                 recursion_limit=base.get("recursion_limit", 100),
                 callbacks=list(base.get("callbacks") or []) or None,
+                metadata=metadata,
             )
 
     return JCDeerFlowClient
@@ -329,6 +335,17 @@ _SKILL_MODEL: dict[str, str] = {"interview-reviewer": "jc-reviewer"}
 
 def model_for_skill(skill: str) -> str | None:
     return _SKILL_MODEL.get(skill)
+
+
+# Runs whose main agent may delegate to another JC agent through DeerFlow's `task` tool.
+# A skill is listed only when it genuinely needs another agent's judgment mid-turn; everything
+# else runs as a single main agent. Each target must be a `subagents.custom_agents` entry in
+# config.yaml, whose tool allowlist bounds what the delegated run can reach.
+DELEGATES: dict[str, frozenset[str]] = {"coach-mock": frozenset({"interview-reviewer"})}
+
+
+def delegates_for_skill(skill: str) -> frozenset[str]:
+    return DELEGATES.get(skill, frozenset())
 
 
 def _get_embedded_client(config: DeerFlowClientConfig, skill: str) -> Any:
@@ -767,9 +784,11 @@ class DeerFlowHarnessSessionClient(DeerFlowSessionClient):
             }.items()
             if v
         }
+        delegates = sorted(delegates_for_skill(skill))
         stream_kwargs: dict[str, Any] = {
             "user_id": meta.user_id or "default",
-            "subagent_enabled": False,
+            "subagent_enabled": bool(delegates),
+            "allowed_subagents": delegates,
             "plan_mode": skill in _PLAN_MODE_SKILLS,
             "authz_attributes": authz_attributes,
         }
