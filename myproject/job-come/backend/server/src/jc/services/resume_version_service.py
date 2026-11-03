@@ -14,9 +14,9 @@ from jc.models.enums import ExportJobStatus
 from jc.models.resume import ExportJob, ResumeDraft
 from jc.services.profile_service import ProfileService
 from jc.services.resume_render_engine import ResumeRenderEngine
-from jc.stores.resume_store import ResumeStore
 from jc.storage_backend import get_storage_backend
 from jc.storage_client import download_url_for_key
+from jc.stores.resume_store import ResumeStore
 
 logger = logging.getLogger(__name__)
 
@@ -107,10 +107,10 @@ class ResumeVersionService:
                     "error_message": e.error_message,
                     "download_url": (
                         download_url_for_key(e.storage_key)
-                        if e.status == ExportJobStatus.DONE and e.storage_key else None
+                        if e.status == ExportJobStatus.DONE and e.storage_key
+                        else None
                     ),
                 }
                 for e in exports
             ],
         }
-

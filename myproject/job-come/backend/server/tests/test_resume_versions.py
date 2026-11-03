@@ -53,34 +53,122 @@ async def _seed(sessions):
         for uid in ("alice", "bob"):
             db.add(User(id=uid, email=f"{uid}@example.test", password_hash="x", role="user"))
         await db.flush()
-        db.add(Profile(id="p_alice_1", user_id="alice", owner_kind="user",
-                       payload={"contact": {"name": "Fixture"}, "summary": "Text"}, version=1))
-        db.add(Profile(id="p_alice_2", user_id="alice", owner_kind="user",
-                       payload={"contact": {"name": "Second"}}, version=1))
-        db.add(Profile(id="p_bob", user_id="bob", owner_kind="user",
-                       payload={"contact": {"name": "Bob"}}, version=1))
-        db.add(Job(id="job_1", profile_id="p_alice_1", company="Acme", title="Backend Engineer",
-                   raw_text="jd", requirements={}))
+        db.add(
+            Profile(
+                id="p_alice_1",
+                user_id="alice",
+                owner_kind="user",
+                payload={"contact": {"name": "Fixture"}, "summary": "Text"},
+                version=1,
+            )
+        )
+        db.add(
+            Profile(
+                id="p_alice_2",
+                user_id="alice",
+                owner_kind="user",
+                payload={"contact": {"name": "Second"}},
+                version=1,
+            )
+        )
+        db.add(
+            Profile(
+                id="p_bob",
+                user_id="bob",
+                owner_kind="user",
+                payload={"contact": {"name": "Bob"}},
+                version=1,
+            )
+        )
+        db.add(
+            Job(
+                id="job_1",
+                profile_id="p_alice_1",
+                company="Acme",
+                title="Backend Engineer",
+                raw_text="jd",
+                requirements={},
+            )
+        )
         await db.flush()
-        db.add(ResumeDraft(id="rdft_a", profile_id="p_alice_1", profile_version=1, job_id="job_1",
-                           elevation_level="elevated", locale="zh-CN", template_id="zh-one-page",
-                           sections=FIXTURE_SECTIONS, reviewer_status="passed"))
-        db.add(ResumeDraft(id="rdft_b", profile_id="p_alice_1", profile_version=1, job_id=None,
-                           elevation_level="standard", locale="zh-CN", template_id="zh-one-page",
-                           sections=FIXTURE_SECTIONS, reviewer_status="failed"))
-        db.add(ResumeDraft(id="rdft_c", profile_id="p_alice_2", profile_version=1, job_id=None,
-                           elevation_level="elevated", locale="en-US", template_id="zh-one-page",
-                           sections=FIXTURE_SECTIONS, reviewer_status="pending"))
-        db.add(ResumeDraft(id="rdft_bob", profile_id="p_bob", profile_version=1, job_id=None,
-                           elevation_level="elevated", locale="zh-CN", template_id="zh-one-page",
-                           sections=FIXTURE_SECTIONS, reviewer_status="passed"))
+        db.add(
+            ResumeDraft(
+                id="rdft_a",
+                profile_id="p_alice_1",
+                profile_version=1,
+                job_id="job_1",
+                elevation_level="elevated",
+                locale="zh-CN",
+                template_id="zh-one-page",
+                sections=FIXTURE_SECTIONS,
+                reviewer_status="passed",
+            )
+        )
+        db.add(
+            ResumeDraft(
+                id="rdft_b",
+                profile_id="p_alice_1",
+                profile_version=1,
+                job_id=None,
+                elevation_level="standard",
+                locale="zh-CN",
+                template_id="zh-one-page",
+                sections=FIXTURE_SECTIONS,
+                reviewer_status="failed",
+            )
+        )
+        db.add(
+            ResumeDraft(
+                id="rdft_c",
+                profile_id="p_alice_2",
+                profile_version=1,
+                job_id=None,
+                elevation_level="elevated",
+                locale="en-US",
+                template_id="zh-one-page",
+                sections=FIXTURE_SECTIONS,
+                reviewer_status="pending",
+            )
+        )
+        db.add(
+            ResumeDraft(
+                id="rdft_bob",
+                profile_id="p_bob",
+                profile_version=1,
+                job_id=None,
+                elevation_level="elevated",
+                locale="zh-CN",
+                template_id="zh-one-page",
+                sections=FIXTURE_SECTIONS,
+                reviewer_status="passed",
+            )
+        )
         await db.flush()
         now = datetime.now(UTC)
-        db.add(ExportJob(id="expj_1", user_id="alice", profile_id="p_alice_1", resume_draft_id="rdft_a",
-                         format="pdf", locale="zh-CN", status="done", storage_key="p_alice_1/export/a.pdf",
-                         completed_at=now))
-        db.add(ExportJob(id="expj_2", user_id="alice", profile_id="p_alice_1", resume_draft_id="rdft_a",
-                         format="docx", locale="zh-CN", status="processing"))
+        db.add(
+            ExportJob(
+                id="expj_1",
+                user_id="alice",
+                profile_id="p_alice_1",
+                resume_draft_id="rdft_a",
+                format="pdf",
+                locale="zh-CN",
+                status="done",
+                storage_key="p_alice_1/export/a.pdf",
+                completed_at=now,
+            )
+        )
+        db.add(
+            ExportJob(
+                id="expj_2",
+                user_id="alice",
+                profile_id="p_alice_1",
+                resume_draft_id="rdft_a",
+                format="docx",
+                locale="zh-CN",
+                status="processing",
+            )
+        )
         await db.commit()
 
 
@@ -129,7 +217,9 @@ async def test_another_user_cannot_see_view_or_delete_a_version(sessions, storag
 async def test_view_renders_the_saved_content_without_a_model(sessions, storage):
     await _seed(sessions)
     async with sessions() as db:
-        html = await _service(db).render_html("rdft_a", actor=UserActor(user_id="alice", session_id="s"))
+        html = await _service(db).render_html(
+            "rdft_a", actor=UserActor(user_id="alice", session_id="s")
+        )
     assert "<html" in html.lower()
     assert "Python, FastAPI, MySQL, Redis" in html, "the saved sections must be what gets rendered"
 

@@ -59,7 +59,7 @@ def _html_to_text(markup: str) -> str:
 
 def validate_export(content: bytes, format: str, sections: dict[str, Any]) -> dict:
     if format == "pdf":
-        import fitz
+        import pymupdf as fitz
 
         if not content.startswith(b"%PDF-"):
             raise ValueError("Invalid PDF signature")

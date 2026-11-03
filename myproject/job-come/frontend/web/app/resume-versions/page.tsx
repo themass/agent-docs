@@ -221,9 +221,11 @@ export default function ResumeVersionsPage() {
         </div>
       ) : null}
 
-      {groups?.map((group) => (
-        <ProfileGroup key={group.profile_id} group={group} busyId={busyId} onDelete={remove} />
-      ))}
+      {total > 0
+        ? groups?.map((group) => (
+            <ProfileGroup key={group.profile_id} group={group} busyId={busyId} onDelete={remove} />
+          ))
+        : null}
     </div>
   );
 }

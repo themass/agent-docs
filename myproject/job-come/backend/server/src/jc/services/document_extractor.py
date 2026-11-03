@@ -66,7 +66,7 @@ class DocumentExtractor:
         not silently lost. Page-selective OCR/merge is intentionally not guessed here.
         """
         try:
-            import fitz
+            import pymupdf as fitz
 
             with fitz.open(stream=raw_bytes, filetype="pdf") as doc:
                 for page in doc:
@@ -160,7 +160,7 @@ class DocumentExtractor:
         """Render PDF pages to PNG bytes for vision OCR."""
         limit = max_pages if max_pages is not None else self.PDF_VISION_MAX_PAGES
         try:
-            import fitz  # pymupdf
+            import pymupdf as fitz
         except ImportError:
             return []
 
@@ -225,7 +225,7 @@ class DocumentExtractor:
     @staticmethod
     def _extract_pdf(raw_bytes: bytes) -> str:
         try:
-            import fitz  # pymupdf
+            import pymupdf as fitz
         except ImportError:
             return ""
         try:
