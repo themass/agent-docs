@@ -11,8 +11,11 @@ import {
   getMockSession,
   getQuestionDetail,
   logQuestion,
+  type MockKind,
   type MockSession,
+  type MockStyle,
 } from "@/lib/api/coach";
+import { MockProgress } from "@/components/coach/MockProgress";
 import { listJobs, type Job } from "@/lib/api/jobs";
 import { userFacingApiError } from "@/lib/api/user-error";
 
@@ -26,6 +29,18 @@ const TYPES = [
 
 const ROUND_GOAL = 3;
 
+const KIND_OPTIONS: { id: MockKind; label: string; hint: string }[] = [
+  { id: "warmup", label: "热身 5 题", hint: "不限次数，适合先试几遍说法。" },
+  { id: "full", label: "完整模拟 20 题", hint: "免费账号每月 1 场，报告独立给出。" },
+];
+
+const STYLE_OPTIONS: { id: MockStyle; label: string; hint: string }[] = [
+  { id: "gentle", label: "温和引导", hint: "先给思路时间，追问偏鼓励。" },
+  { id: "standard", label: "标准", hint: "按真实面试节奏追问。" },
+  { id: "pressure", label: "压力", hint: "直接指出模糊和对不上的地方。" },
+  { id: "deep", label: "业务深挖", hint: "每题追到取舍和结果怎么衡量。" },
+];
+
 type Props = {
   profileId: string | null;
   jobId: string | null;
@@ -37,6 +52,8 @@ type Props = {
 export function CoachFlywheel({ profileId, jobId, practiceQid, disabled, onSessionChange }: Props) {
   const [job, setJob] = useState<Job | null>(null);
   const [mode, setMode] = useState<"warmup" | "target">("warmup");
+  const [kind, setKind] = useState<MockKind>("warmup");
+  const [style, setStyle] = useState<MockStyle>("standard");
   const [session, setSession] = useState<MockSession | null>(null);
   const [stem, setStem] = useState("");
   const [qType, setQType] = useState("behavioral");
@@ -76,7 +93,13 @@ export function CoachFlywheel({ profileId, jobId, practiceQid, disabled, onSessi
     setBusy(true);
     setError(null);
     try {
-      const next = await createMockSession({ profile_id: profileId, mode, job_id: jobId });
+      const next = await createMockSession({
+        profile_id: profileId,
+        mode,
+        job_id: jobId,
+        kind,
+        style,
+      });
       setSession(next);
       onSessionChange?.(next.id);
     } catch (err) {
@@ -196,6 +219,46 @@ export function CoachFlywheel({ profileId, jobId, practiceQid, disabled, onSessi
           </p>
         </div>
 
+        <div className="mt-3">
+          <span className="label-meta">题数</span>
+          <div className="segment mt-1.5">
+            {KIND_OPTIONS.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                disabled={active}
+                onClick={() => setKind(option.id)}
+                className={`segment-item ${kind === option.id ? "segment-item-active" : ""}`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1.5 text-xs text-ink-500">
+            {KIND_OPTIONS.find((o) => o.id === kind)?.hint}
+          </p>
+        </div>
+
+        <div className="mt-3">
+          <span className="label-meta">面试官风格</span>
+          <div className="segment mt-1.5 flex-wrap">
+            {STYLE_OPTIONS.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                disabled={active}
+                onClick={() => setStyle(option.id)}
+                className={`segment-item ${style === option.id ? "segment-item-active" : ""}`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1.5 text-xs text-ink-500">
+            {STYLE_OPTIONS.find((o) => o.id === style)?.hint} 风格只改变提问方式，题目覆盖和评审标准相同。
+          </p>
+        </div>
+
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -216,6 +279,8 @@ export function CoachFlywheel({ profileId, jobId, practiceQid, disabled, onSessi
             </button>
           ) : null}
         </div>
+
+        {session && active ? <MockProgress session={session} active={active} /> : null}
 
         {session?.status === "completed" ? (
           <p className="notice notice-success mt-3">

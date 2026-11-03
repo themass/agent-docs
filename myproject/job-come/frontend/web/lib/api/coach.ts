@@ -45,11 +45,16 @@ export type MockSession = {
   questions: MockSessionQuestion[];
 };
 
+export type MockKind = "warmup" | "full";
+export type MockStyle = "gentle" | "standard" | "pressure" | "deep";
+
 export function createMockSession(body: {
   profile_id: string;
   mode?: string;
   round?: string | null;
   job_id?: string | null;
+  kind?: MockKind;
+  style?: MockStyle;
 }): Promise<MockSession> {
   return apiJson("/coach/mock/sessions", {
     method: "POST",
@@ -177,4 +182,45 @@ export type InterviewSummary = {
 };
 export function listInterviews(profileId: string): Promise<{ interviews: InterviewSummary[] }> {
   return apiJson(`/coach/profiles/${profileId}/interviews`);
+}
+
+/** The live map of a running session: what the interviewer has asked, and what the candidate can
+ * still do on the page. Read from the same guard the interviewer uses. */
+export type MockProgress = {
+  style: MockStyle | null;
+  status: string;
+  asked_main: number;
+  main_limit: number;
+  remaining_main: number;
+  must_have: string[];
+  covered: string[];
+  uncovered: string[];
+  current_question_id: string | null;
+  skipped: number;
+  swaps_left: number;
+};
+
+export type MockActionResult = {
+  accepted: boolean;
+  reason: string | null;
+  code: string | null;
+  swaps_left: number | null;
+};
+
+export function getMockProgress(sessionId: string): Promise<MockProgress> {
+  return apiJson(`/coach/mock/sessions/${sessionId}/progress`);
+}
+
+export function skipMockQuestion(sessionId: string, questionId: string): Promise<MockActionResult> {
+  return apiJson(`/coach/mock/sessions/${sessionId}/skip`, {
+    method: "POST",
+    body: JSON.stringify({ question_id: questionId }),
+  });
+}
+
+export function swapMockQuestion(sessionId: string, questionId: string): Promise<MockActionResult> {
+  return apiJson(`/coach/mock/sessions/${sessionId}/swap`, {
+    method: "POST",
+    body: JSON.stringify({ question_id: questionId }),
+  });
 }
