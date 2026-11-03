@@ -4,9 +4,11 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { AgentBadge } from "@/components/agents/AgentBadge";
 import { logout } from "@/lib/api/auth";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isWorkbenchPath } from "@/lib/layout/workbench";
+import { AGENTS, OVERVIEW, agentOfPath } from "@/lib/agents";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 
 /**
@@ -19,40 +21,6 @@ import { NotificationCenter } from "@/components/notifications/NotificationCente
  * that is the order people work in. The first item of each group is its landing
  * page, so a group tab is always clickable.
  */
-type NavItem = { href: string; label: string; desc: string };
-type NavGroup = { id: string; label: string; items: NavItem[] };
-
-const NAV_GROUPS: NavGroup[] = [
-  {
-    id: "prepare",
-    label: "准备",
-    items: [
-      { href: "/resume-agent", label: "简历优化", desc: "优化简历并导出投递版本" },
-      { href: "/resume-versions", label: "简历版本", desc: "回看、下载和删除每次优化的版本" },
-      { href: "/coach-agent", label: "面试辅导", desc: "针对岗位练习问答" },
-      { href: "/bank", label: "题库", desc: "沉淀下来的问题与答案" },
-    ],
-  },
-  {
-    id: "act",
-    label: "行动",
-    items: [
-      { href: "/jobs", label: "定向岗位", desc: "解析 JD 并看匹配与差距" },
-      { href: "/apply-agent", label: "定向申请", desc: "按岗位准备申请材料" },
-      { href: "/applications", label: "投递看板", desc: "自己维护的机会漏斗" },
-    ],
-  },
-  {
-    id: "track",
-    label: "复盘",
-    items: [
-      { href: "/campaign", label: "战役看板", desc: "这一轮跳槽的整体节奏" },
-      { href: "/interviews", label: "面试归档", desc: "真实面试记录与复盘" },
-    ],
-  },
-];
-
-const ALL_ITEMS = NAV_GROUPS.flatMap((g) => g.items);
 
 function isActiveHref(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -63,35 +31,15 @@ export function AppHeader() {
   const pathname = usePathname();
   const { context, loading, refresh } = useAuth();
   const [pendingHref, setPendingHref] = useState<string | null>(null);
-  const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
-  const navRef = useRef<HTMLElement>(null);
   const accountRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setPendingHref(null);
-    setOpenGroup(null);
     setMobileOpen(false);
     setAccountMenuOpen(false);
   }, [pathname]);
-
-  // Dismiss the group menu on outside click or Escape so it never traps focus.
-  useEffect(() => {
-    if (!openGroup) return;
-    function onDown(e: MouseEvent) {
-      if (!navRef.current?.contains(e.target as Node)) setOpenGroup(null);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpenGroup(null);
-    }
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [openGroup]);
 
   // Same dismiss pattern for the account menu (holds 账户设置 / 关于 / 反馈 / 退出).
   useEffect(() => {
@@ -125,7 +73,6 @@ export function AppHeader() {
     setPendingHref(href);
   }
 
-  const activeItem = ALL_ITEMS.find((i) => isActiveHref(pathname, i.href));
   const workbench = isWorkbenchPath(pathname);
 
   return (
@@ -145,74 +92,38 @@ export function AppHeader() {
           <span className="hidden sm:inline">舟卡</span>
         </Link>
 
-        {/* Desktop: grouped navigation */}
-        <nav ref={navRef} className="hidden min-w-0 flex-1 items-center gap-0.5 lg:flex">
-          {NAV_GROUPS.map((group) => {
-            const groupActive = group.items.some((i) => isActiveHref(pathname, i.href));
-            const open = openGroup === group.id;
+        {/* Desktop: the three agents first, then the overview they add up to */}
+        <nav className="hidden min-w-0 flex-1 items-center gap-1 lg:flex">
+          {AGENTS.map((agent) => {
+            const active = agentOfPath(pathname)?.id === agent.id;
             return (
-              <div key={group.id} className="relative">
-                <button
-                  type="button"
-                  aria-expanded={open}
-                  aria-haspopup="true"
-                  onClick={() => setOpenGroup(open ? null : group.id)}
-                  className={`btn btn-sm h-8 gap-1 px-2.5 ${
-                    groupActive
-                      ? "bg-brand-50 text-brand-700"
-                      : "text-ink-600 hover:bg-ink-100 hover:text-ink-900"
-                  }`}
-                >
-                  {group.label}
-                  {groupActive && activeItem ? (
-                    <span className="hidden text-ink-300 xl:inline" aria-hidden>
-                      /
-                    </span>
-                  ) : null}
-                  {groupActive && activeItem ? (
-                    <span className="hidden font-semibold xl:inline">{activeItem.label}</span>
-                  ) : null}
-                  <svg
-                    className={`h-3 w-3 text-ink-400 transition ${open ? "rotate-180" : ""}`}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    aria-hidden
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-
-                {open ? (
-                  <div className="absolute left-0 top-full z-20 mt-1.5 w-72 animate-scale-in rounded-xl border border-surface-border bg-surface p-1.5 shadow-pop">
-                    {group.items.map((item) => {
-                      const active = isActiveHref(pathname, item.href);
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          prefetch={false}
-                          onClick={(e) => navClick(e, item.href)}
-                          className={`block rounded-lg px-2.5 py-2 transition ${
-                            active ? "bg-brand-50" : "hover:bg-ink-50"
-                          }`}
-                        >
-                          <span
-                            className={`block text-sm font-medium ${
-                              active ? "text-brand-700" : "text-ink-800"
-                            }`}
-                          >
-                            {item.label}
-                          </span>
-                          <span className="mt-0.5 block text-xs text-ink-500">{item.desc}</span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                ) : null}
-              </div>
+              <Link
+                key={agent.id}
+                href={agent.home}
+                prefetch={false}
+                onClick={(e) => navClick(e, agent.home)}
+                className={`btn btn-sm h-8 gap-2 px-2.5 ${
+                  active ? "bg-brand-50 text-brand-700" : "text-ink-700 hover:bg-ink-100 hover:text-ink-900"
+                }`}
+              >
+                <AgentBadge agent={agent} size="sm" />
+                {agent.name}
+              </Link>
             );
           })}
+          <span className="mx-1 h-5 w-px bg-surface-border" aria-hidden />
+          <Link
+            href={OVERVIEW.href}
+            prefetch={false}
+            onClick={(e) => navClick(e, OVERVIEW.href)}
+            className={`btn btn-sm h-8 px-2.5 ${
+              isActiveHref(pathname, OVERVIEW.href)
+                ? "bg-brand-50 text-brand-700"
+                : "text-ink-600 hover:bg-ink-100 hover:text-ink-900"
+            }`}
+          >
+            {OVERVIEW.label}
+          </Link>
         </nav>
 
         {/* Mobile / narrow: single menu button */}
@@ -342,29 +253,40 @@ export function AppHeader() {
 
       {mobileOpen ? (
         <nav className="animate-fade-in border-t border-surface-border bg-surface px-3 py-2 lg:hidden">
-          {NAV_GROUPS.map((group) => (
-            <div key={group.id} className="py-1">
-              <p className="label-meta px-2 py-1">{group.label}</p>
-              <div className="grid grid-cols-2 gap-1 sm:grid-cols-3">
-                {group.items.map((item) => {
-                  const active = isActiveHref(pathname, item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      prefetch={false}
-                      onClick={(e) => navClick(e, item.href)}
-                      className={`rounded-lg px-2.5 py-2 text-sm font-medium transition ${
-                        active ? "bg-brand-50 text-brand-700" : "text-ink-700 hover:bg-ink-50"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </div>
+          <div className="py-1">
+            <p className="label-meta px-2 py-1">智能体</p>
+            <div className="grid grid-cols-2 gap-1 sm:grid-cols-3">
+              {AGENTS.map((agent) => {
+                const active = agentOfPath(pathname)?.id === agent.id;
+                return (
+                  <Link
+                    key={agent.id}
+                    href={agent.home}
+                    prefetch={false}
+                    onClick={(e) => navClick(e, agent.home)}
+                    className={`flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium transition ${
+                      active ? "bg-brand-50 text-brand-700" : "text-ink-700 hover:bg-ink-50"
+                    }`}
+                  >
+                    <AgentBadge agent={agent} size="sm" />
+                    {agent.name}
+                  </Link>
+                );
+              })}
+              <Link
+                href={OVERVIEW.href}
+                prefetch={false}
+                onClick={(e) => navClick(e, OVERVIEW.href)}
+                className={`rounded-lg px-2.5 py-2 text-sm font-medium transition ${
+                  isActiveHref(pathname, OVERVIEW.href)
+                    ? "bg-brand-50 text-brand-700"
+                    : "text-ink-700 hover:bg-ink-50"
+                }`}
+              >
+                {OVERVIEW.label}
+              </Link>
             </div>
-          ))}
+          </div>
           <div className="py-1">
             <p className="label-meta px-2 py-1">其他</p>
             <div className="grid grid-cols-2 gap-1 sm:grid-cols-3">

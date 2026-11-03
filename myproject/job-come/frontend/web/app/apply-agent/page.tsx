@@ -30,7 +30,7 @@ function ApplyAgentInner() {
 
       <AgentWorkbench
         pageKey={`apply-agent-${jobId ?? "general"}`}
-        title="定向申请"
+        title="投递经理"
         subtitle={
           jobId ? "对着这个岗位走完整申请流程" : "从定向岗位页进入可自动绑定岗位"
         }

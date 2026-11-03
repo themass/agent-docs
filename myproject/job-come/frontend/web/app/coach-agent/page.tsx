@@ -26,7 +26,7 @@ function CoachAgentInner() {
       {loading ? <p className="text-sm text-ink-500">加载中…</p> : null}
       <AgentWorkbench
         pageKey={`coach-agent-${jobId ?? "general"}`}
-        title="面试辅导"
+        title="面试教练"
         subtitle={subtitle}
         profileId={profileId}
         jobId={jobId}

@@ -247,7 +247,7 @@ function ResumeAgentInner() {
         <AgentWorkbench
           layout="split"
           pageKey="resume-agent"
-          title="简历优化"
+          title="简历顾问"
           profileId={profileId}
           jobId={jobId}
           skillHint="resume-coach"

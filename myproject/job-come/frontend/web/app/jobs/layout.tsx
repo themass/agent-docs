@@ -1,3 +1,4 @@
+import { AgentFrame } from "@/components/agents/AgentFrame";
 import type { Metadata } from "next";
 
 import { PageJsonLd } from "@/components/seo/PageJsonLd";
@@ -16,7 +17,7 @@ export default function JobsLayout({ children }: { children: React.ReactNode }) 
   return (
     <>
       <PageJsonLd path={SEO.path} name={SEO.title} description={SEO.description} />
-      {children}
+      <AgentFrame agentId="apply">{children}</AgentFrame>
     </>
   );
 }
