@@ -84,6 +84,17 @@ scenarios:
       provider: gateway
       timeout_sec: 180
 
+  # Interview reviewer (AGENTS-DESIGN §4.2): an independent judge of a finished mock session.
+  # It is its own scenario so the model can differ from the interviewer's. Until a different
+  # model is chosen here, it uses the same chain as `coach`.
+  reviewer:
+    - model: openai/deepseek-v4-pro
+      provider: gateway
+      timeout_sec: 180
+    - model: openai/deepseek-v4-flash
+      provider: gateway
+      timeout_sec: 180
+
   vision:
     - model: openai/qwen3-vl-plus
       provider: vision

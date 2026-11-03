@@ -35,6 +35,9 @@ SKILL_SCOPE: dict[str, frozenset[str]] = {
     "coach-mock": frozenset({"coach-mock", "coach-answer"}),
     "coach-answer": frozenset({"coach-answer"}),
     "coach-archive": frozenset({"coach-archive"}),
+    # The independent reviewer: reads the finished session and writes the report. It holds no
+    # question or end tools, so it cannot ask the candidate anything (AGENTS-DESIGN §4.2).
+    "interview-reviewer": frozenset({"interview-reviewer"}),
     "jd-parser": frozenset({"jd-parser"}),
     # The apply agent reaches resume work only through jc_apply_pipeline, which runs fit, the
     # resume writer, the review and the export inside the service. It holds no resume skill and

@@ -345,6 +345,29 @@ OPENAI_TOOLS: list[dict[str, Any]] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "jc_mock_report_write",
+            "description": (
+                "Store the review of a finished mock interview session. Called by the "
+                "independent reviewer only. Scores whose evidence quote does not appear in "
+                "the candidate's answer are dropped; facts without a profile source are "
+                "marked pending. Averages are computed by the server."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "mock_session_id": {"type": "string"},
+                    "report": {
+                        "type": "object",
+                        "description": "{questions: [{question_id, scores, evidence, praise, fixes, reference}]}",
+                    },
+                },
+                "required": ["mock_session_id", "report"],
+            },
+        },
+    },
 ]
 
 SKILL_TOOLS: dict[str, list[str]] = {
@@ -377,6 +400,12 @@ SKILL_TOOLS: dict[str, list[str]] = {
         "jc_mock_session_history",
     ],
     "coach-archive": ["jc_profile_get", "jc_question_upsert", "jc_interview_save"],
+    # Reads the finished session and writes the report. No ask, end or upsert tool (R3).
+    "interview-reviewer": [
+        "jc_profile_get",
+        "jc_mock_session_history",
+        "jc_mock_report_write",
+    ],
     "coach-answer": ["jc_bank_search_questions", "jc_answer_save_attempt"],
     "jd-parser": ["jc_profile_get", "jc_job_fetch", "jc_job_parse", "jc_fit_score"],
     "apply-pipeline": [

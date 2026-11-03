@@ -24,6 +24,7 @@ PRODUCT_OF_ROLE = {
     "coach-mock": "interview",
     "coach-answer": "interview",
     "coach-archive": "interview",
+    "interview-reviewer": "interview",
     "jd-parser": "shared",
     "apply-pipeline": "apply",
 }
@@ -33,7 +34,7 @@ PRODUCT_TOOLS = {
     "resume": {"jc_resume_review", "jc_profile_photo_set", "jc_intake_plan", "jc_intake_record"},
     "interview": {
         "jc_bank_search_questions", "jc_question_upsert", "jc_answer_save_attempt",
-        "jc_mock_session_history", "jc_interview_save",
+        "jc_mock_session_history", "jc_interview_save", "jc_mock_report_write",
     },
     # jc_fit_score is job analysis shared with the 定向岗位 page, so it is not apply-owned.
     "apply": {"jc_apply_pipeline"},
@@ -84,3 +85,14 @@ def test_each_skill_id_exists_once_and_on_the_public_path():
     assert public & custom == set(), "a skill id must not exist in both public and custom"
     for skill in {s for scope in SKILL_SCOPE.values() for s in scope}:
         assert skill in public, f"{skill} is declared in a role scope but has no public package"
+
+
+def test_reviewer_holds_exactly_the_read_and_report_tools():
+    """The independent reviewer is a spectator: it may read the session and write the report,
+    and nothing that asks the candidate a question or ends the session (AGENTS-DESIGN §4.2)."""
+    assert SKILL_SCOPE["interview-reviewer"] == frozenset({"interview-reviewer"})
+    assert _tools_of("interview-reviewer") == {
+        "jc_profile_get",
+        "jc_mock_session_history",
+        "jc_mock_report_write",
+    }

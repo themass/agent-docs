@@ -127,6 +127,17 @@ async def mock_session_history(
     return await _mock_session_history(scope, mock_session_id=mock_session_id, limit=limit)
 
 
+async def mock_report_write(
+    scope: RunScope,
+    *,
+    mock_session_id: str,
+    report: dict[str, Any],
+) -> dict[str, Any]:
+    from jc.services.mock_report_service import write_report
+
+    return await write_report(scope, mock_session_id=mock_session_id, raw=report)
+
+
 async def interview_save(scope: RunScope, record: dict[str, Any]) -> dict[str, Any]:
     await require_owned_profile(scope)
     if not scope.profile_id:
@@ -549,6 +560,7 @@ TOOL_HANDLERS = {
     "jc_apply_pipeline": apply_pipeline,
     "jc_question_upsert": question_upsert,
     "jc_mock_session_history": mock_session_history,
+    "jc_mock_report_write": mock_report_write,
     "jc_resume_review": resume_review,
     "jc_intake_plan": intake_plan,
     "jc_intake_record": intake_record,
@@ -645,6 +657,12 @@ async def dispatch_tool(
             scope,
             mock_session_id=arguments.get("mock_session_id"),
             limit=int(arguments.get("limit", 20)),
+        )
+    if name == "jc_mock_report_write":
+        return await handler(
+            scope,
+            mock_session_id=str(arguments["mock_session_id"]),
+            report=dict(arguments.get("report") or {}),
         )
     if name == "jc_resume_review":
         return await handler(
