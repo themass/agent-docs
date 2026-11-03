@@ -18,7 +18,7 @@ export function LegalDocument({
   sections: LegalSection[];
 }) {
   return (
-    <article className="mx-auto w-full max-w-3xl">
+    <article className="mx-auto min-h-0 w-full max-w-3xl flex-1 overflow-y-auto">
       <header className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight text-ink-900">{title}</h1>
         <p className="mt-1.5 text-xs text-ink-500">最后更新：{LEGAL_UPDATED}</p>
