@@ -86,7 +86,7 @@ async def test_plan_suggests_the_first_uncovered_must_have_in_jd_order(db):
 @pytest.mark.asyncio
 async def test_asked_question_is_recorded_and_moves_the_plan(db):
     out = await _ask(db, "q1")
-    assert out == {"accepted": True, "asked_main": 1, "remaining_main": 4}
+    assert out == {"accepted": True, "asked_main": 1, "remaining_main": 4, "label": "第 1 题"}
     session = await _session(db)
     assert session.question_ids == ["q1"]
     async with db() as s:
@@ -264,3 +264,27 @@ async def test_plan_reports_the_open_question_and_swaps_left(db):
     async with db() as s:
         plan = await guard.plan(_scope(s), mock_session_id="ms1")
     assert plan["current_question_id"] == "q1" and plan["swaps_left"] == 3
+
+
+@pytest.mark.asyncio
+async def test_question_labels_number_mains_and_follow_their_parent(db):
+    assert (await _ask(db, "q1"))["label"] == "第 1 题"
+    assert (await _ask(db, "q2"))["label"] == "第 2 题"
+    follow = await _ask(db, "q3", kind="followup", parent="q2")
+    assert follow["label"] == "第 2 题 · 追问 1"
+    async with db() as s:
+        await guard.skip(_scope(s), mock_session_id="ms1", question_id="q3")
+    assert (await _ask(db, "q4"))["label"] == "第 3 题", "a skipped question keeps its number"
+
+
+@pytest.mark.asyncio
+async def test_a_skipped_question_still_counts_toward_the_main_limit(db):
+    for qid in ["q1", "q3", "q4", "q5", "q6"]:
+        assert (await _ask(db, qid))["accepted"]
+        async with db() as s:
+            await guard.skip(_scope(s), mock_session_id="ms1", question_id=qid)
+    refused = await _ask(db, "q7")
+    assert refused["accepted"] is False and refused["code"] == "main_limit"
+    async with db() as s:
+        plan = await guard.plan(_scope(s), mock_session_id="ms1")
+    assert plan["asked_main"] == 5 and plan["remaining_main"] == 0

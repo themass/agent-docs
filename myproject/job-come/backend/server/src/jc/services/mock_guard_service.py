@@ -98,6 +98,20 @@ async def _asked_stems(store: InterviewStore, asked: list[dict[str, Any]]) -> li
     return stems
 
 
+def question_label(asked: list[dict[str, Any]]) -> str:
+    """The label the candidate sees for the newest question: "第 3 题" or "第 3 题 · 追问 1".
+    Skipped questions keep their number, so the numbering matches what the candidate was shown."""
+    mains = [a for a in asked if a["kind"] == "main"]
+    last = asked[-1]
+    if last["kind"] == "main":
+        return f"第 {len(mains)} 题"
+    parent = last.get("parent_question_id")
+    index = next(i for i, a in enumerate(mains) if a["question_id"] == parent) + 1
+    follow = sum(1 for a in asked if a["kind"] == "followup"
+                 and a.get("parent_question_id") == parent)
+    return f"第 {index} 题 · 追问 {follow}"
+
+
 def _refuse(reason: str, **extra: Any) -> dict[str, Any]:
     return {"accepted": False, "reason": reason, **extra}
 
@@ -121,7 +135,7 @@ async def plan(scope: RunScope, *, mock_session_id: str) -> dict[str, Any]:
     state = _state(session)
     asked = state["asked"]
     main_limit, _ = limits(session)
-    mains = [a for a in asked if a["kind"] == "main" and not a.get("skipped")]
+    mains = [a for a in asked if a["kind"] == "main"]
     must = await must_have_of(scope, session)
     coverage = coverage_of(must, await _asked_stems(store, asked))
     followups: dict[str, int] = {}
@@ -251,7 +265,7 @@ async def ask(
     await scope.db.commit()
     remaining = main_limit - len(mains) - (1 if kind == "main" else 0)
     return {"accepted": True, "asked_main": len(mains) + (1 if kind == "main" else 0),
-            "remaining_main": max(0, remaining)}
+            "remaining_main": max(0, remaining), "label": question_label(asked)}
 
 
 async def end(
@@ -266,7 +280,7 @@ async def end(
     state = _state(session)
     asked = state["asked"]
     main_limit, _ = limits(session)
-    mains = [a for a in asked if a["kind"] == "main" and not a.get("skipped")]
+    mains = [a for a in asked if a["kind"] == "main"]
     must = await must_have_of(scope, session)
     coverage = coverage_of(must, await _asked_stems(InterviewStore(scope.db), asked))
 

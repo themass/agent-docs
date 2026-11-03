@@ -79,6 +79,15 @@ function ActivityLine({
   onToggle: () => void;
   labels: AgentConversationThreadLabels;
 }) {
+  if (activity.kind === "mock_question") {
+    return (
+      <div className="flex items-center gap-2 py-1 text-xs font-medium text-brand-700">
+        <span className="h-px flex-1 bg-brand-100" />
+        <span>{activity.label}</span>
+        <span className="h-px flex-1 bg-brand-100" />
+      </div>
+    );
+  }
   if (activity.kind === "skill") {
     return (
       <button type="button" onClick={onToggle} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition hover:bg-brand-50/70">

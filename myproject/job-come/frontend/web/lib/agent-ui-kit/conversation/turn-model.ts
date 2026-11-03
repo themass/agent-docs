@@ -8,8 +8,11 @@ export type ToolActivity = {
   state: "running" | "done" | "error";
 };
 
+import { MOCK_ASK_TOOL, mockQuestionLabel } from "@/lib/agent/mock-question-label";
+
 export type TurnActivity =
   | { kind: "skill"; id: string; name: string }
+  | { kind: "mock_question"; id: string; label: string }
   | { kind: "thinking"; id: string; content: string }
   | { kind: "tool"; tool: ToolActivity }
   | { kind: "plan"; id: string; todos: Array<Record<string, unknown>> }
@@ -39,6 +42,14 @@ function pushActivity(activities: TurnActivity[], item: AgentUiDisplayItem): Tur
   const next = [...activities];
   if (item.kind === "skill") {
     next.push({ kind: "skill", id: item.id, name: item.name });
+    return next;
+  }
+  // A question the interviewer put in a mock interview shows as a numbered marker, not as a tool
+  // call: the candidate sees "第 3 题", not the tool's name and JSON.
+  if (item.kind === "tool_start" && item.name === MOCK_ASK_TOOL) return next;
+  if (item.kind === "tool_result" && item.name === MOCK_ASK_TOOL) {
+    const label = mockQuestionLabel(item.result);
+    if (label) next.push({ kind: "mock_question", id: item.id, label });
     return next;
   }
   if (item.kind === "thinking") {
