@@ -31,6 +31,14 @@ models:
     when_thinking_enabled:
       reasoning_effort: low
 
+  # The independent reviewer (AGENTS-DESIGN §4.2, §5). Its own model so the report is not produced
+  # by the interviewer's model; `reviewer` is a scenario in routing.yaml.
+  - name: jc-reviewer
+    display_name: JC Reviewer
+    use: jc.llm.chat_litellm:ChatLiteLLMRouter
+    model: reviewer
+    context_window: 200000
+
   - name: jc-writer
     display_name: JC Writer
     use: jc.llm.chat_litellm:ChatLiteLLMRouter

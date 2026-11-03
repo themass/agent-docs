@@ -4,7 +4,6 @@ handlers and the guards agree, and that the report comes from the reviewer path.
 
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime
 
 import pytest
@@ -20,6 +19,7 @@ from jc.models.job import Job
 from jc.models.profile import Profile
 from jc.models.user import User
 from jc.services import interview_reviewer
+from reviewer_agent_fake import FakeClientFactory, FakeReviewerAgent
 
 ANSWER = "我负责把结算接口从单表拆成两张表，耗时三周。"
 MUST_HAVE = ["Python", "分布式事务"]
@@ -31,19 +31,6 @@ def _stem(index: int) -> str:
         1: "讲一个你用 Python 写过的数据脚本",
         2: "你如何处理分布式事务的一致性",
     }.get(index, f"第 {index} 个通用问题：讲讲你做过的一件事")
-
-
-class ScriptedReviewer:
-    def __init__(self, response: dict) -> None:
-        self.response = response
-        self.scenarios: list[str] = []
-
-    async def acompletion(self, scenario: str, **kwargs):
-        self.scenarios.append(scenario)
-        return kwargs["response_validator"](self.response)
-
-    def content_from_response(self, response) -> str:
-        return json.dumps(response, ensure_ascii=False)
 
 
 @pytest.fixture
@@ -113,14 +100,14 @@ async def test_full_run_end_to_end_through_the_tools(db, monkeypatch):
     assert ended["accepted"] is True and ended["asked_main"] == 20
 
     # The reviewer scores the session. Its quote is the candidate's own words, so it is kept.
-    reviewer = ScriptedReviewer({"questions": [{
+    agent = FakeReviewerAgent(db, report={"questions": [{
         "question_id": Q_PYTHON, "scores": {"depth": 6}, "evidence": {"depth": "拆成两张表"},
     }]})
-    monkeypatch.setattr(interview_reviewer, "get_llm_router", lambda: reviewer)
+    monkeypatch.setattr(interview_reviewer, "get_deerflow_client", FakeClientFactory(agent))
     review = await _call(db, "jc_mock_review", {"mock_session_id": "ms1"})
 
-    assert reviewer.scenarios == ["reviewer"]
-    assert review["overall"]["depth"] == 6.0
+    assert review == {"accepted": True, "mock_session_id": "ms1"}
+    assert [run["skill"] for run in agent.runs] == ["interview-reviewer"]
     async with db() as s:
         stored = (await s.execute(select(MockSession).where(MockSession.id == "ms1"))).scalar_one()
     assert stored.status == "completed"
@@ -131,8 +118,8 @@ async def test_full_run_end_to_end_through_the_tools(db, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_review_is_refused_for_a_session_that_has_not_ended(db, monkeypatch):
-    reviewer = ScriptedReviewer({"questions": []})
-    monkeypatch.setattr(interview_reviewer, "get_llm_router", lambda: reviewer)
+    agent = FakeReviewerAgent(db, report={"questions": []})
+    monkeypatch.setattr(interview_reviewer, "get_deerflow_client", FakeClientFactory(agent))
     with pytest.raises(ValueError, match="after the session has ended"):
         await _call(db, "jc_mock_review", {"mock_session_id": "ms1"})
-    assert reviewer.scenarios == [], "an unfinished session must not reach the model"
+    assert agent.runs == [], "an unfinished session must not start the reviewer"

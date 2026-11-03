@@ -281,14 +281,19 @@ class InterviewService:
             return MockReportResponse(status="active", message="这场模拟面试已取消。", **base)
 
         if not session.report:
-            from jc.services.interview_reviewer import run_review
+            from jc.services.interview_reviewer import review_session
 
-            scope = RunScope(db=self._db, user_id=actor.user_id, profile_id=session.profile_id,
-                             mock_session_id=session_id)
             try:
-                await run_review(scope, mock_session_id=session_id)
+                stored = await review_session(
+                    self._db,
+                    user_id=actor.user_id,
+                    profile_id=session.profile_id,
+                    mock_session_id=session_id,
+                )
             except Exception:  # noqa: BLE001 — every failure is "not yet", shown as pending
                 logger.warning("mock_report_review_failed session=%s", session_id, exc_info=True)
+                stored = False
+            if not stored:
                 return MockReportResponse(
                     status="pending",
                     message="独立评审暂未完成，请稍后刷新此页面。",

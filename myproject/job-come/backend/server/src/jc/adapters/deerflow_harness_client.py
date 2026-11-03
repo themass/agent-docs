@@ -322,23 +322,36 @@ def _jc_deerflow_client_class() -> type:
     return JCDeerFlowClient
 
 
+# Skills that run on a model other than the agent's default, named by its entry in config.yaml.
+# The reviewer is one: its report must not come from the interviewer's own model (AGENTS-DESIGN §5).
+_SKILL_MODEL: dict[str, str] = {"interview-reviewer": "jc-reviewer"}
+
+
+def model_for_skill(skill: str) -> str | None:
+    return _SKILL_MODEL.get(skill)
+
+
 def _get_embedded_client(config: DeerFlowClientConfig, skill: str) -> Any:
     available = skills_in_scope(skill, default_companion="resume-coach")
+    model_name = model_for_skill(skill)
     key = ":".join(
         [
             config.extensions_config_path,
             config.checkpoint_dsn or "",
             ",".join(sorted(available)),
+            model_name or "",
         ]
     )
     if key not in _CLIENT_CACHE:
         _configure_deerflow_paths(config)
         client_cls = _jc_deerflow_client_class()
+        extra = {"model_name": model_name} if model_name else {}
         _CLIENT_CACHE[key] = client_cls(
             config_path=os.environ["DEER_FLOW_CONFIG_PATH"],
             subagent_enabled=False,
             plan_mode=False,
             available_skills=set(available),
+            **extra,
         )
     return _CLIENT_CACHE[key]
 

@@ -207,3 +207,16 @@ async def test_report_for_another_users_profile_is_refused(db):
             await write_report(
                 scope, mock_session_id="ms1", raw={"questions": [{"question_id": "q1"}]}
             )
+
+
+@pytest.mark.asyncio
+async def test_reviewer_run_cannot_write_a_report_for_another_session(db):
+    async with db() as s:
+        s.add(_mock("completed"))
+        s.add_all(_answered_question())
+        await s.commit()
+    async with db() as s:
+        scope = RunScope(db=s, user_id="u1", profile_id="p1", mock_session_id="ms-other")
+        with pytest.raises(PermissionError, match="another mock session"):
+            await write_report(scope, mock_session_id="ms1",
+                               raw={"questions": [{"question_id": "q1"}]})

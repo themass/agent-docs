@@ -3,7 +3,6 @@ session through the same guard as the interviewer; a finished session is reviewe
 
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime
 
 import pytest
@@ -18,26 +17,11 @@ from jc.models.profile import Profile
 from jc.models.user import User
 from jc.services import interview_reviewer
 from jc.services.interview_service import InterviewService
+from reviewer_agent_fake import FakeClientFactory, FakeReviewerAgent
 
 ANSWER = "我负责把结算接口从单表拆成两张表，耗时三周。"
 OWNER = UserActor(user_id="u1", session_id="s")
 OTHER = UserActor(user_id="u2", session_id="s")
-
-
-class ScriptedReviewer:
-    def __init__(self, response=None, fail: bool = False) -> None:
-        self.response = response
-        self.fail = fail
-        self.calls = 0
-
-    async def acompletion(self, scenario, **kwargs):
-        self.calls += 1
-        if self.fail:
-            raise RuntimeError("model unavailable")
-        return kwargs["response_validator"](self.response)
-
-    def content_from_response(self, response) -> str:
-        return json.dumps(response, ensure_ascii=False)
 
 
 @pytest.fixture
@@ -93,12 +77,12 @@ async def test_another_user_cannot_read_the_report(maker):
 @pytest.mark.asyncio
 async def test_finished_session_is_reviewed_once_and_read_after(maker, monkeypatch):
     await _set_status(maker, "completed")
-    reviewer = ScriptedReviewer({"questions": [{
+    agent = FakeReviewerAgent(maker, report={"questions": [{
         "question_id": "q1", "scores": {"depth": 6}, "evidence": {"depth": "拆成两张表"},
         "praise": "讲清了动作。", "fixes": [{"severity": "suggest", "text": "补上结果。"}],
         "reference": [],
     }]})
-    monkeypatch.setattr(interview_reviewer, "get_llm_router", lambda: reviewer)
+    monkeypatch.setattr(interview_reviewer, "get_deerflow_client", FakeClientFactory(agent))
 
     async with maker() as s:
         first = await InterviewService(s).get_mock_report("ms1", actor=OWNER)
@@ -110,14 +94,14 @@ async def test_finished_session_is_reviewed_once_and_read_after(maker, monkeypat
     assert first.questions[0].answer == ANSWER
     assert first.overall["depth"] == 6.0
     assert second.questions[0].praise == "讲清了动作。"
-    assert reviewer.calls == 1, "the stored report is read, not produced again"
+    assert len(agent.runs) == 1, "the stored report is read, not produced again"
 
 
 @pytest.mark.asyncio
 async def test_failed_review_is_pending_not_an_error(maker, monkeypatch):
     await _set_status(maker, "completed")
-    reviewer = ScriptedReviewer(fail=True)
-    monkeypatch.setattr(interview_reviewer, "get_llm_router", lambda: reviewer)
+    agent = FakeReviewerAgent(maker, error=RuntimeError("agent unavailable"))
+    monkeypatch.setattr(interview_reviewer, "get_deerflow_client", FakeClientFactory(agent))
     async with maker() as s:
         out = await InterviewService(s).get_mock_report("ms1", actor=OWNER)
     assert out.status == "pending" and out.questions == []

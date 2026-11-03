@@ -174,9 +174,22 @@ async def mock_end(
 
 
 async def mock_review(scope: RunScope, *, mock_session_id: str) -> dict[str, Any]:
-    from jc.services.interview_reviewer import run_review
+    from jc.services.interview_reviewer import review_session
+    from jc.stores.interview_store import InterviewStore
 
-    return await run_review(scope, mock_session_id=mock_session_id)
+    await require_owned_profile(scope)
+    session = await InterviewStore(scope.db).get_mock_session(mock_session_id)
+    if session is None or session.profile_id != scope.profile_id:
+        raise PermissionError("Mock session outside this profile")
+    stored = await review_session(
+        scope.db,
+        user_id=scope.user_id or "",
+        profile_id=scope.profile_id or "",
+        mock_session_id=mock_session_id,
+    )
+    if not stored:
+        return {"accepted": False, "reason": "独立评审暂未完成报告，请稍后再试。"}
+    return {"accepted": True, "mock_session_id": mock_session_id}
 
 
 async def interview_save(scope: RunScope, record: dict[str, Any]) -> dict[str, Any]:

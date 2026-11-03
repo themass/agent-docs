@@ -147,6 +147,9 @@ async def write_report(
     store = InterviewStore(scope.db)
     # Not require_owned_references: that guard refuses closed sessions, and the report is written
     # precisely after the session has closed.
+    # The reviewer run is started for one session; a report for another one is refused.
+    if scope.mock_session_id and scope.mock_session_id != mock_session_id:
+        raise PermissionError("Report is for another mock session")
     session = await store.get_mock_session(mock_session_id)
     if session is None or session.profile_id != scope.profile_id:
         raise PermissionError("Mock session outside this profile")
