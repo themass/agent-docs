@@ -147,6 +147,12 @@ if [[ "$DO_BACKEND" == true ]]; then
     bash -c 'cd "$1" && UV_PROJECT_ENVIRONMENT="$2" uv sync --frozen --no-dev --extra export --no-editable' \
     _ "$SERVER_ROOT" "$VENV"
 
+  # The PDF renderer launches Playwright's Chromium from the user's cache, which `uv sync` does
+  # not install. Without it every PDF export fails at runtime with "Executable doesn't exist".
+  # Idempotent (a no-op when present) and heartbeat-wrapped: it downloads ~150MB on a cold host.
+  jc_run_with_heartbeat "playwright chromium (PDF export)" "$HEARTBEAT" \
+    "${VENV}/bin/python" -m playwright install chromium
+
   log "verifying the three in-repo packages import"
   "${VENV}/bin/python" - <<'PY'
 import importlib.metadata as m

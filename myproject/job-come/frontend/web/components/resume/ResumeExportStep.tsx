@@ -87,6 +87,7 @@ export function ResumeExportStep({
   const { review, reviewBusy, reviewError, acknowledged, skipped, skipReview, setAcknowledged } = quality;
   const [busyFormat, setBusyFormat] = useState<ExportFormat | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
   const [files, setFiles] = useState<DoneFile[]>([]);
   const [membership, setMembership] = useState<Membership | null>(null);
   const [quotaDialogOpen, setQuotaDialogOpen] = useState(false);
@@ -107,8 +108,16 @@ export function ResumeExportStep({
   }
 
   async function runExport(format: ExportFormat) {
+    // The free download is a single lifetime allowance: make the user choose before it is spent.
+    if (membership?.free_download_available && membership.tier !== "admin") {
+      const formatName = format === "pdf" ? "PDF" : format === "docx" ? "Word" : "网页版";
+      if (!window.confirm(`这会用掉你唯一一次免费下载机会（终身一次）。\n\n生成${formatName}并成功下载后计入；之后下载需要开通会员。\n\n确定现在下载吗？`)) {
+        return;
+      }
+    }
     setBusyFormat(format);
     setExportError(null);
+    setDownloadNotice(null);
     try {
       const job = await exportProfile(profileId, format, {
         locale,
@@ -121,6 +130,7 @@ export function ResumeExportStep({
           ...prev.filter((f) => f.format !== format),
         ]);
         onExported?.();
+        setDownloadNotice(`${format === "pdf" ? "PDF" : format === "docx" ? "Word" : "网页版"}已生成，文件在下方可以下载。`);
         void refreshMembership();
       } else {
         setExportError(job.error_message ?? `导出未完成（状态：${job.status}）`);
@@ -304,8 +314,13 @@ export function ResumeExportStep({
           })}
         </div>
 
+        {downloadNotice ? (
+          <div className="notice notice-success mt-3.5 text-sm" role="status">
+            <span>{downloadNotice}</span>
+          </div>
+        ) : null}
         {exportError ? (
-          <div className="notice notice-danger mt-3.5" role="alert">
+          <div className="notice notice-danger mt-3.5 text-sm" role="alert">
             <span>{exportError}</span>
           </div>
         ) : null}
@@ -344,9 +359,10 @@ function DownloadQuotaNotice({
   }
   if (membership.free_download_available) {
     return (
-      <p className="text-xs text-ink-600">
-        这是你的免费下载机会（终身一次），下载成功后计入。开通会员后不限次数。
-      </p>
+      <div className="notice notice-info mb-3 text-sm" role="status">
+        <p className="font-semibold">你有 1 次免费下载机会（终身一次）</p>
+        <p className="mt-1 text-xs">下载成功后计入，之后需要开通会员才能继续下载。开通会员后不限次数。</p>
+      </div>
     );
   }
   return (
