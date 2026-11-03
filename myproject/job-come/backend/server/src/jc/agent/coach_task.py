@@ -25,6 +25,10 @@ def wrap_coach_mock_message(
             "题库还没有本题可抽，请出与岗位相关的新题，"
             "每出一题调用 jc_question_upsert。"
         )
+    state_rule = (
+        "用户可能已在页面上跳过或换题：每轮开始前调用 jc_mock_plan 查看本场当前状态，"
+        "以它为准，不要凭记忆判断题数和覆盖。"
+    )
     history_rule = (
         "如果对话较长、不确定本轮模拟会话里已经问过哪些题、用户怎么答的，"
         "先调用 jc_mock_session_history（带 mock_session_id）查出已记录的问答，"
@@ -36,6 +40,7 @@ def wrap_coach_mock_message(
         f"档案 profile_id={bound_profile}；岗位 job_id={bound_job}；"
         f"模拟会话 mock_session_id={session}。\n"
         f"{draw_rule}\n"
+        f"{state_rule}\n"
         f"{history_rule}\n"
         "每次出题后调用 jc_question_upsert（带 job_id 与 mock_session_id），"
         "再调用 jc_mock_ask 登记提问（主问题或追问）。"

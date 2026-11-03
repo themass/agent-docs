@@ -186,3 +186,32 @@ class MockReportResponse(BaseModel):
     overall: dict[str, float | None] = Field(default_factory=dict)
     checks: dict[str, int] = Field(default_factory=dict)
     questions: list[MockReportQuestion] = Field(default_factory=list)
+
+
+class MockActionRequest(BaseModel):
+    question_id: str
+
+
+class MockActionResponse(BaseModel):
+    """Result of skip or swap. A refusal carries its reason and writes nothing."""
+
+    accepted: bool
+    reason: str | None = None
+    code: str | None = None
+    swaps_left: int | None = None
+
+
+class MockProgressResponse(BaseModel):
+    style: str | None = None
+    status: str
+    asked_main: int
+    main_limit: int
+    remaining_main: int
+    followups_by_parent: dict[str, int] = Field(default_factory=dict)
+    must_have: list[str] = Field(default_factory=list)
+    covered: list[str] = Field(default_factory=list)
+    uncovered: list[str] = Field(default_factory=list)
+    suggested_next: str | None = None
+    current_question_id: str | None = None
+    skipped: int = 0
+    swaps_left: int = 0

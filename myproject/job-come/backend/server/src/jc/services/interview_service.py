@@ -24,6 +24,8 @@ from jc.schemas.coach import (
     InterviewSaveRequest,
     InterviewSaveResponse,
     InterviewSummary,
+    MockActionResponse,
+    MockProgressResponse,
     MockReportResponse,
     MockSessionCreateRequest,
     MockSessionListItem,
@@ -120,6 +122,26 @@ class InterviewService:
             round=r.round, type=r.type, job_id=r.job_id, result=r.result,
             failure_tags=r.failure_tags or [], notes=r.notes, question_ids=r.question_ids or []
         ) for r in rows])
+
+    async def mock_progress(self, session_id: str, *, actor: UserActor) -> MockProgressResponse:
+        from jc.services.mock_guard_service import plan
+
+        session = await self._owned_mock_session(session_id, actor=actor)
+        scope = RunScope(db=self._db, user_id=actor.user_id, profile_id=session.profile_id,
+                         mock_session_id=session_id)
+        return MockProgressResponse(**(await plan(scope, mock_session_id=session_id)))
+
+    async def mock_action(
+        self, session_id: str, *, actor: UserActor, action: str, question_id: str
+    ) -> MockActionResponse:
+        from jc.services import mock_guard_service
+
+        session = await self._owned_mock_session(session_id, actor=actor)
+        scope = RunScope(db=self._db, user_id=actor.user_id, profile_id=session.profile_id,
+                         mock_session_id=session_id)
+        handler = mock_guard_service.skip if action == "skip" else mock_guard_service.swap
+        result = await handler(scope, mock_session_id=session_id, question_id=question_id)
+        return MockActionResponse(**result)
 
     async def list_mock_sessions(self, profile_id: str, *, actor: Actor) -> MockSessionListResponse:
         """Finished mock interviews, newest first. Real interviews are listed separately."""

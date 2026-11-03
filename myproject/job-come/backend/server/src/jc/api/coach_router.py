@@ -15,6 +15,9 @@ from jc.schemas.coach import (
     InterviewListResponse,
     InterviewSaveRequest,
     InterviewSaveResponse,
+    MockActionRequest,
+    MockActionResponse,
+    MockProgressResponse,
     MockReportResponse,
     MockRubricResponse,
     MockSessionCreateRequest,
@@ -141,6 +144,49 @@ async def log_question(
     coach: InterviewService = Depends(get_coach_service),
 ) -> QuestionSummary:
     return await coach.log_question(profile_id, actor=actor, body=body)
+
+
+@router.get(
+    "/mock/sessions/{session_id}/progress",
+    response_model=MockProgressResponse,
+    summary="模拟面试进度：题数、必备项覆盖、当前题、换题余额",
+)
+async def get_mock_progress(
+    session_id: Annotated[str, Path(description="模拟会话 ID")],
+    actor: UserActor = Depends(require_user),
+    coach: InterviewService = Depends(get_coach_service),
+) -> MockProgressResponse:
+    return await coach.mock_progress(session_id, actor=actor)
+
+
+@router.post(
+    "/mock/sessions/{session_id}/skip",
+    response_model=MockActionResponse,
+    summary="跳过当前题（计为未答）",
+)
+async def skip_mock_question(
+    session_id: Annotated[str, Path(description="模拟会话 ID")],
+    body: MockActionRequest,
+    actor: UserActor = Depends(require_user),
+    coach: InterviewService = Depends(get_coach_service),
+) -> MockActionResponse:
+    return await coach.mock_action(session_id, actor=actor, action="skip",
+                                   question_id=body.question_id)
+
+
+@router.post(
+    "/mock/sessions/{session_id}/swap",
+    response_model=MockActionResponse,
+    summary="换一题（当前题收回，每场最多 3 次）",
+)
+async def swap_mock_question(
+    session_id: Annotated[str, Path(description="模拟会话 ID")],
+    body: MockActionRequest,
+    actor: UserActor = Depends(require_user),
+    coach: InterviewService = Depends(get_coach_service),
+) -> MockActionResponse:
+    return await coach.mock_action(session_id, actor=actor, action="swap",
+                                   question_id=body.question_id)
 
 
 @router.get(

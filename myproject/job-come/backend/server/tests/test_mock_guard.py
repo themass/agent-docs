@@ -203,3 +203,64 @@ async def test_recent_question_keeps_the_session_open(db):
     async with db() as s:
         plan = await guard.plan(_scope(s), mock_session_id="ms1")
     assert plan["status"] == "active"
+
+
+@pytest.mark.asyncio
+async def test_skip_marks_the_question_on_the_table_and_it_covers_nothing(db):
+    assert (await _ask(db, "q1"))["accepted"]
+    async with db() as s:
+        out = await guard.skip(_scope(s), mock_session_id="ms1", question_id="q1")
+    assert out == {"accepted": True}
+    async with db() as s:
+        plan = await guard.plan(_scope(s), mock_session_id="ms1")
+    assert plan["skipped"] == 1
+    assert plan["covered"] == [] and plan["uncovered"] == ["Python", "分布式事务"]
+    assert plan["current_question_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_skip_is_refused_for_a_question_not_on_the_table(db):
+    assert (await _ask(db, "q1"))["accepted"]
+    assert (await _ask(db, "q2"))["accepted"]
+    async with db() as s:
+        out = await guard.skip(_scope(s), mock_session_id="ms1", question_id="q1")
+    assert out["accepted"] is False and out["code"] == "not_current"
+
+
+@pytest.mark.asyncio
+async def test_a_question_already_answered_cannot_be_skipped(db):
+    from jc.models.interview import AnswerAttempt
+
+    assert (await _ask(db, "q1"))["accepted"]
+    async with db() as s:
+        s.add(AnswerAttempt(id="a1", question_id="q1", profile_id="p1", mock_session_id="ms1",
+                            user_answer="答过了", coach_feedback={}, reference_answer=None))
+        await s.commit()
+    async with db() as s:
+        out = await guard.skip(_scope(s), mock_session_id="ms1", question_id="q1")
+    assert out["accepted"] is False and out["code"] == "not_current"
+
+
+@pytest.mark.asyncio
+async def test_swap_takes_the_question_back_and_is_limited_to_three(db):
+    for qid in ["q1", "q2", "q3"]:
+        assert (await _ask(db, qid))["accepted"]
+        async with db() as s:
+            out = await guard.swap(_scope(s), mock_session_id="ms1", question_id=qid)
+        assert out["accepted"] is True
+    session = await _session(db)
+    assert session.coverage["swaps"] == 3
+    assert session.question_ids == [], "swapped questions leave the session"
+
+    assert (await _ask(db, "q4"))["accepted"]
+    async with db() as s:
+        refused = await guard.swap(_scope(s), mock_session_id="ms1", question_id="q4")
+    assert refused["accepted"] is False and refused["code"] == "swap_limit"
+
+
+@pytest.mark.asyncio
+async def test_plan_reports_the_open_question_and_swaps_left(db):
+    assert (await _ask(db, "q1"))["accepted"]
+    async with db() as s:
+        plan = await guard.plan(_scope(s), mock_session_id="ms1")
+    assert plan["current_question_id"] == "q1" and plan["swaps_left"] == 3

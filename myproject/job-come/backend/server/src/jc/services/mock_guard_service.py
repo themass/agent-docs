@@ -27,6 +27,8 @@ END_REASONS = ("completed", "user_ended")
 #: An active session with no new question for this long is ended as "timeout" and reported as
 #: unfinished (SPEC-MOCK-INTERVIEW §5). Activity is the last question asked, or the start.
 IDLE_LIMIT = timedelta(hours=24)
+#: How many times a candidate may ask for a different question in one session (SPEC-MOCK-INTERVIEW §5).
+SWAP_LIMIT = 3
 
 
 def limits(session: MockSession) -> tuple[int, int]:
@@ -84,8 +86,11 @@ async def _must_have(scope: RunScope, session: MockSession) -> list[str]:
 
 
 async def _asked_stems(store: InterviewStore, asked: list[dict[str, Any]]) -> list[str]:
+    """Stems of the questions that were actually put. A skipped question covers nothing."""
     stems = []
     for entry in asked:
+        if entry.get("skipped"):
+            continue
         question = await store.get_question(entry["question_id"])
         if question is not None:
             stems.append(question.stem)
@@ -96,6 +101,18 @@ def _refuse(reason: str, **extra: Any) -> dict[str, Any]:
     return {"accepted": False, "reason": reason, **extra}
 
 
+async def _open_question(store: InterviewStore, asked: list[dict[str, Any]]) -> str | None:
+    """The question on the table: the last one asked, not skipped, with no answer yet."""
+    if not asked:
+        return None
+    last = asked[-1]
+    if last.get("skipped"):
+        return None
+    if await store.get_latest_attempt_for_question(last["question_id"]) is not None:
+        return None
+    return last["question_id"]
+
+
 async def plan(scope: RunScope, *, mock_session_id: str) -> dict[str, Any]:
     """A map of the session. It suggests; it does not force the next question."""
     session = await _owned_session(scope, mock_session_id)
@@ -103,7 +120,7 @@ async def plan(scope: RunScope, *, mock_session_id: str) -> dict[str, Any]:
     state = _state(session)
     asked = state["asked"]
     main_limit, _ = limits(session)
-    mains = [a for a in asked if a["kind"] == "main"]
+    mains = [a for a in asked if a["kind"] == "main" and not a.get("skipped")]
     must = await _must_have(scope, session)
     coverage = coverage_of(must, await _asked_stems(store, asked))
     followups: dict[str, int] = {}
@@ -122,7 +139,58 @@ async def plan(scope: RunScope, *, mock_session_id: str) -> dict[str, Any]:
         "covered": coverage.covered,
         "uncovered": coverage.missing,
         "suggested_next": coverage.missing[0] if coverage.missing else None,
+        "current_question_id": await _open_question(store, asked),
+        "skipped": sum(1 for a in asked if a.get("skipped")),
+        "swaps_left": max(0, SWAP_LIMIT - int(state.get("swaps", 0))),
     }
+
+
+async def _current_for_action(
+    scope: RunScope, session: MockSession, state: dict[str, Any], question_id: str
+) -> dict[str, Any] | None:
+    """Skip and swap act only on the question on the table. Returns a refusal, or None."""
+    if session.status != MockSessionStatus.ACTIVE:
+        return _refuse("这场模拟面试已经结束。", code="session_closed")
+    store = InterviewStore(scope.db)
+    if await _open_question(store, state["asked"]) != question_id:
+        return _refuse("只能对当前这道题操作。", code="not_current")
+    return None
+
+
+async def skip(scope: RunScope, *, mock_session_id: str, question_id: str) -> dict[str, Any]:
+    """The candidate skips the question on the table. It stays in the session as unanswered."""
+    session = await _owned_session(scope, mock_session_id)
+    state = _state(session)
+    refusal = await _current_for_action(scope, session, state, question_id)
+    if refusal:
+        return refusal
+    for entry in state["asked"]:
+        if entry["question_id"] == question_id:
+            entry["skipped"] = True
+    state["last_activity"] = datetime.now(UTC).replace(tzinfo=None).isoformat()
+    session.coverage = state
+    await scope.db.commit()
+    return {"accepted": True}
+
+
+async def swap(scope: RunScope, *, mock_session_id: str, question_id: str) -> dict[str, Any]:
+    """The candidate asks for a different question. The question on the table is taken back out of
+    the session, so it neither counts nor covers anything. Limited to SWAP_LIMIT per session."""
+    session = await _owned_session(scope, mock_session_id)
+    state = _state(session)
+    refusal = await _current_for_action(scope, session, state, question_id)
+    if refusal:
+        return refusal
+    if int(state.get("swaps", 0)) >= SWAP_LIMIT:
+        return _refuse(f"换题已用完（最多 {SWAP_LIMIT} 次）。", code="swap_limit")
+    state["asked"] = [a for a in state["asked"] if a["question_id"] != question_id]
+    state["swaps"] = int(state.get("swaps", 0)) + 1
+    state["last_activity"] = datetime.now(UTC).replace(tzinfo=None).isoformat()
+    session.coverage = state
+    qids = [q for q in (session.question_ids or []) if q != question_id]
+    session.question_ids = qids
+    await scope.db.commit()
+    return {"accepted": True, "swaps_left": SWAP_LIMIT - state["swaps"]}
 
 
 async def ask(
@@ -197,7 +265,7 @@ async def end(
     state = _state(session)
     asked = state["asked"]
     main_limit, _ = limits(session)
-    mains = [a for a in asked if a["kind"] == "main"]
+    mains = [a for a in asked if a["kind"] == "main" and not a.get("skipped")]
     must = await _must_have(scope, session)
     coverage = coverage_of(must, await _asked_stems(InterviewStore(scope.db), asked))
 
