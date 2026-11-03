@@ -53,7 +53,7 @@
 
 ### 4.2 面试教练
 
-- **面试官（`coach-mock` 扩展，新增 `mock-interviewer` 说明）**
+- **面试官（`coach-mock` 技能，四种风格的说明写在同一个文件里）**
   - 职责：开场、按所选风格提问、追问、换题、收尾。决定问什么和怎么追问。
   - 风格：四种（温和引导、标准、压力、业务深挖）。风格只改变提问方式和语气，不改变题目覆盖和评分标准。
   - 工具：`jc_profile_get`、`jc_job_fetch`、`jc_bank_search_questions`、`jc_question_upsert`、
@@ -96,8 +96,8 @@
 2. **重名技能**（已修复）：`coach-mock` 与 `resume-reviewer` 的自定义副本被公共版本遮住，已删除；
    `apply-pipeline` 从 `custom` 移到 `public`，因为它是自有技能，不是需要审查的外部技能。
    隔离测试守住"技能 ID 只出现一次"。
-3. **面试辅导缺少守卫工具**（待第 3 步）：当前模拟完全由模型决定题数和结束，尚无 `jc_mock_plan / ask / end / review`。
-   这是 `SPEC-MOCK-INTERVIEW` 第 13 节的主要工作。
+3. **面试辅导缺少守卫工具**（已修复，第 3 步）：`jc_mock_plan / ask / end / review` 已实现，限制与覆盖规则由工具执行，
+   超限或缺口未补的调用被拒绝并返回原因，不写入。这是 `SPEC-MOCK-INTERVIEW` 第 13 节的主要工作。
 
 ## 7. 对用户的承诺与会员
 
