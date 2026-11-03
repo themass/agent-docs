@@ -42,6 +42,7 @@ class CampaignService:
 
         interview_count = await self._count_interviews(profile_id)
         mock_count = await self._count_mock_sessions(profile_id)
+        mock_completed = await self._count_mock_sessions(profile_id, completed_only=True)
         bank_count = await InterviewStore(self._db).count_questions(profile_id)
         skipped_count = await ApplicationStore(self._db).count_status(
             profile_id, ApplicationStatus.SKIPPED.value
@@ -53,6 +54,9 @@ class CampaignService:
             {
                 "real_interviews": interview_count,
                 "mock_sessions": mock_count,
+                # Sessions that ended and have a report: what the candidate actually finished. The
+                # phase rule still reads mock_sessions, so this figure is shown alongside it.
+                "mock_completed": mock_completed,
                 "bank_question_count": bank_count,
                 "skipped_applications": skipped_count,
             }
@@ -85,15 +89,13 @@ class CampaignService:
         )
         return int((await self._db.execute(stmt)).scalar_one())
 
-    async def _count_mock_sessions(self, profile_id: str) -> int:
-        stmt = (
-            select(func.count())
-            .select_from(MockSession)
-            .where(
-                MockSession.profile_id == profile_id,
-                MockSession.status != MockSessionStatus.CANCELLED,
-            )
-        )
+    async def _count_mock_sessions(self, profile_id: str, *, completed_only: bool = False) -> int:
+        conditions = [MockSession.profile_id == profile_id]
+        if completed_only:
+            conditions.append(MockSession.status == MockSessionStatus.COMPLETED)
+        else:
+            conditions.append(MockSession.status != MockSessionStatus.CANCELLED)
+        stmt = select(func.count()).select_from(MockSession).where(*conditions)
         return int((await self._db.execute(stmt)).scalar_one())
 
     async def _fit_calibration(self, profile_id: str) -> dict:
