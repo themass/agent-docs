@@ -58,7 +58,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthProvider>
           <NotificationProvider>
             <AppHeader />
-            <main className="mx-auto flex min-h-0 w-full max-w-shell flex-1 flex-col px-3 py-3 sm:px-4 sm:py-4">
+            <main className="mx-auto flex min-h-0 w-full max-w-shell flex-1 flex-col overflow-y-auto px-3 py-3 sm:px-4 sm:py-4">
               {children}
             </main>
             <SiteFooter />
