@@ -19,7 +19,7 @@
 #               message from the database (jc.agent.turn). Omitted = plain message.
 #   switch      session roles: rules that change the skill for one turn. `when` names a registered
 #               predicate (jc.agent.turn), `to` a skill of this role. First matching rule wins.
-#   max_turns, timeout_seconds    required for subtask roles.
+#   timeout_seconds  required for subtask roles: the run's time budget, enforced by jc.agent.subtask.
 
 resume-coach:
   product: resume
@@ -56,7 +56,6 @@ interview-reviewer:
   product: interview
   mode: subtask
   scenario: reviewer
-  max_turns: 20
   timeout_seconds: 300
   skills: [interview-reviewer]
 
@@ -70,7 +69,6 @@ resume-reviewer:
   product: resume
   mode: subtask
   scenario: reviewer
-  max_turns: 8
   timeout_seconds: 90
   skills: [resume-reviewer]
 

@@ -31,7 +31,7 @@
 在自己的权限下调用简历服务；它自己的技能里不放 `resume-writer`。
 
 **R3 — 一个智能体调用另一个智能体，必须以"子任务"的形式**：子任务运行在被调用者自己的角色和工具范围里，结果以结构化数据返回。
-评审官就是这样被面试官调用的（`jc_mock_review`），评审官的范围不包含提问工具。
+评审官由服务在报告被读取时启动（子任务），而不是由面试官调用；评审官的范围不包含提问工具。
 
 **R4 — 技能 ID 全局唯一。** 同一个 ID 只能存在于 `skills/public` 或 `skills/custom` 之一。当前存在重名（见 §6），
 需要消除，并用测试守住。
@@ -47,7 +47,7 @@
 ### 4.1 简历顾问（已有，保持不变）
 
 - **技能**：`resume-coach`（对话与编辑）、`profile-interview`（建档访谈）、`resume-writer`（写作与优化）。
-- **评审**：导出前的质检是独立的 `jc_resume_review` 工具，已经是"导出闸门"，不由写作智能体自己判断。
+- **评审**：导出前的质检是 `resume-reviewer` 子任务（经 `jc_resume_review_read` 读取、`jc_resume_review_write` 写回结论），是"导出闸门"，不由写作智能体自己判断。
 - **模型场景**：`writer`（写作链）、`coach`（对话）。
 
 ### 4.2 面试教练
@@ -57,7 +57,7 @@
   - 风格：四种（温和引导、标准、压力、业务深挖）。风格只改变提问方式和语气，不改变题目覆盖和评分标准。
   - 工具：`jc_profile_get`、`jc_job_fetch`、`jc_bank_search_questions`、`jc_question_upsert`、
     `jc_mock_plan`（只读：覆盖情况与建议，不强制）、`jc_mock_ask`（登记提问，超限拒绝）、
-    `jc_mock_end`（结束，缺口未补则拒绝）、`jc_mock_review`（交给评审官）、`jc_mock_session_history`。
+    `jc_mock_end`（结束，缺口未补则拒绝）、`jc_mock_session_history`。评审由服务启动，面试官不持有评审工具。
   - 守卫在工具里：题数上限、追问上限、覆盖、额度。面试官可以判断，但规则不能被绕过。
 - **评审官（`interview-reviewer`，独立）**
   - 职责：逐题五维打分并附证据（引用用户原话）；给出合理答案和修正；写整场报告。
@@ -65,7 +65,7 @@
   - 工具：`jc_profile_get`、`jc_mock_session_history`（只读）、`jc_mock_report_write`（只写报告）。
   - 引用校验：参考答案里的每个事实必须能在档案中找到出处，由工具校验；找不到的标为"待补充"。
   - 模型：可配置（见 §5）。
-  - 运行方式：评审官是一次独立的智能体运行（`review_session`），由 `jc_mock_review` 启动。只有这一条路径产生报告，报告由 `jc_mock_report_write` 写入并经服务端校验；服务不直接调用模型。
+  - 运行方式：评审官是一次独立的子任务运行（`jc.agent.subtask.run_subtask`），由服务在报告第一次被读取时启动（`interview_reviewer.review_session`）。只有这一条路径产生报告，报告由 `jc_mock_report_write` 写入并经服务端校验；服务不直接调用模型。
 
 ### 4.3 投递经理（收窄）
 
@@ -111,7 +111,7 @@
 
 1. **隔离修复**（不改功能）：去掉 `apply-pipeline` 的越界技能；消除重名；加上 R1、R4 的测试。
 2. **评审官与场景配置**：`interview-reviewer` 角色、`reviewer` 场景、`jc_mock_report_write`。
-3. **面试官的守卫工具**：`jc_mock_plan / ask / end / review`，沿用第 1、2 步已完成的额度与覆盖逻辑。
+3. **面试官的守卫工具**：`jc_mock_plan / ask / end`，沿用第 1、2 步已完成的额度与覆盖逻辑。
 4. **面试官的对话与风格**：`mock-interviewer` 说明、四种风格、端到端的模拟替身测试。
 5. **报告页与归档**：`/mock-reports/{id}`，计入面试归档与战役统计。
 6. **外部知识检索**（可选）：作为面试官与评审官的只读工具接入，不写入用户档案。

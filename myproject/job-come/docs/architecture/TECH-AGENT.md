@@ -30,7 +30,6 @@ Agent 资产在 `backend/agent/`。
 backend/agent/
 ├── deerflow/       # config.yaml、product_rules.md、extensions config
 ├── skills/         # public/ 自研能力；custom/ 审核后引入的外部能力
-├── prompts/        # ingest、elevate、coach、export 等非 Agent prompt
 └── llm/            # routing.yaml（全项目唯一命名模型的地方）
 ```
 
@@ -115,7 +114,7 @@ backend/server/src/jc/skills/
 每个角色的产品、运行方式、模型场景，和它拥有的每个技能的工具白名单、委派、常驻片段，只写在
 `backend/agent/roles.yaml` 一处，由 `jc.agent.roles` 加载并在加载时校验结构。其余各处都是派生：
 harness 的工具面（取自技能）、模型（`jc-<scenario>`）、计划模式（取自角色）、委派（取自技能）；组合器的常驻片段；DeerFlow 的子 agent 定义；
-API 允许的 `skill_hint`（只接受 `entry: true` 的角色）；管理端 inventory；隔离测试。
+API 允许的会话角色 `role_id`（只接受 `entry: true` 的角色）；管理端 inventory；隔离测试。
 字段说明见 `roles.yaml` 文件头，设计与完整角色表见 [AGENT-ROLES.md](AGENT-ROLES.md)。
 
 这条规则来自一次实际的漂移：`config.yaml` 里为每个子 agent 手写三行英文摘要，和 skill 包里
@@ -158,27 +157,26 @@ API 允许的 `skill_hint`（只接受 `entry: true` 的角色）；管理端 in
 还不够时是 `profile-interview` 技能（把档案问出来）。两个技能都归 `resume-coach` 角色，各有自己的工具白名单。这个判定在
 `services/agent_service.stream_message` 里完成。
 
-一个必须知道的实现约束：**工具面只由 `metadata.skill_hint` 决定**。
-`deerflow_harness_client._get_tools` 读的是 `_get_embedded_client(config, metadata.skill_hint)`
-解析出的 skill，再据此查 `roles.yaml` 里该技能的 `tools`。所以：
+一个必须知道的实现约束：**工具面只由这一轮运行的技能决定**。
+`deerflow_harness_client` 为每个技能取一个 DeerFlow 客户端，它的 `_get_tools` 只保留该技能
+`allowed-tools` 里的工具（`jc.skills.loader`）。这一轮的技能由角色的 `switch` 规则在
+`jc.agent.turn.resolve_turn_skill` 里决定，并写入运行元数据的 `skill_hint`。所以：
 
-- 只在 `roles.yaml` 里给 `profile-interview` 技能写 `tools` 而不切换 `skill_hint`，
-  那份声明就是**死代码**，永远不会被查到；
-- `metadata` 必须在 skill 判定**之后**构造。原来的顺序下 `metadata` 先建好，
-  判定结果无处可去，于是访谈轮始终带着 `resume-coach` 的工具面跑——
-  这是「对话建档」一直不好用的结构原因。
+- 只在技能包的 `allowed-tools` 里加工具而不让某一轮落到该技能上，那份声明就是**死代码**；
+- 技能必须在切换判定**之后**决定、运行元数据必须在它之后构造，否则判定结果无处可去，
+  访谈轮会带着 `resume-coach` 的工具面跑。
 
 两个角色的工具面是包含关系，不是相等：
 
 | 角色 | 工具面 |
 |---|---|
-| `resume-coach` | `jc_profile_get`、`jc_profile_patch`、`jc_intake_plan`、`jc_resume_review` |
-| `profile-interview` | `jc_profile_get`、`jc_profile_patch`、`jc_intake_plan`、**`jc_intake_record`** |
+| `resume-coach` | `jc_profile_photo_set`、`jc_profile_get`、`jc_profile_patch`、`jc_intake_plan` |
+| `profile-interview` | 上面四个加 **`jc_intake_record`** |
 
 `resume-coach` 也拿到 `jc_intake_plan`：一份可生成的档案上仍然有开放问题，
 那些是补充提示，读一下是有用的。但它**没有** `jc_intake_record`——
-可生成档案上的开放问题不是访谈答案。反过来，`profile-interview` 没有 `jc_resume_review`：
-访谈阶段还没有稿子可审，导出闸门不该出现在这个角色手上。
+可生成档案上的开放问题不是访谈答案。导出闸门（`jc_resume_review_read` / `jc_resume_review_write`）
+不在任何对话技能上：它属于 `resume-reviewer` 子任务，由服务在导出前启动。
 
 ### `jc_intake_record` 为什么可以不走确认卡
 

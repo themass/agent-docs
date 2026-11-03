@@ -75,11 +75,10 @@
   定性岗位只认 `playbook.quantification_optional` 这一个信号、缺 skill 必须抛而不得降级、
   coach guidance 必须排在用户原话之前、每个族都解析到真实片段或基线。
   做了 5 次变异测试，5 次全部被抓到（含「所有岗位同一套方法论」这条退化）。
-  `profile-interview` 作为宿主组装型 skill 也在管理端 inventory 里如实显示为启用、
-  工具面与 coach 相同且不含导出闸门 `jc_resume_review`（2 条断言 + 1 次变异）。
-  背景见 [`TECH-AGENT.md`](../architecture/TECH-AGENT.md)：
-  harness 只把 skill 的名称与路径渲进 system prompt，正文要靠模型自己读文件，
-  而 V1 刻意不给 agent 文件访问——所以 SKILL.md 正文此前在 agent 路径上**完全不可达**；
+  每个技能的正文与常驻片段都必须到达系统消息：`test_prompt_layers.py` 用真实的中间件检查六个技能的运行上下文。
+  此前 SKILL.md 正文在 agent 路径上**完全不可达**：组合器对默认技能豁免了正文，理由是身份已在 config.yaml 里，
+  而那里并没有这段文字。角色与技能的声明一致性见 `test_roles.py`，导出质检的子任务流程（读取、写回结论、
+  双语两条轨道、无结论即不可用）见 `test_resume_review_subtask.py`。
 - 文档级重组、岗位 blueprint、对话建档三个模块共 59 条单测
   （`test_resume_structure.py` / `test_resume_blueprint.py` / `test_profile_intake.py`），
   其中「访谈问得完一定能生成」这条不变量**断言端状态而非阈值常量**——

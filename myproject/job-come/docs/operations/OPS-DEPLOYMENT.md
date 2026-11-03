@@ -265,6 +265,7 @@ curl -s http://jc.sspacee.com/sitemap.xml | head -5    # 确认不是 localhost
 | 前端 | `NEXT_PUBLIC_SITE_URL`（已提交在 `frontend/web/.env.production`，当前 `http://jc.sspacee.com`）。**构建期生效**：改完必须重新 `npm run build`，重启不生效 |
 | MySQL | `JC_DB_*`，并确认 schema migration 成功 |
 | 模拟面试 | 迁移 `019_mock_interview_quota` 已执行（`deploy.sh` 会执行）；`deerflow/config.yaml` 含 `jc-reviewer` 模型，且 `routing.yaml` 含 `reviewer` 场景；改动后重启 backend |
+| 智能体（ADR-006） | 迁移 `020_resume_reviewer_verdicts` 与 `021_agent_session_role_id` 已执行（`deploy.sh` 会执行）。服务器上的 `backend/agent/deerflow/extensions_config.json` 必须同步：删除 `skills` 整段与 `coach-answer`，保留 `mcpServers`、`middlewares` 和 `mcpInterceptors` 中的身份拦截器（`build_jc_identity_interceptor`）；空拦截器 `build_apply_pipeline_review_interceptor` 已删除，配置里不得再引用。`deerflow/config.yaml` 不再有 `subagents` 段。`.env` 中的 `JC_EXPORT_REVIEW_TIMEOUT_SECONDS`、`JC_EXPORT_REVIEW_ATTEMPT_TIMEOUT_SECONDS` 已无效，可以删除；导出质检的预算在 `backend/agent/roles.yaml` 的 `resume-reviewer` 里。改动后重启 backend 与 MCP 服务 |
 | Redis | `JC_REDIS_URL`、`JC_REDIS_KEY_PREFIX=jc:prod:` |
 | TOS | endpoint、bucket、region、AK/SK，写入 `jc/prod/` |
 | LLM | `JC_LLM_ENABLED`、路由配置、供应商 API key/模型 slug |

@@ -24,8 +24,8 @@ PRODUCTS = frozenset({"resume", "interview", "apply", "shared"})
 
 _FIELDS = frozenset(
     {
-        "product", "entry", "default", "mode", "scenario", "plan_mode", "max_turns",
-        "timeout_seconds", "skills", "turn", "switch",
+        "product", "entry", "default", "mode", "scenario", "plan_mode", "timeout_seconds",
+        "skills", "turn", "switch",
     }
 )
 _SWITCH_FIELDS = frozenset({"to", "when"})
@@ -54,7 +54,6 @@ class Role:
     entry: bool
     default: bool
     plan_mode: bool
-    max_turns: int | None
     timeout_seconds: int | None
     skill_ids: tuple[str, ...]
     turn: str | None
@@ -115,7 +114,6 @@ def _build(role_id: str, spec: Any) -> Role:
         entry=flags["entry"],
         default=flags["default"],
         plan_mode=flags["plan_mode"],
-        max_turns=spec.get("max_turns"),
         timeout_seconds=spec.get("timeout_seconds"),
         skill_ids=tuple(skill_ids),
         turn=turn,
@@ -136,7 +134,7 @@ def _check(by_id: dict[str, Role]) -> None:
         if role.mode == "single" and len(role.skill_ids) != 1:
             raise RoleConfigError(f"{role.id} is a single call: exactly one skill")
         if role.mode == "subtask":
-            for key in ("max_turns", "timeout_seconds"):
+            for key in ("timeout_seconds",):
                 value = getattr(role, key)
                 if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
                     raise RoleConfigError(f"{role.id} is a subtask: {key} must be a positive int")

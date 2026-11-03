@@ -1,6 +1,6 @@
 # ADR-006：角色、技能、工具的三层模型
 
-- **状态**：Accepted（实施中，见文末进度）
+- **状态**：Accepted（已实施，未在真实模型上验证，见文末）
 - **日期**：2026-11-04
 
 ## Context
@@ -69,8 +69,8 @@ Agent Skills 的标准定义（DeerFlow 同样遵循）：**技能是按需加�
 | `agent_service` 按技能名的 if 链（消息包装） | 角色的 `turn` 字段，指向一个注册的上下文提供者 |
 | `resume_task.coach_skill_for`（技能切换条件） | 角色的 `switch` 规则，`when` 指向一个注册的判定函数 |
 | `standing_instructions._FRAMING` 表 | 技能的 `references/framing.md` |
-| `jc_mock_review` 工具（教练调用评审） | 删除。模拟面试结束时服务调用评审子任务 |
-| `jc_resume_review` 工具（导出前质检） | 改为 `resume-reviewer` 子任务，工具为 `jc_resume_review_write`，由它写回结论 |
+| `jc_mock_review` 工具（教练调用评审） | 删除。面试报告在第一次被读取时由服务启动评审子任务 |
+| `jc_resume_review` 工具（导出前质检） | 改为 `resume-reviewer` 子任务：`jc_resume_review_read` 读取各轨道，`jc_resume_review_write` 一次写回全部轨道的结论 |
 | 七处写死的场景字符串（`"flash"`、`"writer"`…） | 角色的 `scenario`，由 `run_single` 读取 |
 | 四个直接调用模型的服务各自的 `prompt_file()` | 对应的技能包正文（`fit-scorer`、`localize`、`profile-structurer`、`profile-vision`，以及已有的 `jd-parser`） |
 | 工具的三份定义（schema、包装函数、处理函数映射） | schema 只来自 FastMCP 签名；`OPENAI_TOOLS` 删除，目录由服务端派生 |
@@ -90,13 +90,22 @@ Agent Skills 的标准定义（DeerFlow 同样遵循）：**技能是按需加�
 
 ## 进度
 
-- [ ] 技能元数据进入 SKILL.md（`allowed-tools`、`metadata`），roles.yaml 只保留角色字段
-- [ ] 系统层统一注入技能正文，删除身份例外与 `_FRAMING` 表
-- [ ] 角色的 `turn` 与 `switch` 改为注册表驱动，删除按技能名的分支
-- [ ] `run_single` 统一单次调用；四个服务迁入技能包
-- [ ] 删除子 agent 与委派机制；模拟面试结束时服务调用评审子任务；删除 `jc_mock_review`
-- [ ] 导出质检改为子任务；`jc_resume_review` 改名为 `jc_resume_review_write`
-- [ ] 面试记录（`coach-archive`）增加入口，由 `switch` 规则触发
-- [ ] 删除扩展配置里的技能开关
-- [ ] 工具目录由服务端派生；删除 `OPENAI_TOOLS`
-- [ ] 真实模型的端到端验证（需要密钥环境，未完成）
+已完成（提交 `001b7a7` 至 `5bba90e`，后端 273 项测试通过，前端类型检查通过）：
+
+- [x] 技能元数据进入 SKILL.md（`allowed-tools`、`metadata`）；角色文件只保留角色字段
+- [x] 系统层每次运行都带上技能正文与常驻片段；删除身份例外、`_FRAMING` 表与 `compose_role_baseline`
+- [x] 角色的 `turn` 与 `switch` 由注册表驱动（`jc.agent.turn`）；`agent_service` 不再按技能名分支
+- [x] `run_single` 统一单次调用；四个服务迁入技能包（匹配度评分、档案互译、结构化、图片识别）
+- [x] 删除子 agent、委派与 `task` 工具；删除 `jc_mock_review`，面试报告由服务在首次读取时启动评审子任务
+- [x] 导出质检改为子任务，结论经 `jc_resume_review_write` 写回草稿（迁移 020）
+- [x] 面试记录（`coach-archive`）入口：页面带 `intent=archive`，由 `switch` 规则触发
+- [x] 删除扩展配置里的技能开关、空拦截器、教练的死代码资料、Jinja 目录
+- [x] 工具只在 `mcp/server.py` 定义；目录与分发都从它派生；`OPENAI_TOOLS`、`TOOL_HANDLERS` 删除
+- [x] 会话字段 `skill_hint` 改为 `role_id`（迁移 021）
+- [x] 运行时检查：六个技能的正文都进入了系统消息
+
+未完成：
+
+- [ ] 真实模型的端到端验证：委派之外的子任务（导出质检、面试报告）、切换（档案访谈、面试记录）、双语草稿的两条轨道。需要有密钥的环境。
+- [ ] 会话的 `kind`（resume / coach）：是侧栏分组标签还是产品分类，需要产品决定。
+- [ ] DeerFlow 系统模板仍提到 `read_file`，JC 不开放该工具（上游行为）。

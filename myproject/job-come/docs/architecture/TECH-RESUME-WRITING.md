@@ -209,8 +209,8 @@ QPS：从 ___ 提升到 ___            （量级）
 
 | 关注点 | 位置 |
 |---|---|
-| 写作方法论（模型指令） | `backend/agent/prompts/elevate/resume_writer.md` |
-| 核验与门禁（模型指令） | `backend/agent/prompts/export/reviewer.md` |
+| 写作方法论（模型指令） | `backend/agent/skills/public/resume-writer/`（SKILL.md 与 `references/`） |
+| 核验与门禁（模型指令） | `backend/agent/skills/public/resume-reviewer/`（子任务，结论经 `jc_resume_review_write` 写回） |
 | 模型不可用时的兜底改写 | `backend/server/src/jc/services/resume_draft_builder.py` |
 | 改动归因（手段标注） | `backend/server/src/jc/services/elevation_techniques.py` |
 | 严重级别门禁 | `backend/server/src/jc/services/resume_reviewer.py` |
@@ -252,7 +252,7 @@ QPS：从 ___ 提升到 ___            （量级）
   最强成果未置首。
 
 未知或缺失的 severity 一律按 `error` 处理（fail closed），所以**任何新增的确定性检查都必须显式
-标 `warning`**，否则会被升级成最高级别发现。实现见 `ResumeReviewer._has_blocking_issue`。
+标 `warning`**，否则会被升级成最高级别发现。实现见 `jc.services.resume_reviewer.blocking_issues`。
 
 > 历史缺陷备忘：早期实现对"存在任何 issue"即判 `failed`，而新审稿指令会正常产出 warning，结果是用户永远无法导出。
 > 改动 reviewer prompt 的 issue 产出策略时，必须同时确认分层逻辑。
@@ -384,8 +384,8 @@ playbook 只提供**词汇与阅读顺序，绝不提供事实**——它可以�
 `quantification_optional=True` 的族：法务 / HR / 财务 / 设计 / 通用知识工作。这些族下审稿器
 **完全不得**因缺数字报问题，否则等于在教用户去编一个。
 
-族 id 与 `backend/agent/prompts/coach/industry_followups.yaml` **共用同一套**，
-所以简历写作和模拟面试对"岗位"说的是同一种话，而不是两套。
+族 id 由 `jc.domain.role_families` 定义，岗位族片段按 id 存放在 `resume-writer` 技能的 `references/family-*.md`。
+简历写作、导出质检与简历顾问共用这一套；模拟面试不使用岗位族。
 
 ### 8.1 岗位族如何确定（优先级是刻意的）
 
