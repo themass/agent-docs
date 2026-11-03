@@ -35,6 +35,7 @@ PRODUCT_TOOLS = {
     "interview": {
         "jc_bank_search_questions", "jc_question_upsert", "jc_answer_save_attempt",
         "jc_mock_session_history", "jc_interview_save", "jc_mock_report_write",
+        "jc_mock_plan", "jc_mock_ask", "jc_mock_end", "jc_mock_review",
     },
     # jc_fit_score is job analysis shared with the 定向岗位 page, so it is not apply-owned.
     "apply": {"jc_apply_pipeline"},

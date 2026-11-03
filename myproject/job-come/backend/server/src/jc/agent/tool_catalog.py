@@ -368,6 +368,87 @@ OPENAI_TOOLS: list[dict[str, Any]] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "jc_mock_plan",
+            "description": (
+                "Read the map of this mock interview: asked main questions against the limit, "
+                "follow-ups per question, which JD must-have requirements are covered, and a "
+                "suggested next requirement. It only suggests; you decide what to ask."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {"mock_session_id": {"type": "string"}},
+                "required": ["mock_session_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "jc_mock_ask",
+            "description": (
+                "Record a question you are asking in this session. A main question or a "
+                "follow-up to an already-asked main question. Refused, with a reason and nothing "
+                "written, when the main-question limit or the follow-up limit is reached, or when "
+                "the question was already asked."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "mock_session_id": {"type": "string"},
+                    "question_id": {"type": "string"},
+                    "kind": {"type": "string", "enum": ["main", "followup"]},
+                    "parent_question_id": {
+                        "type": "string",
+                        "description": "Required for a follow-up: the main question it follows.",
+                    },
+                    "experience": {
+                        "type": "string",
+                        "description": "The company or project the question is about, if any.",
+                    },
+                },
+                "required": ["mock_session_id", "question_id", "kind"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "jc_mock_end",
+            "description": (
+                "End this mock interview. Refused, with the uncovered requirements, when the "
+                "session has fewer main questions than its limit and a must-have requirement is "
+                "still unasked. Use reason 'user_ended' only when the candidate asked to stop; "
+                "that is recorded as an early end."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "mock_session_id": {"type": "string"},
+                    "reason": {"type": "string", "enum": ["completed", "user_ended"]},
+                },
+                "required": ["mock_session_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "jc_mock_review",
+            "description": (
+                "Hand the ended session to the independent reviewer, which scores every answer "
+                "and writes the report. Only works after jc_mock_end accepted. The reviewer does "
+                "not see your reasoning."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {"mock_session_id": {"type": "string"}},
+                "required": ["mock_session_id"],
+            },
+        },
+    },
 ]
 
 SKILL_TOOLS: dict[str, list[str]] = {
@@ -398,6 +479,10 @@ SKILL_TOOLS: dict[str, list[str]] = {
         "jc_question_upsert",
         "jc_answer_save_attempt",
         "jc_mock_session_history",
+        "jc_mock_plan",
+        "jc_mock_ask",
+        "jc_mock_end",
+        "jc_mock_review",
     ],
     "coach-archive": ["jc_profile_get", "jc_question_upsert", "jc_interview_save"],
     # Reads the finished session and writes the report. No ask, end or upsert tool (R3).

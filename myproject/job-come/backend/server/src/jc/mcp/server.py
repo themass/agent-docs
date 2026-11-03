@@ -31,7 +31,11 @@ from jc.mcp.handlers import (
     answer_save_attempt,
     bank_search_questions,
     interview_save,
+    mock_ask,
+    mock_end,
+    mock_plan,
     mock_report_write,
+    mock_review,
     mock_session_history,
     profile_get,
     profile_patch,
@@ -186,6 +190,112 @@ async def jc_mock_session_history(
             ),
             mock_session_id=mock_session_id,
             limit=limit,
+        )
+        return json.dumps(result, ensure_ascii=False)
+
+
+@mcp.tool()
+async def jc_mock_plan(
+    mock_session_id: str,
+    jc_user_id: str | None = None,
+    jc_profile_id: str | None = None,
+    jc_session_id: str | None = None,
+    jc_job_id: str | None = None,
+    jc_mock_session_id: str | None = None,
+) -> str:
+    async with AsyncSessionLocal() as db:
+        result = await mock_plan(
+            _scope(
+                db,
+                jc_user_id=jc_user_id,
+                jc_profile_id=jc_profile_id,
+                jc_session_id=jc_session_id,
+                jc_job_id=jc_job_id,
+                jc_mock_session_id=jc_mock_session_id,
+            ),
+            mock_session_id=mock_session_id,
+        )
+        return json.dumps(result, ensure_ascii=False)
+
+
+@mcp.tool()
+async def jc_mock_ask(
+    mock_session_id: str,
+    question_id: str,
+    kind: str = "main",
+    parent_question_id: str | None = None,
+    experience: str | None = None,
+    jc_user_id: str | None = None,
+    jc_profile_id: str | None = None,
+    jc_session_id: str | None = None,
+    jc_job_id: str | None = None,
+    jc_mock_session_id: str | None = None,
+) -> str:
+    async with AsyncSessionLocal() as db:
+        result = await mock_ask(
+            _scope(
+                db,
+                jc_user_id=jc_user_id,
+                jc_profile_id=jc_profile_id,
+                jc_session_id=jc_session_id,
+                jc_job_id=jc_job_id,
+                jc_mock_session_id=jc_mock_session_id,
+            ),
+            mock_session_id=mock_session_id,
+            question_id=question_id,
+            kind=kind,
+            parent_question_id=parent_question_id,
+            experience=experience,
+        )
+        return json.dumps(result, ensure_ascii=False)
+
+
+@mcp.tool()
+async def jc_mock_end(
+    mock_session_id: str,
+    reason: str = "completed",
+    jc_user_id: str | None = None,
+    jc_profile_id: str | None = None,
+    jc_session_id: str | None = None,
+    jc_job_id: str | None = None,
+    jc_mock_session_id: str | None = None,
+) -> str:
+    async with AsyncSessionLocal() as db:
+        result = await mock_end(
+            _scope(
+                db,
+                jc_user_id=jc_user_id,
+                jc_profile_id=jc_profile_id,
+                jc_session_id=jc_session_id,
+                jc_job_id=jc_job_id,
+                jc_mock_session_id=jc_mock_session_id,
+            ),
+            mock_session_id=mock_session_id,
+            reason=reason,
+        )
+        return json.dumps(result, ensure_ascii=False)
+
+
+@mcp.tool()
+async def jc_mock_review(
+    mock_session_id: str,
+    jc_user_id: str | None = None,
+    jc_profile_id: str | None = None,
+    jc_session_id: str | None = None,
+    jc_job_id: str | None = None,
+    jc_mock_session_id: str | None = None,
+) -> str:
+    async with AsyncSessionLocal() as db:
+        result = await mock_review(
+            _scope(
+                db,
+                jc_user_id=jc_user_id,
+                jc_profile_id=jc_profile_id,
+                jc_session_id=jc_session_id,
+                jc_job_id=jc_job_id,
+                jc_mock_session_id=jc_mock_session_id,
+            ),
+            mock_session_id=mock_session_id,
         )
         return json.dumps(result, ensure_ascii=False)
 

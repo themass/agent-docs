@@ -138,6 +138,47 @@ async def mock_report_write(
     return await write_report(scope, mock_session_id=mock_session_id, raw=report)
 
 
+async def mock_plan(scope: RunScope, *, mock_session_id: str) -> dict[str, Any]:
+    from jc.services.mock_guard_service import plan
+
+    return await plan(scope, mock_session_id=mock_session_id)
+
+
+async def mock_ask(
+    scope: RunScope,
+    *,
+    mock_session_id: str,
+    question_id: str,
+    kind: str = "main",
+    parent_question_id: str | None = None,
+    experience: str | None = None,
+) -> dict[str, Any]:
+    from jc.services.mock_guard_service import ask
+
+    return await ask(
+        scope,
+        mock_session_id=mock_session_id,
+        question_id=question_id,
+        kind=kind,
+        parent_question_id=parent_question_id,
+        experience=experience,
+    )
+
+
+async def mock_end(
+    scope: RunScope, *, mock_session_id: str, reason: str = "completed"
+) -> dict[str, Any]:
+    from jc.services.mock_guard_service import end
+
+    return await end(scope, mock_session_id=mock_session_id, reason=reason)
+
+
+async def mock_review(scope: RunScope, *, mock_session_id: str) -> dict[str, Any]:
+    from jc.services.interview_reviewer import run_review
+
+    return await run_review(scope, mock_session_id=mock_session_id)
+
+
 async def interview_save(scope: RunScope, record: dict[str, Any]) -> dict[str, Any]:
     await require_owned_profile(scope)
     if not scope.profile_id:
@@ -561,6 +602,10 @@ TOOL_HANDLERS = {
     "jc_question_upsert": question_upsert,
     "jc_mock_session_history": mock_session_history,
     "jc_mock_report_write": mock_report_write,
+    "jc_mock_plan": mock_plan,
+    "jc_mock_ask": mock_ask,
+    "jc_mock_end": mock_end,
+    "jc_mock_review": mock_review,
     "jc_resume_review": resume_review,
     "jc_intake_plan": intake_plan,
     "jc_intake_record": intake_record,
@@ -658,6 +703,25 @@ async def dispatch_tool(
             mock_session_id=arguments.get("mock_session_id"),
             limit=int(arguments.get("limit", 20)),
         )
+    if name == "jc_mock_plan":
+        return await handler(scope, mock_session_id=str(arguments["mock_session_id"]))
+    if name == "jc_mock_ask":
+        return await handler(
+            scope,
+            mock_session_id=str(arguments["mock_session_id"]),
+            question_id=str(arguments["question_id"]),
+            kind=str(arguments.get("kind", "main")),
+            parent_question_id=arguments.get("parent_question_id"),
+            experience=arguments.get("experience"),
+        )
+    if name == "jc_mock_end":
+        return await handler(
+            scope,
+            mock_session_id=str(arguments["mock_session_id"]),
+            reason=str(arguments.get("reason", "completed")),
+        )
+    if name == "jc_mock_review":
+        return await handler(scope, mock_session_id=str(arguments["mock_session_id"]))
     if name == "jc_mock_report_write":
         return await handler(
             scope,

@@ -1,0 +1,197 @@
+"""The interviewer's guards: plan (read), ask, and end.
+
+Rules live here, not in the prompt. A refused call returns `accepted: False` with a reason and
+writes nothing, so the interviewer can read the gap and keep going. The limits follow the session:
+a counted full run allows 20 main questions and 2 follow-ups per main question; a warm-up allows 5
+and 1 (SPEC-MOCK-INTERVIEW §2). Review is `interview_reviewer.run_review`, which requires the
+session to have ended.
+"""
+
+from __future__ import annotations
+
+import copy
+from datetime import UTC, datetime
+from typing import Any
+
+from jc.authz.ownership import require_owned_profile
+from jc.authz.scope import RunScope
+from jc.coach.coverage import coverage_of
+from jc.models.enums import MockSessionStatus
+from jc.models.interview import MockSession
+from jc.models.job import Job
+from jc.stores.interview_store import InterviewStore
+
+FULL_MAIN, FULL_FOLLOWUPS = 20, 2
+WARMUP_MAIN, WARMUP_FOLLOWUPS = 5, 1
+END_REASONS = ("completed", "user_ended")
+
+
+def limits(session: MockSession) -> tuple[int, int]:
+    """(main questions, follow-ups per main question) allowed for this session."""
+    if session.quota_counted:
+        return FULL_MAIN, FULL_FOLLOWUPS
+    return WARMUP_MAIN, WARMUP_FOLLOWUPS
+
+
+def _state(session: MockSession) -> dict[str, Any]:
+    # A deep copy: appending to a shared nested list would change the loaded value too, and
+    # SQLAlchemy would see no change to write.
+    state = copy.deepcopy(session.coverage or {})
+    state.setdefault("asked", [])
+    state.setdefault("ended_reason", None)
+    state.setdefault("ended_early", False)
+    return state
+
+
+async def _owned_session(scope: RunScope, mock_session_id: str) -> MockSession:
+    await require_owned_profile(scope)
+    session = await InterviewStore(scope.db).get_mock_session(mock_session_id)
+    if session is None or session.profile_id != scope.profile_id:
+        raise PermissionError("Mock session outside this profile")
+    return session
+
+
+async def _must_have(scope: RunScope, session: MockSession) -> list[str]:
+    if not session.job_id:
+        return []
+    job = await scope.db.get(Job, session.job_id)
+    if job is None:
+        return []
+    return [str(item) for item in (job.requirements or {}).get("must_have_skills") or []]
+
+
+async def _asked_stems(store: InterviewStore, asked: list[dict[str, Any]]) -> list[str]:
+    stems = []
+    for entry in asked:
+        question = await store.get_question(entry["question_id"])
+        if question is not None:
+            stems.append(question.stem)
+    return stems
+
+
+def _refuse(reason: str, **extra: Any) -> dict[str, Any]:
+    return {"accepted": False, "reason": reason, **extra}
+
+
+async def plan(scope: RunScope, *, mock_session_id: str) -> dict[str, Any]:
+    """A map of the session. It suggests; it does not force the next question."""
+    session = await _owned_session(scope, mock_session_id)
+    store = InterviewStore(scope.db)
+    state = _state(session)
+    asked = state["asked"]
+    main_limit, _ = limits(session)
+    mains = [a for a in asked if a["kind"] == "main"]
+    must = await _must_have(scope, session)
+    coverage = coverage_of(must, await _asked_stems(store, asked))
+    followups: dict[str, int] = {}
+    for entry in asked:
+        if entry["kind"] == "followup":
+            parent = entry.get("parent_question_id") or ""
+            followups[parent] = followups.get(parent, 0) + 1
+    return {
+        "style": session.style,
+        "status": session.status,
+        "asked_main": len(mains),
+        "main_limit": main_limit,
+        "remaining_main": max(0, main_limit - len(mains)),
+        "followups_by_parent": followups,
+        "must_have": must,
+        "covered": coverage.covered,
+        "uncovered": coverage.missing,
+        "suggested_next": coverage.missing[0] if coverage.missing else None,
+    }
+
+
+async def ask(
+    scope: RunScope,
+    *,
+    mock_session_id: str,
+    question_id: str,
+    kind: str = "main",
+    parent_question_id: str | None = None,
+    experience: str | None = None,
+) -> dict[str, Any]:
+    if kind not in ("main", "followup"):
+        raise ValueError("kind must be 'main' or 'followup'")
+    session = await _owned_session(scope, mock_session_id)
+    if session.status != MockSessionStatus.ACTIVE:
+        return _refuse("这场模拟面试已经结束。", code="session_closed")
+    store = InterviewStore(scope.db)
+    question = await store.get_question(question_id)
+    if question is None or question.profile_id != scope.profile_id:
+        raise ValueError("question is not in this profile")
+
+    state = _state(session)
+    asked = state["asked"]
+    if any(entry["question_id"] == question_id for entry in asked):
+        return _refuse("这道题已经问过。", code="already_asked")
+
+    main_limit, followup_limit = limits(session)
+    mains = [a for a in asked if a["kind"] == "main"]
+    if kind == "main":
+        if len(mains) >= main_limit:
+            return _refuse(f"主问题已达 {main_limit} 个，请结束场次。", code="main_limit")
+        parent = None
+    else:
+        parent = parent_question_id
+        if not any(a["question_id"] == parent and a["kind"] == "main" for a in asked):
+            return _refuse("追问必须针对本场已问过的主问题。", code="parent_not_asked")
+        used = sum(
+            1 for a in asked
+            if a["kind"] == "followup" and a.get("parent_question_id") == parent
+        )
+        if used >= followup_limit:
+            return _refuse(f"这道题的追问已达 {followup_limit} 次，请换下一个主问题。",
+                           code="followup_limit")
+
+    asked.append({
+        "question_id": question_id,
+        "kind": kind,
+        "parent_question_id": parent,
+        "experience": experience,
+    })
+    session.coverage = state
+    qids = list(session.question_ids or [])
+    if question_id not in qids:
+        qids.append(question_id)
+        session.question_ids = qids
+    await scope.db.commit()
+    remaining = main_limit - len(mains) - (1 if kind == "main" else 0)
+    return {"accepted": True, "asked_main": len(mains) + (1 if kind == "main" else 0),
+            "remaining_main": max(0, remaining)}
+
+
+async def end(
+    scope: RunScope, *, mock_session_id: str, reason: str = "completed"
+) -> dict[str, Any]:
+    if reason not in END_REASONS:
+        raise ValueError(f"reason must be one of {END_REASONS}")
+    session = await _owned_session(scope, mock_session_id)
+    if session.status != MockSessionStatus.ACTIVE:
+        return _refuse("这场模拟面试已经结束。", code="session_closed")
+
+    state = _state(session)
+    asked = state["asked"]
+    main_limit, _ = limits(session)
+    mains = [a for a in asked if a["kind"] == "main"]
+    must = await _must_have(scope, session)
+    coverage = coverage_of(must, await _asked_stems(InterviewStore(scope.db), asked))
+
+    if reason == "completed" and len(mains) < main_limit and coverage.missing:
+        return _refuse(
+            "题数不足且还有必备项没有问到，请继续提问。",
+            code="uncovered",
+            asked_main=len(mains),
+            main_limit=main_limit,
+            uncovered=coverage.missing,
+        )
+
+    now = datetime.now(UTC)
+    session.status = MockSessionStatus.COMPLETED
+    session.completed_at = now
+    state["ended_reason"] = reason
+    state["ended_early"] = reason == "user_ended"
+    session.coverage = state
+    await scope.db.commit()
+    return {"accepted": True, "status": MockSessionStatus.COMPLETED.value,
+            "asked_main": len(mains), "ended_early": state["ended_early"]}
