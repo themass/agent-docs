@@ -47,14 +47,18 @@ class ResumeRenderEngine:
             autoescape=select_autoescape(["html", "xml"]),
         )
 
-    def render_html(self, sections: dict[str, Any], *, template_id: str = "zh-one-page") -> str:
+    def render_html(
+        self, sections: dict[str, Any], *, template_id: str = "zh-one-page", watermark: bool = False
+    ) -> str:
         template = self._env.get_template(f"{template_id}.html")
         if template_id == "zh-en-bilingual":
-            return template.render(
+            html = template.render(
                 zh=sections.get("zh_sections") or {},
                 en=sections.get("en_sections") or {},
             )
-        return template.render(**sections)
+        else:
+            html = template.render(**sections)
+        return _with_watermark(html) if watermark else html
 
     def render_pdf(self, html: str) -> bytes:
         try:
@@ -72,17 +76,21 @@ class ResumeRenderEngine:
             finally:
                 browser.close()
 
-    def render_docx(self, sections: dict[str, Any]) -> bytes:
+    def render_docx(self, sections: dict[str, Any], *, watermark: bool = False) -> bytes:
         if sections.get("track") == "bilingual":
             buffer = io.BytesIO()
             doc = self._new_docx()
             self._append_docx_locale(doc, sections.get("zh_sections") or {}, english=False)
             doc.add_page_break()
             self._append_docx_locale(doc, sections.get("en_sections") or {}, english=True)
+            if watermark:
+                _stamp_docx(doc)
             doc.save(buffer)
             return buffer.getvalue()
         doc = self._new_docx()
         self._append_docx_locale(doc, sections, english=sections.get("locale", "").startswith("en"))
+        if watermark:
+            _stamp_docx(doc)
         buffer = io.BytesIO()
         doc.save(buffer)
         return buffer.getvalue()
@@ -216,3 +224,38 @@ def _append_docx_photo(doc: Document, header: dict[str, Any]) -> None:
         paragraph.add_run().add_picture(io.BytesIO(raw), width=Mm(25))
     except Exception:  # noqa: BLE001
         logger.warning("docx headshot embed failed", exc_info=True)
+
+
+# Free-tier exports carry a small, quiet attribution. Kept sparse on purpose: a few lines, not a
+# wall of text, so the document stays usable.
+WATERMARK_TEXT = "由 jc.sspacee.com 提供"
+
+_WATERMARK_CSS = (
+    ".jc-watermark{position:fixed;inset:0;pointer-events:none;z-index:9999;}"
+    ".jc-watermark span{position:absolute;left:50%;transform:translate(-50%,-50%) rotate(-30deg);"
+    "color:rgba(90,90,110,0.13);font-size:15px;letter-spacing:.08em;white-space:nowrap;}"
+    ".jc-watermark span:nth-child(1){top:28%;}"
+    ".jc-watermark span:nth-child(2){top:62%;left:38%;}"
+    ".jc-watermark span:nth-child(3){top:84%;left:62%;}"
+)
+
+
+def _with_watermark(html: str) -> str:
+    """Insert the watermark layer. `position: fixed` repeats on every printed page in Chromium."""
+    layer = (
+        f"<style>{_WATERMARK_CSS}</style>"
+        '<div class="jc-watermark" aria-hidden="true">'
+        + "".join(f"<span>{WATERMARK_TEXT}</span>" for _ in range(3))
+        + "</div>"
+    )
+    index = html.lower().rfind("</body>")
+    return html + layer if index < 0 else html[:index] + layer + html[index:]
+
+
+def _stamp_docx(doc: Any) -> None:
+    """Word has no fixed layer, so a small grey line in the page header carries the attribution."""
+    header = doc.sections[0].header
+    paragraph = header.paragraphs[0] if header.paragraphs else header.add_paragraph()
+    run = paragraph.add_run(WATERMARK_TEXT)
+    run.font.size = Pt(8)
+    run.font.color.rgb = RGBColor(0x8A, 0x8A, 0x9A)

@@ -45,7 +45,7 @@ from jc.services.delivery_report import (
 )
 from jc.services.framing_presets import resolve_emphases
 from jc.services.localize_service import LocalizeService
-from jc.services.membership_service import MembershipService
+from jc.services.membership_service import TIER_FREE, MembershipService
 from jc.services.preview_progress import report
 from jc.services.profile_i18n import (
     detect_profile_source_locale,
@@ -404,6 +404,9 @@ class ResumeService:
             status=ExportJobStatus.PROCESSING,
         )
         await self._resumes.create_export_job(job)
+        # Read the tier before the commit below: after it the connection is released for rendering.
+        # Free-tier downloads carry the attribution line; members get a clean file.
+        watermark = (await membership.snapshot(actor.user_id)).tier == TIER_FREE
         # Make PROCESSING durable and release the connection before slow external I/O.
         # A worker interruption must not erase the fact that the export was attempted.
         await self._db.commit()
@@ -414,14 +417,19 @@ class ResumeService:
                 self._with_live_photo, sections, export_profile.payload, locale=draft_locale
             )
             if body.format == ExportFormat.DOCX:
-                content = await asyncio.to_thread(self._renderer.render_docx, render_sections)
+                content = await asyncio.to_thread(
+                    self._renderer.render_docx, render_sections, watermark=watermark
+                )
                 ext = "docx"
                 content_type = (
                     "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 )
             else:
                 html = await asyncio.to_thread(
-                    self._renderer.render_html, render_sections, template_id=draft_template
+                    self._renderer.render_html,
+                    render_sections,
+                    template_id=draft_template,
+                    watermark=watermark,
                 )
                 if body.format == ExportFormat.PDF:
                     content = await asyncio.to_thread(self._renderer.render_pdf, html)

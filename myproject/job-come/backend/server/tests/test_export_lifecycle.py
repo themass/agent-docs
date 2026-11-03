@@ -100,10 +100,10 @@ async def run_export(env, monkeypatch, fmt="docx", fault=None, verdict="failed")
         svc._review_draft = AsyncMock(side_effect=AssertionError("No paid calls during exports"))
         original_docx = svc._renderer.render_docx
 
-        def render_docx(sections):
+        def render_docx(sections, **kwargs):
             assert threading.get_ident() != loop_thread
             assert not db.in_transaction(), "DB connection held during rendering"
-            return original_docx(sections)
+            return original_docx(sections, **kwargs)
         svc._renderer.render_docx = render_docx
 
         def put(key, content, **kwargs):
@@ -114,7 +114,7 @@ async def run_export(env, monkeypatch, fmt="docx", fault=None, verdict="failed")
             uploaded.append((key, content))
         svc._storage = SimpleNamespace(put_object=put)
         if fault == "render":
-            def bad_render(_):
+            def bad_render(_, **kwargs):
                 raise ValueError("bad render")
             svc._renderer.render_docx = bad_render
         if fault == "persist":
