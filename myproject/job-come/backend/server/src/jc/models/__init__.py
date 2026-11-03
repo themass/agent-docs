@@ -23,6 +23,7 @@ from jc.models.interview import (
 )
 from jc.models.job import Campaign, Job
 from jc.models.llm_call import LlmCall, LlmCallAttempt
+from jc.models.mock_quota import MockFullRunQuota  # noqa: F401 — registers the table
 from jc.models.membership import (
     AdminAuditLog,
     AppSetting,

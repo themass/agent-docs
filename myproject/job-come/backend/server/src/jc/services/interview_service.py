@@ -30,6 +30,7 @@ from jc.schemas.coach import (
     QuestionUpsertRequest,
 )
 from jc.services.answer_attempt_service import save_answer_attempt
+from jc.services.mock_quota_service import MockQuotaService
 from jc.services.profile_service import ProfileService
 from jc.services.question_bank_service import question_upsert
 from jc.stores.interview_store import InterviewStore
@@ -187,13 +188,20 @@ class InterviewService:
         draws: list[str] = []
         if body.mode == "target" and not body.job_id:
             raise ConflictError("目标岗模拟需要先选择岗位；无 JD 可使用练手模式")
+        session_id = new_id("mock")
+        counted = body.kind == "full"
+        if counted:
+            # Claimed before the session row exists, so a refused claim leaves nothing behind.
+            await MockQuotaService(self._db).claim_full_run(actor.user_id, session_id, now=now)
         bank = await self._store.search_questions(body.profile_id, job_id=body.job_id, limit=30)
         draws = select_bank_draws([(q.id, q.attempt_count) for q in bank], n=1)
         session = MockSession(
-            id=new_id("mock"),
+            id=session_id,
             profile_id=body.profile_id,
             user_id=actor.user_id,
             mode=body.mode,
+            style=body.kind,
+            quota_counted=counted,
             job_id=body.job_id,
             resume_variant_id=None,
             round=body.round,

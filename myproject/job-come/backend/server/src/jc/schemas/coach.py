@@ -91,6 +91,9 @@ class MockSessionCreateRequest(BaseModel):
     mode: Literal["warmup", "target"] = "target"
     round: str | None = None
     job_id: str | None = None
+    #: "warmup" (5 questions, unlimited) or "full" (20 questions, metered for free accounts).
+    #: Separate from `mode`, which is about the target job, not the length of the session.
+    kind: Literal["warmup", "full"] = "warmup"
 
 
 class MockSessionQuestion(BaseModel):

@@ -5,12 +5,12 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Date, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Date, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from jc.db.base import Base
 from jc.db.mixins import TimestampMixin
-from jc.db.types import JSONText, UTCDateTime
+from jc.db.types import JSONLongText, JSONText, UTCDateTime
 from jc.models.enums import ApplicationStatus, MockSessionStatus, QuestionSource
 
 if TYPE_CHECKING:
@@ -111,6 +111,12 @@ class MockSession(Base, TimestampMixin):
     started_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
     completed_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
     deerflow_thread_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    #: "warmup" or "full" (see SPEC-MOCK-INTERVIEW §2); a full run is the metered kind.
+    style: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    report: Mapped[dict[str, Any] | None] = mapped_column(JSONLongText, nullable=True)
+    coverage: Mapped[dict[str, Any] | None] = mapped_column(JSONText, nullable=True)
+    #: True while this session holds the user's monthly full-run slot.
+    quota_counted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     profile: Mapped[Profile] = relationship(back_populates="mock_sessions")
 
