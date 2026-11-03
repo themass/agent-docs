@@ -34,34 +34,5 @@
         ]
       }
     }
-  },
-  "skills": {
-    "resume-coach": {
-      "enabled": true
-    },
-    "profile-interview": {
-      "enabled": true
-    },
-    "resume-writer": {
-      "enabled": true
-    },
-    "resume-reviewer": {
-      "enabled": true
-    },
-    "coach-mock": {
-      "enabled": true
-    },
-    "coach-archive": {
-      "enabled": true
-    },
-    "interview-reviewer": {
-      "enabled": true
-    },
-    "jd-parser": {
-      "enabled": true
-    },
-    "apply-pipeline": {
-      "enabled": true
-    }
   }
 }

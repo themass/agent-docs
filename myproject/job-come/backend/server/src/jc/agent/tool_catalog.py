@@ -431,22 +431,6 @@ OPENAI_TOOLS: list[dict[str, Any]] = [
             },
         },
     },
-    {
-        "type": "function",
-        "function": {
-            "name": "jc_mock_review",
-            "description": (
-                "Hand the ended session to the independent reviewer, which scores every answer "
-                "and writes the report. Only works after jc_mock_end accepted. The reviewer does "
-                "not see your reasoning."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {"mock_session_id": {"type": "string"}},
-                "required": ["mock_session_id"],
-            },
-        },
-    },
 ]
 
 

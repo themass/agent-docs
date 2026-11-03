@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock
 import pytest
 from agentkit.web.auth import UserActor
 
+from jc.agent import single as single_mod
 from jc.models.profile import Profile
 from jc.models.resume import ResumeDraft
 from jc.schemas.profile_payload import ProfilePayload
@@ -41,8 +42,9 @@ async def test_click_persists_exact_text_and_generated_preview_and_draft_keep_it
     assert response.status_code == 200, response.text
     model_sections = {"header": {"name": "测试"}, "experience_blocks": [
         {"id": "exp_tencent", "company": "腾讯", "title": "技术负责人", "bullets": ["模型把它改掉了"]}]}
-    router = SimpleNamespace(acompletion=AsyncMock(return_value=model_sections))
-    monkeypatch.setattr(mod, "get_llm_router", lambda: router)
+    router = SimpleNamespace(acompletion=AsyncMock(return_value=model_sections),
+                                 chain_for=lambda _: [object()] * 3)
+    monkeypatch.setattr(single_mod, "get_llm_router", lambda: router)
     monkeypatch.setattr(mod.settings, "jc_llm_enabled", True)
     # This fixture is a minimal draft, so the repair pass would legitimately fire on it.
     # Off here: the subject is that a confirmed sentence survives generation verbatim,
@@ -90,8 +92,9 @@ async def test_the_scope_line_is_restored_only_from_what_the_user_stated(
     model_sections = {"header": {"name": "测试"}, "experience_blocks": [
         {"id": "exp_tencent", "company": "腾讯", "title": "技术负责人",
          "scope_line": written, "bullets": ["原来的内容", "保留的另一条"]}]}
-    monkeypatch.setattr(mod, "get_llm_router", lambda: SimpleNamespace(
-        acompletion=AsyncMock(return_value=model_sections)))
+    monkeypatch.setattr(single_mod, "get_llm_router", lambda: SimpleNamespace(
+        acompletion=AsyncMock(return_value=model_sections),
+        chain_for=lambda _: [object()] * 3))
     monkeypatch.setattr(mod.settings, "jc_llm_enabled", True)
     monkeypatch.setattr(mod.settings, "jc_preview_repair_enabled", False)
     payload = ProfilePayload.model_validate(source)
@@ -114,7 +117,8 @@ async def test_writer_chain_timeout_has_visible_source_layout_fallback(monkeypat
             await asyncio.sleep(10)
         finally:
             stopped.set()
-    monkeypatch.setattr(mod, "get_llm_router", lambda: SimpleNamespace(acompletion=hang))
+    monkeypatch.setattr(single_mod, "get_llm_router", lambda: SimpleNamespace(
+        acompletion=hang, chain_for=lambda _: [object()] * 3))
     monkeypatch.setattr(mod.settings, "jc_llm_enabled", True)
     monkeypatch.setattr(mod.settings, "jc_preview_writer_timeout_seconds", 0.01)
     p = ProfilePayload.model_validate(BASE)
@@ -235,25 +239,23 @@ async def test_a_writer_failure_is_never_served_from_cache(env, monkeypatch):
 
 
 def test_every_declared_prompt_fragment_actually_exists():
-    """A skill's `always_loaded` in roles.yaml names files; a typo there silently thins the prompt.
+    """A skill's `always-loaded` names files; a typo there silently thins the prompt.
 
-    The composer skips a missing fragment on purpose — reference sets differ by role
-    and an absent topic is not an error. The cost is that a renamed or misspelled
-    entry removes a whole methodology layer with no failure anywhere: the model just
-    writes worse. This is the only check that can catch it.
+    The composer skips a missing fragment on purpose: reference sets differ by role, and an absent
+    topic is not an error. The cost is that a renamed entry removes a whole methodology layer with
+    no failure anywhere. This is the only check that can catch it.
     """
-    from jc.agent.roles import skills
     from jc.domain.role_families import get_playbook
     from jc.skills.composer import _QUALITATIVE_FRAGMENT
-    from jc.skills.loader import require_skill
+    from jc.skills.loader import all_skill_ids, require_skill
 
-    for skill_id, declared in skills().items():
+    for skill_id in all_skill_ids():
         skill = require_skill(skill_id)
-        for topic in declared.always_loaded:
+        for topic in skill.always_loaded:
             assert skill.reference(topic), f"{skill_id} declares missing fragment '{topic}'"
 
-    # The writer is the borrow target for every other skill's family layer, so its
-    # fragments must cover every family the product can route to.
+    # The writer is the borrow target for every other skill's family layer, so its fragments must
+    # cover every family the product can route to.
     writer = require_skill("resume-writer")
     for family in ("backend", "frontend", "data", "pm", "sales", "legal", "hr"):
         playbook = get_playbook(family)

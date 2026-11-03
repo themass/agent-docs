@@ -362,11 +362,11 @@ export function InventoryPanel({ inventory }: { inventory: AdminInventory }) {
                 key={s.id}
                 defaultOpen={false}
                 title={s.id}
-                meta={s.enabled ? `${s.tools.length} tools` : "off"}
+                meta={`${s.tools.length} tools`}
               >
                 {s.description ? <p className="text-xs text-ink-600">{s.description}</p> : null}
                 <p className="mt-1 text-xs text-ink-500">tools: {s.tools.join(", ") || "—"}</p>
-                <p className="text-xs text-ink-500">hints: {s.scope_for_hints.join(", ") || "—"}</p>
+                <p className="text-xs text-ink-500">role: {s.role}</p>
                 {s.body_preview ? (
                   <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded-md bg-ink-50 p-2 text-micro">
                     {s.body_preview}

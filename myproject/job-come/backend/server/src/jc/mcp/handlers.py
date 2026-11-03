@@ -173,25 +173,6 @@ async def mock_end(
     return await end(scope, mock_session_id=mock_session_id, reason=reason)
 
 
-async def mock_review(scope: RunScope, *, mock_session_id: str) -> dict[str, Any]:
-    from jc.services.interview_reviewer import review_session
-    from jc.stores.interview_store import InterviewStore
-
-    await require_owned_profile(scope)
-    session = await InterviewStore(scope.db).get_mock_session(mock_session_id)
-    if session is None or session.profile_id != scope.profile_id:
-        raise PermissionError("Mock session outside this profile")
-    stored = await review_session(
-        scope.db,
-        user_id=scope.user_id or "",
-        profile_id=scope.profile_id or "",
-        mock_session_id=mock_session_id,
-    )
-    if not stored:
-        return {"accepted": False, "reason": "独立评审暂未完成报告，请稍后再试。"}
-    return {"accepted": True, "mock_session_id": mock_session_id}
-
-
 async def interview_save(scope: RunScope, record: dict[str, Any]) -> dict[str, Any]:
     await require_owned_profile(scope)
     if not scope.profile_id:
@@ -618,7 +599,6 @@ TOOL_HANDLERS = {
     "jc_mock_plan": mock_plan,
     "jc_mock_ask": mock_ask,
     "jc_mock_end": mock_end,
-    "jc_mock_review": mock_review,
     "jc_resume_review": resume_review,
     "jc_intake_plan": intake_plan,
     "jc_intake_record": intake_record,
@@ -733,8 +713,6 @@ async def dispatch_tool(
             mock_session_id=str(arguments["mock_session_id"]),
             reason=str(arguments.get("reason", "completed")),
         )
-    if name == "jc_mock_review":
-        return await handler(scope, mock_session_id=str(arguments["mock_session_id"]))
     if name == "jc_mock_report_write":
         return await handler(
             scope,

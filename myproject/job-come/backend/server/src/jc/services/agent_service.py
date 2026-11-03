@@ -18,7 +18,13 @@ from jc.adapters.deerflow_client import get_deerflow_client
 from jc.adapters.deerflow_harness_client import _extract_text
 from jc.agent.context_usage import build_context_usage_event
 from jc.agent.message_content import flatten_message_for_text_agent
-from jc.agent.roles import entry_roles
+from jc.agent.roles import default_role, entry_roles, role
+from jc.agent.turn import (
+    TURN_PROVIDERS,
+    TurnContext,
+    facts_common,
+    resolve_turn_skill,
+)
 from jc.authz import RunScope, require_owned_references
 from jc.config import settings
 from jc.exceptions import AppError, ConflictError, NotFoundError
@@ -285,15 +291,8 @@ class AgentService:
         # The API adapter wraps this stream with `with_heartbeat`, so liveness
         # pings stay at the transport boundary while this service awaits prep work.
         agent_message = await flatten_task
-        from jc.agent.resume_task import (
-            coach_role_family_for,
-            coach_shortfall_for,
-            coach_skill_for,
-            wrap_resume_coach_message,
-        )
-
-        skill = session.skill_hint or "resume-coach"
-        if skill not in entry_roles():
+        hint = session.skill_hint or default_role().id
+        if hint not in entry_roles():
             # A session opened on an agent that has since been retired. Running it would
             # mean a turn with no tool surface, which looks like a working agent that does
             # nothing.
@@ -302,89 +301,28 @@ class AgentService:
                 "Please start a new one.",
                 code="agent_retired",
             )
-        # The skill this turn actually runs as. It differs from the session's hint only
-        # for the interview, and it has to be decided *before* the run metadata is
-        # built: the hint is what bounds the turn's tool surface
-        # (the skill's `tools` in `roles.yaml`), so leaving it at `resume-coach` while
-        # sending interview methodology produced an agent told to interview and holding
-        # no way to record an answer — the intake tools were registered and
-        # unreachable.
-        runtime_skill = skill
-        # Role family for this turn, passed to the harness so the middleware can
-        # render the matching methodology into the *system* layer. `None` for a
-        # non-resume skill or a profile that failed to load, which yields the
-        # neutral playbook -- guessing a family wrong coaches against the wrong
-        # audience, so no-guess is the correct failure mode.
-        role_family: str | None = None
-        if skill == "resume-coach" and session.profile_id:
-            digest = ""
-            interview = False
-            shortfall: tuple[str, ...] = ()
-            try:
-                profile = await self._profiles.get(session.profile_id, actor=actor)
-                from jc.domain.profile_context import turn_profile_context
+        # The turn's role prepares its context and may switch to another of its skills.
+        # The skill decides the tool surface and the methodology, so it is decided before the
+        # run metadata is built.
+        declared = role(hint)
+        turn_ctx = TurnContext(
+            db=self._db,
+            profiles=self._profiles,
+            actor=actor,
+            profile_id=session.profile_id,
+            job_id=session.job_id,
+            ui_context=ui_context,
+            default_skill=declared.default_skill,
+        )
+        provider = TURN_PROVIDERS[declared.turn] if declared.turn else None
+        facts = facts_common(ui_context)
+        if provider is not None:
+            facts |= await provider.gather(turn_ctx)
+        runtime_skill = resolve_turn_skill(declared, facts)
+        if provider is not None:
+            agent_message = provider.message(turn_ctx, facts, runtime_skill, agent_message)
+        role_family = facts.get("role_family")
 
-                digest = f"profile_version={profile.version}\n" + turn_profile_context(
-                    profile.payload,
-                    focus_path=ui_context.focus.path if ui_context and ui_context.focus else None,
-                )
-                logger.info(
-                    "profile_context task=%s profile_id=%s version=%s input_chars=%d",
-                    skill, session.profile_id, profile.version, len(digest),
-                )
-                # Inferred from the profile's own titles rather than a target job:
-                # the coach edits the career the user has, and a JD may not be
-                # selected at all.
-                role_family = coach_role_family_for(profile.payload)
-                # A profile that cannot generate yet needs material, not polish.
-                # The whole session's framing switches with it, which is why this
-                # decides `runtime_skill`: the skill id is what bounds the turn's
-                # tool surface *and* what selects the standing block's framing, so
-                # interview methodology under a 「简历优化任务」 header -- the
-                # contradiction the model used to resolve by inventing resume prose
-                # -- is no longer expressible.
-                runtime_skill = coach_skill_for(profile.payload)
-                interview = runtime_skill != "resume-coach"
-                if interview:
-                    shortfall = coach_shortfall_for(profile.payload)
-            except Exception as exc:  # noqa: BLE001
-                logger.warning("profile_context unavailable profile_id=%s error_type=%s",
-                               session.profile_id, type(exc).__name__)
-                digest = ""
-            agent_message = wrap_resume_coach_message(
-                agent_message,
-                profile_id=session.profile_id,
-                digest=digest,
-                ui_context=ui_context,
-                interview=interview,
-                # Small live index only; detailed facts are read by tool on demand.
-                include_digest=True,
-                shortfall=shortfall,
-            )
-        elif skill == "coach-mock":
-            from jc.agent.coach_task import wrap_coach_mock_message
-            from jc.stores.interview_store import InterviewStore
-
-            mock_id = None
-            drawn_stems: list[str] = []
-            if session.profile_id:
-                store = InterviewStore(self._db)
-                mock = (await store.get_mock_session(ui_context.mock_session_id)
-                        if ui_context and ui_context.mock_session_id else None)
-                if mock is not None:
-                    mock_id = mock.id
-                    draw_n = int(mock.bank_draw_count or 0)
-                    for qid in list(mock.question_ids or [])[:draw_n]:
-                        q = await store.get_question(qid)
-                        if q is not None:
-                            drawn_stems.append(q.stem)
-            agent_message = wrap_coach_mock_message(
-                agent_message,
-                profile_id=session.profile_id,
-                job_id=session.job_id,
-                mock_session_id=mock_id,
-                drawn_stems=drawn_stems,
-            )
         # The reply-language rule is no longer prepended here. It is the first
         # section of the standing block `JCProductRulesMiddleware` injects as
         # system content, so prepending it too made the model receive the same

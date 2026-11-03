@@ -11,6 +11,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from jc.agent import single as single_mod
 from jc.schemas.profile_payload import ProfilePayload
 from jc.services.resume_elevator import ResumeElevator
 from jc.services.resume_repair import (
@@ -120,7 +121,7 @@ async def test_a_repair_that_restores_a_dropped_fact_reaches_the_document(monkey
               "experience_blocks": [{"id": "e1", "bullets": [
                   "负责审核系统，服务 8 大基地、5000+ 审核人员", WEAK]}]}
     router, calls = router_for([first, repair])
-    monkeypatch.setattr(mod, "get_llm_router", lambda: router)
+    monkeypatch.setattr(single_mod, "get_llm_router", lambda: router)
     monkeypatch.setattr(mod.settings, "jc_llm_enabled", True)
 
     sections, _ = await ResumeElevator().build_sections(p, elevation_level="standard")
@@ -221,7 +222,7 @@ async def test_a_broken_repair_never_breaks_the_preview(monkeypatch):
             return copy.deepcopy(first)
         raise RuntimeError("gateway down")
 
-    monkeypatch.setattr(mod, "get_llm_router", lambda: SimpleNamespace(
+    monkeypatch.setattr(single_mod, "get_llm_router", lambda: SimpleNamespace(
         acompletion=flaky, chain_for=lambda _: [object()] * 3))
     monkeypatch.setattr(mod.settings, "jc_llm_enabled", True)
     sections, _ = await ResumeElevator().build_sections(profile(), elevation_level="standard")
@@ -230,7 +231,7 @@ async def test_a_broken_repair_never_breaks_the_preview(monkeypatch):
     assert sections["generation"]["repair"]["reason"].startswith("error:")
 
     router, off_calls = router_for([first])
-    monkeypatch.setattr(mod, "get_llm_router", lambda: router)
+    monkeypatch.setattr(single_mod, "get_llm_router", lambda: router)
     monkeypatch.setattr(mod.settings, "jc_preview_repair_enabled", False)
     off, _ = await ResumeElevator().build_sections(profile(), elevation_level="standard")
     assert off_calls == ["resume_elevator"]

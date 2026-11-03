@@ -4,24 +4,21 @@ from __future__ import annotations
 
 from typing import Any
 
+from jc.agent.single import run_single
 from jc.config import settings
 from jc.llm.call_context import llm_context
 from jc.llm.router import get_llm_router
-from jc.paths import prompt_file
 from jc.schemas.profile_payload import ProfilePayload
 from jc.services.profile_ingest_contract import (
     ProfileStructureError,
-    parse_profile_json as parse_profile_json,
     validate_profile_content,
 )
-
-_PROMPT_PATH = prompt_file("ingest", "profile_structurer.md")
+from jc.services.profile_ingest_contract import (
+    parse_profile_json as parse_profile_json,
+)
 
 
 class ProfileStructurer:
-    def __init__(self) -> None:
-        self._system_prompt = _PROMPT_PATH.read_text(encoding="utf-8")
-
     async def structure(self, *, text: str, source_file: str) -> ProfilePayload:
         if not settings.jc_llm_enabled:
             raise RuntimeError("LLM disabled")
@@ -36,11 +33,10 @@ class ProfileStructurer:
             )
 
         try:
-            profile = await router.acompletion(
-                "ingest_fast",
+            profile = await run_single(
+                "profile-structurer",
                 log_context=llm_context("profile_structurer"),
                 messages=[
-                    {"role": "system", "content": self._system_prompt},
                     {
                         "role": "user",
                         "content": (

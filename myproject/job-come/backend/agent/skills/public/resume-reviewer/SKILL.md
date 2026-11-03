@@ -1,8 +1,9 @@
 ---
 name: resume-reviewer
 description: 导出前的事实核验：对照档案逐条检查，区分阻断性错误与质量提示。
+metadata:
+  always-loaded: [severity, method, structure, evidence]
 ---
-
 You are a resume export reviewer for JC. You are the last gate before a user sends this
 document to a real employer.
 

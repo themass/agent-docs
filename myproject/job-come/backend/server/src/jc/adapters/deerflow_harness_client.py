@@ -15,7 +15,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import yaml
 from agentkit.adapters.deerflow.client import (
     AgentRunMetadata,
     DeerFlowClientConfig,
@@ -24,9 +23,10 @@ from agentkit.adapters.deerflow.client import (
 from agentkit.common.ids import new_id
 
 from jc.agent import system_prompt_capture
-from jc.agent.roles import role_of, skill, subagent_specs
+from jc.agent.roles import default_role, role_of
 from jc.config import settings
 from jc.paths import SERVER_ROOT
+from jc.skills.loader import require_skill
 
 logger = logging.getLogger(__name__)
 
@@ -178,45 +178,6 @@ def resolve_mcp_python_in_extensions(
     return dest
 
 
-def resolve_subagent_prompts_in_config(src: Path, *, dest: Path) -> Path:
-    """Write the runtime DeerFlow config: `config.yaml` plus the subagents the roles declare.
-
-    The harness schema wants JC's delegated roles as `subagents.custom_agents`, each with a
-    `system_prompt` string. Those entries are not written in `config.yaml`: they are generated
-    here from `roles.yaml` (`jc.agent.roles.subagent_specs`), because a second hand-written
-    definition of a role is the drift this codebase keeps paying for. `jc-writer` once named a
-    different model than the chain it was meant to use, in this same file, for this reason. A
-    `custom_agents` block in `config.yaml` therefore raises instead of being merged.
-
-    The prompt is composed at boot from the role's skill package. Only the audience-independent
-    layers go in, because a file written at boot has no request and the family layer is chosen
-    from the user's target role; the per-request composition stays in `compose_writing_prompt`.
-    A role whose skill composes to nothing raises: a silent fallback would run it with its own
-    id as its instructions.
-    """
-    from jc.skills.composer import compose_role_baseline
-
-    data = yaml.safe_load(src.read_text(encoding="utf-8")) or {}
-    subagents = data.setdefault("subagents", {})
-    if subagents.get("custom_agents"):
-        raise RuntimeError(
-            "config.yaml must not declare subagents.custom_agents; they come from roles.yaml"
-        )
-    custom = subagent_specs()
-    for name, spec in custom.items():
-        composed = compose_role_baseline(name)
-        if not composed.strip():
-            raise RuntimeError(f"subagent {name!r} has a skill that composed to nothing")
-        spec["system_prompt"] = composed
-    subagents["custom_agents"] = custom
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_text(
-        yaml.safe_dump(data, allow_unicode=True, sort_keys=False),
-        encoding="utf-8",
-    )
-    return dest
-
-
 def _configure_deerflow_paths(config: DeerFlowClientConfig) -> None:
     """Tell DeerFlow where config, extensions, and skills live (required, not optional)."""
     import sys
@@ -231,12 +192,7 @@ def _configure_deerflow_paths(config: DeerFlowClientConfig) -> None:
         runtime_home = root / runtime_home
     os.environ["DEER_FLOW_PROJECT_ROOT"] = str(root)
     os.environ["DEER_FLOW_HOME"] = str(runtime_home.resolve())
-    os.environ["DEER_FLOW_CONFIG_PATH"] = str(
-        resolve_subagent_prompts_in_config(
-            root / settings.jc_deerflow_config_path,
-            dest=root / ".data" / "deerflow" / "config.runtime.yaml",
-        )
-    )
+    os.environ["DEER_FLOW_CONFIG_PATH"] = str(root / settings.jc_deerflow_config_path)
     os.environ["JC_SUMMARIZATION_TRIGGER_TOKENS"] = str(
         settings.resolved_summarization_trigger_tokens
     )
@@ -293,29 +249,25 @@ def _jc_deerflow_client_class() -> type:
         """Embedded client with JC defaults (no blocking human-input tools)."""
 
         def _get_tools(self, *, model_name=None, subagent_enabled=False, mcp_plugins=None):
-            scope = self._available_skills or set()
-            allowed = {name for skill_id in scope for name in skill(skill_id).tools}
-            # No host file, shell, browser or generic network tools in V1. `task` is the one
-            # framework tool a run may hold, and only when its skill declares delegates.
+            # Only the tools the run's skill declares. Framework tools (bash, files, web, the
+            # `task` subagent tool) are never offered: V1 has no host access, and JC roles do not
+            # delegate through the framework (ADR-006 section 4).
+            allowed = {name for skill_id in self._available_skills or set()
+                       for name in require_skill(skill_id).allowed_tools}
             tools = super()._get_tools(
-                model_name=model_name, subagent_enabled=subagent_enabled, mcp_plugins=mcp_plugins
+                model_name=model_name, subagent_enabled=False, mcp_plugins=mcp_plugins
             )
             return [tool for tool in tools if tool.name.removeprefix("jc_") in allowed
-                    or tool.name in allowed or tool.name == "write_todos"
-                    or (subagent_enabled and tool.name == "task")]
+                    or tool.name in allowed or tool.name == "write_todos"]
 
         def _get_runnable_config(self, thread_id: str, **overrides) -> RunnableConfig:
             base = super()._get_runnable_config(thread_id, **overrides)
             configurable = dict(base.get("configurable") or {})
             configurable["non_interactive"] = True
-            # DeerFlow's `task` tool reads `allowed_subagents` from run metadata. Without it the
-            # framework offers its built-in subagents too, which are not JC roles.
-            metadata = {"allowed_subagents": list(overrides.get("allowed_subagents") or [])}
             return RunnableConfig(
                 configurable=configurable,
                 recursion_limit=base.get("recursion_limit", 100),
                 callbacks=list(base.get("callbacks") or []) or None,
-                metadata=metadata,
             )
 
     return JCDeerFlowClient
@@ -420,16 +372,6 @@ def _map_tool_start(tc: dict[str, Any], out: list[dict[str, Any]]) -> None:
     name = tc.get("name") or "tool"
     args = tc.get("args")
     out.append({"type": "tool_start", "name": name, "args": args})
-    if name == "task":
-        out.append(
-            {
-                "type": "subagent_start",
-                "name": (
-                    (args or {}).get("subagent_type") or (args or {}).get("agent") or "subagent"
-                ),
-                "description": (args or {}).get("description") or (args or {}).get("prompt"),
-            }
-        )
 
 
 def _map_raw_event(event: Any, *, seen_tool_ids: set[str] | None = None) -> list[dict[str, Any]]:
@@ -481,8 +423,6 @@ def _map_raw_event(event: Any, *, seen_tool_ids: set[str] | None = None) -> list
                 }
             )
             _maybe_emit_confirm(name, content, out)
-            if name == "task":
-                out.append({"type": "subagent_done", "name": name, "result": content[:500]})
     elif event_type == "end":
         usage = _usage_from_end(data if isinstance(data, dict) else None)
         if usage:
@@ -567,7 +507,9 @@ def _stream_producer(
         if client is None and metadata is not None:
             if cancel_event and cancel_event.is_set():
                 return
-            client = _get_embedded_client(config, metadata.skill_hint or "resume-coach")
+            client = _get_embedded_client(
+                config, metadata.skill_hint or default_role().default_skill
+            )
         seen_tool_ids: set[str] = set()
         stage = "stream"
         # The system prompt is captured by `JCProductRulesMiddleware` from inside
@@ -736,7 +678,7 @@ class DeerFlowHarnessSessionClient(DeerFlowSessionClient):
         if thread_id not in self._thread_state:
             self._thread_state[thread_id] = _ThreadState(metadata=meta)
 
-        skill_id = meta.skill_hint or "resume-coach"
+        skill_id = meta.skill_hint or default_role().default_skill
         yield {"type": "skill", "name": skill_id}
 
         authz_attributes = {
@@ -757,13 +699,10 @@ class DeerFlowHarnessSessionClient(DeerFlowSessionClient):
             }.items()
             if v
         }
-        declared = role_of(skill_id)
-        delegates = sorted(skill(skill_id).delegates)
         stream_kwargs: dict[str, Any] = {
             "user_id": meta.user_id or "default",
-            "subagent_enabled": bool(delegates),
-            "allowed_subagents": delegates,
-            "plan_mode": declared.plan_mode,
+            "subagent_enabled": False,
+            "plan_mode": role_of(skill_id).plan_mode,
             "authz_attributes": authz_attributes,
         }
         if meta.trace_id:

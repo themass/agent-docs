@@ -9,6 +9,7 @@ import re
 from copy import deepcopy
 from typing import Any
 
+from jc.agent.single import chain_length, run_single
 from jc.config import settings
 from jc.domain.profile_context import material_profile
 from jc.domain.role_families import get_playbook, playbook_for_title
@@ -179,19 +180,13 @@ class ResumeElevator:
             # primary is unhealthy. Mirrors `resume_reviewer`, which already
             # derives a per-attempt share this way.
             total_budget = settings.jc_preview_writer_timeout_seconds
-            chain_length = len(router.chain_for("writer")) if hasattr(router, "chain_for") else 3
-            attempt_budget = total_budget / (max(1, chain_length) + 0.5)
+            attempt_budget = total_budget / (max(1, chain_length(_SKILL_ID)) + 0.5)
             async with asyncio.timeout(total_budget):
-                sections = await router.acompletion(
-                    "writer",
+                sections = await run_single(
+                    _SKILL_ID,
+                    system=self._compose_system_prompt(playbook, emphases, blueprint),
                     log_context=llm_context("resume_elevator"),
                     messages=[
-                        {
-                            "role": "system",
-                            "content": self._compose_system_prompt(
-                                playbook, emphases, blueprint
-                            ),
-                        },
                         {
                             "role": "user",
                             "content": json.dumps(user_payload, ensure_ascii=False),
@@ -360,17 +355,12 @@ class ResumeElevator:
                 return data
 
             async with asyncio.timeout(settings.jc_preview_repair_timeout_seconds):
-                repaired = await router.acompletion(
-                    "writer",
+                repaired = await run_single(
+                    _SKILL_ID,
+                    system=self._compose_system_prompt(playbook, emphases, blueprint)
+                    + _REPAIR_CONTRACT,
                     log_context=llm_context("resume_repair"),
                     messages=[
-                        {
-                            "role": "system",
-                            "content": self._compose_system_prompt(
-                                playbook, emphases, blueprint
-                            )
-                            + _REPAIR_CONTRACT,
-                        },
                         {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
                     ],
                     response_format={"type": "json_object"},

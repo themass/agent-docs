@@ -33,37 +33,21 @@ what counts as a fact or relax the prohibition on inventing one. That boundary i
 restated in the shared layers rather than per family, so a family fragment cannot
 be written in a way that quietly overrides it.
 
-Why `backend/agent/prompts/` still exists
------------------------------------------
-Two prompt systems live side by side, and the split is deliberate rather than a
-migration someone abandoned halfway:
+Every prompt is a skill
+-----------------------
+Extraction, OCR, JD parsing, fit scoring and translation used to be flat prompt files read by
+`prompt_file()`. They are skill packages now (ADR-006): each is a single-call role whose contract
+is its body, with no methodology layers beyond it. The writing and review roles add their playbook
+on top. A prompt is therefore always owned by one role, and the roles file says which.
 
-- **`backend/agent/skills/`** — composed here. For tasks that *write resume prose*:
-  the writer, the reviewer, the coach, the interview. These share a methodology and
-  one definition of what counts as a fact, which is exactly what layering buys.
-- **`backend/agent/prompts/`** — flat files loaded by `prompt_file()`. For tasks that
-  *read* rather than write: ingestion, vision OCR, JD parsing, fit scoring,
-  localization. Each is a single-purpose extraction contract with its own output
-  schema. They share no methodology with each other or with the writer, so layering
-  them would build an abstraction over one user apiece.
-
-Both say "do not invent facts", and that is **not** the duplication this module
-exists to prevent. "Do not invent a fact while extracting what a PDF says" and "do
-not invent a fact while rewriting an achievement" are different rules about different
-inputs that happen to read alike in English. Merging them would couple the extraction
-contract to the writing methodology, which is a worse outcome than the shared
-sentence.
-
-The line to hold: a prompt that produces resume prose belongs in `skills/`. If one is
-ever added under `prompts/`, that is the drift to stop.
+The line to hold: a prompt is a skill package owned by a role. A prompt file outside
+`skills/` is the drift to stop.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from jc.agent.roles import role_of
-from jc.agent.roles import skill as declared_skill
 from jc.domain.role_families import RolePlaybook
 from jc.skills.loader import require_skill
 
@@ -104,58 +88,41 @@ def family_reference_name(playbook: RolePlaybook) -> str:
     return f"family-{playbook.id}"
 
 
-def _select_layers(
-    skill_id: str,
-    playbook: RolePlaybook | None,
-    *,
-    include_identity: bool = True,
-    borrow_family_from: str | None = None,
-) -> list[tuple[str, str]]:
-    """Pick the fragments for one composition, as `(layer_name, text)` in prompt order.
+def _select_layers(skill_id: str, playbook: RolePlaybook | None) -> list[tuple[str, str]]:
+    """The fragments one composition of a skill carries, as `(layer_name, text)` in prompt order.
 
-    The three public functions below differ only in what they *render* — a system
-    prompt, a user-message appendix, a static baseline for the generated runtime
-    config. They used to differ in how they *selected* too, each re-walking the skill's
-    `always_loaded` fragments, then family, then qualitative, with slightly different fallbacks.
-    Three copies of a selection order drift the same way sixteen copies of a prompt
-    would, and worse: the drift lives in control flow rather than in markdown, where
-    nobody re-reads it. The selection exists once, here.
-
-    `include_identity=False` drops the skill's own contract text, for the one caller
-    whose runtime already carries it. `borrow_family_from` names a skill to fall back
-    to for the family layer only — never for identity or output contract.
+    The contract (the skill body) is always first, then the fragments the skill declares as
+    `always-loaded`, then the role family's fragments. A family fragment the skill does not have
+    is borrowed from the skill named by its `borrow-family-from`, never from another family.
+    Every caller of this function gets the same layers: there is no per-caller exception.
     """
     skill = require_skill(skill_id)
-    layers: list[tuple[str, str]] = []
-    if include_identity:
-        layers.append((f"{skill_id}:base", skill.body))
-
-    for topic in declared_skill(skill_id).always_loaded:
+    layers: list[tuple[str, str]] = [(f"{skill_id}:base", skill.body)]
+    for topic in skill.always_loaded:
         fragment = skill.reference(topic)
         if fragment:
             layers.append((f"{skill_id}:{topic}", fragment))
-
     if playbook is None:
         return layers
 
+    borrow = skill.borrow_family_from
     topic = family_reference_name(playbook)
-    family_fragment = skill.reference(topic)
-    if family_fragment:
-        layers.append((f"{skill_id}:{topic}", family_fragment))
-    elif borrow_family_from and playbook.id != "general":
-        borrowed = require_skill(borrow_family_from).reference(topic)
+    family = skill.reference(topic)
+    if family:
+        layers.append((f"{skill_id}:{topic}", family))
+    elif borrow and playbook.id != "general":
+        borrowed = require_skill(borrow).reference(topic)
         if borrowed:
-            layers.append((f"{borrow_family_from}:{topic}", borrowed))
+            layers.append((f"{borrow}:{topic}", borrowed))
 
     if playbook.quantification_optional:
         qualitative = skill.reference(_QUALITATIVE_FRAGMENT)
         owner = skill_id
-        if not qualitative and borrow_family_from:
-            qualitative = require_skill(borrow_family_from).reference(_QUALITATIVE_FRAGMENT)
-            owner = borrow_family_from
+        if not qualitative and borrow:
+            qualitative = require_skill(borrow).reference(_QUALITATIVE_FRAGMENT)
+            owner = borrow
         if qualitative:
             layers.append((f"{owner}:{_QUALITATIVE_FRAGMENT}", qualitative))
-
     return layers
 
 
@@ -195,62 +162,25 @@ def compose_writing_prompt(
     return ComposedPrompt(text="\n\n".join(parts), layers=tuple(layers))
 
 
-def compose_role_baseline(skill_id: str) -> str:
-    """The part of a role's prompt that does not depend on which job the user wants.
+def compose_skill_prompt(skill_id: str) -> str:
+    """A skill's system prompt when no per-request composition applies: contract plus always-loaded.
 
-    Exists for one caller: the generated DeerFlow runtime config, which declares JC's
-    roles as subagents and whose schema requires a `system_prompt` string. That string
-    used to be three hand-written English lines per role, sitting in `config.yaml`
-    alongside the skill package that says the same thing properly — a second definition
-    of the role, in a file nobody re-reads, already drifted from the first.
-
-    Static YAML genuinely cannot carry the whole prompt: the family layer is chosen per
-    request from the user's target role, and a file written at boot has no request. So
-    this returns exactly the layers that are the same for everyone — the skill's own
-    contract and its always-loaded methodology — and the per-request composition stays
-    with `compose_writing_prompt`, which is what actually runs today. The result is one
-    source of truth with a documented seam, rather than two sources pretending to agree.
+    A single-call role with no family to choose (fit scoring, extraction, translation) sends exactly
+    this. The writing and review roles add their playbook and document contract on top, through
+    `compose_writing_prompt`.
     """
     return "\n\n".join(text for _, text in _select_layers(skill_id, None))
 
 
-def compose_coach_guidance(*, skill_id: str, playbook: RolePlaybook) -> str:
-    """Methodology for a conversational turn, without the skill's own identity text.
+def compose_turn_methodology(*, skill_id: str, playbook: RolePlaybook | None) -> str:
+    """The skill's contract and methodology for a conversational turn, as one system layer.
 
-    The agent path cannot use `compose_writing_prompt`: DeerFlow owns the system
-    prompt, and the skill's identity ("you are the resume coach, reply in Chinese")
-    already reaches the model through `config.yaml` and the turn wrapper. Sending it
-    again inside the user message would duplicate the role definition and put it at
-    the weaker of the two positions.
-
-    What the agent path is actually missing is the **methodology** — how to rewrite
-    a bullet, what to look for when the user says "丰富一点", and what this role
-    family is read for. That is what this returns.
-
-    Returns an empty string when the skill ships no fragments, so a caller can
-    append unconditionally.
-
-    The coach keeps no per-family fragments of its own: the writer's are written for
-    the same audience, and saying it twice in two voices is how the two drift. The
-    borrow is deliberate, and only for the family layer — never for identity or
-    output contract.
+    The agent path cannot use `compose_writing_prompt`: DeerFlow owns the message list, and the
+    turn's methodology reaches the model through the standing block at the system layer. The
+    family's playbook block comes last when a playbook is given, so the model sees the audience
+    it is writing for.
     """
-    selected = _select_layers(
-        skill_id,
-        playbook,
-        # The role's default skill is the one the agent runtime already carries, through
-        # `config.yaml` and the turn wrapper. Guidance for it omits its own contract text,
-        # because sending it again inside the user message duplicates the role definition at
-        # the weaker of the two positions. Guidance for any *other* skill of the role must
-        # include the contract, and that is not symmetry for its own sake: the interview
-        # skill's contract is precisely the instruction that this turn is for asking rather
-        # than editing, which contradicts the registered identity. Drop it and the model keeps
-        # behaving like an editor while holding interview methodology.
-        include_identity=skill_id != role_of(skill_id).default_skill.id,
-        borrow_family_from="resume-writer",
-    )
-    if not selected:
-        return ""
-    parts = [text for _, text in selected]
-    parts.append(_section("这份档案的岗位族", playbook.as_prompt_block()))
+    parts = [text for _, text in _select_layers(skill_id, playbook)]
+    if playbook is not None:
+        parts.append(_section("这份档案的岗位族", playbook.as_prompt_block()))
     return "\n\n".join(parts)

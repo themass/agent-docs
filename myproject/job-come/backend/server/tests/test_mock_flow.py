@@ -104,9 +104,12 @@ async def test_full_run_end_to_end_through_the_tools(db, monkeypatch):
         "question_id": Q_PYTHON, "scores": {"depth": 6}, "evidence": {"depth": "拆成两张表"},
     }]})
     monkeypatch.setattr(interview_reviewer, "get_deerflow_client", FakeClientFactory(agent))
-    review = await _call(db, "jc_mock_review", {"mock_session_id": "ms1"})
+    async with db() as s:
+        stored_ok = await interview_reviewer.review_session(
+            s, user_id="u1", profile_id="p1", mock_session_id="ms1"
+        )
 
-    assert review == {"accepted": True, "mock_session_id": "ms1"}
+    assert stored_ok is True
     assert [run["skill"] for run in agent.runs] == ["interview-reviewer"]
     async with db() as s:
         stored = (await s.execute(select(MockSession).where(MockSession.id == "ms1"))).scalar_one()
@@ -120,6 +123,9 @@ async def test_full_run_end_to_end_through_the_tools(db, monkeypatch):
 async def test_review_is_refused_for_a_session_that_has_not_ended(db, monkeypatch):
     agent = FakeReviewerAgent(db, report={"questions": []})
     monkeypatch.setattr(interview_reviewer, "get_deerflow_client", FakeClientFactory(agent))
-    with pytest.raises(ValueError, match="after the session has ended"):
-        await _call(db, "jc_mock_review", {"mock_session_id": "ms1"})
+    async with db() as s:
+        with pytest.raises(ValueError, match="after the session has ended"):
+            await interview_reviewer.review_session(
+                s, user_id="u1", profile_id="p1", mock_session_id="ms1"
+            )
     assert agent.runs == [], "an unfinished session must not start the reviewer"

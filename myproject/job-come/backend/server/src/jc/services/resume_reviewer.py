@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import copy
+import json
 import logging
 import time
 from dataclasses import dataclass
 from typing import Any
 
+from jc.agent.single import chain_length, run_single
 from jc.config import settings
 from jc.domain.role_families import RolePlaybook, get_playbook
 from jc.llm.call_context import llm_context
@@ -169,9 +170,8 @@ class ResumeReviewer:
         # The whole review has a hard deadline. Keep individual attempts shorter
         # so a slow primary cannot consume the fallback models' entire budget.
         total_budget = getattr(settings, "jc_export_review_timeout_seconds", 90)
-        chain_length = len(router.chain_for("flash")) if hasattr(router, "chain_for") else 3
         attempt_budget = min(getattr(settings, "jc_export_review_attempt_timeout_seconds", 25),
-                             total_budget / (max(1, chain_length) + .5))
+                             total_budget / (max(1, chain_length(_SKILL_ID)) + .5))
         started = time.monotonic()
         logger.info("reviewer_call started input_chars=%d attempt_budget=%s total_budget=%s",
                     len(review_input), attempt_budget, total_budget)
@@ -179,11 +179,11 @@ class ResumeReviewer:
             # HTTP SDK timeouts alone do not bound fallback/retry/backoff time.
             # Keep a wall-clock deadline even when called outside export orchestration.
             async with asyncio.timeout(total_budget):
-                data = await router.acompletion(
-                    "flash",
+                data = await run_single(
+                    _SKILL_ID,
+                    system=self._compose_system_prompt(playbook),
                     log_context=llm_context("resume_reviewer"),
                     messages=[
-                        {"role": "system", "content": self._compose_system_prompt(playbook)},
                         {
                             "role": "user",
                             "content": review_input,
@@ -219,7 +219,8 @@ class ResumeReviewer:
                          "message": f"Reviewer call failed: {type(exc).__name__}"}],
                 available=False,
             )
-        logger.info("reviewer_call completed elapsed_ms=%d", int((time.monotonic() - started) * 1000))
+        elapsed_ms = int((time.monotonic() - started) * 1000)
+        logger.info("reviewer_call completed elapsed_ms=%d", elapsed_ms)
         status_raw = data["status"]
         status = ReviewerStatus.PASSED if status_raw == "passed" else ReviewerStatus.FAILED
         issues = list(data.get("issues") or [])

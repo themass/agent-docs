@@ -5,21 +5,16 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+from jc.agent.single import run_single
 from jc.config import settings
 from jc.llm.call_context import llm_context
 from jc.llm.router import get_llm_router
 from jc.llm.vision import ImageRef, build_vision_content
-from jc.paths import prompt_file
 from jc.schemas.profile_payload import ProfilePayload
 from jc.services.profile_ingest_contract import validate_profile_content
 
-_PROMPT_PATH = prompt_file("ingest", "profile_vision.md")
-
 
 class ProfileVisionExtractor:
-    def __init__(self) -> None:
-        self._system_prompt = _PROMPT_PATH.read_text(encoding="utf-8")
-
     async def extract(
         self, *, file_name: str, raw_bytes: bytes, content_type: str | None
     ) -> ProfilePayload:
@@ -98,13 +93,10 @@ class ProfileVisionExtractor:
         # OCR of a scanned resume is the single most failure-prone call in the
         # product, so an unreadable answer has to be able to try another model
         # rather than ending the upload.
-        return await router.acompletion(
-            "vision",
+        return await run_single(
+            "profile-vision",
             log_context=llm_context("profile_vision"),
-            messages=[
-                {"role": "system", "content": self._system_prompt},
-                {"role": "user", "content": content},
-            ],
+            messages=[{"role": "user", "content": content}],
             response_format={"type": "json_object"},
             temperature=0.1,
             timeout_seconds=settings.jc_ingest_attempt_timeout_seconds,

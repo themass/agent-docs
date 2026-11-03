@@ -7,11 +7,16 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from jc.agent.roles import default_role
+
 
 class AgentSessionCreateRequest(BaseModel):
     profile_id: str | None = Field(default=None, description="Active profile to bind")
     job_id: str | None = Field(default=None, description="Bind job for interview prep context")
-    skill_hint: str = Field(default="resume-coach", description="Skill id under skills/public/")
+    skill_hint: str = Field(
+        default_factory=lambda: default_role().id,
+        description="The agent (role) the session runs as; one of the entry roles in roles.yaml",
+    )
     kind: str = Field(default="resume", description="resume | coach")
 
 
@@ -79,6 +84,9 @@ class AgentUiContext(BaseModel):
     page: str = Field(default="resume-agent", max_length=64)
     step: str = Field(default="review", max_length=32)
     focus: AgentUiFocus | None = None
+    #: What the user came here to do, when the page knows it. A switch rule in roles.yaml may
+    #: read it (`intent_archive`); absent means the role's default skill.
+    intent: Literal["archive"] | None = None
 
 
 class AgentMessageRequest(BaseModel):

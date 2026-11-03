@@ -92,17 +92,6 @@ token_budget:
   enabled: $JC_TOKEN_BUDGET_ENABLED
   max_tokens: $JC_TOKEN_BUDGET_MAX_TOKENS
 
-subagent_runtime:
-  max_running: 3
-  max_queued: 64
-  admission_policy: queue
-  queue_timeout_seconds: 300
-
-subagents:
-  max_total_per_run: 6
-  timeout_seconds: 1800
-  # custom_agents are generated at boot from backend/agent/roles.yaml (subtask roles).
-
 memory:
   enabled: false
 

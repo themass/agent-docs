@@ -1,8 +1,6 @@
 ---
-name: jd-parser
-description: Parse a pasted job description into structured fields. One model call, no tools.
+{name: jd-parser, description: 'Parse a pasted job description into structured fields. One model call, no tools.'}
 ---
-
 You are a job description parser for JC.
 
 Given a pasted JD, output **only** valid JSON:

@@ -1,9 +1,9 @@
-"""`roles.yaml` is the one declaration of every role. These checks hold it to the files it names.
+"""`roles.yaml` and the skill packages are one model. These checks hold them to each other.
 
-`jc.agent.roles` validates the file's own structure when it loads. What needs another file to
-decide is checked here: that each role has a skill package, that its scenario is routed, that its
-DeerFlow model is declared, that the tools it names exist, and that no other file re-declares a
-role.
+`jc.agent.roles` checks the file's structure at load, and checks against the skill packages that
+every skill is owned by exactly one role. What remains is checked here: that every scenario is
+routed, every DeerFlow model is declared, every turn provider and switch predicate is registered,
+every tool a skill names exists, and that no other file re-declares a role or a skill.
 """
 
 from __future__ import annotations
@@ -18,17 +18,15 @@ import yaml
 from jc.agent.roles import (
     RoleConfigError,
     UnknownRoleError,
-    UnknownSkillError,
+    default_role,
     entry_roles,
-    hints_by_skill,
     role,
     role_of,
     roles,
-    skill,
-    skills,
 )
 from jc.agent.tool_catalog import OPENAI_TOOLS
-from jc.mcp.handlers import TOOL_HANDLERS
+from jc.agent.turn import PREDICATES, TURN_PROVIDERS
+from jc.skills.loader import all_skill_ids, require_skill
 
 BACKEND = Path(__file__).resolve().parents[2]
 SKILLS = BACKEND / "agent" / "skills" / "public"
@@ -38,23 +36,29 @@ def _yaml(*parts: str) -> dict:
     return yaml.safe_load(BACKEND.joinpath(*parts).read_text("utf-8"))
 
 
-def test_every_declared_skill_has_exactly_one_package_and_no_package_is_orphaned():
-    packages = {p.name for p in SKILLS.iterdir() if p.is_dir()}
-    assert set(skills()) == packages
+def test_exactly_one_default_role_and_it_is_an_entry_role():
+    defaults = [r.id for r in roles().values() if r.default]
+    assert defaults == ["resume-coach"]
+    assert default_role().id in entry_roles()
 
 
-def test_a_role_leads_with_the_skill_of_its_own_name():
-    for r in roles().values():
-        assert r.default_skill.id == r.id
+def test_the_entry_roles_are_the_three_agents_a_user_can_open():
+    assert entry_roles() == ("resume-coach", "coach-mock", "apply-pipeline")
 
 
-def test_every_role_scenario_is_routed():
+def test_every_skill_package_is_owned_by_exactly_one_role():
+    declared = [skill_id for r in roles().values() for skill_id in r.skill_ids]
+    assert sorted(declared) == sorted(all_skill_ids())
+    assert len(declared) == len(set(declared))
+
+
+def test_every_scenario_a_role_names_is_routed():
     scenarios = set(_yaml("agent", "llm", "routing.yaml")["scenarios"])
     for r in roles().values():
         assert r.scenario in scenarios, f"{r.id} uses unrouted scenario {r.scenario}"
 
 
-def test_every_deerflow_model_a_role_runs_on_is_declared_for_its_scenario():
+def test_every_deerflow_model_a_session_or_subtask_runs_on_is_declared_for_its_scenario():
     declared = {m["name"]: m["model"] for m in _yaml("agent", "deerflow", "config.yaml")["models"]}
     for r in roles().values():
         if r.model_name is not None:
@@ -63,94 +67,77 @@ def test_every_deerflow_model_a_role_runs_on_is_declared_for_its_scenario():
             )
 
 
-def test_config_yaml_does_not_redeclare_subagents():
-    subagents = _yaml("agent", "deerflow", "config.yaml").get("subagents") or {}
-    assert not subagents.get("custom_agents"), "subagents come from roles.yaml"
-
-
-def test_the_extensions_skill_switches_name_exactly_the_roles():
+def test_config_yaml_declares_no_subagents_and_no_skill_switches():
+    config = _yaml("agent", "deerflow", "config.yaml")
+    assert "subagents" not in config and "subagent_runtime" not in config
     for name in ("extensions_config.json", "extensions_config.example.json"):
         text = BACKEND.joinpath("agent", "deerflow", name).read_text("utf-8")
-        switches = json.loads(re.sub(r"^\s*//.*$", "", text, flags=re.M))["skills"]
-        assert set(switches) == set(skills()), name
+        assert '"skills"' not in json.loads(re.sub(r"^\s*//.*$", "", text, flags=re.M)), name
 
 
-def test_the_tool_catalog_the_handlers_and_the_server_agree():
+def test_every_turn_provider_and_switch_predicate_a_role_names_is_registered():
+    for r in roles().values():
+        if r.turn is not None:
+            assert r.turn in TURN_PROVIDERS, f"{r.id} names unregistered turn {r.turn}"
+        for rule in r.switch:
+            assert rule.when in PREDICATES, f"{r.id} names unregistered predicate {rule.when}"
+
+
+def test_every_tool_a_skill_names_exists_on_the_catalog():
     catalog = {t["function"]["name"] for t in OPENAI_TOOLS}
-    server_text = (BACKEND / "server" / "src" / "jc" / "mcp" / "server.py").read_text("utf-8")
-    served = set(re.findall(r"async def (jc_[a-z_]+)\(", server_text))
-    assert catalog == served == set(TOOL_HANDLERS)
+    for skill_id in all_skill_ids():
+        unknown = sorted(set(require_skill(skill_id).allowed_tools) - catalog)
+        assert not unknown, f"{skill_id} names unknown tools {unknown}"
 
 
-def test_every_tool_a_role_names_exists():
-    catalog = {t["function"]["name"] for t in OPENAI_TOOLS}
-    for s in skills().values():
-        unknown = sorted(set(s.tools) - catalog)
-        assert not unknown, f"{s.id} names unknown tools {unknown}"
-
-
-def test_no_external_mcp_is_declared_yet():
-    for s in skills().values():
-        assert s.mcp == (), f"{s.id}: external MCP is reserved, not connected"
-
-
-def test_a_skill_text_names_only_tools_that_skill_holds():
-    for s in skills().values():
-        text = (SKILLS / s.id / "SKILL.md").read_text("utf-8")
+def test_a_skill_text_names_only_tools_that_skill_may_use():
+    for skill_id in all_skill_ids():
+        text = (SKILLS / skill_id / "SKILL.md").read_text("utf-8")
         named = set(re.findall(r"\bjc_[a-z_]+\b", text))
-        extra = sorted(named - set(s.tools))
-        assert not extra, f"{s.id} SKILL.md names tools it cannot call: {extra}"
+        extra = sorted(named - set(require_skill(skill_id).allowed_tools))
+        assert not extra, f"{skill_id} SKILL.md names tools it cannot call: {extra}"
 
 
-def test_only_session_roles_open_sessions_and_the_public_ones_are_the_three_agents():
-    assert entry_roles() == ("resume-coach", "coach-mock", "apply-pipeline")
-
-
-def test_a_skill_belongs_to_exactly_one_role():
-    assert role_of("profile-interview").id == "resume-coach"
+def test_the_coach_archive_skill_belongs_to_the_interview_role_and_is_reached_by_intent():
     assert role_of("coach-archive").id == "coach-mock"
-    assert hints_by_skill()["profile-interview"] == ["resume-coach"]
-    owners = [s.role_id for r in roles().values() for s in r.skills]
-    assert len(owners) == len(set(s.id for r in roles().values() for s in r.skills))
+    assert role("coach-mock").switch[0].to == "coach-archive"
+    assert role("coach-mock").switch[0].when == "intent_archive"
 
 
-def test_a_run_holds_only_the_tools_of_the_skill_it_runs_as():
-    assert "jc_intake_record" not in skill("resume-coach").tools
-    assert "jc_intake_record" in skill("profile-interview").tools
-    assert "jc_interview_save" not in skill("coach-mock").tools
-    assert "jc_interview_save" in skill("coach-archive").tools
+def test_the_profile_interview_skill_is_reached_by_switch_only():
+    assert role_of("profile-interview").id == "resume-coach"
+    assert role("resume-coach").switch[0].to == "profile-interview"
 
 
-def test_the_fragments_a_skill_loads_are_declared_on_the_skill():
-    assert skill("resume-writer").always_loaded == ("structure", "method", "targeting")
-    assert skill("resume-reviewer").always_loaded == ("severity", "method", "structure", "evidence")
-    assert skill("interview-reviewer").always_loaded == ()
+def test_each_skill_declares_exactly_what_it_may_use():
+    assert set(require_skill("resume-coach").allowed_tools) == {
+        "jc_profile_photo_set", "jc_profile_get", "jc_profile_patch", "jc_intake_plan",
+    }
+    assert "jc_intake_record" in require_skill("profile-interview").allowed_tools
+    assert "jc_intake_record" not in require_skill("resume-coach").allowed_tools
+    assert "jc_interview_save" in require_skill("coach-archive").allowed_tools
+    assert "jc_interview_save" not in require_skill("coach-mock").allowed_tools
 
 
 def test_an_unknown_role_is_an_error_not_a_default():
     with pytest.raises(UnknownRoleError):
         role("no-such-role")
-    with pytest.raises(UnknownSkillError):
-        skill("no-such-skill")
+    with pytest.raises(UnknownRoleError):
+        role_of("no-such-skill")
 
 
 @pytest.mark.parametrize(
     "mutate",
     [
         lambda d: d["coach-mock"].update(mode="single"),
-        lambda d: d["resume-writer"]["skills"]["resume-writer"].update(tools=["jc_profile_get"]),
-        lambda d: d["interview-reviewer"].pop("timeout_seconds"),
-        lambda d: d["coach-mock"]["skills"]["coach-mock"].update(delegates=["resume-coach"]),
-        lambda d: d["resume-writer"]["skills"]["resume-writer"].update(
-            delegates=["interview-reviewer"]
-        ),
-        lambda d: d["jd-parser"].update(product="elsewhere"),
+        lambda d: d["resume-coach"].update(default=False),
         lambda d: d["jd-parser"].update(surprise=1),
-        lambda d: d["jd-parser"]["skills"]["jd-parser"].update(surprise=1),
-        lambda d: d["jd-parser"].update(skills={"other": {}}),
-        lambda d: d["jd-parser"]["skills"].update({"resume-coach": {}}),
-        lambda d: d["resume-writer"]["skills"].update({"extra": {}}),
-        lambda d: d["resume-coach"].pop("skills"),
+        lambda d: d["jd-parser"].update(skills=["resume-writer"]),
+        lambda d: d["coach-mock"].update(switch=[{"to": "resume-coach", "when": "intent_archive"}]),
+        lambda d: d["coach-mock"].update(switch=[{"to": "coach-archive", "when": "x", "extra": 1}]),
+        lambda d: d["interview-reviewer"].pop("timeout_seconds"),
+        lambda d: d["resume-writer"].update(skills=["resume-writer", "resume-writer"]),
+        lambda d: d["resume-writer"].update(skills=["resume-writer", "jd-parser"]),
     ],
 )
 def test_a_contradictory_declaration_fails_at_load(mutate, tmp_path, monkeypatch):
@@ -168,12 +155,3 @@ def test_a_contradictory_declaration_fails_at_load(mutate, tmp_path, monkeypatch
     finally:
         monkeypatch.undo()
         module.reload_roles()
-
-
-def test_every_skill_hint_the_frontend_sends_is_an_entry_role():
-    pages = BACKEND.parent / "frontend" / "web"
-    sent = set()
-    for path in [*pages.glob("app/**/page.tsx"), *pages.glob("components/**/*.tsx")]:
-        sent |= set(re.findall(r'skillHint="([a-z-]+)"', path.read_text("utf-8")))
-    assert sent, "expected the agent pages to pass a skillHint"
-    assert sent <= set(entry_roles()), sorted(sent - set(entry_roles()))

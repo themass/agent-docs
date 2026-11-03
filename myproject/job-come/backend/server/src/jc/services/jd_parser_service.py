@@ -5,20 +5,15 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from jc.agent.single import run_single
 from jc.config import settings
 from jc.domain.jd_integrity import inspect_jd_text
 from jc.llm.call_context import llm_context
 from jc.llm.router import get_llm_router
 from jc.schemas.job import JDParseResult
-from jc.skills.loader import require_skill
-
-_ROLE = "jd-parser"
 
 
 class JdParserService:
-    def __init__(self) -> None:
-        self._system_prompt = require_skill(_ROLE).body
-
     async def parse(self, *, raw_text: str) -> JDParseResult:
         integrity = inspect_jd_text(raw_text)
         if not settings.jc_llm_enabled:
@@ -33,11 +28,10 @@ class JdParserService:
         # Validating through the router rather than after it: a model that
         # answers 200 with unparseable JSON then fails over to the next
         # endpoint, instead of surfacing as a 500 on a parse the user cannot fix.
-        return await router.acompletion(
-            "ingest_fast",
+        return await run_single(
+            "jd-parser",
             log_context=llm_context("jd_parser"),
             messages=[
-                {"role": "system", "content": self._system_prompt},
                 {
                     "role": "user",
                     "content": json.dumps(

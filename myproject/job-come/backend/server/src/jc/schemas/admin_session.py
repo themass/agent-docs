@@ -118,11 +118,26 @@ class AdminToolInfo(BaseModel):
 
 class AdminSkillInfo(BaseModel):
     id: str
-    enabled: bool
     description: str | None = None
     body_preview: str | None = None
     tools: list[str] = Field(default_factory=list)
-    scope_for_hints: list[str] = Field(default_factory=list)
+    always_loaded: list[str] = Field(default_factory=list)
+    borrow_family_from: str | None = None
+    role: str
+
+
+class AdminRoleInfo(BaseModel):
+    id: str
+    product: str
+    mode: str
+    scenario: str
+    model: str | None = None
+    entry: bool
+    default: bool
+    plan_mode: bool
+    skills: list[str] = Field(default_factory=list)
+    turn: str | None = None
+    switch: list[dict[str, str]] = Field(default_factory=list)
 
 
 class AdminInventoryResponse(BaseModel):
@@ -131,8 +146,8 @@ class AdminInventoryResponse(BaseModel):
     mcp_interceptors: list[str]
     tools: list[AdminToolInfo]
     skills: list[AdminSkillInfo]
+    roles: list[AdminRoleInfo] = Field(default_factory=list)
     models: list[dict[str, Any]] = Field(default_factory=list)
-    subagents: list[dict[str, Any]] = Field(default_factory=list)
     product_rules_preview: str | None = None
 
 

@@ -1,18 +1,17 @@
-"""JC DeerFlow harness middleware — product rules + session context injection."""
+"""JC DeerFlow middleware: this run's instructions on the system layer of every model call."""
 
 from __future__ import annotations
 
 import os
-import uuid
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, override
 
 from langchain.agents.middleware import AgentMiddleware
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import SystemMessage
 from langgraph.runtime import Runtime
 
-_REMINDER_KEY = "jc_product_rules"
+from jc.agent.roles import default_role
 
 
 @lru_cache(maxsize=1)
@@ -49,7 +48,7 @@ def _authz_attributes(runtime: Runtime | None) -> dict[str, Any]:
 def _session_context_block(runtime: Runtime | None) -> str:
     attributes = _authz_attributes(runtime)
     lines: list[str] = []
-    skill = attributes.get("jc_agent_skill") or "resume-coach"
+    skill = attributes.get("jc_agent_skill") or default_role().default_skill
     lines.append(f"skill={skill}")
     if user_id := (getattr(runtime, "context", None) or {}).get("user_id"):
         lines.append(f"user_id={user_id}")
@@ -94,10 +93,10 @@ def _standing_block(runtime: Runtime | None) -> str:
     )
 
 
-def _build_reminder(runtime: Runtime | None) -> str:
+def _build_layer(runtime: Runtime | None) -> str:
     rules = _load_product_rules()
     context = _session_context_block(runtime)
-    parts = ["<system-reminder>", "<jc_context>"]
+    parts = ["<jc_context>"]
     if rules:
         parts.extend(["<product_rules>", rules, "</product_rules>"])
     if context:
@@ -108,52 +107,45 @@ def _build_reminder(runtime: Runtime | None) -> str:
     standing = _standing_block(runtime)
     if standing:
         parts.extend(["<session_instructions>", standing, "</session_instructions>"])
-    parts.extend(["</jc_context>", "</system-reminder>"])
+    parts.append("</jc_context>")
     return "\n".join(parts)
 
 
-def _already_injected(messages: list) -> bool:
-    for message in messages:
-        kwargs = getattr(message, "additional_kwargs", None) or {}
-        if kwargs.get(_REMINDER_KEY):
-            return True
-    return False
-
-
-def _last_human(messages: list) -> HumanMessage | None:
-    for message in reversed(messages):
-        if isinstance(message, HumanMessage):
-            return message
-    return None
-
-
 class JCProductRulesMiddleware(AgentMiddleware):
-    """Inject L1 product rules once per thread (frozen-snapshot on first user turn).
+    """Add this run's JC instructions to the system layer of every model call.
 
-    Also captures the run's system message on the way to the provider — see
-    `wrap_model_call`. The two jobs live in one middleware because they are the
-    same concern viewed from both ends: this class is the only JC-owned code in
-    the model-call path, so it is both what adds JC's instructions and the only
-    place that can observe the final text they ended up inside.
+    The layer is composed from the run's own `authz_attributes` on each call, never written into the
+    message history. So a turn that switches skill gets that skill's instructions, a checkpoint
+    holds only what the user and the model said, and nothing from an earlier turn outlives its turn.
+    The layer also records the final system text it sends, for the audit trail: this class is the
+    only JC code in the model-call path, so it is the one place that sees what the model receives.
     """
 
     @override
-    def before_agent(self, state, runtime: Runtime) -> dict:  # noqa: ANN001
-        return self._inject(state, runtime)
-
-    @override
-    async def abefore_agent(self, state, runtime: Runtime) -> dict:  # noqa: ANN001
-        return self._inject(state, runtime)
-
-    @override
     def wrap_model_call(self, request, handler):  # noqa: ANN001, ANN201
+        request = self._with_jc_layer(request)
         self._capture_system_prompt(request)
         return handler(request)
 
     @override
     async def awrap_model_call(self, request, handler):  # noqa: ANN001, ANN201
+        request = self._with_jc_layer(request)
         self._capture_system_prompt(request)
         return await handler(request)
+
+    def _with_jc_layer(self, request):  # noqa: ANN001, ANN201
+        layer = _build_layer(getattr(request, "runtime", None))
+        if not layer.strip():
+            return request
+        base = getattr(request, "system_message", None)
+        content = getattr(base, "content", None)
+        if isinstance(content, list):
+            combined = [*content, {"type": "text", "text": layer}]
+        elif content:
+            combined = f"{content}\n\n{layer}"
+        else:
+            combined = layer
+        return request.override(system_message=SystemMessage(content=combined))
 
     def _capture_system_prompt(self, request) -> None:  # noqa: ANN001
         """Record the system message this call is about to send.
@@ -190,36 +182,3 @@ class JCProductRulesMiddleware(AgentMiddleware):
                 system_prompt_capture.record(session_id, text)
         except Exception:  # noqa: BLE001, S110
             pass
-
-    def _inject(self, state, runtime: Runtime | None) -> dict:  # noqa: ANN001
-        messages = list(state.get("messages") or [])
-        if _already_injected(messages):
-            return {}
-
-        reminder = _build_reminder(runtime)
-        if not reminder.strip():
-            return {}
-
-        target = _last_human(messages)
-        if target is None:
-            return {
-                "messages": [
-                    SystemMessage(
-                        content=reminder,
-                        additional_kwargs={"hide_from_ui": True, _REMINDER_KEY: True},
-                    )
-                ]
-            }
-
-        stable_id = target.id or str(uuid.uuid4())
-        reminder_msg = SystemMessage(
-            id=stable_id,
-            content=reminder,
-            additional_kwargs={"hide_from_ui": True, _REMINDER_KEY: True},
-        )
-        user_copy = HumanMessage(
-            id=f"{stable_id}__user",
-            content=target.content,
-            additional_kwargs=dict(getattr(target, "additional_kwargs", None) or {}),
-        )
-        return {"messages": [reminder_msg, user_copy]}

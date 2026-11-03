@@ -6,6 +6,7 @@ import json
 import logging
 from typing import Any
 
+from jc.agent.single import run_single
 from jc.config import settings
 from jc.domain.fit_evidence import verify_requirement_evidence
 from jc.domain.profile_context import material_profile
@@ -13,13 +14,11 @@ from jc.exceptions import AppError
 from jc.llm.call_context import llm_context
 from jc.llm.router import get_llm_router
 from jc.models.enums import FitRecommendation
-from jc.paths import prompt_file
 from jc.schemas.job import FitScoreResponse, JDParseResult
 from jc.schemas.profile_payload import ProfilePayload
 
 logger = logging.getLogger(__name__)
 
-_PROMPT_PATH = prompt_file("ingest", "fit_score.md")
 _DIM_KEYS = ("match", "target", "comp", "culture", "red_flags")
 _LEGIT = {"high", "caution", "suspicious"}
 
@@ -55,9 +54,6 @@ def fit_response_from_llm(data: dict[str, Any], *, job_id: str | None = None) ->
 
 
 class FitScoreService:
-    def __init__(self) -> None:
-        self._system_prompt = _PROMPT_PATH.read_text(encoding="utf-8")
-
     async def score(
         self,
         *,
@@ -105,16 +101,10 @@ class FitScoreService:
             )
         # Validated inside the call so a 200 carrying unparseable JSON fails
         # over to the next endpoint instead of becoming a 500.
-        return await router.acompletion(
-            "flash",
+        return await run_single(
+            "fit-scorer",
             log_context=llm_context("fit_score"),
-            messages=[
-                {"role": "system", "content": self._system_prompt},
-                {
-                    "role": "user",
-                    "content": request_data,
-                },
-            ],
+            messages=[{"role": "user", "content": request_data}],
             response_format={"type": "json_object"},
             temperature=0.0,
             response_validator=validate,

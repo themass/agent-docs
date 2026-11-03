@@ -95,14 +95,27 @@ export type AdminInventory = {
   }>;
   skills: Array<{
     id: string;
-    enabled: boolean;
     description: string | null;
     body_preview: string | null;
     tools: string[];
-    scope_for_hints: string[];
+    always_loaded: string[];
+    borrow_family_from: string | null;
+    role: string;
+  }>;
+  roles: Array<{
+    id: string;
+    product: string;
+    mode: string;
+    scenario: string;
+    model: string | null;
+    entry: boolean;
+    default: boolean;
+    plan_mode: boolean;
+    skills: string[];
+    turn: string | null;
+    switch: Array<{ to: string; when: string }>;
   }>;
   models: Array<Record<string, unknown>>;
-  subagents: Array<Record<string, unknown>>;
   product_rules_preview: string | null;
 };
 

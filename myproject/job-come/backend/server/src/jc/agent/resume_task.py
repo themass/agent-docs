@@ -16,7 +16,6 @@ _DIGEST_CAP = 12_000
 #: the resume-coach rules and nothing else: no bullet method, no role-family
 #: standard, which is why "丰富一点" produced longer sentences rather than the
 #: constraint / method / scope / outcome material the profile already contained.
-_COACH_SKILL_ID = "resume-coach"
 
 #: Methodology for a profile that cannot produce a resume yet. Editing methodology is
 #: the wrong tool there: "rewrite this bullet to lead with the outcome" has nothing to
@@ -26,7 +25,6 @@ _COACH_SKILL_ID = "resume-coach"
 #: Selected on `can_generate` rather than on `mode`, because that is the same signal the
 #: intake panel shows the user. A profile the UI calls 「还差材料」 and a coach that acts
 #: as though the draft just needs polish are the two halves of one bug.
-_INTERVIEW_SKILL_ID = "profile-interview"
 
 
 def build_profile_digest(payload: ProfilePayload, *, max_highlights: int | None = None) -> str:
@@ -110,25 +108,6 @@ def format_ui_context(ctx: AgentUiContext | None) -> str:
     return "\n".join(lines)
 
 
-def coach_skill_for(payload: ProfilePayload | None) -> str:
-    """Which methodology this turn needs: edit an existing resume, or build one.
-
-    The split is on whether the profile can produce a document at all. A user whose
-    profile is empty, a skeleton, or years out of date does not need bullet-level
-    rewriting advice — there is nothing to rewrite, and a coach given editing
-    methodology answers 「帮我改改」 by generating plausible resume prose that contains
-    none of their actual career.
-
-    `can_generate` is the same signal the intake panel renders, so the sidebar and the
-    panel cannot disagree about whether this profile still needs material.
-    """
-    if payload is None:
-        return _COACH_SKILL_ID
-    if build_intake_plan(payload).can_generate:
-        return _COACH_SKILL_ID
-    return _INTERVIEW_SKILL_ID
-
-
 def coach_role_family_for(payload: ProfilePayload | None) -> str | None:
     """Which role family's methodology this profile's coach turn should use.
 
@@ -204,7 +183,9 @@ def wrap_resume_coach_message(
 
     if include_digest:
         digest_block = digest.strip() or "（未能加载档案摘要，请调用 jc_profile_get）"
-        digest_section = f"当前档案索引/选中字段（不是全部事实，先分区读取再改写）：\n{digest_block}\n\n"
+        digest_section = (
+            f"当前档案索引/选中字段（不是全部事实，先分区读取再改写）：\n{digest_block}\n\n"
+        )
     else:
         digest_section = (
             "（档案摘要已在本会话开头给过。若上一轮确认过修改，先调用 jc_profile_get"

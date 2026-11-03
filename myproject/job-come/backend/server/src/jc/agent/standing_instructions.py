@@ -64,69 +64,53 @@ _CONDUCT_RULES: tuple[str, ...] = (
     "改档案只能通过 jc_profile_patch 生成确认卡片。用户确认且工具返回 applied 之后才能说已保存。",
 )
 
-_FRAMING: dict[str, str] = {
-    "resume-coach": (
-        "本会话的任务是简历优化：基于档案里已有的事实改写表达，不新增用户没说过的经历、"
-        "数字或成果。意图明确时直接给出改写并调用 jc_profile_patch；缺关键事实先问。"
-    ),
-    "profile-interview": (
-        "本会话的任务是建档访谈：这份档案还不足以生成简历，所以要把材料问出来，不是润色。"
-        "一次只问一个问题；用户给出真实经历后用 jc_profile_patch 写进对应位置并由用户确认；"
-        "材料够了就告诉他可以生成第一版。"
-    ),
-}
-
-
 def _section(title: str, body: str) -> str:
     return f"## {title}\n{body.strip()}"
 
 
 @lru_cache(maxsize=64)
 def _methodology(skill_id: str, role_family: str | None) -> str:
-    """The role-family rewriting methodology for this session.
+    """The skill's contract and methodology for this run, memoised on its two inputs.
 
-    Memoised on `(skill_id, role_family)` rather than per session: the text is a
-    pure function of those two, so two users in the same family share one
-    composition. Bounded at 64 entries, comfortably above `skills × families`.
+    The text is a pure function of `(skill_id, role_family)`, so two users in the same family share
+    one composition. Bounded at 64 entries, comfortably above `skills x families`.
 
-    Returns "" when the skill ships no fragments, so the caller can concatenate
-    unconditionally. Failures are swallowed into "" for the same reason the
-    capture in `JCProductRulesMiddleware` is: a missing skill file must degrade
-    the prompt, not take the conversation down.
+    A failure is swallowed into "" for the same reason the capture in `JCProductRulesMiddleware`
+    is: a missing family fragment must degrade the prompt, not take the conversation down. A skill
+    that does not exist is not swallowed here: `require_skill` raises, and the roles check at boot
+    makes that unreachable for a declared role.
     """
-    try:
-        from jc.domain.role_families import get_playbook
-        from jc.skills.composer import compose_coach_guidance
+    from jc.domain.role_families import get_playbook
+    from jc.skills.composer import compose_turn_methodology
 
-        return compose_coach_guidance(
-            skill_id=skill_id, playbook=get_playbook(role_family)
-        ).strip()
-    except Exception:  # noqa: BLE001
-        return ""
+    playbook = get_playbook(role_family) if role_family else None
+    return compose_turn_methodology(skill_id=skill_id, playbook=playbook).strip()
 
 
 def build_standing_block(
     *, skill_id: str | None, role_family: str | None, reply_language: str
 ) -> str:
-    """Render this session's standing instructions, or "" when none apply.
+    """Render this run's standing instructions: language, the skill's task, conduct, methodology.
 
-    Only the resume paths get framing and methodology. A mock-interview or
-    apply-pipeline turn has its own task shape and must not be handed resume
-    rewriting rules — returning just the conduct rules and the language for
-    those is deliberate, not an oversight.
+    Every skill gets the same layers. The task framing is the skill's own `references/framing.md`
+    when it has one; the methodology is the skill's contract and fragments (see
+    `jc.skills.composer.compose_turn_methodology`). A skill is only ever given its own text: an
+    interview turn never receives resume rewriting rules, because it does not declare them.
     """
-    skill = skill_id or "resume-coach"
+    from jc.skills.loader import require_skill
+
     parts: list[str] = [_section("回复语言", reply_language)]
 
-    framing = _FRAMING.get(skill)
-    if framing:
-        parts.append(_section("本会话任务", framing))
+    if skill_id:
+        framing = require_skill(skill_id).reference("framing")
+        if framing:
+            parts.append(_section("本会话任务", framing))
 
     parts.append(_section("行为约束", "\n".join(f"- {rule}" for rule in _CONDUCT_RULES)))
 
-    if skill in _FRAMING:
-        methodology = _methodology(skill, role_family)
+    if skill_id:
+        methodology = _methodology(skill_id, role_family)
         if methodology:
-            parts.append(_section("改写方法（本会话适用）", methodology))
+            parts.append(_section("技能与方法（本会话适用）", methodology))
 
     return "\n\n".join(parts)

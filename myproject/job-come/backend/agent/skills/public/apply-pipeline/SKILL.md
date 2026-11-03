@@ -1,8 +1,8 @@
 ---
 name: apply-pipeline
 description: JC apply-pipeline business workflow.
+allowed-tools: [jc_profile_get, jc_job_fetch, jc_job_parse, jc_fit_score, jc_profile_patch, jc_apply_pipeline]
 ---
-
 # Apply Pipeline Skill
 
 You help the user complete a **one-job apply workflow** for JC.

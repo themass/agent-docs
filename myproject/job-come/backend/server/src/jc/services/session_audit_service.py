@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from jc.adapters.deerflow_client import _client_config
 from jc.adapters.deerflow_harness_client import _get_embedded_client
+from jc.agent.roles import default_role
 from jc.exceptions import NotFoundError
 from jc.models.agent_message import AgentMessage
 from jc.schemas.admin_session import (
@@ -231,7 +232,7 @@ class SessionAuditService:
         if session is None:
             raise NotFoundError("会话不存在或已删除。", code="session_not_found")
 
-        skill = session.skill_hint or "resume-coach"
+        skill = session.skill_hint or default_role().default_skill
         client = _get_embedded_client(_client_config(), skill)
         data = client.get_thread(session.deerflow_thread_id)
         checkpoints = data.get("checkpoints") or []
