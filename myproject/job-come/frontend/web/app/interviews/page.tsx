@@ -8,12 +8,28 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { IconArrowRight, IconCheck, IconDoc, IconInfo, IconSpark } from "@/components/ui/Icon";
 import {
   listInterviews,
+  listMockSessions,
+  type MockSessionListItem,
   logQuestion,
   saveInterview,
   type InterviewSummary,
 } from "@/lib/api/coach";
 import { userFacingApiError } from "@/lib/api/user-error";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { formatDateTime } from "@/lib/datetime";
+
+const STYLE_LABEL: Record<string, string> = {
+  gentle: "温和引导",
+  standard: "标准",
+  pressure: "压力",
+  deep: "业务深挖",
+};
+
+const ENDED_LABEL: Record<string, string> = {
+  completed: "正常结束",
+  user_ended: "提前结束",
+  timeout: "未完成结束",
+};
 
 export default function InterviewsPage() {
   const { context } = useAuth();
@@ -30,10 +46,12 @@ export default function InterviewsPage() {
   const profileId = context?.active_profile_id;
   const [history, setHistory] = useState<InterviewSummary[]>([]);
   const [historyError, setHistoryError] = useState("");
+  const [mockHistory, setMockHistory] = useState<MockSessionListItem[]>([]);
 
   useEffect(() => {
     setHistory([]);
     setHistoryError("");
+    setMockHistory([]);
     if (!profileId) return;
     let active = true;
     listInterviews(profileId)
@@ -42,6 +60,13 @@ export default function InterviewsPage() {
       })
       .catch((e) => {
         if (active) setHistoryError(userFacingApiError(e, "读取失败"));
+      });
+    listMockSessions(profileId)
+      .then((r) => {
+        if (active) setMockHistory(r.mock_sessions);
+      })
+      .catch(() => {
+        // The real-interview list above reports its own error; the mock list stays empty.
       });
     return () => {
       active = false;
@@ -251,6 +276,41 @@ export default function InterviewsPage() {
             </span>
           </p>
         ) : null}
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="text-sm font-semibold text-ink-800">模拟面试报告</h2>
+          {mockHistory.length ? (
+            <span className="text-xs text-ink-500">共 {mockHistory.length} 场</span>
+          ) : null}
+        </div>
+        {mockHistory.length === 0 ? (
+          <EmptyState compact icon={<IconDoc />} title="还没有完成的模拟面试" />
+        ) : (
+          <ul className="space-y-2">
+            {mockHistory.map((m) => (
+              <li key={m.id} className="card card-pad flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                  <span className="badge badge-neutral tabular-nums">
+                    {formatDateTime(m.started_at)}
+                  </span>
+                  <span className="text-sm text-ink-800">
+                    {STYLE_LABEL[m.style ?? ""] ?? "标准"} · {m.question_count} 题 ·{" "}
+                    {ENDED_LABEL[m.ended_reason ?? ""] ?? "已结束"}
+                  </span>
+                </div>
+                {m.has_report ? (
+                  <Link href={`/mock-reports/${m.id}`} className="btn btn-sm btn-secondary">
+                    查看报告
+                  </Link>
+                ) : (
+                  <span className="text-xs text-ink-500">报告打开时生成</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="space-y-3">

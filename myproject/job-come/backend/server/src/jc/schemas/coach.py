@@ -54,6 +54,23 @@ class InterviewListResponse(BaseModel):
     interviews: list[InterviewSummary]
 
 
+class MockSessionListItem(BaseModel):
+    """A finished mock interview in the archive. Kept apart from real interviews."""
+
+    id: str
+    style: str | None = None
+    started_at: datetime
+    completed_at: datetime | None = None
+    ended_reason: str | None = None
+    ended_early: bool = False
+    question_count: int
+    has_report: bool
+
+
+class MockSessionListResponse(BaseModel):
+    mock_sessions: list[MockSessionListItem]
+
+
 class AnswerAttemptRequest(BaseModel):
     user_answer: str = Field(min_length=1)
     coach_feedback: dict[str, Any] | None = None

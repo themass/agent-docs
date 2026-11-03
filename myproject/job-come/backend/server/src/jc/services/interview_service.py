@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 from agentkit.common.ids import new_id
 from agentkit.web.auth import Actor, UserActor
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from jc.authz import RunScope, require_owned_references
@@ -25,6 +26,8 @@ from jc.schemas.coach import (
     InterviewSummary,
     MockReportResponse,
     MockSessionCreateRequest,
+    MockSessionListItem,
+    MockSessionListResponse,
     MockSessionQuestion,
     MockSessionResponse,
     QuestionDetailResponse,
@@ -117,6 +120,33 @@ class InterviewService:
             round=r.round, type=r.type, job_id=r.job_id, result=r.result,
             failure_tags=r.failure_tags or [], notes=r.notes, question_ids=r.question_ids or []
         ) for r in rows])
+
+    async def list_mock_sessions(self, profile_id: str, *, actor: Actor) -> MockSessionListResponse:
+        """Finished mock interviews, newest first. Real interviews are listed separately."""
+        await self._profiles.get(profile_id, actor=actor)
+        stmt = (
+            select(MockSession)
+            .where(
+                MockSession.profile_id == profile_id,
+                MockSession.status == MockSessionStatus.COMPLETED,
+            )
+            .order_by(MockSession.started_at.desc())
+        )
+        rows = list((await self._db.execute(stmt)).scalars().all())
+        items = []
+        for row in rows:
+            state = dict(row.coverage or {})
+            items.append(MockSessionListItem(
+                id=row.id,
+                style=row.style,
+                started_at=row.started_at,
+                completed_at=row.completed_at,
+                ended_reason=state.get("ended_reason"),
+                ended_early=bool(state.get("ended_early")),
+                question_count=len(row.question_ids or []),
+                has_report=bool(row.report),
+            ))
+        return MockSessionListResponse(mock_sessions=items)
 
     async def save_interview(
         self,

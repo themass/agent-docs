@@ -18,6 +18,7 @@ from jc.schemas.coach import (
     MockReportResponse,
     MockRubricResponse,
     MockSessionCreateRequest,
+    MockSessionListResponse,
     MockSessionResponse,
     QuestionDetailResponse,
     QuestionSummary,
@@ -162,6 +163,15 @@ async def complete_mock_session(
     coach: InterviewService = Depends(get_coach_service),
 ) -> MockSessionResponse:
     return await coach.complete_mock_session(session_id, actor=actor)
+
+
+@router.get("/profiles/{profile_id}/mock-sessions", response_model=MockSessionListResponse)
+async def list_mock_sessions(
+    profile_id: str,
+    actor: UserActor = Depends(require_user),
+    coach: InterviewService = Depends(get_coach_service),
+) -> MockSessionListResponse:
+    return await coach.list_mock_sessions(profile_id, actor=actor)
 
 
 @router.get("/profiles/{profile_id}/interviews", response_model=InterviewListResponse)

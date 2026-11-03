@@ -95,6 +95,23 @@ export type MockReport = {
   questions: MockReportQuestion[];
 };
 
+export type MockSessionListItem = {
+  id: string;
+  style: string | null;
+  started_at: string;
+  completed_at: string | null;
+  ended_reason: string | null;
+  ended_early: boolean;
+  question_count: number;
+  has_report: boolean;
+};
+
+export function listMockSessions(
+  profileId: string,
+): Promise<{ mock_sessions: MockSessionListItem[] }> {
+  return apiJson(`/coach/profiles/${profileId}/mock-sessions`);
+}
+
 export function getMockReport(sessionId: string): Promise<MockReport> {
   return apiJson(`/coach/mock/sessions/${sessionId}/report`);
 }
