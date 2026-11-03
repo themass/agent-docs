@@ -153,6 +153,24 @@ if [[ "$DO_BACKEND" == true ]]; then
   jc_run_with_heartbeat "playwright chromium (PDF export)" "$HEARTBEAT" \
     "${VENV}/bin/python" -m playwright install chromium
 
+  # Downloading the browser is not enough: it also needs system libraries, which need an
+  # administrator to install. Launch it once here, so a missing library fails the deploy with
+  # the command to run, instead of the first PDF export failing for a user.
+  log "checking that the PDF browser starts"
+  CHECK_LOG="${JC_ROOT}/.data/run/playwright-check.log"
+  mkdir -p "$(dirname "$CHECK_LOG")"
+  if ! "${VENV}/bin/python" -c 'from playwright.sync_api import sync_playwright
+with sync_playwright() as p:
+    p.chromium.launch().close()
+' >"$CHECK_LOG" 2>&1; then
+    tail -5 "$CHECK_LOG" >&2
+    die "Chromium is downloaded but will not start - it is missing system libraries.
+       An administrator runs once:
+           sudo apt-get install -y libxkbcommon0 libgbm1
+       then run this deploy again. PDF export does not work until it passes."
+  fi
+  rm -f "$CHECK_LOG"
+
   log "verifying the three in-repo packages import"
   "${VENV}/bin/python" - <<'PY'
 import importlib.metadata as m
