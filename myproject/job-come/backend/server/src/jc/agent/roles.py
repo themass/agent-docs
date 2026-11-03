@@ -36,9 +36,10 @@ SKILL_SCOPE: dict[str, frozenset[str]] = {
     "coach-answer": frozenset({"coach-answer"}),
     "coach-archive": frozenset({"coach-archive"}),
     "jd-parser": frozenset({"jd-parser"}),
-    "apply-pipeline": frozenset(
-        {"apply-pipeline", "resume-writer", "resume-reviewer", "jd-parser"}
-    ),
+    # The apply agent reaches resume work only through jc_apply_pipeline, which runs fit, the
+    # resume writer, the review and the export inside the service. It holds no resume skill and
+    # no resume tool of its own (AGENTS-DESIGN §3, R1/R2).
+    "apply-pipeline": frozenset({"apply-pipeline"}),
 }
 
 

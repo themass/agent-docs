@@ -380,12 +380,10 @@ SKILL_TOOLS: dict[str, list[str]] = {
     "coach-answer": ["jc_bank_search_questions", "jc_answer_save_attempt"],
     "jd-parser": ["jc_profile_get", "jc_job_fetch", "jc_job_parse", "jc_fit_score"],
     "apply-pipeline": [
-        "jc_profile_photo_set",
         "jc_profile_get",
         "jc_job_fetch", "jc_job_parse",
         "jc_fit_score",
         "jc_profile_patch",
-        "jc_resume_review",
         "jc_apply_pipeline",
     ],
 }
