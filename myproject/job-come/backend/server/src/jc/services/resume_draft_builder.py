@@ -1,16 +1,18 @@
-"""Build ResumeDraft sections from ProfilePayload."""
+"""Build ResumeDraft sections import re
+from ProfilePayload."""
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from jc.domain.role_families import get_playbook, playbook_for_title
 from jc.models.enums import ElevationLevel
 from jc.resume_locale import is_english_locale
 from jc.schemas.profile_payload import ProfilePayload
+from jc.services.approved_resume_text import preserve_confirmed
 from jc.services.elevation_techniques import annotate_elevation_map
 from jc.services.framing_presets import resolve_emphases
-from jc.services.approved_resume_text import preserve_confirmed
 from jc.services.profile_i18n import overlay_profile
 from jc.services.profile_photo_service import photo_data_uri
 from jc.services.resume_structure import compose_document
@@ -43,7 +45,7 @@ class ResumeDraftBuilder:
                 profile.contact.email,
                 profile.contact.phone,
             ]
-            if p
+            if p and not _is_redaction_placeholder(p)
         ]
         en = is_english_locale(locale)
         pending_name = "Name pending" if en else "姓名待填"
@@ -271,3 +273,11 @@ class ResumeDraftBuilder:
         if body.startswith(cls._WEAK_PREFIXES + ("完成",)):
             return body
         return f"负责{body.lstrip('，, ')}"
+
+
+# A redaction marker stored as if it were the user's data: it must never reach a document.
+_PLACEHOLDER = re.compile(r"^\s*[\[<(]?\s*(redacted|REDACTED|脱敏|已脱敏)\s*[\]>)]?\s*$")
+
+
+def _is_redaction_placeholder(value: str) -> bool:
+    return bool(_PLACEHOLDER.match(value))
