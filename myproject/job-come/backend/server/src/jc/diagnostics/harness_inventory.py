@@ -17,7 +17,7 @@ from typing import Any
 import yaml
 
 from jc.agent.roles import roles
-from jc.agent.tool_catalog import OPENAI_TOOLS
+from jc.agent.tool_catalog import catalog
 from jc.config import settings
 from jc.paths import agent_file, resolve_under_server
 from jc.schemas.admin_session import (
@@ -82,7 +82,6 @@ def build_harness_inventory() -> AdminInventoryResponse:
     cfg = _read_yaml(resolve_under_server(settings.jc_deerflow_config_path))
     rules_path = agent_file("deerflow", "product_rules.md")
 
-    catalog = [str(t["function"]["name"]) for t in OPENAI_TOOLS]
     owners: dict[str, list[str]] = {}
     for declared in roles().values():
         for skill_id in declared.skill_ids:
@@ -90,7 +89,7 @@ def build_harness_inventory() -> AdminInventoryResponse:
                 owners.setdefault(tool_name, []).append(skill_id)
 
     tools = []
-    for entry in OPENAI_TOOLS:
+    for entry in catalog():
         fn = entry.get("function") or {}
         name = str(fn.get("name") or "")
         if name:
@@ -140,9 +139,8 @@ def build_harness_inventory() -> AdminInventoryResponse:
     models = cfg.get("models")
     rules_preview = rules_path.read_text(encoding="utf-8")[:2000] if rules_path.exists() else None
     return AdminInventoryResponse(
-        mcp_servers=_mcp_servers(ext, catalog),
+        mcp_servers=_mcp_servers(ext, [str(t['function']['name']) for t in catalog()]),
         middlewares=list(ext.get("middlewares") or []),
-        mcp_interceptors=list(ext.get("mcpInterceptors") or []),
         tools=tools,
         skills=skills,
         roles=role_rows,

@@ -28,7 +28,8 @@ class AgentSession(Base, TimestampMixin):
         String(16), default=AgentSessionStatus.ACTIVE, nullable=False
     )
     deerflow_thread_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
-    skill_hint: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    #: The agent (a role id in roles.yaml) this session runs as. Its turn skill is not stored here.
+    role_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     job_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
     trace_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
 

@@ -62,13 +62,6 @@ class Settings(BaseSettings):
             "than carved out of it: the first pass writes the whole document."
         ),
     )
-    jc_export_review_timeout_seconds: float = Field(
-        120, gt=0, le=120, alias="JC_EXPORT_REVIEW_TIMEOUT_SECONDS"
-    )
-    jc_export_review_attempt_timeout_seconds: float = Field(
-        45, gt=0, le=60, alias="JC_EXPORT_REVIEW_ATTEMPT_TIMEOUT_SECONDS",
-        description="Per-model reviewer timeout within the shared total review budget",
-    )
     jc_ingest_timeout_seconds: float = Field(
         120, gt=0, le=120, alias="JC_INGEST_TIMEOUT_SECONDS",
         description="Whole ingest deadline including local extraction and model failover",

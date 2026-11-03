@@ -68,8 +68,10 @@ resume-writer:
 
 resume-reviewer:
   product: resume
-  mode: single
-  scenario: flash
+  mode: subtask
+  scenario: reviewer
+  max_turns: 8
+  timeout_seconds: 90
   skills: [resume-reviewer]
 
 jd-parser:

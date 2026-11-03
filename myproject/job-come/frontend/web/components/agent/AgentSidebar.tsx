@@ -14,7 +14,7 @@ type Props = {
   pageKey: string;
   profileId: string | null;
   jobId?: string | null;
-  skillHint: string;
+  roleId: string;
   kind?: string;
   disabled?: boolean;
   placeholder?: string;
@@ -39,7 +39,7 @@ export function AgentSidebar({
   pageKey,
   profileId,
   jobId = null,
-  skillHint,
+  roleId,
   kind,
   disabled = false,
   placeholder,
@@ -54,7 +54,7 @@ export function AgentSidebar({
     pageKey,
     profileId,
     jobId,
-    skillHint,
+    roleId,
     kind,
     disabled,
     onProfileUpdated,

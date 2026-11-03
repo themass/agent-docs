@@ -416,7 +416,7 @@ export type UseAgentSessionOptions = {
   pageKey: string;
   profileId: string | null;
   jobId?: string | null;
-  skillHint: string;
+  roleId: string;
   kind?: string;
   disabled?: boolean;
   onProfileUpdated?: () => void;
@@ -427,7 +427,7 @@ export function useAgentSession({
   pageKey,
   profileId,
   jobId = null,
-  skillHint,
+  roleId,
   kind,
   disabled = false,
   onProfileUpdated,
@@ -543,15 +543,15 @@ export function useAgentSession({
     const session = await createAgentSession({
       profile_id: profileId,
       job_id: jobId,
-      skill_hint: skillHint,
-      kind: kind ?? (skillHint.startsWith("coach") ? "coach" : "resume"),
+      role_id: roleId,
+      kind: kind ?? (roleId.startsWith("coach") ? "coach" : "resume"),
     });
     setSessionId(session.id);
     localStorage.setItem(storageKey(pageKey, profileId), session.id);
     setSessions((prev) => [
       {
         id: session.id,
-        skill_hint: session.skill_hint,
+        role_id: session.role_id,
         kind: session.kind,
         status: session.status,
         profile_id: session.profile_id,
@@ -561,7 +561,7 @@ export function useAgentSession({
       ...prev.filter((s) => s.id !== session.id),
     ]);
     return session.id;
-  }, [sessionId, profileId, jobId, skillHint, kind, pageKey]);
+  }, [sessionId, profileId, jobId, roleId, kind, pageKey]);
 
   // Marks the triggering user bubble so the retry affordance (red dot + retry
   // button) can render on it, instead of only a floating banner the user has to

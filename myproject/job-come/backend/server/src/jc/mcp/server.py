@@ -22,8 +22,11 @@ fails closed on — never another user's data.
 from __future__ import annotations
 
 import json
+from contextlib import asynccontextmanager
+from contextvars import ContextVar
 
 from mcp.server.fastmcp import FastMCP
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from jc.authz import RunScope
 from jc.db.session import AsyncSessionLocal
@@ -41,6 +44,25 @@ from jc.mcp.handlers import (
 )
 
 mcp = FastMCP("jc")
+
+#: The session an in-process caller (`dispatch_tool`) already holds. Set only for the duration of
+#: that call; the stdio server never sets it, so each tool opens its own session as before.
+_injected_db: ContextVar[AsyncSession | None] = ContextVar("jc_mcp_injected_db", default=None)
+
+
+def tool_functions() -> dict[str, object]:
+    """Every tool the server exposes, by name, as the function FastMCP registered."""
+    return {name: tool.fn for name, tool in mcp._tool_manager._tools.items()}
+
+
+@asynccontextmanager
+async def _session():
+    injected = _injected_db.get()
+    if injected is not None:
+        yield injected
+        return
+    async with AsyncSessionLocal() as db:
+        yield db
 
 
 def _scope(
@@ -83,7 +105,7 @@ async def jc_profile_get(
     text_limit: int = 4000,
 ) -> str:
     """Read profile JSON."""
-    async with AsyncSessionLocal() as db:
+    async with _session() as db:
         result = await profile_get(
             _scope(
                 db,
@@ -107,7 +129,7 @@ async def jc_profile_patch(
     jc_session_id: str | None = None,
 ) -> str:
     """Patch profile fields."""
-    async with AsyncSessionLocal() as db:
+    async with _session() as db:
         scope = _scope(
             db,
             jc_user_id=jc_user_id,
@@ -132,7 +154,7 @@ async def jc_bank_search_questions(
     jc_profile_id: str | None = None,
     jc_session_id: str | None = None,
 ) -> str:
-    async with AsyncSessionLocal() as db:
+    async with _session() as db:
         result = await bank_search_questions(
             _scope(
                 db,
@@ -154,7 +176,7 @@ async def jc_interview_save(
     jc_profile_id: str | None = None,
     jc_session_id: str | None = None,
 ) -> str:
-    async with AsyncSessionLocal() as db:
+    async with _session() as db:
         result = await interview_save(
             _scope(
                 db,
@@ -177,7 +199,7 @@ async def jc_mock_session_history(
     jc_job_id: str | None = None,
     jc_mock_session_id: str | None = None,
 ) -> str:
-    async with AsyncSessionLocal() as db:
+    async with _session() as db:
         result = await mock_session_history(
             _scope(
                 db,
@@ -202,7 +224,7 @@ async def jc_mock_plan(
     jc_job_id: str | None = None,
     jc_mock_session_id: str | None = None,
 ) -> str:
-    async with AsyncSessionLocal() as db:
+    async with _session() as db:
         result = await mock_plan(
             _scope(
                 db,
@@ -230,7 +252,7 @@ async def jc_mock_ask(
     jc_job_id: str | None = None,
     jc_mock_session_id: str | None = None,
 ) -> str:
-    async with AsyncSessionLocal() as db:
+    async with _session() as db:
         result = await mock_ask(
             _scope(
                 db,
@@ -259,7 +281,7 @@ async def jc_mock_end(
     jc_job_id: str | None = None,
     jc_mock_session_id: str | None = None,
 ) -> str:
-    async with AsyncSessionLocal() as db:
+    async with _session() as db:
         result = await mock_end(
             _scope(
                 db,
@@ -285,7 +307,7 @@ async def jc_mock_report_write(
     jc_job_id: str | None = None,
     jc_mock_session_id: str | None = None,
 ) -> str:
-    async with AsyncSessionLocal() as db:
+    async with _session() as db:
         result = await mock_report_write(
             _scope(
                 db,
@@ -317,7 +339,7 @@ async def jc_answer_save_attempt(
     jc_job_id: str | None = None,
     jc_mock_session_id: str | None = None,
 ) -> str:
-    async with AsyncSessionLocal() as db:
+    async with _session() as db:
         result = await answer_save_attempt(
             _scope(
                 db,
@@ -347,7 +369,7 @@ async def jc_job_fetch(
     jc_profile_id: str | None = None,
     jc_session_id: str | None = None,
 ) -> str:
-    async with AsyncSessionLocal() as db:
+    async with _session() as db:
         from jc.mcp.handlers import job_fetch
 
         result = await job_fetch(
@@ -372,7 +394,7 @@ async def jc_job_parse(
     jc_profile_id: str | None = None,
     jc_session_id: str | None = None,
 ) -> str:
-    async with AsyncSessionLocal() as db:
+    async with _session() as db:
         from jc.mcp.handlers import job_parse
 
         result = await job_parse(
@@ -398,7 +420,7 @@ async def jc_fit_score(
     jc_session_id: str | None = None,
     jc_job_id: str | None = None,
 ) -> str:
-    async with AsyncSessionLocal() as db:
+    async with _session() as db:
         from jc.mcp.handlers import fit_score
 
         result = await fit_score(
@@ -428,7 +450,7 @@ async def jc_apply_pipeline(
     jc_session_id: str | None = None,
     jc_job_id: str | None = None,
 ) -> str:
-    async with AsyncSessionLocal() as db:
+    async with _session() as db:
         from jc.mcp.handlers import apply_pipeline
 
         result = await apply_pipeline(
@@ -466,7 +488,7 @@ async def jc_question_upsert(
     jc_job_id: str | None = None,
     jc_mock_session_id: str | None = None,
 ) -> str:
-    async with AsyncSessionLocal() as db:
+    async with _session() as db:
         from jc.services.question_bank_service import question_upsert
 
         result = await question_upsert(
@@ -499,7 +521,7 @@ async def jc_intake_plan(
     jc_session_id: str | None = None,
 ) -> str:
     """What this profile still needs before a resume can be generated."""
-    async with AsyncSessionLocal() as db:
+    async with _session() as db:
         from jc.mcp.handlers import intake_plan
 
         result = await intake_plan(
@@ -523,7 +545,7 @@ async def jc_intake_record(
     jc_session_id: str | None = None,
 ) -> str:
     """Write the user's interview answers into the profile, verbatim."""
-    async with AsyncSessionLocal() as db:
+    async with _session() as db:
         from jc.mcp.handlers import intake_record
 
         result = await intake_record(
@@ -539,30 +561,44 @@ async def jc_intake_record(
 
 
 @mcp.tool()
-async def jc_resume_review(
-    draft_id: str | None = None,
-    elevation_level: str = "elevated",
+async def jc_resume_review_read(
+    draft_id: str,
     jc_user_id: str | None = None,
     jc_profile_id: str | None = None,
     jc_session_id: str | None = None,
 ) -> str:
-    """Review this run's resume draft before exporting."""
-    from jc.mcp.handlers import resume_review
+    """Read a resume draft as the reviewer reads it: one review input per track. Read-only."""
+    from jc.mcp.handlers import resume_review_read
 
-    async with AsyncSessionLocal() as db:
-        return json.dumps(
-            await resume_review(
-                _scope(
-                db,
-                jc_user_id=jc_user_id,
-                jc_profile_id=jc_profile_id,
-                jc_session_id=jc_session_id,
-            ),
-                draft_id=draft_id,
-                elevation_level=elevation_level,
-            ),
-            ensure_ascii=False,
+    async with _session() as db:
+        result = await resume_review_read(
+            _scope(db, jc_user_id=jc_user_id, jc_profile_id=jc_profile_id, jc_session_id=jc_session_id),
+            draft_id=draft_id,
         )
+        return json.dumps(result, ensure_ascii=False)
+
+
+@mcp.tool()
+async def jc_resume_review_write(
+    draft_id: str,
+    verdicts: dict,
+    jc_user_id: str | None = None,
+    jc_profile_id: str | None = None,
+    jc_session_id: str | None = None,
+) -> str:
+    """Record your verdict on a resume draft: one verdict per track, written once.
+
+    `verdicts` maps each track named by jc_resume_review_read to {status, issues, summary}.
+    """
+    from jc.mcp.handlers import resume_review_write
+
+    async with _session() as db:
+        result = await resume_review_write(
+            _scope(db, jc_user_id=jc_user_id, jc_profile_id=jc_profile_id, jc_session_id=jc_session_id),
+            draft_id=draft_id,
+            verdicts=verdicts,
+        )
+        return json.dumps(result, ensure_ascii=False)
 
 
 @mcp.tool()
@@ -576,7 +612,7 @@ async def jc_profile_photo_set(
     """Prepare a chat image for resume photo cropping. User must crop and save in UI."""
     from jc.mcp.handlers import profile_photo_set
 
-    async with AsyncSessionLocal() as db:
+    async with _session() as db:
         result = await profile_photo_set(
             _scope(db, jc_user_id=jc_user_id, jc_profile_id=jc_profile_id, jc_session_id=jc_session_id),
             message_id=message_id, attachment_index=attachment_index,

@@ -13,9 +13,9 @@ from jc.agent.roles import default_role
 class AgentSessionCreateRequest(BaseModel):
     profile_id: str | None = Field(default=None, description="Active profile to bind")
     job_id: str | None = Field(default=None, description="Bind job for interview prep context")
-    skill_hint: str = Field(
+    role_id: str = Field(
         default_factory=lambda: default_role().id,
-        description="The agent (role) the session runs as; one of the entry roles in roles.yaml",
+        description="The agent the session runs as: one of the entry roles in roles.yaml",
     )
     kind: str = Field(default="resume", description="resume | coach")
 
@@ -23,7 +23,7 @@ class AgentSessionCreateRequest(BaseModel):
 class AgentSessionResponse(BaseModel):
     id: str
     deerflow_thread_id: str
-    skill_hint: str | None
+    role_id: str | None
     kind: str
     status: str
     profile_id: str | None
@@ -32,7 +32,7 @@ class AgentSessionResponse(BaseModel):
 
 class AgentSessionListItem(BaseModel):
     id: str
-    skill_hint: str | None
+    role_id: str | None
     kind: str
     status: str
     profile_id: str | None

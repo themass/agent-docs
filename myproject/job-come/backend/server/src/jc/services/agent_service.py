@@ -143,9 +143,9 @@ class AgentService:
         body: AgentSessionCreateRequest,
         trace_id: str,
     ) -> AgentSessionResponse:
-        if body.skill_hint not in entry_roles():
+        if body.role_id not in entry_roles():
             raise AppError(
-                f"{body.skill_hint!r} is not an agent a session can be opened on.",
+                f"{body.role_id!r} is not an agent a session can be opened on.",
                 code="invalid_request",
             )
         profile_id = body.profile_id
@@ -162,7 +162,7 @@ class AgentService:
             user_id=actor.user_id,
             profile_id=profile_id,
             session_id=None,
-            skill_hint=body.skill_hint,
+            role_id=body.role_id,
             extra=extra,
         )
         thread_id = await client.start_session(metadata=metadata)
@@ -175,7 +175,7 @@ class AgentService:
             kind=body.kind or AgentSessionKind.RESUME,
             status=AgentSessionStatus.ACTIVE,
             deerflow_thread_id=thread_id,
-            skill_hint=body.skill_hint,
+            role_id=body.role_id,
             trace_id=trace_id,
         )
         await self._store.create(session)
@@ -208,7 +208,7 @@ class AgentService:
             sessions=[
                 AgentSessionListItem(
                     id=s.id,
-                    skill_hint=s.skill_hint,
+                    role_id=s.role_id,
                     kind=s.kind,
                     status=s.status,
                     profile_id=s.profile_id,
@@ -291,7 +291,7 @@ class AgentService:
         # The API adapter wraps this stream with `with_heartbeat`, so liveness
         # pings stay at the transport boundary while this service awaits prep work.
         agent_message = await flatten_task
-        hint = session.skill_hint or default_role().id
+        hint = session.role_id or default_role().id
         if hint not in entry_roles():
             # A session opened on an agent that has since been retired. Running it would
             # mean a turn with no tool surface, which looks like a working agent that does
@@ -704,7 +704,7 @@ class AgentService:
         return AgentSessionResponse(
             id=session.id,
             deerflow_thread_id=session.deerflow_thread_id,
-            skill_hint=session.skill_hint,
+            role_id=session.role_id,
             kind=session.kind,
             status=session.status,
             profile_id=session.profile_id,

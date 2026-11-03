@@ -258,6 +258,9 @@ export default function InterviewsPage() {
           {!ready && !busy ? (
             <span className="text-xs text-ink-500">公司、岗位、日期为必填</span>
           ) : null}
+          <Link href="/coach-agent?intent=archive" className="btn btn-md btn-secondary ml-auto">
+            让面试教练帮我记
+          </Link>
         </div>
 
         {message ? (

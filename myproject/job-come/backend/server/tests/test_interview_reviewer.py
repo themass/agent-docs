@@ -12,12 +12,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 import jc.models  # noqa: F401
+from jc.agent import subtask
 from jc.agent.roles import role
 from jc.db.base import Base
 from jc.models.interview import AnswerAttempt, InterviewQuestion, MockSession
 from jc.models.profile import Profile
 from jc.models.user import User
-from jc.services import interview_reviewer
 from jc.services.interview_reviewer import REVIEWER_SKILL, review_session
 from reviewer_agent_fake import FakeClientFactory, FakeReviewerAgent
 
@@ -54,7 +54,7 @@ async def maker(tmp_path):
 
 
 def _use(monkeypatch, agent: FakeReviewerAgent) -> None:
-    monkeypatch.setattr(interview_reviewer, "get_deerflow_client", FakeClientFactory(agent))
+    monkeypatch.setattr(subtask, "get_deerflow_client", FakeClientFactory(agent))
 
 
 async def _review(maker) -> bool:

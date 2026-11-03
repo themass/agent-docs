@@ -25,7 +25,6 @@ from jc.services.answer_attempt_service import save_answer_attempt
 from jc.services.fit_score_service import FitScoreService
 from jc.services.jd_parser_service import JdParserService
 from jc.services.profile_patch_service import propose_patch
-from jc.services.question_bank_service import question_upsert
 from jc.stores.interview_store import InterviewStore
 from jc.stores.job_store import JobStore
 from jc.stores.profile_store import ProfileStore
@@ -360,45 +359,56 @@ async def apply_pipeline(
     return result.model_dump(mode="json")
 
 
-async def resume_review(
-    scope: RunScope,
-    *,
-    draft_id: str | None = None,
-    elevation_level: str = "elevated",
-) -> dict[str, Any]:
-    await require_owned_profile(scope)
-    if not scope.profile_id:
-        raise ValueError("profile_id required")
-
-    from jc.models.enums import ReviewerStatus
-    from jc.services.resume_reviewer import ResumeReviewer
+async def _owned_draft(scope: RunScope, draft_id: str):
     from jc.stores.resume_store import ResumeStore
 
-    store = ResumeStore(scope.db)
-    draft = await store.get_draft_by_id(draft_id) if draft_id else None
-    if draft is None:
-        draft = await store.get_latest_draft(scope.profile_id, elevation_level=elevation_level)
-    if draft is None:
-        raise ValueError("No resume draft to review — run elevate or apply pipeline first")
-
-    if draft.profile_id != scope.profile_id:
+    await require_owned_profile(scope)
+    draft = await ResumeStore(scope.db).get_draft_by_id(draft_id)
+    if draft is None or draft.profile_id != scope.profile_id:
         raise PermissionError("Draft outside this profile")
-    profile = await require_owned_profile(scope)
-    review = await ResumeReviewer().review(sections=draft.sections, source_profile=profile.payload)
-    draft.reviewer_status = review.status
-    draft.reviewer_notes = review.notes
-    await scope.db.commit()
+    return draft
 
-    status = (
-        review.status.value if isinstance(review.status, ReviewerStatus) else str(review.status)
-    )
-    return {
-        "status": status,
-        "passed": review.status == ReviewerStatus.PASSED,
-        "notes": review.notes,
-        "issues": review.issues,
-        "draft_id": draft.id,
-    }
+
+async def resume_review_read(scope: RunScope, *, draft_id: str) -> dict[str, Any]:
+    """Each track of a draft as the reviewer reads it. Read-only."""
+    from jc.services.resume_reviewer import build_review_input, review_tracks
+
+    draft = await _owned_draft(scope, draft_id)
+    profile = await require_owned_profile(scope)
+    tracks: dict[str, dict[str, str]] = {}
+    for track, (sections, family) in review_tracks(
+        draft.locale, draft.sections, profile.payload
+    ).items():
+        text, blocked = build_review_input(sections, profile.payload, family)
+        if blocked is not None:
+            return {"draft_id": draft.id, "tracks": {}, "unavailable": blocked.notes}
+        tracks[track] = {"role_family": family, "review_input": text or ""}
+    return {"draft_id": draft.id, "tracks": tracks}
+
+
+async def resume_review_write(
+    scope: RunScope, *, draft_id: str, verdicts: dict[str, Any]
+) -> dict[str, Any]:
+    """Record the reviewer's verdict for every track of a draft, in one write.
+
+    Every track must be given a verdict, so a bilingual draft is never half-checked. A verdict that
+    does not meet the contract is stored as "no verdict" for its track, which blocks nothing.
+    """
+    from jc.services.resume_reviewer import aggregate_status, review_tracks, verdict_result
+
+    draft = await _owned_draft(scope, draft_id)
+    profile = await require_owned_profile(scope)
+    expected = set(review_tracks(draft.locale, draft.sections, profile.payload))
+    if set(verdicts) != expected:
+        raise ValueError(f"verdicts must cover exactly the tracks {sorted(expected)}")
+    results = {track: verdict_result(verdicts[track]) for track in sorted(expected)}
+    status = aggregate_status(results)
+    draft.reviewer_verdicts = {track: result.as_dict() for track, result in results.items()}
+    draft.reviewer_status = status.value
+    notes = "；".join(r.notes for r in results.values() if r.notes)
+    draft.reviewer_notes = notes[:1024] or None
+    await scope.db.commit()
+    return {"accepted": True, "status": status.value, "tracks": sorted(expected)}
 
 
 async def intake_plan(scope: RunScope, *, limit: int = 6) -> dict[str, Any]:
@@ -582,151 +592,39 @@ async def profile_photo_set(
     return await request_photo_crop(scope, message_id=message_id, attachment_index=attachment_index)
 
 
-TOOL_HANDLERS = {
-    "jc_profile_photo_set": profile_photo_set,
-    "jc_profile_get": profile_get,
-    "jc_profile_patch": profile_patch,
-    "jc_bank_search_questions": bank_search_questions,
-    "jc_interview_save": interview_save,
-    "jc_answer_save_attempt": answer_save_attempt,
-    "jc_job_fetch": job_fetch,
-    "jc_job_parse": job_parse,
-    "jc_fit_score": fit_score,
-    "jc_apply_pipeline": apply_pipeline,
-    "jc_question_upsert": question_upsert,
-    "jc_mock_session_history": mock_session_history,
-    "jc_mock_report_write": mock_report_write,
-    "jc_mock_plan": mock_plan,
-    "jc_mock_ask": mock_ask,
-    "jc_mock_end": mock_end,
-    "jc_resume_review": resume_review,
-    "jc_intake_plan": intake_plan,
-    "jc_intake_record": intake_record,
-}
-
-
 async def dispatch_tool(
     scope: RunScope,
     name: str,
     arguments: dict[str, Any],
 ) -> Any:
-    handler = TOOL_HANDLERS.get(name)
-    if handler is None:
+    """Run one tool in-process, exactly as the MCP server runs it, with this scope and session.
+
+    The tool's wrapper in `jc.mcp.server` is the only definition of its arguments and its schema.
+    This calls that wrapper with the scope's identity and the scope's session, and decodes the JSON
+    it returns. In-process callers (tests, the fake reviewer) therefore exercise the same code the
+    model reaches through the MCP server.
+    """
+    import inspect
+    import json
+
+    from jc.mcp import server
+
+    tool = server.tool_functions().get(name)
+    if tool is None:
         raise ValueError(f"Unknown tool: {name}")
-    if name == "jc_profile_photo_set":
-        return await handler(
-            scope, message_id=arguments.get("message_id"),
-            attachment_index=arguments.get("attachment_index"),
-        )
-    if name == "jc_profile_get":
-        return await handler(
-            scope, arguments.get("profile_id"),
-            section=arguments.get("section") or "overview",
-            **{key: arguments[key] for key in (
-                "field_path", "offset", "limit", "text_offset", "text_limit",
-            ) if key in arguments},
-        )
-    if name == "jc_profile_patch":
-        return await handler(
-            scope,
-            arguments.get("patch", {}),
-            profile_id=arguments.get("profile_id"),
-            session_id=scope.session_id,
-        )
-    if name == "jc_bank_search_questions":
-        return await handler(
-            scope,
-            query=arguments.get("query", ""),
-            company=arguments.get("company"),
-            job_id=arguments.get("job_id"),
-            limit=int(arguments.get("limit", 10)),
-        )
-    if name == "jc_interview_save":
-        return await handler(scope, arguments.get("record", arguments))
-    if name == "jc_answer_save_attempt":
-        return await handler(
-            scope,
-            question_id=arguments.get("question_id"),
-            user_answer=arguments["user_answer"],
-            coach_feedback=arguments.get("coach_feedback"),
-            reference_answer=arguments.get("reference_answer"),
-            mock_session_id=arguments.get("mock_session_id"),
-            question_stem=arguments.get("question_stem"),
-            company=arguments.get("company"),
-            job_id=arguments.get("job_id"),
-        )
-    if name == "jc_job_parse":
-        return await handler(
-            scope,
-            raw_text=arguments["raw_text"],
-            source_url=arguments.get("source_url"),
-            save=bool(arguments.get("save", True)),
-        )
-    if name == "jc_fit_score":
-        return await handler(
-            scope,
-            job_id=arguments.get("job_id"),
-            raw_jd=arguments.get("raw_jd"),
-        )
-    if name == "jc_apply_pipeline":
-        return await handler(
-            scope,
-            job_id=arguments.get("job_id"),
-            raw_text=arguments.get("raw_text"),
-            source_url=arguments.get("source_url"),
-            elevation_level=str(arguments.get("elevation_level", "elevated")),
-            export_format=str(arguments.get("export_format", "pdf")),
-            create_application=arguments.get("create_application", False),
-        )
-    if name == "jc_question_upsert":
-        return await handler(
-            scope,
-            stem=arguments["stem"],
-            question_type=str(arguments.get("question_type", "behavioral")),
-            company=arguments.get("company"),
-            role_title=arguments.get("role_title"),
-            job_id=arguments.get("job_id"),
-            mock_session_id=arguments.get("mock_session_id"),
-            tags=arguments.get("tags"),
-            round=arguments.get("round"),
-        )
-    if name == "jc_mock_session_history":
-        return await handler(
-            scope,
-            mock_session_id=arguments.get("mock_session_id"),
-            limit=int(arguments.get("limit", 20)),
-        )
-    if name == "jc_mock_plan":
-        return await handler(scope, mock_session_id=str(arguments["mock_session_id"]))
-    if name == "jc_mock_ask":
-        return await handler(
-            scope,
-            mock_session_id=str(arguments["mock_session_id"]),
-            question_id=str(arguments["question_id"]),
-            kind=str(arguments.get("kind", "main")),
-            parent_question_id=arguments.get("parent_question_id"),
-            experience=arguments.get("experience"),
-        )
-    if name == "jc_mock_end":
-        return await handler(
-            scope,
-            mock_session_id=str(arguments["mock_session_id"]),
-            reason=str(arguments.get("reason", "completed")),
-        )
-    if name == "jc_mock_report_write":
-        return await handler(
-            scope,
-            mock_session_id=str(arguments["mock_session_id"]),
-            report=dict(arguments.get("report") or {}),
-        )
-    if name == "jc_resume_review":
-        return await handler(
-            scope,
-            draft_id=arguments.get("draft_id"),
-            elevation_level=str(arguments.get("elevation_level", "elevated")),
-        )
-    if name == "jc_intake_plan":
-        return await handler(scope, limit=int(arguments.get("limit", 6)))
-    if name == "jc_intake_record":
-        return await handler(scope, answers=list(arguments.get("answers") or []))
-    raise ValueError(f"Unhandled tool: {name}")
+    identity = {
+        "jc_user_id": scope.user_id,
+        "jc_profile_id": scope.profile_id,
+        "jc_session_id": scope.session_id,
+        "jc_job_id": scope.job_id,
+        "jc_mock_session_id": scope.mock_session_id,
+    }
+    declared = inspect.signature(tool).parameters
+    token = server._injected_db.set(scope.db)
+    try:
+        return json.loads(await tool(**{
+            **arguments,
+            **{key: value for key, value in identity.items() if key in declared},
+        }))
+    finally:
+        server._injected_db.reset(token)

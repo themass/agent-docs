@@ -3,8 +3,7 @@
     "jc.deerflow_middleware:JCProductRulesMiddleware"
   ],
   "mcpInterceptors": [
-    "jc.mcp.identity_interceptor:build_jc_identity_interceptor",
-    "jc.mcp.interceptors:build_apply_pipeline_review_interceptor"
+    "jc.mcp.identity_interceptor:build_jc_identity_interceptor"
   ],
   "mcpServers": {
     "jc": {

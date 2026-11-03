@@ -11,7 +11,7 @@ import { USER_NETWORK_ERROR, USER_SERVICE_UNAVAILABLE } from "./errors";
 export function createAgentSession(body: {
   profile_id?: string | null;
   job_id?: string | null;
-  skill_hint?: string;
+  role_id?: string;
   kind?: string;
 }): Promise<AgentSession> {
   return apiJson<AgentSession>("/agent/sessions", {
@@ -22,7 +22,7 @@ export function createAgentSession(body: {
 
 export type AgentSessionListItem = {
   id: string;
-  skill_hint: string | null;
+  role_id: string | null;
   kind: string;
   status: string;
   profile_id: string | null;

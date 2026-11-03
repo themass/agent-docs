@@ -18,7 +18,7 @@ type Props = {
   subtitle?: string;
   profileId: string | null;
   jobId?: string | null;
-  skillHint: string;
+  roleId: string;
   kind?: string;
   disabled?: boolean;
   placeholder?: string;
@@ -43,7 +43,7 @@ export function AgentWorkbench({
   subtitle,
   profileId,
   jobId = null,
-  skillHint,
+  roleId,
   kind,
   disabled = false,
   placeholder,
@@ -61,7 +61,7 @@ export function AgentWorkbench({
       title,
       profileId,
       jobId,
-      skillHint,
+      roleId,
       kind,
       disabled,
       placeholder,
@@ -80,7 +80,7 @@ export function AgentWorkbench({
     subtitle,
     profileId,
     jobId,
-    skillHint,
+    roleId,
     kind,
     disabled,
     placeholder,
@@ -99,7 +99,7 @@ function AgentWorkbenchSplit({
   title,
   profileId,
   jobId = null,
-  skillHint,
+  roleId,
   kind,
   disabled = false,
   placeholder,
@@ -210,7 +210,7 @@ function AgentWorkbenchSplit({
             pageKey={pageKey}
             profileId={profileId}
             jobId={jobId}
-            skillHint={skillHint}
+            roleId={roleId}
             kind={kind}
             disabled={disabled}
             placeholder={placeholder}
@@ -231,7 +231,7 @@ function AgentWorkbenchUnified({
   subtitle,
   profileId,
   jobId = null,
-  skillHint,
+  roleId,
   kind,
   disabled = false,
   placeholder,
@@ -245,7 +245,7 @@ function AgentWorkbenchUnified({
     pageKey,
     profileId,
     jobId,
-    skillHint,
+    roleId,
     kind,
     disabled,
     onProfileUpdated,

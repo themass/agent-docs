@@ -68,6 +68,14 @@ def test_the_resume_provider_passes_the_text_through_without_a_profile():
     assert text == "改一下"
 
 
+def test_a_switched_skill_of_the_interview_role_gets_its_text_without_mock_state():
+    ctx = TurnContext(db=None, profiles=None, actor=None, profile_id="p1", job_id="j1",
+                      ui_context=None, default_skill="coach-mock")
+    text = turn.TURN_PROVIDERS["mock_session"].message(
+        ctx, {"mock_session_id": "ms1", "drawn_stems": ["题"]}, "coach-archive", "我面了一场")
+    assert text == "我面了一场"
+
+
 def test_the_interview_message_names_the_bound_job_and_mock_session():
     ctx = TurnContext(db=None, profiles=None, actor=None, profile_id="p1", job_id="j1",
                       ui_context=None, default_skill="coach-mock")

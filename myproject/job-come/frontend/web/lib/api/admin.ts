@@ -32,7 +32,7 @@ export type AdminSessionListItem = {
   job_id: string | null;
   kind: string;
   status: string;
-  skill_hint: string | null;
+  role_id: string | null;
   deerflow_thread_id: string;
   trace_id: string | null;
   message_count: number;
@@ -85,7 +85,6 @@ export type AdminInventory = {
     }>;
   }>;
   middlewares: string[];
-  mcp_interceptors: string[];
   tools: Array<{
     name: string;
     description: string | null;
@@ -368,7 +367,7 @@ export type AdminLlmCallItem = {
   scenario: string;
   caller: string;
   channel: string;
-  skill_hint: string | null;
+  role_id: string | null;
   status: string;
   final_model: string | null;
   final_provider: string | null;

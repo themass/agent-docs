@@ -40,6 +40,9 @@ class ResumeDraft(Base, TimestampMixin):
         String(16), default=ReviewerStatus.PENDING, nullable=False
     )
     reviewer_notes: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    #: Per-track verdicts from the reviewer subtask: {track: {status, notes, issues}}. None until a
+    #: review has written one for this draft.
+    reviewer_verdicts: Mapped[dict[str, Any] | None] = mapped_column(JSONLongText, nullable=True)
     exported_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     profile: Mapped[Profile] = relationship(back_populates="resume_drafts")

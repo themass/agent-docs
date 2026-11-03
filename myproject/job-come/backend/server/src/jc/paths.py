@@ -28,9 +28,6 @@ BACKEND_ROOT = SERVER_ROOT.parent
 #: `backend/agent` — prompts, skills and harness config. Not Python; shipped as data.
 AGENT_ROOT = BACKEND_ROOT / "agent"
 
-#: `backend/agent/prompts` — Jinja prompt templates, addressed by relative path.
-PROMPTS_ROOT = AGENT_ROOT / "prompts"
-
 #: `<repo>/myproject/job-come` — holds `docs/`, `scripts/`, `frontend/`.
 PROJECT_ROOT = BACKEND_ROOT.parent
 
@@ -39,11 +36,6 @@ PROJECT_ROOT = BACKEND_ROOT.parent
 # survived: the fallback paths were all misses, so nothing ever raised.
 assert SERVER_ROOT.name == "server", f"SERVER_ROOT resolved to {SERVER_ROOT}"
 assert BACKEND_ROOT.name == "backend", f"BACKEND_ROOT resolved to {BACKEND_ROOT}"
-
-
-def prompt_file(*parts: str) -> Path:
-    """A prompt under `backend/agent/prompts`, e.g. `prompt_file("ingest", "jd_parser.md")`."""
-    return PROMPTS_ROOT.joinpath(*parts)
 
 
 def agent_file(*parts: str) -> Path:

@@ -24,7 +24,7 @@ from jc.agent.roles import (
     role_of,
     roles,
 )
-from jc.agent.tool_catalog import OPENAI_TOOLS
+from jc.agent.tool_catalog import catalog
 from jc.agent.turn import PREDICATES, TURN_PROVIDERS
 from jc.skills.loader import all_skill_ids, require_skill
 
@@ -84,9 +84,9 @@ def test_every_turn_provider_and_switch_predicate_a_role_names_is_registered():
 
 
 def test_every_tool_a_skill_names_exists_on_the_catalog():
-    catalog = {t["function"]["name"] for t in OPENAI_TOOLS}
+    names = {t["function"]["name"] for t in catalog()}
     for skill_id in all_skill_ids():
-        unknown = sorted(set(require_skill(skill_id).allowed_tools) - catalog)
+        unknown = sorted(set(require_skill(skill_id).allowed_tools) - names)
         assert not unknown, f"{skill_id} names unknown tools {unknown}"
 
 

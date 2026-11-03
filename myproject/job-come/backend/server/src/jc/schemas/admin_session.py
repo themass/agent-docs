@@ -20,7 +20,7 @@ class AdminSessionListItem(BaseModel):
     job_id: str | None
     kind: str
     status: str
-    skill_hint: str | None
+    role_id: str | None
     deerflow_thread_id: str
     trace_id: str | None
     message_count: int = 0
@@ -143,7 +143,6 @@ class AdminRoleInfo(BaseModel):
 class AdminInventoryResponse(BaseModel):
     mcp_servers: list[AdminMcpServerInfo]
     middlewares: list[str]
-    mcp_interceptors: list[str]
     tools: list[AdminToolInfo]
     skills: list[AdminSkillInfo]
     roles: list[AdminRoleInfo] = Field(default_factory=list)

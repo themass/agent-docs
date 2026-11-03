@@ -13,7 +13,7 @@ from agentkit.common.ids import new_id
 from agentkit.web.auth import Actor, UserActor
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from jc.config import settings
+from jc.agent.roles import role
 from jc.db.profile_snapshot_hook import bind_snapshot_source
 from jc.db.session import release_db_connection
 from jc.domain.role_families import resolve_role_family
@@ -59,7 +59,13 @@ from jc.services.resume_diagnostics import diagnose
 from jc.services.resume_draft_builder import ResumeDraftBuilder
 from jc.services.resume_elevator import ResumeElevator
 from jc.services.resume_render_engine import ResumeRenderEngine
-from jc.services.resume_reviewer import ResumeReviewer
+from jc.services.resume_reviewer import (
+    RESUME_REVIEWER_ROLE,
+    REVIEW_EN,
+    REVIEW_MAIN,
+    REVIEW_ZH,
+    draft_role_family,
+)
 from jc.services.resume_structure import audit_structure
 from jc.storage_backend import get_storage_backend
 from jc.storage_client import download_url_for_key
@@ -144,7 +150,6 @@ class ResumeService:
         self._builder = ResumeDraftBuilder()
         self._elevator = ResumeElevator()
         self._renderer = ResumeRenderEngine()
-        self._reviewer = ResumeReviewer()
         self._localizer = LocalizeService()
         self._storage = get_storage_backend()
 
@@ -318,7 +323,7 @@ class ResumeService:
         # Prefer the report stamped at generation time: it records what composition
         # actually *did*, including moves. Re-auditing a stored draft can only observe
         # the result, so a draft generated before this field existed falls back to that.
-        family = self._draft_role_family(sections, profile_resp.payload.model_dump())
+        family = draft_role_family(sections, profile_resp.payload.model_dump())
         structure = draft.sections.get("structure") if isinstance(draft.sections, dict) else None
         if not isinstance(structure, dict):
             structure = audit_structure(
@@ -499,7 +504,7 @@ class ResumeService:
         return stream_operation(
             lambda: self.review_for_export(profile_id, actor=actor, **kwargs), profile_id,
             rollback_db=self._db.rollback, operation="export_review", label="导出前质检", log=logger,
-            timeout_seconds=settings.jc_export_review_timeout_seconds + 30,
+            timeout_seconds=role(RESUME_REVIEWER_ROLE).timeout_seconds + 30,
         )
 
     async def review_for_export(
@@ -989,77 +994,106 @@ class ResumeService:
         return draft
 
     async def _review_draft(self, draft: ResumeDraft) -> dict[str, Any]:
+        """Check a draft before export: the rules, then the reviewer's verdict for each track.
+
+        The reviewer is the `resume-reviewer` subtask. It writes its verdict into the draft through
+        `jc_resume_review_write`, and this reads it back. A track it could not judge is unavailable,
+        never failed, and the rule checks are reported either way.
+        """
+        from jc.agent.subtask import run_subtask
+        from jc.services.resume_reviewer import (
+            RESUME_REVIEWER_ROLE,
+            REVIEW_MESSAGE,
+            ReviewerResult,
+            build_review_input,
+            review_tracks,
+            unavailable,
+        )
         from jc.stores.profile_store import ProfileStore
+
         profile = await ProfileStore(self._db).get_by_id(draft.profile_id)
         source_profile = profile.payload if profile else None
-        # Snapshot everything the reviewer needs, then release the pooled MySQL connection:
-        # a remote server drops an idle transaction long before a slow review call returns.
         draft_id = draft.id
         locale = draft.locale
         sections = dict(draft.sections or {})
-        # The playbook the draft was written against must be the one it is reviewed
-        # against, otherwise a non-quantified role gets written correctly and then
-        # blocked by engineering expectations at the gate.
-        role_family = self._draft_role_family(sections, source_profile)
-        await release_db_connection(self._db)
-        try:
-            async with asyncio.timeout(settings.jc_export_review_timeout_seconds):
-                return await self._review_snapshot(locale, sections, source_profile, role_family)
-        except TimeoutError:
-            logger.warning("Resume review timed out for draft %s", draft_id)
-            check_sections = (
-                (sections.get("zh_sections") or {}) if locale == TRACK_BILINGUAL else sections
-            )
-            issues = self._with_delivery_issues(
-                self._with_structure_issues(
-                    self._with_invariant_issues([], check_sections, source_profile),
-                    check_sections, role_family,
-                ),
-                check_sections,
-            )
-            issues.append({
-                "code": "reviewer_timeout", "severity": "warning",
-                "message": "自动质检超时，未完成模型核对；可以重试检查或自行确认后导出。",
-            })
-            return self._review_payload(
-                passed=False, available=False,
-                notes="自动质检超时，未完成模型核对。规则检查结果仍可查看。",
-                issues=issues,
-            )
+        tracks = review_tracks(locale, sections, source_profile)
+        reviews: dict[str, ReviewerResult] = {}
+        runnable: list[str] = []
+        for track, (track_sections, family) in tracks.items():
+            _, blocked = build_review_input(track_sections, source_profile, family)
+            if blocked is not None:
+                reviews[track] = blocked
+            else:
+                runnable.append(track)
+        if runnable and profile is not None:
+            # The reviewer's run is database work of its own. Clear any verdict an earlier review
+            # left on this draft, then release this request's connection, as the model call used to.
+            draft.reviewer_verdicts = None
+            await self._db.commit()
+            await release_db_connection(self._db)
+            finished = False
+            try:
+                finished = await run_subtask(
+                    RESUME_REVIEWER_ROLE,
+                    db=self._db,
+                    user_id=profile.user_id,
+                    profile_id=profile.id,
+                    message=REVIEW_MESSAGE.format(draft_id=draft_id),
+                    extra={"draft_id": draft_id},
+                )
+            except Exception:  # noqa: BLE001 — a failed run is "no verdict", not a 500 on export
+                logger.warning("resume review subtask failed draft=%s", draft_id, exc_info=True)
+            # The reviewer wrote on another session of the database. Reload this draft from it:
+            # the object held here is the one cleared above, and must not be read from memory.
+            await self._db.refresh(draft)
+            verdicts = draft.reviewer_verdicts or {}
+            for track in runnable:
+                if track in verdicts:
+                    reviews[track] = ReviewerResult.from_dict(verdicts[track])
+                elif finished:
+                    reviews[track] = unavailable(
+                        "reviewer_no_verdict", "Reviewer finished without a verdict",
+                        "自动质检没有给出结论，本次没有核对简历内容。",
+                    )
+                else:
+                    reviews[track] = unavailable(
+                        "reviewer_timeout", "Reviewer did not finish in time",
+                        "自动质检超时，未完成模型核对。规则检查结果仍可查看。",
+                    )
+        else:
+            for track in runnable:
+                reviews[track] = unavailable(
+                    "missing_source", "Source profile required",
+                    "找不到对应的事实档案，自动质检本次没有核对简历内容。",
+                )
+        return self._review_snapshot(locale, sections, source_profile, tracks, reviews)
 
-    async def _review_snapshot(
-        self, locale: str, sections: dict[str, Any],
-        source_profile: dict[str, Any] | None, role_family: str,
+    def _review_snapshot(
+        self,
+        locale: str,
+        sections: dict[str, Any],
+        source_profile: dict[str, Any] | None,
+        tracks: dict[str, tuple[dict[str, Any], str]],
+        reviews: dict[str, Any],
     ) -> dict[str, Any]:
+        """The payload for one draft: the reviewer's verdicts with the rule checks on top.
+
+        `tracks` gives each track's sections and family, `reviews` each track's verdict. The rule
+        checks run whatever the verdicts say, so an unavailable reviewer still reports them.
+        """
         if locale == TRACK_BILINGUAL:
-            zh_sec = sections.get("zh_sections") or {}
-            en_sec = sections.get("en_sections") or {}
-            # Each track is a draft in its own right and stamps its own family. Use the
-            # track's stamp where present so a wrapper built from drafts generated under
-            # different preferences still reviews each one against what wrote it.
-            # Structured concurrency also cancels/awaits the sibling if a track
-            # raises unexpectedly; no paid call may outlive its request.
-            async with asyncio.TaskGroup() as tasks:
-                zh_task = tasks.create_task(self._reviewer.review(
-                    sections=zh_sec,
-                    source_profile=source_profile,
-                    role_family=self._track_role_family(zh_sec, role_family),
-                ))
-                en_task = tasks.create_task(self._reviewer.review(
-                    sections=en_sec,
-                    source_profile=source_profile,
-                    role_family=self._track_role_family(en_sec, role_family),
-                ))
-            zh_review, en_review = zh_task.result(), en_task.result()
-            # The invariant audit reads the 中文 track (the English track restates the
-            # same facts), so it is attached to the zh half rather than run twice.
+            zh_sec, zh_family = tracks[REVIEW_ZH]
+            en_sec, en_family = tracks[REVIEW_EN]
+            zh_review, en_review = reviews[REVIEW_ZH], reviews[REVIEW_EN]
+            # The invariant audit reads the 中文 track (the English track restates the same facts),
+            # so it is attached to the zh half rather than run twice.
             issues = [
                 {**issue, "track": TRACK_ZH}
                 for issue in self._with_delivery_issues(
                     self._with_structure_issues(
                         self._with_invariant_issues(zh_review.issues, zh_sec, source_profile),
                         zh_sec,
-                        self._track_role_family(zh_sec, role_family),
+                        zh_family,
                     ),
                     zh_sec,
                 )
@@ -1067,8 +1101,7 @@ class ResumeService:
                 {**issue, "track": TRACK_EN}
                 for issue in self._with_delivery_issues(en_review.issues, en_sec)
             ]
-            # Either track failing to produce a verdict means we have no verdict for
-            # the pair; see `_review_payload` for why that is not a failure.
+            # Either track failing to produce a verdict means we have no verdict for the pair.
             available = zh_review.available and en_review.available
             passed = (
                 zh_review.status == ReviewerStatus.PASSED
@@ -1081,16 +1114,15 @@ class ResumeService:
                 notes=notes or None,
                 issues=issues,
             )
-        review = await self._reviewer.review(
-            sections=sections, source_profile=source_profile, role_family=role_family
-        )
+        main_sec, family = tracks[REVIEW_MAIN]
+        review = reviews[REVIEW_MAIN]
         issues = self._with_delivery_issues(
             self._with_structure_issues(
-                self._with_invariant_issues(review.issues, sections, source_profile),
-                sections,
-                role_family,
+                self._with_invariant_issues(review.issues, main_sec, source_profile),
+                main_sec,
+                family,
             ),
-            sections,
+            main_sec,
         )
         return self._review_payload(
             passed=review.status == ReviewerStatus.PASSED,
@@ -1187,45 +1219,6 @@ class ResumeService:
     _with_invariant_issues = staticmethod(with_invariant_issues)
     _with_delivery_issues = staticmethod(with_delivery_issues)
     _with_structure_issues = staticmethod(with_structure_issues)
-
-    @staticmethod
-    def _track_role_family(track: dict[str, Any], fallback: str) -> str:
-        stamped = track.get("role_family")
-        if isinstance(stamped, str) and stamped.strip():
-            return stamped.strip()
-        return fallback
-
-    @staticmethod
-    def _draft_role_family(
-        sections: dict[str, Any],
-        source_profile: dict[str, Any] | None,
-    ) -> str:
-        """Recover the family a draft was written against.
-
-        Drafts written before this field existed, and bilingual wrappers that carry no
-        family of their own, fall back to the user's stored preference and then to the
-        profile's own titles.
-        """
-        stamped = sections.get("role_family")
-        if isinstance(stamped, str) and stamped.strip():
-            return stamped.strip()
-        if sections.get("track") == "bilingual":
-            for key in ("zh_sections", "en_sections"):
-                nested = sections.get(key)
-                if isinstance(nested, dict):
-                    nested_family = nested.get("role_family")
-                    if isinstance(nested_family, str) and nested_family.strip():
-                        return nested_family.strip()
-        profile = source_profile or {}
-        prefs = profile.get("preferences") if isinstance(profile, dict) else None
-        override = prefs.get("role_family") if isinstance(prefs, dict) else None
-        experiences = profile.get("experiences") if isinstance(profile, dict) else None
-        titles: tuple[str | None, ...] = ()
-        if isinstance(experiences, list):
-            titles = tuple(
-                exp.get("title") for exp in experiences[:2] if isinstance(exp, dict)
-            )
-        return resolve_role_family(override=override, profile_titles=titles)
 
     async def _job_hints(self, profile_id: str, job_id: str | None) -> JobHints:
         if not job_id:

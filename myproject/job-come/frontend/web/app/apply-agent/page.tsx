@@ -36,7 +36,7 @@ function ApplyAgentInner() {
         }
         profileId={profileId}
         jobId={jobId}
-        skillHint="apply-pipeline"
+        roleId="apply-pipeline"
         kind="coach"
         disabled={context?.actor !== "user"}
         placeholder="例如：帮我对这个岗位走完整申请流程并导出 PDF"

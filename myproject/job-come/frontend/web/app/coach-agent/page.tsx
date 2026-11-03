@@ -15,6 +15,8 @@ function CoachAgentInner() {
   const jobId = searchParams.get("job_id");
   const [mockSessionId, setMockSessionId] = useState<string | null>(null);
   const practiceQid = searchParams.get("practice");
+  // Arrived from the archive page: the coach records a real interview instead of running a mock.
+  const intent = searchParams.get("intent") === "archive" ? "archive" : null;
 
   const subtitle = jobId
     ? "对着当前岗位模拟、记题、抽库再练"
@@ -30,8 +32,14 @@ function CoachAgentInner() {
         subtitle={subtitle}
         profileId={profileId}
         jobId={jobId}
-        uiContext={{ page: "coach-agent", step: "mock", focus: null, mock_session_id: mockSessionId }}
-        skillHint="coach-mock"
+        uiContext={{
+          page: "coach-agent",
+          step: "mock",
+          focus: null,
+          mock_session_id: mockSessionId,
+          intent,
+        }}
+        roleId="coach-mock"
         kind="coach"
         disabled={context?.actor !== "user"}
         placeholder="回答面试官问题，或说「下一题」…"

@@ -10,12 +10,12 @@ from agentkit.web.auth import UserActor
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 import jc.models  # noqa: F401
+from jc.agent import subtask
 from jc.db.base import Base
 from jc.exceptions import ForbiddenError, NotFoundError
 from jc.models.interview import AnswerAttempt, InterviewQuestion, MockSession
 from jc.models.profile import Profile
 from jc.models.user import User
-from jc.services import interview_reviewer
 from jc.services.interview_service import InterviewService
 from reviewer_agent_fake import FakeClientFactory, FakeReviewerAgent
 
@@ -82,7 +82,7 @@ async def test_finished_session_is_reviewed_once_and_read_after(maker, monkeypat
         "praise": "讲清了动作。", "fixes": [{"severity": "suggest", "text": "补上结果。"}],
         "reference": [],
     }]})
-    monkeypatch.setattr(interview_reviewer, "get_deerflow_client", FakeClientFactory(agent))
+    monkeypatch.setattr(subtask, "get_deerflow_client", FakeClientFactory(agent))
 
     async with maker() as s:
         first = await InterviewService(s).get_mock_report("ms1", actor=OWNER)
@@ -101,7 +101,7 @@ async def test_finished_session_is_reviewed_once_and_read_after(maker, monkeypat
 async def test_failed_review_is_pending_not_an_error(maker, monkeypatch):
     await _set_status(maker, "completed")
     agent = FakeReviewerAgent(maker, error=RuntimeError("agent unavailable"))
-    monkeypatch.setattr(interview_reviewer, "get_deerflow_client", FakeClientFactory(agent))
+    monkeypatch.setattr(subtask, "get_deerflow_client", FakeClientFactory(agent))
     async with maker() as s:
         out = await InterviewService(s).get_mock_report("ms1", actor=OWNER)
     assert out.status == "pending" and out.questions == []
@@ -128,7 +128,7 @@ async def test_a_warmup_gets_the_brief_report_without_question_detail(maker, mon
     agent = FakeReviewerAgent(maker, report={"questions": [{
         "question_id": "q1", "scores": {"depth": 6}, "evidence": {"depth": "拆成两张表"},
     }]})
-    monkeypatch.setattr(interview_reviewer, "get_deerflow_client", FakeClientFactory(agent))
+    monkeypatch.setattr(subtask, "get_deerflow_client", FakeClientFactory(agent))
     async with maker() as s:
         out = await InterviewService(s).get_mock_report("ms1", actor=OWNER)
     assert out.status == "ready" and out.brief is True

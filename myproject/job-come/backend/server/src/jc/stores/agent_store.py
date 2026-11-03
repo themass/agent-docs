@@ -24,7 +24,7 @@ SESSION_SORT = SortSpec(
         "user_id": AgentSession.user_id,
         "kind": AgentSession.kind,
         "status": AgentSession.status,
-        "skill_hint": AgentSession.skill_hint,
+        "role_id": AgentSession.role_id,
     },
     default="updated_at",
     tiebreaker=AgentSession.id,

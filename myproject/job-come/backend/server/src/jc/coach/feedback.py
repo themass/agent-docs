@@ -6,12 +6,6 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
-from jc.paths import prompt_file
-
-_RUBRIC_PATH = (
-    prompt_file("coach", "mock_rubric_five_dims.md")
-)
-
 DIMENSION_KEYS = ("structure", "relevance", "depth", "communication", "reflection")
 
 
@@ -39,9 +33,10 @@ class CoachFeedbackPayload(BaseModel):
 
 
 def load_mock_rubric_markdown() -> str:
-    if _RUBRIC_PATH.is_file():
-        return _RUBRIC_PATH.read_text(encoding="utf-8")
-    return "Five-dimension mock interview rubric."
+    """The five-dimension rubric the independent reviewer scores against, from its skill package."""
+    from jc.skills.loader import require_skill
+
+    return require_skill("interview-reviewer").reference("rubric")
 
 
 def normalize_coach_feedback(raw: dict[str, Any] | None) -> dict[str, Any]:

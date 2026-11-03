@@ -19,6 +19,8 @@ export type AgentUiContext = {
   step: string;
   focus: AgentUiFocus | null;
   mock_session_id?: string | null;
+  /** What the user came to do, when the page knows it: the coach's role switches on it. */
+  intent?: "archive" | null;
 };
 
 export function experienceLabel(company: string, title: string): string {

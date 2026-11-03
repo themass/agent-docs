@@ -21,7 +21,7 @@ export function sessionListTitle(session: AgentSessionListItem): string {
   const title = session.title?.trim();
   if (title) return title;
   const kind = KIND_LABEL[session.kind] ?? session.kind;
-  const hint = session.skill_hint?.replace(/^resume-/, "") ?? "";
+  const hint = session.role_id?.replace(/^resume-/, "") ?? "";
   if (hint && hint !== kind) return `${kind} · ${hint}`;
   return `${kind}对话`;
 }

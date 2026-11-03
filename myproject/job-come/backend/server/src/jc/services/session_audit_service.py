@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from jc.adapters.deerflow_client import _client_config
 from jc.adapters.deerflow_harness_client import _get_embedded_client
-from jc.agent.roles import default_role
+from jc.agent.roles import default_role, role
 from jc.exceptions import NotFoundError
 from jc.models.agent_message import AgentMessage
 from jc.schemas.admin_session import (
@@ -172,7 +172,7 @@ class SessionAuditService:
                 job_id=s.job_id,
                 kind=s.kind,
                 status=s.status,
-                skill_hint=s.skill_hint,
+                role_id=s.role_id,
                 deerflow_thread_id=s.deerflow_thread_id,
                 trace_id=s.trace_id,
                 message_count=counts.get(s.id, 0),
@@ -206,7 +206,7 @@ class SessionAuditService:
             job_id=session.job_id,
             kind=session.kind,
             status=session.status,
-            skill_hint=session.skill_hint,
+            role_id=session.role_id,
             deerflow_thread_id=session.deerflow_thread_id,
             trace_id=session.trace_id,
             message_count=counts.get(session.id, 0),
@@ -232,7 +232,8 @@ class SessionAuditService:
         if session is None:
             raise NotFoundError("会话不存在或已删除。", code="session_not_found")
 
-        skill = session.skill_hint or default_role().default_skill
+        declared = role(session.role_id) if session.role_id else default_role()
+        skill = declared.default_skill
         client = _get_embedded_client(_client_config(), skill)
         data = client.get_thread(session.deerflow_thread_id)
         checkpoints = data.get("checkpoints") or []

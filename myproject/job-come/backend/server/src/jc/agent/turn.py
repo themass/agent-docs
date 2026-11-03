@@ -111,6 +111,10 @@ class _MockSession:
         return {"mock_session_id": mock.id if mock is not None else None, "drawn_stems": drawn}
 
     def message(self, ctx: TurnContext, facts: dict[str, Any], skill: str, text: str) -> str:
+        # The mock state (the bank draw, the bound session) is for the practice skill. A turn that
+        # switched to another skill of this role, such as recording a real interview, is not one.
+        if skill != ctx.default_skill:
+            return text
         return wrap_coach_mock_message(
             text,
             profile_id=ctx.profile_id,

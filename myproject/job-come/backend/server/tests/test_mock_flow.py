@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 import jc.models  # noqa: F401
+from jc.agent import subtask
 from jc.authz.scope import RunScope
 from jc.db.base import Base
 from jc.mcp.handlers import dispatch_tool
@@ -103,7 +104,7 @@ async def test_full_run_end_to_end_through_the_tools(db, monkeypatch):
     agent = FakeReviewerAgent(db, report={"questions": [{
         "question_id": Q_PYTHON, "scores": {"depth": 6}, "evidence": {"depth": "拆成两张表"},
     }]})
-    monkeypatch.setattr(interview_reviewer, "get_deerflow_client", FakeClientFactory(agent))
+    monkeypatch.setattr(subtask, "get_deerflow_client", FakeClientFactory(agent))
     async with db() as s:
         stored_ok = await interview_reviewer.review_session(
             s, user_id="u1", profile_id="p1", mock_session_id="ms1"
@@ -122,7 +123,7 @@ async def test_full_run_end_to_end_through_the_tools(db, monkeypatch):
 @pytest.mark.asyncio
 async def test_review_is_refused_for_a_session_that_has_not_ended(db, monkeypatch):
     agent = FakeReviewerAgent(db, report={"questions": []})
-    monkeypatch.setattr(interview_reviewer, "get_deerflow_client", FakeClientFactory(agent))
+    monkeypatch.setattr(subtask, "get_deerflow_client", FakeClientFactory(agent))
     async with db() as s:
         with pytest.raises(ValueError, match="after the session has ended"):
             await interview_reviewer.review_session(
