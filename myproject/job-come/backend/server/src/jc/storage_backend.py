@@ -25,6 +25,16 @@ class StorageBackend:
         path.write_bytes(body)
         return key
 
+    def delete_object(self, key: str) -> None:
+        """Remove a stored blob. A missing object is not an error: the goal is that it is gone."""
+        if self._remote:
+            get_object_store().delete_object(key)
+            return
+        try:
+            self._local_path(key).unlink()
+        except FileNotFoundError:
+            return
+
     def get_object_bytes(self, key: str) -> bytes:
         if self._remote:
             return get_object_store().get_object_bytes(key)

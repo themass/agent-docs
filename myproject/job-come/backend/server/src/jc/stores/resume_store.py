@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from jc.models.enums import ExportJobStatus
 from jc.models.resume import ExportJob, ResumeDraft
@@ -65,3 +66,35 @@ class ResumeStore:
         job.error_message = message[:512]
         await self._db.flush()
         return job
+
+    async def list_drafts_for_profiles(self, profile_ids: list[str], *, limit: int) -> list[ResumeDraft]:
+        if not profile_ids:
+            return []
+        stmt = (
+            select(ResumeDraft)
+            .where(ResumeDraft.profile_id.in_(profile_ids))
+            .options(selectinload(ResumeDraft.job))
+            .order_by(ResumeDraft.created_at.desc())
+            .limit(limit)
+        )
+        return list((await self._db.execute(stmt)).scalars().all())
+
+    async def list_exports_for_drafts(self, draft_ids: list[str]) -> list[ExportJob]:
+        if not draft_ids:
+            return []
+        stmt = (
+            select(ExportJob)
+            .where(ExportJob.resume_draft_id.in_(draft_ids))
+            .order_by(ExportJob.created_at.asc())
+        )
+        return list((await self._db.execute(stmt)).scalars().all())
+
+    async def list_exports_for_draft(self, draft_id: str) -> list[ExportJob]:
+        stmt = select(ExportJob).where(ExportJob.resume_draft_id == draft_id)
+        return list((await self._db.execute(stmt)).scalars().all())
+
+    async def delete_draft(self, draft: ResumeDraft) -> None:
+        """Remove a draft and the export records that point at it. Stored files are the caller's job."""
+        await self._db.execute(delete(ExportJob).where(ExportJob.resume_draft_id == draft.id))
+        await self._db.delete(draft)
+        await self._db.flush()

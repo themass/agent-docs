@@ -14,6 +14,7 @@ from jc.api.jobs_router import router as jobs_router
 from jc.api.membership_router import router as membership_router
 from jc.api.notification_router import router as notification_router
 from jc.api.profile_router import router as profile_router
+from jc.api.resume_version_router import router as resume_version_router
 from jc.api.storage_router import router as storage_router
 
 api_router = APIRouter()
@@ -27,6 +28,7 @@ api_router.include_router(campaign_router)
 api_router.include_router(jobs_router)
 api_router.include_router(guest_router)
 api_router.include_router(profile_router)
+api_router.include_router(resume_version_router)
 api_router.include_router(storage_router)
 api_router.include_router(notification_router)
 api_router.include_router(feedback_router)

@@ -28,6 +28,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "准备",
     items: [
       { href: "/resume-agent", label: "简历优化", desc: "优化简历并导出投递版本" },
+      { href: "/resume-versions", label: "简历版本", desc: "回看、下载和删除每次优化的版本" },
       { href: "/coach-agent", label: "面试辅导", desc: "针对岗位练习问答" },
       { href: "/bank", label: "题库", desc: "沉淀下来的问题与答案" },
     ],
