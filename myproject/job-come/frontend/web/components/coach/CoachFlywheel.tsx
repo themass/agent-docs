@@ -43,6 +43,7 @@ export function CoachFlywheel({ profileId, jobId, practiceQid, disabled, onSessi
   const [answer, setAnswer] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [finishedId, setFinishedId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!profileId || !jobId) {
@@ -90,7 +91,9 @@ export function CoachFlywheel({ profileId, jobId, practiceQid, disabled, onSessi
     setBusy(true);
     setError(null);
     try {
-      setSession(await completeMockSession(session.id));
+      const finished = await completeMockSession(session.id);
+      setSession(finished);
+      setFinishedId(finished.id);
       onSessionChange?.(null);
     } catch (e) {
       setError(userFacingApiError(e, "结束失败"));
@@ -325,6 +328,14 @@ export function CoachFlywheel({ profileId, jobId, practiceQid, disabled, onSessi
         </Link>
       </FlywheelSection>
 
+      {finishedId ? (
+        <p className="notice notice-info">
+          模拟面试已结束。独立评审会根据你的回答写报告，打开时生成，可能需要一两分钟：
+          <Link href={`/mock-reports/${finishedId}`} className="ml-1 font-medium underline">
+            查看报告
+          </Link>
+        </p>
+      ) : null}
       {error ? (
         <p className="notice notice-danger" role="alert">
           {error}

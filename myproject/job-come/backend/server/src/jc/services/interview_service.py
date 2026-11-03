@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 
 from agentkit.common.ids import new_id
@@ -22,6 +23,7 @@ from jc.schemas.coach import (
     InterviewSaveRequest,
     InterviewSaveResponse,
     InterviewSummary,
+    MockReportResponse,
     MockSessionCreateRequest,
     MockSessionQuestion,
     MockSessionResponse,
@@ -34,6 +36,8 @@ from jc.services.mock_quota_service import MockQuotaService
 from jc.services.profile_service import ProfileService
 from jc.services.question_bank_service import question_upsert
 from jc.stores.interview_store import InterviewStore
+
+logger = logging.getLogger(__name__)
 
 
 class InterviewService:
@@ -234,13 +238,68 @@ class InterviewService:
     async def complete_mock_session(
         self, session_id: str, *, actor: UserActor
     ) -> MockSessionResponse:
-        await self.get_mock_session(session_id, actor=actor)
-        session = await self._store.get_mock_session(session_id)
+        """The candidate's own "finish" button: the same guard as the interviewer's, as user_ended.
+
+        The guard is the only writer of a session's end, so an early finish is recorded the same
+        way whichever path ends it.
+        """
+        session = await self._owned_mock_session(session_id, actor=actor)
         if session.status == MockSessionStatus.ACTIVE:
-            session.status = MockSessionStatus.COMPLETED
-            session.completed_at = datetime.now(UTC)
-            await self._db.commit()
+            from jc.services.mock_guard_service import end
+
+            scope = RunScope(db=self._db, user_id=actor.user_id, profile_id=session.profile_id,
+                             mock_session_id=session_id)
+            await end(scope, mock_session_id=session_id, reason="user_ended")
+            await self._db.refresh(session)
         return await self._to_mock_response(session)
+
+    async def _owned_mock_session(self, session_id: str, *, actor: UserActor) -> MockSession:
+        session = await self._store.get_mock_session(session_id)
+        if session is None:
+            raise NotFoundError("模拟面试不存在或已删除。", code="mock_session_not_found")
+        await self._profiles.get(session.profile_id, actor=actor)
+        if session.user_id != actor.user_id:
+            raise NotFoundError("模拟面试不存在或已删除。", code="mock_session_not_found")
+        return session
+
+    async def get_mock_report(self, session_id: str, *, actor: UserActor) -> MockReportResponse:
+        """The stored report of a finished session. A finished session with no report yet is
+        reviewed once, here, and the result is stored; later reads only read it."""
+        session = await self._owned_mock_session(session_id, actor=actor)
+        state = dict(session.coverage or {})
+        base = {
+            "mock_session_id": session_id,
+            "style": session.style,
+            "started_at": session.started_at,
+            "completed_at": session.completed_at,
+            "ended_reason": state.get("ended_reason"),
+            "ended_early": bool(state.get("ended_early")),
+        }
+        if session.status == MockSessionStatus.ACTIVE:
+            return MockReportResponse(status="active", message="这场模拟面试还在进行中。", **base)
+        if session.status != MockSessionStatus.COMPLETED:
+            return MockReportResponse(status="active", message="这场模拟面试已取消。", **base)
+
+        if not session.report:
+            from jc.services.interview_reviewer import run_review
+
+            scope = RunScope(db=self._db, user_id=actor.user_id, profile_id=session.profile_id,
+                             mock_session_id=session_id)
+            try:
+                await run_review(scope, mock_session_id=session_id)
+            except Exception:  # noqa: BLE001 — every failure is "not yet", shown as pending
+                logger.warning("mock_report_review_failed session=%s", session_id, exc_info=True)
+                return MockReportResponse(
+                    status="pending",
+                    message="独立评审暂未完成，请稍后刷新此页面。",
+                    **base,
+                )
+            await self._db.refresh(session)
+
+        from jc.services.mock_report_service import session_transcript
+
+        transcript = await session_transcript(self._store, session)
+        return _report_view(session, base, transcript)
 
     async def log_question(
         self,
@@ -323,3 +382,32 @@ class InterviewService:
             generated_count=int(session.generated_count or 0),
             questions=cards,
         )
+
+
+def _report_view(
+    session: MockSession, base: dict, transcript: list[dict[str, str]]
+) -> MockReportResponse:
+    """Shape a stored report for the page: each question with its stem and the answer."""
+    report = session.report or {}
+    by_id = {turn["question_id"]: turn for turn in transcript}
+    questions = []
+    for item in report.get("questions", []):
+        qid = item["question_id"]
+        turn = by_id.get(qid, {})
+        questions.append({
+            "question_id": qid,
+            "stem": turn.get("stem", ""),
+            "answer": turn.get("answer", ""),
+            "scores": item.get("scores", {}),
+            "evidence": item.get("evidence", {}),
+            "praise": item.get("praise"),
+            "fixes": item.get("fixes", []),
+            "reference": item.get("reference", []),
+        })
+    return MockReportResponse(
+        status="ready",
+        overall=report.get("overall", {}),
+        checks=report.get("checks", {}),
+        questions=questions,
+        **base,
+    )

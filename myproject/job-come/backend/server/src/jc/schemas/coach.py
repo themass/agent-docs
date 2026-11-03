@@ -129,3 +129,43 @@ class QuestionUpsertRequest(BaseModel):
     mock_session_id: str | None = None
     round: str | None = None
     user_answer: str | None = None
+
+
+class MockReportFix(BaseModel):
+    severity: Literal["must", "suggest", "nit"]
+    text: str
+
+
+class MockReportReference(BaseModel):
+    text: str
+    source: str | None = None
+    #: "sourced" when the fact was found in the profile; "pending" when it was not.
+    status: Literal["sourced", "pending"]
+
+
+class MockReportQuestion(BaseModel):
+    question_id: str
+    stem: str
+    answer: str
+    scores: dict[str, int | None]
+    evidence: dict[str, str]
+    praise: str | None = None
+    fixes: list[MockReportFix] = Field(default_factory=list)
+    reference: list[MockReportReference] = Field(default_factory=list)
+
+
+class MockReportResponse(BaseModel):
+    """The read-only report page. `status` is "active" while the session is still running, and
+    "pending" when the session has ended but the independent review has not produced a report."""
+
+    mock_session_id: str
+    status: Literal["active", "pending", "ready"]
+    style: str | None = None
+    started_at: datetime
+    completed_at: datetime | None = None
+    ended_reason: str | None = None
+    ended_early: bool = False
+    message: str | None = None
+    overall: dict[str, float | None] = Field(default_factory=dict)
+    checks: dict[str, int] = Field(default_factory=dict)
+    questions: list[MockReportQuestion] = Field(default_factory=list)

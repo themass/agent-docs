@@ -61,6 +61,44 @@ export function getMockSession(sessionId: string): Promise<MockSession> {
   return apiJson(`/coach/mock/sessions/${sessionId}`);
 }
 
+export type MockReportFix = { severity: "must" | "suggest" | "nit"; text: string };
+
+export type MockReportReference = {
+  text: string;
+  source: string | null;
+  status: "sourced" | "pending";
+};
+
+export type MockReportQuestion = {
+  question_id: string;
+  stem: string;
+  answer: string;
+  scores: Record<string, number | null>;
+  evidence: Record<string, string>;
+  praise: string | null;
+  fixes: MockReportFix[];
+  reference: MockReportReference[];
+};
+
+/** The independent reviewer's report. Scores and averages are computed by the server. */
+export type MockReport = {
+  mock_session_id: string;
+  status: "active" | "pending" | "ready";
+  style: string | null;
+  started_at: string;
+  completed_at: string | null;
+  ended_reason: string | null;
+  ended_early: boolean;
+  message: string | null;
+  overall: Record<string, number | null>;
+  checks: { rejected_evidence?: number; pending_facts?: number };
+  questions: MockReportQuestion[];
+};
+
+export function getMockReport(sessionId: string): Promise<MockReport> {
+  return apiJson(`/coach/mock/sessions/${sessionId}/report`);
+}
+
 export function logQuestion(
   profileId: string,
   body: {

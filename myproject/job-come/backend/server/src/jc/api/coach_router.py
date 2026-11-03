@@ -15,6 +15,7 @@ from jc.schemas.coach import (
     InterviewListResponse,
     InterviewSaveRequest,
     InterviewSaveResponse,
+    MockReportResponse,
     MockRubricResponse,
     MockSessionCreateRequest,
     MockSessionResponse,
@@ -139,6 +140,19 @@ async def log_question(
     coach: InterviewService = Depends(get_coach_service),
 ) -> QuestionSummary:
     return await coach.log_question(profile_id, actor=actor, body=body)
+
+
+@router.get(
+    "/mock/sessions/{session_id}/report",
+    response_model=MockReportResponse,
+    summary="读取模拟面试报告（独立评审结果，只读）",
+)
+async def get_mock_report(
+    session_id: Annotated[str, Path(description="模拟会话 ID")],
+    actor: UserActor = Depends(require_user),
+    coach: InterviewService = Depends(get_coach_service),
+) -> MockReportResponse:
+    return await coach.get_mock_report(session_id, actor=actor)
 
 
 @router.post("/mock/sessions/{session_id}/complete", response_model=MockSessionResponse)
