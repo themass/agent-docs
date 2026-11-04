@@ -572,7 +572,10 @@ async def jc_resume_review_read(
 
     async with _session() as db:
         result = await resume_review_read(
-            _scope(db, jc_user_id=jc_user_id, jc_profile_id=jc_profile_id, jc_session_id=jc_session_id),
+            _scope(
+                db, jc_user_id=jc_user_id, jc_profile_id=jc_profile_id,
+                jc_session_id=jc_session_id,
+            ),
             draft_id=draft_id,
         )
         return json.dumps(result, ensure_ascii=False)
@@ -594,7 +597,10 @@ async def jc_resume_review_write(
 
     async with _session() as db:
         result = await resume_review_write(
-            _scope(db, jc_user_id=jc_user_id, jc_profile_id=jc_profile_id, jc_session_id=jc_session_id),
+            _scope(
+                db, jc_user_id=jc_user_id, jc_profile_id=jc_profile_id,
+                jc_session_id=jc_session_id,
+            ),
             draft_id=draft_id,
             verdicts=verdicts,
         )
@@ -614,7 +620,10 @@ async def jc_profile_photo_set(
 
     async with _session() as db:
         result = await profile_photo_set(
-            _scope(db, jc_user_id=jc_user_id, jc_profile_id=jc_profile_id, jc_session_id=jc_session_id),
+            _scope(
+                db, jc_user_id=jc_user_id, jc_profile_id=jc_profile_id,
+                jc_session_id=jc_session_id,
+            ),
             message_id=message_id, attachment_index=attachment_index,
         )
         return json.dumps(result, ensure_ascii=False)

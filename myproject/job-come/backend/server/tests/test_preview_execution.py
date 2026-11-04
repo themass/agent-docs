@@ -31,7 +31,10 @@ BASE = {"contact": {"name": "测试"}, "meta": {"source_locale": "zh-CN"},
 
 
 @pytest.mark.asyncio
-async def test_click_persists_exact_text_and_generated_preview_and_draft_keep_it(env, monkeypatch):
+async def test_click_persists_exact_text_and_generated_preview_and_draft_keep_it(  # noqa: F811
+    env,  # noqa: F811
+    monkeypatch,
+):
     from jc.services import resume_elevator as mod
     async with env.sessions() as db:
         p = await db.get(Profile, "prof_owned")
@@ -41,7 +44,8 @@ async def test_click_persists_exact_text_and_generated_preview_and_draft_keep_it
     response = await click(env, proposal["confirm_id"])
     assert response.status_code == 200, response.text
     model_sections = {"header": {"name": "测试"}, "experience_blocks": [
-        {"id": "exp_tencent", "company": "腾讯", "title": "技术负责人", "bullets": ["模型把它改掉了"]}]}
+        {"id": "exp_tencent", "company": "腾讯", "title": "技术负责人",
+         "bullets": ["模型把它改掉了"]}]}
     router = SimpleNamespace(acompletion=AsyncMock(return_value=model_sections),
                                  chain_for=lambda _: [object()] * 3)
     monkeypatch.setattr(single_mod, "get_llm_router", lambda: router)
@@ -53,13 +57,16 @@ async def test_click_persists_exact_text_and_generated_preview_and_draft_keep_it
     monkeypatch.setattr(mod.settings, "jc_preview_repair_enabled", False)
     async with env.sessions() as db:
         svc = ResumeService(db)
-        result = await svc.preview("prof_owned", actor=UserActor(user_id="usr_owner", session_id="auth_test"),
-                                   elevation_level="standard", locale="zh-CN", force=True)
+        actor = UserActor(user_id="usr_owner", session_id="auth_test")
+        result = await svc.preview(
+            "prof_owned", actor=actor, elevation_level="standard", locale="zh-CN", force=True,
+        )
         assert TEXT in result.html
         assert result.draft.sections["experience_blocks"][0]["bullets"] == [TEXT, "保留的另一条"]
         saved = await db.get(ResumeDraft, result.draft.id)
         assert saved.sections["experience_blocks"][0]["bullets"] == [TEXT, "保留的另一条"]
-        assert (await db.get(Profile, "prof_owned")).payload["experiences"][0]["highlights"][0] == TEXT
+        profile = await db.get(Profile, "prof_owned")
+        assert profile.payload["experiences"][0]["highlights"][0] == TEXT
         assert result.draft.profile_version == response.json()["version"]
     router.acompletion.assert_awaited_once()
 
@@ -136,7 +143,8 @@ async def test_writer_chain_timeout_has_visible_source_layout_fallback(monkeypat
 
 
 def decode(chunks):
-    return [json.loads(chunk.decode().split("data: ")[1]) for chunk in chunks if chunk.startswith(b"data:")]
+    return [json.loads(chunk.decode().split("data: ")[1])
+            for chunk in chunks if chunk.startswith(b"data:")]
 
 
 
@@ -162,7 +170,9 @@ def decode(chunks):
 
 
 @pytest.mark.asyncio
-async def test_unchanged_preview_reuses_draft_force_and_profile_change_regenerate(env, monkeypatch, caplog):
+async def test_unchanged_preview_reuses_draft_force_and_profile_change_regenerate(
+    env, monkeypatch, caplog,  # noqa: F811
+):
     import logging
 
     from jc.services import resume_elevator as mod
@@ -178,7 +188,9 @@ async def test_unchanged_preview_reuses_draft_force_and_profile_change_regenerat
         assert again.draft.id == first.draft.id
         assert writer.await_count == 1
         assert "reason=hit" in caplog.text
-        forced = await svc.preview("prof_owned", actor=actor, elevation_level="standard", force=True)
+        forced = await svc.preview(
+            "prof_owned", actor=actor, elevation_level="standard", force=True,
+        )
         assert forced.draft.id != first.draft.id
         p = await db.get(Profile, "prof_owned")
         p.version += 1
@@ -189,7 +201,7 @@ async def test_unchanged_preview_reuses_draft_force_and_profile_change_regenerat
 
 
 @pytest.mark.asyncio
-async def test_a_writer_failure_is_never_served_from_cache(env, monkeypatch):
+async def test_a_writer_failure_is_never_served_from_cache(env, monkeypatch):  # noqa: F811 (pytest fixture import)
     """`source_layout` is a record that the writer was down, not a draft of this profile.
 
     Caching it means one transient gateway failure makes the profile's own wording the

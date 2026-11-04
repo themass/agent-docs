@@ -52,6 +52,28 @@ def test_the_interview_skill_gets_no_resume_methodology():
     assert "简历改写" not in interview
 
 
+def test_the_system_message_is_jc_owned_and_names_no_file_or_shell_tool(monkeypatch):
+    """DeerFlow's template describes file, shell and upload tools JC does not offer. A run that
+    carries that text tries to call them, so the template must not reach the model."""
+    class Request(SimpleNamespace):
+        def override(self, **changes):
+            return Request(**{**vars(self), **changes})
+
+    seen = {}
+
+    def handler(req):
+        seen["text"] = req.system_message.content
+
+    template = "DEERFLOW TEMPLATE read_file /mnt/user-data"
+    request = Request(system_message=SimpleNamespace(content=template), runtime=None)
+    JCProductRulesMiddleware().wrap_model_call(request, handler)
+    text = seen["text"]
+    assert "DEERFLOW TEMPLATE" not in text
+    for forbidden in ("read_file", "/mnt/", "write_file", "bash"):
+        assert forbidden not in text, forbidden
+    assert "--- BEGIN USER INPUT ---" in text
+
+
 def test_the_middleware_adds_the_layer_to_the_system_message_and_keeps_the_base(monkeypatch):
     seen = {}
 
@@ -68,7 +90,7 @@ def test_the_middleware_adds_the_layer_to_the_system_message_and_keeps_the_base(
         return "ok"
 
     assert middleware.wrap_model_call(request, handler) == "ok"
-    assert seen["content"].startswith(base)
+    assert seen["content"].startswith("你是舟卡的智能体")
     assert "<jc_context>" in seen["content"]
 
 

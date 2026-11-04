@@ -194,7 +194,10 @@ class ResumeService:
         )
         current_profile = await self._profiles.get(profile_id, actor=actor)
         if current_profile.version != profile_resp.version:
-            raise ConflictError("生成期间档案已更新，请重新生成预览，避免展示旧内容。", code="preview_profile_changed")
+            raise ConflictError(
+                "生成期间档案已更新，请重新生成预览，避免展示旧内容。",
+                code="preview_profile_changed",
+            )
         if job_id:
             sections["job_context_hash"] = self._job_context_hash(hints)
         draft = ResumeDraft(
@@ -268,7 +271,8 @@ class ResumeService:
                 "profile_or_options_changed" if stale else "hit"
             )
             logger.info("preview_cache profile_id=%s locale=%s level=%s reason=%s draft_id=%s",
-                        profile_id, track, elevation_level, cache_reason, draft.id if draft else "none")
+                        profile_id, track, elevation_level, cache_reason,
+                        draft.id if draft else "none")
             if cache_reason != "hit":
                 draft_resp = await self.elevate(
                     profile_id,
@@ -287,7 +291,8 @@ class ResumeService:
         # Generation includes persistence of every language track. Only the outer
         # request may complete a phase; a bilingual child finishing is not enough.
         logger.info("preview_content profile_id=%s draft_id=%s mode=%s",
-                    profile_id, draft.id, (draft.sections.get("generation") or {}).get("mode", "legacy_or_composed"))
+                    profile_id, draft.id,
+                    (draft.sections.get("generation") or {}).get("mode", "legacy_or_composed"))
         report("generate", done=True)
         report("save")
         profile_resp = await self._profiles.get(profile_id, actor=actor)
@@ -503,7 +508,8 @@ class ResumeService:
         await release_db_connection(self._db)
         return stream_operation(
             lambda: self.review_for_export(profile_id, actor=actor, **kwargs), profile_id,
-            rollback_db=self._db.rollback, operation="export_review", label="导出前质检", log=logger,
+            rollback_db=self._db.rollback, operation="export_review", label="导出前质检",
+            log=logger,
             timeout_seconds=role(RESUME_REVIEWER_ROLE).timeout_seconds + 30,
         )
 
@@ -791,7 +797,8 @@ class ResumeService:
 
     @staticmethod
     def _job_context_hash(hints: JobHints) -> str:
-        return hashlib.sha256(json.dumps(asdict(hints), ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+        payload = json.dumps(asdict(hints), ensure_ascii=False, sort_keys=True)
+        return hashlib.sha256(payload.encode()).hexdigest()
 
     @staticmethod
     def _writer_failed(sections: dict[str, Any]) -> bool:
@@ -932,12 +939,14 @@ class ResumeService:
         en_id = en.id if en else None
         if refresh_zh:
             zh = await self._ensure_draft(
-                profile_id, actor=actor, elevation_level=elevation_level, locale=TRACK_ZH, job_id=job_id
+                profile_id, actor=actor, elevation_level=elevation_level, locale=TRACK_ZH,
+                job_id=job_id
             )
             zh_id = zh.id
         if refresh_en:
             en = await self._ensure_draft(
-                profile_id, actor=actor, elevation_level=elevation_level, locale=TRACK_EN, job_id=job_id
+                profile_id, actor=actor, elevation_level=elevation_level, locale=TRACK_EN,
+                job_id=job_id
             )
             en_id = en.id
         # Generation may roll back/expire a previously loaded sibling draft.
