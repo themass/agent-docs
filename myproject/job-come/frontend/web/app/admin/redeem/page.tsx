@@ -19,6 +19,7 @@ import {
   type RedeemCodeStatus,
 } from "@/lib/api/admin-redeem";
 import { userFacingApiError } from "@/lib/api/user-error";
+import { copyToClipboard } from "@/lib/clipboard";
 import { formatDateTime } from "@/lib/datetime";
 
 const PAGE_SIZE = 50;
@@ -246,12 +247,10 @@ export default function AdminRedeemPage() {
     }
   }
 
-  async function copyLastBatch() {
-    if (!lastBatch) return;
-    try {
-      await navigator.clipboard.writeText(lastBatch.codes.join("\n"));
-      setNotice("已复制到剪贴板。");
-    } catch {
+  async function copyCodes(codes: string[], label: string) {
+    if (await copyToClipboard(codes.join("\n"))) {
+      setNotice(`已复制${label}。`);
+    } else {
       setError("复制失败，请手动选择文本复制。");
     }
   }
@@ -325,7 +324,7 @@ export default function AdminRedeemPage() {
               </button>
               {lastBatch ? (
                 <>
-                  <button type="button" onClick={() => void copyLastBatch()} className="btn btn-sm btn-secondary">
+                  <button type="button" onClick={() => void copyCodes(lastBatch.codes, "本批次兑换码")} className="btn btn-sm btn-secondary">
                     复制本批次
                   </button>
                   <span className="text-xs text-ink-500">刚生成的码已在下方列表中，可直接导出。</span>
@@ -456,6 +455,11 @@ export default function AdminRedeemPage() {
                   {STATUS_LABEL[item.status as RedeemCodeStatus] ?? item.status}
                 </span>
               </div>
+              {item.plan !== "gift" ? (
+                <button type="button" onClick={() => void copyCodes([item.code], "兑换码")} className="btn btn-sm btn-secondary w-full">
+                  复制兑换码
+                </button>
+              ) : null}
               <NoteCell item={item} onSaved={() => void load()} onError={(message) => setError(message)} />
               <p className="text-xs text-ink-600">
                 {item.redeemed_by_email
