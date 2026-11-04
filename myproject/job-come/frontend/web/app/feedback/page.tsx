@@ -265,7 +265,7 @@ export default function FeedbackPage() {
                 </svg>
               </span>
               <p className="text-sm text-ink-500">还没有提交过反馈。</p>
-              <p className="text-micro text-ink-400">点击右上角「新建反馈」告诉我们你遇到的问题。</p>
+              <p className="text-micro text-ink-400">点击「新建反馈」告诉我们你遇到的问题。</p>
             </div>
           ) : null}
           <ul>
@@ -295,7 +295,12 @@ export default function FeedbackPage() {
           </ul>
         </div>
 
-        <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-surface-border bg-surface">
+        {/* On a phone the list is the page; an empty detail pane below it only repeats the hint. */}
+        <div
+          className={`flex min-h-0 flex-col overflow-hidden rounded-xl border border-surface-border bg-surface ${
+            selectedId ? "" : "hidden sm:flex"
+          }`}
+        >
           {!selectedId ? (
             <EmptyThreadIllustration />
           ) : (
