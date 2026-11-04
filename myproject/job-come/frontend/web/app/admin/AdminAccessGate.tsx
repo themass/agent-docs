@@ -32,7 +32,7 @@ export function AdminAccessGate({ children }: { children: React.ReactNode }) {
     return null;
   }
   return (
-    <div className="-mx-4 -my-4 flex min-h-0 flex-1 flex-col sm:-my-5">
+    <div className="-mx-3 -my-3 flex min-h-0 flex-1 flex-col sm:-mx-4 sm:-my-5">
       <AdminSubNav />
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">{children}</div>
     </div>

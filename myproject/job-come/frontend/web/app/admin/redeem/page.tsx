@@ -94,6 +94,7 @@ export default function AdminRedeemPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
 
   const [count, setCount] = useState(20);
   const [batchNote, setBatchNote] = useState("");
@@ -116,6 +117,7 @@ export default function AdminRedeemPage() {
       const next = await listRedeemCodes(applied, { limit: PAGE_SIZE, offset });
       setData(next);
       setStats(next.stats);
+      setUpdatedAt(new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
     } catch (err) {
       setError(userFacingApiError(err, "加载失败，请稍后重试。"));
     } finally {
@@ -125,6 +127,15 @@ export default function AdminRedeemPage() {
 
   useEffect(() => {
     void load();
+  }, [load]);
+
+  // The seller waits on purchases, so the list is re-read while the page is open. Hidden tabs
+  // and a manual refresh are both covered: nothing re-reads while the page is in the background.
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void load();
+    }, 20_000);
+    return () => window.clearInterval(timer);
   }, [load]);
 
   useEffect(() => {
@@ -419,7 +430,13 @@ export default function AdminRedeemPage() {
             />
             <button type="submit" className="btn btn-sm btn-secondary">筛选</button>
           </form>
-          <button type="button" onClick={() => void exportCsv()} className="btn btn-sm btn-primary ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            {updatedAt ? <span className="text-xs text-ink-500">更新于 {updatedAt}</span> : null}
+            <button type="button" onClick={() => void load()} className="btn btn-sm btn-ghost" disabled={loading}>
+              刷新
+            </button>
+          </div>
+          <button type="button" onClick={() => void exportCsv()} className="btn btn-sm btn-primary">
             导出 CSV
           </button>
         </div>
@@ -427,7 +444,47 @@ export default function AdminRedeemPage() {
         {/* A fixed viewport-relative height, not "whatever is left": the three cards above
             take most of a laptop screen, and a flex-1 table was squeezed to a few pixels
             with its rows clipped. The page scrolls; the table keeps room to be read. */}
-        <div className="max-h-[70vh] min-h-[22rem] overflow-auto">
+        {/* Phone: a table needs sideways scrolling, so each code is a card with the same facts. */}
+        <ul className="divide-y divide-surface-border sm:hidden">
+          {(data?.items ?? []).map((item) => (
+            <li key={item.id} className="space-y-2 px-3 py-3">
+              <div className="flex items-start justify-between gap-2">
+                <p className="min-w-0 break-all font-mono text-xs tracking-wide text-ink-900">
+                  {item.plan === "gift" ? `赠送 · ${item.duration_days} 天` : item.code}
+                </p>
+                <span className={`badge shrink-0 ${STATUS_BADGE[item.status as RedeemCodeStatus] ?? "badge-neutral"}`}>
+                  {STATUS_LABEL[item.status as RedeemCodeStatus] ?? item.status}
+                </span>
+              </div>
+              <NoteCell item={item} onSaved={() => void load()} onError={(message) => setError(message)} />
+              <p className="text-xs text-ink-600">
+                {item.redeemed_by_email
+                  ? `兑换：${item.redeemed_by_email} · ${formatDateTime(item.redeemed_at)}`
+                  : `未兑换 · 生成于 ${formatDateTime(item.created_at)}`}
+              </p>
+              <p className="font-mono text-[11px] text-ink-500">批次 {item.batch_id}</p>
+              {item.status === "unused" ? (
+                <div className="flex justify-end gap-1.5">
+                  <button type="button" onClick={() => void voidItem(item)} className="btn btn-sm btn-ghost">
+                    作废
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void removeItem(item)}
+                    className="btn btn-sm btn-ghost text-danger-700 hover:bg-danger-50 hover:text-danger-700"
+                  >
+                    删除
+                  </button>
+                </div>
+              ) : null}
+            </li>
+          ))}
+          {data && data.items.length === 0 && !loading ? (
+            <li className="px-3 py-10 text-center text-sm text-ink-500">没有符合条件的兑换码。</li>
+          ) : null}
+        </ul>
+
+        <div className="hidden max-h-[70vh] min-h-[22rem] overflow-auto sm:block">
           <table className="w-full border-collapse text-sm">
             <thead className="sticky top-0 z-10 bg-surface-sunken text-xs text-ink-500">
               <tr>
