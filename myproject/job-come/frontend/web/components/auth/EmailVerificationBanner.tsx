@@ -28,8 +28,9 @@ export function EmailVerificationBanner() {
   }
 
   return (
-    <div className="notice notice-info">
-      <IconInfo className="mt-0.5 h-4 w-4 shrink-0" />
+    // One line where it fits: this is a reminder above the page, not the page.
+    <div className="notice notice-info items-center py-2 text-xs">
+      <IconInfo className="h-3.5 w-3.5 shrink-0" />
       <div className="min-w-0 flex-1">
         <span>邮箱尚未验证，部分功能可能受限。</span>
         <button

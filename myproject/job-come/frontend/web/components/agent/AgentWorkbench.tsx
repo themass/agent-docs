@@ -247,9 +247,10 @@ function AgentWorkbenchUnified({
       <header className="shrink-0">
         {/* The agent's name is shown by the frame above; the title is for assistive tech only. */}
         <h1 className="sr-only">{title}</h1>
-        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-          <div className="min-w-0">
-            {subtitle ? <p className="truncate text-sm text-ink-600">{subtitle}</p> : null}
+        {/* Subtitle and controls share one line; the subtitle gives way first on a narrow screen. */}
+        <div className="flex items-center justify-between gap-x-3 gap-y-2">
+          <div className="min-w-0 flex-1">
+            {subtitle ? <p className="truncate text-xs text-ink-600 sm:text-sm">{subtitle}</p> : null}
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
             <AgentReplyLocaleSelect
