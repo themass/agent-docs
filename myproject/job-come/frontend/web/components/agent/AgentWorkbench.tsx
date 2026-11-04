@@ -184,18 +184,16 @@ function AgentWorkbenchSplit({
         }
         left={
           <div className="flex h-full min-h-0 flex-col">
-            <header className="shrink-0 border-b border-surface-border bg-surface px-3 py-2.5 sm:px-4">
-              {/*
-               * Always stack: the left pane is often ~half the viewport once the
-               * agent rail is open, so md: breakpoints on the viewport still leave
-               * title + steps + actions fighting for one row.
-               */}
-              <div className="flex min-w-0 flex-col gap-2">
-                <h1 className="shrink-0 text-sm font-semibold tracking-tight text-ink-900">
-                  {title}
-                </h1>
-                {headerExtra ? <div className="min-w-0 w-full">{headerExtra}</div> : null}
-              </div>
+            {/*
+             * The agent's name is already shown by the frame above (every agent page sits in
+             * one), so the title is for assistive tech only. Only the steps remain to show.
+             * Always stack: the left pane is often ~half the viewport once the agent rail is
+             * open, so md: breakpoints on the viewport still leave steps and actions fighting
+             * for one row.
+             */}
+            <header className="shrink-0 border-b border-surface-border bg-surface px-3 py-2 sm:px-4">
+              <h1 className="sr-only">{title}</h1>
+              {headerExtra ? <div className="min-w-0 w-full">{headerExtra}</div> : null}
             </header>
             <div className="min-h-0 flex-1 overflow-hidden">{studio ?? children}</div>
           </div>
@@ -247,12 +245,11 @@ function AgentWorkbenchUnified({
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <header className="shrink-0">
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        {/* The agent's name is shown by the frame above; the title is for assistive tech only. */}
+        <h1 className="sr-only">{title}</h1>
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <div className="min-w-0">
-            <h1 className="text-xl font-semibold tracking-tight text-ink-900">{title}</h1>
-            {subtitle ? (
-              <p className="mt-1 max-w-prose text-sm text-ink-500">{subtitle}</p>
-            ) : null}
+            {subtitle ? <p className="truncate text-sm text-ink-600">{subtitle}</p> : null}
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
             <AgentReplyLocaleSelect
@@ -279,7 +276,7 @@ function AgentWorkbenchUnified({
             ) : null}
           </div>
         </div>
-        {headerExtra ? <div className="mt-3">{headerExtra}</div> : null}
+        {headerExtra ? <div className="mt-2">{headerExtra}</div> : null}
       </header>
 
       <ResizableSplitPane
