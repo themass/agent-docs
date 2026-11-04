@@ -46,6 +46,30 @@ def test_the_entry_roles_are_the_three_agents_a_user_can_open():
     assert entry_roles() == ("resume-coach", "coach-mock", "apply-pipeline")
 
 
+FRONTEND = BACKEND.parent / "frontend" / "web"
+# A role id as the frontend names it: a `roleId` property in the agent registry, or a `roleId="…"`
+# prop on a page. Anything else is not a claim about a role.
+_FRONTEND_ROLE_ID = re.compile(r"""roleId(?::\s*|=)["']([a-z][a-z0-9-]*)["']""")
+
+
+def test_every_role_the_frontend_names_is_an_entry_role_the_backend_declares():
+    """The frontend picks an agent by role id; a typo there fails only at the first click.
+
+    The backend's contract is `entry_roles()`, so that is what the frontend may name. A frontend
+    that names a role the backend retired, or a non-entry role, gets a session the server refuses.
+    """
+    named: dict[str, list[str]] = {}
+    sources = sorted((FRONTEND / "app").rglob("*.tsx")) + sorted((FRONTEND / "lib").rglob("*.ts"))
+    for path in sources:
+        for role_id in _FRONTEND_ROLE_ID.findall(path.read_text("utf-8")):
+            named.setdefault(role_id, []).append(str(path.relative_to(FRONTEND)))
+    assert named, "found no roleId in the frontend; the pattern no longer matches the code"
+    unknown = {rid: where for rid, where in named.items() if rid not in roles()}
+    assert not unknown, f"frontend names roles the backend does not declare: {unknown}"
+    not_entry = sorted(rid for rid in named if rid not in entry_roles())
+    assert not not_entry, f"frontend names non-entry roles: {not_entry}"
+
+
 def test_every_skill_package_is_owned_by_exactly_one_role():
     declared = [skill_id for r in roles().values() for skill_id in r.skill_ids]
     assert sorted(declared) == sorted(all_skill_ids())
