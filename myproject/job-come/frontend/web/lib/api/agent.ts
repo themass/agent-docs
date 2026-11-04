@@ -12,7 +12,6 @@ export function createAgentSession(body: {
   profile_id?: string | null;
   job_id?: string | null;
   role_id?: string;
-  kind?: string;
 }): Promise<AgentSession> {
   return apiJson<AgentSession>("/agent/sessions", {
     method: "POST",
@@ -23,7 +22,6 @@ export function createAgentSession(body: {
 export type AgentSessionListItem = {
   id: string;
   role_id: string | null;
-  kind: string;
   status: string;
   profile_id: string | null;
   title?: string | null;
@@ -33,12 +31,12 @@ export type AgentSessionListItem = {
 
 export function listAgentSessions(params?: {
   profile_id?: string | null;
-  kind?: string;
+  role_id?: string;
   limit?: number;
 }): Promise<{ sessions: AgentSessionListItem[] }> {
   const q = new URLSearchParams();
   if (params?.profile_id) q.set("profile_id", params.profile_id);
-  if (params?.kind) q.set("kind", params.kind);
+  if (params?.role_id) q.set("role_id", params.role_id);
   if (params?.limit) q.set("limit", String(params.limit));
   const qs = q.toString();
   return apiJson(`/agent/sessions${qs ? `?${qs}` : ""}`);

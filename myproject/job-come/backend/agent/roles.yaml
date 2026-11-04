@@ -68,7 +68,7 @@ resume-writer:
 resume-reviewer:
   product: resume
   mode: subtask
-  scenario: reviewer
+  scenario: flash
   timeout_seconds: 90
   skills: [resume-reviewer]
 

@@ -17,14 +17,12 @@ class AgentSessionCreateRequest(BaseModel):
         default_factory=lambda: default_role().id,
         description="The agent the session runs as: one of the entry roles in roles.yaml",
     )
-    kind: str = Field(default="resume", description="resume | coach")
 
 
 class AgentSessionResponse(BaseModel):
     id: str
     deerflow_thread_id: str
     role_id: str | None
-    kind: str
     status: str
     profile_id: str | None
     created_at: datetime
@@ -33,7 +31,6 @@ class AgentSessionResponse(BaseModel):
 class AgentSessionListItem(BaseModel):
     id: str
     role_id: str | None
-    kind: str
     status: str
     profile_id: str | None
     title: str | None = Field(

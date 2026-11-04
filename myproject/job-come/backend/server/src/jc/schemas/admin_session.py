@@ -18,7 +18,6 @@ class AdminSessionListItem(BaseModel):
     user_email: str | None = None
     profile_id: str | None
     job_id: str | None
-    kind: str
     status: str
     role_id: str | None
     deerflow_thread_id: str

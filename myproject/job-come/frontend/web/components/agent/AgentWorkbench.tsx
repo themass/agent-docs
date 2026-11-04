@@ -19,7 +19,6 @@ type Props = {
   profileId: string | null;
   jobId?: string | null;
   roleId: string;
-  kind?: string;
   disabled?: boolean;
   placeholder?: string;
   children?: React.ReactNode;
@@ -44,7 +43,6 @@ export function AgentWorkbench({
   profileId,
   jobId = null,
   roleId,
-  kind,
   disabled = false,
   placeholder,
   children,
@@ -62,7 +60,6 @@ export function AgentWorkbench({
       profileId,
       jobId,
       roleId,
-      kind,
       disabled,
       placeholder,
       children,
@@ -81,7 +78,6 @@ export function AgentWorkbench({
     profileId,
     jobId,
     roleId,
-    kind,
     disabled,
     placeholder,
     children,
@@ -100,7 +96,6 @@ function AgentWorkbenchSplit({
   profileId,
   jobId = null,
   roleId,
-  kind,
   disabled = false,
   placeholder,
   children,
@@ -211,7 +206,6 @@ function AgentWorkbenchSplit({
             profileId={profileId}
             jobId={jobId}
             roleId={roleId}
-            kind={kind}
             disabled={disabled}
             placeholder={placeholder}
             onProfileUpdated={onProfileUpdated}
@@ -232,7 +226,6 @@ function AgentWorkbenchUnified({
   profileId,
   jobId = null,
   roleId,
-  kind,
   disabled = false,
   placeholder,
   children,
@@ -246,7 +239,6 @@ function AgentWorkbenchUnified({
     profileId,
     jobId,
     roleId,
-    kind,
     disabled,
     onProfileUpdated,
     uiContext,

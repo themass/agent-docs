@@ -30,7 +30,6 @@ export type AdminSessionListItem = {
   user_email: string | null;
   profile_id: string | null;
   job_id: string | null;
-  kind: string;
   status: string;
   role_id: string | null;
   deerflow_thread_id: string;

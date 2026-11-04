@@ -1,10 +1,6 @@
 import type { AgentSessionListItem } from "@/lib/api/agent";
+import { AGENTS } from "@/lib/agents";
 import { formatDateTime } from "@/lib/datetime";
-
-const KIND_LABEL: Record<string, string> = {
-  resume: "简历",
-  coach: "面试",
-};
 
 /** Agent panel header: keep the subtitle line to one short label (narrow rail). */
 export const AGENT_HEADER_LABEL_MAX = 6;
@@ -20,10 +16,8 @@ export function truncateAgentHeaderLabel(text: string, max = AGENT_HEADER_LABEL_
 export function sessionListTitle(session: AgentSessionListItem): string {
   const title = session.title?.trim();
   if (title) return title;
-  const kind = KIND_LABEL[session.kind] ?? session.kind;
-  const hint = session.role_id?.replace(/^resume-/, "") ?? "";
-  if (hint && hint !== kind) return `${kind} · ${hint}`;
-  return `${kind}对话`;
+  const agent = AGENTS.find((a) => a.roleId === session.role_id);
+  return agent ? `${agent.name}对话` : "智能体对话";
 }
 
 /** Secondary line: time only (id is dev-only). */

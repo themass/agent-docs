@@ -251,7 +251,6 @@ function ResumeAgentInner() {
           profileId={profileId}
           jobId={jobId}
           roleId="resume-coach"
-          kind="resume"
           disabled={!isUser}
           placeholder="例如：华为那段写具体一点；把 Docker 职责拆成三条"
           headerExtra={

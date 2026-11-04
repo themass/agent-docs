@@ -36,7 +36,7 @@
 | `coach-mock` 面试教练 | interview | 是 | session | `coach` | `coach-mock`，`coach-archive` | 页面意图为归档时 → `coach-archive`（`intent_archive`） |
 | `apply-pipeline` 投递经理 | apply | 是 | session，计划模式 | `coach` | `apply-pipeline` | 无 |
 | `interview-reviewer` 独立评审 | interview | 否 | subtask（预算 300 秒） | `reviewer` | `interview-reviewer` | 无 |
-| `resume-reviewer` 导出质检 | resume | 否 | subtask（90 秒） | `reviewer` | `resume-reviewer` | 无 |
+| `resume-reviewer` 导出质检 | resume | 否 | subtask（90 秒） | `flash` | `resume-reviewer` | 无 |
 | `resume-writer` 简历撰写 | resume | 否 | single | `writer` | `resume-writer` | 无 |
 | `jd-parser` JD 解析 | shared | 否 | single | `ingest_fast` | `jd-parser` | 无 |
 | `fit-scorer` 匹配度评分 | shared | 否 | single | `flash` | `fit-scorer` | 无 |
@@ -97,12 +97,18 @@
 | `coach/followups.py` 及其资料 | 没有调用方 |
 | `backend/agent/prompts/` 目录 | 每个提示词都是技能包或已删除 |
 | 扩展配置中的技能开关 | 技能是否可用由角色声明决定 |
+| 会话的 `kind`（resume / coach） | 侧栏按智能体分组，`role_id` 已表达这一点（迁移 022 删除列） |
+| `max_turns` | 没有任何运行时读取它 |
 | 空实现的 MCP 拦截器 | 没有行为 |
 
-## 8. 仍然开放的事项
+## 8. 已决定的事项
 
-- **会话的 `kind`（resume / coach）**：它是侧栏的分组标签，不是产品分类，apply 页面也传 `coach`。是否改为由角色派生，或者删除，需要你定。
-- **每轮的 `skill_hint`**（运行元数据与 LLM 调用日志）：名字来自 agentkit 的 `AgentRunMetadata`，保留；会话上的同名字段已改为 `role_id`。
-- **真实模型的端到端验证**：委派、子任务、导出质检、面试报告，都只在离线环境下用假的运行器验证过，需要有密钥的环境实际跑一遍。
-- **DeerFlow 系统模板**仍会提到 `read_file` 与技能目录。JC 不开放该工具，它不会导致失败，但会让模型尝试一个不存在的调用。上游行为，未处理。
-- **外部 MCP**：`mcp` 字段已从设计中移除，接入时再加。
+- **会话的 `kind` 已删除**：侧栏与列表按智能体（`role_id`）分组。
+- **不恢复模型自主委派**：子任务只由服务启动。
+- **导出质检使用 `flash` 场景**（模型 `jc-flash`），与子任务化之前一致；延迟与成本以真实数据再评估。
+
+## 9. 仍然开放的事项
+
+- **真实模型的端到端验证**：委派之外的子任务（导出质检、面试报告）、切换（档案访谈、面试记录）、双语草稿的两条轨道。需要有密钥的环境。
+- **智能体名称在前端与后端各有一份**：前端 `lib/agents.ts` 的 `roleId` 与后端 `roles.yaml` 的角色 id 需要保持一致；目前靠约定，尚无测试。
+- **每轮的 `skill_hint`**（运行元数据与 LLM 调用日志）：名字来自 agentkit 的 `AgentRunMetadata`，保留。

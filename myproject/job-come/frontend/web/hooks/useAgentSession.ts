@@ -417,7 +417,6 @@ export type UseAgentSessionOptions = {
   profileId: string | null;
   jobId?: string | null;
   roleId: string;
-  kind?: string;
   disabled?: boolean;
   onProfileUpdated?: () => void;
   uiContext?: AgentUiContext | null;
@@ -428,7 +427,6 @@ export function useAgentSession({
   profileId,
   jobId = null,
   roleId,
-  kind,
   disabled = false,
   onProfileUpdated,
   uiContext = null,
@@ -519,10 +517,10 @@ export function useAgentSession({
       setSessions([]);
       return;
     }
-    void listAgentSessions({ profile_id: profileId, kind, limit: 20 })
+    void listAgentSessions({ profile_id: profileId, role_id: roleId, limit: 20 })
       .then((res) => setSessions(res.sessions))
       .catch(() => setSessions([]));
-  }, [disabled, profileId, kind, sessionId]);
+  }, [disabled, profileId, roleId, sessionId]);
 
   const resumeSession = useCallback(
     async (id: string) => {
@@ -544,7 +542,6 @@ export function useAgentSession({
       profile_id: profileId,
       job_id: jobId,
       role_id: roleId,
-      kind: kind ?? (roleId.startsWith("coach") ? "coach" : "resume"),
     });
     setSessionId(session.id);
     localStorage.setItem(storageKey(pageKey, profileId), session.id);
@@ -552,7 +549,6 @@ export function useAgentSession({
       {
         id: session.id,
         role_id: session.role_id,
-        kind: session.kind,
         status: session.status,
         profile_id: session.profile_id,
         created_at: session.created_at,
@@ -561,7 +557,7 @@ export function useAgentSession({
       ...prev.filter((s) => s.id !== session.id),
     ]);
     return session.id;
-  }, [sessionId, profileId, jobId, roleId, kind, pageKey]);
+  }, [sessionId, profileId, jobId, roleId, pageKey]);
 
   // Marks the triggering user bubble so the retry affordance (red dot + retry
   // button) can render on it, instead of only a floating banner the user has to
@@ -709,7 +705,7 @@ export function useAgentSession({
         const serverItems = recordsToDisplayItems(res.messages);
         setItems((prev) => mergeDisplayWithServer(prev, serverItems));
         if (profileId) {
-          void listAgentSessions({ profile_id: profileId, kind, limit: 20 })
+          void listAgentSessions({ profile_id: profileId, role_id: roleId, limit: 20 })
             .then((r) => setSessions(r.sessions))
             .catch(() => undefined);
         }

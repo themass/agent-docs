@@ -42,7 +42,6 @@ export type AgentSession = {
   id: string;
   deerflow_thread_id: string;
   role_id: string | null;
-  kind: string;
   status: string;
   profile_id: string | null;
   created_at: string;

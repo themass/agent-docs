@@ -165,8 +165,7 @@ function AdminSessionsInner() {
             <option value="updated_at">最近活跃</option>
             <option value="created_at">创建时间</option>
             <option value="status">状态</option>
-            <option value="kind">类型</option>
-            <option value="role_id">技能</option>
+            <option value="role_id">智能体</option>
             <option value="user_id">用户</option>
             <option value="id">session id</option>
           </Select>
@@ -215,7 +214,7 @@ function AdminSessionsInner() {
                       {s.user_display_name ?? s.user_email ?? s.user_id}
                     </p>
                     <p className="truncate text-micro text-ink-500">
-                      {s.role_id ?? s.kind} · {s.message_count} msgs
+                      {s.role_id ?? "—"} · {s.message_count} msgs
                     </p>
                     <p className="select-text text-micro text-ink-500">{formatDateTime(s.updated_at)}</p>
                   </button>
@@ -304,7 +303,7 @@ function AdminSessionsInner() {
         subtitle={
           drawerSession
             ? [
-                drawerSession.role_id ?? drawerSession.kind,
+                drawerSession.role_id ?? "—",
                 drawerSession.user_display_name ?? drawerSession.user_email,
                 drawerSession.user_id,
               ]

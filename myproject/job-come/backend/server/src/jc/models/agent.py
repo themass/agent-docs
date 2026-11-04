@@ -9,7 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from jc.db.base import Base
 from jc.db.mixins import TimestampMixin
-from jc.models.enums import AgentSessionKind, AgentSessionStatus
+from jc.models.enums import AgentSessionStatus
 
 if TYPE_CHECKING:
     from jc.models.user import User
@@ -23,7 +23,6 @@ class AgentSession(Base, TimestampMixin):
         String(32), ForeignKey("jc_user.id", ondelete="CASCADE"), nullable=False, index=True
     )
     profile_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
-    kind: Mapped[str] = mapped_column(String(16), default=AgentSessionKind.RESUME, nullable=False)
     status: Mapped[str] = mapped_column(
         String(16), default=AgentSessionStatus.ACTIVE, nullable=False
     )

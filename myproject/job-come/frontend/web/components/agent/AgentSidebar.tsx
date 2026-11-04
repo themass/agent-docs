@@ -15,7 +15,6 @@ type Props = {
   profileId: string | null;
   jobId?: string | null;
   roleId: string;
-  kind?: string;
   disabled?: boolean;
   placeholder?: string;
   onProfileUpdated?: () => void;
@@ -40,7 +39,6 @@ export function AgentSidebar({
   profileId,
   jobId = null,
   roleId,
-  kind,
   disabled = false,
   placeholder,
   onProfileUpdated,
@@ -55,7 +53,6 @@ export function AgentSidebar({
     profileId,
     jobId,
     roleId,
-    kind,
     disabled,
     onProfileUpdated,
     uiContext,

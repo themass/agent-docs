@@ -14,6 +14,8 @@ export type Agent = {
   promise: string;
   /** The agent's own workbench: where its conversation lives. */
   home: string;
+  /** The agent's role id in the backend (roles.yaml): the sessions it owns carry this. */
+  roleId: string;
   /** The letter on its badge. */
   initial: string;
   /** Tailwind background class for its badge. */
@@ -27,6 +29,7 @@ export type Agent = {
 export const AGENTS: Agent[] = [
   {
     id: "resume",
+    roleId: "resume-coach",
     name: "简历顾问",
     promise: "把真实经历整理成招聘方看得懂的简历，并过质检",
     home: "/resume-agent",
@@ -36,6 +39,7 @@ export const AGENTS: Agent[] = [
   },
   {
     id: "interview",
+    roleId: "coach-mock",
     name: "面试教练",
     promise: "像真实面试官一样追问，给出有依据的修正和参考答案",
     home: "/coach-agent",
@@ -49,6 +53,7 @@ export const AGENTS: Agent[] = [
   },
   {
     id: "apply",
+    roleId: "apply-pipeline",
     name: "投递经理",
     promise: "针对一个岗位，走完从定制简历到准备材料的流程",
     home: "/apply-agent",

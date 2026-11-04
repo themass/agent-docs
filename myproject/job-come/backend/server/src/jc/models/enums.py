@@ -138,11 +138,6 @@ class OfferStage(StrEnum):
     REJECTED = "rejected"
 
 
-class AgentSessionKind(StrEnum):
-    RESUME = "resume"
-    COACH = "coach"
-
-
 class AgentSessionStatus(StrEnum):
     ACTIVE = "active"
     COMPLETED = "completed"

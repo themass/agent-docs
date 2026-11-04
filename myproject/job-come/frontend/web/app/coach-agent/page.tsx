@@ -40,7 +40,6 @@ function CoachAgentInner() {
           intent,
         }}
         roleId="coach-mock"
-        kind="coach"
         disabled={context?.actor !== "user"}
         placeholder="回答面试官问题，或说「下一题」…"
       >

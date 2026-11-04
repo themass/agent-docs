@@ -30,7 +30,7 @@ from jc.config import settings
 from jc.exceptions import AppError, ConflictError, NotFoundError
 from jc.models.agent import AgentSession
 from jc.models.agent_message import AgentMessage
-from jc.models.enums import AgentSessionKind, AgentSessionStatus
+from jc.models.enums import AgentSessionStatus
 from jc.observability.events import log_product_event
 from jc.schemas.agent import (
     AgentAttachment,
@@ -172,7 +172,6 @@ class AgentService:
             user_id=actor.user_id,
             profile_id=profile_id,
             job_id=body.job_id,
-            kind=body.kind or AgentSessionKind.RESUME,
             status=AgentSessionStatus.ACTIVE,
             deerflow_thread_id=thread_id,
             role_id=body.role_id,
@@ -193,13 +192,13 @@ class AgentService:
         *,
         actor: UserActor,
         profile_id: str | None = None,
-        kind: str | None = None,
+        role_id: str | None = None,
         limit: int = 20,
     ) -> AgentSessionListResponse:
         rows = await self._store.list_for_user(
             actor.user_id,
             profile_id=profile_id,
-            kind=kind,
+            role_id=role_id,
             limit=min(limit, 50),
         )
         session_ids = [s.id for s in rows]
@@ -209,7 +208,6 @@ class AgentService:
                 AgentSessionListItem(
                     id=s.id,
                     role_id=s.role_id,
-                    kind=s.kind,
                     status=s.status,
                     profile_id=s.profile_id,
                     title=titles.get(s.id),
@@ -705,7 +703,6 @@ class AgentService:
             id=session.id,
             deerflow_thread_id=session.deerflow_thread_id,
             role_id=session.role_id,
-            kind=session.kind,
             status=session.status,
             profile_id=session.profile_id,
             created_at=session.created_at,

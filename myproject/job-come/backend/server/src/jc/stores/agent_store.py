@@ -22,7 +22,6 @@ SESSION_SORT = SortSpec(
         "created_at": AgentSession.created_at,
         "id": AgentSession.id,
         "user_id": AgentSession.user_id,
-        "kind": AgentSession.kind,
         "status": AgentSession.status,
         "role_id": AgentSession.role_id,
     },
@@ -52,14 +51,14 @@ class AgentStore:
         user_id: str,
         *,
         profile_id: str | None = None,
-        kind: str | None = None,
+        role_id: str | None = None,
         limit: int = 20,
     ) -> list[AgentSession]:
         stmt = select(AgentSession).where(AgentSession.user_id == user_id)
         if profile_id:
             stmt = stmt.where(AgentSession.profile_id == profile_id)
-        if kind:
-            stmt = stmt.where(AgentSession.kind == kind)
+        if role_id:
+            stmt = stmt.where(AgentSession.role_id == role_id)
         stmt = stmt.order_by(AgentSession.updated_at.desc()).limit(limit)
         return list((await self._db.execute(stmt)).scalars().all())
 

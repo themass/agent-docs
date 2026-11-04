@@ -39,6 +39,13 @@ models:
     model: reviewer
     context_window: 200000
 
+  # The export reviewer subtask runs on the flash scenario, as the review did before it became a subtask.
+  - name: jc-flash
+    display_name: JC Flash
+    use: jc.llm.chat_litellm:ChatLiteLLMRouter
+    model: flash
+    context_window: 200000
+
   - name: jc-writer
     display_name: JC Writer
     use: jc.llm.chat_litellm:ChatLiteLLMRouter

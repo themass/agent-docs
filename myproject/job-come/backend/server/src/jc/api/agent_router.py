@@ -50,7 +50,7 @@ async def create_agent_session(
 )
 async def list_agent_sessions(
     profile_id: str | None = Query(default=None),
-    kind: str | None = Query(default=None),
+    role_id: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=50),
     actor: UserActor = Depends(require_user),
     agents: AgentService = Depends(get_agent_service),
@@ -58,7 +58,7 @@ async def list_agent_sessions(
     return await agents.list_sessions(
         actor=actor,
         profile_id=profile_id,
-        kind=kind,
+        role_id=role_id,
         limit=limit,
     )
 
