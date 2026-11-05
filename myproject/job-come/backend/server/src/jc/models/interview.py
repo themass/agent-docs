@@ -120,6 +120,13 @@ class MockSession(Base, TimestampMixin):
     coverage: Mapped[dict[str, Any] | None] = mapped_column(JSONText, nullable=True)
     #: True while this session holds the user's monthly full-run slot.
     quota_counted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    #: queued | generating | ready | failed (SPEC-MOCK-INTERVIEW-V2 §5.3). Null until the session
+    #: ends. A worker claims a queued report with a conditional update on these columns.
+    report_status: Mapped[str | None] = mapped_column(String(16), nullable=True, index=True)
+    report_attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    report_claimed_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    #: A short reason for the user, never an exception message or a traceback.
+    report_error: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     profile: Mapped[Profile] = relationship(back_populates="mock_sessions")
 

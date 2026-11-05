@@ -120,6 +120,19 @@ class MockSessionStatus(StrEnum):
     CANCELLED = "cancelled"
 
 
+class MockReportStatus(StrEnum):
+    """Where a finished mock session's report stands. The session row is the queue."""
+
+    QUEUED = "queued"
+    GENERATING = "generating"
+    READY = "ready"
+    FAILED = "failed"
+
+
+#: How many times the reviewer is run for one report: the first run and three retries.
+MAX_REPORT_RUNS = 4
+
+
 class ApplicationStatus(StrEnum):
     EVALUATED = "evaluated"
     SKIPPED = "skipped"

@@ -16,7 +16,7 @@ from typing import Any
 from jc.authz.ownership import require_owned_profile
 from jc.authz.scope import RunScope
 from jc.coach.coverage import coverage_of
-from jc.models.enums import MockSessionStatus
+from jc.models.enums import MAX_REPORT_RUNS, MockReportStatus, MockSessionStatus
 from jc.models.interview import MockSession
 from jc.models.job import Job
 from jc.stores.interview_store import InterviewStore
@@ -60,6 +60,13 @@ def _close(session: MockSession, state: dict[str, Any], *, reason: str) -> None:
     state["ended_reason"] = reason
     state["ended_early"] = reason in ("user_ended", "timeout")
     session.coverage = state
+    if state["asked"]:
+        session.report_status = MockReportStatus.QUEUED
+    else:
+        # Ended before the first question: a review of nothing can only fail, so it is not run.
+        session.report_status = MockReportStatus.FAILED
+        session.report_attempts = MAX_REPORT_RUNS
+        session.report_error = "这场面试没有提问，没有可评审的内容。"
 
 
 async def _owned_session(scope: RunScope, mock_session_id: str) -> MockSession:
