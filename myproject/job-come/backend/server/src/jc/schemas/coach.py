@@ -212,11 +212,13 @@ class MockReportTrend(BaseModel):
 
 
 class MockReportResponse(BaseModel):
-    """The read-only report page. `status` is "active" while the session is still running, and
-    "pending" when the session has ended but the independent review has not produced a report."""
+    """The read-only report page. `status` is "active" while the session is still running,
+    "pending" while the report is queued or being generated, "failed" when the review did not
+    produce one (`can_retry` says whether the user may ask again), and "ready" once it is stored."""
 
     mock_session_id: str
-    status: Literal["active", "pending", "ready"]
+    status: Literal["active", "pending", "failed", "ready"]
+    can_retry: bool = False
     style: str | None = None
     started_at: datetime
     completed_at: datetime | None = None

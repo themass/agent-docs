@@ -216,6 +216,19 @@ async def get_mock_report(
     return await coach.get_mock_report(session_id, actor=actor)
 
 
+@router.post(
+    "/mock/sessions/{session_id}/report/retry",
+    response_model=MockReportResponse,
+    summary="重新生成失败的模拟面试报告（最多重试到次数用完）",
+)
+async def retry_mock_report(
+    session_id: Annotated[str, Path(description="模拟会话 ID")],
+    actor: UserActor = Depends(require_user),
+    coach: InterviewService = Depends(get_coach_service),
+) -> MockReportResponse:
+    return await coach.retry_mock_report(session_id, actor=actor)
+
+
 @router.post("/mock/sessions/{session_id}/complete", response_model=MockSessionResponse)
 async def complete_mock_session(
     session_id: str,

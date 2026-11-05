@@ -15,7 +15,7 @@ from jc.coach.level import LEVEL_SPECS, LEVELS, level_for_profile
 from jc.coach.planner import select_bank_draws
 from jc.coach.report_insights import insights
 from jc.exceptions import ConflictError, NotFoundError
-from jc.models.enums import MockSessionStatus
+from jc.models.enums import MAX_REPORT_RUNS, MockReportStatus, MockSessionStatus
 from jc.models.interview import InterviewQuestion, InterviewRecord, MockSession
 from jc.schemas.coach import (
     AnswerAttemptRequest,
@@ -43,6 +43,7 @@ from jc.schemas.coach import (
 from jc.services.answer_attempt_service import save_answer_attempt
 from jc.services.mock_guard_service import must_have_of
 from jc.services.mock_quota_service import MockQuotaService
+from jc.services.mock_report_queue import requeue_failed
 from jc.services.profile_service import ProfileService
 from jc.services.question_bank_service import question_upsert
 from jc.stores.interview_store import InterviewStore
@@ -347,8 +348,10 @@ class InterviewService:
         return session
 
     async def get_mock_report(self, session_id: str, *, actor: UserActor) -> MockReportResponse:
-        """The stored report of a finished session. A finished session with no report yet is
-        reviewed once, here, and the result is stored; later reads only read it."""
+        """Where a finished session's report stands, and the report once it is stored.
+
+        This only reads. The report is produced by the background worker
+        (`mock_report_queue`), so opening the page never waits for a model."""
         session = await self._owned_mock_session(session_id, actor=actor)
         state = dict(session.coverage or {})
         base = {
@@ -365,25 +368,24 @@ class InterviewService:
             return MockReportResponse(status="active", message="这场模拟面试已取消。", **base)
 
         if not session.report:
-            from jc.services.interview_reviewer import review_session
-
-            try:
-                stored = await review_session(
-                    self._db,
-                    user_id=actor.user_id,
-                    profile_id=session.profile_id,
-                    mock_session_id=session_id,
-                )
-            except Exception:  # noqa: BLE001 — every failure is "not yet", shown as pending
-                logger.warning("mock_report_review_failed session=%s", session_id, exc_info=True)
-                stored = False
-            if not stored:
+            if session.report_status in (
+                MockReportStatus.QUEUED, MockReportStatus.GENERATING
+            ):
                 return MockReportResponse(
-                    status="pending",
-                    message="独立评审暂未完成，请稍后刷新此页面。",
-                    **base,
+                    status="pending", message="报告正在生成，通常需要一两分钟。", **base
                 )
-            await self._db.refresh(session)
+            # Failed, or a completed session no worker will ever pick up: say so rather than
+            # leave the page waiting.
+            retryable = (
+                session.report_status == MockReportStatus.FAILED
+                and int(session.report_attempts or 0) < MAX_REPORT_RUNS
+            )
+            return MockReportResponse(
+                status="failed",
+                message=session.report_error or "这场面试的报告没有生成。",
+                can_retry=retryable,
+                **base,
+            )
 
         from jc.services.mock_report_service import session_transcript
 
@@ -392,6 +394,20 @@ class InterviewService:
                          mock_session_id=session_id)
         must = await must_have_of(scope, session)
         return _report_view(session, base, transcript, must)
+
+    async def retry_mock_report(self, session_id: str, *, actor: UserActor) -> MockReportResponse:
+        """Put a failed report back in the queue. Allowed until every run has been used."""
+        session = await self._owned_mock_session(session_id, actor=actor)
+        if session.report_status != MockReportStatus.FAILED:
+            raise ConflictError("这份报告不需要重新生成。", code="mock_report_not_failed")
+        if int(session.report_attempts or 0) >= MAX_REPORT_RUNS:
+            raise ConflictError(
+                "这份报告已经多次生成失败，不能再重试。", code="mock_report_retry_exhausted"
+            )
+        if not await requeue_failed(self._db, session_id):
+            raise ConflictError("这份报告暂时不能重新生成。", code="mock_report_not_failed")
+        await self._db.refresh(session)
+        return await self.get_mock_report(session_id, actor=actor)
 
     async def log_question(
         self,

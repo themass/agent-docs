@@ -1,5 +1,6 @@
 """The report page reads a finished session's stored review; the candidate's finish button ends the
-session through the same guard as the interviewer; a finished session is reviewed once."""
+session through the same guard as the interviewer; a finished session is reviewed once, by the
+background worker, not by opening the page."""
 
 from __future__ import annotations
 
@@ -16,7 +17,9 @@ from jc.exceptions import ForbiddenError, NotFoundError
 from jc.models.interview import AnswerAttempt, InterviewQuestion, MockSession
 from jc.models.profile import Profile
 from jc.models.user import User
+from jc.services import mock_report_queue
 from jc.services.interview_service import InterviewService
+from jc.services.mock_report_queue import claim_next_report, generate_report
 from reviewer_agent_fake import FakeClientFactory, FakeReviewerAgent
 
 ANSWER = "我负责把结算接口从单表拆成两张表，耗时三周。"
@@ -55,7 +58,19 @@ async def _set_status(maker, status: str) -> None:
     async with maker() as s:
         session = await s.get(MockSession, "ms1")
         session.status = status
+        if status == "completed":
+            session.report_status = "queued"
+            session.completed_at = datetime.now(UTC)
         await s.commit()
+
+
+async def _run_the_worker(maker, monkeypatch, agent: FakeReviewerAgent) -> bool:
+    """What the background worker does for a queued report: claim it, run the reviewer."""
+    monkeypatch.setattr(subtask, "get_deerflow_client", FakeClientFactory(agent))
+    monkeypatch.setattr(mock_report_queue, "AsyncSessionLocal", maker)
+    async with maker() as s:
+        assert await claim_next_report(s) == "ms1"
+    return await generate_report("ms1")
 
 
 @pytest.mark.asyncio
@@ -82,7 +97,7 @@ async def test_finished_session_is_reviewed_once_and_read_after(maker, monkeypat
         "praise": "讲清了动作。", "fixes": [{"severity": "suggest", "text": "补上结果。"}],
         "reference": [],
     }]})
-    monkeypatch.setattr(subtask, "get_deerflow_client", FakeClientFactory(agent))
+    assert await _run_the_worker(maker, monkeypatch, agent) is True
 
     async with maker() as s:
         first = await InterviewService(s).get_mock_report("ms1", actor=OWNER)
@@ -98,13 +113,14 @@ async def test_finished_session_is_reviewed_once_and_read_after(maker, monkeypat
 
 
 @pytest.mark.asyncio
-async def test_failed_review_is_pending_not_an_error(maker, monkeypatch):
+async def test_failed_review_is_shown_as_failed_with_a_retry_not_an_error(maker, monkeypatch):
     await _set_status(maker, "completed")
     agent = FakeReviewerAgent(maker, error=RuntimeError("agent unavailable"))
-    monkeypatch.setattr(subtask, "get_deerflow_client", FakeClientFactory(agent))
+    assert await _run_the_worker(maker, monkeypatch, agent) is False
     async with maker() as s:
         out = await InterviewService(s).get_mock_report("ms1", actor=OWNER)
-    assert out.status == "pending" and out.questions == []
+    assert out.status == "failed" and out.questions == [] and out.can_retry is True
+    assert "agent unavailable" not in (out.message or "")
 
 
 @pytest.mark.asyncio
@@ -124,11 +140,12 @@ async def test_a_warmup_gets_the_brief_report_without_question_detail(maker, mon
         session = await s.get(MockSession, "ms1")
         session.status = "completed"
         session.quota_counted = False
+        session.report_status = "queued"
         await s.commit()
     agent = FakeReviewerAgent(maker, report={"questions": [{
         "question_id": "q1", "scores": {"depth": 6}, "evidence": {"depth": "拆成两张表"},
     }]})
-    monkeypatch.setattr(subtask, "get_deerflow_client", FakeClientFactory(agent))
+    assert await _run_the_worker(maker, monkeypatch, agent) is True
     async with maker() as s:
         out = await InterviewService(s).get_mock_report("ms1", actor=OWNER)
     assert out.status == "ready" and out.brief is True

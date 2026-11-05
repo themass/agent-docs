@@ -40,19 +40,26 @@ async def lifespan(_app: FastAPI):
 
     configure_litellm()
     setup_langfuse_callbacks()
+    from jc.services.mock_report_queue import run_mock_report_dispatcher
     from jc.tasks import run_profile_parse_dispatcher
 
     # The source table is the durable queue. Every API instance may poll it;
-    # database lease claims ensure one instance owns each parse attempt.
-    dispatcher = asyncio.create_task(run_profile_parse_dispatcher())
+    # database lease claims ensure one instance owns each parse attempt. Mock-interview reports
+    # work the same way: the session row is the queue (see jc.services.mock_report_queue).
+    dispatchers = [
+        asyncio.create_task(run_profile_parse_dispatcher()),
+        asyncio.create_task(run_mock_report_dispatcher()),
+    ]
     try:
         yield
     finally:
-        dispatcher.cancel()
-        try:
-            await dispatcher
-        except asyncio.CancelledError:
-            pass
+        for dispatcher in dispatchers:
+            dispatcher.cancel()
+        for dispatcher in dispatchers:
+            try:
+                await dispatcher
+            except asyncio.CancelledError:
+                pass
 
 
 _api_prefix = settings.jc_api_prefix.rstrip("/")
