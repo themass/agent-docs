@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from agentkit.common.ids import new_id
-
 from typing import Any
+
+from agentkit.common.ids import new_id
 
 from jc.authz import RunScope, require_owned_profile, require_owned_references
 from jc.models.enums import QuestionSource
@@ -44,7 +44,12 @@ async def question_upsert(
     tags: list[str] | None = None,
     round: str | None = None,
     source: str = "mock",
+    commit: bool = True,
 ) -> dict:
+    """Create the question, or find it by stem, and attach it to the mock session if there is one.
+
+    `commit=False` leaves the transaction to the caller, who may still refuse the question and roll
+    it back (the interviewer's `jc_mock_ask` does)."""
     mock_session_id = mock_session_id or scope.mock_session_id
     job_id = job_id or scope.job_id
     await require_owned_profile(scope)
@@ -67,7 +72,8 @@ async def question_upsert(
                 question_id=existing.id,
                 created=False,
             )
-        await scope.db.commit()
+        if commit:
+            await scope.db.commit()
         return {
             "id": existing.id,
             "stem": existing.stem,
@@ -96,7 +102,8 @@ async def question_upsert(
             question_id=row.id,
             created=True,
         )
-    await scope.db.commit()
+    if commit:
+        await scope.db.commit()
     return {"id": row.id, "stem": row.stem, "created": True, "attempt_count": 0}
 
 

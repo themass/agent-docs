@@ -26,7 +26,7 @@ def wrap_coach_mock_message(
     else:
         draw_rule = (
             "题库还没有本题可抽，请出与岗位相关的新题，"
-            "每出一题调用 jc_question_upsert。"
+            "出题时直接用 jc_mock_ask 的 stem 参数登记。"
         )
     state_rule = (
         "用户可能已在页面上跳过或换题：每轮开始前调用 jc_mock_plan 查看本场当前状态，"
@@ -54,9 +54,9 @@ def wrap_coach_mock_message(
         f"{draw_rule}\n"
         f"{state_rule}\n"
         f"{history_rule}\n"
-        "每次出题后调用 jc_question_upsert（带 job_id 与 mock_session_id），"
-        "再调用 jc_mock_ask 登记提问（主问题或追问）。"
-        "用户作答后调用 jc_answer_save_attempt 保存原话；本场不点评、不打分，"
+        "先调用 jc_mock_ask 登记（题库里已有的题传 question_id，新题传 stem），"
+        "登记通过后才把题说给用户；被拒绝就换一道，不要把被拒绝的题问出去。"
+        "用户的回答由系统自动记录，你不需要保存；本场不点评、不打分，"
         "评分由独立评审在场次结束后完成。\n"
         "用户原话：\n"
         f"{user_text.strip()}\n"

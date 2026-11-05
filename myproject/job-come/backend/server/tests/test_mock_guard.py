@@ -86,7 +86,8 @@ async def test_plan_suggests_the_first_uncovered_must_have_in_jd_order(db):
 @pytest.mark.asyncio
 async def test_asked_question_is_recorded_and_moves_the_plan(db):
     out = await _ask(db, "q1")
-    assert out == {"accepted": True, "asked_main": 1, "remaining_main": 4, "label": "第 1 题"}
+    assert out == {"accepted": True, "question_id": "q1", "asked_main": 1, "remaining_main": 4,
+                   "label": "第 1 题"}
     session = await _session(db)
     assert session.question_ids == ["q1"]
     async with db() as s:

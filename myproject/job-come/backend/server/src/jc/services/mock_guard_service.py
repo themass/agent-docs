@@ -218,26 +218,30 @@ async def ask(
     scope: RunScope,
     *,
     mock_session_id: str,
-    question_id: str,
+    question_id: str | None = None,
+    stem: str | None = None,
+    question_type: str = "behavioral",
+    tags: list[str] | None = None,
     kind: str = "main",
     parent_question_id: str | None = None,
     experience: str | None = None,
 ) -> dict[str, Any]:
+    """Register a question the interviewer is about to put.
+
+    The question is either one already in the bank (`question_id`) or a new one given as `stem`,
+    which is created, or found by its text, in this same call. A refusal writes nothing: a question
+    created for a refused ask is rolled back with it.
+    """
     if kind not in ("main", "followup"):
         raise ValueError("kind must be 'main' or 'followup'")
+    if bool(question_id) == bool(stem and stem.strip()):
+        raise ValueError("give exactly one of question_id or stem")
     session = await _owned_session(scope, mock_session_id)
     if session.status != MockSessionStatus.ACTIVE:
         return _refuse("这场模拟面试已经结束。", code="session_closed")
-    store = InterviewStore(scope.db)
-    question = await store.get_question(question_id)
-    if question is None or question.profile_id != scope.profile_id:
-        raise ValueError("question is not in this profile")
 
     state = _state(session)
     asked = state["asked"]
-    if any(entry["question_id"] == question_id for entry in asked):
-        return _refuse("这道题已经问过。", code="already_asked")
-
     main_limit, followup_limit = limits(session)
     mains = [a for a in asked if a["kind"] == "main"]
     if kind == "main":
@@ -256,6 +260,23 @@ async def ask(
             return _refuse(f"这道题的追问已达 {followup_limit} 次，请换下一个主问题。",
                            code="followup_limit")
 
+    store = InterviewStore(scope.db)
+    if question_id:
+        question = await store.get_question(question_id)
+        if question is None or question.profile_id != scope.profile_id:
+            raise ValueError("question is not in this profile")
+    else:
+        from jc.services.question_bank_service import question_upsert
+
+        upserted = await question_upsert(
+            scope, stem=stem, question_type=question_type, tags=tags, job_id=session.job_id,
+            mock_session_id=mock_session_id, commit=False,
+        )
+        question_id = upserted["id"]
+    if any(entry["question_id"] == question_id for entry in asked):
+        await scope.db.rollback()
+        return _refuse("这道题已经问过。", code="already_asked")
+
     asked.append({
         "question_id": question_id,
         "kind": kind,
@@ -271,7 +292,8 @@ async def ask(
         session.question_ids = qids
     await scope.db.commit()
     remaining = main_limit - len(mains) - (1 if kind == "main" else 0)
-    return {"accepted": True, "asked_main": len(mains) + (1 if kind == "main" else 0),
+    return {"accepted": True, "question_id": question_id,
+            "asked_main": len(mains) + (1 if kind == "main" else 0),
             "remaining_main": max(0, remaining), "label": question_label(asked)}
 
 

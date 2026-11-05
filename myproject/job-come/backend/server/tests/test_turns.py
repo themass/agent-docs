@@ -115,3 +115,21 @@ def test_a_session_without_a_level_adds_no_level_line():
     text = turn.TURN_PROVIDERS["mock_session"].message(
         ctx, {"mock_session_id": "ms1", "drawn_stems": [], "level": None}, "coach-mock", "开始")
     assert "面试级别" not in text
+
+
+def test_the_interview_message_names_only_tools_the_interviewer_holds():
+    # The task text once told the interviewer to call tools its skill no longer allowed.
+    import re
+
+    from jc.skills.loader import require_skill
+
+    ctx = TurnContext(db=None, profiles=None, actor=None, profile_id="p1", job_id="j1",
+                      ui_context=None, default_skill="coach-mock")
+    for drawn in ([], ["一道题库题"]):
+        text = turn.TURN_PROVIDERS["mock_session"].message(
+            ctx, {"mock_session_id": "ms1", "drawn_stems": drawn, "level": "mid"},
+            "coach-mock", "开始")
+        named = set(re.findall(r"jc_[a-z_]+", text))
+        held = set(require_skill("coach-mock").allowed_tools)
+        assert named, "the task text should name the tools it relies on"
+        assert named <= held, f"names tools the skill does not allow: {sorted(named - held)}"

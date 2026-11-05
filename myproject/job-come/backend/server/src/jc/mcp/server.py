@@ -242,7 +242,10 @@ async def jc_mock_plan(
 @mcp.tool()
 async def jc_mock_ask(
     mock_session_id: str,
-    question_id: str,
+    question_id: str | None = None,
+    stem: str | None = None,
+    question_type: str = "behavioral",
+    tags: list[str] | None = None,
     kind: str = "main",
     parent_question_id: str | None = None,
     experience: str | None = None,
@@ -264,6 +267,9 @@ async def jc_mock_ask(
             ),
             mock_session_id=mock_session_id,
             question_id=question_id,
+            stem=stem,
+            question_type=question_type,
+            tags=tags,
             kind=kind,
             parent_question_id=parent_question_id,
             experience=experience,
