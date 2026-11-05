@@ -77,6 +77,7 @@ export async function streamAgentMessage(
     attachments?: AgentAttachment[];
     reply_locale?: string;
     ui_context?: AgentUiContext | null;
+    client_message_id?: string;
   },
   onEvent: (event: AgentStreamEvent) => void,
   options?: { signal?: AbortSignal },
@@ -92,6 +93,7 @@ export async function streamAgentMessage(
         attachments: body.attachments ?? [],
         reply_locale: body.reply_locale ?? "zh-CN",
         ui_context: body.ui_context ?? null,
+        client_message_id: body.client_message_id ?? null,
       }),
       signal: options?.signal,
     });

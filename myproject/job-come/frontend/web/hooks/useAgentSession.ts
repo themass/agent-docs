@@ -53,6 +53,12 @@ function newItemId() {
   return `item_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+// Sent with each message and reused when the bubble is retried, so the server records
+// an interview answer once however many times the same message arrives.
+function newClientMessageId() {
+  return `cm_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function normalizeTokenContent(content: unknown): string {
   if (content == null) return "";
   if (typeof content === "string") return content;
@@ -580,6 +586,7 @@ export function useAgentSession({
       attachments: AgentAttachment[] = [],
       mode: "send" | "follow_up" | "steer" = "send",
       uiContextOverride?: AgentUiContext | null,
+      clientMessageId?: string,
     ) => {
       if (disabled) return;
       const text = content.trim();
@@ -607,9 +614,10 @@ export function useAgentSession({
 
       setError(null);
       setBusy(true);
+      const messageId = clientMessageId ?? newClientMessageId();
       setItems((prev) => [
         ...prev,
-        { id: newItemId(), kind: "user", content: text, attachments },
+        { id: newItemId(), kind: "user", content: text, attachments, clientMessageId: messageId },
       ]);
       assistantRef.current = null;
 
@@ -647,6 +655,7 @@ export function useAgentSession({
             attachments,
             reply_locale: replyLocale,
             ui_context: ctx ?? undefined,
+            client_message_id: messageId,
           },
           (event) => {
             resetIdleTimer();
@@ -786,7 +795,13 @@ export function useAgentSession({
       // the queue instead of being silently dropped. A guard here previously made the
       // retry button a no-op with zero feedback whenever the user clicked it while
       // anything else was still streaming.
-      void sendMessage(target.content, target.attachments ?? [], "send");
+      void sendMessage(
+        target.content,
+        target.attachments ?? [],
+        "send",
+        undefined,
+        target.clientMessageId,
+      );
     },
     [items, sendMessage],
   );

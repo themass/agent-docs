@@ -105,6 +105,9 @@ export type AgentDisplayItem =
       kind: "user";
       content: string;
       attachments?: AgentAttachment[];
+      /** Sent with the message so the server can tell a retry from a new message. A retry
+       * of this bubble sends the same id. */
+      clientMessageId?: string;
       /** Set when the turn this message started never produced a reply. Drives the
        * retry affordance on the bubble; cleared once a retry is sent. */
       failed?: boolean;

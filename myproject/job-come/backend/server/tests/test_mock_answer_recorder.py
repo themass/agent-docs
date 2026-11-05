@@ -53,10 +53,12 @@ async def _open_session(maker, asked: list[dict], *, status: str = "active") -> 
         await db.commit()
 
 
-async def _record(maker, text: str, *, profile_id: str = "p1") -> str | None:
+async def _record(
+    maker, text: str, *, profile_id: str = "p1", message_id: str | None = None
+) -> str | None:
     async with maker() as db:
         return await record_mock_answer(
-            db, profile_id=profile_id, mock_session_id="ms1", text=text
+            db, profile_id=profile_id, mock_session_id="ms1", text=text, message_id=message_id
         )
 
 
@@ -206,7 +208,10 @@ class _FakeClient:
         yield {"type": "done"}
 
 
-async def _stream(maker, monkeypatch, text: str, *, mock_session_id: str | None = "ms1"):
+async def _stream(
+    maker, monkeypatch, text: str, *, mock_session_id: str | None = "ms1",
+    client_message_id: str | None = None,
+):
     from agentkit.web.auth import UserActor
 
     from jc.models.agent import AgentSession
@@ -225,7 +230,7 @@ async def _stream(maker, monkeypatch, text: str, *, mock_session_id: str | None 
         events = [
             event async for event in agent_service.AgentService(db).stream_message(
                 "as1", actor=UserActor(user_id="u1", session_id="s"), content=text,
-                ui_context=ui_context)
+                ui_context=ui_context, client_message_id=client_message_id)
         ]
     return client, events
 
@@ -252,6 +257,52 @@ async def test_a_turn_before_any_question_records_nothing_but_still_runs(maker, 
     assert await _attempts(maker) == []
     assert len(client.received) == 1
     assert any(event.get("type") == "token" for event in events)
+
+
+@pytest.mark.asyncio
+async def test_a_turn_sent_again_with_the_same_message_id_records_the_answer_once(
+    maker, monkeypatch
+):
+    # The retry button re-sends the same message. The model still gets a turn (the first may have
+    # failed before it answered), but the candidate's words are not put on the record twice.
+    await _open_session(maker, [MAIN])
+    first, _ = await _stream(maker, monkeypatch, "我把结算接口拆成了两张表。",
+                             client_message_id="m1")
+    again, events = await _stream(maker, monkeypatch, "我把结算接口拆成了两张表。",
+                                  client_message_id="m1")
+    assert [row.user_answer for row in await _attempts(maker)] == ["我把结算接口拆成了两张表。"]
+    assert len(again.received) == 1 and any(e.get("type") == "token" for e in events)
+
+
+@pytest.mark.asyncio
+async def test_the_message_route_hands_the_clients_message_id_to_the_service():
+    from agentkit.web.auth import UserActor
+
+    from jc.api.agent_router import agent_message_stream
+    from jc.schemas.agent import AgentMessageRequest
+
+    seen: dict = {}
+
+    class StubAgents:
+        async def stream_message(self, session_id, **kwargs):
+            seen.update(kwargs)
+            yield {"type": "done"}
+
+    body = AgentMessageRequest(content="我把结算接口拆成了两张表。", client_message_id="m1")
+    response = await agent_message_stream(
+        "as1", body=body, actor=UserActor(user_id="u1", session_id="s"), agents=StubAgents())
+    [chunk async for chunk in response.body_iterator]
+    assert seen["client_message_id"] == "m1"
+
+
+def test_the_message_id_is_optional_and_bounded():
+    from pydantic import ValidationError
+
+    from jc.schemas.agent import AgentMessageRequest
+
+    assert AgentMessageRequest(content="你好").client_message_id is None
+    with pytest.raises(ValidationError):
+        AgentMessageRequest(content="你好", client_message_id="x" * 65)
 
 
 # --- messages that talk to the interview, not to the question -----------------------------------
@@ -382,3 +433,81 @@ def test_a_filler_in_front_of_two_steering_phrases_is_still_steering():
     from jc.services.mock_answer_recorder import is_steering_message
 
     assert is_steering_message("好的，没听清，能再说一遍吗")
+
+
+# --- the same message sent twice ----------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_a_message_sent_again_with_the_same_id_is_recorded_once(maker):
+    await _open_session(maker, [MAIN])
+    first = await _record(maker, "我把结算接口拆成了两张表。", message_id="m1")
+    again = await _record(maker, "我把结算接口拆成了两张表。", message_id="m1")
+    rows = await _attempts(maker)
+    assert first is not None and again is None
+    assert [row.user_answer for row in rows] == ["我把结算接口拆成了两张表。"]
+
+
+@pytest.mark.asyncio
+async def test_two_messages_with_different_ids_are_both_the_answer_even_if_the_words_match(maker):
+    # The candidate may say the same short thing twice and mean it. Only the id says "resend".
+    await _open_session(maker, [MAIN])
+    await _record(maker, "是的。", message_id="m1")
+    await _record(maker, "是的。", message_id="m2")
+    assert [row.user_answer for row in await _attempts(maker)] == ["是的。\n是的。"]
+
+
+@pytest.mark.asyncio
+async def test_a_message_without_an_id_is_never_taken_for_a_resend(maker):
+    await _open_session(maker, [MAIN])
+    await _record(maker, "是的。")
+    await _record(maker, "是的。")
+    assert [row.user_answer for row in await _attempts(maker)] == ["是的。\n是的。"]
+
+
+@pytest.mark.asyncio
+async def test_a_retry_after_the_next_question_was_asked_does_not_answer_the_wrong_question(maker):
+    # The first try was recorded under q1, then the turn failed after the interviewer had already
+    # registered q2. Sending the same message again must not put the answer under q2.
+    await _open_session(maker, [MAIN])
+    await _record(maker, "我把结算接口拆成了两张表。", message_id="m1")
+    async with maker() as db:
+        session = await db.get(MockSession, "ms1")
+        # As the guards do when a question is registered: copy the state, add to it.
+        session.coverage = {**session.coverage, "asked": [MAIN, FOLLOW_UP]}
+        await db.commit()
+    await _record(maker, "我把结算接口拆成了两张表。", message_id="m1")
+    by_question = {row.question_id: row.user_answer for row in await _attempts(maker)}
+    assert by_question == {"q1": "我把结算接口拆成了两张表。"}
+
+
+@pytest.mark.asyncio
+async def test_an_id_is_remembered_only_when_the_message_was_recorded(maker):
+    # Nothing was on the table, so the words were not an answer. The same id later, with a question
+    # on the table, is a message that has not been recorded yet.
+    await _open_session(maker, [])
+    assert await _record(maker, "你好，我准备好了。", message_id="m1") is None
+    async with maker() as db:
+        session = await db.get(MockSession, "ms1")
+        session.coverage = {"asked": [MAIN]}
+        await db.commit()
+    assert await _record(maker, "你好，我准备好了。", message_id="m1") is not None
+
+
+@pytest.mark.asyncio
+async def test_the_ids_kept_are_bounded_and_the_oldest_are_forgotten(maker):
+    await _open_session(maker, [MAIN])
+    for number in range(80):
+        await _record(maker, f"第{number}句", message_id=f"m{number}")
+    async with maker() as db:
+        kept = (await db.get(MockSession, "ms1")).coverage["recorded_messages"]
+    assert len(kept) == 50 and kept[-1] == "m79" and "m0" not in kept
+
+
+@pytest.mark.asyncio
+async def test_remembering_ids_leaves_the_rest_of_the_coverage_alone(maker):
+    await _open_session(maker, [MAIN])
+    await _record(maker, "我把结算接口拆成了两张表。", message_id="m1")
+    async with maker() as db:
+        coverage = (await db.get(MockSession, "ms1")).coverage
+    assert coverage["asked"] == [MAIN] and coverage["recorded_messages"] == ["m1"]

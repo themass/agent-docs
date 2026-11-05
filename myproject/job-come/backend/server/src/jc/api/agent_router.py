@@ -133,6 +133,7 @@ async def agent_message_stream(
             attachments=body.attachments,
             reply_locale=body.reply_locale,
             ui_context=body.ui_context,
+            client_message_id=body.client_message_id,
         )
         async for event in with_heartbeat(upstream):
             yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n".encode()

@@ -88,6 +88,11 @@ class AgentUiContext(BaseModel):
 
 class AgentMessageRequest(BaseModel):
     content: str = Field(default="", max_length=16_000)
+    client_message_id: str | None = Field(
+        default=None,
+        max_length=64,
+        description="客户端为这条消息生成的 id；重发同一条消息时沿用，服务端据此不重复记录面试回答",
+    )
     attachments: list[AgentAttachment] = Field(default_factory=list)
     reply_locale: str = Field(default="zh-CN", description="zh-CN | en-US；模型回复语言")
     ui_context: AgentUiContext | None = Field(

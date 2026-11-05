@@ -240,6 +240,7 @@ class AgentService:
         attachments: list[AgentAttachment] | None = None,
         reply_locale: str = "zh-CN",
         ui_context: AgentUiContext | None = None,
+        client_message_id: str | None = None,
     ) -> AsyncIterator[dict]:
         session = await self._require_session(session_id, actor=actor)
         if ui_context and ui_context.mock_session_id:
@@ -335,6 +336,7 @@ class AgentService:
                 profile_id=session.profile_id,
                 mock_session_id=mock_session_id,
                 text=agent_message,
+                message_id=client_message_id,
             )
         if provider is not None:
             agent_message = provider.message(turn_ctx, facts, runtime_skill, agent_message)
