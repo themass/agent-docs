@@ -147,7 +147,6 @@ async def mock_session_history(
                 "question_type": question.question_type,
                 "user_answer": attempt.user_answer if attempt else None,
                 "coach_feedback": attempt.coach_feedback if attempt else None,
-                "attempt_count": question.attempt_count,
             }
         )
     return {

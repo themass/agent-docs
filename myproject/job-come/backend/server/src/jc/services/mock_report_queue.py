@@ -70,15 +70,28 @@ async def claim_next_report(db: AsyncSession, *, now: datetime | None = None) ->
     cutoff = now - CLAIM_LEASE
 
     # A worker that died on its last allowed run leaves a row nobody may claim again: settle it.
-    await db.execute(
-        update(MockSession)
-        .where(
-            MockSession.report_status == MockReportStatus.GENERATING,
-            MockSession.report_attempts >= MAX_REPORT_RUNS,
-            MockSession.report_claimed_at < cutoff,
+    # Found first and updated by primary key, so a poll that finds nothing writes nothing and a
+    # poll that finds something locks only those rows, not a range of the status index that a
+    # claim on another instance is also reaching into.
+    stuck = (
+        await db.execute(
+            select(MockSession.id).where(
+                MockSession.report_status == MockReportStatus.GENERATING,
+                MockSession.report_attempts >= MAX_REPORT_RUNS,
+                MockSession.report_claimed_at < cutoff,
+            )
         )
-        .values(report_status=MockReportStatus.FAILED, report_error=_RUNS_USED)
-    )
+    ).scalars().all()
+    for stuck_id in stuck:
+        await db.execute(
+            update(MockSession)
+            .where(
+                MockSession.id == stuck_id,
+                MockSession.report_status == MockReportStatus.GENERATING,
+                MockSession.report_attempts >= MAX_REPORT_RUNS,
+            )
+            .values(report_status=MockReportStatus.FAILED, report_error=_RUNS_USED)
+        )
 
     candidates = (
         await db.execute(
@@ -144,9 +157,16 @@ async def generate_report(session_id: str) -> bool:
             logger.warning("mock_report_failed session=%s", session_id, exc_info=True)
             error = _RUN_FAILED
             await db.rollback()
+        # Only the claim this run made is closed. A run that outlived its lease finds the report in
+        # another worker's hands, and what it learned must not overwrite what that worker is doing.
+        # The report it stored, if any, is already on the row and is shown either way.
         await db.execute(
             update(MockSession)
-            .where(MockSession.id == session_id)
+            .where(
+                MockSession.id == session_id,
+                MockSession.report_status == MockReportStatus.GENERATING,
+                MockSession.report_claimed_at == my_claim,
+            )
             .values(
                 report_status=MockReportStatus.READY if stored else MockReportStatus.FAILED,
                 report_error=None if stored else error,

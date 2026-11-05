@@ -79,3 +79,18 @@ async def test_a_question_answered_elsewhere_is_still_open_here(db):
         scope = RunScope(db=s, user_id="u1", profile_id="p1", mock_session_id="ms1")
         out = await plan(scope, mock_session_id="ms1")
     assert out["current_question_id"] == "q1"
+
+
+@pytest.mark.asyncio
+async def test_a_history_turn_describes_this_session_only(db):
+    # The question was answered once, in another session. In this session's history it has no
+    # answer, and it must not carry a counter that says it has been answered.
+    from jc.services.question_bank_service import mock_session_history
+
+    async with db() as s:
+        scope = RunScope(db=s, user_id="u1", profile_id="p1", mock_session_id="ms1")
+        out = await mock_session_history(scope, mock_session_id="ms1")
+    assert len(out["turns"]) == 1
+    turn = out["turns"][0]
+    assert turn["question_id"] == "q1" and turn["user_answer"] is None
+    assert "attempt_count" not in turn

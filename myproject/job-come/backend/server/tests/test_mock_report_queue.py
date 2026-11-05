@@ -408,3 +408,31 @@ async def test_a_cancelled_run_leaves_a_claim_someone_else_took_over(maker, monk
     row = await _row(maker)
     assert (row.report_status, row.report_attempts, row.report_claimed_at) == (
         "generating", 2, takeover)
+
+
+# --- a slow run must not overwrite a newer claim -----------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_a_run_that_finishes_after_another_worker_took_over_leaves_the_new_claim(
+    maker, monkeypatch
+):
+    # The lease ran out, a second worker reclaimed the report, and the first (slow) run then ends in
+    # failure. Its result must not overwrite what the second worker is doing.
+    await _seed(maker, report_status="queued")
+    agent = FakeReviewerAgent(maker, report=None, delay=0.4)
+    _use_reviewer(monkeypatch, maker, agent)
+    async with maker() as db:
+        assert await claim_next_report(db) == "ms1"
+    slow = asyncio.create_task(generate_report("ms1"))
+    await _until(lambda: len(agent.runs) == 1)
+    takeover = NOW + timedelta(hours=1)
+    async with maker() as db:
+        session = await db.get(MockSession, "ms1")
+        session.report_claimed_at, session.report_attempts = takeover, 2
+        await db.commit()
+    assert await slow is False
+    row = await _row(maker)
+    assert (row.report_status, row.report_attempts, row.report_claimed_at) == (
+        "generating", 2, takeover)
+    assert row.report_error is None

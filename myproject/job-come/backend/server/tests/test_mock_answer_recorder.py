@@ -252,3 +252,73 @@ async def test_a_turn_before_any_question_records_nothing_but_still_runs(maker, 
     assert await _attempts(maker) == []
     assert len(client.received) == 1
     assert any(event.get("type") == "token" for event in events)
+
+
+# --- messages that talk to the interview, not to the question -----------------------------------
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "control",
+    ["下一题", "下一题。", " 下一题！ ", "换一题", "换一道吧", "跳过", "跳过这题", "结束",
+     "结束面试", "没听清", "没听清，能再说一遍吗", "再说一遍", "请重复一下问题", "能再问一次吗"],
+)
+async def test_a_message_that_only_steers_the_interview_is_not_an_answer(maker, control):
+    await _open_session(maker, [MAIN])
+    assert await _record(maker, control) is None
+    assert await _attempts(maker) == []
+
+
+@pytest.mark.asyncio
+async def test_a_steering_message_does_not_touch_an_answer_already_given(maker):
+    await _open_session(maker, [MAIN])
+    await _record(maker, "我把结算接口拆成了两张表。")
+    assert await _record(maker, "下一题") is None
+    assert [row.user_answer for row in await _attempts(maker)] == ["我把结算接口拆成了两张表。"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "answer",
+    [
+        "我会跳过这个步骤直接上线，因为回滚成本很低。",
+        "结束后我们做了复盘，发现下一题不用再改接口。",
+        "当时用户说没听清，我又重复了一遍需求。",
+        "换一种方案的话，我会先拆表再加缓存。",
+    ],
+)
+async def test_a_real_answer_that_uses_the_same_words_is_still_recorded(maker, answer):
+    await _open_session(maker, [MAIN])
+    assert await _record(maker, answer) is not None
+    assert [row.user_answer for row in await _attempts(maker)] == [answer]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "short", ["是的", "对", "不知道", "没有", "可以", "好的", "我没做过", "不会"]
+)
+async def test_a_very_short_real_answer_is_still_recorded(maker, short):
+    await _open_session(maker, [MAIN])
+    assert await _record(maker, short) is not None
+
+
+def test_what_counts_as_steering_is_a_closed_list():
+    from jc.services.mock_answer_recorder import is_steering_message
+
+    assert is_steering_message("没听清，能再说一遍吗")
+    assert not is_steering_message("没听清楚需求，所以我先和产品确认了一遍")
+    assert not is_steering_message("")
+    assert not is_steering_message("。。。")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "short_answer",
+    ["我会跳过缓存", "结束后复盘了", "没听清楚就上线了", "换一种做法试过", "下一题再说"],
+)
+async def test_a_short_answer_with_a_steering_word_in_it_is_still_recorded(
+    maker, short_answer
+):
+    # Short enough to pass any length check: only matching the whole message keeps these.
+    await _open_session(maker, [MAIN])
+    assert await _record(maker, short_answer) is not None

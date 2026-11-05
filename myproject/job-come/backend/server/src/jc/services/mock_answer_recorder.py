@@ -9,12 +9,42 @@ after a skip) are not an answer and are not recorded.
 
 from __future__ import annotations
 
+import re
+
 from agentkit.common.ids import new_id
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from jc.models.enums import MockSessionStatus
 from jc.models.interview import AnswerAttempt
 from jc.stores.interview_store import InterviewStore
+
+# The whole message, once spaces and punctuation are gone, has to be one of these. A closed list
+# on purpose: a sentence that merely contains "跳过" or "结束" is an answer, and must stay one.
+_STEERING = tuple(
+    re.compile(pattern)
+    for pattern in (
+        r"(我想|我要|请|麻烦)?(下一|换一|换个|换)(题|道|道题|个题|个问题|下)(吧|吗|啊|呀|了)?",
+        r"(我想|我要|请|麻烦)?跳过(这|本|此)?(一)?(题|道|道题|个问题)?(吧|吗|啊|呀|了)?",
+        r"(我想|我要|请|麻烦)?(结束|终止|停止)(这场|本场|面试|吧|了)*",
+        r"没听(清|清楚|见|明白)(楚)?",
+        r"(能|可以|麻烦|请)?(再|重新)(说|讲|问|念)(一|1)?(遍|次|下)(吗|吧|啊)?",
+        r"(请|麻烦)?重复(一下|一遍|下)?(问题|题目|刚才的问题)?(吗|吧)?",
+    )
+)
+_NOT_WORDS = re.compile(r"[\s。，、！？!?,.;；：:~…\-—]+")
+
+
+def is_steering_message(text: str) -> bool:
+    """True for a message that talks to the interview rather than to the question: 下一题, 换一题,
+    跳过, 结束, 没听清, 能再说一遍吗. Such a message is not part of the answer."""
+    words = _NOT_WORDS.sub("", text)
+    if not words:
+        return False
+    # "没听清，能再说一遍吗" is two steering phrases in one breath.
+    parts = [part for part in _NOT_WORDS.split(text.strip()) if part]
+    return any(p.fullmatch(words) for p in _STEERING) or all(
+        any(p.fullmatch(part) for p in _STEERING) for part in parts
+    )
 
 
 def records_mock_answer(
@@ -34,7 +64,7 @@ async def record_mock_answer(
     if session is None or session.profile_id != profile_id:
         raise PermissionError("Mock session outside this profile")
     words = text.strip()
-    if session.status != MockSessionStatus.ACTIVE or not words:
+    if session.status != MockSessionStatus.ACTIVE or not words or is_steering_message(words):
         return None
 
     state = session.coverage or {}
