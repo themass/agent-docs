@@ -9,6 +9,11 @@
 
 > **当前源码校正（2026-10-31）**：本文原有版本基线较旧。当前主链、DeltaChannel 消息状态、Provider/Harness Profile、异步子 Agent 的 enqueue follow-up、`notify_parent`/`webhook` 以及权限与 symlink 双重检查，请以 [v0.7.32 源码更新与架构补全](./DEEPAGENTS_V0.7.32_UPDATE.md) 为准。原文内容保留作为历史设计背景。
 
+> ### ⚠️ 分包地图校正（2026-11-05，源码 HEAD `3a0c7bb93`）
+> - **`libs/cli` / `deepagents-cli` 已于 2026-08-24 废弃并删除**：`08e3768f7 feat(cli)!: deprecate deepagents-cli in favor of managed-deepagents (#5780)`、`da67c86e5 chore(repo): remove deprecated libs/cli package (#5791)`。本文 §3 分包地图与 §10「CLI 与 App 端」里所有 `libs/cli/deepagents_cli/` 路径**已失效**；部署编排改由 managed deep agents 承担。
+> - 当前包集合：`libs/deepagents`（**0.7.32** SDK）、`libs/code`（**0.2.4**，命令 `dcode`）、`libs/talon`（**0.1.0** 实验态 IM 长驻宿主 → 专门文档 [DEEPAGENTS_TALON_ARCHITECTURE.md](./DEEPAGENTS_TALON_ARCHITECTURE.md)）、`libs/acp`（0.0.13，ACP 编辑器）、`libs/evals`（0.0.1）、`libs/partners/*`（含 `quickjs` 0.3.11）。
+> - 增量事实与证据 hash 见 **[DEEPAGENTS_POST_0.7.32_UPDATE.md](./DEEPAGENTS_POST_0.7.32_UPDATE.md)**。
+
 ## 阅读地图
 
 | 章节 | 内容 |

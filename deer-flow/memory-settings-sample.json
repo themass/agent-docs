@@ -1,4 +1,7 @@
 {
+  "_note": "LEGACY SAMPLE — 不是配置样例，而是一份 memory.json（L1 manifest）的历史形状样例。",
+  "_status": "当前 DeerMem 写 DOCUMENT_VERSION=\"2.0\"；manifest 不再包含 facts（每 fact 一个 canonical Markdown + sidecar 索引）；新增 revision 字段做 user 级乐观并发；user 段新增 cognitiveStyle。加载到这份 1.0/facts-inline 文件时 storage.py 的 needs_manifest_cleanup 会在下次提交把它迁移掉。",
+  "_see_also": "docs/deer-flow/DEERMEM_MEMORY_DESIGN.md §3.1 与 §13；配置面权威来源是 deer-flow/config.example.yaml 的 memory: 段（config_version: 64）。",
   "version": "1.0",
   "lastUpdated": "2026-03-28T10:30:00Z",
   "user": {

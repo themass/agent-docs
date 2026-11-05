@@ -1,23 +1,23 @@
 # Deep Agents 框架文档索引
 
 > **本文档**：提供 Deep Agents 完整设计方案系列文档的导航与快速检索。  
-> **更新时间**：2026-10-31  
-> **适用版本**：发布版 `deepagents==0.7.32`；当前源码 HEAD `3a217cec7`（含 0.7.32 之后未发布提交）
+> **更新时间**：2026-11-05（新增 §0e/§0f 两篇；修复索引内 25 个失效相对链接）  
+> **适用版本**：发布版 `deepagents==0.7.32`（SDK 版本未变）、`deepagents-code==0.2.4`、`langchain-quickjs==0.3.11`、`deepagents-talon==0.1.0`；当前源码 HEAD `3a0c7bb93`（2026-11-04）
 
 ---
 
 ## 🧭 源码级架构（2026-09 新增）
 
-体例对齐 [`software-agent-sdk/docs`](../software-agent-sdk/docs/README.md)：分章 + 运行时走查 + 源码锚点 + 流程图。
+体例对齐 [`software-agent-sdk/docs`](../../software-agent-sdk/README.md)：分章 + 运行时走查 + 源码锚点 + 流程图。
 
 | 项目 | 文档中心 | 先读（§1.2 实体全景） | 规模（PART1 行数） |
 |------|----------|----------------------|-------------------|
-| **Codex** | [codex-architecture/README.md](./codex-architecture/README.md) | [PART1 §1.2](./codex-architecture/ARCHITECTURE_PART1.md#12-分层架构) · [PART2](./codex-architecture/ARCHITECTURE_PART2.md) · [PART3](./codex-architecture/ARCHITECTURE_PART3.md) | PART1 ~2660 · PART2 ~1830 · PART3 ~1600 |
-| **DeepTutor** | [deeptutor-architecture/README.md](./deeptutor-architecture/README.md) | [PART1 §1.2](./deeptutor-architecture/ARCHITECTURE_PART1.md#12-分层架构) TurnRuntime + Orchestrator | ~1280 |
-| **Prime Agent** | [prime-agent-architecture/README.md](./prime-agent-architecture/README.md) | [**ARCHITECTURE_GUIDE**](./prime-agent-architecture/ARCHITECTURE_GUIDE.md)（Pi 关系 + 端到端图） · [REFERENCE](./prime-agent-architecture/ARCHITECTURE_REFERENCE.md) | GUIDE + REF · 归档 [_archive/](./prime-agent-architecture/_archive/) |
-| OpenHands Software Agent SDK | [software-agent-sdk/docs](../software-agent-sdk/docs/README.md) | 已有完整 PART1–3 |
+| **Codex** | [codex-architecture/README.md](../codex-architecture/README.md) | [PART1 §1.2](../codex-architecture/ARCHITECTURE_PART1.md#12-分层架构) · [PART2](../codex-architecture/ARCHITECTURE_PART2.md) · [PART3](../codex-architecture/ARCHITECTURE_PART3.md) | PART1 ~2660 · PART2 ~1830 · PART3 ~1600 |
+| **DeepTutor** | [deeptutor-architecture/README.md](../deeptutor-architecture/README.md) | [PART1 §1.2](../deeptutor-architecture/ARCHITECTURE_PART1.md#12-分层架构) TurnRuntime + Orchestrator | ~1280 |
+| **Prime Agent** | [prime-agent-architecture/README.md](../prime-agent-architecture/README.md) | [**ARCHITECTURE_GUIDE**](../prime-agent-architecture/ARCHITECTURE_GUIDE.md)（Pi 关系 + 端到端图） · [REFERENCE](../prime-agent-architecture/ARCHITECTURE_REFERENCE.md) | GUIDE + REF · 归档 [_archive/](../prime-agent-architecture/_archive/) |
+| OpenHands Software Agent SDK | [仓库 README](../../software-agent-sdk/README.md) | 上游**没有** `docs/` 目录（原索引指向的 `software-agent-sdk/docs/README.md` 不存在）；本仓库暂未整理该 SDK | — |
 
-DeepTutor 仓库内旧长文 [`DeepTutor/docs/DEEPTUTOR_DEEP_DIVE.md`](../DeepTutor/docs/DEEPTUTOR_DEEP_DIVE.md) 部分章节（两段式 exploring loop、双层记忆）已过时，以 `docs/deeptutor-architecture/` 为准。
+DeepTutor 仓库内旧长文 [`DeepTutor/docs/DEEPTUTOR_DEEP_DIVE.md`](../deeptutor-architecture/DEEPTUTOR_DEEP_DIVE.md) 部分章节（两段式 exploring loop、双层记忆）已过时，以 `docs/deeptutor-architecture/` 为准。
 
 ---
 
@@ -29,19 +29,31 @@ DeepTutor 仓库内旧长文 [`DeepTutor/docs/DEEPTUTOR_DEEP_DIVE.md`](../DeepTu
 
 **建议**：任何要理解当前实现的人先读本文 §2 的整体请求链，再回到旧专题文档查细节。
 
+### 0e. [增量更新（2026-10-31 → 2026-11-04）](./DEEPAGENTS_POST_0.7.32_UPDATE.md) ⭐ 最新
+
+**内容**：SDK 侧两个边界修复（`FilesystemBackend.grep` Python 回退越界 #7539、压缩失败 `status="error"` #7538）；`deepagents-code` 0.2.3/0.2.4 的安全默认与顺序不变量（**模型必须显式选择 #7365**、**auto 模式分类器解析失败即阻断 #7346**、**hook 命令改写先于工具审批 #7384**）；QuickJS/PTC 嵌套 `$ref` 解析 #7441；包全景补登（`libs/talon`、`libs/acp`、`libs/evals`、`libs/partners/*`）与 `libs/cli` 已删除的事实；发布/依赖工程；对现有文档的校正清单。
+
+**建议**：改完 SDK 想确认「边界语义」时先读本文 §2；改 TUI/App 行为时先读 §3。
+
+### 0f. [Deep Agents Talon 架构设计](./DEEPAGENTS_TALON_ARCHITECTURE.md) ⭐ 此前完全缺失的模块
+
+**内容**：`deepagents-talon==0.1.0`（IM 长驻运行时宿主）的完整设计：宿主模型与 `TalonHost` 实体、一轮 IM 消息端到端时序、状态目录与数据保留、checkpoint/history 双 URI 与 entry-point 插件、会话归档与语义检索（嵌入指纹 / UTF-8 字节预算 / 代际隔离）、Interrupt-and-Continue、`tools.json` 审批策略（compare-and-swap、自编辑按编辑前策略校验）、sender pairing、cron 五种 schedule 与 DST 两条确定性规则、子代理三形态、hooks/MCP/沙箱边界、不可信输入与数据出境清单、与 deer-flow scheduler 的对照。
+
+**建议**：任何「把 Deep Agent 挂在 IM/定时器上长期跑」的方案先读本文 §12（安全边界）与 §14（已知矛盾），再决定能不能上生产。
+
 ## 📚 核心文档清单
 
-### 0c. [Agent 审批回调与主子 Agent 通信（多项目横向）](./AGENT_PERMISSION_AND_SUBAGENT_COMMUNICATION.md)
+### 0c. [Agent 审批回调与主子 Agent 通信（多项目横向）](../AGENT_PERMISSION_AND_SUBAGENT_COMMUNICATION.md)
 
 **内容**：12+ 项目的 Tool HITL 审批族、通信时序（含 OpenHarness React IPC）、主子 Agent spawn/IPC/再次调度、OpenHarness `BackgroundTaskManager` 边界、三项目速查表。
 
 **适合读者**：对比 OpenHarness / DeerFlow / deepagents 审批与子 agent 行为，或需要端到端时序图的架构师。
 
-**OpenHarness spawn I/O 专题**：[ARCHITECTURE_TOOLS_SWARM.md](../OpenHarness/docs/ARCHITECTURE_TOOLS_SWARM.md)（进程/协程/PIPE/log 数量与通信链路图）。
+**OpenHarness spawn I/O 专题**：[ARCHITECTURE_TOOLS_SWARM.md](../OpenHarness/ARCHITECTURE_TOOLS_SWARM.md)（进程/协程/PIPE/log 数量与通信链路图）。
 
 ---
 
-### 0. [Agent SDK 体系化设计指南（多项目总览）](./AGENT_SDKS_COMPREHENSIVE_DESIGN_GUIDE.md)
+### 0. [Agent SDK 体系化设计指南（多项目总览）](../AGENT_SDKS_COMPREHENSIVE_DESIGN_GUIDE.md)
 
 **内容**：`software-agent-sdk`、`openai-agents-python`、`deepagents`、`deer-flow` 的统一参考模型、流程图、选型矩阵与延伸阅读索引。
 
@@ -49,7 +61,7 @@ DeepTutor 仓库内旧长文 [`DeepTutor/docs/DEEPTUTOR_DEEP_DIVE.md`](../DeepTu
 
 ---
 
-### 0b. [Agent SDK 源码级深读（图解 + 注释）](./AGENT_SDKS_SOURCE_LEVEL_DEEP_DIVE.md)
+### 0b. [Agent SDK 源码级深读（图解 + 注释）](../AGENT_SDKS_SOURCE_LEVEL_DEEP_DIVE.md)
 
 **内容**：按 **文件路径** 锚定 `run_single_turn`、`Agent.step`、`create_deep_agent`、`make_lead_agent` 等关键边界；Mermaid 流程图带 **源码注释式说明**；附「改行为该打开哪个文件」速查表。
 
@@ -193,10 +205,10 @@ DeepTutor 仓库内旧长文 [`DeepTutor/docs/DEEPTUTOR_DEEP_DIVE.md`](../DeepTu
 
 ### DeerFlow Harness 对比文档
 
-- [DeerFlow Framework QA Archive](../deer-flow/backend/docs/DEERFLOW_FRAMEWORK_QA_ARCHIVE.md)（2333 行）
-- [SYSTEM_PROMPT_RUNTIME_DEEPAGENTS.md](../deer-flow/backend/docs/SYSTEM_PROMPT_RUNTIME_DEEPAGENTS.md)（405 行）
-- [SYSTEM_PROMPT_DEEPAGENTS_CN_SUBAGENT_ENABLED.md](../deer-flow/backend/docs/SYSTEM_PROMPT_DEEPAGENTS_CN_SUBAGENT_ENABLED.md)
-- [SYSTEM_PROMPT_DEEPAGENTS_CN_SUBAGENT_DISABLED.md](../deer-flow/backend/docs/SYSTEM_PROMPT_DEEPAGENTS_CN_SUBAGENT_DISABLED.md)
+- [DeerFlow Framework QA Archive](../deer-flow/DEERFLOW_FRAMEWORK_QA_ARCHIVE.md)（2333 行）
+- [SYSTEM_PROMPT_RUNTIME_DEEPAGENTS.md](../deer-flow/SYSTEM_PROMPT_RUNTIME_DEEPAGENTS.md)（405 行）
+- [SYSTEM_PROMPT_DEEPAGENTS_CN_SUBAGENT_ENABLED.md](../deer-flow/SYSTEM_PROMPT_DEEPAGENTS_CN_SUBAGENT_ENABLED.md)
+- [SYSTEM_PROMPT_DEEPAGENTS_CN_SUBAGENT_DISABLED.md](../deer-flow/SYSTEM_PROMPT_DEEPAGENTS_CN_SUBAGENT_DISABLED.md)
 
 ### 官方文档
 
@@ -206,10 +218,10 @@ DeepTutor 仓库内旧长文 [`DeepTutor/docs/DEEPTUTOR_DEEP_DIVE.md`](../DeepTu
 
 ### 源码仓库
 
-- [deepagents SDK](../libs/deepagents/)
-- [deepagents Code](../libs/code/)
-- [deepagents CLI](../libs/cli/)
-- [Skills Examples](../skills/)
+- [deepagents SDK](../../deepagents/libs/deepagents/)
+- [deepagents Code](../../deepagents/libs/code/)
+- [deepagents CLI](../../deepagents/libs/)
+- [Skills Examples](../../deepagents/)
 
 ---
 

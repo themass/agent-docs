@@ -2,6 +2,11 @@
 
 > **两条路径**：**Gateway 生产**走 `make_lead_agent` → `_build_middlewares` + `build_lead_runtime_middlewares`；**SDK** 走 `create_deerflow_agent` + `RuntimeFeatures`（链更短，勿与生产混谈）。下文 **§生产链** 以 `make_lead_agent` 为准。
 
+
+> ### ⚠️ 链清单基线 2026-09-06
+> 「生产链 Middleware 列表」与「SDK 链」两份清单**已不完整**：生产链新增了 `ToolReceiptMiddleware`（tool wrap 最外）、`PiiRedactionMiddleware`（Layer1 最内）、`KnowledgeScopeMiddleware`（Layer1）、`RunInputAdmissionMiddleware`（index 0）/`RunInputMiddleware`、`HarnessGuardMiddleware`（tool wrap tail）。
+> 当前完整链与「顺序即语义」的约束，见 **[DEERFLOW_UPDATE_2026Q4.md](./DEERFLOW_UPDATE_2026Q4.md) §7**；洋葱模型与「真正的洋葱 vs DeerFlow 实际情况」的分析**仍然成立**，值得保留。
+
 ## 生产链 Middleware 列表（`make_lead_agent`）
 
 **共享运行时**（`build_lead_runtime_middlewares`）：

@@ -9,6 +9,13 @@
 
 > **当前源码校正（2026-10-31）**：CLI/App 的版本基线已从 0.6.6 之后继续演进；不要把产品层会话文件等同于 SDK checkpoint。SDK 的 `messages`、LangGraph checkpoint、Store 和 Backend 的边界见 [v0.7.32 源码更新与架构补全 §3](./DEEPAGENTS_V0.7.32_UPDATE.md#3-状态消息checkpointstore四件事的边界)。
 
+
+> ### ⚠️ 新增/校正（2026-11-05，源码 HEAD `3a0c7bb93`）
+> 1. **`libs/cli` / `deepagents-cli` 已从仓库删除**：`08e3768f7 feat(cli)!: deprecate deepagents-cli in favor of managed-deepagents (#5780)` 与 `da67c86e5 chore(repo): remove deprecated libs/cli package (#5791)`（均 2026-08-24）。本文中「§1.2 两大终端包分工」的第 2 项与「§6.2 `deepagents-cli` 核心文件（`libs/cli/deepagents_cli/`）」**已不存在**，部署编排改由 **managed deep agents** 承担；现在唯一的本地产品包是 `libs/code`（`deepagents-code`，运行命令 `dcode`）与实验态 `libs/talon`。
+> 2. 版本基线：`deepagents-code==0.2.4`（2026-11-02），SDK `deepagents==0.7.32`。
+> 3. 行为变化必须补进本文：模型选择必须显式或已保存（#7365，删了 `config.py` 约 129 行隐式默认）、auto 模式在分类器无法解析时**直接阻断**（#7346）、**hook 命令改写发生在工具审批之前**（#7384）、非 UTF-8 子代理 `AGENTS.md` 跳过而非启动失败（#7361）、`/cost` 打开成本 modal（#7363）、Windows 延迟 in-app uv 安装（#7518）。
+> 详见 **[DEEPAGENTS_POST_0.7.32_UPDATE.md](./DEEPAGENTS_POST_0.7.32_UPDATE.md) §3**。
+
 ## 阅读地图
 
 | 章节 | 内容 |

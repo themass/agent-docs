@@ -2,6 +2,13 @@
 
 This document provides a comprehensive overview of the DeerFlow backend architecture.
 
+
+> ### ⚠️ 文档基线 2026-09-06（历史快照）
+> 本文描述的是 **2.0.x 时代**（2026-09-06）的 deer-flow。上游已发布 **2.1.0（2026-09-24）**、**2.2.0（2026-10-29）**，Unreleased 指向 **2.3.0**（证据基线 HEAD `235b5556`，2026-11-04）。
+> 本文保留作为整体骨架参考，但以下部分**已过时**，请以增量文档为准：
+> - `Component Details` / `Data Flow` / `Security Considerations` → **[DEERFLOW_UPDATE_2026Q4.md](./DEERFLOW_UPDATE_2026Q4.md)** §1（新子系统一页图）、§4（Knowledge 契约）、§5（决策面）、§6（Runtime/可靠性）、§8（workflows/teams/scheduled）、§9（持久化与运维）
+> - 记忆系统 → **[DEERMEM_MEMORY_DESIGN.md](./DEERMEM_MEMORY_DESIGN.md)**（L0–L4 分层、读写路径、闸门、生命周期、事务）
+> - 配置样例 `memory-settings-sample.json`（2026-04-07）**已过期**：唯一权威是上游 `config.example.yaml`（`config_version: 64`）的 `memory:` 块。
 ## System Architecture
 
 ```

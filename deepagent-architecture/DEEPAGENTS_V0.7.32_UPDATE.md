@@ -6,6 +6,11 @@
 >
 > **适用日期**：2026-10-31。本文只根据本地源码、测试与 `libs/deepagents/CHANGELOG.md` 整理，不把 changelog 直接当成设计结论。
 
+
+> ### ⚠️ 源码基线已推进（2026-11-05）
+> 本文基线 `HEAD=3a217cec7`（2026-10-31）。此后 69 个提交把 HEAD 推到 `3a0c7bb93`（2026-11-04）：`deepagents` 仍 0.7.32，但 **`deepagents-code` 已 0.2.3→0.2.4**、`langchain-quickjs==0.3.11`。
+> 需要叠加阅读：**[DEEPAGENTS_POST_0.7.32_UPDATE.md](./DEEPAGENTS_POST_0.7.32_UPDATE.md)** —— 其中 §2 更正了本文两处：手工压缩失败现在以 `status="error"` 返回（#7538）、`FilesystemBackend.grep` 的 Python 回退曾越界到整个 root（#7539）。
+
 ---
 
 ## 0. 先说结论：这次迭代到底把 Deep Agents 变成了什么

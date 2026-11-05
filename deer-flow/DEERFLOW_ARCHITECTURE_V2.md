@@ -6,6 +6,19 @@
 > **目标**: 全面反映 DeerFlow 的最新架构变化和模块设计  
 > **重要**：**Gateway 生产路径**使用 **`make_lead_agent`**；**`create_deerflow_agent` / `DeerFlowClient`** 为 SDK/嵌入式路径，中间件链更短，勿混为一谈。
 
+> ### ⚠️ 文档基线 2026-06-08（历史快照，4 处已过时）
+> 本文对照的是 2.0.0（2026-06-15）之前的 `packages/harness/deerflow`。**读以下几节前先看替代文档**：
+>
+> | 本文章节 | 状态 | 以哪里为准 |
+> |---|---|---|
+> | §3 Middleware 完整执行流程 | 🔴 链清单已变（新增 ToolReceipt / PII / KnowledgeScope / RunInput / HarnessGuard；Layer1/2/3 与 tool-wrap 链顺序有注释级约束） | [DEERFLOW_UPDATE_2026Q4.md](./DEERFLOW_UPDATE_2026Q4.md) §7 |
+> | §5 记忆系统架构 | 🔴 已被 DeerMem 可插拔后端 + L0–L4 分层取代 | [DEERMEM_MEMORY_DESIGN.md](./DEERMEM_MEMORY_DESIGN.md) |
+> | §7 Guardrails 安全机制 | 🔴 现在是「三决策槽位 + 两个可互换后端 + 共享传输层」 | [DEERFLOW_UPDATE_2026Q4.md](./DEERFLOW_UPDATE_2026Q4.md) §5 |
+> | §2 RuntimeFeatures 声明式配置 | ⚠️ 仍属 SDK/嵌入式路径；生产链的装配已重构（placement 锚点 + 扩展最后合并） | 同上 §2、§7.1 |
+>
+> 新增且本文完全没有的子系统：Knowledge 契约（§4）、多副本正确性（§6.4）、blob store 与 checkpoint retention（§6.6）、workflows / agent teams / scheduled tasks（§8）、持久化与迁移链（§9.1）。
+
+
 ---
 
 ## 📋 目录
