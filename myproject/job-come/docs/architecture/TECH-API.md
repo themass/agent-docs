@@ -208,3 +208,15 @@
 - 匹配结果及已有 `jc_job.fit_report` 增加 `requirement_evidence` 和 `evidence_profile_version`。每项对应解析 JD 的明确要求，返回重要性依据、相关性建议、引用路径/原文/稳定 ID、待补问题。
 - 服务器核验引用路径与源文；伪造、缺失、被纠正的证据不能标成核验通过。`citation_status=verified` 只代表出处存在，不代表代码已证明语义匹配。未知不等于候选人没有能力，估计的重要性不能成为硬性要求。
 - Web 岗位匹配卡折叠展示“岗位要求与经历依据”和评估时档案版本；档案更新后需重新评估，旧报告不自动重算。旧报告缺该字段时不伪造证据行。
+
+## 模拟面试：级别、系统记录作答、后台报告（2026-11-05）
+
+- `GET /coach/mock/level-recommendation?profile_id=` 返回四个级别（`junior/mid/senior/expert`，含对照 P 序列、年限、要求）和按档案推荐的一个。推荐由 `jc.coach.level.level_for_profile` 用代码计算：经历按月合并年限，最近一段职位名可上调或下调一级；日期读不出时 `recommended=null`。P 序列只是对照，不是阿里的官方标准。
+- `POST /coach/mock/sessions` 新增 `level`。未传时取推荐值；无推荐也未传则 409 `mock_level_required`，并且不占用完整模拟的月度额度。`MockSessionResponse` 增加 `level`（旧场次为 `null`）。
+- 候选人的回答由服务在模型运行前写入：写到当前题（最后一个已登记、未跳过、未换掉的题）；没有当前题时（开场问候、自我介绍、跳过或换题之后）不记录。同一题的后续消息追加到同一条回答。面试官不再持有 `jc_answer_save_attempt`。换题后当前题为空，直到登记下一题（会话 `coverage.table_closed`）。
+- `jc_mock_ask` 可直接传 `stem` 创建并登记新题（与 `question_id` 二选一，都传或都不传为 `ValueError`），返回里带 `question_id`。被拒绝时不留下新题。面试官也不再持有 `jc_question_upsert`；真实面试归档（`coach-archive`）仍使用它。
+- 回答按场次隔离：同一道题库题在不同场次里复用时，不再把别的场次的回答当成本场的回答。
+- 报告改为后台生成。场次结束时 `jc_mock_session.report_status` 置为 `queued`（没有提问的场次直接置 `failed`，原因“这场面试没有提问”）；API 进程里的 `run_mock_report_dispatcher` 用条件更新认领（`generating` 带 600 秒租约，最多 4 次运行），完成后置 `ready` 或 `failed`。迁移 `024` 对历史已结束场次：有报告为 `ready`，无报告为 `failed`（“历史场次，未生成报告”），不自动排队。
+- `GET /coach/mock/sessions/{id}/report` 只读：`status` 为 `active | pending | failed | ready`，`failed` 带原因和 `can_retry`。打开页面不再触发评审。已存储的报告即使状态还没跟上也按 `ready` 返回。
+- `POST /coach/mock/sessions/{id}/report/retry`：把失败的报告重新排队。409 `mock_report_not_failed`（不是失败状态）或 `mock_report_retry_exhausted`（4 次运行已用完）。失败原因是给用户看的短句，不含异常信息。
+- 迁移：`023_mock_session_level`、`024_mock_report_queue`。
