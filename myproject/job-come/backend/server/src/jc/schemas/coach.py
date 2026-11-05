@@ -290,6 +290,13 @@ class MockActionResponse(BaseModel):
 class MockProgressResponse(BaseModel):
     style: str | None = None
     status: str
+    #: opening | experience | core | scenario | candidate_qa; and the one the next question
+    #: suggests.
+    stage: str = "opening"
+    suggested_stage: str = "experience"
+    stage_counts: dict[str, int] = Field(default_factory=dict)
+    #: True once the candidate has been given the floor to ask their own questions.
+    candidate_qa: bool = False
     asked_main: int
     main_limit: int
     remaining_main: int

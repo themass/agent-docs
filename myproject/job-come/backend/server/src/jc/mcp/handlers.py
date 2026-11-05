@@ -160,6 +160,7 @@ async def mock_ask(
     kind: str = "main",
     parent_question_id: str | None = None,
     experience: str | None = None,
+    stage: str | None = None,
 ) -> dict[str, Any]:
     from jc.services.mock_guard_service import ask
 
@@ -173,7 +174,14 @@ async def mock_ask(
         kind=kind,
         parent_question_id=parent_question_id,
         experience=experience,
+        stage=stage,
     )
+
+
+async def mock_open_qa(scope: RunScope, *, mock_session_id: str) -> dict[str, Any]:
+    from jc.services.mock_guard_service import open_qa
+
+    return await open_qa(scope, mock_session_id=mock_session_id)
 
 
 async def mock_end(

@@ -97,6 +97,12 @@ async def test_full_run_end_to_end_through_the_tools(db, monkeypatch):
     over = await _ask(db, "q21")
     assert over["accepted"] is False and over["code"] == "main_limit"
 
+    # All twenty are asked and the job's must-haves are covered, but the candidate has not yet had
+    # their turn to ask, so the interview cannot end as completed.
+    unopened = await _call(db, "jc_mock_end", {"mock_session_id": "ms1"})
+    assert unopened["accepted"] is False and unopened["code"] == "candidate_qa_not_opened"
+    assert (await _call(db, "jc_mock_open_qa", {"mock_session_id": "ms1"}))["accepted"] is True
+
     ended = await _call(db, "jc_mock_end", {"mock_session_id": "ms1"})
     assert ended["accepted"] is True and ended["asked_main"] == 20
 

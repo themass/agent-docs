@@ -36,6 +36,7 @@ from jc.mcp.handlers import (
     interview_save,
     mock_ask,
     mock_end,
+    mock_open_qa,
     mock_plan,
     mock_report_write,
     mock_session_history,
@@ -249,6 +250,7 @@ async def jc_mock_ask(
     kind: str = "main",
     parent_question_id: str | None = None,
     experience: str | None = None,
+    stage: str | None = None,
     jc_user_id: str | None = None,
     jc_profile_id: str | None = None,
     jc_session_id: str | None = None,
@@ -273,6 +275,31 @@ async def jc_mock_ask(
             kind=kind,
             parent_question_id=parent_question_id,
             experience=experience,
+            stage=stage,
+        )
+        return json.dumps(result, ensure_ascii=False)
+
+
+@mcp.tool()
+async def jc_mock_open_qa(
+    mock_session_id: str,
+    jc_user_id: str | None = None,
+    jc_profile_id: str | None = None,
+    jc_session_id: str | None = None,
+    jc_job_id: str | None = None,
+    jc_mock_session_id: str | None = None,
+) -> str:
+    async with _session() as db:
+        result = await mock_open_qa(
+            _scope(
+                db,
+                jc_user_id=jc_user_id,
+                jc_profile_id=jc_profile_id,
+                jc_session_id=jc_session_id,
+                jc_job_id=jc_job_id,
+                jc_mock_session_id=jc_mock_session_id,
+            ),
+            mock_session_id=mock_session_id,
         )
         return json.dumps(result, ensure_ascii=False)
 

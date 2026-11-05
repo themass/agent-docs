@@ -56,6 +56,7 @@ def wrap_coach_mock_message(
         f"{history_rule}\n"
         "先调用 jc_mock_ask 登记（题库里已有的题传 question_id，新题传 stem），"
         "登记通过后才把题说给用户；被拒绝就换一道，不要把被拒绝的题问出去。"
+        "题问完后先调用 jc_mock_open_qa 让候选人提问，再结束面试；"
         "用户的回答由系统自动记录，你不需要保存；本场不点评、不打分，"
         "评分由独立评审在场次结束后完成。\n"
         "用户原话：\n"

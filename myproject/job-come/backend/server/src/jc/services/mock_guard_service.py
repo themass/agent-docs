@@ -31,6 +31,17 @@ IDLE_LIMIT = timedelta(hours=24)
 #: (SPEC-MOCK-INTERVIEW §5).
 SWAP_LIMIT = 3
 
+#: The stages an interview moves through (SPEC-MOCK-INTERVIEW-V2 §3.1). Only the first three are
+#: stages a question is asked in; the candidate's own turn has a tool of its own.
+ASKING_STAGES = ("experience", "core", "scenario")
+STAGES = ("opening", *ASKING_STAGES, "candidate_qa", "closing")
+#: Where in the run of main questions each asking stage ends, as a share of the limit.
+_STAGE_ENDS = (("experience", 0.25), ("core", 0.70), ("scenario", 1.0))
+#: A question the interviewer makes up is held to this.
+MAX_STEM_CHARS = 200
+#: Two questions whose character bigrams overlap this much are the same question in other words.
+SIMILAR_STEM = 0.6
+
 
 def limits(session: MockSession) -> tuple[int, int]:
     """(main questions, follow-ups per main question) allowed for this session."""
@@ -47,6 +58,31 @@ def _state(session: MockSession) -> dict[str, Any]:
     state.setdefault("ended_reason", None)
     state.setdefault("ended_early", False)
     return state
+
+
+def _words(text: str) -> str:
+    """A question's text without spacing or punctuation, for telling whether two are the same."""
+    return "".join(ch for ch in text if ch.isalnum())
+
+
+def _bigrams(text: str) -> set[str]:
+    words = _words(text)
+    return {words[i:i + 2] for i in range(len(words) - 1)} or {words}
+
+
+def similarity(a: str, b: str) -> float:
+    left, right = _bigrams(a), _bigrams(b)
+    return len(left & right) / len(left | right) if left and right else 0.0
+
+
+def suggested_stage(asked_main: int, main_limit: int) -> str:
+    """The stage the next question belongs to, by how far through the questions the interview is.
+
+    A suggestion: the interviewer may follow the candidate's answers somewhere else."""
+    if asked_main >= main_limit:
+        return "candidate_qa"
+    share = asked_main / main_limit
+    return next(stage for stage, end in _STAGE_ENDS if share < end)
 
 
 def _naive_utc(moment: datetime) -> datetime:
@@ -159,9 +195,28 @@ async def plan(scope: RunScope, *, mock_session_id: str) -> dict[str, Any]:
         if entry["kind"] == "followup":
             parent = entry.get("parent_question_id") or ""
             followups[parent] = followups.get(parent, 0) + 1
+    candidate_qa = bool(state.get("candidate_qa"))
+    stage_counts: dict[str, int] = {}
+    for entry in mains:
+        if entry.get("stage"):
+            stage_counts[entry["stage"]] = stage_counts.get(entry["stage"], 0) + 1
+    if candidate_qa:
+        stage, suggested = "candidate_qa", "closing"
+    elif not asked:
+        stage, suggested = "opening", suggested_stage(0, main_limit)
+    else:
+        suggested = suggested_stage(len(mains), main_limit)
+        last_main = mains[-1] if mains else None
+        stage = (last_main or {}).get("stage") or suggested_stage(
+            max(0, len(mains) - 1), main_limit
+        )
     return {
         "style": session.style,
         "status": session.status,
+        "stage": stage,
+        "suggested_stage": suggested,
+        "stage_counts": stage_counts,
+        "candidate_qa": candidate_qa,
         "asked_main": len(mains),
         "main_limit": main_limit,
         "remaining_main": max(0, main_limit - len(mains)),
@@ -170,7 +225,9 @@ async def plan(scope: RunScope, *, mock_session_id: str) -> dict[str, Any]:
         "covered": coverage.covered,
         "uncovered": coverage.missing,
         "suggested_next": coverage.missing[0] if coverage.missing else None,
-        "current_question_id": await _open_question(store, asked, session.id),
+        "current_question_id": (
+            None if candidate_qa else await _open_question(store, asked, session.id)
+        ),
         "skipped": sum(1 for a in asked if a.get("skipped")),
         "swaps_left": max(0, SWAP_LIMIT - int(state.get("swaps", 0))),
     }
@@ -238,6 +295,7 @@ async def ask(
     kind: str = "main",
     parent_question_id: str | None = None,
     experience: str | None = None,
+    stage: str | None = None,
 ) -> dict[str, Any]:
     """Register a question the interviewer is about to put.
 
@@ -249,12 +307,18 @@ async def ask(
         raise ValueError("kind must be 'main' or 'followup'")
     if bool(question_id) == bool(stem and stem.strip()):
         raise ValueError("give exactly one of question_id or stem")
+    if stage is not None and stage not in ASKING_STAGES:
+        raise ValueError(f"stage must be one of {ASKING_STAGES} (the candidate's turn is opened "
+                         "with jc_mock_open_qa), got " + repr(stage))
     session = await _owned_session(scope, mock_session_id)
     if session.status != MockSessionStatus.ACTIVE:
         return _refuse("这场模拟面试已经结束。", code="session_closed")
 
     state = _state(session)
     asked = state["asked"]
+    if state.get("candidate_qa"):
+        return _refuse("已经进入候选人提问环节，不再出新题；请回答候选人的问题，然后结束面试。",
+                       code="candidate_qa_open")
     main_limit, followup_limit = limits(session)
     mains = [a for a in asked if a["kind"] == "main"]
     if kind == "main":
@@ -279,6 +343,21 @@ async def ask(
         if question is None or question.profile_id != scope.profile_id:
             raise ValueError("question is not in this profile")
     else:
+        # A question the interviewer makes up is checked before it is written anywhere.
+        text = (stem or "").strip()
+        if len(text) > MAX_STEM_CHARS:
+            return _refuse(f"题干太长（{len(text)} 字，最多 {MAX_STEM_CHARS} 字）。"
+                           "面试官一次只问一个具体的问题，请缩短。", code="stem_too_long")
+        asked_stems = await _asked_stems(store, asked)
+        for earlier in asked_stems:
+            if _words(earlier) == _words(text):
+                return _refuse("这道题已经问过。", code="already_asked")
+        if kind == "main":
+            for earlier in asked_stems:
+                if similarity(earlier, text) >= SIMILAR_STEM:
+                    return _refuse(
+                        f"这道题和已经问过的“{earlier}”几乎是同一个问题，请换一个角度或一个新话题。",
+                        code="too_similar")
         from jc.services.question_bank_service import question_upsert
 
         upserted = await question_upsert(
@@ -290,12 +369,15 @@ async def ask(
         await scope.db.rollback()
         return _refuse("这道题已经问过。", code="already_asked")
 
-    asked.append({
+    entry = {
         "question_id": question_id,
         "kind": kind,
         "parent_question_id": parent,
         "experience": experience,
-    })
+    }
+    if stage and kind == "main":
+        entry["stage"] = stage
+    asked.append(entry)
     state.pop("table_closed", None)
     state["last_activity"] = datetime.now(UTC).replace(tzinfo=None).isoformat()
     session.coverage = state
@@ -308,6 +390,53 @@ async def ask(
     return {"accepted": True, "question_id": question_id,
             "asked_main": len(mains) + (1 if kind == "main" else 0),
             "remaining_main": max(0, remaining), "label": question_label(asked)}
+
+
+def _not_ready_to_wrap_up(
+    state: dict[str, Any], session: MockSession, coverage: Any
+) -> dict[str, Any] | None:
+    """The refusal for an interview that has not asked enough yet, or None.
+
+    Shared by the candidate's turn and by ending as completed, so neither can be reached by
+    skipping the other."""
+    mains = [a for a in state["asked"] if a["kind"] == "main"]
+    main_limit, _ = limits(session)
+    if not mains:
+        return _refuse("还没有问过任何题，不能进入候选人提问环节。", code="not_started")
+    if len(mains) < main_limit and coverage.missing:
+        return _refuse(
+            "题数不足且还有必备项没有问到，请继续提问。",
+            code="uncovered",
+            asked_main=len(mains),
+            main_limit=main_limit,
+            uncovered=coverage.missing,
+        )
+    return None
+
+
+async def open_qa(scope: RunScope, *, mock_session_id: str) -> dict[str, Any]:
+    """Give the floor to the candidate: they may now ask the interviewer questions.
+
+    The candidate's own questions are not answers to anything, so from here nothing they say is
+    recorded as one and the interviewer asks no more questions. An interview ends as completed only
+    after this. Opening it again is harmless."""
+    session = await _owned_session(scope, mock_session_id)
+    if session.status != MockSessionStatus.ACTIVE:
+        return _refuse("这场模拟面试已经结束。", code="session_closed")
+    state = _state(session)
+    if state.get("candidate_qa"):
+        return {"accepted": True, "already_open": True}
+    must = await must_have_of(scope, session)
+    coverage = coverage_of(must, await _asked_stems(InterviewStore(scope.db), state["asked"]))
+    refusal = _not_ready_to_wrap_up(state, session, coverage)
+    if refusal:
+        return refusal
+    state["candidate_qa"] = True
+    state["table_closed"] = True
+    state["last_activity"] = datetime.now(UTC).replace(tzinfo=None).isoformat()
+    session.coverage = state
+    await scope.db.commit()
+    return {"accepted": True, "already_open": False}
 
 
 async def end(
@@ -326,14 +455,16 @@ async def end(
     must = await must_have_of(scope, session)
     coverage = coverage_of(must, await _asked_stems(InterviewStore(scope.db), asked))
 
-    if reason == "completed" and len(mains) < main_limit and coverage.missing:
-        return _refuse(
-            "题数不足且还有必备项没有问到，请继续提问。",
-            code="uncovered",
-            asked_main=len(mains),
-            main_limit=main_limit,
-            uncovered=coverage.missing,
-        )
+    if reason == "completed":
+        refusal = _not_ready_to_wrap_up(state, session, coverage)
+        if refusal:
+            return refusal
+        if not state.get("candidate_qa"):
+            return _refuse(
+                "候选人还没有提问的机会。先调用 jc_mock_open_qa 问一句“你有什么想问我的吗”，"
+                "回答完候选人的问题，再结束面试。",
+                code="candidate_qa_not_opened",
+            )
 
     _close(session, state, reason=reason)
     await scope.db.commit()

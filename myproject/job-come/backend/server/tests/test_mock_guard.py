@@ -148,6 +148,12 @@ async def test_end_is_allowed_once_every_must_have_is_covered(db):
     assert (await _ask(db, "q1"))["accepted"]
     assert (await _ask(db, "q2"))["accepted"]
     async with db() as s:
+        # Covered, but the candidate has not had their turn to ask yet.
+        assert (await guard.end(_scope(s), mock_session_id="ms1"))["code"] == (
+            "candidate_qa_not_opened")
+    async with db() as s:
+        assert (await guard.open_qa(_scope(s), mock_session_id="ms1"))["accepted"] is True
+    async with db() as s:
         out = await guard.end(_scope(s), mock_session_id="ms1")
     assert out["accepted"] is True and out["ended_early"] is False
     session = await _session(db)

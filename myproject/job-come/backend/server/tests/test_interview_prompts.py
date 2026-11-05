@@ -97,3 +97,32 @@ def test_the_review_request_asks_for_the_conclusion_as_well_as_the_scores():
 
     text = REVIEW_MESSAGE.format(session_id="ms1")
     assert "summary" in text and "ms1" in text
+
+
+def test_the_interviewer_is_told_how_the_interview_is_shaped():
+    prompt = _prompt("coach-mock")
+    for stage in ("experience", "core", "scenario", "candidate_qa"):
+        assert stage in prompt, stage
+    assert "suggested_stage" in prompt
+
+
+def test_the_interviewer_is_told_to_give_the_candidate_a_turn_before_ending():
+    prompt = _prompt("coach-mock")
+    assert "jc_mock_open_qa" in prompt
+    assert "你有什么想问我的" in prompt
+    # The candidate's own questions are not answers, and no new question is asked after them.
+    assert "不再出新题" in prompt
+
+
+def test_the_interviewer_is_told_why_a_question_can_be_refused():
+    prompt = _prompt("coach-mock")
+    for code in ("too_similar", "stem_too_long", "candidate_qa_open", "candidate_qa_not_opened"):
+        assert code in prompt, code
+
+
+def test_the_task_text_names_the_candidates_turn_and_only_tools_the_skill_holds():
+    from jc.agent.coach_task import wrap_coach_mock_message
+
+    text = wrap_coach_mock_message("开始", profile_id="p1", job_id="j1", mock_session_id="ms1",
+                                   drawn_stems=[], level="mid")
+    assert "jc_mock_open_qa" in text
