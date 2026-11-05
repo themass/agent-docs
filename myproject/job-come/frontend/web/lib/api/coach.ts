@@ -40,6 +40,8 @@ export type MockSession = {
   round: string | null;
   job_id?: string | null;
   started_at: string;
+  /** Null for a session created before levels existed. */
+  level?: MockLevel | null;
   bank_draw_count: number;
   generated_count: number;
   questions: MockSessionQuestion[];
@@ -47,6 +49,27 @@ export type MockSession = {
 
 export type MockKind = "warmup" | "full";
 export type MockStyle = "gentle" | "standard" | "pressure" | "deep";
+export type MockLevel = "junior" | "mid" | "senior" | "expert";
+
+export type LevelOption = {
+  key: MockLevel;
+  label: string;
+  /** The P-series level it is compared with. A comparison, not an Alibaba standard. */
+  benchmark: string;
+  years: string;
+  requirement: string;
+};
+
+export type LevelRecommendation = {
+  recommended: MockLevel | null;
+  years: number | null;
+  reason: string | null;
+  levels: LevelOption[];
+};
+
+export function getLevelRecommendation(profileId: string): Promise<LevelRecommendation> {
+  return apiJson(`/coach/mock/level-recommendation?profile_id=${encodeURIComponent(profileId)}`);
+}
 
 export function createMockSession(body: {
   profile_id: string;
@@ -55,6 +78,7 @@ export function createMockSession(body: {
   job_id?: string | null;
   kind?: MockKind;
   style?: MockStyle;
+  level?: MockLevel;
 }): Promise<MockSession> {
   return apiJson("/coach/mock/sessions", {
     method: "POST",

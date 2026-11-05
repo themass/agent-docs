@@ -8,10 +8,13 @@ import { Select } from "@/components/ui/Select";
 import {
   createMockSession,
   completeMockSession,
+  getLevelRecommendation,
   getMockSession,
   getQuestionDetail,
   logQuestion,
+  type LevelRecommendation,
   type MockKind,
+  type MockLevel,
   type MockSession,
   type MockStyle,
 } from "@/lib/api/coach";
@@ -64,6 +67,11 @@ export function CoachFlywheel({
   const [jobs, setJobs] = useState<Job[]>([]);
   const [kind, setKind] = useState<MockKind>("warmup");
   const [style, setStyle] = useState<MockStyle>("standard");
+  // The recommendation comes from the profile; the choice is the user's. The first fills the
+  // second only while the user has not chosen, so a slow answer never overrides a click.
+  const [recommendation, setRecommendation] = useState<LevelRecommendation | null>(null);
+  const [recommendationFailed, setRecommendationFailed] = useState(false);
+  const [level, setLevel] = useState<MockLevel | null>(null);
   const [session, setSession] = useState<MockSession | null>(null);
   const [stem, setStem] = useState("");
   const [qType, setQType] = useState("behavioral");
@@ -80,6 +88,27 @@ export function CoachFlywheel({
     void listJobs(profileId)
       .then(setJobs)
       .catch(() => setJobs([]));
+  }, [profileId]);
+
+  useEffect(() => {
+    if (!profileId) {
+      setRecommendation(null);
+      return;
+    }
+    let cancelled = false;
+    setRecommendationFailed(false);
+    void getLevelRecommendation(profileId)
+      .then((result) => {
+        if (cancelled) return;
+        setRecommendation(result);
+        setLevel((chosen) => chosen ?? result.recommended);
+      })
+      .catch(() => {
+        if (!cancelled) setRecommendationFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [profileId]);
 
   const job = jobs.find((j) => j.id === jobId) ?? null;
@@ -101,7 +130,7 @@ export function CoachFlywheel({
   );
 
   async function onStart() {
-    if (!profileId) return;
+    if (!profileId || !level) return;
     setBusy(true);
     setError(null);
     try {
@@ -112,6 +141,7 @@ export function CoachFlywheel({
         job_id: jobId,
         kind,
         style,
+        level,
       });
       setSession(next);
       onSessionChange?.(next.id);
@@ -224,6 +254,55 @@ export function CoachFlywheel({
         </div>
 
         <div className="mt-3">
+          <span className="label-meta">面试级别</span>
+          {recommendation ? (
+            <>
+              <div className="mt-1.5 grid grid-cols-1 gap-2 sm:grid-cols-2" role="radiogroup" aria-label="面试级别">
+                {recommendation.levels.map((option) => {
+                  const chosen = level === option.key;
+                  return (
+                    <button
+                      key={option.key}
+                      type="button"
+                      role="radio"
+                      aria-checked={chosen}
+                      disabled={active}
+                      onClick={() => setLevel(option.key)}
+                      className={`rounded-lg border p-3 text-left transition disabled:opacity-60 ${
+                        chosen
+                          ? "border-brand-500 bg-brand-50"
+                          : "border-surface-border bg-surface hover:border-brand-200"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-ink-900">{option.label}</span>
+                        <span className="text-xs text-ink-500">
+                          对照 {option.benchmark} · {option.years}
+                        </span>
+                        {recommendation.recommended === option.key ? (
+                          <span className="badge badge-brand ml-auto">推荐</span>
+                        ) : null}
+                      </span>
+                      <span className="mt-1 block text-xs leading-relaxed text-ink-600">
+                        {option.requirement}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-1.5 text-xs text-ink-500">
+                {recommendation.reason ?? "档案里的经历没有可读的起止时间，请自己选一个级别。"}
+                级别决定问题问到多深，不改变评分标准。对照 P 序列只是参考，不是阿里的官方标准。
+              </p>
+            </>
+          ) : recommendationFailed ? (
+            <p className="mt-1.5 text-sm text-ink-600">没能读取面试级别，请刷新页面后重试。</p>
+          ) : (
+            <p className="mt-1.5 text-sm text-ink-500">正在根据档案推荐级别…</p>
+          )}
+        </div>
+
+        <div className="mt-3">
           <span className="label-meta">题数</span>
           <div className="segment mt-1.5">
             {KIND_OPTIONS.map((option) => (
@@ -266,7 +345,7 @@ export function CoachFlywheel({
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <button
             type="button"
-            disabled={busy || active || !jobId}
+            disabled={busy || active || !jobId || !level}
             onClick={() => void onStart()}
             className="btn btn-md btn-primary"
           >
@@ -286,6 +365,9 @@ export function CoachFlywheel({
 
         {!active && !jobId ? (
           <p className="mt-2 text-xs text-ink-500">先选择岗位（或粘贴 JD）才能开始。</p>
+        ) : null}
+        {!active && jobId && !level && recommendation ? (
+          <p className="mt-2 text-xs text-ink-500">请先选择面试级别。</p>
         ) : null}
 
         {session && active ? <MockProgress session={session} active={active} /> : null}
