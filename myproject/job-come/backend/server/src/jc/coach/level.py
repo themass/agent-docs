@@ -36,26 +36,26 @@ class LevelSpec:
 LEVEL_SPECS: dict[str, LevelSpec] = {
     "junior": LevelSpec(
         key="junior", label="初级", benchmark="P5", years="应届到 3 年",
-        requirement="在指导下能独立完成分配的任务，基础扎实，会排查常见问题。",
-        depth="是什么、怎么做：概念、实现步骤、常见的坑。",
+        requirement="在指导下能独立完成分配给自己的工作，基础扎实，遇到常见问题知道怎么处理。",
+        depth="是什么、怎么做：基本概念、做事的步骤、常见的坑。",
         follow_up="追问具体怎么做、遇到过什么问题。",
     ),
     "mid": LevelSpec(
         key="mid", label="中级", benchmark="P6", years="3 到 6 年",
-        requirement="独立负责一个模块或系统，从设计到上线到运维；能判断需求优先级，对不合理的需求提出异议。",
-        depth="为什么这样做：理由、取舍、线上问题的排查路径。",
+        requirement="独立负责一块业务、一个模块或一个项目，从方案到落地到复盘；能判断事情的优先级，对不合理的要求提出异议。",
+        depth="为什么这样做：理由、取舍、结果怎么衡量、出了问题怎么处理。",
         follow_up="追问为什么这样做、放弃了什么。",
     ),
     "senior": LevelSpec(
         key="senior", label="高级", benchmark="P7", years="6 到 10 年",
-        requirement="是一个领域的负责人，能带领跨团队项目、指导新人；对复杂问题有自己的判断，能影响团队的技术方向。",
-        depth="架构与权衡：方案对比、跨团队协调、风险与演进。",
+        requirement="是一个领域的负责人，能带领跨团队的事情、指导新人；对复杂问题有自己的判断，能影响团队的方向。",
+        depth="全局与权衡：方案对比、跨团队协调、风险与演进。",
         follow_up="追问方案对比、跨团队的协调与风险。",
     ),
     "expert": LevelSpec(
         key="expert", label="专家", benchmark="P8", years="10 年以上",
-        requirement="影响部门或公司层面的技术与业务决策，对行业有判断。",
-        depth="方向与决策：战略取舍、组织与技术的结合、长期影响。",
+        requirement="影响部门或公司层面的业务和组织决策，对行业有判断。",
+        depth="方向与决策：战略取舍、业务与组织的结合、长期影响。",
         follow_up="追问决策依据与长期影响。",
     ),
 }
@@ -64,8 +64,18 @@ LEVEL_SPECS: dict[str, LevelSpec] = {
 _LEVEL_STARTS_MONTHS: tuple[tuple[str, int], ...] = (
     ("expert", 120), ("senior", 72), ("mid", 36), ("junior", 0),
 )
-_RAISING_WORDS = ("专家", "架构师", "负责人", "总监")
-_LOWERING_WORDS = ("实习", "助理")
+# Titles that mean a senior or a junior role in any line of work, not only engineering. English
+# words are matched as whole words (no ASCII letter on either side), so "Headhunter" and "Ahead" are
+# not "head", and "Marketing Lead" is left alone: "lead" is a mid-level title as often as a senior
+# one.
+_RAISING = re.compile(
+    r"专家|架构师|负责人|总监|主管|首席|总经理"
+    r"|(?<![A-Za-z])(head of|director|principal|vp|vice president|chief)(?![A-Za-z])",
+    re.IGNORECASE,
+)
+_LOWERING = re.compile(
+    r"实习|助理|见习|管培|培训生|(?<![A-Za-z])(intern|trainee)(?![A-Za-z])", re.IGNORECASE
+)
 _OPEN_END = frozenset({"至今", "现在", "present", "now"})
 # 2019, 2019-01, 2019-01-15, 2019/01, 2019.01, 2019年1月, 2019年1月15日
 _DATE = re.compile(r"^(\d{4})(?:[-/.年](\d{1,2})月?(?:[-/.]?\d{1,2}日?)?)?$")
@@ -126,8 +136,8 @@ def _band(months: int) -> str:
 
 
 def _title_shift(title: str) -> int:
-    raises = any(word in title for word in _RAISING_WORDS)
-    lowers = any(word in title for word in _LOWERING_WORDS)
+    raises = bool(_RAISING.search(title))
+    lowers = bool(_LOWERING.search(title))
     if raises == lowers:
         return 0
     return 1 if raises else -1

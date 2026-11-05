@@ -147,3 +147,35 @@ def test_the_interviewer_is_told_one_thing_about_when_to_end():
     # Said once, the same way, in the stages and in the closing.
     assert prompt.count("用户没有别的要问了") >= 2
     assert "用户同意结束" not in prompt
+
+
+# --- every internet role, not only engineers -----------------------------------------
+
+#: The families the product knows that are not engineering. An interview for one of these must never
+#: read as if the candidate were a developer.
+NON_ENGINEERING = ("产品", "设计", "运营", "市场", "销售", "客户", "人力", "财务", "法务", "管理")
+
+
+def test_both_prompts_say_the_candidate_is_not_assumed_to_be_a_developer():
+    for skill in ("coach-mock", "interview-reviewer"):
+        prompt = _prompt(skill)
+        assert "不要假设候选人是开发者" in prompt, skill
+        assert all(word in prompt for word in ("产品", "运营", "销售", "设计")), skill
+
+
+def test_the_rubric_the_users_read_says_it_serves_every_internet_role():
+    text = load_mock_rubric_markdown()
+    assert "不要假设" in text and "开发者" in text
+
+
+def test_the_interviewer_does_not_tell_itself_to_avoid_technical_questions_only():
+    # "不要问技术题" is about the opening and reads as if the interview were a technical one.
+    prompt = _prompt("coach-mock")
+    assert "不要问技术题" not in prompt
+
+
+def test_the_follow_up_examples_come_from_more_than_one_kind_of_job():
+    prompt = _prompt("coach-mock")
+    words = ("拆表", "活动", "客户", "需求", "设计稿", "招聘", "预算")
+    hits = [word for word in words if word in prompt]
+    assert len(hits) >= 4, hits

@@ -150,3 +150,50 @@ def test_the_reason_says_when_a_job_was_left_out_of_the_count():
 def test_the_reason_does_not_mention_ignored_jobs_when_none_were():
     out = level_for_profile([_job("2019-01", "2024-01")], today=TODAY)
     assert out is not None and "没有计入" not in out.reason
+
+
+# --- the levels read the same for every internet job ------------------------------
+
+ENGINEERING_ONLY = (
+    "运维", "排查", "架构", "代码", "上线", "线上", "服务端", "接口", "部署", "并发", "技术",
+)
+
+
+@pytest.mark.parametrize("key", LEVELS)
+def test_a_level_never_describes_the_work_in_words_only_an_engineer_would_use(key):
+    spec = LEVEL_SPECS[key]
+    for field in (spec.requirement, spec.depth, spec.follow_up):
+        leaked = [word for word in ENGINEERING_ONLY if word in field]
+        assert not leaked, f"{key}: {leaked} in {field!r}"
+
+
+def _latest(title):
+    jobs = [_job("2019-01", "2024-01", title)]
+    return level_for_profile(jobs, today=TODAY).level
+
+
+@pytest.mark.parametrize(
+    "title",
+    ["运营主管", "首席运营官", "客服主管", "市场总监", "销售负责人", "设计专家",
+     "Head of Growth", "Director of Marketing", "VP Sales", "Chief Product Officer",
+     "Principal Designer"],
+)
+def test_a_senior_title_in_any_line_of_work_raises_the_level(title):
+    assert _latest(title) == "senior"
+
+
+@pytest.mark.parametrize(
+    "title",
+    ["管培生", "运营管培生", "产品见习生", "Marketing Intern", "Trainee Accountant", "培训生"],
+)
+def test_an_entry_programme_title_in_any_line_of_work_lowers_the_level(title):
+    assert _latest(title) == "junior"
+
+
+@pytest.mark.parametrize(
+    "title",
+    ["产品经理", "高级运营专员", "Headhunter", "Marketing Lead", "Account Executive",
+     "Software Engineer", "助理总监", "Ahead Analyst", "Internal Auditor"],
+)
+def test_ordinary_titles_do_not_move_the_level(title):
+    assert _latest(title) == "mid"
