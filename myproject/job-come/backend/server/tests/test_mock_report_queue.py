@@ -337,3 +337,74 @@ def test_the_migration_adds_the_columns_and_backfills_legacy_sessions():
     for legacy in ("no_report", "blank_report", "empty_report"):
         assert rows[legacy] == ("failed", 0, "历史场次，未生成报告")
     assert rows["still_active"] == (None, 0, None)
+
+
+# --- shutdown in the middle of a run ----------------------------------------------------------
+
+
+async def _until(condition, *, seconds: float = 5.0) -> None:
+    for _ in range(int(seconds / 0.02)):
+        if condition():
+            return
+        await asyncio.sleep(0.02)
+    raise AssertionError("condition not reached")
+
+
+async def _claim_and_start(maker, monkeypatch) -> tuple[asyncio.Task, FakeReviewerAgent]:
+    """A claimed report whose reviewer is slow, so the run is still going when we cancel it."""
+    agent = FakeReviewerAgent(maker, report=GOOD_REPORT, delay=30)
+    _use_reviewer(monkeypatch, maker, agent)
+    async with maker() as db:
+        assert await claim_next_report(db) == "ms1"
+    task = asyncio.create_task(generate_report("ms1"))
+    await _until(lambda: len(agent.runs) == 1)
+    return task, agent
+
+
+@pytest.mark.asyncio
+async def test_a_run_cancelled_by_shutdown_gives_its_run_back(maker, monkeypatch):
+    # A deploy cancels the worker. The model never failed, so the report must not lose a run to it,
+    # and must not wait out the lease before another worker may take it.
+    await _seed(maker, report_status="queued")
+    task, _ = await _claim_and_start(maker, monkeypatch)
+    assert (await _row(maker)).report_attempts == 1
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    row = await _row(maker)
+    assert (row.report_status, row.report_attempts, row.report_claimed_at) == ("queued", 0, None)
+    async with maker() as db:
+        assert await claim_next_report(db) == "ms1"
+
+
+@pytest.mark.asyncio
+async def test_the_dispatcher_cancelled_mid_run_gives_the_run_back(maker, monkeypatch):
+    await _seed(maker, report_status="queued")
+    agent = FakeReviewerAgent(maker, report=GOOD_REPORT, delay=30)
+    _use_reviewer(monkeypatch, maker, agent)
+    worker = asyncio.create_task(run_mock_report_dispatcher(poll_seconds=0.02))
+    await _until(lambda: len(agent.runs) == 1)
+    worker.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await worker
+    row = await _row(maker)
+    assert (row.report_status, row.report_attempts, row.report_claimed_at) == ("queued", 0, None)
+
+
+@pytest.mark.asyncio
+async def test_a_cancelled_run_leaves_a_claim_someone_else_took_over(maker, monkeypatch):
+    # The lease ran out, another worker reclaimed the report, and this slow run is then cancelled.
+    # It must not undo the new claim.
+    await _seed(maker, report_status="queued")
+    task, _ = await _claim_and_start(maker, monkeypatch)
+    takeover = NOW + timedelta(hours=1)
+    async with maker() as db:
+        session = await db.get(MockSession, "ms1")
+        session.report_claimed_at, session.report_attempts = takeover, 2
+        await db.commit()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    row = await _row(maker)
+    assert (row.report_status, row.report_attempts, row.report_claimed_at) == (
+        "generating", 2, takeover)

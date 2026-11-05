@@ -125,6 +125,7 @@ async def generate_report(session_id: str) -> bool:
         if session is None:
             return False
         user_id, profile_id = session.user_id, session.profile_id
+        my_claim = session.report_claimed_at
         error: str | None = None
         stored = False
         try:
@@ -133,6 +134,12 @@ async def generate_report(session_id: str) -> bool:
             )
             if not stored:
                 error = _NO_REPORT
+        except asyncio.CancelledError:
+            # Shutdown (a deploy, a restart) cancels the worker. The model did not fail, so the
+            # report keeps its run and goes straight back to the queue instead of waiting out the
+            # lease. Shielded: the cancellation must not interrupt the write that undoes it.
+            await asyncio.shield(_give_the_run_back(session_id, my_claim))
+            raise
         except Exception:  # noqa: BLE001 — every failure is a failed report, never a crashed worker
             logger.warning("mock_report_failed session=%s", session_id, exc_info=True)
             error = _RUN_FAILED
@@ -148,6 +155,31 @@ async def generate_report(session_id: str) -> bool:
         )
         await db.commit()
         return stored
+
+
+async def _give_the_run_back(session_id: str, claimed_at: datetime | None) -> None:
+    """Undo a claim whose run was cut short: back to queued, the run not counted.
+
+    Only the claim that was made is undone. If the lease ran out and another worker took the
+    report over, its claim time differs and nothing is touched."""
+    try:
+        async with AsyncSessionLocal() as db:
+            await db.execute(
+                update(MockSession)
+                .where(
+                    MockSession.id == session_id,
+                    MockSession.report_status == MockReportStatus.GENERATING,
+                    MockSession.report_claimed_at == claimed_at,
+                )
+                .values(
+                    report_status=MockReportStatus.QUEUED,
+                    report_attempts=MockSession.report_attempts - 1,
+                    report_claimed_at=None,
+                )
+            )
+            await db.commit()
+    except Exception:  # noqa: BLE001 — shutting down; the lease is the fallback
+        logger.warning("could not give back the report run session=%s", session_id, exc_info=True)
 
 
 async def requeue_failed(db: AsyncSession, session_id: str) -> bool:

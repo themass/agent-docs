@@ -133,3 +133,19 @@ def test_the_interview_message_names_only_tools_the_interviewer_holds():
         held = set(require_skill("coach-mock").allowed_tools)
         assert named, "the task text should name the tools it relies on"
         assert named <= held, f"names tools the skill does not allow: {sorted(named - held)}"
+
+
+def test_the_interviewer_is_told_what_an_unregistered_question_does_to_the_record():
+    # The system records every message as the answer to the last registered question. A question the
+    # interviewer asks without registering it would put the next real answer under the wrong one.
+    from jc.skills.loader import require_skill
+
+    body = require_skill("coach-mock").body
+    assert "没有登记" in body and "记在上一题名下" in body
+
+
+def test_the_reviewer_is_told_an_answer_may_hold_more_than_the_answer():
+    from jc.skills.loader import require_skill
+
+    body = require_skill("interview-reviewer").body
+    assert "没听清" in body and "不当作回答内容" in body
