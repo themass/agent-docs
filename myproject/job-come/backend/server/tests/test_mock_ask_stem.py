@@ -1,8 +1,8 @@
 """`jc_mock_ask` takes the question itself.
 
-The interviewer used to call `jc_question_upsert` for a question id and then `jc_mock_ask` to register
-it: two calls, and a refusal in the second left the first one's question behind. The question is now
-created and registered in one call, and a refusal leaves nothing."""
+The interviewer used to call `jc_question_upsert` for a question id and then `jc_mock_ask` to
+register it: two calls, and a refusal in the second left the first one's question behind. The
+question is now created and registered in one call, and a refusal leaves nothing."""
 
 from __future__ import annotations
 
