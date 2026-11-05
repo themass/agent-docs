@@ -290,6 +290,8 @@ class MockActionResponse(BaseModel):
 class MockProgressResponse(BaseModel):
     style: str | None = None
     status: str
+    #: When the interview started, so a page can show the time spent.
+    started_at: datetime | None = None
     #: opening | experience | core | scenario | candidate_qa; and the one the next question
     #: suggests.
     stage: str = "opening"

@@ -322,3 +322,35 @@ async def test_a_short_answer_with_a_steering_word_in_it_is_still_recorded(
     # Short enough to pass any length check: only matching the whole message keeps these.
     await _open_session(maker, [MAIN])
     assert await _record(maker, short_answer) is not None
+
+
+# The page sends these for the candidate after Skip and Swap (frontend/web/lib/mock-interview.ts).
+# If they stopped reading as steering, a click on Skip would put "跳过这题" into the next answer.
+PHRASES_THE_PAGE_SENDS = ["跳过这题，请出下一题。", "换一题，请出下一题。"]
+
+
+@pytest.mark.parametrize("phrase", PHRASES_THE_PAGE_SENDS)
+def test_what_the_page_says_for_the_candidate_is_never_part_of_an_answer(phrase):
+    from jc.services.mock_answer_recorder import is_steering_message
+
+    assert is_steering_message(phrase)
+
+
+@pytest.mark.parametrize(
+    "phrase",
+    ["请出下一题", "出下一题吧", "请继续出题", "直接下一题", "好的，下一题"],
+)
+def test_asking_the_interviewer_to_move_on_is_steering(phrase):
+    from jc.services.mock_answer_recorder import is_steering_message
+
+    assert is_steering_message(phrase)
+
+
+@pytest.mark.parametrize(
+    "phrase",
+    ["我觉得下一题应该考察并发", "出题的人显然没看过我的简历", "请继续往下说你的方案是什么"],
+)
+def test_a_sentence_that_only_mentions_moving_on_is_not_steering(phrase):
+    from jc.services.mock_answer_recorder import is_steering_message
+
+    assert not is_steering_message(phrase)

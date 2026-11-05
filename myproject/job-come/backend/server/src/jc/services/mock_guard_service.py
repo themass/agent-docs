@@ -85,6 +85,11 @@ def suggested_stage(asked_main: int, main_limit: int) -> str:
     return next(stage for stage, end in _STAGE_ENDS if share < end)
 
 
+def _aware(moment: datetime) -> datetime:
+    """The UTCDateTime column can read back naive; it is always UTC."""
+    return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
+
+
 def _naive_utc(moment: datetime) -> datetime:
     """The UTCDateTime column reads back naive UTC; keep every comparison on that footing."""
     return moment.astimezone(UTC).replace(tzinfo=None) if moment.tzinfo else moment
@@ -213,6 +218,7 @@ async def plan(scope: RunScope, *, mock_session_id: str) -> dict[str, Any]:
     return {
         "style": session.style,
         "status": session.status,
+        "started_at": _aware(session.started_at).isoformat(),
         "stage": stage,
         "suggested_stage": suggested,
         "stage_counts": stage_counts,

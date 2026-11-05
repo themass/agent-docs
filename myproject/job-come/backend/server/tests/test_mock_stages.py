@@ -310,3 +310,12 @@ async def test_the_same_question_word_for_word_still_reads_as_already_asked(make
 
 def test_the_interviewer_holds_the_tool_for_the_candidates_turn():
     assert "jc_mock_open_qa" in require_skill("coach-mock").allowed_tools
+
+
+@pytest.mark.asyncio
+async def test_the_plan_says_when_the_interview_started_so_a_page_can_show_the_time_spent(maker):
+    await _open(maker)
+    plan = await _plan(maker)
+    started = datetime.fromisoformat(plan["started_at"])
+    assert started.tzinfo is not None
+    assert abs((datetime.now(UTC) - started).total_seconds()) < 60
