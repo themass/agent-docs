@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from jc.coach.level import LEVEL_SPECS
+
 
 def wrap_coach_mock_message(
     user_text: str,
@@ -10,6 +12,7 @@ def wrap_coach_mock_message(
     job_id: str | None,
     mock_session_id: str | None,
     drawn_stems: list[str],
+    level: str | None = None,
 ) -> str:
     bound_profile = profile_id or "（未绑定档案）"
     bound_job = job_id or "（未绑定岗位，请用户从投递看板带岗进入）"
@@ -34,12 +37,20 @@ def wrap_coach_mock_message(
         "先调用 jc_mock_session_history（带 mock_session_id）查出已记录的问答，"
         "不要凭记忆猜测或重复问同一题。"
     )
+    spec = LEVEL_SPECS.get(level or "")
+    level_rule = (
+        f"面试级别：{spec.label}（对照 {spec.benchmark}）。出题深度：{spec.depth}"
+        f"追问方向：{spec.follow_up}评分标准不随级别变化。\n"
+        if spec is not None
+        else ""
+    )
     return (
         "【面试模拟任务】\n"
         "只用中文。你就是这场面试的面试官，像真人一样说话：口语、简短、一次只说一件事；"
         "不要向用户提工具、登记、题库或系统。不要调用 ask_clarification。\n"
         f"档案 profile_id={bound_profile}；岗位 job_id={bound_job}；"
         f"模拟会话 mock_session_id={session}。\n"
+        f"{level_rule}"
         f"{draw_rule}\n"
         f"{state_rule}\n"
         f"{history_rule}\n"

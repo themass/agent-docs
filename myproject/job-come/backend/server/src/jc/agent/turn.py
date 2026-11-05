@@ -108,7 +108,11 @@ class _MockSession:
                 question = await store.get_question(qid)
                 if question is not None:
                     drawn.append(question.stem)
-        return {"mock_session_id": mock.id if mock is not None else None, "drawn_stems": drawn}
+        return {
+            "mock_session_id": mock.id if mock is not None else None,
+            "drawn_stems": drawn,
+            "level": mock.level if mock is not None else None,
+        }
 
     def message(self, ctx: TurnContext, facts: dict[str, Any], skill: str, text: str) -> str:
         # The mock state (the bank draw, the bound session) is for the practice skill. A turn that
@@ -121,6 +125,7 @@ class _MockSession:
             job_id=ctx.job_id,
             mock_session_id=facts.get("mock_session_id"),
             drawn_stems=list(facts.get("drawn_stems", [])),
+            level=facts.get("level"),
         )
 
 

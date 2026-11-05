@@ -93,3 +93,25 @@ def test_the_interview_message_does_not_forbid_the_interviewer_to_introduce_them
         ctx, {"mock_session_id": "ms1", "drawn_stems": []}, "coach-mock", "开始")
     assert "不要自我介绍" not in text
     assert "面试官" in text
+
+
+def test_the_interview_message_states_level_depth_and_follow_up_direction():
+    from jc.coach.level import LEVEL_SPECS
+
+    ctx = TurnContext(db=None, profiles=None, actor=None, profile_id="p1", job_id="j1",
+                      ui_context=None, default_skill="coach-mock")
+    text = turn.TURN_PROVIDERS["mock_session"].message(
+        ctx, {"mock_session_id": "ms1", "drawn_stems": [], "level": "mid"}, "coach-mock", "开始")
+    spec = LEVEL_SPECS["mid"]
+    assert "中级" in text and "P6" in text
+    assert spec.depth in text and spec.follow_up in text
+    assert "评分标准不随级别变化" in text
+
+
+def test_a_session_without_a_level_adds_no_level_line():
+    # Sessions created before levels existed have none.
+    ctx = TurnContext(db=None, profiles=None, actor=None, profile_id="p1", job_id="j1",
+                      ui_context=None, default_skill="coach-mock")
+    text = turn.TURN_PROVIDERS["mock_session"].message(
+        ctx, {"mock_session_id": "ms1", "drawn_stems": [], "level": None}, "coach-mock", "开始")
+    assert "面试级别" not in text

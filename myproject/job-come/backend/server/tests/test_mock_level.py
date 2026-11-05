@@ -93,3 +93,19 @@ async def test_a_profile_without_usable_dates_has_no_recommendation_but_still_li
         out = await InterviewService(db).level_recommendation("p_empty", actor=ACTOR)
     assert out.recommended is None and out.years is None and out.reason is None
     assert len(out.levels) == 4
+
+
+@pytest.mark.asyncio
+async def test_the_interview_turn_reads_the_sessions_level_from_the_database(maker):
+    from types import SimpleNamespace
+
+    from jc.agent import turn
+    from jc.agent.turn import TurnContext
+
+    created = await _create(maker, profile_id="p_exp", level="senior")
+    async with maker() as db:
+        ctx = TurnContext(db=db, profiles=None, actor=ACTOR, profile_id="p_exp", job_id=None,
+                          ui_context=SimpleNamespace(mock_session_id=created.id),
+                          default_skill="coach-mock")
+        facts = await turn.TURN_PROVIDERS["mock_session"].gather(ctx)
+    assert facts["level"] == "senior"
