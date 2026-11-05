@@ -89,7 +89,7 @@ def test_the_adjustment_stays_within_the_four_levels():
 
 @pytest.mark.parametrize(
     ("start", "end"),
-    [("", None), ("至今", None), ("2020", "2022"), ("abc", "def"), ("2024-05", "2022-01")],
+    [("", None), ("至今", None), ("abc", "def"), ("2024-05", "2022-01"), ("2024-13", None)],
 )
 def test_unusable_dates_give_no_recommendation_and_never_raise(start, end):
     assert level_for_profile([_job(start, end)], today=TODAY) is None
@@ -109,3 +109,44 @@ def test_the_reason_names_years_title_and_level():
     out = level_for_profile([_job("2019-01", "2024-01", "后端工程师")], today=TODAY)
     assert out is not None
     assert "约 5 年" in out.reason and "后端工程师" in out.reason and "中级" in out.reason
+
+
+@pytest.mark.parametrize(
+    ("start", "end"),
+    [
+        ("2019-01", "2024-01"),
+        ("2019-01-15", "2024-01-31"),
+        ("2019/01", "2024/01"),
+        ("2019.01", "2024.01"),
+        ("2019年1月", "2024年1月"),
+        ("2019年01月", "2024年01月"),
+        ("2019-1", "2024-1"),
+    ],
+)
+def test_the_usual_ways_of_writing_a_month_are_all_read(start, end):
+    out = level_for_profile([_job(start, end)], today=TODAY)
+    assert out is not None and out.years == 5.0
+
+
+def test_a_bare_year_is_read_as_the_start_or_the_end_of_that_year():
+    # 2019 as a start is January 2019, 2023 as an end is December 2023: 4 years 11 months.
+    out = level_for_profile([_job("2019", "2023")], today=TODAY)
+    assert out is not None and out.years == 4.9
+
+
+@pytest.mark.parametrize("open_end", ["至今", "现在", "Present", "present", "now"])
+def test_the_usual_ways_of_saying_a_job_is_still_running(open_end):
+    out = level_for_profile([_job("2021-11", open_end)], today=TODAY)
+    assert out is not None and out.years == 5.0
+
+
+def test_the_reason_says_when_a_job_was_left_out_of_the_count():
+    jobs = [_job("sometime", None, n=1), _job("2019-01", "2024-01", n=2)]
+    out = level_for_profile(jobs, today=TODAY)
+    assert out is not None and out.years == 5.0
+    assert "有 1 段经历的日期读不出来，没有计入" in out.reason
+
+
+def test_the_reason_does_not_mention_ignored_jobs_when_none_were():
+    out = level_for_profile([_job("2019-01", "2024-01")], today=TODAY)
+    assert out is not None and "没有计入" not in out.reason

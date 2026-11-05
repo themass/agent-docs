@@ -67,7 +67,8 @@ _LEVEL_STARTS_MONTHS: tuple[tuple[str, int], ...] = (
 _RAISING_WORDS = ("专家", "架构师", "负责人", "总监")
 _LOWERING_WORDS = ("实习", "助理")
 _OPEN_END = frozenset({"至今", "现在", "present", "now"})
-_MONTH = re.compile(r"^(\d{4})-(\d{1,2})$")
+# 2019, 2019-01, 2019-01-15, 2019/01, 2019.01, 2019年1月, 2019年1月15日
+_DATE = re.compile(r"^(\d{4})(?:[-/.年](\d{1,2})月?(?:[-/.]?\d{1,2}日?)?)?$")
 
 
 @dataclass(frozen=True)
@@ -77,25 +78,29 @@ class LevelRecommendation:
     reason: str
 
 
-def _month_index(text: str | None) -> int | None:
-    """`YYYY-MM` as a month count, or None when the text is not that."""
-    match = _MONTH.match((text or "").strip())
+def _month_index(text: str | None, *, bare_year_is: int) -> int | None:
+    """A date as a month count, or None when the text is not a date we read.
+
+    A bare year has no month, so the caller says which one it means: January for a start,
+    December for an end."""
+    match = _DATE.match((text or "").strip())
     if match is None:
         return None
-    year, month = int(match.group(1)), int(match.group(2))
+    year = int(match.group(1))
+    month = int(match.group(2)) if match.group(2) else bare_year_is
     return year * 12 + month if 1 <= month <= 12 else None
 
 
 def _interval(job: ProfileExperience, *, today_index: int) -> tuple[int, int] | None:
     """The months a job covers, as [start, end). None when its dates cannot be used."""
-    start = _month_index(job.start_date)
+    start = _month_index(job.start_date, bare_year_is=1)
     if start is None:
         return None
     end_text = (job.end_date or "").strip()
     if not end_text or end_text.lower() in _OPEN_END:
         end = today_index
     else:
-        end = _month_index(end_text)
+        end = _month_index(end_text, bare_year_is=12)
     if end is None or end < start:
         return None
     return start, end
@@ -140,6 +145,7 @@ def level_for_profile(
     ]
     if not usable:
         return None
+    ignored = len(experiences) - len(usable)
 
     months = _union_months([interval for interval, _ in usable])
     years = round(months / 12, 1)
@@ -151,7 +157,10 @@ def level_for_profile(
     index = min(len(LEVELS) - 1, max(0, LEVELS.index(base) + shift))
     level = LEVELS[index]
 
-    reason = f"你有约 {years:g} 年经历，最近职位是{latest.title}"
+    reason = f"你有约 {years:g} 年经历"
+    if ignored:
+        reason += f"（有 {ignored} 段经历的日期读不出来，没有计入）"
+    reason += f"，最近职位是{latest.title}"
     if level != base:
         direction = "上调" if shift > 0 else "下调"
         reason += f"，职位名{direction}一级"
