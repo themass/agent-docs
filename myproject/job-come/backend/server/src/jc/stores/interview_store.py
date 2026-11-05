@@ -130,6 +130,22 @@ class InterviewStore:
         )
         return list((await self._db.execute(stmt)).scalars().all())
 
+    async def get_latest_attempt_in_session(
+        self, question_id: str, mock_session_id: str
+    ) -> AnswerAttempt | None:
+        """The newest answer to a question given in one mock session. A bank question is reused
+        across sessions, so an answer from another session is not an answer here."""
+        stmt = (
+            select(AnswerAttempt)
+            .where(
+                AnswerAttempt.question_id == question_id,
+                AnswerAttempt.mock_session_id == mock_session_id,
+            )
+            .order_by(AnswerAttempt.created_at.desc())
+            .limit(1)
+        )
+        return (await self._db.execute(stmt)).scalar_one_or_none()
+
     async def get_latest_attempt_for_question(
         self, question_id: str
     ) -> AnswerAttempt | None:

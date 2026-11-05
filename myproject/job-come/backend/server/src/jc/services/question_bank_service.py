@@ -132,7 +132,7 @@ async def mock_session_history(
         question = await store.get_question(qid)
         if question is None:
             continue
-        attempt = await store.get_latest_attempt_for_question(qid)
+        attempt = await store.get_latest_attempt_in_session(qid, session.id)
         turns.append(
             {
                 "question_id": question.id,

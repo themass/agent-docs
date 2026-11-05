@@ -125,7 +125,7 @@ async def session_transcript(store: InterviewStore, session: MockSession) -> lis
     turns = []
     for qid in session.question_ids or []:
         question = await store.get_question(qid)
-        attempt = await store.get_latest_attempt_for_question(qid)
+        attempt = await store.get_latest_attempt_in_session(qid, session.id)
         turns.append({
             "question_id": qid,
             "stem": question.stem if question is not None else "",

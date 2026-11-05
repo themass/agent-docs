@@ -116,14 +116,17 @@ def _refuse(reason: str, **extra: Any) -> dict[str, Any]:
     return {"accepted": False, "reason": reason, **extra}
 
 
-async def _open_question(store: InterviewStore, asked: list[dict[str, Any]]) -> str | None:
-    """The question on the table: the last one asked, not skipped, with no answer yet."""
+async def _open_question(
+    store: InterviewStore, asked: list[dict[str, Any]], mock_session_id: str
+) -> str | None:
+    """The question on the table: the last one asked, not skipped, with no answer yet in this
+    session."""
     if not asked:
         return None
     last = asked[-1]
     if last.get("skipped"):
         return None
-    if await store.get_latest_attempt_for_question(last["question_id"]) is not None:
+    if await store.get_latest_attempt_in_session(last["question_id"], mock_session_id) is not None:
         return None
     return last["question_id"]
 
@@ -154,7 +157,7 @@ async def plan(scope: RunScope, *, mock_session_id: str) -> dict[str, Any]:
         "covered": coverage.covered,
         "uncovered": coverage.missing,
         "suggested_next": coverage.missing[0] if coverage.missing else None,
-        "current_question_id": await _open_question(store, asked),
+        "current_question_id": await _open_question(store, asked, session.id),
         "skipped": sum(1 for a in asked if a.get("skipped")),
         "swaps_left": max(0, SWAP_LIMIT - int(state.get("swaps", 0))),
     }
@@ -167,7 +170,7 @@ async def _current_for_action(
     if session.status != MockSessionStatus.ACTIVE:
         return _refuse("这场模拟面试已经结束。", code="session_closed")
     store = InterviewStore(scope.db)
-    if await _open_question(store, state["asked"]) != question_id:
+    if await _open_question(store, state["asked"], session.id) != question_id:
         return _refuse("只能对当前这道题操作。", code="not_current")
     return None
 
