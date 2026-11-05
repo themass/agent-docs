@@ -88,29 +88,35 @@ async def bank_search_questions(
     job_id: str | None = None,
     limit: int = 10,
 ) -> dict[str, Any]:
+    """Questions the interviewer may ask, from every registered source (`jc.coach.sources`).
+
+    Today that is the candidate's own bank. A question carries the name of its source and, when it
+    is already in the candidate's bank, its id."""
     await require_owned_profile(scope)
     if not scope.profile_id:
         raise ValueError("profile_id required")
-    store = InterviewStore(scope.db)
-    rows = await store.search_questions(
-        scope.profile_id,
-        query=query,
-        company=company,
-        job_id=job_id,
-        limit=max(1, min(limit, 50)),
+    from jc.coach.sources import SearchRequest, search_all
+
+    found = await search_all(
+        scope,
+        SearchRequest(
+            query=query, company=company, job_id=job_id, limit=max(1, min(limit, 50))
+        ),
     )
     return {
         "questions": [
             {
-                "id": q.id,
+                "id": q.question_id,
                 "stem": q.stem,
                 "question_type": q.question_type,
+                "source": q.source,
                 "company": q.company,
                 "job_id": q.job_id,
                 "tags": q.tags,
                 "attempt_count": q.attempt_count,
+                "difficulty": q.difficulty,
             }
-            for q in rows
+            for q in found
         ]
     }
 
