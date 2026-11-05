@@ -180,6 +180,30 @@ class MockReportReference(BaseModel):
     status: Literal["sourced", "pending"]
 
 
+class MockReportSummaryItem(BaseModel):
+    text: str
+    #: Something the candidate said, word for word; None when the reviewer gave none that
+    #: checks out.
+    quote: str | None = None
+
+
+class MockReportSummary(BaseModel):
+    """The reviewer's conclusion, in words. The tier next to it is computed, not written."""
+
+    verdict: str = ""
+    strengths: list[MockReportSummaryItem] = Field(default_factory=list)
+    priorities: list[MockReportSummaryItem] = Field(default_factory=list)
+
+
+class MockReportReadiness(BaseModel):
+    tier: Literal["need_more", "targeted", "ready", "solid"]
+    label: str
+    #: "按中级的要求：需针对性补强"
+    statement: str
+    #: The lines the tier rests on, so the user can see why.
+    basis: list[str] = Field(default_factory=list)
+
+
 class MockReportFollowUp(BaseModel):
     """What the interviewer asked to dig into a main question, and what the candidate said."""
 
@@ -242,6 +266,8 @@ class MockReportResponse(BaseModel):
     #: A warm-up gets the brief report: the five averages and three suggestions, no per-question
     #: detail (SPEC §2).
     brief: bool = False
+    summary: MockReportSummary | None = None
+    readiness: MockReportReadiness | None = None
     questions: list[MockReportQuestion] = Field(default_factory=list)
     trend: MockReportTrend | None = None
     coverage: MockReportCoverage | None = None

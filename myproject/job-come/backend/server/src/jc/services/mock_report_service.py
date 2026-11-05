@@ -122,11 +122,65 @@ def validate_report(
         dim: round(sum(values) / len(values), 1) if values else None
         for dim, values in totals.items()
     }
+    summary, rejected_quotes = _summary(raw.get("summary"), answers)
     return {
         "overall": overall,
         "questions": questions,
-        "checks": {"rejected_evidence": rejected, "pending_facts": pending},
+        "summary": summary,
+        "checks": {
+            "rejected_evidence": rejected,
+            "pending_facts": pending,
+            "rejected_quotes": rejected_quotes,
+        },
     }
+
+
+SUMMARY_ITEMS = 3
+VERDICT_CHARS = 400
+ITEM_CHARS = 200
+
+
+def _summary_items(value: Any, key: str, spoken: str) -> tuple[list[dict[str, Any]], int]:
+    """Up to three items of `{text, quote}`. A quote the candidate did not say is dropped and
+    counted; the words stay, because an opinion is not evidence and is shown as one."""
+    if value is None:
+        return [], 0
+    if not isinstance(value, list):
+        raise ValueError(f"summary.{key} must be a list of {{text, quote}}, got {value!r}")
+    items: list[dict[str, Any]] = []
+    rejected = 0
+    for entry in value:
+        if isinstance(entry, str):
+            entry = {"text": entry}
+        if not isinstance(entry, dict):
+            raise ValueError(f"summary.{key} items must be {{text, quote}}, got {entry!r}")
+        text = str(entry.get("text") or "").strip()[:ITEM_CHARS]
+        if not text:
+            continue
+        quote = str(entry.get("quote") or "").strip() or None
+        if quote is not None and _squash(quote) not in spoken:
+            rejected += 1
+            quote = None
+        items.append({"text": text, "quote": quote})
+        if len(items) == SUMMARY_ITEMS:
+            break
+    return items, rejected
+
+
+def _summary(raw: Any, answers: dict[str, str]) -> tuple[dict[str, Any] | None, int]:
+    """The reviewer's conclusion: a verdict, what went well, what to fix first."""
+    if raw is None:
+        return None, 0
+    if not isinstance(raw, dict):
+        raise ValueError(f"summary must be an object with verdict, strengths and priorities, "
+                         f"got {raw!r}")
+    spoken = _squash(" ".join(answers.values()))
+    strengths, bad_s = _summary_items(raw.get("strengths"), "strengths", spoken)
+    priorities, bad_p = _summary_items(raw.get("priorities"), "priorities", spoken)
+    verdict = str(raw.get("verdict") or "").strip()[:VERDICT_CHARS]
+    if not (verdict or strengths or priorities):
+        return None, bad_s + bad_p
+    return {"verdict": verdict, "strengths": strengths, "priorities": priorities}, bad_s + bad_p
 
 
 async def session_transcript(store: InterviewStore, session: MockSession) -> list[dict[str, Any]]:

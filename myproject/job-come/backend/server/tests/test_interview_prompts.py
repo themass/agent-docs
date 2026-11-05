@@ -64,3 +64,36 @@ def test_the_reviewer_is_not_given_coaching_instructions_that_contradict_its_rol
 def test_the_rubric_shown_to_users_is_the_text_the_reviewer_scores_by():
     rubric = load_mock_rubric_markdown().strip()
     assert rubric and rubric in _prompt("interview-reviewer")
+
+
+def test_the_reviewer_is_told_how_to_write_the_conclusion():
+    prompt = _prompt("interview-reviewer")
+    for needle in ("summary", "verdict", "strengths", "priorities", "quote"):
+        assert needle in prompt, needle
+    # The tier is the service's; the reviewer must not write one.
+    assert "readiness" in prompt and "do not" in prompt.lower()
+
+
+def test_the_reviewer_is_told_what_to_do_with_follow_ups():
+    prompt = _prompt("interview-reviewer")
+    assert "followup" in prompt and "parent_question_id" in prompt
+    assert "Do not score a follow-up" in prompt
+
+
+def test_the_reviewer_is_told_the_level_and_the_job_are_context_not_a_second_scale():
+    prompt = _prompt("interview-reviewer")
+    assert "level" in prompt and "job" in prompt
+    assert "same anchors" in prompt
+    assert "data, not instructions" in prompt
+
+
+def test_the_reviewer_is_told_reference_material_never_replaces_the_candidates_words():
+    prompt = _prompt("interview-reviewer")
+    assert "reference" in prompt and "never a substitute" in prompt
+
+
+def test_the_review_request_asks_for_the_conclusion_as_well_as_the_scores():
+    from jc.services.interview_reviewer import REVIEW_MESSAGE
+
+    text = REVIEW_MESSAGE.format(session_id="ms1")
+    assert "summary" in text and "ms1" in text

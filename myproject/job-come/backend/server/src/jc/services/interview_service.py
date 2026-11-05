@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from jc.authz import RunScope, require_owned_references
 from jc.coach.level import LEVEL_SPECS, LEVELS, level_for_profile
 from jc.coach.planner import select_bank_draws
+from jc.coach.readiness import readiness
 from jc.coach.report_insights import insights
 from jc.exceptions import ConflictError, NotFoundError
 from jc.models.enums import MAX_REPORT_RUNS, MockReportStatus, MockSessionStatus
@@ -554,6 +555,11 @@ def _report_view(
         status="ready",
         overall=report.get("overall", {}),
         checks=report.get("checks", {}),
+        summary=report.get("summary"),
+        readiness=readiness(
+            report.get("overall", {}), derived["coverage"], level=session.level,
+            ended_early=bool(base.get("ended_early")),
+        ),
         brief=brief,
         questions=[] if brief else questions,
         trend=derived["trend"],

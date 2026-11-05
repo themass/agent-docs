@@ -19,8 +19,9 @@ REVIEWER_SKILL = "interview-reviewer"
 
 REVIEW_MESSAGE = (
     "请评审模拟会话 mock_session_id={session_id}。"
-    "用 jc_mock_session_history 读取整场问答，用 jc_profile_get 读取档案，"
-    "然后调用 jc_mock_report_write 写入报告一次。不要提问，不要回复候选人。"
+    "用 jc_mock_session_history 读取整场问答（含岗位、级别和追问），用 jc_profile_get 读取档案，"
+    "然后调用 jc_mock_report_write 写入报告一次：逐题评分，并写总评 summary。"
+    "不要提问，不要回复候选人。"
 )
 
 
