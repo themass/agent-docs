@@ -82,3 +82,14 @@ def test_the_interview_message_names_the_bound_job_and_mock_session():
     text = turn.TURN_PROVIDERS["mock_session"].message(
         ctx, {"mock_session_id": "ms1", "drawn_stems": []}, "coach-mock", "开始")
     assert "job_id=j1" in text and "ms1" in text
+
+
+def test_the_interview_message_does_not_forbid_the_interviewer_to_introduce_themselves():
+    # A real interviewer opens with a greeting and asks for a self-introduction; the wrapper once
+    # told the agent not to introduce itself, which kept the first turn mechanical.
+    ctx = TurnContext(db=None, profiles=None, actor=None, profile_id="p1", job_id="j1",
+                      ui_context=None, default_skill="coach-mock")
+    text = turn.TURN_PROVIDERS["mock_session"].message(
+        ctx, {"mock_session_id": "ms1", "drawn_stems": []}, "coach-mock", "开始")
+    assert "不要自我介绍" not in text
+    assert "面试官" in text

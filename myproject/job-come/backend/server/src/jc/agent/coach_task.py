@@ -36,7 +36,8 @@ def wrap_coach_mock_message(
     )
     return (
         "【面试模拟任务】\n"
-        "只用中文。不要自我介绍，不要调用 ask_clarification。\n"
+        "只用中文。你就是这场面试的面试官，像真人一样说话：口语、简短、一次只说一件事；"
+        "不要向用户提工具、登记、题库或系统。不要调用 ask_clarification。\n"
         f"档案 profile_id={bound_profile}；岗位 job_id={bound_job}；"
         f"模拟会话 mock_session_id={session}。\n"
         f"{draw_rule}\n"

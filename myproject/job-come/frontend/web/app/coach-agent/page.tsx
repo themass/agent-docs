@@ -63,7 +63,7 @@ function CoachAgentInner() {
           onSessionChange={setMockSessionId}
           onJobChange={changeJob}
           onStarted={(started) =>
-            setAutoStart({ id: started.id, message: "开始本轮模拟，请按本轮的岗位和风格出第一题。" })
+            setAutoStart({ id: started.id, message: "你好，我准备好了，可以开始面试了。" })
           }
           disabled={context?.actor !== "user"}
         />
