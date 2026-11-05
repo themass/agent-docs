@@ -10,14 +10,7 @@ import { IconArrowRight, IconChat } from "@/components/ui/Icon";
 import { getQuestionDetail, type QuestionDetail } from "@/lib/api/coach";
 import { userFacingApiError } from "@/lib/api/user-error";
 import { formatDateTime } from "@/lib/datetime";
-
-const TYPE_LABEL: Record<string, string> = {
-  behavioral: "行为/STAR",
-  project_deep: "项目深挖",
-  technical: "技术",
-  system_design: "系统设计",
-  other: "其他",
-};
+import { questionTypeLabel } from "@/lib/question-types";
 
 export default function QuestionDetailPage() {
   const params = useParams();
@@ -77,7 +70,7 @@ export default function QuestionDetailPage() {
             <p className="mt-2.5 flex flex-wrap items-center gap-1.5">
               {detail.company ? <span className="badge badge-neutral">{detail.company}</span> : null}
               <span className="badge badge-brand">
-                {TYPE_LABEL[detail.question_type] ?? detail.question_type}
+                {questionTypeLabel(detail.question_type)}
               </span>
               <span className="text-micro text-ink-500">练习 {detail.attempt_count} 次</span>
               {detail.best_score != null ? (

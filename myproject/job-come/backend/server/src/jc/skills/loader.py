@@ -89,6 +89,9 @@ class SkillPackage:
     always_loaded: tuple[str, ...]
     #: A skill that has no family fragments of its own borrows them from this skill.
     borrow_family_from: str | None
+    #: Which view of a role family this skill is given: "writing" (how to write a résumé for that
+    #: audience, the default) or "interview" (where to probe and what a good answer shows).
+    playbook_view: str = "writing"
 
     def reference(self, name: str) -> str:
         """Return one reference body, or empty string when this skill has no such topic.
@@ -105,7 +108,8 @@ def _skills_roots() -> tuple[Path, ...]:
     return tuple(p for p in (root / "public", root / "custom") if p.is_dir())
 
 
-_METADATA_KEYS = frozenset({"always-loaded", "borrow-family-from"})
+_METADATA_KEYS = frozenset({"always-loaded", "borrow-family-from", "playbook"})
+_PLAYBOOK_VIEWS = ("writing", "interview")
 
 
 def _parse_skill_markdown(text: str, *, where: Path) -> tuple[dict, str]:
@@ -147,6 +151,9 @@ def _package(skill_dir: Path, text: str) -> SkillPackage:
     borrow = metadata.get("borrow-family-from")
     if borrow is not None and not isinstance(borrow, str):
         raise ValueError(f"{where}: borrow-family-from must be a skill id")
+    view = metadata.get("playbook", "writing")
+    if view not in _PLAYBOOK_VIEWS:
+        raise ValueError(f"{where}: playbook must be one of {_PLAYBOOK_VIEWS}, got {view!r}")
     return SkillPackage(
         id=skill_dir.name,
         description=description.strip(),
@@ -155,6 +162,7 @@ def _package(skill_dir: Path, text: str) -> SkillPackage:
         allowed_tools=_names(front.get("allowed-tools"), where=where, key="allowed-tools"),
         always_loaded=_names(metadata.get("always-loaded"), where=where, key="always-loaded"),
         borrow_family_from=borrow,
+        playbook_view=view,
     )
 
 

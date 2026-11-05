@@ -4,6 +4,7 @@ description: Independent reviewer that scores a finished mock interview and writ
 allowed-tools: [jc_profile_get, jc_mock_session_history, jc_mock_report_write]
 metadata:
   always-loaded: [rubric]
+  playbook: interview
 ---
 You are the **独立评审** for a finished mock interview. You are a spectator, not an interviewer.
 

@@ -61,6 +61,31 @@ class RolePlaybook:
     quantification_optional: bool = False
     #: Sections a recruiter in this family reads first, strongest first.
     section_priority: tuple[str, ...] = ("summary", "experience", "projects", "education", "skills")
+    #: Where an interviewer for this line of work digs, and what a reviewer looks for in the answer.
+    #: Directions to probe, never facts about the candidate. A first draft that wants reading by
+    #: someone who does this work: it is guidance for the model, not a curated question bank.
+    probe_angles: tuple[str, ...] = ()
+
+    def as_interview_block(self) -> str:
+        """Render the family for an interviewer or a reviewer (not for writing a résumé).
+
+        Empty when the family has nothing specific to say, so the neutral family adds nothing."""
+        if not self.probe_angles:
+            return ""
+        lines = [
+            f"岗位族：{self.label}（`{self.id}`）",
+            "这个岗位的成果通常这样衡量（只当作追问的方向，不要替候选人编数字）："
+            + "、".join(self.outcome_metrics),
+            "工作的对象通常是：" + "、".join(self.object_nouns),
+            "可以往这些方向追问，也是评审判断回答是否站得住的角度：",
+        ]
+        lines.extend(f"- {angle}" for angle in self.probe_angles)
+        if self.quantification_optional:
+            lines.append(
+                "这个岗位的结果常常不是数字。说清范围、避免的风险、促成的决定，也是完整的回答，"
+                "不要逼候选人给数字，更不要替他编。"
+            )
+        return "\n".join(lines)
 
     def as_prompt_block(self) -> str:
         """Render the playbook for injection into the writer/reviewer prompts."""
@@ -106,6 +131,11 @@ PLAYBOOKS: dict[str, RolePlaybook] = {
             "稳定性工作用「事故前后对比」表达，比「负责稳定性」有力得多。",
         ),
         section_priority=("summary", "experience", "projects", "skills", "education"),
+        probe_angles=(
+            "为什么选这个方案，放弃了什么，代价在哪里",
+            "规模和瓶颈：量级是多少，第一个撑不住的是什么",
+            "出过的问题：怎么发现、怎么定位、怎么避免再来一次",
+        ),
     ),
     "frontend": _pb(
         id="frontend",
@@ -120,6 +150,11 @@ PLAYBOOKS: dict[str, RolePlaybook] = {
             "组件库/基建类工作用「被多少业务线复用」表达影响面。",
         ),
         section_priority=("summary", "experience", "projects", "skills", "education"),
+        probe_angles=(
+            "用户体验和性能怎么权衡，用什么指标看",
+            "改动怎么保证不回归，上线怎么控制风险",
+            "和设计、后端的协作边界，出分歧时怎么定",
+        ),
     ),
     "ios": _pb(
         id="ios",
@@ -128,6 +163,11 @@ PLAYBOOKS: dict[str, RolePlaybook] = {
         object_nouns=("App 模块", "启动链路", "离线能力", "推送通道", "热修复方案"),
         framing_angles=("端上工作强调弱网、机型碎片与版本兼容带来的真实约束。",),
         section_priority=("summary", "experience", "projects", "skills", "education"),
+        probe_angles=(
+            "性能、内存、包体积上做过什么，怎么测量",
+            "版本兼容和发版节奏中遇到的取舍",
+            "线上崩溃或审核问题是怎么处理的",
+        ),
     ),
     "devops": _pb(
         id="devops",
@@ -141,6 +181,11 @@ PLAYBOOKS: dict[str, RolePlaybook] = {
             "成本治理要给出节省绝对值或比例，这是最被管理者关注的一类成果。",
         ),
         section_priority=("summary", "experience", "projects", "skills", "education"),
+        probe_angles=(
+            "故障怎么发现、怎么恢复、怎么复盘",
+            "变更怎么灰度、怎么回滚，风险怎么控制",
+            "成本和效率上做过的取舍",
+        ),
     ),
     "data": _pb(
         id="data",
@@ -156,6 +201,11 @@ PLAYBOOKS: dict[str, RolePlaybook] = {
             "实验结论要带样本量与置信度语境，这是专业度最直接的体现。",
         ),
         section_priority=("summary", "experience", "projects", "skills", "education"),
+        probe_angles=(
+            "指标口径怎么定义，怎么保证各处一致",
+            "分析结论最后推动了什么决定",
+            "数据质量出问题时怎么发现和处理",
+        ),
     ),
     "pm": _pb(
         id="pm",
@@ -170,6 +220,11 @@ PLAYBOOKS: dict[str, RolePlaybook] = {
             "跨团队推动力是产品岗的核心证据，写清协同范围与阻力。",
         ),
         section_priority=("summary", "experience", "projects", "skills", "education"),
+        probe_angles=(
+            "为什么做这个需求而不是别的，优先级是怎么判断的",
+            "上线后指标怎么变，没达预期时怎么复盘",
+            "跨团队推动中遇到的阻力和取舍",
+        ),
     ),
     "design": _pb(
         id="design",
@@ -186,6 +241,11 @@ PLAYBOOKS: dict[str, RolePlaybook] = {
         must_haves=("作品集链接（无作品集的设计简历基本无法进入评估）",),
         quantification_optional=True,
         section_priority=("summary", "projects", "experience", "skills", "education"),
+        probe_angles=(
+            "这个设计背后的用户问题是什么，凭什么确定它是问题",
+            "和产品、研发的取舍，落地时和设计稿有什么偏差",
+            "怎么验证设计有效，没效果时怎么调整",
+        ),
     ),
     "operations": _pb(
         id="operations",
@@ -198,6 +258,11 @@ PLAYBOOKS: dict[str, RolePlaybook] = {
             "没预算条件下的低成本验证是运营岗很强的加分项。",
         ),
         section_priority=("summary", "experience", "projects", "skills", "education"),
+        probe_angles=(
+            "机制是怎么设计的，不只是执行了什么活动",
+            "效果归因：多少是自然增长，多少是运营带来的",
+            "没有预算时怎么低成本验证想法",
+        ),
     ),
     "marketing": _pb(
         id="marketing",
@@ -209,6 +274,11 @@ PLAYBOOKS: dict[str, RolePlaybook] = {
             "预算规模本身就是 scope 证据，写清你管了多少预算。",
         ),
         section_priority=("summary", "experience", "projects", "skills", "education"),
+        probe_angles=(
+            "渠道和预算分配的依据是什么",
+            "转化漏斗每一步的判断，哪一步最该改",
+            "品牌和效果之间的取舍",
+        ),
     ),
     "sales": _pb(
         id="sales",
@@ -224,6 +294,11 @@ PLAYBOOKS: dict[str, RolePlaybook] = {
             "完成率、排名、绝对额三者至少给两个，单给一个容易被当成挑好的说。",
         ),
         section_priority=("summary", "experience", "skills", "projects", "education"),
+        probe_angles=(
+            "怎么判断一个线索或客户值不值得跟",
+            "推进中最关键的卡点是什么，当时怎么处理",
+            "复盘一次丢掉的单子，原因和下次的做法",
+        ),
     ),
     "customer_success": _pb(
         id="customer_success",
@@ -237,6 +312,11 @@ PLAYBOOKS: dict[str, RolePlaybook] = {
             "管辖客户数与 ARR 规模是 scope 证据，必须写。",
         ),
         section_priority=("summary", "experience", "skills", "projects", "education"),
+        probe_angles=(
+            "怎么判断客户的健康度，什么信号会提前预警",
+            "续约或流失的原因是怎么归因的",
+            "客户诉求和内部资源冲突时怎么协调",
+        ),
     ),
     "hr": _pb(
         id="hr",
@@ -251,6 +331,11 @@ PLAYBOOKS: dict[str, RolePlaybook] = {
         ),
         quantification_optional=True,
         section_priority=("summary", "experience", "skills", "projects", "education"),
+        probe_angles=(
+            "招聘、绩效或员工关系里一次判断的依据",
+            "处理过的一次困难沟通，当时的取舍",
+            "怎么衡量自己工作的效果",
+        ),
     ),
     "finance": _pb(
         id="finance",
@@ -265,6 +350,11 @@ PLAYBOOKS: dict[str, RolePlaybook] = {
         ),
         quantification_optional=True,
         section_priority=("summary", "experience", "skills", "projects", "education"),
+        probe_angles=(
+            "数据口径和合规上怎么保证准确",
+            "分析最后怎么影响了业务决策",
+            "风险是怎么识别和控制的",
+        ),
     ),
     "legal": _pb(
         id="legal",
@@ -280,6 +370,11 @@ PLAYBOOKS: dict[str, RolePlaybook] = {
         ),
         quantification_optional=True,
         section_priority=("summary", "experience", "skills", "projects", "education"),
+        probe_angles=(
+            "风险判断的依据是什么，怎么取舍",
+            "怎么把意见落到业务上，业务不接受时怎么办",
+            "一次复杂条款或争议是怎么处理的",
+        ),
     ),
     "management": _pb(
         id="management",
@@ -294,6 +389,11 @@ PLAYBOOKS: dict[str, RolePlaybook] = {
             "写清你被授权的决策范围——预算、人员、技术选型，这决定了职级判断。",
         ),
         section_priority=("summary", "experience", "projects", "skills", "education"),
+        probe_angles=(
+            "团队目标是怎么拆解并对齐到每个人的",
+            "一次困难的人事或资源决策，怎么权衡",
+            "怎么衡量团队的产出和成长",
+        ),
     ),
     GENERAL: _pb(
         id=GENERAL,

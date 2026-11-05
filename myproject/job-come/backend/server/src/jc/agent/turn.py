@@ -108,10 +108,14 @@ class _MockSession:
                 question = await store.get_question(qid)
                 if question is not None:
                     drawn.append(question.stem)
+        from jc.coach.role_family import family_of_session
+
         return {
             "mock_session_id": mock.id if mock is not None else None,
             "drawn_stems": drawn,
             "level": mock.level if mock is not None else None,
+            # The interviewer is given the guidance for the job's line of work, not the résumé's.
+            "role_family": await family_of_session(ctx.db, mock) if mock is not None else None,
         }
 
     def message(self, ctx: TurnContext, facts: dict[str, Any], skill: str, text: str) -> str:

@@ -24,14 +24,7 @@ import { MockProgress } from "@/components/coach/MockProgress";
 import { listJobs, type Job } from "@/lib/api/jobs";
 import { userFacingApiError } from "@/lib/api/user-error";
 import { sessionStillApplies } from "@/lib/mock-interview";
-
-const TYPES = [
-  { id: "behavioral", label: "行为/STAR" },
-  { id: "project_deep", label: "项目深挖" },
-  { id: "technical", label: "技术" },
-  { id: "system_design", label: "系统设计" },
-  { id: "other", label: "其他" },
-];
+import { QUESTION_TYPES } from "@/lib/question-types";
 
 const ROUND_GOAL = 3;
 
@@ -503,7 +496,7 @@ export function CoachFlywheel({
                   value={qType}
                   onChange={(e) => setQType(e.target.value)}
                 >
-                  {TYPES.map((t) => (
+                  {QUESTION_TYPES.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.label}
                     </option>

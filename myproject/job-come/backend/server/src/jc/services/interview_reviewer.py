@@ -46,13 +46,18 @@ async def review_session(
     if session.report:
         return True
 
+    from jc.coach.role_family import family_of_session
+
     await run_subtask(
         REVIEWER_SKILL,
         db=db,
         user_id=user_id,
         profile_id=profile_id,
         message=REVIEW_MESSAGE.format(session_id=mock_session_id),
-        extra={"mock_session_id": mock_session_id},
+        extra={
+            "mock_session_id": mock_session_id,
+            "role_family": await family_of_session(db, session),
+        },
         budget_seconds=budget_seconds,
     )
     # The reviewer wrote through its own tool call, on another session of the database.

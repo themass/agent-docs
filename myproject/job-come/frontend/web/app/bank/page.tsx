@@ -10,14 +10,7 @@ import { IconArrowRight, IconBookmark, IconSpark } from "@/components/ui/Icon";
 import { searchBank, type QuestionSummary } from "@/lib/api/coach";
 import { userFacingApiError } from "@/lib/api/user-error";
 import { useAuth } from "@/lib/auth/AuthProvider";
-
-const TYPE_LABEL: Record<string, string> = {
-  behavioral: "行为/STAR",
-  project_deep: "项目深挖",
-  technical: "技术",
-  system_design: "系统设计",
-  other: "其他",
-};
+import { questionTypeLabel } from "@/lib/question-types";
 
 /** Score colour only at the ends; a 6/10 is not worth a colour. */
 function scoreBadge(score: number): string {
@@ -170,7 +163,7 @@ function BankInner() {
                   <p className="mt-2 flex flex-wrap items-center gap-1.5">
                     {q.company ? <span className="badge badge-neutral">{q.company}</span> : null}
                     <span className="badge badge-brand">
-                      {TYPE_LABEL[q.question_type] ?? q.question_type}
+                      {questionTypeLabel(q.question_type)}
                     </span>
                     <span className="text-micro text-ink-500">练习 {q.attempt_count} 次</span>
                     {q.best_score != null ? (

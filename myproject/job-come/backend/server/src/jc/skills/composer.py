@@ -182,5 +182,10 @@ def compose_turn_methodology(*, skill_id: str, playbook: RolePlaybook | None) ->
     """
     parts = [text for _, text in _select_layers(skill_id, playbook)]
     if playbook is not None:
-        parts.append(_section("这份档案的岗位族", playbook.as_prompt_block()))
+        if require_skill(skill_id).playbook_view == "interview":
+            block = playbook.as_interview_block()
+            if block:
+                parts.append(_section("这场面试的岗位族", block))
+        else:
+            parts.append(_section("这份档案的岗位族", playbook.as_prompt_block()))
     return "\n\n".join(parts)

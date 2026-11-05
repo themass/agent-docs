@@ -72,7 +72,8 @@ async def test_the_reviewer_runs_as_its_own_agent_with_the_session_identity(make
     run = agent.runs[0]
     assert run["skill"] == REVIEWER_SKILL == "interview-reviewer"
     assert run["metadata"].skill_hint == "interview-reviewer"
-    assert run["metadata"].extra == {"mock_session_id": "ms1"}
+    # The session's job decides the family; this one has none the product can place.
+    assert run["metadata"].extra == {"mock_session_id": "ms1", "role_family": "general"}
     assert "ms1" in run["context"]["message"]
     assert "不要提问" in run["context"]["message"]
     async with maker() as s:
