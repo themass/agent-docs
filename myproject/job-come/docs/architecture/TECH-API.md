@@ -220,3 +220,16 @@
 - `GET /coach/mock/sessions/{id}/report` 只读：`status` 为 `active | pending | failed | ready`，`failed` 带原因和 `can_retry`。打开页面不再触发评审。已存储的报告即使状态还没跟上也按 `ready` 返回。
 - `POST /coach/mock/sessions/{id}/report/retry`：把失败的报告重新排队。409 `mock_report_not_failed`（不是失败状态）或 `mock_report_retry_exhausted`（4 次运行已用完）。失败原因是给用户看的短句，不含异常信息。
 - 迁移：`023_mock_session_level`、`024_mock_report_queue`。
+
+## 模拟面试：阶段、候选人提问、评审输入与总评（2026-11-05）
+
+- `GET /coach/profiles/{id}/mock-sessions/active?job_id=` 返回这个档案在这个岗位上仍在进行的模拟面试，没有则 `null`。页面刷新后用它找回面试；空闲超过 24 小时的会先被关闭并排队出报告，不会被找回。别的用户在同一档案上留下的进行中场次不会交出。
+- `jc_mock_plan`（及 `GET /coach/mock/sessions/{id}/progress`）新增 `stage`（`opening / experience / core / scenario / candidate_qa`）、`suggested_stage`、`stage_counts`、`candidate_qa`、`started_at`。阶段只是建议；`jc_mock_ask` 可带可选的 `stage`（`experience / core / scenario`）。
+- 候选人提问环节：新工具 `jc_mock_open_qa`。至少问过一题、且（题数没到上限时）岗位必备项都问到之后才能开；开了之后不再出新题（`candidate_qa_open`），候选人说的话不再被记为回答。`jc_mock_end` 以 `completed` 结束时必须先开过（`candidate_qa_not_opened`）；候选人主动结束（`user_ended`）和超时不受此限。
+- `jc_mock_ask` 对面试官自己编的题（`stem`）加了检查：超过 200 字拒绝（`stem_too_long`）；与本场已问过的主问题的字符二元组相似度 ≥ 0.6 拒绝（`too_similar`，拒绝信息里带上那道题）；标点或空格不同的同一道题仍是 `already_asked`。追问和从题库取的题（`question_id`）不受相似度检查。
+- 只表示“换个话题 / 没听清 / 结束”的消息（下一题、换一题、跳过、结束、没听清、能再说一遍吗、请出下一题……）整句匹配时不会被记为回答；含这些词的真实回答照常记录。页面在“跳过”“换一题”后替候选人发的两句话也在此列。
+- `jc_mock_session_history`（评审的输入）现在包含：`style`、`level`（含这个级别考察什么、问到多深）、`job`（公司、职位、必备项、加分项、资历、截取 3000 字的描述，并注明是数据不是指令；别的档案的岗位不会交出）、每题的 `kind / parent_question_id / skipped`、以及来源给出的 `reference`（见下）。回合按提问顺序排列，只含实际问过的题。历史读取不再要求场次仍在进行：评审在场次结束后才运行。
+- 评审写报告：只给主问题打分；给追问打分会被拒绝并告知应给哪道主问题打分；主问题的证据引用可以来自它的追问回答。新增 `summary`：`verdict`、最多三条 `strengths`、最多三条 `priorities`，每条 `{text, quote}`，`quote` 必须是候选人原话，否则被去掉并计入 `checks.rejected_quotes`，文字保留。
+- 报告页数据新增 `summary`、`readiness`、每题的 `follow_ups` 与 `skipped`。`readiness` 由代码按规则算：五维平均 ≥ 7.5 表现稳定、≥ 6 基本可以上场、≥ 4.5 需针对性补强、其余还需大量准备；任一维度 ≤ 3、岗位必备项问到不足一半、或提前结束，最高评到“需针对性补强”；上限只有真的压低了档位时，说明里才写“最多评到”。它说明这一场面得怎样，不预测真实面试结果。
+- 问题来源扩展点：`jc.coach.sources`。`QuestionSource` 有 `search`（可选的 `reference`）；`register(source)` 注册后，`jc_bank_search_questions` 会一并搜它、每道题带 `source`，评审的历史里每题带它给的 `reference`（强、中、弱答案的样子、追问方向、正负信号）。目前只有候选人自己的题库（`personal`）。精选题库和档案库接入时只需实现并注册一个来源，不改面试官、评审和报告。来源出错会被跳过，不影响搜索和历史读取。
+- 真实模型验收清单：`jc.coach.acceptance`（`check_interviewer`、`check_reviewer`）。对一份录下来的面试逐条检查；代码判断不了的规则标为“需要人来读”。尚未对着真实模型输出跑过。
