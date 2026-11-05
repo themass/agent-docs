@@ -15,7 +15,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "prepare": "tsc -p tsconfig.json",
-    "check": "tsx src/mcp-servers-json.self-check.ts && tsx src/tool-names.self-check.ts && tsx src/capability-gates.self-check.ts && tsx src/sanitize-untrusted-text.self-check.ts"
+    "check": "tsx src/mcp-servers-json.self-check.ts && tsx src/tool-names.self-check.ts && tsx src/capability-gates.self-check.ts && tsx src/sanitize-untrusted-text.self-check.ts && tsx src/tool-specs.self-check.ts"
   },
   "dependencies": {
     "zod": "^4.0.0"

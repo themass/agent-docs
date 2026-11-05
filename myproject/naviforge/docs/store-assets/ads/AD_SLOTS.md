@@ -11,8 +11,8 @@
 
 | ID | HTML 文件 | 扩展 surface | 界面位置 | 建议尺寸 / 格式 | 同屏与其它位 |
 |----|-----------|--------------|----------|-----------------|--------------|
-| **NVF-ADS-01** | `agent-feed.html` | `agentFeed` | 侧栏 Agent：空状态欢迎区；或**首条回复下方** | 320×50 / 728×90 或 responsive horizontal | 与 02 同屏最多共 **2** 个 iframe |
-| **NVF-ADS-02** | `agent-thinking.html` | `agentThinking` | 侧栏 Agent：**Thinking 进度条下方**（sticky） | 同上，偏窄横向 | 与 01 同屏最多共 **2** 个 |
+| **NVF-ADS-01** | `agent-feed.html` | `agentFeed` | 侧栏 Agent：**仅空状态欢迎区**（不挂在首条回复下） | 320×50 / 728×90 或 responsive horizontal | 默认不在 `AD_ENABLED_SURFACES`；开通后与 02 同屏最多共 **2** 个 iframe |
+| **NVF-ADS-02** | `agent-thinking.html` | `agentThinking` | 侧栏 Agent：Thinking 条下方（代码保留挂载，**默认关闭**） | 同上，偏窄横向 | 不要放进 `AD_ENABLED_SURFACES`，除非明确接受任务进行中广告 |
 | **NVF-ADS-03** | `screenshot.html` | `screenshot` | 截图工作室编辑区 | 728×90 responsive | 单独 1 个 |
 | **NVF-ADS-04** | `options.html` | `options` | 设置 / 控制中心 **页顶** | 728×90 responsive | 单独 1 个 |
 | **NVF-ADS-05** | `ocr.html` | `ocr` | 设置 → ToolKit **工具列表下方** | 728×90 responsive | 单独 1 个 |
@@ -27,6 +27,20 @@
 1. **Google AdSense 账号**（网站/content 审核通过）
 2. **发布商 ID**：`ca-pub-xxxxxxxxxxxxxxxx`（5 个单元共用同一 client，**slot 不同**）
 3. **5 个 `data-ad-slot` 值**（AdSense → 广告 → 按展示广告单元创建）
+
+---
+
+## 开通顺序
+
+`AD_EMBED_BASE_URL` 为空时全部不渲染。填上公网目录后，只渲染 [`AD_ENABLED_SURFACES`](../../../apps/extension/src/lib/ads-config.ts) 里的面：
+
+| 波次 | Surface | 默认 |
+|------|---------|------|
+| 1 | `options`（04）、`ocr`（05）、`screenshot`（03） | **开**（有 base URL 即显示） |
+| 2 | `agentFeed`（01，仅空状态） | 关。确认空状态不挡主操作后，把 `'agentFeed'` 加进数组 |
+| 3 | `agentThinking`（02） | 关。不建议开 |
+
+不要在 content script、popup、登录回调或 `apps/host` 加广告。扩展包内不要加载 `adsbygoogle.js`。
 
 ---
 

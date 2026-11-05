@@ -67,7 +67,13 @@ export {
   type ChatCompletionResult,
   type ReasoningEffort,
 } from './llm.js'
-export { KERNEL_PROMPT, composeSystemPrompt, compileUserPrompt, compileUserPromptBlocks } from './prompt.js'
+export {
+  KERNEL_PROMPT,
+  composeSystemPrompt,
+  compileUserPrompt,
+  compileUserPromptBlocks,
+  shouldIncludeSpawnSection,
+} from './prompt.js'
 export {
   MCP_TOOL_CAP,
   exposeMcpTools,
@@ -172,6 +178,14 @@ export { findSiteRecipe, hostFromUrl, recipeHostMatches } from './site-recipe.js
 export type { RecipePlane } from './recipe-plane.js'
 export { runSiteRecipe, type RecipeRunResult } from './recipe-runner.js'
 export { isMediaTask, resolveTaskIntent, intentPreflightSkill, intentGuidanceNotes, type TaskIntent } from './task-intent.js'
+export { preferredSkillIdsForTask } from './preferred-skills.js'
+export {
+  looksLikeMediaTask,
+  looksLikeScriptTask,
+  looksLikeWeakExtract,
+  looksLikeDeniedTask,
+  looksLikeDownloadTask,
+} from './task-signals.js'
 export {
   resolveDeliverable,
   lockDeliverable,

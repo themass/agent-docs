@@ -32,7 +32,7 @@
       color: var(--text);
     }
     main {
-      max-width: 720px;
+      max-width: 760px;
       margin: 0 auto;
       padding: 32px 20px 48px;
     }
@@ -68,118 +68,265 @@
   <main>
     <article>
       <h1>NaviForge Privacy Policy</h1>
-      <p class="meta">Last updated: 2026-09-29</p>
+      <p class="meta">Last updated: 2026-11-06</p>
 
       <p>
-        NaviForge (“we”, “the extension”) is a Chrome extension that runs an AI agent in
-        your browser. This policy describes what data is processed, where it stays, and what
-        you control.
+        NaviForge (“we”, “the Product”, “the extension”) is a Chrome browser extension that helps
+        you run an AI agent on web pages you choose. This privacy policy explains
+        <strong>what personal or sensitive user data we collect</strong>,
+        <strong>how we handle and use it</strong>,
+        <strong>how we store it</strong>, and
+        <strong>how we share it</strong>.
+        Each of these topics is addressed in its own section below.
+      </p>
+      <p>
+        <strong>Developer / data controller contact:</strong>
+        <a href="mailto:justbegin010@gmail.com">justbegin010@gmail.com</a>
       </p>
 
-      <h2>Summary</h2>
+      <h2>1. Summary</h2>
       <ul>
-        <li><strong>Local-first</strong>: Chat history, settings, and workspace files default to your device.</li>
-        <li><strong>Bring your own model (default)</strong>: If you configure your own API, data goes directly to your chosen LLM provider—we do not receive that traffic.</li>
-        <li><strong>Optional hosted inference</strong>: If you register and choose fully managed mode, requests go through our API; usage counts against your plan. Login is required only for hosted mode.</li>
-        <li><strong>Optional local Host</strong>: Separate software on your machine; not included in the Chrome Web Store package.</li>
+        <li><strong>Local-first by default</strong>: Chat history, settings, optional API keys, and workspace files are stored on your device.</li>
+        <li><strong>Bring your own model (BYOK, default)</strong>: Task content goes to the LLM or search provider <em>you</em> configure. We do not receive that traffic in BYOK mode.</li>
+        <li><strong>Optional hosted inference</strong>: If you enable managed mode and sign in, requests may go through our API gateway for metering.</li>
+        <li><strong>Optional ads</strong>: When enabled in a release, Google AdSense may load in iframes from pages we host.</li>
+        <li><strong>We do not sell</strong> your personal or sensitive user data.</li>
       </ul>
 
-      <h2>Data the extension may process</h2>
+      <h2>2. Personal and sensitive user data we collect</h2>
+      <p>Depending on which features you use, the Product may process:</p>
       <table>
         <thead>
           <tr>
-            <th>Data</th>
-            <th>Purpose</th>
-            <th>Stored locally?</th>
-            <th>Sent off-device?</th>
+            <th>Category</th>
+            <th>Examples</th>
+            <th>When</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td>Page text / DOM summaries</td>
-            <td>Agent tasks</td>
-            <td>Session logs in extension storage / ~/NaviForge</td>
-            <td>To your LLM provider when you run the Agent</td>
+            <td><strong>Web page content</strong></td>
+            <td>Visible text, DOM summaries, links, titles, URLs of tabs you use with the Agent</td>
+            <td>When you run Agent or toolkit actions on a page</td>
           </tr>
           <tr>
-            <td>Screenshots / images / OCR</td>
-            <td>Vision tasks, screenshot studio</td>
-            <td>Workspace shots/ when saved</td>
-            <td>To your vision model when you OCR or attach images</td>
+            <td><strong>Screenshots &amp; images</strong></td>
+            <td>Page captures, OCR crops, screenshot-studio exports</td>
+            <td>When you capture, OCR, or attach images</td>
           </tr>
           <tr>
-            <td>Voice / microphone</td>
-            <td>Dictation in composer</td>
-            <td>Optional audio files in workspace</td>
-            <td>To speech/LLM services if you use voice features</td>
+            <td><strong>Audio</strong></td>
+            <td>Microphone input for dictation</td>
+            <td>Only if you use voice features and grant permission</td>
           </tr>
           <tr>
-            <td>API keys (LLM, Brave/Tavily search)</td>
-            <td>Authentication</td>
-            <td>chrome.storage.local if you enable “Store API Key”</td>
-            <td>Only to the provider you chose</td>
+            <td><strong>Credentials you provide</strong></td>
+            <td>LLM API keys, web-search API keys</td>
+            <td>If you enter them and enable “Store API Key”</td>
           </tr>
           <tr>
-            <td>Network metadata / bodies</td>
-            <td>Debugging, Agent verification</td>
-            <td>Sniff projects locally when enabled</td>
-            <td>Not to NaviForge; may appear in prompts to your LLM</td>
+            <td><strong>Account data (hosted mode only)</strong></td>
+            <td>Email / login identifiers, access tokens, usage or quota metadata</td>
+            <td>Only if you register and use managed login</td>
           </tr>
           <tr>
-            <td>Site profiles / playbooks</td>
-            <td>Faster re-extraction</td>
-            <td>Local storage / workspace</td>
-            <td>Only if included in Agent prompts</td>
+            <td><strong>Network technical data (optional)</strong></td>
+            <td>Request URLs, headers, response bodies from pages you debug</td>
+            <td>Only if you enable Network Plane or related privacy toggles</td>
+          </tr>
+          <tr>
+            <td><strong>Local settings &amp; activity</strong></td>
+            <td>Preferences, retention settings, run/session logs, site profiles/playbooks</td>
+            <td>While the extension is installed</td>
+          </tr>
+          <tr>
+            <td><strong>Ad-related identifiers (optional)</strong></td>
+            <td>Cookies or similar signals used by Google for ad delivery</td>
+            <td>Only when AdSense embeds are enabled in a release</td>
           </tr>
         </tbody>
       </table>
-
-      <h2>Optional features (higher risk, off by default)</h2>
-      <ul>
-        <li><strong>Network Plane / debugger</strong>: Observes network activity on pages you use with the Agent.</li>
-        <li><strong>Modify Header</strong>: Injects request/response headers on all http(s) traffic when you
-          explicitly enable it in Settings → Privacy.</li>
-        <li><strong>DOM script injection / MAIN probe</strong>: Only when toggled in Privacy settings.</li>
-      </ul>
-
-      <h2>Optional Local Host (not part of the Chrome Web Store package)</h2>
       <p>
-        You may install <strong>NaviForge Host</strong> separately: a process on 127.0.0.1 that lets
-        external tools (e.g. MCP clients) queue browser tasks and access your ~/NaviForge
-        folder. It uses a Bearer token on localhost. The Host does not send data to NaviForge;
-        it only communicates between your machine and the extension.
+        We do <strong>not</strong> require a NaviForge account for the default BYOK experience.
+        We do <strong>not</strong> intentionally collect government IDs, payment card numbers, or
+        precise GPS location through the extension UI. Chrome permissions (site access, storage,
+        optional debugger) are used only to provide listed features.
       </p>
 
-      <h2>Data retention and deletion</h2>
+      <h2>3. How we handle and use data</h2>
+      <p>We use the data above solely to:</p>
       <ul>
-        <li>Adjust <strong>activity retention</strong> in Settings → Privacy.</li>
-        <li><strong>Clear all local data</strong> in Settings → Advanced removes extension storage (not
-          ~/NaviForge unless you delete that folder yourself).</li>
-        <li>Disabling <strong>Store API Key</strong> and saving privacy settings removes stored keys.</li>
+        <li>Perform your requested tasks (Agent runs, OCR, screenshot studio, toolkit actions).</li>
+        <li>Authenticate to services you configure (your LLM/search keys, or hosted login tokens).</li>
+        <li>Persist local history and settings across sessions.</li>
+        <li>Improve reliability on your device (optional local site profiles / playbooks).</li>
+        <li>Meter optional hosted usage if you use managed inference.</li>
+        <li>Show optional advertising if AdSense is enabled in that release.</li>
+        <li>Respond to support requests you send to our contact email.</li>
       </ul>
+      <p>
+        We do <strong>not</strong> use your page content to train our own models unless a future
+        hosted feature explicitly discloses that and you opt in (today: <strong>no</strong>).
+      </p>
 
-      <h2>Advertising</h2>
+      <h2>4. How we store data</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Location</th>
+            <th>What</th>
+            <th>Your control</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Your browser (<code>chrome.storage</code>)</td>
+            <td>Settings, optional API keys, extension activity logs</td>
+            <td>Clear via Settings → Advanced / retention controls</td>
+          </tr>
+          <tr>
+            <td>Your computer (<code>~/NaviForge</code> when used)</td>
+            <td>Saved files, scripts, shots, optional audio</td>
+            <td>Delete the folder yourself; extension “clear” may not remove it</td>
+          </tr>
+          <tr>
+            <td>Your chosen LLM / search provider</td>
+            <td>Prompt content you send during a run</td>
+            <td>Subject to that provider’s privacy policy</td>
+          </tr>
+          <tr>
+            <td>NaviForge hosted API (optional)</td>
+            <td>Account session and usage metering</td>
+            <td>Email us to request account deletion</td>
+          </tr>
+          <tr>
+            <td>Ad embed host (optional)</td>
+            <td>AdSense scripts on pages we host for iframes</td>
+            <td>See Google’s policies; ads off until configured</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        <strong>Security:</strong> Keys and tokens are stored in extension storage when you opt in;
+        avoid storing keys on shared devices. Third-party API calls use HTTPS when the provider
+        supports it. Optional Local Host binds to <code>127.0.0.1</code> with a Bearer token and is
+        <strong>not</strong> part of the Chrome Web Store package.
+      </p>
+      <p>
+        <strong>Retention:</strong> Adjust activity retention in Settings → Privacy. Disabling
+        “Store API Key” and saving removes stored keys. Hosted account records are kept while the
+        account is active and as needed for billing or abuse prevention.
+      </p>
+
+      <h2>5. How we share data</h2>
+      <p>
+        We share or transmit data only as described below.
+        <strong>We do not sell personal or sensitive user data.</strong>
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Recipient</th>
+            <th>What may be shared</th>
+            <th>Purpose</th>
+            <th>When</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>LLM / vision / speech providers you configure</td>
+            <td>Page text, images, prompts, tool results</td>
+            <td>Complete Agent / OCR / voice tasks</td>
+            <td>Each BYOK or vision run you start</td>
+          </tr>
+          <tr>
+            <td>Web search providers you configure</td>
+            <td>Search queries</td>
+            <td>Web search tool</td>
+            <td>When you use search with those keys</td>
+          </tr>
+          <tr>
+            <td>NaviForge hosted gateway</td>
+            <td>Account auth; prompts/usage as needed for the plan</td>
+            <td>Hosted inference and metering</td>
+            <td>Only if you enable hosted mode and sign in</td>
+          </tr>
+          <tr>
+            <td>Google (AdSense)</td>
+            <td>Standard ad / cookie signals</td>
+            <td>Display ads in extension UI iframes</td>
+            <td>Only if ads are enabled in that release</td>
+          </tr>
+          <tr>
+            <td>Static file / documentation host</td>
+            <td>Ordinary web server logs (IP, user agent) when you open this page</td>
+            <td>Serve this policy</td>
+            <td>When you visit this URL</td>
+          </tr>
+          <tr>
+            <td>Legal / safety</td>
+            <td>Limited data if required</td>
+            <td>Comply with law or protect users</td>
+            <td>Only when legally required or to prevent abuse</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        <strong>Optional Local Host</strong> (separate install) exchanges data only between
+        processes on your machine and the extension; it does not send browsing data to NaviForge servers.
+      </p>
+
+      <h2>6. Advertising</h2>
       <p>
         When enabled, NaviForge may show <strong>Google AdSense</strong> display ads inside
         extension pages (side panel, settings, screenshot studio). Ads load in an iframe from
-        pages we host on our website—not inside the extension package. Google may use cookies
-        or similar technologies for ad delivery and measurement; see
-        <a href="https://policies.google.com/technologies/ads" rel="noopener noreferrer">Google’s ad policies</a>.
-        You can use the extension with ads disabled; we turn ads on only after configuring our
-        AdSense embed URLs in a release.
+        pages we host—not inside the extension package. Google may use cookies or similar
+        technologies; see
+        <a href="https://policies.google.com/technologies/ads" rel="noopener noreferrer">Google’s advertising policies</a>.
+        Ads remain off until we configure AdSense embed URLs in a release.
       </p>
 
-      <h2>Children</h2>
-      <p>NaviForge is not directed at children under 13.</p>
+      <h2>7. Your choices and rights</h2>
+      <ul>
+        <li>Use BYOK without creating a NaviForge account.</li>
+        <li>Leave Network Plane, Modify Header, DOM inject/probe, and ads off (defaults / release configuration).</li>
+        <li>Clear local extension data in Settings; delete <code>~/NaviForge</code> manually if needed.</li>
+        <li>Revoke Chrome site permissions or uninstall the extension at any time.</li>
+        <li>For hosted accounts or privacy questions, email
+          <a href="mailto:justbegin010@gmail.com">justbegin010@gmail.com</a>
+          to request access, correction, or deletion of account-related data we hold.</li>
+      </ul>
 
-      <h2>Changes</h2>
+      <h2>8. Children</h2>
       <p>
-        We may update this policy. Material changes will be reflected in the extension release
-        notes or an updated date above.
+        NaviForge is not directed at children under 13. We do not knowingly collect personal
+        information from children under 13. If you believe a child has provided such data,
+        contact us and we will delete it.
       </p>
 
-      <h2>Contact</h2>
-      <p>Support: <a href="mailto:justbegin010@gmail.com">justbegin010@gmail.com</a></p>
+      <h2>9. International transfers</h2>
+      <p>
+        If you use third-party APIs or hosted mode, data may be processed in countries where those
+        providers or our gateway operate. Those transfers are necessary to provide the feature you
+        requested and are subject to the recipient’s terms and applicable law.
+      </p>
+
+      <h2>10. Changes</h2>
+      <p>
+        We may update this policy. The “Last updated” date above will change when we do. Material
+        changes will also be noted in extension release notes when practical. Continued use after
+        an update means you accept the revised policy.
+      </p>
+
+      <h2>11. Contact</h2>
+      <p>
+        Support and privacy inquiries:
+        <a href="mailto:justbegin010@gmail.com">justbegin010@gmail.com</a>
+      </p>
+      <p>
+        If you have questions about collection, handling, storage, or sharing of your data,
+        contact us at the address above.
+      </p>
     </article>
   </main>
 </body>

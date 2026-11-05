@@ -60,38 +60,56 @@ const GENERIC_SKILLS: Skill[] = [
 - 结论先行，短 bullet；不要滚动收割正文。
 - 冒烟：snapshot → 点主 CTA → 验证文案 → 报告通过/失败。
 - 登录墙：改 load friction，不要空转 read。
-- 非本 skill：页外对比（research）、列表翻详情/分页（traverse）、抽字段/媒体 URL（harvest）。`,
+- 非本 skill：页外对比（research）、列表翻详情/分页（traverse）、媒体 URL（media-harvest）、表单（form-harvest）、比价（price-harvest）。`,
   },
   {
     manifest: {
-      id: 'harvest',
+      id: 'media-harvest',
       version: '1.0.0',
-      description: '从当前上下文抽出结构化字段（含媒体 URL、表单值、比价表）。非：多页爬全站、页外竞品调研。',
-      triggers: [
-        '提取',
-        '源地址',
-        'm3u8',
-        'mp4',
-        'hls',
-        '播放',
-        'media',
-        '表单',
-        'form',
-        '比价',
-        '价格',
-        '商品',
-      ],
+      description: '抽出媒体播放源（m3u8/mp4/hls）。非：介绍、总结、表单、比价、爬取、分页、对比、竞品、github、调研。',
+      triggers: ['源地址', 'm3u8', 'mp4', 'hls', '播放', 'media', '视频', '流地址'],
       permissions: { tools: HARVEST_TOOLS },
     },
-    instructions: `# harvest
+    instructions: `# media-harvest
 
-从**已有页面上下文**抽出结构化记录，不发明站点 SOP。
+从**已有页面上下文**抽出媒体 URL，不发明站点 SOP。
+非本 skill：表单填写 → form-harvest；比价/商品字段 → price-harvest；介绍/总结 → observe；跨页爬取 → traverse。
 
 1. PAGE STATE / PAGE SIGNALS 优先。
-2. 列表：browser_observe action=read mode=list（或 extract）。
-3. 媒体 URL：先 DOM 触发播放（browser_act click），再 network action=read mode=media|hls。无直链则 shortfall，勿破解 DRM。
-4. 表单：只填用户已给字段；提交前 system_ask_user。
-5. 输出 JSON/表格后 system_done。禁止嵌入 cookie / Authorization / 一次性签名 URL。`,
+2. 列表页：browser_act click 进详情或播放器，再 network action=read mode=media|hls。
+3. 无直链则 shortfall，勿破解 DRM。
+4. 输出 mediaUrl+format 后 system_done。禁止嵌入 cookie / Authorization / 一次性签名 URL。`,
+  },
+  {
+    manifest: {
+      id: 'form-harvest',
+      version: '1.0.0',
+      description: '从表单/输入区抽出或填写用户已给字段。非：媒体 URL、比价、介绍、爬取、对比。',
+      triggers: ['表单', 'form', '填写', '输入框', '报名'],
+      permissions: { tools: HARVEST_TOOLS },
+    },
+    instructions: `# form-harvest
+
+只处理当前页表单字段。非本 skill：媒体源 → media-harvest；比价 → price-harvest。
+
+1. browser_observe 定位字段；只填用户已提供的值。
+2. 提交前 system_ask_user。
+3. 输出字段 JSON 后 system_done。`,
+  },
+  {
+    manifest: {
+      id: 'price-harvest',
+      version: '1.0.0',
+      description: '抽出价格/比价表等商品结构化字段。非：媒体 URL、表单填写、介绍、爬全站、页外竞品调研。',
+      triggers: ['比价', '价格', '商品', '报价', 'sku'],
+      permissions: { tools: HARVEST_TOOLS },
+    },
+    instructions: `# price-harvest
+
+抽出当前页价格/SKU/比价行。非本 skill：媒体 → media-harvest；表单 → form-harvest；页外竞品 → research。
+
+1. browser_observe read list 或 extract 一次。
+2. 输出表格/JSON 后 system_done；勿开全站 crawl。`,
   },
   {
     manifest: {
@@ -165,13 +183,14 @@ web_search → tabs action=open 2–3 源 → browser_observe read → 对比 �
 ]
 
 const ALIASES: Skill[] = [
+  alias('harvest', 'media-harvest', ['提取']),
   alias('page-read', 'observe', ['介绍', '总结', 'readme']),
   alias('qa-smoke', 'observe', ['smoke', 'qa']),
-  alias('media-extract', 'harvest', ['源地址', 'm3u8', 'mp4']),
-  alias('media-hls', 'harvest', ['hls', 'm3u8']),
-  alias('video-site-extract', 'harvest', ['视频', '列表']),
-  alias('form-fill', 'harvest', ['form', '表单']),
-  alias('ecommerce-compare', 'harvest', ['比价', '商品']),
+  alias('media-extract', 'media-harvest', ['源地址', 'm3u8', 'mp4']),
+  alias('media-hls', 'media-harvest', ['hls', 'm3u8']),
+  alias('video-site-extract', 'media-harvest', ['视频', '列表']),
+  alias('form-fill', 'form-harvest', ['form', '表单']),
+  alias('ecommerce-compare', 'price-harvest', ['比价', '商品']),
   alias('catalog-crawl-sop', 'traverse', ['分类', '爬取', 'catalog']),
   alias('parallel-read', 'traverse', ['批量', '并行']),
   alias('repo-static-fetch', 'traverse', ['raw', 'github']),

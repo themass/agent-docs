@@ -35,7 +35,12 @@ import {
 } from './loop-gate-state.js'
 import type { PageState } from './page-state.js'
 import { buildTaskContract, type TaskContract } from './task-contract.js'
-import { createRuntimeState, reduceRuntimeState, type RuntimeState } from './runtime-state.js'
+import {
+  createRuntimeState,
+  reduceRuntimeState,
+  type ProgressState,
+  type RuntimeState,
+} from './runtime-state.js'
 import {
   createCapabilityRegistry,
   transitionCapability,
@@ -45,7 +50,7 @@ import {
 } from './capability-state.js'
 import type { Evidence } from './evidence.js'
 import { lockDeliverable } from './deliverable.js'
-import { composeSystemPrompt, compileUserPrompt } from './prompt.js'
+import { composeSystemPrompt, compileUserPrompt, shouldIncludeSpawnSection } from './prompt.js'
 import { resolveTaskMode } from './task-classifier.js'
 import type { RecoveryPlan } from './recovery.js'
 import type { ModelDecision } from './failure.js'
@@ -295,6 +300,7 @@ export class AgentCtx {
     this.prompt = {
       system: composeSystemPrompt(agent.skillGuidance, {
         hasMcpTools: agent.mcpTools.length > 0,
+        includeSpawn: shouldIncludeSpawnSection(agent.task),
       }),
       user: '',
       thread: agent.threadContext,
@@ -396,6 +402,15 @@ export class AgentCtx {
     this.runtimeState = reduceRuntimeState(this.runtimeState, { type: 'evidence', evidence: input })
   }
 
+  /** Soft replan signal for loop guards — does not stop the run by itself. */
+  markReplanRequired(kind: ProgressState['lastProgressKind'] = 'state'): void {
+    this.runtimeState = reduceRuntimeState(this.runtimeState, {
+      type: 'progress',
+      kind,
+      replanRequired: true,
+    })
+  }
+
   /** Rebuild per-turn copies from the Agent bag. Extra hooks that must persist mutate `agent.*`. */
   syncFromAgent(): void {
     this.skills = [...this.agent.skills]
@@ -403,6 +418,7 @@ export class AgentCtx {
     this.allowedTools = this.agent.policy.allowedTools ? new Set(this.agent.policy.allowedTools) : undefined
     this.prompt.system = composeSystemPrompt(this.agent.skillGuidance, {
       hasMcpTools: this.agent.mcpTools.length > 0,
+      includeSpawn: shouldIncludeSpawnSection(this.task),
     })
     this.prompt.thread = this.agent.threadContext
     this.syncTools()

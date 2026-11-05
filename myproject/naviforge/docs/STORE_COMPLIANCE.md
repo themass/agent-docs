@@ -24,7 +24,7 @@
 
 **不是让你写新功能**，而是保证 **三处用的是同一个链接**：
 
-1. **服务器**：把 `docs/privacy_navi.html` 上传到你控制的公网（当前示例：`http://file.ok123find.top/file/privacy_navi.html`）。用浏览器打开能正常看到全文。
+1. **服务器**：把 `docs/privacy_navi.html` 上传到你控制的公网（当前示例：`http://file.ok123find.top/file/privacy_navi.html`）。用浏览器打开能正常看到全文。**优先 HTTPS**（若证书可用）。
 2. **扩展代码**：`apps/extension/src/lib/compliance.ts` 里的 `PRIVACY_POLICY_URL` 填的就是上面这个地址（**已配置**）。设置 → 隐私里的「隐私政策」会跳转到它。
 3. **Chrome 开发者后台**：创建/编辑扩展时，「隐私权政策」一栏 **粘贴同一个 URL**（Google 审核会点进去看）。
 
@@ -33,6 +33,16 @@
 - [x] 代码中 `PRIVACY_POLICY_URL` 已指向已部署地址（请自行确认链接在浏览器可打开）
 - [ ] 开发者后台「隐私权政策」字段已填写 **相同 URL**
 - [ ] 若本地改过 `docs/privacy_navi.html`，记得 **重新上传到服务器**
+
+### Purple Nickel（隐私政策缺必要信息）— 紧急处理
+
+商店邮件 **Violation: Privacy policy does not contain necessary information**（User Data Privacy / Purple Nickel）时：
+
+1. 仓库源文件已按四段补齐：**collect / handle & use / store / share**（见 `privacy_navi.html`、`PRIVACY_POLICY.md`，Last updated **2026-11-06**）。
+2. **立刻**把新 `docs/privacy_navi.html` **覆盖上传**到商店里填写的同一个隐私 URL（线上曾停留在 2026-08-18 旧版，审核读到的是旧文）。
+3. 浏览器无痕打开该 URL，确认能看到第 2–5 节标题（Collect / Handle / Store / Share），且日期为 2026-11-06。
+4. 开发者后台 → 提交并发布 **新 draft**（可与现有 zip 一并送审）；Data safety 勾选须与政策一致（本地存储、第三方 LLM、可选账号/广告等）。
+5. **30 天内**须有一版 draft 审核通过，否则 listing 会被下架。若认为误报，可在 Build → Status 对该 revision 点 Appeal。
 
 ### 支持邮箱
 

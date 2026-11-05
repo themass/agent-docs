@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, Fragment } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Sparkles } from 'lucide-react'
 
 import {
@@ -126,7 +126,7 @@ export function MessageList({
         </div>
 
         <div className="space-y-2.5">
-          {turns.map((turn, turnIndex) => {
+          {turns.map((turn) => {
             const key = turn.items[0]!.id
             const answer = turnAnswer(turn.items)
             const idle = isIdleDoneTurn(turn.items)
@@ -181,15 +181,7 @@ export function MessageList({
               </div>
             )
             prevAt = turn.items.at(-1)!.at
-            const showFeedAd = turnIndex === 0 && showAnswer && !running
-            return (
-              <Fragment key={key}>
-                {card}
-                {showFeedAd ? (
-                  <AdBanner surface="agentFeed" size="compact" className="my-1" />
-                ) : null}
-              </Fragment>
-            )
+            return card
           })}
 
           {[...childrenByParent.entries()].map(([parentRunId, childEvents]) => (

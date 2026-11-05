@@ -50,12 +50,28 @@ const SURFACE_HTML: Record<AdSurface, string> = {
   ocr: 'ocr.html',
 }
 
+/**
+ * Surfaces rendered once `AD_EMBED_BASE_URL` is set.
+ * Wave 1: settings, toolkit, screenshot. Add `agentFeed` for the empty-state
+ * slot only. Leave `agentThinking` out — in-run ads stay off.
+ */
+export const AD_ENABLED_SURFACES: readonly AdSurface[] = ['options', 'ocr', 'screenshot']
+
 export function adEmbedUrl(surface: AdSurface): string | null {
   const base = AD_EMBED_BASE_URL.trim().replace(/\/$/, '')
   if (!base) return null
   return `${base}/${SURFACE_HTML[surface]}`
 }
 
-export function adsEnabled(_surface: AdSurface): boolean {
-  return adEmbedUrl(_surface) != null
+export function surfaceAdsEnabled(
+  surface: AdSurface,
+  baseUrl: string,
+  enabled: readonly AdSurface[]
+): boolean {
+  if (!baseUrl.trim()) return false
+  return enabled.includes(surface)
+}
+
+export function adsEnabled(surface: AdSurface): boolean {
+  return surfaceAdsEnabled(surface, AD_EMBED_BASE_URL, AD_ENABLED_SURFACES)
 }

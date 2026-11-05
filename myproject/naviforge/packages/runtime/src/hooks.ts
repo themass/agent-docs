@@ -136,6 +136,18 @@ export class WorkingSetHook implements AgentHook {
   }
 
   async beforeModel(ctx: AgentCtx): Promise<HookDecision> {
+    if (ctx.runtimeState.progress.replanRequired) {
+      const replanNote =
+        'CONSTRAINT: replanRequired — 禁止重复同一 tool+URL；换工具、换证据面，或基于已有 EVIDENCE 调用 system_done / system_ask_user。'
+      const recent = ctx.ledger.all().slice(-30)
+      const already = recent.some(
+        (record) =>
+          record.type === 'run.note' &&
+          typeof (record.payload as { text?: string }).text === 'string' &&
+          (record.payload as { text: string }).text.includes('replanRequired')
+      )
+      if (!already) ctx.recordNote(replanNote)
+    }
     const maxInput = ctx.agent.limits.maxInputTokens
     const take = (projectionCap: number): boolean => {
       const projected = projectTraceRecords(ctx.ledger.all(), {

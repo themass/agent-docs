@@ -12,7 +12,8 @@ const url = 'https://example.test/page'
   const shot = { tool: 'dom_screenshot', arguments: {} }
   const replay = replayActionLoop([shot, shot, shot, shot], url)
   assert.equal(replay.allowed, DEFAULT_RUN_LIMITS.sameActionLimit)
-  assert.equal(replay.stopAt, DEFAULT_RUN_LIMITS.sameActionLimit + 1, '2 skips then stop')
+  assert.equal(replay.replanAt, DEFAULT_RUN_LIMITS.sameActionLimit + 1, '2 skips then replan')
+  assert.equal(replay.stopAt, replay.replanAt, 'stopAt aliases replanAt')
 }
 
 {

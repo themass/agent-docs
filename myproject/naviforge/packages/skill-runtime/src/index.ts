@@ -7,7 +7,11 @@ export type SkillManifest = {
   aliasOf?: string
   l1?: boolean
   permissions?: {
-    /** Exact Agent tool names this skill may use. Empty means no additional restriction. */
+    /**
+     * Suggested tools for this skill (advisory in L2 header).
+     * Hard allowlist — when enforceSkillToolAllowlist is on — must NOT be built
+     * from routeSkills alone; use enabled-skill union (see workspace-run).
+     */
     tools?: string[]
     /** Informational Chrome match patterns for future install-time host grants. */
     hosts?: string[]
@@ -48,9 +52,20 @@ function routingExclusions(description: string): string[] {
     .filter((word) => word.length >= 2)
 }
 
+export type RouteSkillsOptions = {
+  /** Soft boost from runtime intent/deliverable maps; keywords remain兜底. */
+  preferredSkillIds?: readonly string[]
+}
+
 /** Soft routing hint — never injects body; model still chooses via skill_load. */
-export function routeSkills(task: string, skills: Skill[], limit = 3): Skill[] {
+export function routeSkills(
+  task: string,
+  skills: Skill[],
+  limit = 3,
+  opts: RouteSkillsOptions = {}
+): Skill[] {
   const t = task.toLowerCase()
+  const preferred = new Set((opts.preferredSkillIds ?? []).map((id) => id.toLowerCase()))
   const tokenize = (text: string): string[] =>
     text
       .toLowerCase()
@@ -62,6 +77,7 @@ export function routeSkills(task: string, skills: Skill[], limit = 3): Skill[] {
       const exclusions = routingExclusions(s.manifest.description)
       if (exclusions.some((word) => t.includes(word))) return { s, score: 0 }
       let score = 0
+      if (preferred.has(s.manifest.id.toLowerCase())) score += 4
       if (t.includes(s.manifest.id.toLowerCase())) score += 3
       for (const trigger of s.manifest.triggers ?? []) {
         const key = trigger.toLowerCase()
@@ -170,7 +186,9 @@ export function loadSkillBody(skills: Skill[], id: string): string | null {
   const header = [
     `# skill:${skill.manifest.id}@${skill.manifest.version}`,
     skill.manifest.description,
-    tools?.length ? `Suggested tools (advisory unless hard allowlist): ${tools.join(', ')}` : '',
+    tools?.length
+      ? `Suggested tools (advisory): ${tools.join(', ')}. Hard allowlist is settings-gated and uses enabled skills, not route hints alone.`
+      : '',
   ]
     .filter(Boolean)
     .join('\n')

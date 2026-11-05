@@ -7,9 +7,26 @@ import type { PageState } from './page-state.js'
 import type { TaskMode } from './task-classifier.js'
 import { resolveDeliverable, type Deliverable } from './deliverable.js'
 import { formatReplyLanguageBlock, resolveReplyLanguage } from './reply-language.js'
+import { resolveTaskIntent } from './task-intent.js'
 import { READONLY_CHILD_KERNEL_SECTION, SUBTASK_KERNEL_SECTION } from './subtask-guidance.js'
 
 export { resolveReplyLanguage, formatReplyLanguageBlock } from './reply-language.js'
+
+/** When true, composeSystemPrompt appends the long spawn protocol section. */
+export function shouldIncludeSpawnSection(task: string | undefined): boolean {
+  if (!task?.trim()) return false
+  const intent = resolveTaskIntent(task)
+  if (
+    intent === 'multi_hop_crawl' ||
+    intent === 'list_detail' ||
+    intent === 'research' ||
+    intent === 'media_extract'
+  ) {
+    return true
+  }
+  const deliverable = resolveDeliverable(task)
+  return deliverable === 'data' || deliverable === 'research' || deliverable === 'media'
+}
 
 export function formatListResult(
   items: Array<{ title: string; url?: string }>,
@@ -44,7 +61,7 @@ export const KERNEL_PROMPT = `你是 NaviForge，在用户真实的 Chrome 浏�
 观察 → 一个下一步 → **一次** function tool call → 验证 → 下一轮。
 - 每轮一句话 Progress / Reasoning，然后只调 **一个** 工具（runtime 协议；多 call 会被拒，除 fetch_text 的 urls 数组）。
 - 遇到阻塞/不确定（选错路径、证据矛盾、即将重复无效动作）时追加一句 Risk，说明具体卡在哪；无阻塞则不写，不强制每轮都加。
-- **并行只读**：用 **system_spawn_readonly_tasks** 一次委派最多 3 个只读子 Agent。
+- **并行只读**：多 URL / navigation:forbidden 详情页时用 **system_spawn_readonly_tasks**（细则见条件拼接的委派章节）。
 - 完成用 system_done（result 给用户，禁止「等待新任务」）；提问用 system_ask_user。
 - 不得编造工具名。工具见 tools[] schema。
 
@@ -68,8 +85,6 @@ network 须设置开启。不得 dump cookie/Authorization。
 
 ## 回复语言
 system_done / ask_user 跟任务语言；不明时跟 Reply language。
-
-${SUBTASK_KERNEL_SECTION}
 `
 
 const MCP_KERNEL_APPEND = `
@@ -87,10 +102,18 @@ const NO_MCP_KERNEL_APPEND = `
 /** Append Skill block (protocol + L1 catalog). Empty skills → omit section. */
 export function composeSystemPrompt(
   skillGuidance?: string,
-  opts?: { hasMcpTools?: boolean; runProfile?: 'readonly-child' | 'thread' }
+  opts?: {
+    hasMcpTools?: boolean
+    runProfile?: 'readonly-child' | 'thread'
+    /** Default true when omitted (backward compatible). Pass false for simple page tasks. */
+    includeSpawn?: boolean
+  }
 ): string {
   let kernel =
     KERNEL_PROMPT + (opts?.hasMcpTools ? MCP_KERNEL_APPEND : NO_MCP_KERNEL_APPEND)
+  if (opts?.includeSpawn !== false) {
+    kernel += `\n\n${SUBTASK_KERNEL_SECTION}`
+  }
   if (opts?.runProfile === 'readonly-child') {
     kernel += `\n\n${READONLY_CHILD_KERNEL_SECTION}`
   }

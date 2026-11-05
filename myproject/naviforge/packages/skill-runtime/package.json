@@ -9,6 +9,6 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "check": "tsx src/contract.self-check.ts && tsx src/slash-skill.self-check.ts"
+    "check": "tsx src/contract.self-check.ts && tsx src/slash-skill.self-check.ts && tsx src/route-skills.self-check.ts"
   }
 }

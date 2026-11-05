@@ -9,15 +9,16 @@ export type ActionLoopGate = {
     limit: number;
 };
 export declare function createActionLoopGate(limit: number): ActionLoopGate;
-/** Before executing: allow, skip (hint only), or stop the run. */
-export declare function decideActionLoop(gate: ActionLoopGate, key: string | null): 'allow' | 'skip' | 'stop';
+/** Before executing: allow, soft skip, or replan (never ends the run alone). */
+export declare function decideActionLoop(gate: ActionLoopGate, key: string | null): 'allow' | 'skip' | 'replan';
 export declare function recordActionLoopSuccess(gate: ActionLoopGate, key: string | null): void;
 export type ActionLoopCall = {
     tool: string;
     arguments?: Record<string, unknown>;
 };
-/** Replay successful calls on one URL. `stopAt` is the call index that would halt the run, or -1. */
+/** Replay successful calls on one URL. `replanAt`/`stopAt` = second over-limit index, or -1. */
 export declare function replayActionLoop(calls: ActionLoopCall[], url: string, limit?: 2): {
+    replanAt: number;
     stopAt: number;
     allowed: number;
 };

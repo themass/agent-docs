@@ -3,10 +3,32 @@ import { createTraceRecord } from '@naviforge/session'
 
 import {
   WORKING_SET,
+  capPinnedConstraintNotes,
   estimateTokens,
   promptWouldExceedBudget,
   projectTraceRecords,
+  type ContextItem,
 } from './working-set.js'
+
+{
+  const items: ContextItem[] = Array.from({ length: 20 }, (_, index) => ({
+    kind: 'constraint',
+    content: `GUIDANCE: note-${index}`,
+    pinned: true,
+    sourceRecordIds: [`n${index}`],
+  }))
+  items.push({
+    kind: 'constraint',
+    content: 'GUIDANCE: note-5',
+    pinned: true,
+    sourceRecordIds: ['dup'],
+  })
+  const capped = capPinnedConstraintNotes(items, 8)
+  const constraints = capped.filter((item) => item.kind === 'constraint')
+  assert.equal(constraints.length, 8)
+  assert.ok(constraints.some((item) => item.content.includes('note-19')))
+  assert.equal(constraints.filter((item) => item.content.includes('note-5')).length, 1)
+}
 
 {
   const records = [

@@ -788,6 +788,7 @@ export class DedupeObservationHook implements AgentHook {
     ]
     if (prior) notes.push(`EVIDENCE: ${prior.replace(/\s+/g, ' ').slice(0, WORKING_SET.evidenceChars)}`)
     if (n >= 2) {
+      ctx.markReplanRequired()
       const del = ctx.gates.deliverable
       if (del === 'script') {
         notes.push(
@@ -798,7 +799,7 @@ export class DedupeObservationHook implements AgentHook {
           'CONSTRAINT: 重复观察 — 改用 browser_act click 列表/播放，或 network read mode=media|hls；system_done 须含 mediaUrl/条目或 shortfall。'
         )
       } else {
-        notes.push('CONSTRAINT: 同一观察已跳过两次。下一步必须 system_done，禁止再调用该工具。')
+        notes.push('CONSTRAINT: 同一观察已跳过两次 — 换工具或证据面，禁止再调用该工具。')
       }
     }
     const result: ToolResult = {
@@ -810,21 +811,27 @@ export class DedupeObservationHook implements AgentHook {
       },
     }
     if (n >= 3) {
+      ctx.markReplanRequired()
       const del = ctx.gates.deliverable
-      const stopResult =
-        del === 'script'
-          ? '重复观察已停止。请 script_save（基于已有 PAGE STATE/URL 模式）或 system_done 说明缺登录/Network/公开入口。'
-          : del === 'media' || del === 'data'
-            ? '重复观察已停止。请 browser_act click + network media/hls，或 system_done 附 shortfall（可选 workspace script_save 骨架）。'
-            : `同一页重复观察已停止空转。\n${(prior ?? '').slice(0, 2_000)}`
-      const allowContinue = del === 'script' || del === 'media' || del === 'data'
+      if (del === 'script') {
+        notes.push(
+          'CONSTRAINT: 重复观察已达上限 — script_save（基于 PAGE STATE/URL）或 system_ask_user / shortfall；禁止再观察。'
+        )
+      } else if (del === 'media' || del === 'data') {
+        notes.push(
+          'CONSTRAINT: 重复观察已达上限 — browser_act click + network media/hls，或 system_done 附 shortfall；禁止再观察。'
+        )
+      } else {
+        notes.push(
+          'CONSTRAINT: 重复观察已达上限 — 基于已有 EVIDENCE 换策略或 system_done；禁止再调用该观察工具。'
+        )
+        if (prior) notes.push(`EVIDENCE: ${prior.replace(/\s+/g, ' ').slice(0, WORKING_SET.evidenceChars)}`)
+      }
       return {
         kind: 'skip_tool',
         note: notes.join('\n'),
-        log: `skip duplicate ${call.tool}`,
+        log: `skip duplicate ${call.tool} (replan)`,
         result,
-        stop: !allowContinue,
-        stopResult,
       }
     }
     return {
@@ -847,34 +854,33 @@ export class ActionLoopHook implements AgentHook {
     const loopDecision = decideActionLoop(ctx.gates.actionLoop, loopKey)
     if (loopDecision === 'allow') return CONTINUE
     const execCount = loopKey ? (ctx.gates.actionLoop.exec.get(loopKey) ?? 0) : 0
+    ctx.markReplanRequired()
     const notes = [
-      `GUIDANCE: ${call.tool} 已在同一页执行 ${execCount} 次；禁止再重复。用已有产物 system_done。`,
+      `GUIDANCE: ${call.tool} 已在同一页执行 ${execCount} 次；禁止再重复。换工具或证据面。`,
     ]
     if (execCount === ctx.agent.limits.sameActionLimit) {
-      notes.push('CONSTRAINT: 禁止对同一 URL 重复 screenshot/scroll/snapshot。下一步必须 system_done 或换策略。')
+      notes.push('CONSTRAINT: 禁止对同一 URL 重复 screenshot/scroll/snapshot。下一步换策略，勿空转同一动作。')
+    }
+    if (loopDecision === 'replan') {
+      notes.push(
+        `CONSTRAINT: ${sameActionLoopResult(call.tool, execCount, ctx.agent.opts.locale)} — replan，Run 继续；禁止再重复该动作。`
+      )
     }
     const result: ToolResult = {
       ok: true,
       data: {
         skipped: true,
-        reason: 'action_loop',
-        hint: 'use existing artifact or system_done',
+        reason: loopDecision === 'replan' ? 'action_loop_replan' : 'action_loop',
+        hint: 'change tool or evidence surface',
       },
-    }
-    if (loopDecision === 'stop') {
-      return {
-        kind: 'skip_tool',
-        note: notes.join('\n'),
-        log: `skip action loop ${call.tool}`,
-        result,
-        stop: true,
-        stopResult: sameActionLoopResult(call.tool, execCount, ctx.agent.opts.locale),
-      }
     }
     return {
       kind: 'skip_tool',
       note: notes.join('\n'),
-      log: `skip action loop ${call.tool}`,
+      log:
+        loopDecision === 'replan'
+          ? `skip action loop ${call.tool} (replan)`
+          : `skip action loop ${call.tool}`,
       result,
     }
   }
@@ -982,6 +988,10 @@ export class ToolStateHook implements AgentHook {
   }
 }
 
+/**
+ * Remaining hard stop for true no-progress after soft replan skips.
+ * ActionLoop / Dedupe no longer end the run; this still caps empty spin.
+ */
 export class NoProgressHook implements AgentHook {
   readonly name = 'no-progress'
   readonly reads = ['stepsWithoutNewObs'] as const
@@ -990,7 +1000,7 @@ export class NoProgressHook implements AgentHook {
     if (ctx.gates.stepsWithoutNewObs < 4) return CONTINUE
     const result = hasSynthesisEvidence(ctx.gates)
       ? '已连续多步无新证据，但 CONTEXT 中已有子任务/dom_read/fetch 材料。请直接 system_done 输出对比或答案，勿再 tabs_list 或重复相同工具。'
-      : '连续多步未产生新证据。请根据 CONTEXT 中的 OBSERVATION/EVIDENCE 直接 system_done，勿再重复相同工具。'
+      : '连续多步未产生新证据（含 replan 软跳过后仍无进展）。请根据 CONTEXT 中的 OBSERVATION/EVIDENCE 直接 system_done，勿再重复相同工具。'
     return {
       kind: 'stop',
       status: 'error',

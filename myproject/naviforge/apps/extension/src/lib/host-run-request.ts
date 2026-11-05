@@ -1,4 +1,4 @@
-import type { LlmConfig } from '@naviforge/runtime'
+import { preferredSkillIdsForTask, type LlmConfig } from '@naviforge/runtime'
 import { formatSkillGuidance, routeSkills, type Skill } from '@naviforge/skill-runtime'
 import { applyAgentCapabilityGates, DEFAULT_AGENT_CAPABILITY_GATES } from '@naviforge/shared'
 
@@ -14,7 +14,9 @@ export function buildHostPollRunRequest(opts: {
   privacy: typeof DEFAULT_PRIVACY
   skills: Skill[]
 }): BackgroundRunRequest {
-  const matched = routeSkills(opts.instruction, opts.skills, 1)
+  const matched = routeSkills(opts.instruction, opts.skills, 1, {
+    preferredSkillIds: preferredSkillIdsForTask(opts.instruction),
+  })
   const gates = applyAgentCapabilityGates(DEFAULT_AGENT_CAPABILITY_GATES, {
     networkEnabled: opts.useNetwork,
     captureNetworkBodies: false,
@@ -22,14 +24,15 @@ export function buildHostPollRunRequest(opts: {
     allowNetworkIntercept: opts.privacy.allowNetworkIntercept && opts.useNetwork,
     visionEnabled: false,
   })
+  // Soft skill guidance only — do not shrink allowedTools from a single route hit.
   return {
     id: crypto.randomUUID(),
     task: opts.instruction,
     taskId: opts.hostTaskId,
     tabId: opts.tabId,
     llm: opts.llm,
-    skillGuidance: formatSkillGuidance(matched) || undefined,
-    allowedTools: matched[0]?.manifest.permissions?.tools,
+    skillGuidance: formatSkillGuidance(opts.skills, { hints: matched }) || undefined,
+    allowedTools: undefined,
     hitlPolicy: 'balanced',
     rollbackUrlDrift: true,
     maxSteps: normalizeMaxAgentSteps(opts.privacy.maxAgentSteps),

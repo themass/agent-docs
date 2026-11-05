@@ -119,7 +119,7 @@ export function decideActionLoop(gate, key) {
         return 'allow';
     const n = (gate.skip.get(key) ?? 0) + 1;
     gate.skip.set(key, n);
-    return n >= 2 ? 'stop' : 'skip';
+    return n >= 2 ? 'replan' : 'skip';
 }
 export function recordActionLoopSuccess(gate, key) {
     if (!key)
@@ -134,12 +134,12 @@ export function replayActionLoop(calls, url, limit = DEFAULT_RUN_LIMITS.sameActi
         const call = calls[i];
         const key = actionLoopKey(call.tool, url, call.arguments);
         const decision = decideActionLoop(gate, key);
-        if (decision === 'stop')
-            return { stopAt: i, allowed };
+        if (decision === 'replan')
+            return { replanAt: i, stopAt: i, allowed };
         if (decision === 'skip')
             continue;
         allowed += 1;
         recordActionLoopSuccess(gate, key);
     }
-    return { stopAt: -1, allowed };
+    return { replanAt: -1, stopAt: -1, allowed };
 }

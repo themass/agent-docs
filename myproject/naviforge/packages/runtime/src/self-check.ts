@@ -391,7 +391,7 @@ try {
     { tool: 'dom_read', arguments: { mode: 'list', n: 8 } },
     { tool: 'dom_read', arguments: { mode: 'list', n: 8 } },
     { tool: 'dom_read', arguments: { mode: 'list', n: 8 } },
-    { tool: 'dom_read', arguments: { mode: 'list', n: 8 } },
+    { tool: 'system_done', arguments: { result: 'similar projects listed from evidence' } },
   ]
   let extractCursor = 0
   const extractFetch = globalThis.fetch
@@ -402,7 +402,8 @@ try {
     }),
   })) as unknown as typeof fetch
   try {
-    const extractRun = await runAgent({       task: 'github上是否还有类似的项目',
+    const extractRun = await runAgent({
+      task: 'github上是否还有类似的项目',
       taskId: 'dup-extract',
       maxSteps: 8,
       tokenBudget: 0,
@@ -421,8 +422,8 @@ try {
       } as DomPlane,
       llm: { baseURL: 'http://extract', apiKey: 'x', model: 'x' },
     })
-    assert(extractCalls >= 1, 'repeat dom_read list on same URL is not re-executed')
-    assert(extractRun.status === 'done', 'duplicate extract loop stops instead of burning tokens')
+    assert(extractCalls >= 1 && extractCalls < 4, 'repeat list extract is gated (not re-executed 4×)')
+    assert(extractRun.status === 'done', 'after replan skips, model can still system_done')
   } finally {
     globalThis.fetch = extractFetch
   }
@@ -827,6 +828,15 @@ assert(!composeSystemPrompt(undefined, { hasMcpTools: false }).includes('## MCP'
 assert(
   composeSystemPrompt(undefined, { runProfile: 'readonly-child' }).includes('只读子 Agent'),
   'readonly child kernel append'
+)
+assert(!KERNEL_PROMPT.includes('## 委派'), 'spawn protocol is conditional, not always in KERNEL')
+assert(
+  composeSystemPrompt(undefined, { includeSpawn: true }).includes('## 委派'),
+  'spawn section when includeSpawn'
+)
+assert(
+  !composeSystemPrompt(undefined, { includeSpawn: false }).includes('## 委派'),
+  'no spawn section when includeSpawn false'
 )
 assert(!KERNEL_PROMPT.includes('非原生'), 'kernel no longer uses text-only tool contract')
 assert(!KERNEL_PROMPT.includes('mcp.call'), 'kernel must not mention removed mcp.call')

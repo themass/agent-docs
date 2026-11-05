@@ -73,6 +73,25 @@ const mediaCards = extractIndexedMediaCards({
 assert.equal(mediaCards[0]?.clickIndex, 24)
 assert.match(mediaCards[0]?.title ?? '', /浏览器 Agent/)
 
+const navHeavy = Array.from({ length: 12 }, (_, i) => ({ title: `分类导航${i}` }))
+const cardSnap = {
+  header: '',
+  content: [
+    '*[23]<img />',
+    '*[24]<img />',
+    'HD',
+    '0:28:55',
+    '首页视频标题：从零实现一个浏览器 Agent',
+    '站点官方 · 17.0万次观看',
+  ].join('\n'),
+  footer: '',
+}
+const capped = enrichItemsWithSnapshotFeed(navHeavy, cardSnap)
+assert.equal(capped.length, 12)
+assert.equal(capped[0]?.clickIndex, 24)
+assert.match(capped[0]?.title ?? '', /浏览器 Agent/)
+assert.ok(capped.some((item) => item.title.startsWith('分类导航')))
+
 assert.equal(
   shouldSkipLoginLinkRead({
     tool: 'dom_read',

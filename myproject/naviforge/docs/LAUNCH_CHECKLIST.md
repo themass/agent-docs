@@ -8,7 +8,8 @@
 
 ## A. 已完成（维护时核对仍有效）
 
-- [x] 隐私政策：`http://file.ok123find.top/file/privacy_navi.html`
+- [x] 隐私政策源文件：`docs/privacy_navi.html`（须与线上 URL 同步；含 collect/handle/store/share）
+- [ ] 线上已覆盖上传最新 `privacy_navi.html`（打开确认 Last updated ≥ 2026-11-06）
 - [x] 第三方声明：`http://file.ok123find.top/file/third_party_navi.html`
 - [x] `compliance.ts` → `PRIVACY_POLICY_URL` / `SUPPORT_EMAIL`（justbegin010@gmail.com）
 - [x] BYOK 默认、托管登录默认关、optional 站点权限
@@ -95,13 +96,16 @@ python3 scripts/prepare-store-screenshots.py
 
 **首版上架可不做**（`ads-config.ts` 里 `AD_EMBED_BASE_URL` 保持 `''`）。
 
-开通广告时勾选：
+开通广告时勾选（先 04 / 05 / 03，再考虑 01；02 保持关）：
 
-- [ ] AdSense 创建 5 个展示广告，记下 `ca-pub-…` 与各 `data-ad-slot`
-- [ ] 在 `docs/store-assets/ads/*.html` 填入代码并上传到 `…/file/ads/`（5 个文件）
-- [ ] 设置 `AD_EMBED_BASE_URL`，`npm run zip`，发新版扩展
-- [ ] 更新线上 `privacy_navi.html`（含广告段落）并同步 Data safety
-- [ ] 自测：Agent 同屏 ≤2 条 iframe；各页面广告可加载
+- [ ] AdSense 账号与站点审核通过；发布商页使用 **HTTPS**，响应允许被扩展 iframe 嵌入
+- [ ] 至少为 NVF-ADS-04 / 05 / 03 创建**不同** `data-ad-slot`（01、02 可后补，slot 仍须各用各的）
+- [ ] 在对应 `docs/store-assets/ads/*.html` 填入 `ca-pub` 与 slot，上传到公网 `…/ads/`
+- [ ] 设置 `AD_EMBED_BASE_URL`；确认 `AD_ENABLED_SURFACES` 仍是 `options`、`ocr`、`screenshot`
+- [ ] `npm run zip`，发新版扩展
+- [ ] 更新线上 `privacy_navi.html`（含广告段落）并同步 Data safety / 商店「可能展示广告」
+- [ ] 自测：设置页、Toolkit、截图工作室有 iframe；Agent 对话中与 Thinking 条下**没有**广告
+- [ ] 第二波再把 `'agentFeed'` 加入 `AD_ENABLED_SURFACES`（只出现在空状态）。不要加入 `agentThinking`
 
 | ID | HTML |
 |----|------|

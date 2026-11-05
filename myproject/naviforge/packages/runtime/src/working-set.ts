@@ -22,6 +22,8 @@ export const WORKING_SET = {
   evidenceChars: 3_000,
   /** USER CORRECTION: / USER ANSWER: / FOLLOW-UP: / CONSTRAINT: / GUIDANCE: / COMPACTION:. */
   pinnedChars: 2_000,
+  /** Cap pinned GUIDANCE/CONSTRAINT notes after dedupe (newest kept). */
+  maxPinnedNotes: 12,
   /** Recent non-pinned traces kept in full (after coalesce). */
   recentKeep: 6,
   /** History size that triggers in-place L1 rewrite. */
@@ -158,7 +160,8 @@ export function projectTraceRecords(
     }
   }
   items.push(...observations.values(), ...errors.slice(-4), ...steps.slice(-WORKING_SET.recentKeep))
-  const fitted = fitContextItems(items, opts.maxInputTokens)
+  const capped = capPinnedConstraintNotes(items)
+  const fitted = fitContextItems(capped, opts.maxInputTokens)
   const prompt = formatContextItems(fitted)
   return {
     items: fitted,
@@ -291,6 +294,29 @@ function safeToolObservation(record: Extract<TraceRecord, { type: 'tool.result' 
     return { key, text: trace }
   }
   return null
+}
+
+/** Dedupe + cap pinned GUIDANCE/CONSTRAINT notes so hooks cannot flood CONTEXT. */
+export function capPinnedConstraintNotes(
+  items: ContextItem[],
+  max = WORKING_SET.maxPinnedNotes
+): ContextItem[] {
+  const keyOf = (content: string) => content.replace(/\s+/g, ' ').trim().toLowerCase().slice(0, 160)
+  const keepIndexes = new Set<number>()
+  const seenKeys = new Set<string>()
+  for (let i = items.length - 1; i >= 0; i -= 1) {
+    const entry = items[i]!
+    if (!(entry.pinned && entry.kind === 'constraint')) continue
+    const key = keyOf(entry.content)
+    if (seenKeys.has(key)) continue
+    if (seenKeys.size >= max) continue
+    seenKeys.add(key)
+    keepIndexes.add(i)
+  }
+  return items.filter((entry, index) => {
+    if (!(entry.pinned && entry.kind === 'constraint')) return true
+    return keepIndexes.has(index)
+  })
 }
 
 function fitContextItems(items: ContextItem[], maxInputTokens: number): ContextItem[] {

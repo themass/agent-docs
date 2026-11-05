@@ -151,7 +151,7 @@ BYOK 用户可在本地看 Run 日志与 `tokenBudget`（现有能力），**不
 ## 7. 广告
 
 - Agent 侧栏、控制台、截图工作室：**iframe 嵌入你服务器上的广告页**（MV3 不能在扩展 CSP 里加载 AdSense 脚本）
-- 配置：`AD_EMBED_BASE_URL` in `apps/extension/src/lib/ads-config.ts`
+- 配置：`AD_EMBED_BASE_URL` 与 `AD_ENABLED_SURFACES`（默认只开设置 / Toolkit / 截图；Agent 空状态与 Thinking 广告默认关）in `apps/extension/src/lib/ads-config.ts`
 - 模板：`docs/store-assets/ads/*.html` 部署到服务器后填入 AdSense
 - BYOK 与 Hosted 用户均可展示（注意 AdSense / Chrome 扩展政策）
 

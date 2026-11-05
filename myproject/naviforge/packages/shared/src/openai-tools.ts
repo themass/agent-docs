@@ -1,5 +1,6 @@
-import { AGENT_TOOL_CATALOG, modelFacingToolIds } from './agent-tools.js'
+import { AGENT_TOOL_CATALOG, modelFacingToolIds, type AgentToolId } from './agent-tools.js'
 import { mcpQualifiedName } from './mcp-names.js'
+import { formatToolApiDescription } from './tool-specs.js'
 
 /** OpenAI-compatible function tool definition. */
 export type OpenAiFunctionTool = {
@@ -28,8 +29,8 @@ const LOOSE_OBJECT: Record<string, unknown> = {
   additionalProperties: true,
 }
 
-/** Tight schemas for high-traffic meta tools. */
-const META_SCHEMAS: Record<string, Record<string, unknown>> = {
+/** Tight schemas for high-traffic meta tools — SSOT for model-facing parameters. */
+export const TOOL_PARAMETERS: Partial<Record<AgentToolId | string, Record<string, unknown>>> = {
   skill_load: {
     type: 'object',
     properties: {
@@ -215,6 +216,8 @@ const META_SCHEMAS: Record<string, Record<string, unknown>> = {
     properties: {
       action: {
         type: 'string',
+        description:
+          '[mutating] click|type|press|select|check|drag|upload|inject; [readonly-aux] scroll|wait|hover|highlight|mark_topn|mark_items|clear_highlights',
         enum: [
           'click',
           'type',
@@ -301,13 +304,16 @@ const META_SCHEMAS: Record<string, Record<string, unknown>> = {
 }
 
 function parametersFromArgsHint(id: string, args: string): Record<string, unknown> {
-  if (META_SCHEMAS[id]) return META_SCHEMAS[id]!
+  if (TOOL_PARAMETERS[id]) return TOOL_PARAMETERS[id]!
   // ponytail: catalog stores compact arg hints, not JSON Schema; expand if providers get picky.
   if (!args || args === '{}') {
     return { type: 'object', properties: {} }
   }
   return LOOSE_OBJECT
 }
+
+/** @deprecated use TOOL_PARAMETERS */
+export const META_SCHEMAS = TOOL_PARAMETERS
 
 /** Builtin agent tools as OpenAI `tools[]` entries (aliases excluded). */
 export function builtinToolsForApi(only?: readonly string[]): OpenAiFunctionTool[] {
@@ -318,7 +324,7 @@ export function builtinToolsForApi(only?: readonly string[]): OpenAiFunctionTool
       type: 'function',
       function: {
         name: tool.id,
-        description: `${tool.description} (${tool.id})`,
+        description: formatToolApiDescription(tool.id),
         parameters: parametersFromArgsHint(tool.id, tool.args),
       },
     }

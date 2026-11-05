@@ -52,6 +52,7 @@ import {
   resolveTaskIntent,
   resolveDeliverable,
   runAgent,
+  shouldIncludeSpawnSection,
   type RunAgentResult,
   workspaceSlug,
 } from '@naviforge/runtime'
@@ -283,7 +284,10 @@ export class RunSupervisor {
       })
     }
     this.publishBackgroundRecord('run.context', {
-      systemPrompt: composeSystemPrompt(request.skillGuidance, { hasMcpTools: mcpNames.length > 0 }),
+      systemPrompt: composeSystemPrompt(request.skillGuidance, {
+        hasMcpTools: mcpNames.length > 0,
+        includeSpawn: shouldIncludeSpawnSection(request.task),
+      }),
       taskMode: resolveTaskMode(request.task),
       tools: [...AGENT_TOOL_IDS, ...mcpNames],
       skills: request.skills,

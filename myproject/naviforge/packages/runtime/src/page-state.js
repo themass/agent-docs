@@ -87,40 +87,45 @@ function titleKey(title) {
 export function enrichItemsWithSnapshotFeed(items, snap) {
     const indexed = parseIndexedSnapshotLines(snap);
     const mediaCards = extractIndexedMediaCards(snap);
-    const byTitle = new Map();
-    for (const item of items) {
-        if (!item.title?.trim())
-            continue;
-        byTitle.set(titleKey(item.title), { ...item });
-    }
-    // Media cards are more actionable than category/navigation containers. Add
-    // them first so the 12-item page-state cap cannot hide the actual videos.
-    for (const row of mediaCards) {
-        byTitle.set(titleKey(row.title), row);
-    }
-    for (const row of indexed) {
-        const key = titleKey(row.title);
-        const existing = byTitle.get(key);
-        if (existing) {
-            if (existing.clickIndex == null)
-                existing.clickIndex = row.index;
-            continue;
+    const ordered = [];
+    const indexByKey = new Map();
+    const remember = (item) => {
+        const title = item.title?.trim();
+        if (!title)
+            return;
+        const key = titleKey(title);
+        const at = indexByKey.get(key);
+        if (at != null) {
+            const existing = ordered[at];
+            if (existing.clickIndex == null && item.clickIndex != null)
+                existing.clickIndex = item.clickIndex;
+            if (!existing.url && item.url)
+                existing.url = item.url;
+            return;
         }
-        if (byTitle.size >= 12)
-            continue;
-        byTitle.set(key, { title: row.title, clickIndex: row.index });
-    }
-    if (byTitle.size < 2) {
+        if (ordered.length >= 12)
+            return;
+        indexByKey.set(key, ordered.length);
+        ordered.push({ ...item, title });
+    };
+    // Media cards are more actionable than category/navigation containers.
+    // Insert them before the 12-item cap so nav rows cannot hide the videos.
+    for (const row of mediaCards)
+        remember(row);
+    for (const item of items)
+        remember(item);
+    for (const row of indexed)
+        remember({ title: row.title, clickIndex: row.index });
+    if (ordered.length < 2) {
         for (const label of extractFeedLabelsFromSnapshot(snap, 16)) {
-            const key = titleKey(label);
-            if (byTitle.has(key) || isNavLikeFeedTitle(label))
+            if (isNavLikeFeedTitle(label) || indexByKey.has(titleKey(label)))
                 continue;
-            byTitle.set(key, { title: label });
-            if (byTitle.size >= 8)
+            remember({ title: label });
+            if (ordered.length >= 8)
                 break;
         }
     }
-    return [...byTitle.values()].slice(0, 12);
+    return ordered;
 }
 export function formatPageState(state) {
     const lines = [

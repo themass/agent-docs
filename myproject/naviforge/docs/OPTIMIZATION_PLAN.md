@@ -16,7 +16,7 @@
 | 已对齐成熟框架（勿推翻） | 仍欠收敛（见 §1 状态列） |
 |--------------------------|--------------------------|
 | Plane 六边形、单 tab 单写者 | Extension 编排层仍厚（composition ~687 行） |
-| 审计 ≠ 工作集（RunLedger + compaction） | 模型可见 builtin **39** 个（长期目标 ~15） |
+| 审计 ≠ 工作集（RunLedger + compaction） | 模型可见 builtin **13** 个（目标 ≤15） |
 | RunSupervisor + HookPipeline | `content.ts` 仍 ~1574 行（路由已抽） |
 | AgentSession facade + `dom_read` / `workspace` / `network_read` | 内部 handler 别名层（resolver，非 catalog） |
 | 原生 function call 协议 | **本文与 ARCHITECTURE §10 已同步代码** |
@@ -44,7 +44,7 @@
 | O-03 | ✅ | P0 | Toolkit gates | Toolkit 与 Agent 隐私开关不一致 | `loadToolkitCapabilityGates` 全路径 | 1d |
 | O-04 | ✅ | P1 | 工具别名退役 | catalog 曾有多读工具别名 | `dom_read` + resolver；catalog 无 `dom_read_page` | 1–2d |
 | O-05 | ✅ | P1 | builtin-handlers | 曾 ~1690 行单文件 | `handlers/dom.ts` 等；registry ~391 行 | 3–5d |
-| O-06 | ✅ | P1 | 工具面收敛 | 模型工具偏多 | `workspace` + `network_read` meta；catalog **39** | 1–2w |
+| O-06 | ✅ | P1 | 工具面收敛 | 模型工具偏多 | `workspace` + `network` meta；catalog **13** | 1–2w |
 | O-07 | ✅ | P1 | 双 preflight 命名 | UI vs runtime 易混 | UI → `run-readiness.ts` | 0.5d |
 | O-08 | ~ | P1 | RunPhase 统一 | UI 字符串 vs session `RunPhase` | `run-phase.ts` 映射；待 UI 单源 | 2d |
 | O-09 | ✅ | P1 | TabWorkspace 瘦身 | workspace 与 session 双轨 | 仅 UI 草稿；恢复走 `live-session` | 2–3d |
@@ -75,7 +75,7 @@
 **现象（历史）**
 
 - `tools/builtin-handlers.ts` 曾 ~1690 行；**现状** registry ~391 行 + `handlers/dom.ts` 等。
-- 模型 `tools[]`：**39** 个 catalog id（`AGENT_TOOL_CATALOG`）；内部 handler 经 `builtin-tool-resolver` 解析（如 `dom_read` → `dom_read_page`），**不进 catalog**。
+- 模型 `tools[]`：**13** 个 catalog id（`AGENT_TOOL_CATALOG`）；内部 handler 经 `builtin-tool-resolver` 解析（如 `dom_read` → `dom_read_page`），**不进 catalog**。
 
 **方案**
 

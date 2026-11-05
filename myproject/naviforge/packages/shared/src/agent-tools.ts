@@ -12,7 +12,7 @@ export const AGENT_TOOL_CATALOG = [
     id: 'browser_act',
     group: 'DOM' as const,
     description:
-      '操作当前页：click/type/press/select/check/hover/drag/upload/scroll/wait/highlight/mark_topn/mark_items/clear_highlights/inject。scroll 只为露出可点元素',
+      '操作当前页：[mutating] click|type|press|select|check|drag|upload|inject；[readonly-aux] scroll|wait|hover|highlight|mark_topn|mark_items|clear_highlights。scroll 只为露出可点元素',
     args:
       '{ "action": "click"|"type"|"press"|"select"|"check"|"hover"|"drag"|"upload"|"scroll"|"wait"|"highlight"|"mark_topn"|"mark_items"|"clear_highlights"|"inject", "index"?: number, "revision"?: number, "selector"?: string, "text"?: string, "key"?: string, "n"?: number, "kind"?: "css"|"html"|"script", "code"?: string }',
   },

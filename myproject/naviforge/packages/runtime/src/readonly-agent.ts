@@ -91,6 +91,7 @@ export async function runReadonlySubAgents(opts: ReadonlySubAgentOptions): Promi
             systemPrompt: composeSystemPrompt(undefined, {
               hasMcpTools: Boolean(opts.mcpTools?.some((t) => t.readonly)),
               runProfile: 'readonly-child',
+              includeSpawn: false,
             }),
             tools: [
               ...READONLY_RUN_PROFILE.allowedTools,

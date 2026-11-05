@@ -5,22 +5,13 @@ import {
   isSiteCatalogSopTask,
   resolveTaskMode,
 } from './task-classifier.js'
-
-const MEDIA_TASK =
-  /播放|视频|m3u8|mp4|stream|playback|media url|播放地址|流地址|源地址|hls|webm/i
-
-function taskLooksLikeMedia(task: string): boolean {
-  return MEDIA_TASK.test(task.trim())
-}
+import { looksLikeMediaTask, looksLikeScriptTask, looksLikeWeakExtract } from './task-signals.js'
 
 /** Primary user-facing outcome for one run (mutually exclusive narrative). */
 export type Deliverable = 'script' | 'data' | 'media' | 'summary' | 'research' | 'general'
 
-const SCRIPT_TASK =
-  /(?:生成|写|输出|给我).{0,16}(python|py|脚本|scraper|爬虫)|(?:python|py|脚本).{0,24}(抓取|爬取|crawl|scrape|采集)|(?:抓取|爬取).{0,16}(python|脚本)/i
-
 export function isScriptDeliverableTask(task: string): boolean {
-  return SCRIPT_TASK.test(task.trim())
+  return looksLikeScriptTask(task)
 }
 
 /**
@@ -32,7 +23,7 @@ export function isScriptDeliverableTask(task: string): boolean {
 function resolveStrongDeliverableSignal(t: string): Deliverable | undefined {
   if (isScriptDeliverableTask(t)) return 'script'
   if (isResearchTask(t) || resolveTaskMode(t) === 'research') return 'research'
-  if (taskLooksLikeMedia(t) && !isScriptDeliverableTask(t)) return 'media'
+  if (looksLikeMediaTask(t) && !isScriptDeliverableTask(t)) return 'media'
   if (isSiteCatalogSopTask(t) || isCatalogCrawlTask(t)) return 'data'
   if (isPageReadTask(t)) return 'summary'
   return undefined
@@ -48,7 +39,7 @@ function resolveStrongDeliverableSignal(t: string): Deliverable | undefined {
  */
 function resolveWeakDeliverableSignal(t: string): Deliverable {
   if (resolveTaskMode(t) === 'general') return 'general'
-  if (/提取|抓取|列出|top\s*\d+|前\s*\d+/.test(t) && !isPageReadTask(t)) return 'data'
+  if (looksLikeWeakExtract(t) && !isPageReadTask(t)) return 'data'
   return 'general'
 }
 
@@ -89,7 +80,7 @@ export function deliverablePreflightSkill(deliverable: Deliverable): string | un
     case 'script':
       return SCRAPER_SKILL_ID
     case 'media':
-      return 'harvest'
+      return 'media-harvest'
     case 'data':
       return 'traverse'
     case 'summary':

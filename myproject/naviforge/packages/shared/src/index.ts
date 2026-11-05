@@ -1,6 +1,7 @@
 export * from './sanitize-untrusted-text.js'
 export * from './schema.js'
 export * from './agent-tools.js'
+export * from './tool-specs.js'
 export * from './mcp-names.js'
 export * from './mcp-servers-json.js'
 export * from './openai-tools.js'

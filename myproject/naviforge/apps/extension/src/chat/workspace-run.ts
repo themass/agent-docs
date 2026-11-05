@@ -8,6 +8,7 @@ import {
   type QueuedTask,
   shouldEnableNetworkPlane,
 } from '@naviforge/runtime'
+import { preferredSkillIdsForTask } from '@naviforge/runtime'
 import { formatSkillGuidance, routeSkills, type Skill } from '@naviforge/skill-runtime'
 import { capabilityGatesFromPrivacy } from '@naviforge/shared'
 
@@ -208,7 +209,9 @@ export function createAgentStarter(deps: AgentStarterDeps) {
     deps.setStatus(RUN_STATUS.PREPARING)
 
     // Soft hints only — never host-route a single skill or dump bodies into the prompt.
-    const suggested = routeSkills(taskText, deps.enabledSkills, 3)
+    const suggested = routeSkills(taskText, deps.enabledSkills, 3, {
+      preferredSkillIds: preferredSkillIdsForTask(taskText),
+    })
     const skillGuidance = deps.enabledSkills.length
       ? formatSkillGuidance(deps.enabledSkills, { hints: suggested })
       : undefined
@@ -228,16 +231,13 @@ export function createAgentStarter(deps: AgentStarterDeps) {
       'system_ask_user',
       'system_captcha_wait',
     ] as const
-    const permissionSources = suggested.length
-      ? suggested
-      : [{ manifest: { permissions: { tools: [...SAFE_BASE_TOOLS] } } } as Skill]
+    // Hard allowlist = enabled skills ∪ base — NOT routeSkills alone (wrong route must not lock tools).
     const allowedTools = deps.enforceSkillToolAllowlist
       ? [
-          ...new Set(
-            permissionSources.flatMap(
-              (skill) => skill.manifest.permissions?.tools ?? [...SAFE_BASE_TOOLS]
-            )
-          ),
+          ...new Set([
+            ...SAFE_BASE_TOOLS,
+            ...deps.enabledSkills.flatMap((skill) => skill.manifest.permissions?.tools ?? []),
+          ]),
         ]
       : undefined
     let thread = deps.threads.find((item) => item.id === deps.activeThreadId)

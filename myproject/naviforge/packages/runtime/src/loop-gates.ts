@@ -129,14 +129,20 @@ export function createActionLoopGate(limit: number): ActionLoopGate {
   return { exec: new Map(), skip: new Map(), limit }
 }
 
-/** Before executing: allow, skip (hint only), or stop the run. */
-export function decideActionLoop(gate: ActionLoopGate, key: string | null): 'allow' | 'skip' | 'stop' {
+/**
+ * Before executing: allow, soft skip (first over-limit), or replan (second+).
+ * Replan never ends the run by itself — hooks mark `replanRequired` and skip.
+ */
+export function decideActionLoop(
+  gate: ActionLoopGate,
+  key: string | null
+): 'allow' | 'skip' | 'replan' {
   if (!key || gate.limit <= 0) return 'allow'
   const exec = gate.exec.get(key) ?? 0
   if (exec < gate.limit) return 'allow'
   const n = (gate.skip.get(key) ?? 0) + 1
   gate.skip.set(key, n)
-  return n >= 2 ? 'stop' : 'skip'
+  return n >= 2 ? 'replan' : 'skip'
 }
 
 export function recordActionLoopSuccess(gate: ActionLoopGate, key: string | null): void {
@@ -146,22 +152,25 @@ export function recordActionLoopSuccess(gate: ActionLoopGate, key: string | null
 
 export type ActionLoopCall = { tool: string; arguments?: Record<string, unknown> }
 
-/** Replay successful calls on one URL. `stopAt` is the call index that would halt the run, or -1. */
+/**
+ * Replay successful calls on one URL.
+ * `replanAt` / `stopAt` (alias) = index where the second over-limit skip fires, or -1.
+ */
 export function replayActionLoop(
   calls: ActionLoopCall[],
   url: string,
   limit = DEFAULT_RUN_LIMITS.sameActionLimit
-): { stopAt: number; allowed: number } {
+): { replanAt: number; stopAt: number; allowed: number } {
   const gate = createActionLoopGate(limit)
   let allowed = 0
   for (let i = 0; i < calls.length; i++) {
     const call = calls[i]!
     const key = actionLoopKey(call.tool, url, call.arguments)
     const decision = decideActionLoop(gate, key)
-    if (decision === 'stop') return { stopAt: i, allowed }
+    if (decision === 'replan') return { replanAt: i, stopAt: i, allowed }
     if (decision === 'skip') continue
     allowed += 1
     recordActionLoopSuccess(gate, key)
   }
-  return { stopAt: -1, allowed }
+  return { replanAt: -1, stopAt: -1, allowed }
 }

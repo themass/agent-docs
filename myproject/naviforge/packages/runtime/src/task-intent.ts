@@ -7,6 +7,12 @@ import {
   shouldHintListThenDetail,
 } from './task-classifier.js'
 import { isScriptDeliverableTask, resolveDeliverable } from './deliverable.js'
+import {
+  looksLikeDeniedTask,
+  looksLikeDownloadTask,
+  looksLikeMediaTask,
+  looksLikeWeakExtract,
+} from './task-signals.js'
 
 export type TaskIntent =
   | 'page_read'
@@ -20,26 +26,21 @@ export type TaskIntent =
   | 'list_detail'
   | 'denied'
 
-const DENIED = /破解|绕过.{0,8}加密|破解.{0,8}付费|crack|bypass.{0,12}(drm|paywall|encryption)/i
-
-const MEDIA_TASK =
-  /播放|视频|m3u8|mp4|stream|playback|media url|播放地址|流地址|源地址|hls|webm/i
-
 export function isMediaTask(task: string): boolean {
-  return MEDIA_TASK.test(task)
+  return looksLikeMediaTask(task)
 }
 
 export function resolveTaskIntent(task: string): TaskIntent {
   const t = task.trim()
-  if (DENIED.test(t)) return 'denied'
+  if (looksLikeDeniedTask(t)) return 'denied'
   if (isScriptDeliverableTask(t) || resolveDeliverable(t) === 'script') return 'script_authoring'
   if (isMediaTask(t)) return 'media_extract'
-  if (/下载|download|保存.{0,6}文件|save.{0,8}file/i.test(t)) return 'page_download'
+  if (looksLikeDownloadTask(t)) return 'page_download'
   if (isSiteCatalogSopTask(t) || isCatalogCrawlTask(t)) return 'multi_hop_crawl'
   if (shouldHintListThenDetail(t)) return 'list_detail'
   if (isResearchTask(t)) return 'research'
   if (isPageReadTask(t)) return 'page_read'
-  if (/提取|抓取|列出|top\s*\d+|前\s*\d+/.test(t) && !isPageReadTask(t)) return 'list_extract'
+  if (looksLikeWeakExtract(t) && !isPageReadTask(t)) return 'list_extract'
   if (resolveTaskMode(t) === 'general') return 'general'
   return 'page_read'
 }
@@ -49,7 +50,7 @@ export function intentPreflightSkill(intent: TaskIntent): string | undefined {
     case 'page_download':
       return 'persist'
     case 'media_extract':
-      return 'harvest'
+      return 'media-harvest'
     case 'script_authoring':
       return 'persist'
     case 'list_detail':
