@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { IconArrowRight, IconBookmark, IconCheck } from "@/components/ui/Icon";
 import { Select } from "@/components/ui/Select";
 import {
   createMockSession,
   completeMockSession,
+  getActiveMockSession,
   getLevelRecommendation,
   getMockSession,
   getQuestionDetail,
@@ -91,10 +92,11 @@ export function CoachFlywheel({
   }, [profileId]);
 
   useEffect(() => {
-    if (!profileId) {
-      setRecommendation(null);
-      return;
-    }
+    // A different profile has a different recommendation, and a level filled in from the old one
+    // does not carry over. The user's own pick is theirs, but it was a pick for that profile too.
+    setRecommendation(null);
+    setLevel(null);
+    if (!profileId) return;
     let cancelled = false;
     setRecommendationFailed(false);
     void getLevelRecommendation(profileId)
@@ -110,6 +112,36 @@ export function CoachFlywheel({
       cancelled = true;
     };
   }, [profileId]);
+
+  // The interview id lives on the server. After a reload this page remembers nothing, so it asks
+  // for the interview still running on this job and picks it up. Without that, answers stop being
+  // recorded and starting again opens a second interview. Picking one up does not send the
+  // opening message again: the interviewer already said it.
+  const sessionRef = useRef<MockSession | null>(null);
+  sessionRef.current = session;
+  useEffect(() => {
+    if (!profileId || !jobId) return;
+    // A page that moved to another job is no longer showing that job's interview.
+    if (sessionRef.current && sessionRef.current.job_id !== jobId) {
+      setSession(null);
+      onSessionChange?.(null);
+    }
+    let cancelled = false;
+    void getActiveMockSession(profileId, jobId)
+      .then((found) => {
+        if (cancelled || !found || sessionRef.current?.status === "active") return;
+        setSession(found);
+        // The cards show the level this interview was started with, not what the profile suggests.
+        if (found.level) setLevel(found.level);
+        onSessionChange?.(found.id);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+    // onSessionChange is a state setter from the page; it does not change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileId, jobId]);
 
   const job = jobs.find((j) => j.id === jobId) ?? null;
 

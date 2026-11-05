@@ -238,6 +238,20 @@ async def complete_mock_session(
     return await coach.complete_mock_session(session_id, actor=actor)
 
 
+@router.get(
+    "/profiles/{profile_id}/mock-sessions/active",
+    response_model=MockSessionResponse | None,
+    summary="这个档案在这个岗位上正在进行的模拟面试（刷新页面后找回）",
+)
+async def get_active_mock_session(
+    profile_id: Annotated[str, Path(description="档案 ID")],
+    job_id: str = Query(description="岗位 ID"),
+    actor: UserActor = Depends(require_user),
+    coach: InterviewService = Depends(get_coach_service),
+) -> MockSessionResponse | None:
+    return await coach.active_mock_session(profile_id, job_id=job_id, actor=actor)
+
+
 @router.get("/profiles/{profile_id}/mock-sessions", response_model=MockSessionListResponse)
 async def list_mock_sessions(
     profile_id: str,

@@ -84,6 +84,12 @@ async def _owned_session(scope: RunScope, mock_session_id: str) -> MockSession:
     return session
 
 
+async def current_session(scope: RunScope, mock_session_id: str) -> MockSession:
+    """The session as it stands now: one left idle past the limit is closed first, so a caller never
+    resumes an interview that has already timed out."""
+    return await _owned_session(scope, mock_session_id)
+
+
 async def must_have_of(scope: RunScope, session: MockSession) -> list[str]:
     if not session.job_id:
         return []

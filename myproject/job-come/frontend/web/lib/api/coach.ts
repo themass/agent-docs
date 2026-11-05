@@ -86,6 +86,16 @@ export function createMockSession(body: {
   });
 }
 
+/** The interview still running for this profile and job, or null. A reload asks this to pick it up. */
+export function getActiveMockSession(
+  profileId: string,
+  jobId: string,
+): Promise<MockSession | null> {
+  return apiJson(
+    `/coach/profiles/${encodeURIComponent(profileId)}/mock-sessions/active?job_id=${encodeURIComponent(jobId)}`,
+  );
+}
+
 export function getMockSession(sessionId: string): Promise<MockSession> {
   return apiJson(`/coach/mock/sessions/${sessionId}`);
 }

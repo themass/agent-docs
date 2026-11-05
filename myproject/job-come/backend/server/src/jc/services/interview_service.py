@@ -306,6 +306,26 @@ class InterviewService:
             ],
         )
 
+    async def active_mock_session(
+        self, profile_id: str, *, job_id: str, actor: UserActor
+    ) -> MockSessionResponse | None:
+        """The interview still running for this profile and job, or None.
+
+        A page that reloads asks this to pick the interview up again. One left idle past the limit
+        is closed on the way (and its report queued), not handed back."""
+        from jc.services.mock_guard_service import current_session
+
+        await self._profiles.get(profile_id, actor=actor)
+        found = await self._store.get_active_mock(profile_id, job_id=job_id)
+        if found is None or found.user_id != actor.user_id:
+            return None
+        scope = RunScope(db=self._db, user_id=actor.user_id, profile_id=profile_id,
+                         mock_session_id=found.id)
+        session = await current_session(scope, found.id)
+        if session.status != MockSessionStatus.ACTIVE:
+            return None
+        return await self._to_mock_response(session)
+
     async def get_mock_session(
         self,
         session_id: str,
