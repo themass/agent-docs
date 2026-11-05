@@ -53,13 +53,20 @@ from functools import lru_cache
 #: `ask_clarification` is DeerFlow's generic "ask the user something" tool, which
 #: in this product is wrong twice over: the sidebar already has the user's
 #: attention, and the tool's prompt produces an English question in a Chinese UI.
+_NO_SMALL_TALK = "不要自我介绍，不要寒暄，不要复述任务。用户已经在和你对话，直接回答或直接动手。"
+
+#: Skills whose job is to be a person across the table. The interviewer greets, says who they are
+#: and asks for a self-introduction (its own skill text says so); a shared rule forbidding exactly
+#: that, in the same prompt, cancels it.
+_SKILLS_THAT_GREET: frozenset[str] = frozenset({"coach-mock"})
+
 _CONDUCT_RULES: tuple[str, ...] = (
     "档案索引不是完整经历。先用 jc_profile_get 的 section/field_path 按需读取；"
     "分页未读完不能断言没有证据。"
     "修改文案前核对 constraints；头像任务只读 contact，不读取无关经历。",
     "用户否认某项表述时，提议将原表述和正确说法保存到 constraints.retracted_claims，"
     "指定 scope=profile 或 experience/project 及 entity_id；必须由用户确认，不凭模型推测新增约束。",
-    "不要自我介绍，不要寒暄，不要复述任务。用户已经在和你对话，直接回答或直接动手。",
+    _NO_SMALL_TALK,
     "不要调用 ask_clarification。需要澄清就在回复里直接问，一次只问一个最关键的问题。",
     "改档案只能通过 jc_profile_patch 生成确认卡片。用户确认且工具返回 applied 之后才能说已保存。",
 )
@@ -106,7 +113,11 @@ def build_standing_block(
         if framing:
             parts.append(_section("本会话任务", framing))
 
-    parts.append(_section("行为约束", "\n".join(f"- {rule}" for rule in _CONDUCT_RULES)))
+    rules = [
+        rule for rule in _CONDUCT_RULES
+        if not (rule == _NO_SMALL_TALK and skill_id in _SKILLS_THAT_GREET)
+    ]
+    parts.append(_section("行为约束", "\n".join(f"- {rule}" for rule in rules)))
 
     if skill_id:
         methodology = _methodology(skill_id, role_family)
