@@ -523,6 +523,12 @@ def _report_view(
     suggestions, without the per-question detail (SPEC §2)."""
     report = session.report or {}
     by_id = {turn["question_id"]: turn for turn in transcript}
+    follow_ups: dict[str, list[dict[str, str]]] = {}
+    for turn in transcript:
+        if turn.get("kind") == "followup" and turn.get("parent_question_id"):
+            follow_ups.setdefault(turn["parent_question_id"], []).append(
+                {"question_id": turn["question_id"], "stem": turn["stem"], "answer": turn["answer"]}
+            )
     questions = []
     for item in report.get("questions", []):
         qid = item["question_id"]
@@ -531,13 +537,17 @@ def _report_view(
             "question_id": qid,
             "stem": turn.get("stem", ""),
             "answer": turn.get("answer", ""),
+            "follow_ups": follow_ups.get(qid, []),
+            "skipped": bool(turn.get("skipped")),
             "scores": item.get("scores", {}),
             "evidence": item.get("evidence", {}),
             "praise": item.get("praise"),
             "fixes": item.get("fixes", []),
             "reference": item.get("reference", []),
         })
-    stems = {turn["question_id"]: turn["stem"] for turn in transcript}
+    stems = {
+        turn["question_id"]: turn["stem"] for turn in transcript if turn.get("kind") != "followup"
+    }
     derived = insights(report.get("questions", []), report.get("overall", {}), must_have, stems)
     brief = not session.quota_counted
     return MockReportResponse(

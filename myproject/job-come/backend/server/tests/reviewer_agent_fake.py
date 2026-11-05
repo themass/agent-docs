@@ -27,6 +27,8 @@ class FakeReviewerAgent:
         self.delay = delay
         self.error = error
         self.runs: list[dict[str, Any]] = []
+        #: What the run read with `jc_mock_session_history`: the reviewer's input, for tests.
+        self.history: dict[str, Any] | None = None
 
     async def run_once(self, *, skill, metadata, context, db=None) -> str:
         self.runs.append({"skill": skill, "metadata": metadata, "context": context})
@@ -39,6 +41,12 @@ class FakeReviewerAgent:
         async with self.maker() as s:
             scope = RunScope(db=s, user_id=metadata.user_id, profile_id=metadata.profile_id,
                              mock_session_id=session_id)
+            # The real reviewer reads the session first, after it has ended. A history call that
+            # refused an ended session left it with nothing to review, and nothing noticed because
+            # this stand-in used to go straight to writing.
+            self.history = await dispatch_tool(
+                scope, "jc_mock_session_history", {"mock_session_id": session_id}
+            )
             try:
                 await dispatch_tool(scope, "jc_mock_report_write",
                                     {"mock_session_id": session_id, "report": self.report})

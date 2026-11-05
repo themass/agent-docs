@@ -70,7 +70,8 @@ async def test_the_report_transcript_of_a_session_ignores_other_sessions_answers
         store = InterviewStore(s)
         ms1 = await store.get_mock_session("ms1")
         transcript = await session_transcript(store, ms1)
-    assert transcript == [{"question_id": "q1", "stem": "讲一个你拆分数据的经历", "answer": ""}]
+    assert [(t["question_id"], t["stem"], t["answer"]) for t in transcript] == [
+        ("q1", "讲一个你拆分数据的经历", "")]
 
 
 @pytest.mark.asyncio

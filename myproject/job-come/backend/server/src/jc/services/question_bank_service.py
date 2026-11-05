@@ -128,27 +128,30 @@ async def mock_session_history(
     if not mock_session_id:
         raise ValueError("mock_session_id required")
     await require_owned_profile(scope)
-    await require_owned_references(scope, mock_session_id=mock_session_id)
+    # Not require_owned_references: that refuses a session that has ended, and the reviewer reads
+    # the history exactly then. A run started for one session may read only that session.
+    if scope.mock_session_id and scope.mock_session_id != mock_session_id:
+        raise PermissionError("History is for another mock session")
     store = InterviewStore(scope.db)
     session = await store.get_mock_session(mock_session_id)
     if session is None or session.profile_id != scope.profile_id:
         raise PermissionError("Mock session outside this profile")
 
-    turns: list[dict[str, Any]] = []
-    for qid in list(session.question_ids or [])[-max(1, min(limit, 50)) :]:
-        question = await store.get_question(qid)
-        if question is None:
-            continue
-        attempt = await store.get_latest_attempt_in_session(qid, session.id)
-        turns.append(
-            {
-                "question_id": question.id,
-                "stem": question.stem,
-                "question_type": question.question_type,
-                "user_answer": attempt.user_answer if attempt else None,
-                "coach_feedback": attempt.coach_feedback if attempt else None,
-            }
-        )
+    from jc.services.mock_turns import session_turns
+
+    all_turns = await session_turns(store, session)
+    turns: list[dict[str, Any]] = [
+        {
+            "question_id": turn.question_id,
+            "stem": turn.stem,
+            "question_type": turn.question_type,
+            "kind": turn.kind,
+            "parent_question_id": turn.parent_question_id,
+            "skipped": turn.skipped,
+            "user_answer": turn.answer or None,
+        }
+        for turn in all_turns[-max(1, min(limit, 50)):]
+    ]
     return {
         "mock_session_id": session.id,
         "status": session.status,

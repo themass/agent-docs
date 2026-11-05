@@ -180,10 +180,22 @@ class MockReportReference(BaseModel):
     status: Literal["sourced", "pending"]
 
 
+class MockReportFollowUp(BaseModel):
+    """What the interviewer asked to dig into a main question, and what the candidate said."""
+
+    question_id: str
+    stem: str
+    answer: str
+
+
 class MockReportQuestion(BaseModel):
     question_id: str
     stem: str
     answer: str
+    #: The follow-ups to this question, in the order they were asked. They are not scored on
+    #: their own: what was said in them is evidence for this question.
+    follow_ups: list[MockReportFollowUp] = Field(default_factory=list)
+    skipped: bool = False
     scores: dict[str, int | None]
     evidence: dict[str, str]
     praise: str | None = None

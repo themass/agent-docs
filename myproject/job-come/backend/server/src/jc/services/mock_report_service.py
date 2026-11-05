@@ -18,6 +18,7 @@ from jc.authz.ownership import require_owned_profile
 from jc.authz.scope import RunScope
 from jc.models.interview import MockSession
 from jc.models.profile import Profile
+from jc.services.mock_turns import session_turns
 from jc.stores.interview_store import InterviewStore
 
 DIMENSIONS = ("structure", "relevance", "depth", "communication", "reflection")
@@ -37,9 +38,16 @@ def _as_score(value: Any) -> int | None:
 
 
 def validate_report(
-    raw: dict[str, Any], *, answers: dict[str, str], profile_text: str
+    raw: dict[str, Any],
+    *,
+    answers: dict[str, str],
+    profile_text: str,
+    followups: dict[str, str | None] | None = None,
 ) -> dict[str, Any]:
-    """Check and normalise a reviewer report. Raises ValueError for a malformed report."""
+    """Check and normalise a reviewer report. Raises ValueError for a malformed report.
+
+    `answers` holds the main questions only; `followups` maps a follow-up's id to its main
+    question, so a report that scores a follow-up is told which question to score instead."""
     items = raw.get("questions")
     if not isinstance(items, list) or not items:
         raise ValueError("report needs a non-empty questions list")
@@ -52,6 +60,11 @@ def validate_report(
 
     for item in items:
         qid = item.get("question_id")
+        if followups and qid in followups:
+            raise ValueError(
+                f"question {qid!r} is a follow-up (追问) of {followups[qid]!r}: score the main "
+                f"question {followups[qid]!r} and quote the follow-up's answer as evidence"
+            )
         if qid not in answers:
             raise ValueError(f"question {qid!r} is not part of this session")
         if qid in seen:
@@ -116,22 +129,27 @@ def validate_report(
     }
 
 
-async def session_transcript(store: InterviewStore, session: MockSession) -> list[dict[str, str]]:
-    """Every question of the session, in order, with the candidate's latest answer.
+async def session_transcript(store: InterviewStore, session: MockSession) -> list[dict[str, Any]]:
+    """Every question put to the candidate, in the order it was asked, with the candidate's latest
+    answer and which main question a follow-up belongs to (see `jc.services.mock_turns`).
 
     A skipped question has an empty answer, so the reviewer may score it only as null
     (AGENTS-DESIGN §4.2: skipped counts as unanswered).
     """
-    turns = []
-    for qid in session.question_ids or []:
-        question = await store.get_question(qid)
-        attempt = await store.get_latest_attempt_in_session(qid, session.id)
-        turns.append({
-            "question_id": qid,
-            "stem": question.stem if question is not None else "",
-            "answer": (attempt.user_answer or "") if attempt is not None else "",
-        })
-    return turns
+    return [turn.as_transcript_entry() for turn in await session_turns(store, session)]
+
+
+def answers_by_main_question(transcript: list[dict[str, Any]]) -> dict[str, str]:
+    """What a score may be quoted from: a main question's own answer and its follow-ups' answers.
+
+    Only main questions are scored. A follow-up is how the interviewer dug into the main question,
+    so what the candidate said there is evidence for it."""
+    answers = {t["question_id"]: t["answer"] for t in transcript if t["kind"] != "followup"}
+    for turn in transcript:
+        parent = turn["parent_question_id"]
+        if turn["kind"] == "followup" and parent in answers and turn["answer"]:
+            answers[parent] = f"{answers[parent]}\n{turn['answer']}".strip()
+    return answers
 
 
 async def profile_payload_text(scope: RunScope) -> str:
@@ -157,9 +175,12 @@ async def write_report(
         raise ValueError("a report can only be written after the session has ended")
 
     transcript = await session_transcript(store, session)
-    answers = {turn["question_id"]: turn["answer"] for turn in transcript}
+    answers = answers_by_main_question(transcript)
+    followups = {t["question_id"]: t["parent_question_id"]
+                 for t in transcript if t["kind"] == "followup"}
     profile_text = await profile_payload_text(scope)
-    report = validate_report(raw, answers=answers, profile_text=profile_text)
+    report = validate_report(raw, answers=answers, profile_text=profile_text,
+                             followups=followups)
     session.report = report
     await scope.db.flush()
     await scope.db.commit()
