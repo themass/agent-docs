@@ -549,7 +549,13 @@ def _report_view(
     stems = {
         turn["question_id"]: turn["stem"] for turn in transcript if turn.get("kind") != "followup"
     }
-    derived = insights(report.get("questions", []), report.get("overall", {}), must_have, stems)
+    # What was put to the candidate, from the session itself and not from what the reviewer chose to
+    # list: a skipped question covers nothing, and a question the reviewer left out still counts.
+    main_turns = [t for t in transcript if t.get("kind") != "followup"]
+    derived = insights(
+        report.get("questions", []), report.get("overall", {}), must_have, stems,
+        asked_stems=[t["stem"] for t in transcript if not t.get("skipped")],
+    )
     brief = not session.quota_counted
     return MockReportResponse(
         status="ready",
@@ -559,6 +565,8 @@ def _report_view(
         readiness=readiness(
             report.get("overall", {}), derived["coverage"], level=session.level,
             ended_early=bool(base.get("ended_early")),
+            asked_main=len(main_turns) or None,
+            answered_main=sum(1 for t in main_turns if (t.get("answer") or "").strip()),
         ),
         brief=brief,
         questions=[] if brief else questions,

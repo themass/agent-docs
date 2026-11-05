@@ -23,6 +23,7 @@ import {
 import { MockProgress } from "@/components/coach/MockProgress";
 import { listJobs, type Job } from "@/lib/api/jobs";
 import { userFacingApiError } from "@/lib/api/user-error";
+import { sessionStillApplies } from "@/lib/mock-interview";
 
 const TYPES = [
   { id: "behavioral", label: "行为/STAR" },
@@ -130,16 +131,21 @@ export function CoachFlywheel({
   const sessionRef = useRef<MockSession | null>(null);
   sessionRef.current = session;
   useEffect(() => {
-    if (!profileId || !jobId) return;
-    // A page that moved to another job is no longer showing that job's interview.
-    if (sessionRef.current && sessionRef.current.job_id !== jobId) {
+    // A page that has moved to another job or profile, or to no job at all, is no longer showing
+    // that interview. This runs before anything else, because "no job" is also a move away.
+    const shown = sessionRef.current;
+    const leaving = Boolean(shown) && !sessionStillApplies(shown!, profileId, jobId);
+    if (leaving) {
       setSession(null);
       onSessionChange?.(null);
     }
+    if (!profileId || !jobId) return;
     let cancelled = false;
     void getActiveMockSession(profileId, jobId)
       .then((found) => {
-        if (cancelled || !found || sessionRef.current?.status === "active") return;
+        // The ref still holds the interview that was just cleared until the next render.
+        const stillShowingOne = !leaving && sessionRef.current?.status === "active";
+        if (cancelled || !found || stillShowingOne) return;
         setSession(found);
         // The cards show the level this interview was started with, not what the profile suggests.
         if (found.level) setLevel(found.level);

@@ -19,8 +19,10 @@ function CoachAgentInner() {
   const profileId = context?.active_profile_id ?? null;
   const jobId = searchParams.get("job_id");
   const [mockSessionId, setMockSessionId] = useState<string | null>(null);
-  // The round that has just ended, however it ended. Its report is on the way.
-  const [endedId, setEndedId] = useState<string | null>(null);
+  // The round that has just ended, however it ended, and the job and profile it was for. Its report
+  // is on the way, and the notice about it is only for the page it was started on.
+  const [ended, setEnded] = useState<{ id: string; jobId: string | null; profileId: string | null } | null>(null);
+  const endedId = ended && ended.jobId === jobId && ended.profileId === profileId ? ended.id : null;
   const [autoStart, setAutoStart] = useState<{ id: string; message: string } | null>(null);
   const practiceQid = searchParams.get("practice");
   // Arrived from the archive page: the coach records a real interview instead of running a mock.
@@ -29,10 +31,13 @@ function CoachAgentInner() {
   // Whoever ends a round (the candidate, the interviewer's own end tool, the idle timeout), the page
   // leaves it the same way: the round stops being the one answers are recorded to, and the report
   // notice shows. The server is the only one who knows, so this runs when the server says so.
-  const handleEnded = useCallback((id: string) => {
-    setEndedId(id);
-    setMockSessionId((current) => (current === id ? null : current));
-  }, []);
+  const handleEnded = useCallback(
+    (id: string) => {
+      setEnded({ id, jobId, profileId });
+      setMockSessionId((current) => (current === id ? null : current));
+    },
+    [jobId, profileId],
+  );
   const reader = useMockProgress(mockSessionId, handleEnded);
 
   // The job lives in the URL, so a link to this page with a job already set still opens on it.
@@ -99,7 +104,7 @@ function CoachAgentInner() {
           onSessionChange={(id) => {
             setMockSessionId(id);
             // A new round replaces the notice about the last one.
-            if (id) setEndedId(null);
+            if (id) setEnded(null);
           }}
           onJobChange={changeJob}
           onStarted={(started) =>

@@ -319,3 +319,51 @@ async def test_the_plan_says_when_the_interview_started_so_a_page_can_show_the_t
     started = datetime.fromisoformat(plan["started_at"])
     assert started.tzinfo is not None
     assert abs((datetime.now(UTC) - started).total_seconds()) < 60
+
+
+# --- pressing End after the candidate's turn is finishing, not leaving early ----------------------
+
+
+async def _session_row(maker):
+    async with maker() as db:
+        return (await db.execute(select(MockSession))).scalar_one()
+
+
+@pytest.mark.asyncio
+async def test_the_candidate_pressing_end_after_their_own_turn_has_finished_the_interview(maker):
+    await _open(maker)
+    await _ask(maker, STEMS[0])
+    await _call(maker, "jc_mock_open_qa")
+    out = await _call(maker, "jc_mock_end", {"reason": "user_ended"})
+    assert out["accepted"] is True and out["ended_early"] is False
+    row = await _session_row(maker)
+    assert row.coverage["ended_reason"] == "completed" and row.coverage["ended_early"] is False
+
+
+@pytest.mark.asyncio
+async def test_the_candidate_pressing_end_before_their_own_turn_is_leaving_early(maker):
+    await _open(maker)
+    await _ask(maker, STEMS[0])
+    out = await _call(maker, "jc_mock_end", {"reason": "user_ended"})
+    assert out["ended_early"] is True
+    row = await _session_row(maker)
+    assert row.coverage["ended_reason"] == "user_ended" and row.coverage["ended_early"] is True
+
+
+@pytest.mark.asyncio
+async def test_walking_away_after_the_candidates_turn_is_still_a_timeout(maker):
+    # Abandoning the interview is not the same as ending it, whatever stage it was in.
+    from datetime import timedelta
+
+    await _open(maker)
+    await _ask(maker, STEMS[0])
+    await _call(maker, "jc_mock_open_qa")
+    stale = (datetime.now(UTC) - timedelta(days=3)).replace(tzinfo=None).isoformat()
+    async with maker() as db:
+        row = await db.get(MockSession, "ms1")
+        row.coverage = {**row.coverage, "last_activity": stale}
+        row.started_at = datetime.now(UTC) - timedelta(days=3)
+        await db.commit()
+    await _plan(maker)
+    row = await _session_row(maker)
+    assert row.coverage["ended_reason"] == "timeout" and row.coverage["ended_early"] is True

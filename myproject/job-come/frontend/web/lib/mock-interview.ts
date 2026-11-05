@@ -39,3 +39,16 @@ export function barText(progress: BarProgress): { position: string; stage: strin
   if (progress.asked_main === 0) return { position: STAGE_LABEL.opening, stage };
   return { position: `第 ${progress.asked_main} / ${progress.main_limit} 题`, stage };
 }
+
+/** Does a running interview still belong to what the page is showing?
+ *
+ * An interview is for one profile and one job. The page can move away from either without the
+ * interview ending (a link, the back button, a switch of profile), and an interview kept on screen
+ * after that would go on recording answers for the wrong job and offering Skip and Swap on it. */
+export function sessionStillApplies(
+  session: { profile_id: string; job_id?: string | null },
+  profileId: string | null | undefined,
+  jobId: string | null | undefined,
+): boolean {
+  return session.profile_id === (profileId ?? null) && (session.job_id ?? null) === (jobId ?? null);
+}

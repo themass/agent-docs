@@ -315,3 +315,30 @@ def test_a_weak_dimension_that_changed_nothing_is_stated_without_the_cap_wording
     out = readiness(scores, FULL, level="mid", ended_early=False)
     assert out["tier"] == "need_more"
     assert all("最多评到" not in line for line in out["basis"])
+
+
+# --- answered share ------------------------------------------------------------------------------
+
+
+def test_answering_fewer_than_half_the_main_questions_caps_the_tier():
+    out = readiness(_all(9.0), FULL, level="mid", ended_early=False, asked_main=5, answered_main=2)
+    assert out["tier"] == "targeted"
+    assert any("5" in line and "2" in line and "最多评到" in line for line in out["basis"])
+
+
+def test_answering_exactly_half_is_enough():
+    out = readiness(_all(9.0), FULL, level="mid", ended_early=False, asked_main=4, answered_main=2)
+    assert out["tier"] == "solid"
+
+
+def test_the_answered_share_is_not_checked_when_it_is_not_known():
+    assert readiness(_all(9.0), FULL, level="mid", ended_early=False)["tier"] == "solid"
+    assert readiness(_all(9.0), FULL, level="mid", ended_early=False, asked_main=0,
+                     answered_main=0)["tier"] == "solid"
+
+
+def test_a_low_answered_share_that_changed_nothing_is_stated_without_the_cap_wording():
+    out = readiness(_all(3.0), FULL, level="mid", ended_early=False, asked_main=5, answered_main=1)
+    assert out["tier"] == "need_more"
+    line = next(line for line in out["basis"] if "回答" in line)
+    assert "最多评到" not in line

@@ -472,6 +472,12 @@ async def end(
                 code="candidate_qa_not_opened",
             )
 
+    # The interviewer ends with `completed`, but the candidate has an End button of their own. Once
+    # they have had their turn to ask there is nothing left to do, so pressing it is finishing the
+    # interview, not leaving it. A timeout stays a timeout: walking away is walking away.
+    if reason == "user_ended" and state.get("candidate_qa"):
+        reason = "completed"
+
     _close(session, state, reason=reason)
     await scope.db.commit()
     return {"accepted": True, "status": MockSessionStatus.COMPLETED.value,

@@ -48,9 +48,14 @@ def insights(
     overall: dict[str, float | None],
     must_have: list[str],
     stems: dict[str, str],
+    asked_stems: list[str] | None = None,
 ) -> dict[str, Any]:
     """`questions` are the report's per-question entries in asked order; `stems` maps a question id
-    to its text; `overall` holds the server's five-dimension averages."""
+    to its text; `overall` holds the server's five-dimension averages.
+
+    `asked_stems` are the questions that were actually put to the candidate: not the skipped ones
+    (a skipped question covers nothing), and including any the reviewer left out of its report. When
+    it is not given, the questions in the report stand for them."""
     # Trend: first five against last five, only when there are enough questions for both to differ.
     trend = None
     means = [question_mean(q["scores"]) for q in questions]
@@ -62,7 +67,8 @@ def insights(
         }
 
     # Coverage: which requirements were put to the candidate, and which of those were met.
-    asked_stems = [stems.get(q["question_id"], "") for q in questions]
+    if asked_stems is None:
+        asked_stems = [stems.get(q["question_id"], "") for q in questions]
     asked = coverage_of(must_have, asked_stems)
     meet: set[str] = set()
     for q, mean in zip(questions, means):

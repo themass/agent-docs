@@ -28,6 +28,9 @@ _ORDER = ("need_more", "targeted", "ready", "solid")
 _WEAK_DIMENSION = 3.0
 #: At least this share of the job's must-haves has to have been asked about.
 _MIN_COVERAGE = 0.5
+#: At least this share of the main questions has to have been answered. Skipping is free, so a few
+#: good answers among many skipped questions say little about the interview.
+_MIN_ANSWERED = 0.5
 
 
 def _lower(tier: str, cap: str) -> str:
@@ -40,9 +43,14 @@ def readiness(
     *,
     level: str | None,
     ended_early: bool,
+    asked_main: int | None = None,
+    answered_main: int | None = None,
 ) -> dict[str, Any] | None:
     """The tier, its label, the sentence for the page and the lines it rests on. None when no
-    dimension was scored."""
+    dimension was scored.
+
+    `asked_main` is how many main questions were put to the candidate (skipped ones included) and
+    `answered_main` how many of them got an answer."""
     scored = {dim: value for dim, value in overall.items() if value is not None}
     if not scored:
         return None
@@ -65,6 +73,9 @@ def readiness(
         total, asked = int(coverage["total"]), int(coverage["asked"])
         if asked / total < _MIN_COVERAGE:
             tier = cap(tier, f"岗位必备项 {total} 项里只问到 {asked} 项")
+
+    if asked_main and answered_main is not None and answered_main / asked_main < _MIN_ANSWERED:
+        tier = cap(tier, f"{asked_main} 道主问题里只回答了 {answered_main} 道")
 
     if ended_early:
         tier = cap(tier, "面试提前结束")
