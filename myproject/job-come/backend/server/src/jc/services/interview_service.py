@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 from agentkit.common.ids import new_id
 from agentkit.web.auth import Actor, UserActor
@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from jc.authz import RunScope, require_owned_references
+from jc.coach.level import LEVEL_SPECS, LEVELS, level_for_profile
 from jc.coach.planner import select_bank_draws
 from jc.coach.report_insights import insights
 from jc.exceptions import ConflictError, NotFoundError
@@ -25,6 +26,8 @@ from jc.schemas.coach import (
     InterviewSaveRequest,
     InterviewSaveResponse,
     InterviewSummary,
+    LevelOption,
+    LevelRecommendationResponse,
     MockActionResponse,
     MockProgressResponse,
     MockReportResponse,
@@ -239,13 +242,20 @@ class InterviewService:
         actor: UserActor,
         body: MockSessionCreateRequest,
     ) -> MockSessionResponse:
-        await self._profiles.get(body.profile_id, actor=actor)
+        profile = await self._profiles.get(body.profile_id, actor=actor)
         scope = RunScope(db=self._db, user_id=actor.user_id, profile_id=body.profile_id)
         await require_owned_references(scope, job_id=body.job_id)
         now = datetime.now(UTC)
         draws: list[str] = []
         if body.mode == "target" and not body.job_id:
             raise ConflictError("目标岗模拟需要先选择岗位；无 JD 可使用练手模式")
+        # Decided before the quota is claimed, so a refusal here claims nothing.
+        level = body.level
+        if level is None:
+            recommendation = level_for_profile(profile.payload.experiences, today=date.today())
+            if recommendation is None:
+                raise ConflictError("请先选择面试级别。", code="mock_level_required")
+            level = recommendation.level
         session_id = new_id("mock")
         counted = body.kind == "full"
         if counted:
@@ -259,6 +269,7 @@ class InterviewService:
             user_id=actor.user_id,
             mode=body.mode,
             style=body.style,
+            level=level,
             quota_counted=counted,
             job_id=body.job_id,
             resume_variant_id=None,
@@ -274,6 +285,25 @@ class InterviewService:
         await self._store.create_mock_session(session)
         await self._db.commit()
         return await self._to_mock_response(session)
+
+    async def level_recommendation(
+        self, profile_id: str, *, actor: UserActor
+    ) -> LevelRecommendationResponse:
+        """The four levels, and the one this profile suggests (None when its dates are unusable)."""
+        profile = await self._profiles.get(profile_id, actor=actor)
+        recommendation = level_for_profile(profile.payload.experiences, today=date.today())
+        return LevelRecommendationResponse(
+            recommended=recommendation.level if recommendation else None,
+            years=recommendation.years if recommendation else None,
+            reason=recommendation.reason if recommendation else None,
+            levels=[
+                LevelOption(
+                    key=spec.key, label=spec.label, benchmark=spec.benchmark,
+                    years=spec.years, requirement=spec.requirement,
+                )
+                for spec in (LEVEL_SPECS[key] for key in LEVELS)
+            ],
+        )
 
     async def get_mock_session(
         self,
@@ -440,6 +470,7 @@ class InterviewService:
             round=session.round,
             job_id=session.job_id,
             started_at=session.started_at,
+            level=session.level,
             bank_draw_count=draw_n,
             generated_count=int(session.generated_count or 0),
             questions=cards,

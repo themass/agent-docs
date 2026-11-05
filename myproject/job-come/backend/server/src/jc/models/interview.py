@@ -113,6 +113,9 @@ class MockSession(Base, TimestampMixin):
     deerflow_thread_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     #: "warmup" or "full" (see SPEC-MOCK-INTERVIEW §2); a full run is the metered kind.
     style: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    #: junior | mid | senior | expert (SPEC-MOCK-INTERVIEW-V2 §3.5). Null for sessions created
+    #: before levels existed.
+    level: Mapped[str | None] = mapped_column(String(16), nullable=True)
     report: Mapped[dict[str, Any] | None] = mapped_column(JSONLongText, nullable=True)
     coverage: Mapped[dict[str, Any] | None] = mapped_column(JSONText, nullable=True)
     #: True while this session holds the user's monthly full-run slot.

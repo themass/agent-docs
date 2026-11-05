@@ -114,6 +114,25 @@ class MockSessionCreateRequest(BaseModel):
     #: The interviewer's manner (SPEC-MOCK-INTERVIEW §3). Changes how questions are put, never what
     #: is covered or how it is scored.
     style: Literal["gentle", "standard", "pressure", "deep"] = "standard"
+    #: How deep the questions go (SPEC-MOCK-INTERVIEW-V2 §3.5). Left out, it is the level
+    #: recommended from the profile; with no recommendation either, creation is refused.
+    level: Literal["junior", "mid", "senior", "expert"] | None = None
+
+
+class LevelOption(BaseModel):
+    key: str
+    label: str
+    #: The P-series level it is compared with. A comparison, not an Alibaba standard.
+    benchmark: str
+    years: str
+    requirement: str
+
+
+class LevelRecommendationResponse(BaseModel):
+    recommended: str | None = None
+    years: float | None = None
+    reason: str | None = None
+    levels: list[LevelOption]
 
 
 class MockSessionQuestion(BaseModel):
@@ -131,6 +150,7 @@ class MockSessionResponse(BaseModel):
     round: str | None
     job_id: str | None = None
     started_at: datetime
+    level: str | None = None
     bank_draw_count: int = 0
     generated_count: int = 0
     questions: list[MockSessionQuestion] = Field(default_factory=list)

@@ -43,6 +43,11 @@ async def sessions(tmp_path):
     await engine.dispose()
 
 
+def _body(kind: str, **extra) -> MockSessionCreateRequest:
+    # These tests are about the quota; the level is only here because creation requires one.
+    return MockSessionCreateRequest(profile_id="p1", mode="warmup", kind=kind, level="mid", **extra)
+
+
 async def _count(sessions) -> int:
     async with sessions() as db:
         return (await db.execute(select(func.count()).select_from(MockSession))).scalar_one()
@@ -52,14 +57,14 @@ async def _count(sessions) -> int:
 async def test_second_full_run_in_a_month_is_refused_and_leaves_no_session(sessions):
     async with sessions() as db:
         await InterviewService(db).create_mock_session(
-            actor=ACTOR, body=MockSessionCreateRequest(profile_id="p1", mode="warmup", kind="full")
+            actor=ACTOR, body=_body("full")
         )
     assert await _count(sessions) == 1
     async with sessions() as db:
         with pytest.raises(ForbiddenError) as exc:
             await InterviewService(db).create_mock_session(
                 actor=ACTOR,
-                body=MockSessionCreateRequest(profile_id="p1", mode="warmup", kind="full"),
+                body=_body("full"),
             )
     assert exc.value.code == "mock_full_run_quota_exhausted"
     assert await _count(sessions) == 1, "a refused run must not leave a session behind"
@@ -69,13 +74,13 @@ async def test_second_full_run_in_a_month_is_refused_and_leaves_no_session(sessi
 async def test_warmup_is_never_refused_even_after_the_full_run(sessions):
     async with sessions() as db:
         await InterviewService(db).create_mock_session(
-            actor=ACTOR, body=MockSessionCreateRequest(profile_id="p1", mode="warmup", kind="full")
+            actor=ACTOR, body=_body("full")
         )
     async with sessions() as db:
         for _ in range(3):
             await InterviewService(db).create_mock_session(
                 actor=ACTOR,
-                body=MockSessionCreateRequest(profile_id="p1", mode="warmup", kind="warmup"),
+                body=_body("warmup"),
             )
     assert await _count(sessions) == 4
 
@@ -85,9 +90,7 @@ async def test_a_full_run_is_recorded_as_counted_with_its_style(sessions):
     async with sessions() as db:
         created = await InterviewService(db).create_mock_session(
             actor=ACTOR,
-            body=MockSessionCreateRequest(
-                profile_id="p1", mode="warmup", kind="full", style="pressure"
-            ),
+            body=_body("full", style="pressure"),
         )
     async with sessions() as db:
         row = await db.get(MockSession, created.id)

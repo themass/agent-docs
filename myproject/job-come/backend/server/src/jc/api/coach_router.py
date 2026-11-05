@@ -15,6 +15,7 @@ from jc.schemas.coach import (
     InterviewListResponse,
     InterviewSaveRequest,
     InterviewSaveResponse,
+    LevelRecommendationResponse,
     MockActionRequest,
     MockActionResponse,
     MockProgressResponse,
@@ -104,6 +105,19 @@ async def save_attempt(
     coach: InterviewService = Depends(get_coach_service),
 ) -> AnswerAttemptResponse:
     return await coach.save_attempt(question_id, actor=actor, body=body)
+
+
+@router.get(
+    "/mock/level-recommendation",
+    response_model=LevelRecommendationResponse,
+    summary="按档案推荐面试级别",
+)
+async def get_level_recommendation(
+    profile_id: Annotated[str, Query(description="档案 ID")],
+    actor: UserActor = Depends(require_user),
+    coach: InterviewService = Depends(get_coach_service),
+) -> LevelRecommendationResponse:
+    return await coach.level_recommendation(profile_id, actor=actor)
 
 
 @router.post(
