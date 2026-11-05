@@ -112,7 +112,10 @@ export type MockReportQuestion = {
 /** The independent reviewer's report. Scores and averages are computed by the server. */
 export type MockReport = {
   mock_session_id: string;
-  status: "active" | "pending" | "ready";
+  /** pending: queued or being generated. failed: the review produced nothing (see can_retry). */
+  status: "active" | "pending" | "failed" | "ready";
+  /** Only meaningful when failed: the user may ask for the report again. */
+  can_retry: boolean;
   style: string | null;
   started_at: string;
   completed_at: string | null;
@@ -156,6 +159,11 @@ export function listMockSessions(
 
 export function getMockReport(sessionId: string): Promise<MockReport> {
   return apiJson(`/coach/mock/sessions/${sessionId}/report`);
+}
+
+/** Put a failed report back in the queue. Refused (409) once every run has been used. */
+export function retryMockReport(sessionId: string): Promise<MockReport> {
+  return apiJson(`/coach/mock/sessions/${sessionId}/report/retry`, { method: "POST" });
 }
 
 export function logQuestion(

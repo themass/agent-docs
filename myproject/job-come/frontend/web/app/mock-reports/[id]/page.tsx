@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import {
   getMockReport,
+  retryMockReport,
   type MockReport,
   type MockReportQuestion,
 } from "@/lib/api/coach";
@@ -126,6 +127,9 @@ function QuestionBlock({ item, index }: { item: MockReportQuestion; index: numbe
   );
 }
 
+/** How often a report that is still being generated is asked for again. */
+const POLL_MS = 5_000;
+
 export default function MockReportPage() {
   const params = useParams<{ id: string }>();
   const sessionId = params.id;
@@ -133,6 +137,8 @@ export default function MockReportPage() {
   const signedIn = context?.actor === "user";
   const [report, setReport] = useState<MockReport | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
+  const [retryError, setRetryError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!signedIn) return;
@@ -148,6 +154,37 @@ export default function MockReportPage() {
       cancelled = true;
     };
   }, [signedIn, sessionId]);
+
+  // A report still being generated is asked for again until it is ready or has failed. A request
+  // that fails on the way is not the end of the wait: the page keeps showing "generating".
+  const pending = report?.status === "pending";
+  useEffect(() => {
+    if (!pending) return;
+    let cancelled = false;
+    const timer = window.setInterval(() => {
+      getMockReport(sessionId)
+        .then((data) => {
+          if (!cancelled) setReport(data);
+        })
+        .catch(() => undefined);
+    }, POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [pending, sessionId]);
+
+  async function onRetry() {
+    setRetrying(true);
+    setRetryError(null);
+    try {
+      setReport(await retryMockReport(sessionId));
+    } catch (err) {
+      setRetryError(userFacingApiError(err, "重新生成失败，请稍后重试。"));
+    } finally {
+      setRetrying(false);
+    }
+  }
 
   if (authLoading) return <p className="text-sm text-ink-500">正在加载…</p>;
   if (!signedIn) {
@@ -167,11 +204,41 @@ export default function MockReportPage() {
   if (!report) return <p className="text-sm text-ink-500">正在加载报告…</p>;
   if (report.status !== "ready") {
     return (
-      <div className="card mx-auto max-w-2xl p-6">
-        <p className="text-sm text-ink-700">{report.message ?? "报告暂不可用。"}</p>
-        <Link className="btn btn-secondary btn-sm mt-4 inline-flex" href="/coach-agent">
-          返回面试辅导
-        </Link>
+      <div className="card mx-auto max-w-2xl p-6" aria-live="polite">
+        <p className="text-sm font-medium text-ink-900">
+          {report.status === "pending"
+            ? "评审进行中"
+            : report.status === "failed"
+              ? "报告没有生成出来"
+              : "报告暂不可用"}
+        </p>
+        <p className="mt-1 text-sm text-ink-700">{report.message ?? "报告暂不可用。"}</p>
+        {report.status === "pending" ? (
+          <p className="mt-1 text-xs text-ink-500">页面会自动刷新，你也可以先离开，稍后回来看。</p>
+        ) : null}
+        {report.status === "failed" && !report.can_retry ? (
+          <p className="mt-1 text-xs text-ink-500">已经重试过多次，这份报告不能再重新生成了。</p>
+        ) : null}
+        {retryError ? (
+          <p className="notice notice-danger mt-3 text-xs" role="alert">
+            {retryError}
+          </p>
+        ) : null}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {report.status === "failed" && report.can_retry ? (
+            <button
+              type="button"
+              disabled={retrying}
+              onClick={() => void onRetry()}
+              className="btn btn-primary btn-sm"
+            >
+              {retrying ? "正在提交…" : "重新生成"}
+            </button>
+          ) : null}
+          <Link className="btn btn-secondary btn-sm inline-flex" href="/coach-agent">
+            返回面试辅导
+          </Link>
+        </div>
       </div>
     );
   }
