@@ -264,7 +264,7 @@ P6 的“系统或域的 Owner”这一条来自 [阿里一位 P7 工程师的�
 
 ## 7.2 实施状态（更新于 2026-11-05，第二批之后）
 
-下面每条都对照代码核对过。**面试官和评审在真实模型下的表现仍未验证**（本地没有模型密钥），验收清单见 `jc.coach.acceptance` 和 §9。
+下面每条都对照代码核对过。**面试官和评审在真实模型下的表现仍未验证**（本地没有模型密钥），验收清单见 `jc.coach.acceptance` 和 §9，操作步骤见 [QA-MOCK-INTERVIEW-ACCEPTANCE](../operations/QA-MOCK-INTERVIEW-ACCEPTANCE.md)。
 
 | # | 项 | 状态 |
 |---|---|---|
