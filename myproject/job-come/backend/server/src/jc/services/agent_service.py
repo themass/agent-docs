@@ -49,6 +49,7 @@ from jc.services.agent_attachment_service import (
     resign_persisted_attachments,
     validate_inline_attachments,
 )
+from jc.services.mock_answer_recorder import record_mock_answer, records_mock_answer
 from jc.services.patch_confirm_service import hydrate_confirmation_event, load_confirmation
 from jc.services.profile_patch_service import apply_confirmed_patch
 from jc.services.profile_service import ProfileService
@@ -319,6 +320,22 @@ class AgentService:
         if provider is not None:
             facts |= await provider.gather(turn_ctx)
         runtime_skill = resolve_turn_skill(declared, facts)
+        mock_session_id = ui_context.mock_session_id if ui_context else None
+        if records_mock_answer(
+            turn=declared.turn,
+            runtime_skill=runtime_skill,
+            default_skill=declared.default_skill,
+            mock_session_id=mock_session_id,
+        ):
+            # Written here, before the model runs, so a report never depends on the interviewer
+            # remembering to save what the candidate said. The text is the user's own words (with
+            # any photo already read into text), before the turn's context is wrapped around it.
+            await record_mock_answer(
+                self._db,
+                profile_id=session.profile_id,
+                mock_session_id=mock_session_id,
+                text=agent_message,
+            )
         if provider is not None:
             agent_message = provider.message(turn_ctx, facts, runtime_skill, agent_message)
         role_family = facts.get("role_family")

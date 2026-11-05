@@ -202,6 +202,9 @@ async def swap(scope: RunScope, *, mock_session_id: str, question_id: str) -> di
     if int(state.get("swaps", 0)) >= SWAP_LIMIT:
         return _refuse(f"换题已用完（最多 {SWAP_LIMIT} 次）。", code="swap_limit")
     state["asked"] = [a for a in state["asked"] if a["question_id"] != question_id]
+    # Nothing is on the table until the next question is asked: the last entry left in `asked` is an
+    # earlier question, and the candidate's next words are not an addition to its answer.
+    state["table_closed"] = True
     state["swaps"] = int(state.get("swaps", 0)) + 1
     state["last_activity"] = datetime.now(UTC).replace(tzinfo=None).isoformat()
     session.coverage = state
@@ -259,6 +262,7 @@ async def ask(
         "parent_question_id": parent,
         "experience": experience,
     })
+    state.pop("table_closed", None)
     state["last_activity"] = datetime.now(UTC).replace(tzinfo=None).isoformat()
     session.coverage = state
     qids = list(session.question_ids or [])
