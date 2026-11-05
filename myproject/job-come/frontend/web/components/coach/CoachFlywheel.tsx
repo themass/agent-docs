@@ -16,6 +16,7 @@ import {
   type LevelRecommendation,
   type MockKind,
   type MockLevel,
+  type MockProgress as Progress,
   type MockSession,
   type MockStyle,
 } from "@/lib/api/coach";
@@ -54,6 +55,12 @@ type Props = {
   onJobChange?: (id: string | null) => void;
   /** The round is open on the server; the page asks the interviewer to open the first question. */
   onStarted?: (session: MockSession) => void;
+  /** The candidate ended the round from the panel. */
+  onFinished?: (sessionId: string) => void;
+  /** Where the live round stands, read once by the page. */
+  progress?: Progress | null;
+  /** The id of a round the server has closed (the candidate, the interviewer or a timeout). */
+  endedId?: string | null;
 };
 
 export function CoachFlywheel({
@@ -64,6 +71,9 @@ export function CoachFlywheel({
   onSessionChange,
   onJobChange,
   onStarted,
+  onFinished,
+  progress = null,
+  endedId = null,
 }: Props) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [kind, setKind] = useState<MockKind>("warmup");
@@ -152,6 +162,18 @@ export function CoachFlywheel({
       .catch(() => undefined);
   }, [practiceQid]);
 
+  // A round can end without the candidate pressing anything here: the interviewer calls its own
+  // end tool, or the idle timeout closes it. The page learns that from the server; this panel then
+  // reads the round again so it shows it as ended, with its questions.
+  useEffect(() => {
+    if (!endedId || sessionRef.current?.id !== endedId || sessionRef.current.status !== "active") {
+      return;
+    }
+    void getMockSession(endedId)
+      .then(setSession)
+      .catch(() => undefined);
+  }, [endedId]);
+
   const logged = session?.questions.length ?? 0;
   const goalHint = useMemo(
     () =>
@@ -194,6 +216,7 @@ export function CoachFlywheel({
       setSession(finished);
       setFinishedId(finished.id);
       onSessionChange?.(null);
+      onFinished?.(finished.id);
     } catch (e) {
       setError(userFacingApiError(e, "结束失败"));
     } finally {
@@ -402,7 +425,9 @@ export function CoachFlywheel({
           <p className="mt-2 text-xs text-ink-500">请先选择面试级别。</p>
         ) : null}
 
-        {session && active ? <MockProgress session={session} active={active} /> : null}
+        {session && active ? (
+          <MockProgress session={session} progress={progress} active={active} />
+        ) : null}
 
         {session?.status === "completed" ? (
           <p className="notice notice-success mt-3">

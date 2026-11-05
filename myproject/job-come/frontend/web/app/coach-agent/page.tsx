@@ -1,11 +1,14 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import Link from "next/link";
+import { Suspense, useCallback, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { AgentWorkbench } from "@/components/agent/AgentWorkbench";
 import { CoachFlywheel } from "@/components/coach/CoachFlywheel";
+import { MockBar } from "@/components/coach/MockBar";
 import { EmailVerificationBanner } from "@/components/auth/EmailVerificationBanner";
+import { useMockProgress } from "@/hooks/useMockProgress";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
 function CoachAgentInner() {
@@ -16,10 +19,21 @@ function CoachAgentInner() {
   const profileId = context?.active_profile_id ?? null;
   const jobId = searchParams.get("job_id");
   const [mockSessionId, setMockSessionId] = useState<string | null>(null);
+  // The round that has just ended, however it ended. Its report is on the way.
+  const [endedId, setEndedId] = useState<string | null>(null);
   const [autoStart, setAutoStart] = useState<{ id: string; message: string } | null>(null);
   const practiceQid = searchParams.get("practice");
   // Arrived from the archive page: the coach records a real interview instead of running a mock.
   const intent = searchParams.get("intent") === "archive" ? "archive" : null;
+
+  // Whoever ends a round (the candidate, the interviewer's own end tool, the idle timeout), the page
+  // leaves it the same way: the round stops being the one answers are recorded to, and the report
+  // notice shows. The server is the only one who knows, so this runs when the server says so.
+  const handleEnded = useCallback((id: string) => {
+    setEndedId(id);
+    setMockSessionId((current) => (current === id ? null : current));
+  }, []);
+  const reader = useMockProgress(mockSessionId, handleEnded);
 
   // The job lives in the URL, so a link to this page with a job already set still opens on it.
   function changeJob(id: string | null) {
@@ -55,16 +69,45 @@ function CoachAgentInner() {
         autoStart={autoStart}
         disabled={context?.actor !== "user"}
         placeholder="回答面试官问题，或说「下一题」…"
+        conversationTop={(agent) =>
+          mockSessionId ? (
+            <MockBar
+              sessionId={mockSessionId}
+              conversation={agent}
+              progress={reader}
+              onEnded={handleEnded}
+            />
+          ) : null
+        }
+        conversationBottom={
+          endedId ? (
+            <div className="notice notice-success text-sm">
+              <span>
+                面试结束了，报告由独立评审生成，通常需要一两分钟。
+                <Link href={`/mock-reports/${endedId}`} className="ml-1 font-medium underline">
+                  查看报告
+                </Link>
+              </span>
+            </div>
+          ) : null
+        }
       >
         <CoachFlywheel
           profileId={profileId}
           jobId={jobId}
           practiceQid={practiceQid}
-          onSessionChange={setMockSessionId}
+          onSessionChange={(id) => {
+            setMockSessionId(id);
+            // A new round replaces the notice about the last one.
+            if (id) setEndedId(null);
+          }}
           onJobChange={changeJob}
           onStarted={(started) =>
             setAutoStart({ id: started.id, message: "你好，我准备好了，可以开始面试了。" })
           }
+          onFinished={handleEnded}
+          progress={reader.progress}
+          endedId={endedId}
           disabled={context?.actor !== "user"}
         />
       </AgentWorkbench>

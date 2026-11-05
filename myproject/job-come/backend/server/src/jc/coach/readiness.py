@@ -50,22 +50,24 @@ def readiness(
     tier = next(name for floor, name in _TIERS if mean >= floor)
     basis = [f"五维平均 {mean:.1f}"]
 
-    weak = sorted(dim for dim, value in scored.items() if value <= _WEAK_DIMENSION)
-    for dim in weak:
+    # Each cap says what it saw. It adds "最多评到" only when it actually lowered the tier, so a
+    # line never reads as the reason for a tier the scores had already put there.
+    def cap(current: str, fact: str) -> str:
+        lowered = _lower(current, "targeted")
+        basis.append(f"{fact}，最多评到“{LABELS['targeted']}”" if lowered != current else fact)
+        return lowered
+
+    for dim in sorted(dim for dim, value in scored.items() if value <= _WEAK_DIMENSION):
         label = DIMENSION_LABEL.get(dim, dim)
-        basis.append(f"{label}只有 {scored[dim]:g} 分，最多评到“需针对性补强”")
-    if weak:
-        tier = _lower(tier, "targeted")
+        tier = cap(tier, f"{label}只有 {scored[dim]:g} 分")
 
     if coverage and coverage.get("total"):
         total, asked = int(coverage["total"]), int(coverage["asked"])
         if asked / total < _MIN_COVERAGE:
-            basis.append(f"岗位必备项 {total} 项里只问到 {asked} 项，最多评到“需针对性补强”")
-            tier = _lower(tier, "targeted")
+            tier = cap(tier, f"岗位必备项 {total} 项里只问到 {asked} 项")
 
     if ended_early:
-        basis.append("面试提前结束，最多评到“需针对性补强”")
-        tier = _lower(tier, "targeted")
+        tier = cap(tier, "面试提前结束")
 
     spec = LEVEL_SPECS.get(level or "")
     statement = f"按{spec.label}的要求：{LABELS[tier]}" if spec else LABELS[tier]

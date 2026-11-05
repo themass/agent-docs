@@ -9,6 +9,7 @@ import {
   retryMockReport,
   type MockReport,
   type MockReportQuestion,
+  type MockReportSummaryItem,
 } from "@/lib/api/coach";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { ApiError } from "@/lib/api/errors";
@@ -61,6 +62,70 @@ function ScoreRow({ scores }: { scores: MockReportQuestion["scores"] }) {
   );
 }
 
+const TIER_TONE: Record<string, string> = {
+  need_more: "badge-warn",
+  targeted: "badge-warn",
+  ready: "badge-brand",
+  solid: "badge-success",
+};
+
+function SummaryList({ title, items }: { title: string; items: MockReportSummaryItem[] }) {
+  if (items.length === 0) return null;
+  return (
+    <div>
+      <h3 className="text-xs font-medium text-ink-500">{title}</h3>
+      <ol className="mt-1.5 flex flex-col gap-2">
+        {items.map((item, i) => (
+          <li key={i} className="text-sm text-ink-800">
+            <span className="font-medium">{i + 1}. </span>
+            {item.text}
+            {item.quote ? (
+              <span className="mt-0.5 block text-xs text-ink-500">你说过：「{item.quote}」</span>
+            ) : null}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+/** What the report says before any detail: how it went, how ready the candidate looks, what went
+ * well and what to fix first. The tier is the server's; it is a reading of this interview, not a
+ * prediction of a real one. */
+function Conclusion({ report }: { report: MockReport }) {
+  const { readiness, summary } = report;
+  if (!readiness && !summary) return null;
+  return (
+    <section className="card flex flex-col gap-4 p-5">
+      {readiness ? (
+        <div className="flex flex-col gap-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`badge ${TIER_TONE[readiness.tier] ?? "badge-neutral"}`}>
+              {readiness.label}
+            </span>
+            <h2 className="text-base font-semibold text-ink-900">{readiness.statement}</h2>
+          </div>
+          <ul className="flex flex-col gap-0.5 text-xs text-ink-500">
+            {readiness.basis.map((line, i) => (
+              <li key={i}>{line}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {summary?.verdict ? <p className="text-sm leading-relaxed text-ink-800">{summary.verdict}</p> : null}
+      {summary ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <SummaryList title="做得好的" items={summary.strengths} />
+          <SummaryList title="最该先改的" items={summary.priorities} />
+        </div>
+      ) : null}
+      <p className="text-xs text-ink-500">
+        这是对这一场模拟面试的读法，不是对真实面试结果的预测。
+      </p>
+    </section>
+  );
+}
+
 function QuestionBlock({ item, index }: { item: MockReportQuestion; index: number }) {
   return (
     <section className="card flex flex-col gap-3 p-5">
@@ -72,9 +137,23 @@ function QuestionBlock({ item, index }: { item: MockReportQuestion; index: numbe
       <div>
         <p className="text-xs font-medium text-ink-500">你的回答</p>
         <p className="mt-1 whitespace-pre-wrap text-sm text-ink-800">
-          {item.answer || "（未作答，已跳过）"}
+          {item.answer || (item.skipped ? "（已跳过）" : "（未作答）")}
         </p>
       </div>
+
+      {item.follow_ups.length > 0 && (
+        <div className="flex flex-col gap-3 border-l-2 border-surface-border pl-3">
+          {item.follow_ups.map((follow) => (
+            <div key={follow.question_id}>
+              <p className="text-xs text-ink-500">追问</p>
+              <p className="text-sm font-medium text-ink-900">{follow.stem}</p>
+              <p className="mt-1 whitespace-pre-wrap text-sm text-ink-800">
+                {follow.answer || "（未作答）"}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
 
       <ScoreRow scores={item.scores} />
 
@@ -290,6 +369,8 @@ export default function MockReportPage() {
           {formatDateTime(report.started_at)}
         </p>
       </header>
+
+      <Conclusion report={report} />
 
       <section className="card p-5">
         <h2 className="text-sm font-semibold text-ink-900">五维平均</h2>

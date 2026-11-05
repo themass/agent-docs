@@ -108,7 +108,27 @@ export type MockReportReference = {
   status: "sourced" | "pending";
 };
 
+export type MockReportFollowUp = { question_id: string; stem: string; answer: string };
+
+export type MockReportSummaryItem = { text: string; quote: string | null };
+
+export type MockReportSummary = {
+  verdict: string;
+  strengths: MockReportSummaryItem[];
+  priorities: MockReportSummaryItem[];
+};
+
+export type MockReadiness = {
+  tier: "need_more" | "targeted" | "ready" | "solid";
+  label: string;
+  /** "按中级的要求：需针对性补强" */
+  statement: string;
+  basis: string[];
+};
+
 export type MockReportQuestion = {
+  follow_ups: MockReportFollowUp[];
+  skipped: boolean;
   question_id: string;
   stem: string;
   answer: string;
@@ -134,6 +154,8 @@ export type MockReport = {
   message: string | null;
   overall: Record<string, number | null>;
   checks: { rejected_evidence?: number; pending_facts?: number };
+  summary: MockReportSummary | null;
+  readiness: MockReadiness | null;
   /** A warm-up's report: averages and suggestions only, no per-question detail. */
   brief: boolean;
   questions: MockReportQuestion[];
@@ -244,6 +266,13 @@ export function listInterviews(profileId: string): Promise<{ interviews: Intervi
 export type MockProgress = {
   style: MockStyle | null;
   status: string;
+  started_at: string | null;
+  /** opening | experience | core | scenario | candidate_qa */
+  stage: string;
+  suggested_stage: string;
+  stage_counts: Record<string, number>;
+  /** True once the candidate has been given the floor to ask their own questions. */
+  candidate_qa: boolean;
   asked_main: number;
   main_limit: number;
   remaining_main: number;

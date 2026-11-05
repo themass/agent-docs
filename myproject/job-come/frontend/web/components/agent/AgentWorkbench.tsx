@@ -34,6 +34,14 @@ type Props = {
    * such entry point.
    */
   autoStart?: { id: string; message: string } | null;
+  /**
+   * Shown above the conversation, in the agent's pane. A function receives the running
+   * conversation, for a strip that has to act on it (send a line, know when a turn is over).
+   * Unified layout only.
+   */
+  conversationTop?: React.ReactNode | ((agent: ReturnType<typeof useAgentSession>) => React.ReactNode);
+  /** Shown under the conversation, above the composer. Unified layout only. */
+  conversationBottom?: React.ReactNode;
 };
 
 export function AgentWorkbench({
@@ -52,6 +60,8 @@ export function AgentWorkbench({
   layout = "unified",
   uiContext = null,
   autoStart = null,
+  conversationTop = null,
+  conversationBottom = null,
 }: Props) {
   if (layout === "split") {
     return <AgentWorkbenchSplit {...{
@@ -86,6 +96,8 @@ export function AgentWorkbench({
     headerExtra,
     uiContext,
     autoStart,
+    conversationTop,
+    conversationBottom,
   }} />;
 }
 
@@ -233,6 +245,8 @@ function AgentWorkbenchUnified({
   headerExtra,
   uiContext = null,
   autoStart = null,
+  conversationTop = null,
+  conversationBottom = null,
 }: Omit<Props, "layout">) {
   const agent = useAgentSession({
     pageKey,
@@ -255,6 +269,8 @@ function AgentWorkbenchUnified({
     autoStartedRef.current = autoStart.id;
     void sendRef.current(autoStart.message);
   }, [autoStart, disabled]);
+
+  const top = typeof conversationTop === "function" ? conversationTop(agent) : conversationTop;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
@@ -310,6 +326,7 @@ function AgentWorkbenchUnified({
               </div>
             ) : (
               <>
+                {top ? <div className="shrink-0 border-b border-surface-border p-3">{top}</div> : null}
                 <AgentConversation
                   variant="default"
                   agent={agent}
@@ -317,6 +334,9 @@ function AgentWorkbenchUnified({
                   placeholder={placeholder}
                   classNames={{ error: "shrink-0 px-4 pb-1 text-xs text-danger-600" }}
                 />
+                {conversationBottom ? (
+                  <div className="shrink-0 border-t border-surface-border p-3">{conversationBottom}</div>
+                ) : null}
               </>
             )}
           </div>

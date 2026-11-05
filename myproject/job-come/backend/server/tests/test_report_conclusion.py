@@ -282,3 +282,36 @@ async def test_a_report_stored_before_summaries_existed_still_opens(maker):
     page = await _page(maker, report=old, level=None)
     assert page.summary is None
     assert page.readiness.statement == "基本可以上场"
+
+
+# --- a cap is only the reason when it changed the tier ----------------------------
+
+
+def test_a_cap_that_changed_nothing_is_stated_as_a_fact_not_as_the_reason():
+    # The mean already puts this at "targeted"; no must-have was asked about, which is worth saying,
+    # but it did not lower anything, and the page must not read as if it did.
+    out = readiness(_all(5.0), {"total": 4, "asked": 0, "meet": 0}, level="mid", ended_early=False)
+    assert out["tier"] == "targeted"
+    line = next(line for line in out["basis"] if "必备项" in line)
+    assert "0" in line and "4" in line
+    assert "最多评到" not in line
+
+
+def test_a_cap_that_lowered_the_tier_says_so():
+    out = readiness(_all(9.0), {"total": 4, "asked": 0, "meet": 0}, level="mid", ended_early=False)
+    assert out["tier"] == "targeted"
+    assert any("必备项" in line and "最多评到" in line for line in out["basis"])
+
+
+def test_an_early_end_that_changed_nothing_is_stated_without_the_cap_wording():
+    out = readiness(_all(3.0), FULL, level="mid", ended_early=True)
+    assert out["tier"] == "need_more"
+    line = next(line for line in out["basis"] if "提前结束" in line)
+    assert "最多评到" not in line
+
+
+def test_a_weak_dimension_that_changed_nothing_is_stated_without_the_cap_wording():
+    scores = _overall(depth=3.0, structure=3.0, relevance=3.0, communication=3.0, reflection=3.0)
+    out = readiness(scores, FULL, level="mid", ended_early=False)
+    assert out["tier"] == "need_more"
+    assert all("最多评到" not in line for line in out["basis"])
