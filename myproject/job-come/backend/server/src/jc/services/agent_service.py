@@ -162,7 +162,9 @@ class AgentService:
             user_id=actor.user_id,
             profile_id=profile_id,
             session_id=None,
-            role_id=body.role_id,
+            # The run's skill is the role's default until a turn switches it; agentkit names
+            # that field `skill_hint`, the same field the turn's metadata fills below.
+            skill_hint=role(body.role_id).default_skill,
             extra=extra,
         )
         thread_id = await client.start_session(metadata=metadata)
