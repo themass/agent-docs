@@ -11,7 +11,9 @@ import {
   type MockReportQuestion,
 } from "@/lib/api/coach";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { ApiError } from "@/lib/api/errors";
 import { userFacingApiError } from "@/lib/api/user-error";
+import { nextPoll, START, type PollStop } from "@/lib/report-poll";
 import { formatDateTime } from "@/lib/datetime";
 
 const DIMENSION_LABEL: Record<string, string> = {
@@ -127,9 +129,6 @@ function QuestionBlock({ item, index }: { item: MockReportQuestion; index: numbe
   );
 }
 
-/** How often a report that is still being generated is asked for again. */
-const POLL_MS = 5_000;
-
 export default function MockReportPage() {
   const params = useParams<{ id: string }>();
   const sessionId = params.id;
@@ -137,6 +136,7 @@ export default function MockReportPage() {
   const signedIn = context?.actor === "user";
   const [report, setReport] = useState<MockReport | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pollStopped, setPollStopped] = useState<PollStop | null>(null);
   const [retrying, setRetrying] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
 
@@ -155,22 +155,43 @@ export default function MockReportPage() {
     };
   }, [signedIn, sessionId]);
 
-  // A report still being generated is asked for again until it is ready or has failed. A request
-  // that fails on the way is not the end of the wait: the page keeps showing "generating".
+  // A report still being generated is asked for again, one request after the last answer (never two
+  // at once), more slowly while the server is struggling, and not at all once a request is refused
+  // for good or the wait has gone on far too long. The page says so when it stops.
   const pending = report?.status === "pending";
   useEffect(() => {
     if (!pending) return;
     let cancelled = false;
-    const timer = window.setInterval(() => {
+    let timer: number | undefined;
+    let state = START;
+    setPollStopped(null);
+
+    const poll = () => {
       getMockReport(sessionId)
         .then((data) => {
-          if (!cancelled) setReport(data);
+          if (cancelled) return;
+          setReport(data);
+          schedule({ ok: true });
         })
-        .catch(() => undefined);
-    }, POLL_MS);
+        .catch((err: unknown) => {
+          if (cancelled) return;
+          schedule({ ok: false, status: err instanceof ApiError ? err.status : null });
+        });
+    };
+    const schedule = (outcome: Parameters<typeof nextPoll>[1]) => {
+      const step = nextPoll(state, outcome);
+      state = step.state;
+      if (step.stopped) {
+        setPollStopped(step.stopped);
+        return;
+      }
+      timer = window.setTimeout(poll, step.delayMs ?? 0);
+    };
+
+    timer = window.setTimeout(poll, nextPoll(START, { ok: true }).delayMs ?? 0);
     return () => {
       cancelled = true;
-      window.clearInterval(timer);
+      window.clearTimeout(timer);
     };
   }, [pending, sessionId]);
 
@@ -213,8 +234,15 @@ export default function MockReportPage() {
               : "报告暂不可用"}
         </p>
         <p className="mt-1 text-sm text-ink-700">{report.message ?? "报告暂不可用。"}</p>
-        {report.status === "pending" ? (
+        {report.status === "pending" && !pollStopped ? (
           <p className="mt-1 text-xs text-ink-500">页面会自动刷新，你也可以先离开，稍后回来看。</p>
+        ) : null}
+        {report.status === "pending" && pollStopped ? (
+          <p className="mt-1 text-xs text-ink-500">
+            {pollStopped === "rejected"
+              ? "没法再读取这份报告了，可能是登录已过期。请刷新页面或重新登录。"
+              : "等了很久还没有结果，页面不再自动刷新。请稍后手动刷新页面。"}
+          </p>
         ) : null}
         {report.status === "failed" && !report.can_retry ? (
           <p className="mt-1 text-xs text-ink-500">已经重试过多次，这份报告不能再重新生成了。</p>
