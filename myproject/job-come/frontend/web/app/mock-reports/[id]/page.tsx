@@ -119,6 +119,11 @@ function Conclusion({ report }: { report: MockReport }) {
           <SummaryList title="最该先改的" items={summary.priorities} />
         </div>
       ) : null}
+      {(report.checks.rejected_quotes ?? 0) > 0 ? (
+        <p className="text-xs text-ink-500">
+          总评里有 {report.checks.rejected_quotes} 处引用找不到你的原话，已去掉引用，文字保留。
+        </p>
+      ) : null}
       <p className="text-xs text-ink-500">
         这是对这一场模拟面试的读法，不是对真实面试结果的预测。
       </p>

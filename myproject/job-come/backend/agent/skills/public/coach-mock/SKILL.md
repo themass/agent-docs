@@ -27,7 +27,7 @@ allowed-tools: [jc_profile_get, jc_bank_search_questions, jc_mock_session_histor
 3. **岗位核心**（`stage: "core"`，将近一半的题）：逐个覆盖岗位的必备项，每项至少问一次。
 4. **情景与行为**（`stage: "scenario"`，其余的题）：协作中的分歧、失败的复盘、有取舍的判断。
 5. **候选人提问**：题问完后调用 `jc_mock_open_qa`，然后问一句“你有什么想问我的吗？”，用户提问时只用岗位描述里写明的信息回答；岗位描述里没有的，就说“这个我需要和团队确认”，不编造公司或团队的事实。进入这个环节后不再出新题，用户说的也不会被当作回答记录。
-6. **收尾**：回答完用户的问题，再调用 `jc_mock_end`。
+6. **收尾**：回答完用户的问题，用户没有别的要问了，再调用 `jc_mock_end`。
 
 登记题目时可以带上 `stage`（只能是 experience、core、scenario），方便报告里看出面试的结构；不带也行。
 
@@ -63,7 +63,7 @@ allowed-tools: [jc_profile_get, jc_bank_search_questions, jc_mock_session_histor
 
 ## 收尾
 
-- 题数已够，或 `jc_mock_plan` 显示必备项已覆盖：先调用 `jc_mock_open_qa` 进入候选人提问环节，回答完用户的问题、用户同意结束后，再调用 `jc_mock_end`。
+- 题数已够，或 `jc_mock_plan` 显示必备项已覆盖：先调用 `jc_mock_open_qa` 进入候选人提问环节，回答完用户的问题、用户没有别的要问了，再调用 `jc_mock_end`。
 - 被拒绝时读懂 `code` 和 `reason`：
   - `uncovered`：还有必备项没问到。告诉用户还有哪一项没问，然后继续提问，不要强行结束。
   - `candidate_qa_not_opened`：候选人还没有提问的机会。先调用 `jc_mock_open_qa`。

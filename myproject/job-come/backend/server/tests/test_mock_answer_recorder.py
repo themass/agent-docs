@@ -354,3 +354,31 @@ def test_a_sentence_that_only_mentions_moving_on_is_not_steering(phrase):
     from jc.services.mock_answer_recorder import is_steering_message
 
     assert not is_steering_message(phrase)
+
+
+# --- steering said with a filler word, or about "this one" -------------------------------------
+
+
+@pytest.mark.parametrize(
+    "phrase",
+    ["好的，没听清", "嗯，下一题", "那就换一题吧", "跳过这个", "跳过这个吧", "好，跳过"],
+)
+def test_a_filler_word_in_front_of_a_steering_phrase_is_still_steering(phrase):
+    from jc.services.mock_answer_recorder import is_steering_message
+
+    assert is_steering_message(phrase)
+
+
+@pytest.mark.parametrize(
+    "phrase", ["好的", "嗯", "好", "那就这样", "嗯，我觉得可以", "好的，我来说一下"]
+)
+def test_a_filler_word_on_its_own_or_with_a_real_sentence_is_not_steering(phrase):
+    from jc.services.mock_answer_recorder import is_steering_message
+
+    assert not is_steering_message(phrase)
+
+
+def test_a_filler_in_front_of_two_steering_phrases_is_still_steering():
+    from jc.services.mock_answer_recorder import is_steering_message
+
+    assert is_steering_message("好的，没听清，能再说一遍吗")

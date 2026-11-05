@@ -82,7 +82,7 @@ def validate_report(
             if score is None:
                 scores[dim] = None
                 continue
-            if not quote or _squash(str(quote)) not in answer:
+            if not quote or not _quoted_from(str(quote), [answer]):
                 rejected += 1
                 scores[dim] = None
                 continue
@@ -140,7 +140,20 @@ VERDICT_CHARS = 400
 ITEM_CHARS = 200
 
 
-def _summary_items(value: Any, key: str, spoken: str) -> tuple[list[dict[str, Any]], int]:
+#: A quote shorter than this is in every answer ("我") and proves nothing about any of them.
+MIN_QUOTE_CHARS = 4
+
+
+def _quoted_from(quote: str, answers: list[str]) -> bool:
+    """Is `quote` something the candidate said? Whitespace aside, it has to appear word for word in
+    one answer, and be long enough to mean something. Two answers glued together are not one."""
+    needle = _squash(quote)
+    return len(needle) >= MIN_QUOTE_CHARS and any(needle in _squash(a) for a in answers)
+
+
+def _summary_items(
+    value: Any, key: str, spoken: list[str]
+) -> tuple[list[dict[str, Any]], int]:
     """Up to three items of `{text, quote}`. A quote the candidate did not say is dropped and
     counted; the words stay, because an opinion is not evidence and is shown as one."""
     if value is None:
@@ -158,7 +171,7 @@ def _summary_items(value: Any, key: str, spoken: str) -> tuple[list[dict[str, An
         if not text:
             continue
         quote = str(entry.get("quote") or "").strip() or None
-        if quote is not None and _squash(quote) not in spoken:
+        if quote is not None and not _quoted_from(quote, spoken):
             rejected += 1
             quote = None
         items.append({"text": text, "quote": quote})
@@ -174,7 +187,7 @@ def _summary(raw: Any, answers: dict[str, str]) -> tuple[dict[str, Any] | None, 
     if not isinstance(raw, dict):
         raise ValueError(f"summary must be an object with verdict, strengths and priorities, "
                          f"got {raw!r}")
-    spoken = _squash(" ".join(answers.values()))
+    spoken = list(answers.values())
     strengths, bad_s = _summary_items(raw.get("strengths"), "strengths", spoken)
     priorities, bad_p = _summary_items(raw.get("priorities"), "priorities", spoken)
     verdict = str(raw.get("verdict") or "").strip()[:VERDICT_CHARS]

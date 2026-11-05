@@ -342,3 +342,50 @@ def test_a_low_answered_share_that_changed_nothing_is_stated_without_the_cap_wor
     assert out["tier"] == "need_more"
     line = next(line for line in out["basis"] if "回答" in line)
     assert "最多评到" not in line
+
+
+# --- a quote must be worth something: long enough, and from one answer --------------------------
+
+TWO_ANSWERS = {
+    "q1": "我把结算接口拆成了两张表，耗时三周。",
+    "q2": "后来我们加了互斥锁来解决缓存雪崩。",
+}
+
+
+def _two(quote, *, where="evidence"):
+    report = {"questions": [{"question_id": "q1", "scores": {"depth": 7}, "evidence": {}},
+                            {"question_id": "q2", "scores": {}, "evidence": {}}]}
+    if where == "evidence":
+        report["questions"][0]["evidence"] = {"depth": quote}
+    else:
+        report["summary"] = {"verdict": "ok", "strengths": [{"text": "x", "quote": quote}],
+                             "priorities": []}
+    return validate_report(report, answers=TWO_ANSWERS, profile_text=PROFILE)
+
+
+@pytest.mark.parametrize("where", ["evidence", "summary"])
+@pytest.mark.parametrize("quote", ["我", "我把", "我把结"])
+def test_a_quote_shorter_than_four_characters_proves_nothing_and_is_dropped(where, quote):
+    # "我" is in every answer. A quote has to be long enough to be something the candidate said.
+    out = _two(quote, where=where)
+    key = "rejected_evidence" if where == "evidence" else "rejected_quotes"
+    assert out["checks"][key] == 1
+
+
+@pytest.mark.parametrize("where", ["evidence", "summary"])
+def test_a_quote_of_four_characters_from_one_answer_is_kept(where):
+    out = _two("拆成了两", where=where)
+    key = "rejected_evidence" if where == "evidence" else "rejected_quotes"
+    assert out["checks"][key] == 0
+
+
+def test_a_summary_quote_made_of_the_end_of_one_answer_and_the_start_of_the_next_is_dropped():
+    # "耗时三周后来我们" only exists if the two answers are glued together.
+    out = _two("耗时三周。后来我们加了互斥锁", where="summary")
+    assert out["checks"]["rejected_quotes"] == 1
+    assert out["summary"]["strengths"][0]["quote"] is None
+
+
+def test_a_summary_quote_from_the_second_answer_is_kept():
+    out = _two("互斥锁来解决缓存雪崩", where="summary")
+    assert out["checks"]["rejected_quotes"] == 0

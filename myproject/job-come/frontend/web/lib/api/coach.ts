@@ -153,7 +153,7 @@ export type MockReport = {
   ended_early: boolean;
   message: string | null;
   overall: Record<string, number | null>;
-  checks: { rejected_evidence?: number; pending_facts?: number };
+  checks: { rejected_evidence?: number; pending_facts?: number; rejected_quotes?: number };
   summary: MockReportSummary | null;
   readiness: MockReadiness | null;
   /** A warm-up's report: averages and suggestions only, no per-question detail. */

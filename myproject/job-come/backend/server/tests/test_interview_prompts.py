@@ -126,3 +126,24 @@ def test_the_task_text_names_the_candidates_turn_and_only_tools_the_skill_holds(
     text = wrap_coach_mock_message("开始", profile_id="p1", job_id="j1", mock_session_id="ms1",
                                    drawn_stems=[], level="mid")
     assert "jc_mock_open_qa" in text
+
+
+def test_the_reviewer_is_not_told_the_system_records_everything_the_candidate_typed():
+    prompt = _prompt("interview-reviewer")
+    # Lines that only steer the interview ("下一题") are not recorded; what is recorded can still
+    # hold a clarification, and the reviewer is told to read it for what it is.
+    assert "records everything" not in prompt
+    assert "except" in prompt and "steer" in prompt
+
+
+def test_the_reviewer_is_told_how_long_a_quote_must_be_and_where_it_must_come_from():
+    prompt = _prompt("interview-reviewer")
+    assert "at least four characters" in prompt
+    assert "one answer" in prompt
+
+
+def test_the_interviewer_is_told_one_thing_about_when_to_end():
+    prompt = _prompt("coach-mock")
+    # Said once, the same way, in the stages and in the closing.
+    assert prompt.count("用户没有别的要问了") >= 2
+    assert "用户同意结束" not in prompt
