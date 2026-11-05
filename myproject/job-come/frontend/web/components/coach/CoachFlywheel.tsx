@@ -47,11 +47,21 @@ type Props = {
   practiceQid: string | null;
   disabled: boolean;
   onSessionChange?: (id: string | null) => void;
+  onJobChange?: (id: string | null) => void;
+  /** The round is open on the server; the page asks the interviewer to open the first question. */
+  onStarted?: (session: MockSession) => void;
 };
 
-export function CoachFlywheel({ profileId, jobId, practiceQid, disabled, onSessionChange }: Props) {
-  const [job, setJob] = useState<Job | null>(null);
-  const [mode, setMode] = useState<"warmup" | "target">("warmup");
+export function CoachFlywheel({
+  profileId,
+  jobId,
+  practiceQid,
+  disabled,
+  onSessionChange,
+  onJobChange,
+  onStarted,
+}: Props) {
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [kind, setKind] = useState<MockKind>("warmup");
   const [style, setStyle] = useState<MockStyle>("standard");
   const [session, setSession] = useState<MockSession | null>(null);
@@ -63,14 +73,16 @@ export function CoachFlywheel({ profileId, jobId, practiceQid, disabled, onSessi
   const [finishedId, setFinishedId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!profileId || !jobId) {
-      setJob(null);
+    if (!profileId) {
+      setJobs([]);
       return;
     }
     void listJobs(profileId)
-      .then((jobs) => setJob(jobs.find((j) => j.id === jobId) ?? null))
-      .catch(() => setJob(null));
-  }, [profileId, jobId]);
+      .then(setJobs)
+      .catch(() => setJobs([]));
+  }, [profileId]);
+
+  const job = jobs.find((j) => j.id === jobId) ?? null;
 
   useEffect(() => {
     if (!practiceQid) return;
@@ -93,15 +105,17 @@ export function CoachFlywheel({ profileId, jobId, practiceQid, disabled, onSessi
     setBusy(true);
     setError(null);
     try {
+      // A round is always against a job: the JD is what the questions and the review are judged by.
       const next = await createMockSession({
         profile_id: profileId,
-        mode,
+        mode: "target",
         job_id: jobId,
         kind,
         style,
       });
       setSession(next);
       onSessionChange?.(next.id);
+      onStarted?.(next);
     } catch (err) {
       setError(userFacingApiError(err, "创建失败"));
     } finally {
@@ -179,43 +193,33 @@ export function CoachFlywheel({ profileId, jobId, practiceQid, disabled, onSessi
         status={active ? "进行中" : session?.status === "completed" ? "已归档" : undefined}
         statusTone={active ? "brand" : "neutral"}
       >
-        <p className="text-sm text-ink-700">
-          {job ? (
-            <>
-              <span className="font-medium text-ink-900">
-                {job.company} · {job.title}
-              </span>
-            </>
-          ) : (
-            "没有绑定岗位：可以从个人题库练手，或先去定向岗位页选一个 JD。"
-          )}
-        </p>
-
-        <div className="mt-3">
-          <span className="label-meta">模式</span>
-          <div className="segment mt-1.5">
-            <button
-              type="button"
+        <div className="space-y-2">
+          <span className="label-meta">岗位（必填）</span>
+          {jobs.length > 0 ? (
+            <Select
+              className="w-full"
+              value={jobId ?? ""}
               disabled={active}
-              onClick={() => setMode("warmup")}
-              className={`segment-item ${mode === "warmup" ? "segment-item-active" : ""}`}
+              onChange={(e) => onJobChange?.(e.target.value || null)}
             >
-              练手
-            </button>
-            <button
-              type="button"
-              disabled={active || !jobId}
-              title={!jobId ? "需要先绑定岗位" : undefined}
-              onClick={() => setMode("target")}
-              className={`segment-item ${mode === "target" ? "segment-item-active" : ""}`}
-            >
-              目标岗
-            </button>
-          </div>
-          <p className="mt-1.5 text-xs text-ink-500">
-            {mode === "warmup"
-              ? "节奏放松，给你空间把说法试几遍。"
-              : "按这个岗位的真实标准追问，压力更接近现场。"}
+              <option value="">请选择岗位</option>
+              {jobs.map((j) => (
+                <option key={j.id} value={j.id}>
+                  {j.company} · {j.title}
+                </option>
+              ))}
+            </Select>
+          ) : (
+            <p className="text-sm text-ink-600">
+              还没有保存的岗位。
+              <Link href="/jobs" className="ml-1 font-medium text-brand-700 underline underline-offset-2">
+                去粘贴 JD
+              </Link>
+              ，保存后回到这里选择。
+            </p>
+          )}
+          <p className="text-xs text-ink-500">
+            问题和评审都按这份 JD 的要求，结合当前激活的简历档案。
           </p>
         </div>
 
@@ -262,7 +266,7 @@ export function CoachFlywheel({ profileId, jobId, practiceQid, disabled, onSessi
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <button
             type="button"
-            disabled={busy || active || (mode === "target" && !jobId)}
+            disabled={busy || active || !jobId}
             onClick={() => void onStart()}
             className="btn btn-md btn-primary"
           >
@@ -279,6 +283,10 @@ export function CoachFlywheel({ profileId, jobId, practiceQid, disabled, onSessi
             </button>
           ) : null}
         </div>
+
+        {!active && !jobId ? (
+          <p className="mt-2 text-xs text-ink-500">先选择岗位（或粘贴 JD）才能开始。</p>
+        ) : null}
 
         {session && active ? <MockProgress session={session} active={active} /> : null}
 

@@ -85,6 +85,7 @@ export function AgentWorkbench({
     onProfileUpdated,
     headerExtra,
     uiContext,
+    autoStart,
   }} />;
 }
 
@@ -231,6 +232,7 @@ function AgentWorkbenchUnified({
   onProfileUpdated,
   headerExtra,
   uiContext = null,
+  autoStart = null,
 }: Omit<Props, "layout">) {
   const agent = useAgentSession({
     pageKey,
@@ -241,6 +243,18 @@ function AgentWorkbenchUnified({
     onProfileUpdated,
     uiContext,
   });
+
+  // Same contract as the sidebar's: fire once per request id. The unified layout has no sidebar,
+  // so its conversation hook is driven here.
+  const autoStartedRef = useRef<string | null>(null);
+  const sendRef = useRef(agent.sendMessage);
+  sendRef.current = agent.sendMessage;
+  useEffect(() => {
+    if (disabled || !autoStart) return;
+    if (autoStartedRef.current === autoStart.id) return;
+    autoStartedRef.current = autoStart.id;
+    void sendRef.current(autoStart.message);
+  }, [autoStart, disabled]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
@@ -283,7 +297,8 @@ function AgentWorkbenchUnified({
       <ResizableSplitPane
         className="min-h-0 flex-1"
         left={
-          <div className="h-full min-h-0 overflow-hidden">
+          // Studio pages bring their own scroll areas; plain content scrolls here.
+          <div className={`h-full min-h-0 ${studio ? "overflow-hidden" : "overflow-y-auto"}`}>
             {studio ?? <div className="p-4 sm:p-6">{children}</div>}
           </div>
         }

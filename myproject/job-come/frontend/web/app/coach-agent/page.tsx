@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { AgentWorkbench } from "@/components/agent/AgentWorkbench";
 import { CoachFlywheel } from "@/components/coach/CoachFlywheel";
@@ -10,13 +10,25 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 
 function CoachAgentInner() {
   const { context, loading } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const profileId = context?.active_profile_id ?? null;
   const jobId = searchParams.get("job_id");
   const [mockSessionId, setMockSessionId] = useState<string | null>(null);
+  const [autoStart, setAutoStart] = useState<{ id: string; message: string } | null>(null);
   const practiceQid = searchParams.get("practice");
   // Arrived from the archive page: the coach records a real interview instead of running a mock.
   const intent = searchParams.get("intent") === "archive" ? "archive" : null;
+
+  // The job lives in the URL, so a link to this page with a job already set still opens on it.
+  function changeJob(id: string | null) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (id) params.set("job_id", id);
+    else params.delete("job_id");
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname);
+  }
 
   const subtitle = jobId
     ? "对着当前岗位模拟、记题、抽库再练"
@@ -40,6 +52,7 @@ function CoachAgentInner() {
           intent,
         }}
         roleId="coach-mock"
+        autoStart={autoStart}
         disabled={context?.actor !== "user"}
         placeholder="回答面试官问题，或说「下一题」…"
       >
@@ -48,6 +61,10 @@ function CoachAgentInner() {
           jobId={jobId}
           practiceQid={practiceQid}
           onSessionChange={setMockSessionId}
+          onJobChange={changeJob}
+          onStarted={(started) =>
+            setAutoStart({ id: started.id, message: "开始本轮模拟，请按本轮的岗位和风格出第一题。" })
+          }
           disabled={context?.actor !== "user"}
         />
       </AgentWorkbench>
