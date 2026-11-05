@@ -134,6 +134,15 @@ async def test_a_report_generated_through_the_queue_is_read_not_produced_again(m
 
 
 @pytest.mark.asyncio
+async def test_a_session_from_before_the_queue_has_words_and_a_retry_though_it_has_no_reason(maker):
+    # The shape migration 024 leaves for a finished session that never had a report.
+    await _set(maker, report_status="failed", report_attempts=0, report_error=None)
+    out = await _report(maker)
+    assert (out.status, out.message, out.can_retry) == (
+        "failed", "这场面试的报告没有生成。", True)
+
+
+@pytest.mark.asyncio
 async def test_a_completed_session_nobody_will_pick_up_is_failed_not_pending_forever(maker):
     # Nothing would ever pick it up, so "pending" would never end.
     await _set(maker, report_status=None)

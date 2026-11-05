@@ -304,39 +304,110 @@ async def test_the_dispatcher_generates_a_queued_report_and_stops_when_cancelled
 # --- the migration ----------------------------------------------------------------------------
 
 
-def test_the_migration_adds_the_columns_and_backfills_legacy_sessions():
+def _load_migration():
     import importlib.util
-
-    from alembic.migration import MigrationContext
-    from alembic.operations import Operations
 
     path = Path(__file__).resolve().parents[1] / "alembic" / "versions" / "024_mock_report_queue.py"
     spec = importlib.util.spec_from_file_location("migration_024", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+    return module
 
+
+def _legacy_table(conn) -> None:
+    conn.exec_driver_sql(
+        "CREATE TABLE jc_mock_session (id TEXT PRIMARY KEY, status TEXT NOT NULL, report TEXT)")
+    for row in (
+        ("with_report", "completed", '{"overall": {}}'),
+        ("no_report", "completed", None),
+        ("blank_report", "completed", ""),
+        ("empty_report", "completed", "{}"),
+        ("null_report", "completed", "null"),
+        ("still_active", "active", None),
+    ):
+        conn.exec_driver_sql("INSERT INTO jc_mock_session VALUES (?, ?, ?)", row)
+
+
+def _run_upgrade(conn) -> None:
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+
+    with Operations.context(MigrationContext.configure(conn)):
+        _load_migration().upgrade()
+
+
+def _backfilled(conn) -> dict:
+    return {
+        r[0]: r[1:] for r in conn.exec_driver_sql(
+            "SELECT id, report_status, report_attempts, report_error FROM jc_mock_session")
+    }
+
+
+def test_the_migration_adds_the_columns_and_backfills_legacy_sessions():
     engine = sa.create_engine("sqlite://")
     with engine.begin() as conn:
-        conn.exec_driver_sql(
-            "CREATE TABLE jc_mock_session (id TEXT PRIMARY KEY, status TEXT NOT NULL, report TEXT)")
-        for row in (
-            ("with_report", "completed", '{"overall": {}}'),
-            ("no_report", "completed", None),
-            ("blank_report", "completed", ""),
-            ("empty_report", "completed", "{}"),
-            ("still_active", "active", None),
-        ):
-            conn.exec_driver_sql("INSERT INTO jc_mock_session VALUES (?, ?, ?)", row)
-        with Operations.context(MigrationContext.configure(conn)):
-            module.upgrade()
-        rows = {
-            r[0]: r[1:] for r in conn.exec_driver_sql(
-                "SELECT id, report_status, report_attempts, report_error FROM jc_mock_session")
-        }
+        _legacy_table(conn)
+        _run_upgrade(conn)
+        rows = _backfilled(conn)
     assert rows["with_report"] == ("ready", 0, None)
-    for legacy in ("no_report", "blank_report", "empty_report"):
-        assert rows[legacy] == ("failed", 0, "历史场次，未生成报告")
+    # No note is written: a migration that writes text fails on a table whose character set
+    # cannot hold it, after the columns were already added. The page words a failed report that
+    # has no reason.
+    for legacy in ("no_report", "blank_report", "empty_report", "null_report"):
+        assert rows[legacy] == ("failed", 0, None)
     assert rows["still_active"] == (None, 0, None)
+
+
+def test_a_migration_that_stopped_halfway_can_be_run_again():
+    # MySQL does not roll back column changes, so a failure after the columns were added leaves them
+    # there with the version unchanged. The next run must carry on, not stop at "duplicate column".
+    engine = sa.create_engine("sqlite://")
+    with engine.begin() as conn:
+        _legacy_table(conn)
+        conn.exec_driver_sql("ALTER TABLE jc_mock_session ADD COLUMN report_status VARCHAR(16)")
+        conn.exec_driver_sql(
+            "ALTER TABLE jc_mock_session ADD COLUMN report_attempts INTEGER NOT NULL DEFAULT 0")
+        conn.exec_driver_sql("CREATE INDEX ix_jc_mock_session_report_status "
+                             "ON jc_mock_session (report_status)")
+        _run_upgrade(conn)
+        rows = _backfilled(conn)
+        columns = {c["name"] for c in sa.inspect(conn).get_columns("jc_mock_session")}
+    assert {"report_claimed_at", "report_error"} <= columns
+    assert rows["with_report"][0] == "ready" and rows["no_report"][0] == "failed"
+
+
+def test_running_the_migration_twice_changes_nothing_the_second_time():
+    engine = sa.create_engine("sqlite://")
+    with engine.begin() as conn:
+        _legacy_table(conn)
+        _run_upgrade(conn)
+        conn.exec_driver_sql(
+            "UPDATE jc_mock_session SET report_status = 'queued', report_attempts = 2 "
+            "WHERE id = 'no_report'")
+        _run_upgrade(conn)
+        assert _backfilled(conn)["no_report"] == ("queued", 2, None)
+
+
+def test_no_migration_writes_text_a_non_unicode_table_could_not_hold():
+    # Non-ASCII text may be in a docstring or a comment. Any other string in a migration is data or
+    # schema that reaches the database, and the table's character set is not ours to assume.
+    import ast
+
+    versions = Path(__file__).resolve().parents[1] / "alembic" / "versions"
+    offenders = []
+    for path in sorted(versions.glob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        docstrings = {
+            id(node.body[0].value) for node in ast.walk(tree)
+            if isinstance(node, ast.Module | ast.FunctionDef | ast.ClassDef)
+            and node.body and isinstance(node.body[0], ast.Expr)
+            and isinstance(node.body[0].value, ast.Constant)
+        }
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Constant) and isinstance(node.value, str)
+                    and id(node) not in docstrings and not node.value.isascii()):
+                offenders.append(f"{path.name}:{node.lineno}")
+    assert offenders == []
 
 
 # --- shutdown in the middle of a run ----------------------------------------------------------

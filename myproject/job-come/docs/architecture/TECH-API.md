@@ -216,7 +216,7 @@
 - 候选人的回答由服务在模型运行前写入：写到当前题（最后一个已登记、未跳过、未换掉的题）；没有当前题时（开场问候、自我介绍、跳过或换题之后）不记录。同一题的后续消息追加到同一条回答。面试官不再持有 `jc_answer_save_attempt`。换题后当前题为空，直到登记下一题（会话 `coverage.table_closed`）。
 - `jc_mock_ask` 可直接传 `stem` 创建并登记新题（与 `question_id` 二选一，都传或都不传为 `ValueError`），返回里带 `question_id`。被拒绝时不留下新题。面试官也不再持有 `jc_question_upsert`；真实面试归档（`coach-archive`）仍使用它。
 - 回答按场次隔离：同一道题库题在不同场次里复用时，不再把别的场次的回答当成本场的回答。
-- 报告改为后台生成。场次结束时 `jc_mock_session.report_status` 置为 `queued`（没有提问的场次直接置 `failed`，原因“这场面试没有提问”）；API 进程里的 `run_mock_report_dispatcher` 用条件更新认领（`generating` 带 600 秒租约，最多 4 次运行），完成后置 `ready` 或 `failed`。迁移 `024` 对历史已结束场次：有报告为 `ready`，无报告为 `failed`（“历史场次，未生成报告”），不自动排队。
+- 报告改为后台生成。场次结束时 `jc_mock_session.report_status` 置为 `queued`（没有提问的场次直接置 `failed`，原因“这场面试没有提问”）；API 进程里的 `run_mock_report_dispatcher` 用条件更新认领（`generating` 带 600 秒租约，最多 4 次运行），完成后置 `ready` 或 `failed`。迁移 `024` 对历史已结束场次：有报告为 `ready`，无报告为 `failed`，不自动排队。无报告的场次不写原因（`report_error` 为空），页面显示“这场面试的报告没有生成。”并允许重试。迁移不写任何文字，因为表的字符集若不是 Unicode，写中文会报 1366，而 MySQL 的加列不能回滚，列已加上、版本却没动，重跑又会报“列已存在”；所以迁移每一步先查再做，可重复执行，回填只动 `report_status` 为空的行。
 - `GET /coach/mock/sessions/{id}/report` 只读：`status` 为 `active | pending | failed | ready`，`failed` 带原因和 `can_retry`。打开页面不再触发评审。已存储的报告即使状态还没跟上也按 `ready` 返回。
 - `POST /coach/mock/sessions/{id}/report/retry`：把失败的报告重新排队。409 `mock_report_not_failed`（不是失败状态）或 `mock_report_retry_exhausted`（4 次运行已用完）。失败原因是给用户看的短句，不含异常信息。
 - 迁移：`023_mock_session_level`、`024_mock_report_queue`。
