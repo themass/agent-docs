@@ -33,6 +33,7 @@ import type {
   TokenUsageTotals,
 } from "@/lib/types/agent";
 import { buildContextUsage } from "@/lib/agent-context-usage";
+import { retryPlan } from "@/lib/agent-retry";
 import type { AgentUiContext } from "@/lib/ui-context";
 
 // Idle timeout, not a total-duration timeout: reset on every SSE event, including
@@ -785,23 +786,15 @@ export function useAgentSession({
   // as a clean second attempt, not a third voice added to a confused thread.
   const retryLastMessage = useCallback(
     (itemId: string) => {
-      const target = items.find(
-        (i) => i.id === itemId && i.kind === "user",
-      ) as Extract<AgentDisplayItem, { kind: "user" }> | undefined;
-      if (!target) return;
-      setItems((prev) => prev.slice(0, prev.findIndex((i) => i.id === itemId)));
+      const plan = retryPlan(items, itemId);
+      if (!plan) return;
+      setItems(plan.kept);
       // No `if (busy) return` guard: `sendMessage` already queues as a follow-up when
       // a run is in flight (same path the composer uses), so retrying mid-run lands in
       // the queue instead of being silently dropped. A guard here previously made the
       // retry button a no-op with zero feedback whenever the user clicked it while
       // anything else was still streaming.
-      void sendMessage(
-        target.content,
-        target.attachments ?? [],
-        "send",
-        undefined,
-        target.clientMessageId,
-      );
+      void sendMessage(plan.content, plan.attachments, "send", undefined, plan.clientMessageId);
     },
     [items, sendMessage],
   );
