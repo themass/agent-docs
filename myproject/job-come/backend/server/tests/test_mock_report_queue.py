@@ -96,7 +96,9 @@ def _use_reviewer(monkeypatch, maker, agent: FakeReviewerAgent) -> None:
 
 @pytest.mark.asyncio
 async def test_ending_a_session_queues_its_report(maker):
-    await _seed(maker, status="active", completed_at=None)
+    # The session was just active: the guard closes one idle for a day, judged by the wall clock.
+    await _seed(maker, status="active", completed_at=None,
+                last_activity=datetime.now(UTC).replace(tzinfo=None).isoformat())
     async with maker() as db:
         scope = RunScope(db=db, user_id="u1", profile_id="p1", mock_session_id="ms1")
         assert (await end(scope, mock_session_id="ms1", reason="user_ended"))["accepted"] is True

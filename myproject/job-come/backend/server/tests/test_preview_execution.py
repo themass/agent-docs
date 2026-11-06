@@ -178,16 +178,23 @@ async def test_unchanged_preview_reuses_draft_force_and_profile_change_regenerat
     from jc.services import resume_elevator as mod
     monkeypatch.setattr(mod.settings, "jc_llm_enabled", False)
     actor = UserActor(user_id="usr_owner", session_id="auth")
-    async with env.sessions() as db:
-        svc = ResumeService(db)
-        writer = AsyncMock(wraps=svc._elevator.build_sections)
-        svc._elevator.build_sections = writer
-        with caplog.at_level(logging.INFO, logger="jc.services.resume_service"):
-            first = await svc.preview("prof_owned", actor=actor, elevation_level="standard")
-            again = await svc.preview("prof_owned", actor=actor, elevation_level="standard")
-        assert again.draft.id == first.draft.id
-        assert writer.await_count == 1
-        assert "reason=hit" in caplog.text
+    # Attached to the logger itself: importing the app turns off propagation on "jc", and then
+    # records never reach caplog's root handler.
+    logger = logging.getLogger("jc.services.resume_service")
+    logger.addHandler(caplog.handler)
+    try:
+        async with env.sessions() as db:
+            svc = ResumeService(db)
+            writer = AsyncMock(wraps=svc._elevator.build_sections)
+            svc._elevator.build_sections = writer
+            with caplog.at_level(logging.INFO, logger="jc.services.resume_service"):
+                first = await svc.preview("prof_owned", actor=actor, elevation_level="standard")
+                again = await svc.preview("prof_owned", actor=actor, elevation_level="standard")
+            assert again.draft.id == first.draft.id
+            assert writer.await_count == 1
+            assert "reason=hit" in caplog.text
+    finally:
+        logger.removeHandler(caplog.handler)
         forced = await svc.preview(
             "prof_owned", actor=actor, elevation_level="standard", force=True,
         )
