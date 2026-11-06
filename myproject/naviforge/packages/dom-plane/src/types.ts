@@ -104,6 +104,11 @@ export interface DomPlane {
   /** Current page → PDF via Chrome printToPDF. Caller writes the file. */
   toPdf?(): Promise<ToolResult<DomPagePdfResult>>
   click(index: number, revision: number, framePath?: string): Promise<ToolResult<{ message: string }>>
+  /**
+   * Click viewport coordinates (CSS px) from a screenshot / vision model.
+   * Prefer index/selector when available; use this for coordinate-only plans.
+   */
+  clickAt?(x: number, y: number, revision: number): Promise<ToolResult<{ message: string }>>
   type(index: number, text: string, revision: number): Promise<ToolResult<{ message: string }>>
   /** Returns a stable CSS selector candidate for a current snapshot index. */
   selector(index: number, revision: number): Promise<ToolResult<{ selector?: string }>>

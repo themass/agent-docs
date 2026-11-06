@@ -143,7 +143,17 @@ export {
   ActionLoopHook,
   TaskHintHook,
   ToolStateHook,
+  DeliverableVerifyHook,
+  CapabilityCollaborationHook,
 } from './builtin-hooks.js'
+export {
+  evaluateCompletion,
+  coordinateRecovery,
+  needsNetworkCollaboration,
+  NETWORK_COLLABORATION_QUESTION,
+  type CompletionDecision,
+  type CompletionInput,
+} from './completion-coordinator.js'
 export {
   HARD_DENY_ERROR_CODES,
   DEFAULT_RUN_LIMITS,
@@ -237,3 +247,12 @@ export {
   type ProgressState,
 } from './runtime-state.js'
 export { evaluateEvidence, type EvaluationResult, type EvaluationStatus } from './evaluator.js'
+export {
+  classifyPageState,
+  enrichItemsWithSnapshotFeed,
+  formatPageState,
+  layerPageStateItems,
+  type PageState,
+  type PageStateItem,
+  type PageStateRole,
+} from './page-state.js'

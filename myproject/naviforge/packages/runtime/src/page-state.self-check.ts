@@ -39,6 +39,8 @@ const list = classifyPageState({
 })
 assert.equal(list.role, 'list')
 assert.equal(list.items.length, 3)
+assert.ok((list.contentItems?.length ?? 0) + (list.mediaItems?.length ?? 0) >= 1)
+assert.match(formatPageState(list), /content:|media:/)
 
 const spaSnap = {
   header: '',
@@ -91,6 +93,25 @@ assert.equal(capped.length, 12)
 assert.equal(capped[0]?.clickIndex, 24)
 assert.match(capped[0]?.title ?? '', /浏览器 Agent/)
 assert.ok(capped.some((item) => item.title.startsWith('分类导航')))
+
+const layered = classifyPageState({
+  url: 'https://example.test/feed',
+  title: 'feed',
+  login: false,
+  blocking: false,
+  items: [
+    { title: '登录', clickIndex: 1 },
+    { title: '从零实现一个浏览器 Agent 完整教程', clickIndex: 24 },
+    { title: '分类导航0' },
+    { title: '提交' },
+  ],
+})
+assert.ok((layered.mediaItems?.length ?? 0) >= 1)
+assert.ok((layered.navItems?.length ?? 0) >= 1)
+assert.ok((layered.formItems?.length ?? 0) >= 1)
+assert.match(formatPageState(layered), /media:/)
+assert.match(formatPageState(layered), /nav:/)
+assert.match(formatPageState(layered), /form:/)
 
 assert.equal(
   shouldSkipLoginLinkRead({

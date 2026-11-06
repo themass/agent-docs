@@ -183,7 +183,7 @@ DedupeObservationHook, ActionLoopHook, NoProgressHook
 真正值得借鉴的是两个和"效果验证"无关的工程细节：
 
 1. **`waitForDomNetworkQuiet`** —— ✅ **已核实，NaviForge 已有等价实现，不需要补**：读了 `pi-run-loop.ts` 的 `prepareNextTurn` 后确认，`dom_click` 已经在 `NAV_TOOLS` 集合里，每次点击后都会先 `dom.wait({kind:'stable', timeoutMs:2500})` 再重新 snapshot；`post-action-verify.ts` 自己还会再等一次 `network_idle`（2500ms）才 diff 判断 `noEffect`。两层叠加，覆盖的场景比 stagehand 单一的"执行前等一次"更细——stagehand 是动作前等，NaviForge 是动作后等+再验证，对"点到还在加载的占位元素"这个问题覆盖得更周全。之前的笔记判断为潜在缺口是错的，这里纠正，不需要改代码。
-2. **`resolveLocatorWithHops`（跨 iframe 的 `>>` 定位符）** —— ⚠️ **这是一个真实缺口，但范围比预期大，暂不在本次改动**：读了 `dom-plane/src/types.ts` 确认 `click(index, revision, framePath?)` 接口层**已经预留了 `framePath` 参数**，并且在 `apps/extension/src/lib/chrome-dom-plane.ts` 里确认它会被传到 content script 的 `click_element` 消息里——说明这条路径的骨架是通的，只是**调用侧（observe/snapshot）目前从未真正填充 `framePath`**，所以这个参数永远是 `undefined`，跨 iframe 的候选元素目前退化成"找不到就找不到"。这不是一个几行代码的小补丁，而是需要在 snapshot 阶段遍历同源 iframe 并把 frame 路径编码进候选项——涉及 content script 的注入范围变化，属于需要先确认优先级和影响面的改动，不在这次顺手改。记录为后续待办：如果冒烟测试里出现"候选元素明显在 iframe 里但 observe 找不到"的具体案例，优先做这个。
+2. **`resolveLocatorWithHops`（跨 iframe 的 `>>` 定位符）** —— ✅ **已落地（2026-11-06）**：`parseFrameHops` / `resolveLocatorWithHops` 支持 `f0>>f1`；跨域失败返回 `cross_origin` 错误，**禁止**静默退回主文档。仍待加强：snapshot 侧把 `framePath` 编码进候选项（observe 填充），否则模型须自行从 frames supplement 拼路径。
 
 **不建议借鉴**：它的候选元素→执行闭环整体架构（NaviForge 已有更严格版本）；也不建议照搬它的 `cacheService.withCache` 缓存层（按 DOM 状态缓存 act/observe 结果复用，用于优化重复任务场景的 LLM 成本）——NaviForge 当前是"每次新任务、真实登录态会话"的使用模式，缓存命中条件很容易因为用户个性化内容/登录态差异导致误命中。
 

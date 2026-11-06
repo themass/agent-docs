@@ -37,10 +37,13 @@ const dom_click: BuiltinHandler = async (input) => {
   const index = num(action.arguments.index)
   const selector = str(action.arguments.selector)
   const framePath = str(action.arguments.framePath) ?? undefined
-  if (index === null && !selector) {
+  const x = num(action.arguments.x)
+  const y = num(action.arguments.y)
+  const hasPoint = x !== null && y !== null
+  if (index === null && !selector && !hasPoint) {
     result = {
       ok: false,
-      error: { code: 'bad_args', message: 'index or selector required', recoverable: true },
+      error: { code: 'bad_args', message: 'index, selector, or x+y required', recoverable: true },
     }
     return { result, snap, recorded }
   }
@@ -67,13 +70,24 @@ const dom_click: BuiltinHandler = async (input) => {
       )
       result = retried.result
       snap = retried.snap
+    } else if (hasPoint && dom.clickAt) {
+      const retried = await withStaleRevisionRetry(dom, snap, (revision) =>
+        dom.clickAt!(x, y, revision)
+      )
+      result = retried.result
+      snap = retried.snap
+    } else if (hasPoint) {
+      result = {
+        ok: false,
+        error: { code: 'unsupported', message: 'clickAt not available on this DomPlane', recoverable: true },
+      }
     } else {
       result = {
         ok: false,
         error: { code: 'bad_args', message: 'index required', recoverable: true },
       }
     }
-    if (!result.ok && selector && dom.clickSelector && !framePath) {
+    if (!result.ok && selector && dom.clickSelector && !framePath && !hasPoint) {
       const bySelector = await dom.clickSelector(selector)
       if (bySelector.ok) result = bySelector
     }

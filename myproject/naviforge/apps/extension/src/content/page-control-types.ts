@@ -13,6 +13,8 @@ export interface PageControlPayload extends Record<string, unknown> {
   limit?: number
   framePath?: string
   index?: number
+  x?: number
+  /** Viewport Y for click_at; also used by scroll payloads. */
   injectKind?: string
   code?: string
   allowScript?: boolean

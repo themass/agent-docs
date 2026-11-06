@@ -1,6 +1,6 @@
 import { PageController } from '@page-agent/page-controller'
 
-import { documentForFramePath, waitForStableDom } from '../lib/dom-frame-supplement'
+import { resolveLocatorWithHops, waitForStableDom } from '../lib/dom-frame-supplement'
 import {
   BUNDLED_PROFILES,
   collectCandidates,
@@ -198,8 +198,9 @@ export default defineContentScript({
 
     function elementForIndex(index: number, framePath?: string): Element | undefined {
       if (framePath) {
-        const doc = documentForFramePath(framePath)
-        const items = [...doc.querySelectorAll(INTERACTIVE)]
+        const resolved = resolveLocatorWithHops(framePath)
+        if (!resolved.ok) return undefined
+        const items = [...resolved.document.querySelectorAll(INTERACTIVE)]
         return items[index - 1]
       }
       return elementFromSelectorMap(getPc(), index)

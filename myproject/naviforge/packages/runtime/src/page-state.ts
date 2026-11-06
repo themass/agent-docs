@@ -19,6 +19,10 @@ function looksLikeMediaTitle(title: string): boolean {
   return /\d{1,2}:\d{2}(?::\d{2})?/.test(text) || text.length >= 14
 }
 
+function looksLikeFormTitle(title: string): boolean {
+  return /^(提交|登录|注册|搜索|search|submit|login|sign\s?in|send|发送|查询)$/i.test(title.trim())
+}
+
 /** Recover cards whose accessibility tree indexes only the image, not its text. */
 export function extractIndexedMediaCards(
   snap: Pick<DomSnapshot, 'header' | 'content' | 'footer'>,
@@ -56,7 +60,15 @@ export type PageState = {
   role: PageStateRole
   /** Login or captcha wall — do not treat link harvest as site structure. */
   blocked: boolean
+  /**
+   * Flat merge (media → content → form → nav) for backward compat.
+   * Prefer layered fields when presenting to the model.
+   */
   items: PageStateItem[]
+  navItems?: PageStateItem[]
+  contentItems?: PageStateItem[]
+  mediaItems?: PageStateItem[]
+  formItems?: PageStateItem[]
 }
 
 export function looksLikeLoginUrl(url: string): boolean {
@@ -76,6 +88,60 @@ export function looksLikeHomeUrl(url: string): boolean {
   }
 }
 
+/** Split a flat item list into nav / content / media / form layers. */
+export function layerPageStateItems(items: PageStateItem[]): {
+  navItems: PageStateItem[]
+  contentItems: PageStateItem[]
+  mediaItems: PageStateItem[]
+  formItems: PageStateItem[]
+} {
+  const navItems: PageStateItem[] = []
+  const contentItems: PageStateItem[] = []
+  const mediaItems: PageStateItem[] = []
+  const formItems: PageStateItem[] = []
+  for (const item of items) {
+    const title = item.title?.trim() ?? ''
+    if (!title) continue
+    if (looksLikeFormTitle(title)) {
+      formItems.push(item)
+      continue
+    }
+    // Ultra-short titles stay content (not nav noise). Clear nav chrome → nav layer.
+    if (/^分类导航/.test(title) || (title.length >= 2 && isNavLikeFeedTitle(title))) {
+      navItems.push(item)
+      continue
+    }
+    if (looksLikeMediaTitle(title) || /\d{1,2}:\d{2}/.test(title)) {
+      mediaItems.push(item)
+      continue
+    }
+    contentItems.push(item)
+  }
+  return { navItems, contentItems, mediaItems, formItems }
+}
+
+function mergeLayers(layers: {
+  navItems: PageStateItem[]
+  contentItems: PageStateItem[]
+  mediaItems: PageStateItem[]
+  formItems: PageStateItem[]
+}): PageStateItem[] {
+  const ordered: PageStateItem[] = []
+  const seen = new Set<string>()
+  const push = (item: PageStateItem) => {
+    const key = item.title.trim().slice(0, 48).toLowerCase()
+    if (!key || seen.has(key) || ordered.length >= 12) return
+    seen.add(key)
+    ordered.push(item)
+  }
+  // Media first so nav cannot crowd out actionable cards (existing enrich order).
+  for (const item of layers.mediaItems) push(item)
+  for (const item of layers.contentItems) push(item)
+  for (const item of layers.formItems) push(item)
+  for (const item of layers.navItems) push(item)
+  return ordered
+}
+
 export function classifyPageState(input: {
   url: string
   title: string
@@ -89,12 +155,31 @@ export function classifyPageState(input: {
   else if (input.items.length >= 2) role = 'list'
   else if (looksLikeHomeUrl(input.url)) role = 'home'
   else if (input.items.length === 1) role = 'detail'
+
+  const emptyLayers = { navItems: [], contentItems: [], mediaItems: [], formItems: [] }
+  if (role === 'login') {
+    return {
+      url: input.url,
+      title: input.title,
+      role,
+      blocked: true,
+      items: [],
+      ...emptyLayers,
+    }
+  }
+
+  const layers = layerPageStateItems(input.items)
+  const items = mergeLayers(layers).slice(0, 12)
   return {
     url: input.url,
     title: input.title,
     role,
-    blocked: role === 'login' || input.blocking,
-    items: role === 'login' ? [] : input.items.slice(0, 12),
+    blocked: Boolean(input.blocking),
+    items,
+    navItems: layers.navItems.slice(0, 8),
+    contentItems: layers.contentItems.slice(0, 12),
+    mediaItems: layers.mediaItems.slice(0, 12),
+    formItems: layers.formItems.slice(0, 6),
   }
 }
 
@@ -145,6 +230,16 @@ export function enrichItemsWithSnapshotFeed(
   return ordered
 }
 
+function formatLayer(name: string, items: PageStateItem[]): string[] {
+  if (!items.length) return [`${name}: (none)`]
+  const lines = [`${name}:`]
+  for (const item of items.slice(0, 8)) {
+    const click = item.clickIndex != null ? ` click_index=${item.clickIndex}` : ''
+    lines.push(`- ${item.title}${item.url ? ` ${item.url}` : ''}${click}`)
+  }
+  return lines
+}
+
 export function formatPageState(state: PageState): string {
   const lines = [
     'PAGE STATE:',
@@ -155,22 +250,37 @@ export function formatPageState(state: PageState): string {
   ]
   if (state.role === 'login') {
     lines.push('list: (none — login wall)')
+    return lines.join('\n')
+  }
+
+  const hasLayers =
+    (state.mediaItems?.length ?? 0) +
+      (state.contentItems?.length ?? 0) +
+      (state.navItems?.length ?? 0) +
+      (state.formItems?.length ?? 0) >
+    0
+
+  if (hasLayers) {
+    lines.push(...formatLayer('media', state.mediaItems ?? []))
+    lines.push(...formatLayer('content', state.contentItems ?? []))
+    lines.push(...formatLayer('nav', state.navItems ?? []))
+    lines.push(...formatLayer('form', state.formItems ?? []))
   } else if (state.items.length === 0) {
     lines.push('list: (none)')
   } else {
     lines.push('list:')
     for (const item of state.items) {
-      const click =
-        item.clickIndex != null ? ` click_index=${item.clickIndex}` : ''
+      const click = item.clickIndex != null ? ` click_index=${item.clickIndex}` : ''
       lines.push(`- ${item.title}${item.url ? ` ${item.url}` : ''}${click}`)
     }
-    const clicks = state.items
-      .filter((item) => item.clickIndex != null)
-      .slice(0, 8)
-      .map((item) => `${item.clickIndex}→${item.title.slice(0, 32)}`)
-    if (clicks.length) {
-      lines.push(`feed_clicks: ${clicks.join('; ')}`)
-    }
+  }
+
+  const clicks = state.items
+    .filter((item) => item.clickIndex != null)
+    .slice(0, 8)
+    .map((item) => `${item.clickIndex}→${item.title.slice(0, 32)}`)
+  if (clicks.length) {
+    lines.push(`feed_clicks: ${clicks.join('; ')}`)
   }
   return lines.join('\n')
 }

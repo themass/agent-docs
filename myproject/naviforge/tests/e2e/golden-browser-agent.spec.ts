@@ -90,7 +90,9 @@ test.describe('golden browser agent — page state on test-site', () => {
       items,
     })
     expect(state.role).toBe('list')
-    expect(pickFeedClickIndex(snap, state)).toBe(12)
+    // Media-like titles (longer / duration-shaped) layer above plain content, so
+    // pick prefers *[13]「从零实现…」over *[12] when both are present.
+    expect(pickFeedClickIndex(snap, state)).toBe(13)
   })
 
   test('G1 media-harvest-lab: play button fetches m3u8 (click→network path)', async ({ page }) => {

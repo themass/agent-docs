@@ -146,30 +146,19 @@ npm run check
 
 ## 5. 仍需继续的重构（第二阶段）
 
-### P0：完成语义和恢复状态
+### P0：完成语义和恢复状态 — ✅ 2026-11-06
 
-目前 `DeliverableVerifyHook` 已可阻止无证据的 strict completion，但 Hook 仍参与业务完成判断。下一步应把：
+`evaluateCompletion` / `coordinateRecovery`（`completion-coordinator.ts`）拥有完成与恢复判定；`DeliverableVerifyHook` 仅作 Hook 适配。`CapabilityCollaborationHook` 在 network required+unavailable 时发出标准化 `ask_user`。
 
 ```text
-重复动作 → replan
+重复动作 → replanRequired（既有 loop guards）
 无进展 → recovery
-证据不足 → evaluator needs_recovery / blocked
+证据不足 → evaluateCompletion / coordinateRecovery
 ```
 
-改成由通用 Planner/Recovery Coordinator 消费 Runtime State，而不是在 Hook 内直接以文字提示或强制 `system_done` 收尾。
+### P1：Page State 分层 — ✅ 2026-11-06
 
-### P1：Page State 分层
-
-当前 `PageState.items` 已做媒体候选优先，但长期应拆为：
-
-```ts
-navItems
-contentItems
-mediaItems
-formItems
-```
-
-这是通用页面语义，而不只是媒体需求。它会避免导航、搜索建议、正文列表、可交互卡片相互挤占有限的 `items` 配额。
+`PageState` 现含 `navItems` / `contentItems` / `mediaItems` / `formItems`；`formatPageState` 分层输出，扁平 `items` 保留兼容。
 
 ### P1：动作后的状态验证
 
@@ -185,9 +174,9 @@ formItems
 
 这样同一频道入口点击后页面没有变化时，Planner 可以自动放弃它，而不是等待模型重复试错。
 
-### P1：能力诊断与用户协作
+### P1：能力诊断与用户协作 — ✅ 2026-11-06
 
-严格任务若 `network` 必需且进入 `unavailable`，应给出标准化的协作请求，例如关闭 DevTools/可能占用 debugger 的扩展后重试，或在合法场景下允许用户提供已打开的播放页。不要继续多轮无效 DOM 观察。
+`CapabilityCollaborationHook` + `NETWORK_COLLABORATION_QUESTION`：network 必需且 unavailable 时不再空转 DOM，直接 `ask_user`。
 
 ### P2：真实浏览器 E2E fixture
 

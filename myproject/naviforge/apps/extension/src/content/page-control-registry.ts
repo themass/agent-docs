@@ -6,7 +6,8 @@ import { extractDomFromDocument, extractDomFromEntries } from '../lib/dom-extrac
 import { readVisiblePageContent } from '../lib/read-page'
 import { pageDocumentToMarkdown } from '../lib/page-markdown'
 import { runIsolatedScript } from '../lib/isolated-script'
-import { simulateClickElement } from '../lib/simulate-click'
+import { resolveLocatorWithHops } from '../lib/dom-frame-supplement'
+import { simulateClickAt, simulateClickElement } from '../lib/simulate-click'
 import { simulateKeyPress } from '../lib/simulate-keyboard'
 import { simulateDrag, simulateHover } from '../lib/simulate-pointer'
 import { handleVideoSubtitleMessage } from '../lib/video-subtitle-overlay'
@@ -129,6 +130,15 @@ export async function dispatchPageControl(
     }
     case 'click_element': {
       if (payload.framePath) {
+        const resolved = resolveLocatorWithHops(payload.framePath)
+        if (!resolved.ok) {
+          sendResponse({
+            success: false,
+            error: resolved.error,
+            code: resolved.code,
+          })
+          return
+        }
         const element = ctx.elementForIndex(payload.index!, payload.framePath)
         if (!(element instanceof HTMLElement)) {
           sendResponse({
@@ -148,6 +158,17 @@ export async function dispatchPageControl(
       }
       await simulateClickElement(element)
       sendResponse({ success: true, message: `clicked [${payload.index}]` })
+      return
+    }
+    case 'click_at': {
+      const x = typeof payload.x === 'number' ? payload.x : Number(payload.x)
+      const y = typeof payload.y === 'number' ? payload.y : Number(payload.y)
+      const clicked = await simulateClickAt(x, y)
+      if (!clicked.ok) {
+        sendResponse({ success: false, error: clicked.error })
+        return
+      }
+      sendResponse({ success: true, message: `clicked at (${x}, ${y}) → <${clicked.tag}>` })
       return
     }
     case 'input_text': {

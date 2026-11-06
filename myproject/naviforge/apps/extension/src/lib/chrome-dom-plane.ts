@@ -240,17 +240,50 @@ export function createChromeDomPlane(getTabId: () => number): DomPlane {
           },
         }
       }
-      const res = await send<{ success: boolean; message?: string; error?: string }>(
+      const res = await send<{ success: boolean; message?: string; error?: string; code?: string }>(
         getTabId(),
         'click_element',
         { index, framePath }
       )
       if (!res?.success) {
+        const code =
+          res?.code === 'cross_origin' || res?.code === 'bad_path' || res?.code === 'not_found'
+            ? `frame_${res.code}`
+            : 'click_failed'
         return {
           ok: false,
           error: {
-            code: 'click_failed',
+            code,
             message: res?.message ?? res?.error ?? 'click failed',
+            recoverable: res?.code !== 'cross_origin',
+          },
+        }
+      }
+      return { ok: true, data: { message: res.message ?? 'ok' } }
+    },
+
+    async clickAt(x, y, revision): Promise<ToolResult<{ message: string }>> {
+      if (revision !== lastRevision) {
+        return {
+          ok: false,
+          error: {
+            code: 'stale_revision',
+            message: `revision ${revision} != ${lastRevision}`,
+            recoverable: true,
+          },
+        }
+      }
+      const res = await send<{ success: boolean; message?: string; error?: string }>(
+        getTabId(),
+        'click_at',
+        { x, y }
+      )
+      if (!res?.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'click_at_failed',
+            message: res?.message ?? res?.error ?? 'click_at failed',
             recoverable: true,
           },
         }

@@ -44,27 +44,23 @@ function blurLastClicked(): void {
   lastClicked = null
 }
 
-/** Pagenter-style thick click: scroll, pointer chain, passThrough hit-test, native click. */
-export async function simulateClickElement(element: HTMLElement): Promise<void> {
-  blurLastClicked()
-  lastClicked = element
-
-  const frame = element.ownerDocument.defaultView?.frameElement
-  scrollIntoViewIfNeeded(element)
-  if (frame instanceof HTMLElement) scrollIntoViewIfNeeded(frame)
-
-  const rect = element.getBoundingClientRect()
-  const x = rect.left + rect.width / 2
-  const y = rect.top + rect.height / 2
-  const doc = element.ownerDocument
-
+async function dispatchClickAt(doc: Document, x: number, y: number, preferred?: HTMLElement): Promise<HTMLElement | null> {
   await wait(50)
 
   const hitTarget = withPassThrough(() => doc.elementFromPoint(x, y))
   const target =
-    hitTarget instanceof HTMLElement && (element.contains(hitTarget) || element === hitTarget)
+    preferred &&
+    hitTarget instanceof HTMLElement &&
+    (preferred.contains(hitTarget) || preferred === hitTarget)
       ? hitTarget
-      : element
+      : hitTarget instanceof HTMLElement
+        ? hitTarget
+        : preferred ?? null
+
+  if (!target) return null
+
+  blurLastClicked()
+  lastClicked = target
 
   const pointerOpts: PointerEventInit = {
     bubbles: true,
@@ -84,10 +80,40 @@ export async function simulateClickElement(element: HTMLElement): Promise<void> 
   target.dispatchEvent(new MouseEvent('mouseenter', { ...mouseOpts, bubbles: false }))
   target.dispatchEvent(new PointerEvent('pointerdown', pointerOpts))
   target.dispatchEvent(new MouseEvent('mousedown', mouseOpts))
-  if (typeof element.focus === 'function') element.focus({ preventScroll: true })
+  if (typeof target.focus === 'function') target.focus({ preventScroll: true })
   target.dispatchEvent(new PointerEvent('pointerup', pointerOpts))
   target.dispatchEvent(new MouseEvent('mouseup', mouseOpts))
   target.dispatchEvent(new MouseEvent('click', mouseOpts))
-  element.click()
+  target.click()
   await wait(80)
+  return target
+}
+
+/** Pagenter-style thick click: scroll, pointer chain, passThrough hit-test, native click. */
+export async function simulateClickElement(element: HTMLElement): Promise<void> {
+  const frame = element.ownerDocument.defaultView?.frameElement
+  scrollIntoViewIfNeeded(element)
+  if (frame instanceof HTMLElement) scrollIntoViewIfNeeded(frame)
+
+  const rect = element.getBoundingClientRect()
+  const x = rect.left + rect.width / 2
+  const y = rect.top + rect.height / 2
+  await dispatchClickAt(element.ownerDocument, x, y, element)
+}
+
+/**
+ * Screenshot / vision coordinate click in the top document viewport.
+ * Coordinates are CSS pixels relative to the viewport (same as elementFromPoint).
+ */
+export async function simulateClickAt(
+  x: number,
+  y: number,
+  root: Document = document
+): Promise<{ ok: true; tag: string } | { ok: false; error: string }> {
+  if (!Number.isFinite(x) || !Number.isFinite(y)) {
+    return { ok: false, error: 'x and y must be finite numbers' }
+  }
+  const target = await dispatchClickAt(root, x, y)
+  if (!target) return { ok: false, error: `no element at (${x}, ${y})` }
+  return { ok: true, tag: target.tagName.toLowerCase() }
 }

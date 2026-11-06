@@ -54,17 +54,96 @@ export function collectFrameSupplement(root: Document = document): string {
   return lines.slice(0, MAX_FRAME_LINES).join('\n')
 }
 
-/** Resolve frame path like "f0" to document for element lookup. */
-export function documentForFramePath(path: string | undefined, root: Document = document): Document {
-  if (!path?.startsWith('f')) return root
-  const index = Number.parseInt(path.slice(1), 10)
-  if (!Number.isFinite(index)) return root
-  const frame = root.querySelectorAll('iframe')[index]
-  try {
-    return frame?.contentDocument ?? root
-  } catch {
-    return root
+export type FrameHop = { index: number; token: string }
+
+export type FrameResolveOk = { ok: true; document: Document; hops: FrameHop[] }
+export type FrameResolveErr = {
+  ok: false
+  code: 'bad_path' | 'not_found' | 'cross_origin'
+  error: string
+  hops: FrameHop[]
+}
+export type FrameResolveResult = FrameResolveOk | FrameResolveErr
+
+/**
+ * Parse Playwright-style frame hops: `f0`, `f0>>f1`, `f1>>f0>>f2`.
+ * Returns null when the path is empty or malformed.
+ */
+export function parseFrameHops(path: string | undefined): FrameHop[] | null {
+  if (!path?.trim()) return []
+  const raw = path.trim()
+  const parts = raw.split('>>').map((part) => part.trim()).filter(Boolean)
+  if (!parts.length) return null
+  const hops: FrameHop[] = []
+  for (const token of parts) {
+    const match = /^f(\d+)$/i.exec(token)
+    if (!match) return null
+    hops.push({ token: token.toLowerCase(), index: Number.parseInt(match[1]!, 10) })
   }
+  return hops
+}
+
+/**
+ * Resolve a frame path with `>>` hops. Cross-origin frames fail loudly —
+ * never silently fall back to the main document (that caused wrong-element clicks).
+ */
+export function resolveLocatorWithHops(
+  path: string | undefined,
+  root: Document = document
+): FrameResolveResult {
+  const hops = parseFrameHops(path)
+  if (hops === null) {
+    return { ok: false, code: 'bad_path', error: `invalid framePath: ${path}`, hops: [] }
+  }
+  if (!hops.length) return { ok: true, document: root, hops }
+
+  let current = root
+  for (const hop of hops) {
+    const frames = current.querySelectorAll('iframe')
+    const frame = frames[hop.index]
+    if (!frame) {
+      return {
+        ok: false,
+        code: 'not_found',
+        error: `frame ${hop.token} not found (have ${frames.length})`,
+        hops,
+      }
+    }
+    try {
+      const inner = frame.contentDocument
+      if (!inner) {
+        const src = frame.getAttribute('src') || 'about:blank'
+        return {
+          ok: false,
+          code: 'cross_origin',
+          error: `frame ${hop.token} is cross-origin (src=${src}); cannot click inside`,
+          hops,
+        }
+      }
+      current = inner
+    } catch {
+      const src = frame.getAttribute('src') || 'about:blank'
+      return {
+        ok: false,
+        code: 'cross_origin',
+        error: `frame ${hop.token} is cross-origin (src=${src}); cannot click inside`,
+        hops,
+      }
+    }
+  }
+  return { ok: true, document: current, hops }
+}
+
+/**
+ * @deprecated Prefer resolveLocatorWithHops — this helper returns null on any
+ * frame failure so callers never silently act on the main document.
+ */
+export function documentForFramePath(
+  path: string | undefined,
+  root: Document = document
+): Document | null {
+  const resolved = resolveLocatorWithHops(path, root)
+  return resolved.ok ? resolved.document : null
 }
 
 /** Wait until DOM mutations settle (MutationObserver quiet window). */

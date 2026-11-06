@@ -239,7 +239,10 @@ export const TOOL_PARAMETERS: Partial<Record<AgentToolId | string, Record<string
       index: { type: 'integer' },
       revision: { type: 'integer' },
       selector: { type: 'string' },
-      framePath: { type: 'string' },
+      framePath: {
+        type: 'string',
+        description: 'Same-origin iframe hops, e.g. f0 or f0>>f1. Cross-origin fails (no main-doc fallback).',
+      },
       text: { type: 'string' },
       key: { type: 'string' },
       modifiers: { type: 'array', items: { type: 'string' } },
@@ -250,7 +253,14 @@ export const TOOL_PARAMETERS: Partial<Record<AgentToolId | string, Record<string
       from_index: { type: 'integer' },
       to_index: { type: 'integer' },
       to: { type: 'string' },
-      y: { type: 'integer' },
+      x: {
+        type: 'number',
+        description: 'Viewport CSS X for screenshot/vision click (with y; no index).',
+      },
+      y: {
+        type: 'number',
+        description: 'Scroll Y, or viewport CSS Y when action=click with x (screenshot coords).',
+      },
       direction: { type: 'string' },
       amount: { type: 'integer' },
       kind: { type: 'string', enum: ['stable', 'text', 'network_idle', 'download', 'css', 'html', 'script'] },

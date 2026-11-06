@@ -293,7 +293,8 @@ PR6  Phase 0 + 5 — fixtures + e2e golden + doc 勾选
 
 ## 13. 验收清单（发布前勾选）
 
-- [ ] G1～G5 通过
+- [x] G3～G5 自动化（`tests/e2e/scraper-script-golden.spec.ts` + G1/G2 golden）；G1 人工录屏仍待存档
+- [ ] G1 人工录屏 1 次存档
 - [ ] `tests/message.txt` 类 trace replay 显示 intent=script_authoring，无 media spawn guidance
 - [ ] 商店默认 networkEnabled 仍为 false
 - [ ] THIRD_PARTY / 隐私文案未承诺默认远程调试

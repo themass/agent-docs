@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="utf-8" />
+    <title>SPA catalog fixture</title>
+    <style>
+      body { margin: 0; font: 14px/1.5 system-ui, sans-serif; }
+      nav { display: flex; gap: 16px; padding: 12px 24px; background: #102a43; }
+      nav a { color: #f0f4f8; text-decoration: none; }
+      .list { display: grid; grid-template-columns: repeat(3, 200px); gap: 16px; padding: 16px 24px; }
+      .card a { display: block; color: inherit; text-decoration: none; }
+      .thumb { height: 120px; background: #d9e2ec; }
+    </style>
+  </head>
+  <body>
+    <nav role="navigation">
+      <a href="/c/phones">手机</a>
+      <a href="/c/laptops">笔记本</a>
+      <a href="/c/audio">音频</a>
+      <a href="/c/wearables">穿戴</a>
+    </nav>
+    <main class="list">
+      <div class="card">
+        <a href="/p/1001"><div class="thumb"></div><div>Phone X</div></a>
+      </div>
+      <div class="card">
+        <a href="/p/1002"><div class="thumb"></div><div>Laptop Pro</div></a>
+      </div>
+      <div class="card">
+        <a href="/p/1003"><div class="thumb"></div><div>ANC Buds</div></a>
+      </div>
+    </main>
+    <script>
+      // SPA-ish: sections stay on same document; history.pushState only.
+      for (const link of document.querySelectorAll('nav a')) {
+        link.addEventListener('click', (event) => {
+          event.preventDefault()
+          history.pushState({}, '', link.getAttribute('href'))
+          document.title = 'SPA catalog — ' + link.textContent
+        })
+      }
+    </script>
+  </body>
+</html>

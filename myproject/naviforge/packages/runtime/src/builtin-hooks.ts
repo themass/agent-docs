@@ -79,7 +79,12 @@ import { attachPageState } from './pi-run-loop.js'
 import { MediaHarvestMilestoneHook, NetworkDegradedToolGateHook, NetworkPlaneHealthHook } from './media-harvest-hooks.js'
 import { tryMediaFeedDeterministicHarvest } from './media-feed-deterministic.js'
 import { tryMediaHomePreflightDone } from './media-home-harvest.js'
-import { evaluateEvidence } from './evaluator.js'
+import {
+  completionToToolResult,
+  evaluateCompletion,
+  needsNetworkCollaboration,
+  NETWORK_COLLABORATION_QUESTION,
+} from './completion-coordinator.js'
 
 function preflightLoadSkill(
   ctx: AgentCtx,
@@ -694,6 +699,10 @@ export class LoginLinkReadHook implements AgentHook {
   }
 }
 
+/**
+ * Thin adapter: completion / recovery decisions live in completion-coordinator.
+ * This hook only translates CompletionDecision → HookDecision.
+ */
 export class DeliverableVerifyHook implements AgentHook {
   readonly name = 'deliverable-verify'
   readonly reads = [{ key: 'deliverable', optional: true } as const, 'scriptSaved', 'subtaskEvidenceReady'] as const
@@ -702,72 +711,55 @@ export class DeliverableVerifyHook implements AgentHook {
     const call = ctx.toolCall
     if (!call || call.tool !== 'system_done') return CONTINUE
     const deliverable = ctx.gates.deliverable ?? resolveDeliverable(ctx.task)
-    if (deliverable === 'script' && !ctx.gates.scriptSaved) {
-      const result = typeof call.arguments.result === 'string' ? call.arguments.result : ''
-      const hasPath = /scripts?\//i.test(result) || /\.py\b/i.test(result)
-      if (!hasPath) {
-        return {
-          kind: 'skip_tool',
-          note:
-            'CONSTRAINT: deliverable=script 须先 script_save 成功，再 system_done 附 path。若缺 URL/登录/Network，用 shortfall 模板说明，禁止空完成。',
-          log: 'block system_done without script_save',
-          result: {
-            ok: false,
-            error: {
-              code: 'deliverable_verify',
-              message: 'script deliverable requires script_save before system_done',
-              recoverable: true,
-            },
-          },
-        }
-      }
+    const decision = evaluateCompletion({
+      deliverable,
+      taskContract: ctx.taskContract,
+      evidence: ctx.runtimeState.evidence.records,
+      scriptSaved: Boolean(ctx.gates.scriptSaved),
+      subtaskEvidenceReady: Boolean(ctx.gates.subtaskEvidenceReady),
+      systemDoneResult: typeof call.arguments.result === 'string' ? call.arguments.result : '',
+    })
+    if (decision.allow) return CONTINUE
+    if (decision.recovery.strategy === 'ask_user') {
+      return { kind: 'ask_user', question: decision.recovery.diagnostic, plan: decision.recovery }
     }
-    if (deliverable === 'media') {
-      const result = typeof call.arguments.result === 'string' ? call.arguments.result : ''
-      const hasUrl = /https?:\/\//i.test(result) && /m3u8|mp4|webm|media/i.test(result)
-      const hasShortfall = /shortfall|无法|unavailable|缺少|未能|未找到|无.*源/i.test(result)
-      const sourceRequired = ctx.taskContract.capabilities.network === 'required'
-      const evaluation = evaluateEvidence(ctx.taskContract, ctx.runtimeState.evidence.records)
-      const verifiedSource = evaluation.status === 'complete' ||
-        ctx.runtimeState.evidence.records.some((item) => item.kind === 'network' && item.source === 'network_media')
+    return {
+      kind: 'skip_tool',
+      note: decision.note,
+      log: `block system_done: ${decision.message}`,
+      result: completionToToolResult(decision),
+    }
+  }
+}
 
-      // A URL-shaped string in the model's prose is not provenance.  For the
-      // strict smoke task, only Network evidence (or an explicitly structured
-      // shortfall) may cross the completion boundary.
-      if (sourceRequired && !verifiedSource && !hasShortfall) {
-        return {
-          kind: 'skip_tool',
-          note:
-            'CONSTRAINT: media source evidence is missing — model text alone cannot verify an original playback URL. Retry candidate click + Network, or return an explicit shortfall.',
-          log: 'block unverified media source completion',
-          result: {
-            ok: false,
-            error: {
-              code: 'deliverable_verify',
-              message: 'strict media task requires network_media evidence or explicit shortfall',
-              recoverable: true,
-            },
-          },
-        }
-      }
-      if (!sourceRequired && !hasUrl && !hasShortfall && !ctx.gates.subtaskEvidenceReady) {
-        return {
-          kind: 'skip_tool',
-          note:
-            'CONSTRAINT: deliverable=media — system_done 须含 mediaUrl（m3u8/mp4 等）或明确 shortfall；若仅拿到标题可先 click+network，或 script_save 骨架。',
-          log: 'block vague media system_done',
-          result: {
-            ok: false,
-            error: {
-              code: 'deliverable_verify',
-              message: 'media deliverable needs mediaUrl, spawn evidence, or explicit shortfall',
-              recoverable: true,
-            },
-          },
-        }
-      }
+/**
+ * When Network is required but unavailable, stop spinning and ask the user
+ * with a standardized collaboration request (Phase-1 P1).
+ */
+export class CapabilityCollaborationHook implements AgentHook {
+  readonly name = 'capability-collaboration'
+  private asked = false
+
+  beforeModel(ctx: AgentCtx): HookDecision {
+    if (this.asked) return CONTINUE
+    if (
+      !needsNetworkCollaboration({
+        networkRequired: ctx.taskContract.capabilities.network === 'required',
+        networkUnavailable: ctx.networkUnavailable,
+      })
+    ) {
+      return CONTINUE
     }
-    return CONTINUE
+    this.asked = true
+    return {
+      kind: 'ask_user',
+      question: NETWORK_COLLABORATION_QUESTION,
+      plan: {
+        strategy: 'ask_user',
+        retryable: true,
+        diagnostic: NETWORK_COLLABORATION_QUESTION,
+      },
+    }
   }
 }
 
@@ -1070,6 +1062,7 @@ export function createRunHooks(
     new LoginLinkReadHook(),
     new ScriptDeliverableStepHook(),
     new DeliverableVerifyHook(),
+    new CapabilityCollaborationHook(),
     new MediaHarvestMilestoneHook(),
   ]
 
