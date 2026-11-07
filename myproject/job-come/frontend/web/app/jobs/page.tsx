@@ -17,6 +17,7 @@ import {
   type Job,
 } from "@/lib/api/jobs";
 import { userFacingApiError } from "@/lib/api/user-error";
+import { withFit } from "@/lib/job-fit";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
 const REC_LABEL: Record<string, string> = {
@@ -42,6 +43,7 @@ export default function JobsPage() {
   const [dynamicRead, setDynamicRead] = useState(false);
   const [raw, setRaw] = useState("");
   const [busy, setBusy] = useState(false);
+  const [scoringId, setScoringId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [active, setActive] = useState<{ job: Job; fit: FitScore | null } | null>(null);
@@ -60,20 +62,11 @@ export default function JobsPage() {
         kind === "url"
           ? await parseJobUrl(profileId, url.trim(), dynamicRead)
           : await parseJob(profileId, raw.trim());
+      // The job is saved by now. It goes into the list before scoring, so a failed or interrupted
+      // score leaves the job there to be scored again, not lost.
+      setJobs((prev) => [job, ...prev.filter((j) => j.id !== job.id)]);
       const fit = await scoreFit(profileId, job.id);
-      const merged: Job = {
-        ...job,
-        fit_score: fit.score,
-        fit_recommendation: fit.recommendation,
-        fit_gaps: fit.gaps,
-        fit_blockers: fit.blockers,
-        evidence_profile_version: fit.evidence_profile_version,
-        requirement_evidence: fit.requirement_evidence,
-        fit_summary: fit.summary,
-        elevate_hints: fit.elevate_hints,
-        fit_dimensions: fit.dimensions,
-        legitimacy: fit.legitimacy,
-      };
+      const merged = withFit(job, fit);
       setActive({ job: merged, fit });
       setJobs((prev) => [merged, ...prev.filter((j) => j.id !== merged.id)]);
     } catch (err) {
@@ -85,6 +78,21 @@ export default function JobsPage() {
       );
     } finally {
       setBusy(false);
+    }
+  }
+
+  /** Scores a job that is already saved (its score was never filled in, or it failed). */
+  async function scoreSaved(job: Job) {
+    if (!profileId) return;
+    setScoringId(job.id);
+    setError(null);
+    try {
+      const fit = await scoreFit(profileId, job.id);
+      setJobs((prev) => prev.map((j) => (j.id === job.id ? withFit(j, fit) : j)));
+    } catch (err) {
+      setError(userFacingApiError(err, "打分没有完成，请稍后再点“打分”。"));
+    } finally {
+      setScoringId(null);
     }
   }
 
@@ -240,7 +248,17 @@ export default function JobsPage() {
                               匹配 {job.fit_score}
                             </span>
                           ) : (
-                            <span className="badge badge-neutral">尚未打分</span>
+                            <span className="flex items-center gap-2">
+                              <span className="badge badge-neutral">尚未打分</span>
+                              <button
+                                type="button"
+                                disabled={scoringId !== null}
+                                onClick={() => void scoreSaved(job)}
+                                className="btn btn-sm btn-secondary"
+                              >
+                                {scoringId === job.id ? "打分中…" : "打分"}
+                              </button>
+                            </span>
                           )}
                           {job.fit_recommendation ? (
                             <span className={REC_BADGE[job.fit_recommendation] ?? "badge badge-neutral"}>

@@ -49,6 +49,7 @@ from jc.services.agent_attachment_service import (
     resign_persisted_attachments,
     validate_inline_attachments,
 )
+from jc.services.interview_reply import REWRITE_MESSAGE, needs_one_question
 from jc.services.mock_answer_recorder import record_mock_answer, records_mock_answer
 from jc.services.patch_confirm_service import hydrate_confirmation_event, load_confirmation
 from jc.services.profile_patch_service import apply_confirmed_patch
@@ -349,12 +350,13 @@ class AgentService:
             facts |= await provider.gather(turn_ctx)
         runtime_skill = resolve_turn_skill(declared, facts)
         mock_session_id = ui_context.mock_session_id if ui_context else None
-        if records_mock_answer(
+        interview_turn = records_mock_answer(
             turn=declared.turn,
             runtime_skill=runtime_skill,
             default_skill=declared.default_skill,
             mock_session_id=mock_session_id,
-        ):
+        )
+        if interview_turn:
             # Written here, before the model runs, so a report never depends on the interviewer
             # remembering to save what the candidate said. The text is the user's own words (with
             # any photo already read into text), before the turn's context is wrapped around it.
@@ -418,6 +420,8 @@ class AgentService:
         )
 
         assistant_parts: list[str] = []
+        # An interview reply is held until it is checked for one question (see below).
+        held_tokens: list[dict[str, Any]] = []
         terminal_done: dict[str, Any] | None = None
         had_tool_activity = False
         had_error = False
@@ -511,6 +515,9 @@ class AgentService:
                 # Persist before publishing: a disconnect must not erase a visible
                 # confirmation/error, nor hold a DB transaction until the next token.
                 await self._db.commit()
+            if interview_turn and event_type == "token":
+                held_tokens.append(event)
+                continue
             # Internal full-size audit payloads belong only to jc_agent_trace,
             # not the UI wire projection (nor duplicated in message payload_json).
             yield {k: v for k, v in event.items() if k not in {"full_content", "full_result"}}
@@ -528,6 +535,20 @@ class AgentService:
         if trace_user_message_pending is not None:
             await self._trace.append(**trace_user_message_pending)
             trace_user_message_pending = None
+
+        if interview_turn and held_tokens:
+            reply = "".join(assistant_parts)
+            corrected = (
+                await self._one_question_again(client, session.deerflow_thread_id, metadata)
+                if needs_one_question(reply) and not had_error
+                else None
+            )
+            if corrected:
+                assistant_parts[:] = [corrected]
+                yield {"type": "token", "content": corrected}
+            else:
+                for held in held_tokens:
+                    yield held
 
         final_content = _finalize_assistant_content(
             assistant_parts, had_tool_activity and not had_error,
@@ -556,6 +577,26 @@ class AgentService:
         await self._db.commit()
         if terminal_done is not None:
             yield terminal_done
+
+    async def _one_question_again(
+        self, client: Any, thread_id: str | None, metadata: AgentRunMetadata
+    ) -> str | None:
+        """The interviewer's reply again, with one question. None when the model did not manage it;
+        the first reply is then shown as it was, which is no worse than before this check."""
+        parts: list[str] = []
+        try:
+            async for event in client.stream_message(
+                thread_id, REWRITE_MESSAGE, metadata=metadata,
+            ):
+                kind = event.get("type")
+                if kind == "token":
+                    parts.append(_extract_text(event.get("content")))
+                elif kind == "error":
+                    return None
+        except Exception:
+            logger.warning("interview reply could not be corrected to one question", exc_info=True)
+            return None
+        return "".join(parts).strip() or None
 
     async def cancel_run(self, session_id: str, *, actor: UserActor) -> dict[str, bool]:
         session = await self._require_session(session_id, actor=actor)

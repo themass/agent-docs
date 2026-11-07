@@ -85,7 +85,9 @@ async def test_the_superseded_session_keeps_what_was_said(sessions):
         first = await InterviewService(db).create_mock_session(actor=ACTOR, body=_body())
     async with sessions() as db:
         row = await db.get(MockSession, first.id)
-        row.coverage = {"asked": [{"question_id": "q1", "kind": "main", "parent_question_id": None}]}
+        row.coverage = {
+            "asked": [{"question_id": "q1", "kind": "main", "parent_question_id": None}]
+        }
         await db.commit()
     async with sessions() as db:
         await InterviewService(db).create_mock_session(actor=ACTOR, body=_body())

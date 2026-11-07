@@ -5,12 +5,14 @@ import { useEffect, useRef, useState } from "react";
 import { useMockProgress } from "@/hooks/useMockProgress";
 import {
   completeMockSession,
+  getMockProgress,
   skipMockQuestion,
   swapMockQuestion,
 } from "@/lib/api/coach";
 import { userFacingApiError } from "@/lib/api/user-error";
 import {
   barText,
+  END_MESSAGE,
   formatElapsed,
   SKIP_MESSAGE,
   SWAP_MESSAGE,
@@ -91,7 +93,12 @@ export function MockBar({ sessionId, conversation, progress: reader, onEnded }: 
     setBusy(true);
     setNotice(null);
     try {
-      await completeMockSession(sessionId);
+      // Through the interviewer first, so the closing line is said in the conversation and the
+      // report notice follows it. Closing the session directly is only the fallback for a turn that
+      // did not end it (the model unavailable, or the turn failed).
+      await conversation.sendMessage(END_MESSAGE);
+      const after = await getMockProgress(sessionId);
+      if (after.status === "active") await completeMockSession(sessionId);
       onEnded(sessionId);
     } catch (err) {
       setNotice(userFacingApiError(err, "结束失败，请稍后重试"));
@@ -111,7 +118,7 @@ export function MockBar({ sessionId, conversation, progress: reader, onEnded }: 
         {confirming ? (
           <>
             <span className="text-ink-600">现在结束面试？</span>
-            <button type="button" disabled={busy} onClick={() => void end()} className="btn btn-sm btn-primary">
+            <button type="button" disabled={busy || conversation.busy} onClick={() => void end()} className="btn btn-sm btn-primary">
               确认结束
             </button>
             <button type="button" disabled={busy} onClick={() => setConfirming(false)} className="btn btn-sm btn-secondary">
@@ -131,7 +138,7 @@ export function MockBar({ sessionId, conversation, progress: reader, onEnded }: 
             >
               换一题（剩 {progress.swaps_left}）
             </button>
-            <button type="button" disabled={busy} onClick={() => setConfirming(true)} className="btn btn-sm btn-secondary">
+            <button type="button" disabled={busy || conversation.busy} onClick={() => setConfirming(true)} className="btn btn-sm btn-secondary">
               结束面试
             </button>
           </>

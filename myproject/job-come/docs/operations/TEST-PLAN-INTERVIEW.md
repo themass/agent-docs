@@ -67,6 +67,11 @@
 | I-07 | 评价候选人（“很好”“不错”） | 未通过 | `test_acceptance_checks.py::test_judging_the_answer_out_loud_is_caught` |
 | I-08 | 面试官的规则写进了技能说明 | 三条规则存在 | `test_interview_prompts.py::test_the_interviewer_must_name_the_company_and_quote_only_what_was_said` |
 | I-09 | 提示词里要求一次一题 | 存在 | `test_interview_prompts.py` |
+| I-10 | 一条面试回复有两个问句时，改成一个再发给候选人 | 只发出改后的版本；原版本不出现 | `test_interview_one_question.py::test_a_reply_with_two_questions_is_corrected_and_only_the_correction_is_shown` |
+| I-11 | 改写失败（模型出错）时，发出第一版，不丢回复 | 原版本发出 | `test_interview_one_question.py::test_when_the_correction_fails_the_first_reply_is_shown_as_it_was` |
+| I-12 | 改后的版本是存下的那一条 | 存储与显示一致 | `test_interview_one_question.py::test_the_stored_reply_is_the_corrected_one` |
+| I-13 | 普通聊天不做这项检查 | 只调用一次模型 | `test_interview_one_question.py::test_a_chat_that_is_not_an_interview_is_never_corrected` |
+| I-14 | 结束面试时面试官说出结束语 | 提示词要求存在 | `test_interview_prompts.py::test_the_interviewer_says_the_closing_line_once_the_interview_is_ended` |
 
 ### 2.4 报告
 
@@ -98,6 +103,8 @@
 | F-02 | 请求体带上 `client_message_id` | 正确 | `agent-message-id.test.cjs` |
 | F-03 | 导出流程：审查、确认、导出、错误、进度 | 11 项通过 | `resume-quality-flow.test.cjs` |
 | F-04 | 类型检查 | 无错误 | `npx tsc --noEmit` |
+| F-05 | 没有匹配分的岗位能补打分，列表中的分数与说明一致 | 补打分后显示分数 | `job-fit.test.cjs` |
+| F-06 | 结束面试走面试官（发送“结束面试”），失败才直接关闭 | 前端实测（E-07） | 前端实测 |
 
 ## 三、运行方式
 

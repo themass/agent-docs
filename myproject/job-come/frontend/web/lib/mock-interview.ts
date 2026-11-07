@@ -15,6 +15,10 @@ export const STAGE_LABEL: Record<string, string> = {
  * (`tests/test_mock_answer_recorder.py` pins the same two lines). */
 export const SKIP_MESSAGE = "跳过这题，请出下一题。";
 export const SWAP_MESSAGE = "换一题，请出下一题。";
+/** What the page says to end the interview from the bar. The interviewer reads it as the candidate
+ * ending, closes the session in its own turn and says the closing line; the server does not record it
+ * as an answer (`is_steering_message`). The page closes the session itself only if that turn did not. */
+export const END_MESSAGE = "结束面试";
 
 type BarProgress = {
   stage: string;

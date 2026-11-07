@@ -87,8 +87,9 @@ def check_interviewer(
     greets = any(w in first for w in ("你好", "您好", "欢迎")) and "面试官" in first
     asks_intro = "自我介绍" in first
     names_company = not company or company in first
-    out.append(Finding("opens_with_greeting_and_introduction", greets and asks_intro and names_company,
-                       "" if greets and asks_intro and names_company else "first message: " + first[:60]))
+    opened = greets and asks_intro and names_company
+    out.append(Finding("opens_with_greeting_and_introduction", opened,
+                       "" if opened else "first message: " + first[:60]))
 
     # One question per turn. Two question marks in one reply is already two questions.
     too_many = [t[:40] for i, t in said[1:] if _question_count(t) > 1]

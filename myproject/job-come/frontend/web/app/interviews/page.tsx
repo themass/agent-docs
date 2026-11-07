@@ -29,6 +29,7 @@ const ENDED_LABEL: Record<string, string> = {
   completed: "正常结束",
   user_ended: "提前结束",
   timeout: "未完成结束",
+  superseded: "被新一轮取代",
 };
 
 export default function InterviewsPage() {

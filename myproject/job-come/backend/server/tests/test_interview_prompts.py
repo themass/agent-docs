@@ -190,3 +190,13 @@ def test_the_interviewer_must_name_the_company_and_quote_only_what_was_said():
     assert "公司名和岗位名必须都说出来" in body
     assert "本场亲口说过的话" in body
     assert "一条消息里只能有一个问句" in body
+
+
+def test_the_interviewer_says_the_closing_line_once_the_interview_is_ended():
+    # E-07: the candidate ends the interview from the bar; the interviewer must say the closing
+    # line itself, not leave it to the page.
+    from jc.skills.loader import require_skill
+
+    body = require_skill("coach-mock").body
+    assert "必须用一两句话说出结束语" in body
+    assert "报告由独立评审生成" in body
