@@ -42,7 +42,7 @@ from jc.schemas.coach import (
     QuestionUpsertRequest,
 )
 from jc.services.answer_attempt_service import save_answer_attempt
-from jc.services.mock_guard_service import must_have_of
+from jc.services.mock_guard_service import must_have_of, supersede_active_sessions
 from jc.services.mock_quota_service import MockQuotaService
 from jc.services.mock_report_queue import requeue_failed
 from jc.services.profile_service import ProfileService
@@ -284,6 +284,7 @@ class InterviewService:
             completed_at=None,
             deerflow_thread_id=None,
         )
+        await supersede_active_sessions(self._db, body.profile_id)
         await self._store.create_mock_session(session)
         await self._db.commit()
         return await self._to_mock_response(session)

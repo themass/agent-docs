@@ -36,6 +36,7 @@ const ENDED_LABEL: Record<string, string> = {
   completed: "正常结束",
   user_ended: "提前结束",
   timeout: "未完成结束",
+  superseded: "被新一轮取代",
 };
 
 const SEVERITY_LABEL: Record<string, { text: string; tone: string }> = {
@@ -378,7 +379,7 @@ export default function MockReportPage() {
       <Conclusion report={report} />
 
       <section className="card p-5">
-        <h2 className="text-sm font-semibold text-ink-900">五维平均</h2>
+        <h2 className="text-sm font-semibold text-ink-900">各维度得分</h2>
         <dl className="mt-3 grid grid-cols-5 gap-2 text-center">
           {averages.map((item) => (
             <div key={item.key} className="rounded-md bg-ink-50 px-2 py-3">
@@ -389,6 +390,7 @@ export default function MockReportPage() {
             </div>
           ))}
         </dl>
+        <p className="mt-2 text-xs text-ink-500">“—”表示这一维没有可引用的原话，没有计分，不计入均分。</p>
         {(report.checks.rejected_evidence ?? 0) > 0 && (
           <p className="mt-3 text-xs text-ink-500">
             有 {report.checks.rejected_evidence} 个评分因找不到你的原话作依据而未计入，显示为“无法判断”。

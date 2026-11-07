@@ -75,18 +75,23 @@ def _question_count(text: str) -> int:
     return len(_QUESTION_MARKS.findall(text))
 
 
-def check_interviewer(events: Sequence[Event], *, role_family: str | None = None) -> list[Finding]:
-    """`role_family` is the family the interview was for (`jc.coach.role_family`), when known."""
+def check_interviewer(
+    events: Sequence[Event], *, role_family: str | None = None, company: str | None = None
+) -> list[Finding]:
+    """`role_family` is the family the interview was for (`jc.coach.role_family`), when known.
+    `company` is the job's company: the opening must name it, as the playbook requires."""
     out: list[Finding] = []
     said = _said(events)
 
     first = said[0][1] if said else ""
     greets = any(w in first for w in ("你好", "您好", "欢迎")) and "面试官" in first
     asks_intro = "自我介绍" in first
-    out.append(Finding("opens_with_greeting_and_introduction", greets and asks_intro,
-                       "" if greets and asks_intro else "first message: " + first[:60]))
+    names_company = not company or company in first
+    out.append(Finding("opens_with_greeting_and_introduction", greets and asks_intro and names_company,
+                       "" if greets and asks_intro and names_company else "first message: " + first[:60]))
 
-    too_many = [t[:40] for i, t in said[1:] if _question_count(t) > 2]
+    # One question per turn. Two question marks in one reply is already two questions.
+    too_many = [t[:40] for i, t in said[1:] if _question_count(t) > 1]
     out.append(Finding("one_question_at_a_time", not too_many, "; ".join(too_many)))
 
     # A question the interviewer puts must have been registered, and accepted, just before.

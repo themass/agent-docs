@@ -179,3 +179,14 @@ def test_the_follow_up_examples_come_from_more_than_one_kind_of_job():
     words = ("拆表", "活动", "客户", "需求", "设计稿", "招聘", "预算")
     hits = [word for word in words if word in prompt]
     assert len(hits) >= 4, hits
+
+
+def test_the_interviewer_must_name_the_company_and_quote_only_what_was_said():
+    # Three rules a live run broke: the opening left out the company, a follow-up cited a bank
+    # question as something the candidate had said, and a reply asked two questions.
+    from jc.skills.loader import require_skill
+
+    body = require_skill("coach-mock").body
+    assert "公司名和岗位名必须都说出来" in body
+    assert "本场亲口说过的话" in body
+    assert "一条消息里只能有一个问句" in body

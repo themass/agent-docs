@@ -49,22 +49,44 @@ test('profile version changes invalidate the result even for the same draft ID',
   let calls=0;const h=setup(async()=>{calls++;return {draft_id:'d1',status:'passed',issues:[]};});
   try{h.render(target);await tick();assert.equal(h.render(target).review.status,'passed');let q=h.render({...target,profileVersion:2});assert.equal(q.review,null);await tick();assert.equal(h.render({...target,profileVersion:2}).review.status,'passed');assert.equal(calls,2);}finally{h.dispose();}
 });
-function component(file, overrides={}) {
-  const code=ts.transpileModule(fs.readFileSync(path.join(__dirname,'../components/resume/',file+'.tsx'),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText;
-  const mod={exports:{}};
-  new Function('exports','require',code)(mod.exports,name=>{
-    if(name in overrides)return overrides[name];
-    if(name==='react'||name==='react/jsx-runtime')return require(name);
-    if(name==='@/lib/api/resume')return {exportProfile:()=>{throw Error('SSR must not export');}};
-    if(name==='@/lib/api/user-error')return {userFacingExportError:e=>e.message};
-    if(name==='./ExportReviewProgress')return {ExportReviewProgress:component('ExportReviewProgress')};
-    if(name==='@/lib/review-progress'){
-      const mod={exports:{}};
-      const code=ts.transpileModule(fs.readFileSync(path.join(__dirname,'../lib/review-progress.ts'),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText;
-      new Function('exports',code)(mod.exports);return mod.exports;
+// Loads a source file of this app (`@/...` or a relative component) the way the test needs it:
+// transpiled, with its own `@/` imports resolved from the same tree. Anything else must be passed
+// in `overrides`, so a new dependency fails loudly here instead of silently changing a test.
+const WEB_ROOT = path.join(__dirname, '..');
+const loaded = new Map();
+function resolveAppFile(name) {
+  const base = path.join(WEB_ROOT, name.slice(2));
+  for (const candidate of [base + '.ts', base + '.tsx', path.join(base, 'index.ts'), path.join(base, 'index.tsx')]) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+function loadAppModule(file, overrides = {}) {
+  if (loaded.has(file)) return loaded.get(file);
+  const mod = { exports: {} };
+  loaded.set(file, mod.exports);
+  const code = ts.transpileModule(fs.readFileSync(file, 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
+  }).outputText;
+  new Function('exports', 'require', code)(mod.exports, (name) => {
+    if (name in overrides) return overrides[name];
+    if (name === 'react' || name === 'react/jsx-runtime') return require(name);
+    if (name.startsWith('@/')) {
+      const target = resolveAppFile(name);
+      if (!target) throw Error('cannot resolve ' + name);
+      return loadAppModule(target, overrides);
     }
-    throw Error(name);
-  });return mod.exports[file];
+    if (name.startsWith('.')) return loadAppModule(path.resolve(path.dirname(file), name + (fs.existsSync(path.resolve(path.dirname(file), name + '.tsx')) ? '.tsx' : '.ts')), overrides);
+    throw Error('unexpected import ' + name + ' in ' + path.relative(WEB_ROOT, file));
+  });
+  return mod.exports;
+}
+function component(file, overrides = {}) {
+  const exportsOf = loadAppModule(path.join(WEB_ROOT, 'components/resume', file + '.tsx'), {
+    '@/lib/api/resume': { exportProfile: () => { throw Error('SSR must not export'); } },
+    ...overrides,
+  });
+  return exportsOf[file];
 }
 const quality = (patch={}) => ({review:null,reviewBusy:false,reviewError:null,acknowledged:false,skipped:false,reviewProgress:{},reviewStartedAt:null,runReview(){},skipReview(){},setAcknowledged(){},...patch});
 const html=(C,props)=>require('react-dom/server').renderToStaticMarkup(require('react').createElement(C,props));

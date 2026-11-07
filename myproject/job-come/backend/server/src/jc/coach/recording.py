@@ -140,11 +140,14 @@ async def record_interview(db: AsyncSession, mock_session_id: str) -> dict[str, 
     answers = answers_by_main_question(transcript)
     candidate_lines = [e["text"] for e in events if e["role"] == "candidate"]
     job = None
+    company = None
     if session.job_id:
         from jc.models.job import Job
 
         found = await db.get(Job, session.job_id)
-        job = found.title if found is not None and found.profile_id == session.profile_id else None
+        if found is not None and found.profile_id == session.profile_id:
+            job = found.title
+            company = found.company or None
 
     return {
         "session": {
@@ -157,6 +160,7 @@ async def record_interview(db: AsyncSession, mock_session_id: str) -> dict[str, 
         "answers": answers,
         "skipped": [t["question_id"] for t in transcript if t.get("skipped")],
         "control_messages": [t for t in candidate_lines if is_steering_message(t)],
+        "company": company,
         "report": session.report,
         "warnings": warnings,
     }

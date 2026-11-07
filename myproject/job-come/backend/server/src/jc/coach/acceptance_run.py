@@ -41,7 +41,9 @@ def run_on_recording(recording: dict[str, Any]) -> tuple[bool, str]:
         lines.append("没有可检查的对话：这份记录里没有消息。")
         return False, "\n".join(lines)
 
-    interviewer = check_interviewer(events, role_family=recording.get("role_family"))
+    interviewer = check_interviewer(
+        events, role_family=recording.get("role_family"), company=recording.get("company")
+    )
     reviewer = []
     report = recording.get("report")
     if report:

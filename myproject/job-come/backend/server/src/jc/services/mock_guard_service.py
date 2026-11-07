@@ -13,6 +13,9 @@ import copy
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from jc.authz.ownership import require_owned_profile
 from jc.authz.scope import RunScope
 from jc.coach.coverage import coverage_of
@@ -99,7 +102,7 @@ def _close(session: MockSession, state: dict[str, Any], *, reason: str) -> None:
     session.status = MockSessionStatus.COMPLETED
     session.completed_at = datetime.now(UTC)
     state["ended_reason"] = reason
-    state["ended_early"] = reason in ("user_ended", "timeout")
+    state["ended_early"] = reason in ("user_ended", "timeout", "superseded")
     session.coverage = state
     if state["asked"]:
         session.report_status = MockReportStatus.QUEUED
@@ -108,6 +111,24 @@ def _close(session: MockSession, state: dict[str, Any], *, reason: str) -> None:
         session.report_status = MockReportStatus.FAILED
         session.report_attempts = MAX_REPORT_RUNS
         session.report_error = "这场面试没有提问，没有可评审的内容。"
+
+
+async def supersede_active_sessions(db: AsyncSession, profile_id: str) -> list[str]:
+    """Close every running interview of this profile before a new round starts.
+
+    A tab closed mid-interview leaves its session "active" for up to a day, and the new round
+    could not start while it stood. Its answers stay; it is reported as "superseded", which is
+    the candidate's own doing, so it counts as ended early.
+    """
+    rows = list((await db.execute(
+        select(MockSession).where(
+            MockSession.profile_id == profile_id,
+            MockSession.status == MockSessionStatus.ACTIVE,
+        )
+    )).scalars().all())
+    for session in rows:
+        _close(session, _state(session), reason="superseded")
+    return [session.id for session in rows]
 
 
 async def _owned_session(scope: RunScope, mock_session_id: str) -> MockSession:

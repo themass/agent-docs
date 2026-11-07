@@ -325,3 +325,18 @@ def test_an_engineering_question_only_registered_is_caught():
     events[2] = call("jc_mock_ask", stem="请你现场写一段代码，实现一个 LRU 缓存")
     # What was said out loud stays a product question: the registration is what gives it away.
     assert "stays_in_the_role" in names(failures(check_interviewer(events, role_family="pm")))
+
+
+def test_the_opening_must_name_the_company_when_the_job_has_one():
+    first = say("你好，我是这个岗位的面试官，今天由我来面你。请先做一个一两分钟的自我介绍吧。")
+    bad = [first] + GOOD[1:]
+    assert "opens_with_greeting_and_introduction" in names(
+        failures(check_interviewer(bad, company="示例科技")))
+    assert "opens_with_greeting_and_introduction" not in names(
+        failures(check_interviewer(bad)))
+
+
+def test_two_question_marks_in_one_reply_is_already_two_questions():
+    bad = list(GOOD)
+    bad[3] = say("你是拿什么判断它最该先做？还有，结果怎么衡量的？")
+    assert "one_question_at_a_time" in names(failures(check_interviewer(bad)))
