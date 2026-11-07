@@ -49,7 +49,7 @@ from jc.services.agent_attachment_service import (
     resign_persisted_attachments,
     validate_inline_attachments,
 )
-from jc.services.interview_reply import REWRITE_MESSAGE, needs_one_question
+from jc.services.interview_reply import REWRITE_MESSAGE, needs_one_question, question_count
 from jc.services.mock_answer_recorder import record_mock_answer, records_mock_answer
 from jc.services.patch_confirm_service import hydrate_confirmation_event, load_confirmation
 from jc.services.profile_patch_service import apply_confirmed_patch
@@ -538,11 +538,32 @@ class AgentService:
 
         if interview_turn and held_tokens:
             reply = "".join(assistant_parts)
+            attempted = needs_one_question(reply) and not had_error
             corrected = (
                 await self._one_question_again(client, session.deerflow_thread_id, metadata)
-                if needs_one_question(reply) and not had_error
+                if attempted
                 else None
             )
+            if attempted:
+                # The correction is a second model call, so the ledger otherwise shows only the
+                # reply that went out. This row says a correction was tried and whether it worked,
+                # which is what the effect report counts (Q8). `kept_first` is a reply with two
+                # questions that went out unchanged.
+                await self._trace.append(
+                    trace_id_pk=new_id("agtr"),
+                    session_id=session.id,
+                    event_type="interview_reply_corrected",
+                    role="system",
+                    payload={
+                        "outcome": "corrected" if corrected else "kept_first",
+                        "questions_before": question_count(reply),
+                    },
+                    user_id=actor.user_id,
+                    profile_id=session.profile_id,
+                    job_id=session.job_id,
+                    mock_session_id=ui_context.mock_session_id if ui_context else None,
+                    trace_id=session.trace_id,
+                )
             if corrected:
                 assistant_parts[:] = [corrected]
                 yield {"type": "token", "content": corrected}

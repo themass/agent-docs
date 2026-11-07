@@ -155,3 +155,45 @@ async def test_a_chat_that_is_not_an_interview_is_never_corrected(maker, monkeyp
     tokens = await _turn(maker, monkeypatch, client, mock_session_id=None)
     assert "".join(t["content"] for t in tokens) == TWO
     assert len(client.asked) == 1
+
+
+async def _markers(maker) -> list[dict]:
+    from jc.models.agent_trace import AgentTrace
+
+    async with maker() as db:
+        rows = (await db.execute(
+            select(AgentTrace).where(AgentTrace.event_type == "interview_reply_corrected")
+        )).scalars().all()
+    return [{"outcome": r.payload["outcome"], "mock": r.mock_session_id} for r in rows]
+
+
+@pytest.mark.asyncio
+async def test_a_correction_leaves_a_marker_saying_it_worked(maker, monkeypatch):
+    await _turn(maker, monkeypatch, ScriptedClient(TWO, FIXED))
+    assert await _markers(maker) == [{"outcome": "corrected", "mock": "ms1"}]
+
+
+@pytest.mark.asyncio
+async def test_a_failed_correction_leaves_a_kept_first_marker(maker, monkeypatch):
+    await _turn(maker, monkeypatch, ScriptedClient(TWO, RuntimeError("down")))
+    assert await _markers(maker) == [{"outcome": "kept_first", "mock": "ms1"}]
+
+
+@pytest.mark.asyncio
+async def test_a_reply_that_needed_no_correction_leaves_no_marker(maker, monkeypatch):
+    await _turn(maker, monkeypatch, ScriptedClient(ONE))
+    assert await _markers(maker) == []
+
+
+def test_corrections_are_counted_from_the_ledger_rows():
+    from types import SimpleNamespace
+
+    from jc.coach.recording import corrections_from_trace
+
+    rows = [
+        SimpleNamespace(event_type="interview_reply_corrected", payload={"outcome": "corrected"}),
+        SimpleNamespace(event_type="interview_reply_corrected", payload={"outcome": "kept_first"}),
+        SimpleNamespace(event_type="assistant_message", payload={"text": "x"}),
+        SimpleNamespace(event_type="interview_reply_corrected", payload={"outcome": "weird"}),
+    ]
+    assert corrections_from_trace(rows) == {"corrected": 1, "kept_first": 1}
