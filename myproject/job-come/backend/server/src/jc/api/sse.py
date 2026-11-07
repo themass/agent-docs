@@ -80,3 +80,33 @@ async def with_heartbeat(
     finally:
         if pending is not None and not pending.done():
             pending.cancel()
+
+
+#: How long a run may go without a real event before it is ended. Pings do not count: a
+#: heartbeat says the server is alive, not that the reply is coming. Set above the worst
+#: legitimate silence, which is the model's three failover hops at 180s each (540s).
+RUN_SILENCE_LIMIT_SEC = 600.0
+
+
+async def with_silence_limit(
+    events: AsyncIterator[dict], *, limit_sec: float = RUN_SILENCE_LIMIT_SEC
+) -> AsyncIterator[dict]:
+    """End the run with an error event when it has been silent for `limit_sec`.
+
+    Sits under `with_heartbeat`, so the pings from there never reset it. Without this, a run
+    that stops producing events (a hang nothing else times out) keeps the connection alive
+    forever and the user sees "thinking" with no end.
+    """
+    source = events.__aiter__()
+    while True:
+        try:
+            event = await asyncio.wait_for(source.__anext__(), timeout=limit_sec)
+        except StopAsyncIteration:
+            return
+        except TimeoutError:
+            yield {
+                "type": "error",
+                "message": "模型长时间没有回复，这次回复已中止。请稍后重试。",
+            }
+            return
+        yield event

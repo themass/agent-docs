@@ -30,7 +30,7 @@ from jc.config import settings
 from jc.exceptions import AppError, ConflictError, NotFoundError
 from jc.models.agent import AgentSession
 from jc.models.agent_message import AgentMessage
-from jc.models.enums import AgentSessionStatus
+from jc.models.enums import AgentSessionStatus, MockSessionStatus
 from jc.observability.events import log_product_event
 from jc.schemas.agent import (
     AgentAttachment,
@@ -56,6 +56,7 @@ from jc.services.profile_service import ProfileService
 from jc.stores.agent_message_store import AgentMessageStore
 from jc.stores.agent_store import AgentStore
 from jc.stores.agent_trace_store import AgentTraceStore
+from jc.stores.interview_store import InterviewStore
 
 logger = logging.getLogger(__name__)
 
@@ -231,6 +232,21 @@ class AgentService:
             messages=[self._to_message_record(row) for row in rows],
         )
 
+    async def _interview_of_resumed_chat(self, session) -> str | None:
+        """The active interview this coach chat last recorded against, else None. Only for the
+        interview role, and only while that interview is still running for the same profile."""
+        if session.role_id != "coach-mock":
+            return None
+        mock_id = await self._trace.latest_mock_session_id(session.id)
+        if mock_id is None:
+            return None
+        mock = await InterviewStore(self._db).get_mock_session(mock_id)
+        if mock is None or mock.profile_id != session.profile_id:
+            return None
+        if mock.status != MockSessionStatus.ACTIVE:
+            return None
+        return mock_id
+
     async def stream_message(
         self,
         session_id: str,
@@ -243,6 +259,17 @@ class AgentService:
         client_message_id: str | None = None,
     ) -> AsyncIterator[dict]:
         session = await self._require_session(session_id, actor=actor)
+        if not (ui_context and ui_context.mock_session_id):
+            # A chat reopened from the history list sends no interview in its context, so its
+            # answers would not be recorded and the report would be empty. Its own ledger
+            # still knows which interview it belongs to.
+            resumed = await self._interview_of_resumed_chat(session)
+            if resumed:
+                ui_context = (
+                    ui_context.model_copy(update={"mock_session_id": resumed})
+                    if ui_context
+                    else AgentUiContext(page="coach-agent", step="mock", mock_session_id=resumed)
+                )
         if ui_context and ui_context.mock_session_id:
             await require_owned_references(
                 RunScope(

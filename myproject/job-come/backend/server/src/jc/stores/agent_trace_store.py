@@ -84,6 +84,17 @@ class AgentTraceStore:
         )
         return list((await self._db.execute(stmt)).scalars().all())
 
+    async def latest_mock_session_id(self, session_id: str) -> str | None:
+        """The interview this chat was last recorded against, if any. A chat resumed from the
+        history list arrives without the interview in its UI context; its own ledger still knows."""
+        stmt = (
+            select(AgentTrace.mock_session_id)
+            .where(AgentTrace.session_id == session_id, AgentTrace.mock_session_id.isnot(None))
+            .order_by(AgentTrace.seq.desc())
+            .limit(1)
+        )
+        return (await self._db.execute(stmt)).scalar_one_or_none()
+
     async def has_system_prompt(self, session_id: str) -> bool:
         """Whether this session already carries its one `system_prompt` row.
 

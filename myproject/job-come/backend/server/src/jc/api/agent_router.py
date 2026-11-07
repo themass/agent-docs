@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, Path, Query
 from fastapi.responses import Response, StreamingResponse
 
 from jc.api.deps import get_agent_service, require_user
-from jc.api.sse import with_heartbeat
+from jc.api.sse import with_heartbeat, with_silence_limit
 from jc.schemas.agent import (
     AgentConfirmRequest,
     AgentConfirmResponse,
@@ -135,7 +135,7 @@ async def agent_message_stream(
             ui_context=body.ui_context,
             client_message_id=body.client_message_id,
         )
-        async for event in with_heartbeat(upstream):
+        async for event in with_heartbeat(with_silence_limit(upstream)):
             yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n".encode()
 
     return StreamingResponse(

@@ -511,3 +511,50 @@ async def test_remembering_ids_leaves_the_rest_of_the_coverage_alone(maker):
     async with maker() as db:
         coverage = (await db.get(MockSession, "ms1")).coverage
     assert coverage["asked"] == [MAIN] and coverage["recorded_messages"] == ["m1"]
+
+
+# --- a chat reopened from the history list ------------------------------------------------------
+
+
+async def _link_chat_to_interview(
+    maker, *, role_id: str = "coach-mock", profile_id: str = "p1"
+) -> None:
+    from jc.models.agent import AgentSession
+    from jc.models.agent_trace import AgentTrace
+
+    async with maker() as db:
+        db.add(AgentSession(id="as1", user_id="u1", profile_id=profile_id, role_id=role_id,
+                            deerflow_thread_id="thread"))
+        db.add(AgentTrace(id="t-link", session_id="as1", seq=0, event_type="tool_call",
+                          role="assistant", payload={"name": "jc_mock_plan"},
+                          mock_session_id="ms1"))
+        await db.commit()
+
+
+@pytest.mark.asyncio
+async def test_a_reopened_chat_without_the_interview_in_its_context_still_records_the_answer(
+    maker, monkeypatch
+):
+    # The history list sends no mock_session_id. The chat's own ledger knows the interview.
+    await _open_session(maker, [MAIN])
+    await _link_chat_to_interview(maker)
+    await _stream(maker, monkeypatch, "我把结算接口拆成了两张表。", mock_session_id=None)
+    assert [(r.question_id, r.user_answer) for r in await _attempts(maker)] == [
+        ("q1", "我把结算接口拆成了两张表。")
+    ]
+
+
+@pytest.mark.asyncio
+async def test_a_reopened_chat_does_not_record_into_an_interview_that_has_ended(maker, monkeypatch):
+    await _open_session(maker, [MAIN], status="completed")
+    await _link_chat_to_interview(maker)
+    await _stream(maker, monkeypatch, "我把结算接口拆成了两张表。", mock_session_id=None)
+    assert await _attempts(maker) == []
+
+
+@pytest.mark.asyncio
+async def test_a_chat_of_another_role_is_never_matched_to_an_interview(maker, monkeypatch):
+    await _open_session(maker, [MAIN])
+    await _link_chat_to_interview(maker, role_id="resume-coach")
+    await _stream(maker, monkeypatch, "我把结算接口拆成了两张表。", mock_session_id=None)
+    assert await _attempts(maker) == []
