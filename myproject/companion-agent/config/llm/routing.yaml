@@ -1,0 +1,42 @@
+# companion-agent 模型路由。
+#
+# 场景 → 模型链，按顺序故障转移。密钥与网关地址只通过环境变量引用，不写入本文件。
+# 模型名以网关实际返回的名字为准（网关可能回显为别名）。
+
+providers:
+  gateway:
+    api_base_env: COMPANION_LLM_API_BASE
+    api_key_env: COMPANION_LLM_API_KEY
+
+scenarios:
+  # 对话主脑：DeerFlow 内部经此场景选择模型，流式输出，文字与语音共用
+  companion_chat:
+    - model: openai/deepseek-v4-pro
+      provider: gateway
+      timeout_sec: 60
+    - model: openai/deepseek-v4-flash
+      provider: gateway
+      timeout_sec: 60
+
+  # 记忆提取：结构化 JSON 输出，用便宜模型，关闭隐式推理
+  memory_extract:
+    - model: openai/deepseek-v4-flash
+      provider: gateway
+      timeout_sec: 60
+      reasoning_effort: none
+      extra_body:
+        thinking:
+          type: disabled
+
+  # 长任务/内容生成之后的角色化转述（DeerFlow 子任务结果 → 角色口吻）
+  companion_rewrite:
+    - model: openai/deepseek-v4-flash
+      provider: gateway
+      timeout_sec: 60
+
+defaults:
+  provider: gateway
+  api_base_env: COMPANION_LLM_API_BASE
+  api_key_env: COMPANION_LLM_API_KEY
+  temperature: 0.7
+  max_tokens: 4096

@@ -1,0 +1,81 @@
+# companion-agent 的嵌入式 DeerFlow 配置。
+#
+# 与 job-come 的差异：不引用它自己的 `jc.llm` 适配器，模型直接用 LiteLLM 的
+# OpenAI 兼容入口，走 COMPANION_LLM_API_BASE/KEY。这样两个产品各管各的网关，
+# 也不把一个产品的代码拖进另一个。
+
+config_version: 3
+
+models:
+  # 主模型：对话与多步推理。走场景 companion_chat 的同一套网关。
+  # 字段名是 DeerFlow 的 schema：`model` 是模型 id，`use` 是 provider 类路径。
+  - name: companion-chat
+    display_name: Companion Chat
+    use: langchain_openai:ChatOpenAI
+    model: $COMPANION_CHAT_MODEL
+    base_url: $COMPANION_LLM_API_BASE
+    api_key: $COMPANION_LLM_API_KEY
+    context_window: 128000
+    supports_thinking: false
+
+  # 便宜模型：事件抽取、内容转述。与对话分开是为了控制成本。
+  - name: companion-utility
+    display_name: Companion Utility
+    use: langchain_openai:ChatOpenAI
+    model: $COMPANION_UTILITY_MODEL
+    base_url: $COMPANION_LLM_API_BASE
+    api_key: $COMPANION_LLM_API_KEY
+    context_window: 64000
+    supports_thinking: false
+
+skills:
+  path: skills
+
+checkpointer:
+  # 多轮上下文靠它。没有 checkpointer 每次调用都是无状态的，记忆之外的历史会断。
+  type: sqlite
+  connection_string: .data/deerflow/checkpoints.sqlite3
+
+token_usage:
+  enabled: true
+
+summarization:
+  enabled: true
+  model_name: companion-utility
+  trigger:
+    - type: tokens
+      value: 32000
+  keep:
+    type: messages
+    value: 20
+  # 必须 >= 上面的触发值：更小会把超出部分直接丢掉而不摘要。
+  trim_tokens_to_summarize: 40000
+
+# 记忆由 companion 自己的 memory 层负责（mem0 + 事件时间线），
+# 所以关掉 DeerFlow 内建的记忆，避免两套记忆各记一份、互相打架。
+memory:
+  enabled: false
+
+title:
+  enabled: false
+
+pii_redaction:
+  enabled: $COMPANION_PII_REDACTION_ENABLED
+  token_secret: $COMPANION_PII_REDACTION_TOKEN_SECRET
+
+token_budget:
+  enabled: true
+  max_tokens: 60000
+
+authorization:
+  # 授权由 companion 的 actions 层按 ActionSpec.permission 执行，
+  # DeerFlow 这一层不再做一次，避免两处判断不一致。
+  enabled: false
+
+sandbox:
+  use: deerflow.sandbox.local:LocalSandboxProvider
+  # 不给模型宿主机 shell：它能访问文件与进程，是整个系统里最大的攻击面。
+  allow_host_bash: false
+
+tool_search:
+  enabled: false
