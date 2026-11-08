@@ -48,7 +48,7 @@ async def test_a_follow_up_is_not_found_by_the_bank_search(maker):
 
 
 @pytest.mark.asyncio
-async def test_the_same_text_asked_in_another_interview_is_a_new_row(maker):
+async def test_the_follow_up_text_cannot_be_reused_as_a_main_question_in_another_interview(maker):
     from datetime import UTC, datetime
 
     from jc.authz.scope import RunScope
@@ -66,14 +66,14 @@ async def test_the_same_text_asked_in_another_interview_is_a_new_row(maker):
         await db.commit()
     async with maker() as db:
         scope = RunScope(db=db, user_id="u1", profile_id="p1", mock_session_id="ms2")
-        result = await ask(scope, mock_session_id="ms2", stem=MAIN_SAME_TEXT, kind="main")
-    assert result.get("accepted") is True, result
+        result = await ask(scope, mock_session_id="ms2", stem=FOLLOW, kind="main")
+    # The same text as a main question is refused: it points back at an earlier answer.
+    assert result.get("code") == "refers_to_earlier_talk", result
     async with maker() as db:
         rows = (await db.execute(
             select(InterviewQuestion).where(InterviewQuestion.stem == FOLLOW)
         )).scalars().all()
-    assert len(rows) == 2, "the main question must not reuse the follow-up row"
-    assert {r.source for r in rows} == {QuestionSource.FOLLOWUP, QuestionSource.MOCK}
+    assert [r.source for r in rows] == [QuestionSource.FOLLOWUP]
 
 
 @pytest.mark.asyncio
@@ -84,3 +84,27 @@ async def test_a_new_main_question_still_goes_into_the_bank(maker):
     assert result.get("accepted") is True, result
     row = await _row(maker, stem)
     assert row is not None and row.source == QuestionSource.MOCK
+
+
+BACK_MAIN = "你刚说和产品在排期上有分歧，最后怎么办？"
+
+
+@pytest.mark.asyncio
+async def test_a_main_question_that_points_back_is_refused_and_nothing_is_stored(maker):
+    await _open_session(maker)
+    result = await _ask(maker, kind="main", stem=BACK_MAIN)
+    assert result.get("accepted") is False
+    assert result.get("code") == "refers_to_earlier_talk"
+    assert await _row(maker, BACK_MAIN) is None
+
+
+def test_the_back_reference_rule_refuses_only_reply_style_openings():
+    from jc.services.interview_reply import refers_to_earlier_talk
+
+    assert refers_to_earlier_talk(BACK_MAIN)
+    assert refers_to_earlier_talk("你说注册到首单流失最重，原因是新手不知道？")
+    assert refers_to_earlier_talk("我没问这个，我问的是预算")
+    assert refers_to_earlier_talk("你之前说的那个数字是怎么算的？")
+    assert not refers_to_earlier_talk("你之前在哪家公司做过用户增长？")
+    assert not refers_to_earlier_talk("讲一次你处理线上故障的经历")
+    assert not refers_to_earlier_talk("你们团队怎么做的漏斗拆解？")
