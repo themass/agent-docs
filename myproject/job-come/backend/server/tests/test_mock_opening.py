@@ -127,3 +127,59 @@ async def test_a_silent_model_run_is_answered_by_the_holding_line(maker, monkeyp
             select(AgentMessage).where(AgentMessage.role == "assistant")
         )).scalars().all()
     assert HOLDING_TEXT in [m.content for m in stored]
+
+
+class TimedClient:
+    """Yields (delay_seconds, event) pairs, so a test can make the model go quiet between events."""
+
+    def __init__(self, *steps):
+        self.steps = list(steps)
+        self.asked: list[str] = []
+
+    async def stream_message(self, thread_id, message, metadata=None):
+        self.asked.append(message)
+        for delay, event in self.steps:
+            if delay:
+                await asyncio.sleep(delay)
+            yield event
+
+
+@pytest.mark.asyncio
+async def test_silence_after_the_system_prompt_is_caught(maker, monkeypatch):
+    # The run's first event is the system prompt, which comes at once. The watchdog must still
+    # catch a model that then says nothing (live: 129 s, 114 s and 70 s gaps went unanswered).
+    await _turn(maker, monkeypatch, ScriptedClient(), "你好，我准备好了。")
+    monkeypatch.setattr(agent_service, "WATCHDOG_SEC", 0.1)
+    client = TimedClient(
+        (0, {"type": "system_prompt_rendered", "content": "x"}),
+        (1.0, {"type": "token", "content": QUESTION}),
+    )
+    shown = await _turn(maker, monkeypatch, client, ANSWER)
+    assert shown == HOLDING_TEXT
+
+
+@pytest.mark.asyncio
+async def test_a_run_that_keeps_talking_is_not_cut_short(maker, monkeypatch):
+    await _turn(maker, monkeypatch, ScriptedClient(), "你好，我准备好了。")
+    monkeypatch.setattr(agent_service, "WATCHDOG_SEC", 0.2)
+    client = TimedClient(
+        (0, {"type": "system_prompt_rendered", "content": "x"}),
+        (0.05, {"type": "token", "content": "好，"}),
+        (0.05, {"type": "token", "content": QUESTION}),
+    )
+    shown = await _turn(maker, monkeypatch, client, ANSWER)
+    assert shown == "好，" + QUESTION
+
+
+@pytest.mark.asyncio
+async def test_a_running_tool_gets_the_longer_limit(maker, monkeypatch):
+    await _turn(maker, monkeypatch, ScriptedClient(), "你好，我准备好了。")
+    monkeypatch.setattr(agent_service, "WATCHDOG_SEC", 0.05)
+    monkeypatch.setattr(agent_service, "TOOL_WAIT_SEC", 1.0)
+    client = TimedClient(
+        (0, {"type": "system_prompt_rendered", "content": "x"}),
+        (0, {"type": "tool_start", "name": "jc_mock_ask", "args": {}}),
+        (0.3, {"type": "token", "content": QUESTION}),
+    )
+    shown = await _turn(maker, monkeypatch, client, ANSWER)
+    assert shown == QUESTION, "a tool still working must not be cancelled at the model limit"

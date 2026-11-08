@@ -12,8 +12,14 @@ is cancelled and the candidate gets the opening (when none has been said yet) or
 
 from __future__ import annotations
 
-#: How long a model run may stay silent before the server answers in its place.
+#: How long a model run may stay silent between two events before the server answers in its
+#: place. Measured from every event, not from the first: the run's first event is the system
+#: prompt, which comes at once, so a limit on the first event never fires.
 WATCHDOG_SEC = 60.0
+
+#: While a tool is running the model says nothing; the tool has its own limit (the MCP
+#: tool_call_timeout is 120 s). Cancelling a tool that is still working would lose its result.
+TOOL_WAIT_SEC = 150.0
 
 #: Said to the model once, before its first turn after the opening, so it does not greet again.
 BRIEF_AFTER_OPENING = (

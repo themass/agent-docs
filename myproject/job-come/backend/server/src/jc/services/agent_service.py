@@ -54,6 +54,7 @@ from jc.services.mock_answer_recorder import record_mock_answer, records_mock_an
 from jc.services.mock_opening import (
     BRIEF_AFTER_OPENING,
     HOLDING_TEXT,
+    TOOL_WAIT_SEC,
     WATCHDOG_SEC,
     opening_due,
     opening_text,
@@ -645,20 +646,23 @@ class AgentService:
         upstream = client.stream_message(
             session.deerflow_thread_id, agent_message, metadata=metadata,
         ).__aiter__()
-        try:
-            first = await asyncio.wait_for(upstream.__anext__(), timeout=WATCHDOG_SEC)
-        except StopAsyncIteration:
-            return
-        except TimeoutError:
-            from jc.adapters.deerflow_harness_client import request_session_cancel
+        awaiting_tool = False
+        while True:
+            # Every event restarts the clock. A tool that has started gets its own, longer limit.
+            limit = TOOL_WAIT_SEC if awaiting_tool else WATCHDOG_SEC
+            try:
+                event = await asyncio.wait_for(upstream.__anext__(), timeout=limit)
+            except StopAsyncIteration:
+                return
+            except TimeoutError:
+                from jc.adapters.deerflow_harness_client import request_session_cancel
 
-            request_session_cancel(session.id)
-            await upstream.aclose()
-            yield {"type": "token", "content": HOLDING_TEXT}
-            yield {"type": "done"}
-            return
-        yield first
-        async for event in upstream:
+                request_session_cancel(session.id)
+                await upstream.aclose()
+                yield {"type": "token", "content": HOLDING_TEXT}
+                yield {"type": "done"}
+                return
+            awaiting_tool = event.get("type") == "tool_start"
             yield event
 
     async def _one_question_again(
