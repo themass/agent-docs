@@ -390,6 +390,7 @@ async def ask(
         upserted = await question_upsert(
             scope, stem=stem, question_type=question_type, tags=tags, job_id=session.job_id,
             mock_session_id=mock_session_id, commit=False,
+            source="mock", bankable=(kind == "main"),
         )
         question_id = upserted["id"]
     if any(entry["question_id"] == question_id for entry in asked):

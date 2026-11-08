@@ -45,6 +45,7 @@ async def question_upsert(
     round: str | None = None,
     source: str = "mock",
     commit: bool = True,
+    bankable: bool = True,
 ) -> dict:
     """Create the question, or find it by stem, and attach it to the mock session if there is one.
 
@@ -60,7 +61,13 @@ async def question_upsert(
         raise ValueError("stem required")
 
     store = InterviewStore(scope.db)
-    existing = await store.find_question_by_stem(scope.profile_id, text, company=company)
+    if not bankable:
+        # A follow-up is about one answer in one interview. It is never looked up by its text
+        # and never kept in the bank, so the next interview cannot draw it as a main question.
+        source_kind = QuestionSource.FOLLOWUP
+        existing = None
+    else:
+        existing = await store.find_question_by_stem(scope.profile_id, text, company=company)
     if existing is not None:
         if job_id and not existing.job_id:
             existing.job_id = job_id
