@@ -75,6 +75,7 @@ function CoachAgentInner() {
           intent,
         }}
         roleId="coach-mock"
+        thinkingLabel="面试官正在准备…"
         autoStart={autoStart}
         disabled={context?.actor !== "user"}
         placeholder="回答面试官问题，或说「下一题」…"

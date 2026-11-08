@@ -51,6 +51,13 @@ from jc.services.agent_attachment_service import (
 )
 from jc.services.interview_reply import REWRITE_MESSAGE, needs_one_question, question_count
 from jc.services.mock_answer_recorder import record_mock_answer, records_mock_answer
+from jc.services.mock_opening import (
+    BRIEF_AFTER_OPENING,
+    HOLDING_TEXT,
+    WATCHDOG_SEC,
+    opening_due,
+    opening_text,
+)
 from jc.services.patch_confirm_service import hydrate_confirmation_event, load_confirmation
 from jc.services.profile_patch_service import apply_confirmed_patch
 from jc.services.profile_service import ProfileService
@@ -367,6 +374,19 @@ class AgentService:
                 text=agent_message,
                 message_id=client_message_id,
             )
+        opening_state: dict | None = None
+        if interview_turn and mock_session_id:
+            mock_row = await InterviewStore(self._db).get_mock_session(mock_session_id)
+            if mock_row is not None:
+                opening_state = dict(mock_row.coverage or {})
+                if opening_state.get("opening_sent") and not opening_state.get("opening_briefed"):
+                    # The opening was written by the server, so the model has not seen it. Say it
+                    # once, so the model does not greet again.
+                    agent_message = BRIEF_AFTER_OPENING.format(
+                        opening=opening_state.get("opening_text", "")
+                    ) + agent_message
+                    mock_row.coverage = {**opening_state, "opening_briefed": True}
+                    await self._db.flush()
         if provider is not None:
             agent_message = provider.message(turn_ctx, facts, runtime_skill, agent_message)
         role_family = facts.get("role_family")
@@ -434,11 +454,13 @@ class AgentService:
         # Commit trace setup before waiting on the model. InnoDB FK/read locks
         # must not span model latency or block an independent confirm request.
         await self._db.commit()
-        async for event in client.stream_message(
-            session.deerflow_thread_id,
-            agent_message,
-            metadata=metadata,
-        ):
+        events = (
+            self._interview_events(client, session, agent_message, metadata, opening_state,
+                                   ui_context, actor)
+            if interview_turn
+            else client.stream_message(session.deerflow_thread_id, agent_message, metadata=metadata)
+        )
+        async for event in events:
             event_type = event.get("type")
             if event_type == "done":
                 # The UI may drain its follow-up queue immediately on done. Hold
@@ -598,6 +620,46 @@ class AgentService:
         await self._db.commit()
         if terminal_done is not None:
             yield terminal_done
+
+    async def _interview_events(
+        self, client: Any, session: Any, agent_message: str, metadata: AgentRunMetadata,
+        state: dict | None, ui_context: Any, actor: UserActor,
+    ) -> AsyncIterator[dict]:
+        """An interview reply. The opening is written here, without the model. Any other reply comes
+        from the model, and a run that stays silent for WATCHDOG_SEC is cancelled and answered with
+        the holding line."""
+        if state is not None and opening_due(state):
+            from jc.models.job import Job
+
+            job = await self._db.get(Job, session.job_id) if session.job_id else None
+            text = opening_text(job.company if job else None, job.title if job else None)
+            mock_row = await InterviewStore(self._db).get_mock_session(
+                ui_context.mock_session_id if ui_context else ""
+            )
+            if mock_row is not None:
+                mock_row.coverage = {**state, "opening_sent": True, "opening_text": text}
+                await self._db.flush()
+            yield {"type": "token", "content": text}
+            yield {"type": "done"}
+            return
+        upstream = client.stream_message(
+            session.deerflow_thread_id, agent_message, metadata=metadata,
+        ).__aiter__()
+        try:
+            first = await asyncio.wait_for(upstream.__anext__(), timeout=WATCHDOG_SEC)
+        except StopAsyncIteration:
+            return
+        except TimeoutError:
+            from jc.adapters.deerflow_harness_client import request_session_cancel
+
+            request_session_cancel(session.id)
+            await upstream.aclose()
+            yield {"type": "token", "content": HOLDING_TEXT}
+            yield {"type": "done"}
+            return
+        yield first
+        async for event in upstream:
+            yield event
 
     async def _one_question_again(
         self, client: Any, thread_id: str | None, metadata: AgentRunMetadata

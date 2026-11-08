@@ -42,6 +42,8 @@ type Props = {
   conversationTop?: React.ReactNode | ((agent: ReturnType<typeof useAgentSession>) => React.ReactNode);
   /** Shown under the conversation, above the composer. Unified layout only. */
   conversationBottom?: React.ReactNode;
+  /** What the waiting line says, when a page has its own word for it (the interview page). */
+  thinkingLabel?: string;
 };
 
 export function AgentWorkbench({
@@ -61,6 +63,7 @@ export function AgentWorkbench({
   uiContext = null,
   autoStart = null,
   conversationTop = null,
+  thinkingLabel,
   conversationBottom = null,
 }: Props) {
   if (layout === "split") {
@@ -98,6 +101,7 @@ export function AgentWorkbench({
     autoStart,
     conversationTop,
     conversationBottom,
+    thinkingLabel,
   }} />;
 }
 
@@ -246,6 +250,7 @@ function AgentWorkbenchUnified({
   uiContext = null,
   autoStart = null,
   conversationTop = null,
+  thinkingLabel,
   conversationBottom = null,
 }: Omit<Props, "layout">) {
   const agent = useAgentSession({
@@ -330,6 +335,7 @@ function AgentWorkbenchUnified({
                 <AgentConversation
                   variant="default"
                   agent={agent}
+                  thinkingLabel={thinkingLabel}
                   disabled={disabled}
                   placeholder={placeholder}
                   classNames={{ error: "shrink-0 px-4 pb-1 text-xs text-danger-600" }}

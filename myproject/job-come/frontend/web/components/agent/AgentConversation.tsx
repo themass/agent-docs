@@ -6,6 +6,7 @@ import { UserMark } from "@/components/agent/UserMark";
 import {
   AgentConversation as AgentConversationKit,
   type AgentConversationEvents,
+  type AgentConversationLabels,
   type AgentConversationViewState,
   type AgentUiDisplayItem,
 } from "@/lib/agent-ui-kit";
@@ -24,6 +25,7 @@ type Props = {
   placeholder?: string;
   focusHint?: string | null;
   classNames?: { error?: string; focusHint?: string; root?: string };
+  thinkingLabel?: string;
 };
 
 function mapItems(items: AgentDisplayItem[]): AgentUiDisplayItem[] {
@@ -66,6 +68,13 @@ function buildEvents(agent: Session): AgentConversationEvents {
   };
 }
 
+function withThinkingLabel(thinkingLabel: string): AgentConversationLabels {
+  return {
+    ...jobComeConversationLabels,
+    thread: { ...jobComeConversationLabels.thread, thinkingLabel },
+  };
+}
+
 /** JobCome agent conversation — thread + input dock with 舟卡 chrome. */
 export function AgentConversation({
   variant = "sidebar",
@@ -74,13 +83,14 @@ export function AgentConversation({
   placeholder,
   focusHint,
   classNames,
+  thinkingLabel,
 }: Props) {
   const { context: authContext } = useAuth();
   const userLabel = authContext?.user?.display_name || authContext?.user?.email || null;
   return (
     <AgentConversationKit
       variant={variant}
-      labels={jobComeConversationLabels}
+      labels={thinkingLabel ? withThinkingLabel(thinkingLabel) : jobComeConversationLabels}
       chrome={{
         renderAgentIcon: (props) => <AgentMark size={props.size} thinking={props.thinking} className={props.className} />,
         renderUserIcon: (props) => <UserMark label={userLabel} size={props.size} className={props.className} />,
