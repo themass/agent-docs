@@ -48,11 +48,13 @@ export default function InterviewsPage() {
   const [history, setHistory] = useState<InterviewSummary[]>([]);
   const [historyError, setHistoryError] = useState("");
   const [mockHistory, setMockHistory] = useState<MockSessionListItem[]>([]);
+  const [mockError, setMockError] = useState("");
 
   useEffect(() => {
     setHistory([]);
     setHistoryError("");
     setMockHistory([]);
+    setMockError("");
     if (!profileId) return;
     let active = true;
     listInterviews(profileId)
@@ -66,8 +68,9 @@ export default function InterviewsPage() {
       .then((r) => {
         if (active) setMockHistory(r.mock_sessions);
       })
-      .catch(() => {
-        // The real-interview list above reports its own error; the mock list stays empty.
+      .catch((e) => {
+        // Said, not hidden: an error here would otherwise read as "no finished interviews".
+        if (active) setMockError(userFacingApiError(e, "读取模拟面试失败"));
       });
     return () => {
       active = false;
@@ -289,7 +292,9 @@ export default function InterviewsPage() {
             <span className="text-xs text-ink-500">共 {mockHistory.length} 场</span>
           ) : null}
         </div>
-        {mockHistory.length === 0 ? (
+        {mockError ? (
+          <p className="text-sm text-danger-700">{mockError}</p>
+        ) : mockHistory.length === 0 ? (
           <EmptyState compact icon={<IconDoc />} title="还没有完成的模拟面试" />
         ) : (
           <ul className="space-y-2">
