@@ -10,6 +10,7 @@ import { MockBar } from "@/components/coach/MockBar";
 import { EmailVerificationBanner } from "@/components/auth/EmailVerificationBanner";
 import { useMockProgress } from "@/hooks/useMockProgress";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { forgetStoredChat } from "@/lib/agent-chat-store";
 
 function CoachAgentInner() {
   const { context, loading } = useAuth();
@@ -19,6 +20,8 @@ function CoachAgentInner() {
   const profileId = context?.active_profile_id ?? null;
   const jobId = searchParams.get("job_id");
   const [mockSessionId, setMockSessionId] = useState<string | null>(null);
+  // Bumped when a new interview starts, so the chat is shown fresh (see forgetStoredChat).
+  const [chatEpoch, setChatEpoch] = useState(0);
   // The round that has just ended, however it ended, and the job and profile it was for. Its report
   // is on the way, and the notice about it is only for the page it was started on.
   const [ended, setEnded] = useState<{ id: string; jobId: string | null; profileId: string | null } | null>(null);
@@ -58,6 +61,7 @@ function CoachAgentInner() {
       <EmailVerificationBanner />
       {loading ? <p className="text-sm text-ink-500">加载中…</p> : null}
       <AgentWorkbench
+        key={chatEpoch}
         pageKey={`coach-agent-${jobId ?? "general"}`}
         title="面试教练"
         subtitle={subtitle}
@@ -107,9 +111,12 @@ function CoachAgentInner() {
             if (id) setEnded(null);
           }}
           onJobChange={changeJob}
-          onStarted={(started) =>
-            setAutoStart({ id: started.id, message: "你好，我准备好了，可以开始面试了。" })
-          }
+          onStarted={(started) => {
+            // A new interview gets a new chat: the old chat's thread still holds the last interview.
+            forgetStoredChat(window.localStorage, `coach-agent-${jobId ?? "general"}`, profileId);
+            setChatEpoch((n) => n + 1);
+            setAutoStart({ id: started.id, message: "你好，我准备好了，可以开始面试了。" });
+          }}
           onFinished={handleEnded}
           progress={reader.progress}
           endedId={endedId}

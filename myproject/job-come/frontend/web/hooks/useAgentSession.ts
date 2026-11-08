@@ -1,5 +1,6 @@
 "use client";
 
+import { chatStorageKey } from "@/lib/agent-chat-store";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -46,9 +47,7 @@ import type { AgentUiContext } from "@/lib/ui-context";
 // without waiting out a multi-minute worst case.
 const STREAM_IDLE_TIMEOUT_MS = 45_000;
 
-function storageKey(pageKey: string, profileId: string | null) {
-  return `jc_agent_session_${pageKey}_${profileId ?? "none"}`;
-}
+const storageKey = chatStorageKey;
 
 function newItemId() {
   return `item_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
