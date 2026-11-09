@@ -30,6 +30,7 @@ class MissingCredentials(TokenError):
     """没配 LiveKit 的 key/secret。"""
 
 
+@dataclass(frozen=True, slots=True)
 class LiveKitToken:
     token: str
     identity: str

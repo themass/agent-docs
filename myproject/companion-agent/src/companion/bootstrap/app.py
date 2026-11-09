@@ -35,6 +35,8 @@ from companion.api.livekit.sessions_router import build_router
 from companion.adapters.livekit.tokens import TokenMinter
 from companion.api.http.routers.turns import TurnService, build_router as build_turn_router
 from companion.app.chat.lifecycle import DrainState
+from companion.api.http.routers.roles import build_router as build_roles_router
+from companion.app.roles.service import RoleService
 from companion.api.http.routers.chat import ChatApi, build_router as build_chat_router
 from companion.domain.turn.pipeline import TurnPipeline
 
@@ -93,6 +95,7 @@ def create_app(
     run_initiative: bool = True,
     initiative_interval: float = INITIATIVE_INTERVAL_SECONDS,
     chat: ChatApi | None = None,
+    roles: RoleService | None = None,
 ) -> FastAPI:
     """装配应用。参数都可注入，方便测试替换实现。
 
@@ -195,6 +198,8 @@ def create_app(
 
     if chat is not None:
         app.include_router(build_chat_router(chat, current_user))
+    if roles is not None:
+        app.include_router(build_roles_router(roles, current_user))
 
     # 客户端依赖的接口：角色目录、记忆与事件、动作确认与偏好、主动消息收件箱。
     catalog = CharacterCatalog(CharacterSource(PROJECT_ROOT / "characters"))

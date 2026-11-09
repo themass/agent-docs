@@ -21,6 +21,7 @@ def _iso(value: datetime) -> str:
     return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
 
+@dataclass(frozen=True)
 class DeliveryReceipt:
     """一次投递的凭据。成功才产生，失败只有异常。
 

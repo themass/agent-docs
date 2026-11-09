@@ -10,6 +10,7 @@ class Transport(str, Enum):
     SSE = "sse"
 
 
+@dataclass(frozen=True)
 class McpServerSpec:
     """一个外部 MCP server 的配置。"""
 
@@ -56,6 +57,7 @@ def filter_tools(spec: McpServerSpec, names: list[str]) -> list[str]:
     ]
 
 
+@dataclass
 class McpRegistry:
     """登记外部 MCP server。装配层从这里取配置去建 toolset。"""
 

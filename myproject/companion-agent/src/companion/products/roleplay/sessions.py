@@ -26,6 +26,7 @@ class SessionError(Exception):
     """会话无法创建。"""
 
 
+@dataclass(frozen=True, slots=True)
 class SessionRecord:
     session_id: str
     user_id: str
@@ -51,6 +52,7 @@ class SessionStore(Protocol):
     async def aclose(self) -> None: ...
 
 
+@dataclass
 class InMemorySessionStore:
     """dict + 单把锁。
 
@@ -76,6 +78,7 @@ class InMemorySessionStore:
         return None
 
 
+@dataclass(frozen=True, slots=True)
 class SessionGrant:
     """一次会话创建的结果，即 /companion/sessions 的响应体。"""
 
@@ -101,6 +104,7 @@ class SessionGrant:
 RoomProvisioner = Callable[[str, dict[str, str]], Awaitable[None]]
 
 
+@dataclass(frozen=True, slots=True)
 class SessionService:
     store: SessionStore
     minter: TokenIssuer

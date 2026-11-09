@@ -9,6 +9,7 @@ from companion.domain.prompt.instructions import build_instructions
 from companion.adapters.skills.library import SkillLibrary
 
 
+@dataclass
 class CharacterSource:
     """角色卡从哪来。现在只支持本地 JSON 文件，将来接服务端 API 时换这个实现。"""
 
