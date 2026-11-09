@@ -49,3 +49,19 @@ It must name the requirement in its words, so that the topic is clear. Ask about
 candidate did, not a definition. One question only, in plain spoken Chinese, ending with "？".
 
 Output: `{"question": "..."}`. Do not begin by pointing back to anything the candidate said.
+
+## task: "answer"
+
+Input: `question` (what the candidate asked the interviewer, in their words), `job_title`, and
+`job_text` (the job description).
+
+Answer the candidate's question in one short statement, using only what `job_text` says. If the
+job description does not say it, the answer is: "这个我需要和团队确认后再回复你。"
+
+Rules:
+- One statement, in plain spoken Chinese, at most 120 characters.
+- No question back to the candidate, no "？", no "?". Do not ask what they want to know.
+- Do not invent facts (team size, dates, stack) that the job description does not contain.
+- Do not evaluate the candidate and do not promise anything.
+
+Output: `{"answer": "..."}`.
