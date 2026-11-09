@@ -376,20 +376,24 @@ class AgentService:
                 message_id=client_message_id,
             )
         opening_state: dict | None = None
+        # The opening note is said once, before the wrapped task text, not inside the candidate's
+        # words: inside, the model read it as something the candidate said, and the candidate's
+        # words were recorded with it.
+        brief_note = ""
         if interview_turn and mock_session_id:
             mock_row = await InterviewStore(self._db).get_mock_session(mock_session_id)
             if mock_row is not None:
                 opening_state = dict(mock_row.coverage or {})
                 if opening_state.get("opening_sent") and not opening_state.get("opening_briefed"):
-                    # The opening was written by the server, so the model has not seen it. Say it
-                    # once, so the model does not greet again.
-                    agent_message = BRIEF_AFTER_OPENING.format(
+                    brief_note = BRIEF_AFTER_OPENING.format(
                         opening=opening_state.get("opening_text", "")
-                    ) + agent_message
+                    )
                     mock_row.coverage = {**opening_state, "opening_briefed": True}
                     await self._db.flush()
         if provider is not None:
             agent_message = provider.message(turn_ctx, facts, runtime_skill, agent_message)
+        if brief_note:
+            agent_message = brief_note + agent_message
         role_family = facts.get("role_family")
 
         # The reply-language rule is no longer prepended here. It is the first

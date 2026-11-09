@@ -106,6 +106,10 @@ async def test_the_model_is_told_the_opening_once(maker, monkeypatch):
     assert shown == QUESTION
     assert len(client.asked) == 1
     assert "面试开场白已由系统发出" in client.asked[0]
+    # The note sits before the wrapped task text, so the candidate's own words come back clean.
+    from jc.coach.recording import unwrap_candidate_text
+    assert client.asked[0].index("面试开场白已由系统发出") < client.asked[0].index("用户原话：")
+    assert unwrap_candidate_text(client.asked[0]) == ANSWER
     assert ANSWER in client.asked[0]
     assert (await _state(maker))["opening_briefed"] is True
 
