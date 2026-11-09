@@ -69,6 +69,8 @@ class Model:
         self.calls.append(payload["task"])
         if payload["task"] == "followup":
             return self.followup
+        if payload["task"] == "answer":
+            return {"answer": "团队五个人，在杭州。"}
         if payload["task"] == "stem":
             return {"question": f"你在{payload['requirement']}上做过哪件事？"}
         return {"question": payload["question"]}
@@ -181,8 +183,8 @@ async def test_the_full_run_reaches_candidate_questions_after_the_main_limit(db,
     state = await _coverage(db)
     assert state["candidate_qa"] is True
     assert len([a for a in state["asked"] if a["kind"] == "main"]) == 5
-    # The candidate's own questions are the model's job from here: nothing is decided or recorded.
-    assert await _turn(db, "公司团队多大？") is None
+    # The candidate's questions: the model writes a short answer, checked. Nothing is recorded.
+    assert await _turn(db, "公司团队多大？") == "团队五个人，在杭州。"
 
 
 async def test_a_wording_that_points_back_is_replaced_by_the_bank_text(db, model, monkeypatch):
@@ -217,6 +219,8 @@ async def test_another_jobs_questions_are_never_put_to_this_candidate(db, model,
 
 async def test_a_generated_stem_without_the_requirement_is_refused(db, monkeypatch):
     async def off_topic(skill_id, payload, caller):
+        if payload["task"] == "answer":
+            return {"answer": "团队五个人，在杭州。"}
         if payload["task"] == "stem":
             return {"question": "讲讲你最喜欢的一部电影？"}
         return {"question": payload.get("question", "")}
@@ -230,6 +234,40 @@ async def test_a_generated_stem_without_the_requirement_is_refused(db, monkeypat
         await session.commit()
     reply = await _turn(db, "我叫张三。")
     assert reply == flow.NO_QUESTIONS_TEXT
+    async with db() as session:
+        row = await InterviewStore(session).get_mock_session("ms1")
+        assert row.status == MockSessionStatus.COMPLETED.value
+
+
+async def test_a_candidate_question_gets_a_checked_answer(db, model):
+    await _turn(db, "你好")
+    await _turn(db, "我叫张三。")
+    for _ in range(5):
+        await _turn(db, ANSWER)
+    await _turn(db, ANSWER)  # the floor opens to the candidate
+    assert await _turn(db, "团队多大？") == "团队五个人，在杭州。"
+
+
+async def test_an_answer_that_asks_back_is_replaced_by_the_referral(db, model, monkeypatch):
+    async def asks_back(skill_id, payload, caller):
+        return {"answer": "团队多大你想了解什么？"}
+
+    monkeypatch.setattr(flow, "_model_json", asks_back)
+    await _turn(db, "你好")
+    await _turn(db, "我叫张三。")
+    for _ in range(5):
+        await _turn(db, ANSWER)
+    await _turn(db, ANSWER)
+    assert await _turn(db, "团队多大？") == flow.REFER_TEXT
+
+
+async def test_a_steering_word_in_the_candidates_turn_closes_the_interview(db, model):
+    await _turn(db, "你好")
+    await _turn(db, "我叫张三。")
+    for _ in range(5):
+        await _turn(db, ANSWER)
+    await _turn(db, ANSWER)
+    assert await _turn(db, "下一题") == flow.CLOSING_TEXT
     async with db() as session:
         row = await InterviewStore(session).get_mock_session("ms1")
         assert row.status == MockSessionStatus.COMPLETED.value

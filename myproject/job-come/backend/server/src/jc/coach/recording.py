@@ -30,8 +30,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from jc.coach.acceptance import Finding
 from jc.coach.role_family import family_of_session
 from jc.models.agent_trace import AgentTrace
+from jc.models.enums import MockSessionStatus
 from jc.models.interview import MockSession
 from jc.services.mock_answer_recorder import is_steering_message
+from jc.services.mock_interview_flow import QA_OPEN_TEXT
 from jc.services.mock_report_service import answers_by_main_question, session_transcript
 from jc.stores.interview_store import InterviewStore
 
@@ -134,6 +136,47 @@ def events_from_trace(rows: Sequence[AgentTrace]) -> tuple[list[Event], list[str
     return events, warnings
 
 
+def ledger_tool_events(
+    session: MockSession, events: list[Event], stems: dict[str, str],
+) -> list[Event]:
+    """Tool events read from the session's ledger, for an interview whose questions were not asked
+    through the tools (the server-driven flow, ADR-007). Each question is placed before the first
+    interviewer message that contains its stem; a closed interview gets its end event at the end.
+    An interview that did call the tools gets nothing here, so the trace is never counted twice."""
+    if any(e.get("role") == "tool" and e.get("tool") == "jc_mock_ask" for e in events):
+        return events
+    state = session.coverage or {}
+    asked = state.get("asked") or []
+    placed: list[tuple[int, Event]] = []
+    for entry in asked:
+        stem = stems.get(entry["question_id"], "")
+        event: Event = {
+            "role": "tool", "tool": "jc_mock_ask", "accepted": True,
+            "arguments": {"kind": entry.get("kind", "main"), "stem": stem,
+                          "question_id": entry["question_id"]},
+        }
+        at = next((i for i, e in enumerate(events)
+                   if e.get("role") == "interviewer" and stem and stem in (e.get("text") or "")),
+                  len(events))
+        placed.append((at, event))
+    if state.get("candidate_qa"):
+        # The floor was given to the candidate: placed before the message that says so.
+        opened = {"role": "tool", "tool": "jc_mock_open_qa", "accepted": True, "arguments": {}}
+        at = next((i for i, e in enumerate(events)
+                   if e.get("role") == "interviewer" and QA_OPEN_TEXT in (e.get("text") or "")),
+                  len(events))
+        placed.append((at, opened))
+    out: list[Event] = []
+    for index, event in enumerate(events):
+        out.extend(e for at, e in placed if at == index)
+        out.append(event)
+    out.extend(e for at, e in placed if at >= len(events))
+    if asked and session.status == MockSessionStatus.COMPLETED.value:
+        out.append({"role": "tool", "tool": "jc_mock_end", "accepted": True,
+                    "arguments": {"reason": state.get("ended_reason") or "completed"}})
+    return out
+
+
 async def record_interview(db: AsyncSession, mock_session_id: str) -> dict[str, Any]:
     """Everything the checklist needs about one stored interview, as plain JSON-able data."""
     session = await db.get(MockSession, mock_session_id)
@@ -144,10 +187,16 @@ async def record_interview(db: AsyncSession, mock_session_id: str) -> dict[str, 
         select(AgentTrace).where(AgentTrace.mock_session_id == mock_session_id)
     )).scalars().all())
     events, warnings = events_from_trace(rows)
+    store = InterviewStore(db)
+    asked_ids = [a["question_id"] for a in (session.coverage or {}).get("asked") or []]
+    stems = {}
+    for qid in asked_ids:
+        question = await store.get_question(qid)
+        stems[qid] = question.stem if question is not None else ""
+    events = ledger_tool_events(session, events, stems)
     if not events:
         warnings.append("没有对话记录：这场面试没有留下可检查的消息（追踪账本里没有这场的行）")
 
-    store = InterviewStore(db)
     transcript = await session_transcript(store, session)
     answers = answers_by_main_question(transcript)
     candidate_lines = [e["text"] for e in events if e["role"] == "candidate"]

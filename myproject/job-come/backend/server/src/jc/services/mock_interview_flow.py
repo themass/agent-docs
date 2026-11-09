@@ -44,6 +44,8 @@ logger = logging.getLogger(__name__)
 
 MOCK_FLOW_SKILL = "mock-flow"
 
+REFER_TEXT = "这个我需要和团队确认后再回复你。"
+MAX_ANSWER_CHARS = 200
 NO_QUESTIONS_TEXT = "这个岗位暂时没有可以问的题，这场面试先到这里。"
 CLOSING_TEXT = "今天的面试就到这里，谢谢你的时间。这场面试的报告可以在“面试归档”里查看。"
 QA_OPEN_TEXT = "我的问题都问完了。你有什么想问我的吗？"
@@ -172,6 +174,26 @@ async def _phrase(stem: str) -> str:
     return stem
 
 
+async def _answer_candidate(db: AsyncSession, row: Any, question: str) -> str:
+    """The candidate's question, answered from the job's own text. The model answers in one short
+    statement, checked: no question back to the candidate, not too long. Anything it cannot answer
+    from the job description is referred to the team."""
+    job = await db.get(Job, row.job_id) if row.job_id else None
+    data = await _model_json(
+        MOCK_FLOW_SKILL,
+        {"task": "answer", "question": question[:300],
+         "job_title": job.title if job else "", "job_text": (job.raw_text if job else "")[:1500]},
+        "mock_flow_answer",
+    )
+    text = (data or {}).get("answer") if data else None
+    if isinstance(text, str):
+        text = text.strip()
+        if text and len(text) <= MAX_ANSWER_CHARS and "？" not in text and "?" not in text:
+            return text
+    logger.info("candidate question answered by the server's fallback")
+    return REFER_TEXT
+
+
 async def _judge_followup(main_stem: str, answer: str, followups: int) -> str | None:
     """The follow-up question for this answer, or None when no follow-up is needed or the model's
     judgement does not pass its checks."""
@@ -216,7 +238,12 @@ async def run_turn(
         return CLOSING_TEXT
     state = _load(row)
     if state.get("candidate_qa") and row.status == MockSessionStatus.ACTIVE:
-        return None
+        # The candidate's turn. Their words are not an answer; they may ask about the job. A
+        # steering word here ("下一题") has nothing to skip, so the interview closes.
+        if is_steering_message(text):
+            await guard.end(scope, mock_session_id=mock_session_id, reason="completed")
+            return CLOSING_TEXT
+        return await _answer_candidate(db, row, text)
     if row.status != MockSessionStatus.ACTIVE:
         return CLOSING_TEXT
 
