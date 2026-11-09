@@ -68,8 +68,8 @@ def _cjk_features(run: list[str]) -> set[str]:
     return grams | set(run)
 
 
-def rank(query: str, items: Iterable[tuple[T, str, datetime]], limit: int) -> list[T]:
-    """items 为 (记录, 内容, 创建时间)。返回按分数与时间排序后的前 limit 条（分数为 0 的不返回）。"""
+def rank_scored(query: str, items: Iterable[tuple[T, str, datetime]], limit: int) -> list[Scored[T]]:
+    """items 为 (记录, 内容, 创建时间)。返回带分数的前 limit 条（分数 > 0），排序见模块说明。"""
     q = features(query)
     if not q:
         return []
@@ -80,4 +80,9 @@ def rank(query: str, items: Iterable[tuple[T, str, datetime]], limit: int) -> li
             continue
         scored.append((len(hit) / len(q), created_at, record))
     scored.sort(key=lambda row: (row[0], row[1]), reverse=True)
-    return [record for _score, _at, record in scored[:limit]]
+    return [Scored(record, score) for score, _at, record in scored[:limit]]
+
+
+def rank(query: str, items: Iterable[tuple[T, str, datetime]], limit: int) -> list[T]:
+    """同 rank_scored，只返回记录本身。"""
+    return [row.item for row in rank_scored(query, items, limit)]

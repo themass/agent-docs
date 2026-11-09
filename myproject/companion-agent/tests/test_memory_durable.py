@@ -19,7 +19,7 @@ def _engine():
     return create_async_engine(MYSQL, pool_pre_ping=True)
 
 
-def test_memory_survives_a_fresh_instance(migrated_memory=None):
+def test_memory_survives_a_fresh_instance(memory_schema):
     from companion.adapters.store.mysql.memory import MysqlMemoryPort
 
     user = f"test-durable-{uuid.uuid4().hex[:8]}"
@@ -44,7 +44,7 @@ def test_memory_survives_a_fresh_instance(migrated_memory=None):
     asyncio.run(go())
 
 
-def test_durable_search_ranks_by_words_not_substring():
+def test_durable_search_ranks_by_words_not_substring(memory_schema):
     from companion.adapters.store.mysql.memory import MysqlMemoryPort
 
     user = f"test-rank-{uuid.uuid4().hex[:8]}"

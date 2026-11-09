@@ -1,30 +1,49 @@
-"""记忆接口。
+"""记忆接口规范 v1 —— 代码形式的唯一定义。
 
-记忆的主键是**用户**，不是角色：同一用户的所有角色共享一份记忆，每条记忆记录
-来源角色与来源消息，客户端「我记住的」页面靠这两个字段标注出处。
+完整规范（语义、错误、删除、一致性、召回排序、一致性测试要求）见
+``docs/chat-agent-memory-spec.md``。任何记忆后端只要满足该规范，就可以替换，
+调用方（app、api、memory_hub）不需要改动。
 
-这个模块只有协议与数据形状，不含任何后端。v1 后端是 mem0（见 ``mem0.py``），
-Hindsight 作为备选接在同一个端口后面，替换实现不改上层。
+调用方只依赖这个模块；后端实现放在 ``adapters/``。
 """
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Protocol
 
+SPEC_VERSION = "1"
+
+MAX_CONTENT_CHARS = 300      # 单条记忆内容上限；超出是调用方错误，后端必须拒绝而不是截断
+MAX_BATCH = 50               # 单次 add 的条数上限
+MAX_LIST_LIMIT = 100         # list_for_user 的 limit 上限
+MAX_SEARCH_LIMIT = 20        # search 的 limit 上限
+
+
+class MemoryBaseError(Exception):
+    """记忆接口的基类异常。"""
+
+
+class MemoryInvalid(MemoryBaseError, ValueError):
+    """调用方参数不合法（内容过长、批量过大、用户 id 非法等）。"""
+
+
+class MemoryUnavailable(MemoryBaseError):
+    """后端暂时不可用。调用方可以重试；不得据此认为数据已丢失。"""
+
 
 class MemoryKind(str, Enum):
-    """记忆的类型；写进后端 metadata，跨后端保持字符串形状。"""
+    """记忆类型。跨后端保持这些字符串值不变（规范 §2.2）。"""
 
     FACT = "FACT"
     PREFERENCE = "PREFERENCE"
     EVENT = "EVENT"
 
 
-# 模型输出的 kind 不可控：接受大小写、单复数与中文别名，认不出时按 FACT 处理。
+# 模型输出的 kind 不可控：接受大小写、单复数与中文别名，认不出时由调用方决定默认值。
 _KIND_ALIASES: dict[str, MemoryKind] = {
     "fact": MemoryKind.FACT,
     "facts": MemoryKind.FACT,
@@ -40,7 +59,7 @@ _KIND_ALIASES: dict[str, MemoryKind] = {
 
 
 def coerce_kind(value: object) -> MemoryKind | None:
-    """把任意输入收敛到 MemoryKind；认不出返回 None，由调用方决定默认值。"""
+    """把任意输入收敛到 MemoryKind；认不出返回 None。"""
     if isinstance(value, MemoryKind):
         return value
     if not isinstance(value, str):
@@ -54,11 +73,11 @@ def utc_now() -> datetime:
 
 @dataclass(slots=True)
 class MemoryItem:
-    """一条用户记忆。
+    """一条用户记忆（规范 §2.1）。
 
-    ``id`` 由后端分配；写入前用本地 uuid 占位。``score`` 只对检索结果有意义，
-    写入与列表场景为 None。``source_character_id`` / ``source_message_id`` 是
-    审计字段：删角色、查来源都靠它们，任何后端适配都必须原样带回来。
+    - ``id``：后端分配。调用方写入前可以留空；返回值中必然非空。
+    - ``score``：只在 search 结果中有意义（越大越相关）；写入与列表返回 None。
+    - ``source_character_id`` / ``source_message_id``：审计字段，后端必须原样保存并返回。
     """
 
     id: str
@@ -70,35 +89,49 @@ class MemoryItem:
     score: float | None = None
 
 
-class MemoryPort(Protocol):
-    """记忆后端的统一入口。
+def validate_content(content: str) -> None:
+    if not isinstance(content, str) or not content.strip():
+        raise MemoryInvalid("content must be a non-empty string")
+    if len(content) > MAX_CONTENT_CHARS:
+        raise MemoryInvalid(f"content exceeds {MAX_CONTENT_CHARS} characters")
 
-    所有方法都以 ``user_id`` 为隔离边界；实现必须保证不同用户互相不可见。
-    这些方法是异步的：mem0 是同步客户端，适配层负责丢进线程。
+
+def validate_user_id(user_id: str) -> None:
+    """user_id 是复合 ``app:uid``（memory_hub 生成）或裸 uid：非空，且至多一个冒号。"""
+    if not isinstance(user_id, str) or not user_id or user_id.count(":") > 1:
+        raise MemoryInvalid("user_id must be a non-empty string with at most one ':'")
+
+
+class MemoryPort(Protocol):
+    """记忆接口 v1。所有方法以 ``user_id`` 为隔离边界（规范 §3）。
+
+    方法都是异步的：同步客户端由适配层放进线程。
     """
 
     async def add(self, user_id: str, items: Sequence[MemoryItem]) -> list[MemoryItem]:
-        """写入一批记忆，返回后端确认后的条目（id 以后端为准）。"""
+        """写入一批；返回后端确认后的条目（id 与 created_at 以后端为准）。原子：要么全写，要么全不写。"""
         ...
 
-    async def search(self, user_id: str, query: str, limit: int = 5) -> list[MemoryItem]:
-        """按当前话题召回，``score`` 越大越相关。"""
-        ...
-
-    async def delete_one(self, user_id: str, memory_id: str) -> bool:
-        """删除单条；不存在、不属于该用户都返回 False。"""
-        ...
-
-    async def delete_user(self, user_id: str) -> int | None:
-        """删除该用户全部记忆（含索引与原始抽取记录）。
-
-        返回删除条数；后端不报告条数时返回 None。删除是否干净以后面
-        ``list_for_user`` 为空为准，不能只看返回值。
-        """
+    async def search(
+        self,
+        user_id: str,
+        query: str,
+        limit: int = 5,
+        kinds: Iterable[MemoryKind] | None = None,
+    ) -> list[MemoryItem]:
+        """按查询召回，最多 ``limit`` 条。``kinds`` 为空表示不过滤。排序见规范 §5。"""
         ...
 
     async def list_for_user(
         self, user_id: str, limit: int = 50, offset: int = 0
     ) -> list[MemoryItem]:
-        """按时间倒序列出该用户的记忆，供「我记住的」页面分页。"""
+        """按 created_at 倒序分页列出（规范 §4）。"""
+        ...
+
+    async def delete_one(self, user_id: str, memory_id: str) -> bool:
+        """删除单条。不存在或不属于该用户返回 False，二者对调用方不可区分（规范 §6）。"""
+        ...
+
+    async def delete_user(self, user_id: str) -> int:
+        """删除该用户的全部记忆，返回删除条数。删除是否完整以 ``list_for_user`` 为空为准（规范 §6）。"""
         ...

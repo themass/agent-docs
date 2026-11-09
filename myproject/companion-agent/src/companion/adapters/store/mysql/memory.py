@@ -5,17 +5,29 @@
 
 from __future__ import annotations
 
+import uuid
+from collections.abc import Iterable, Sequence
+from dataclasses import replace
 from datetime import UTC, datetime
-from typing import Any
 
 from sqlalchemy import Column, DateTime, String, Table, Text, and_, delete, insert, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from companion.adapters.store.mysql.schema import TABLE_PREFIX, metadata as schema_metadata
-from companion.domain.memory.recall import rank
-from companion.ports.memory import MemoryItem, MemoryKind
+from companion.domain.memory.recall import rank_scored
+from companion.ports.memory import (
+    MAX_BATCH,
+    MAX_LIST_LIMIT,
+    MAX_SEARCH_LIMIT,
+    MemoryInvalid,
+    MemoryItem,
+    MemoryKind,
+    validate_content,
+    validate_user_id,
+)
 
-SEARCH_WINDOW = 500  # 每个用户参与排序的最近条数上限
+SEARCH_WINDOW = 500  # 每个用户参与排序的最近条数上限（规范 §5.3）
 
 memory_item = Table(
     TABLE_PREFIX + "memory_item", schema_metadata,
@@ -39,39 +51,61 @@ class MysqlMemoryPort:
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
 
-    async def add(self, user_id: str, items: Any) -> list[MemoryItem]:
+    async def add(self, user_id: str, items: Sequence[MemoryItem]) -> list[MemoryItem]:
+        validate_user_id(user_id)
+        if len(items) > MAX_BATCH:
+            raise MemoryInvalid(f"at most {MAX_BATCH} items per add")
+        for item in items:
+            validate_content(item.content)
+        now = _now()
         rows = [{
-            "id": item.id, "user_id": user_id, "kind": item.kind.value, "content": item.content,
-            "source_character_id": item.source_character_id or "", "source_message_id": item.source_message_id or "",
-            "created_at": _now(),
+            "id": item.id or uuid.uuid4().hex, "user_id": user_id, "kind": MemoryKind(item.kind).value,
+            "content": item.content, "source_character_id": item.source_character_id or "",
+            "source_message_id": item.source_message_id or "", "created_at": item.created_at.replace(tzinfo=None)
+            if item.created_at else now,
         } for item in items]
         if rows:
-            async with self._engine.begin() as conn:
-                await conn.execute(insert(memory_item), rows)
-        return list(items)
+            # 一次 INSERT（单语句在 InnoDB 中是原子的），失败则整批不写入
+            try:
+                async with self._engine.begin() as conn:
+                    await conn.execute(insert(memory_item), rows)
+            except IntegrityError as exc:
+                raise MemoryInvalid("duplicate memory id") from exc  # 规范 §7.3：主键冲突即拒绝整批
+        return [_to_item(r) for r in rows]
 
-    async def search(self, user_id: str, query: str, limit: int = 5) -> list[MemoryItem]:
-        """在该用户最近的 SEARCH_WINDOW 条中做词法排序（不做全表扫描，也不依赖向量）。"""
+    async def search(self, user_id: str, query: str, limit: int = 5,
+                     kinds: Iterable[MemoryKind] | None = None) -> list[MemoryItem]:
+        """在该用户最近的 SEARCH_WINDOW 条中按 kinds 过滤后做词法排序（规范 §5）。"""
+        validate_user_id(user_id)
+        limit = max(0, min(limit, MAX_SEARCH_LIMIT))
+        cond = [memory_item.c.user_id == user_id]
+        if kinds:
+            cond.append(memory_item.c.kind.in_([MemoryKind(k).value for k in kinds]))
         async with self._engine.connect() as conn:
-            rows = (await conn.execute(select(memory_item).where(memory_item.c.user_id == user_id)
-                                       .order_by(memory_item.c.created_at.desc()).limit(SEARCH_WINDOW))).mappings().all()
+            rows = (await conn.execute(select(memory_item).where(and_(*cond))
+                                       .order_by(memory_item.c.created_at.desc(), memory_item.c.id.desc())
+                                       .limit(SEARCH_WINDOW))).mappings().all()
         candidates = [(_to_item(r), r["content"], r["created_at"]) for r in rows]
-        return rank(query, candidates, limit)
+        return [replace(r.item, score=r.score) for r in rank_scored(query, candidates, limit)]
 
-    async def list_for_user(self, user_id: str, limit: int = 20, offset: int = 0) -> list[MemoryItem]:
+    async def list_for_user(self, user_id: str, limit: int = 50, offset: int = 0) -> list[MemoryItem]:
+        validate_user_id(user_id)
+        limit = max(0, min(limit, MAX_LIST_LIMIT))
         async with self._engine.connect() as conn:
             rows = (await conn.execute(select(memory_item).where(memory_item.c.user_id == user_id)
-                                       .order_by(memory_item.c.created_at.desc())
-                                       .limit(limit).offset(offset))).mappings().all()
+                                       .order_by(memory_item.c.created_at.desc(), memory_item.c.id.desc())
+                                       .limit(limit).offset(max(0, offset)))).mappings().all()
         return [_to_item(r) for r in rows]
 
     async def delete_one(self, user_id: str, memory_id: str) -> bool:
+        validate_user_id(user_id)
         async with self._engine.begin() as conn:
             res = await conn.execute(delete(memory_item).where(and_(
                 memory_item.c.id == memory_id, memory_item.c.user_id == user_id)))
         return res.rowcount == 1
 
     async def delete_user(self, user_id: str) -> int:
+        validate_user_id(user_id)
         async with self._engine.begin() as conn:
             res = await conn.execute(delete(memory_item).where(memory_item.c.user_id == user_id))
         return res.rowcount
