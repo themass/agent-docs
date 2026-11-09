@@ -1,4 +1,3 @@
-from __future__ import annotations
 
 import asyncio
 import secrets
@@ -8,6 +7,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Protocol
 from companion.ports.livekit import LiveKitToken, TokenIssuer
+from companion.products.roleplay.sessions import SessionError, SessionService
 
 
 def build_router(service: SessionService, current_user):

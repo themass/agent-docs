@@ -27,7 +27,8 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     from sqlalchemy import create_engine
 
-    engine = create_engine(_url())
+    # 迁移是同步执行的：把运行时的异步驱动换成同步驱动，连接串其它部分不变。
+    engine = create_engine(_url().replace("+aiomysql", "+pymysql"))
     with engine.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():

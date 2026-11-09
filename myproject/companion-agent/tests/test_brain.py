@@ -1,14 +1,19 @@
-import asyncio
+"""主脑适配（T4）：DeerFlow 图的流事件 → 领域事件。
+
+替身按真实 LangGraph ``astream(stream_mode="messages")`` 的形状回放：每个元素是
+``(message, metadata)``。工具调用块与正文块不混在一起（spike-results.md 的实测结论）。
+"""
 
 import pytest
+from langchain_core.messages import AIMessageChunk, ToolMessage
 
+from companion.adapters.brain.deerflow import DeerFlowBrain
 from companion.adapters.brain.fake import FakeBrain
-from companion.adapters.brain.deerflow import BrainUnavailable, DeerFlowBrain, _ai_text_delta, _thread_id_for
-from companion.ports.brain import TurnRequest
+from companion.ports.brain import TextDelta, ToolFinished, ToolStarted, TurnRequest
 
 
 def request(**kw):
-    base = dict(user_id="u1", character_id="xiaowu", message="在吗")
+    base = dict(user_id="u1", character_id="linche", message="在吗")
     base.update(kw)
     return TurnRequest(**base)
 
@@ -17,11 +22,39 @@ async def collect(turn):
     return [chunk async for chunk in turn.tokens]
 
 
+class StubGraph:
+    """按 astream(stream_mode="messages") 的形状回放消息块。"""
+
+    def __init__(self, items, *, raise_after=None):
+        self._items = items
+        self._raise_after = raise_after
+        self.calls = []
+
+    async def astream(self, inputs, *, context, stream_mode):
+        self.calls.append((inputs, context, stream_mode))
+        for index, item in enumerate(self._items):
+            if self._raise_after is not None and index >= self._raise_after:
+                raise RuntimeError("model stream broke")
+            yield item
+
+
+def text(content):
+    return (AIMessageChunk(content=content), {})
+
+
+def tool_start(call_id, name):
+    return (AIMessageChunk(content="", tool_call_chunks=[{"id": call_id, "name": name, "args": "", "index": 0}]), {})
+
+
+def tool_result(call_id, name, content):
+    return (ToolMessage(content=content, tool_call_id=call_id, name=name), {})
+
+
 async def test_fake_brain_streams_and_records_request():
-    brain = FakeBrain(["你好。", "我是晓雾。"])
+    brain = FakeBrain(["你好。", "我是林澈。"])
     turn = await brain.start_turn(request())
-    assert await collect(turn) == ["你好。", "我是晓雾。"]
-    assert brain.requests[0].character_id == "xiaowu"
+    assert await collect(turn) == ["你好。", "我是林澈。"]
+    assert brain.requests[0].character_id == "linche"
 
 
 async def test_fake_brain_cancel_stops_stream():
@@ -31,91 +64,46 @@ async def test_fake_brain_cancel_stops_stream():
     assert await collect(turn) == []
 
 
-class Ev:
-    """Stand-in for deerflow.client.StreamEvent (its module pulls heavy deps)."""
-
-    def __init__(self, type, data=None):
-        self.type = type
-        self.data = data or {}
+async def test_stream_yields_text_deltas_in_order():
+    graph = StubGraph([text("你"), text("好。")])
+    events = [e async for e in DeerFlowBrain(graph).stream(messages=[], context={})]
+    assert events == [TextDelta("你"), TextDelta("好。")]
 
 
-def ai(text):
-    return Ev("messages-tuple", {"type": "ai", "content": text})
+async def test_tool_call_chunks_are_not_text_and_start_once():
+    graph = StubGraph([tool_start("c1", "recall_facts"), tool_start("c1", "recall_facts"), text("好")])
+    events = [e async for e in DeerFlowBrain(graph).stream(messages=[], context={})]
+    assert events == [ToolStarted(call_id="c1", name="recall_facts"), TextDelta("好")]
 
 
-def tool(name="search"):
-    return Ev("messages-tuple", {"type": "tool", "content": "结果", "name": name})
+async def test_tool_result_becomes_tool_finished():
+    graph = StubGraph([tool_result("c1", "recall_facts", "喜欢茶")])
+    events = [e async for e in DeerFlowBrain(graph).stream(messages=[], context={})]
+    assert events == [ToolFinished(call_id="c1", name="recall_facts", content="喜欢茶")]
 
 
-def values():
-    return Ev("values", {"messages": []})
+async def test_start_turn_passes_identity_and_prompt_in_context():
+    graph = StubGraph([text("x")])
+    await collect(await DeerFlowBrain(graph).start_turn(request(system_prompt="SYS")))
+    _inputs, context, mode = graph.calls[0]
+    assert mode == "messages"
+    assert context["user_id"] == "u1"
+    assert context["system_prompt"] == "SYS"
+    assert context["turn_id"]
 
 
-class StubDeerFlow:
-    """按真实 DeerFlowClient 的形状回放事件。
-
-    真实客户端的 stream() 是**同步生成器**，签名是 (message, *, thread_id)。
-    这个替身保持同样的形状，否则测出来的东西和线上不是一回事。
-    """
-
-    def __init__(self, events, *, raise_after=None):
-        self._events = events
-        self._raise_after = raise_after
-        self.calls = []
-
-    def stream(self, message, *, thread_id=None):
-        self.calls.append((message, thread_id))
-        for index, event in enumerate(self._events):
-            if self._raise_after is not None and index >= self._raise_after:
-                raise RuntimeError("boom")
-            yield event
-
-
-async def test_deerflow_brain_passes_through_only_ai_text_deltas():
-    client = StubDeerFlow([values(), tool(), ai("你"), ai("好。"), ai("")])
-    turn = await DeerFlowBrain(client).start_turn(request())
-    assert await collect(turn) == ["你", "好。"]
-
-
-async def test_deerflow_brain_uses_a_stable_thread_per_user_and_character():
-    """线程 id 必须是稳定的：随机 id 会让每次进房都丢掉历史。"""
-    client = StubDeerFlow([ai("x")])
-    await collect(await DeerFlowBrain(client).start_turn(request()))
-    assert client.calls[0][1] == "u1:xiaowu"
-
-
-async def test_deerflow_brain_reuses_explicit_thread_id():
-    client = StubDeerFlow([ai("x")])
-    await collect(await DeerFlowBrain(client).start_turn(request(thread_id="thr-existing")))
-    assert client.calls[0][1] == "thr-existing"
-
-
-async def test_deerflow_brain_delivers_partial_output_when_stream_raises():
-    """主脑中途崩了，已经产出的内容照样交付。"""
-    client = StubDeerFlow([ai("开始"), ai("继续")], raise_after=2)
-    turn = await DeerFlowBrain(client).start_turn(request())
-    assert await collect(turn) == ["开始", "继续"]
-
-
-async def test_deerflow_brain_cancel_stops_consumption():
-    client = StubDeerFlow([ai("x"), ai("y")])
-    turn = await DeerFlowBrain(client).start_turn(request())
+async def test_start_turn_cancel_stops_consumption():
+    graph = StubGraph([text("x"), text("y")])
+    turn = await DeerFlowBrain(graph).start_turn(request())
     await turn.cancel_turn()
     assert await collect(turn) == []
 
 
-def test_deerflow_brain_requires_client():
-    with pytest.raises(BrainUnavailable):
-        DeerFlowBrain(None)
-
-
-def test_ai_text_delta_ignores_non_text_events():
-    assert _ai_text_delta(Ev("values", {"messages": []})) == ""
-    assert _ai_text_delta(Ev("messages-tuple", {"type": "tool", "content": "x"})) == ""
-    assert _ai_text_delta(Ev("messages-tuple", {"type": "ai", "content": None})) == ""
-    assert _ai_text_delta(Ev("messages-tuple", {"type": "ai", "content": "好"})) == "好"
-
-
-def test_thread_id_is_stable_and_scoped():
-    assert _thread_id_for(request()) == "u1:xiaowu"
-    assert _thread_id_for(request(user_id="u2")) == "u2:xiaowu"
+async def test_partial_text_is_delivered_before_a_stream_failure():
+    graph = StubGraph([text("开始"), text("继续")], raise_after=1)
+    turn = await DeerFlowBrain(graph).start_turn(request())
+    received = []
+    with pytest.raises(RuntimeError):
+        async for chunk in turn.tokens:
+            received.append(chunk)
+    assert received == ["开始"]

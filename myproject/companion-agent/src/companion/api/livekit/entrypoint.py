@@ -143,8 +143,6 @@ def make_entrypoint(container: Any, voice_factory: Any = None):
         from companion.domain.turn.pipeline import TurnPipeline
 
         """worker 的入口。由 LiveKit 的 job context 调用。"""
-        from companion.api.livekit.agent import build_agent_class
-        from companion.domain.turn.pipeline import TurnPipeline
 
         try:
             identity = RoomIdentity.from_room_metadata(getattr(ctx.room, "metadata", None))

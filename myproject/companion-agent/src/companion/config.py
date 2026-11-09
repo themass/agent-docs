@@ -36,5 +36,12 @@ class Settings(BaseSettings):
     companion_auth_verifier: str = "allow_all"
     auth_redis_url: str = ""
 
+    # 对象存储：火山引擎 TOS（S3 兼容），与 job-come 同一个区域与接口（上传图片、解题附件）
+    tos_endpoint: str = ""
+    tos_region: str = "cn-beijing"
+    tos_bucket: str = ""
+    tos_access_key: str = ""
+    tos_secret_key: str = ""
+
 
 settings = Settings()

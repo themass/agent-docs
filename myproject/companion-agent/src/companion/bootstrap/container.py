@@ -37,7 +37,7 @@ from companion.adapters.skills.library import SkillLibrary
 from companion.domain.timeline.extraction import extract_events
 from companion.adapters.timeline.memory import InMemoryTimeline
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
 @dataclass

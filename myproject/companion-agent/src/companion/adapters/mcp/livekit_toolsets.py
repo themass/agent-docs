@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 
+from companion.domain.tools.mcp_policy import McpRegistry
+
 
 def build_toolsets(registry: McpRegistry) -> list:
     """构造 LiveKit 的 MCPToolset 列表。

@@ -8,6 +8,9 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Protocol
 from companion.domain.proactive.models import Channel, InitiativeState, SendRecord
+from companion.ports.delivery import DeliveryError, DeliveryPort, DeliveryReceipt, SendRecorder
+
+logger = logging.getLogger(__name__)
 
 
 class ChannelRouter:
