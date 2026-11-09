@@ -21,6 +21,7 @@ from companion.adapters.store.mysql.schema import (
     chat_queue,
     chat_session,
     tool_call,
+    upload,
     user_role,
 )
 from companion.domain.turn.queue import QUEUE_TRANSITIONS
@@ -264,6 +265,29 @@ class MysqlRoleStore:
                 user_role.c.public_id == public_id, user_role.c.owner_id == owner_id))
                 .values(deleted=True))
         return res.rowcount == 1
+
+
+class MysqlUploadStore:
+    def __init__(self, engine: AsyncEngine) -> None:
+        self._engine = engine
+
+    async def create(self, record) -> None:
+        async with self._engine.begin() as conn:
+            await conn.execute(insert(upload).values(
+                id=record.id, owner_id=record.owner_id, object_key=record.object_key, mime=record.mime,
+                size=record.size, width=record.width, height=record.height, referenced=False,
+                created_at=record.created_at))
+
+    async def get_owned(self, *, owner_id: int, upload_id: str):
+        from companion.app.uploads.service import UploadRecord
+
+        async with self._engine.connect() as conn:
+            row = (await conn.execute(select(upload).where(and_(
+                upload.c.id == upload_id, upload.c.owner_id == owner_id)))).mappings().first()
+        if row is None:
+            return None
+        return UploadRecord(row["id"], row["owner_id"], row["object_key"], row["mime"], row["size"],
+                            row["width"] or 0, row["height"] or 0, bool(row["referenced"]), row["created_at"])
 
 
 class MysqlConfirmationStore:
