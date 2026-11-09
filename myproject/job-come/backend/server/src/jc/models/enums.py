@@ -107,6 +107,9 @@ class QuestionSource(StrEnum):
     REAL = "real"
     MOCK = "mock"
     COMMUNITY = "community"
+    # A follow-up the interviewer asked in one interview. It refers to what that candidate just
+    # said, so it is kept for that interview only: not searched, not reused as a main question.
+    FOLLOWUP = "followup"
 
 
 class MockSessionMode(StrEnum):

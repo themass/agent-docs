@@ -131,3 +131,28 @@ def test_the_reviewer_model_is_configured_on_the_reviewer_scenario():
     entry = next(m for m in config["models"] if m["name"] == "jc-reviewer")
     assert entry["model"] == "reviewer"
     assert "reviewer" in routing["scenarios"]
+
+
+@pytest.mark.asyncio
+async def test_the_session_is_committed_before_the_report_is_read_back(maker, monkeypatch):
+    """The reviewer writes on another session and commits. A read-back inside this session's
+    transaction sees the snapshot from before that write (MySQL REPEATABLE READ), which marked
+    stored reports as failed in production. The transaction must end before the read-back."""
+    _use(monkeypatch, FakeReviewerAgent(maker, report=GOOD_REPORT))
+    order: list[str] = []
+    async with maker() as s:
+        real_commit, real_refresh = s.commit, s.refresh
+
+        async def commit():
+            order.append("commit")
+            await real_commit()
+
+        async def refresh(obj, *args, **kwargs):
+            order.append("refresh")
+            return await real_refresh(obj, *args, **kwargs)
+
+        monkeypatch.setattr(s, "commit", commit)
+        monkeypatch.setattr(s, "refresh", refresh)
+        assert await review_session(s, user_id="u1", profile_id="p1", mock_session_id="ms1",
+                                    budget_seconds=5) is True
+    assert order == ["commit", "refresh"]

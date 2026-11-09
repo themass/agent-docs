@@ -126,7 +126,7 @@ async def test_a_session_that_asked_nothing_has_nothing_to_review(maker):
         await end(scope, mock_session_id="ms1", reason="user_ended")
     row = await _row(maker)
     assert (row.report_status, row.report_attempts) == ("failed", MAX_REPORT_RUNS)
-    assert "没有提问" in row.report_error
+    assert "还没有开始提问" in row.report_error
     async with maker() as db:
         assert await requeue_failed(db, "ms1") is False
 

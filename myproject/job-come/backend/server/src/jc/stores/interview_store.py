@@ -5,6 +5,7 @@ from __future__ import annotations
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from jc.models.enums import QuestionSource
 from jc.models.interview import AnswerAttempt, InterviewQuestion, InterviewRecord, MockSession
 
 
@@ -26,7 +27,10 @@ class InterviewStore:
         job_id: str | None = None,
         limit: int = 10,
     ) -> list[InterviewQuestion]:
-        stmt = select(InterviewQuestion).where(InterviewQuestion.profile_id == profile_id)
+        stmt = select(InterviewQuestion).where(
+            InterviewQuestion.profile_id == profile_id,
+            InterviewQuestion.source != QuestionSource.FOLLOWUP,
+        )
         if company:
             stmt = stmt.where(InterviewQuestion.company == company)
         if job_id:
@@ -70,6 +74,7 @@ class InterviewStore:
         stmt = select(InterviewQuestion).where(
             InterviewQuestion.profile_id == profile_id,
             InterviewQuestion.stem == stem.strip(),
+            InterviewQuestion.source != QuestionSource.FOLLOWUP,
         )
         if company:
             stmt = stmt.where(InterviewQuestion.company == company)

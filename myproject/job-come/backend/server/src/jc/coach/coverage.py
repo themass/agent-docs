@@ -64,6 +64,14 @@ def _cjk_grams(run: str) -> set[str]:
     return {run[i : i + _CJK_GRAM] for i in range(len(run) - _CJK_GRAM + 1)}
 
 
+def question_match_text(stem: str, tags: list[str] | None = None) -> str:
+    """What a question is matched against: its stem and the must-have names it was tagged with.
+
+    A requirement like 「漏斗分析」 is seldom in the words of a good question, so the interviewer
+    tags the question with the requirement it targets; the tag then counts as coverage."""
+    return " ".join([stem or "", *(tags or [])])
+
+
 def key_terms(requirement: str) -> set[str]:
     """Terms that identify a requirement: Latin words, and Chinese bigrams from each run."""
     terms: set[str] = set()

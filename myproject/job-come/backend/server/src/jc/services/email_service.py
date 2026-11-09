@@ -3,11 +3,18 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import smtplib
 import ssl
 from email.message import EmailMessage
 
 from jc.config import settings
+from jc.exceptions import AppError
+
+logger = logging.getLogger(__name__)
+
+#: A mail server that does not answer is given up on, not waited for.
+SMTP_TIMEOUT_SEC = 20
 
 
 class EmailService:
@@ -55,22 +62,32 @@ class EmailService:
         message["To"] = to_email
         message.set_content(body)
 
-        await asyncio.to_thread(self._send_sync, message)
+        try:
+            await asyncio.to_thread(self._send_sync, message)
+        except (OSError, smtplib.SMTPException) as exc:
+            # Without a timeout the mail server's silence held the request open (live: the
+            # resend button read "发送中…" with no end). Say it failed, and why in general.
+            logger.warning("verification email not sent: %s", type(exc).__name__)
+            raise AppError(
+                "验证邮件发送失败或超时，请稍后再试。", code="email_send_failed"
+            ) from exc
 
     @staticmethod
     def _send_sync(message: EmailMessage) -> None:
+        timeout = SMTP_TIMEOUT_SEC
         context = ssl.create_default_context()
         if settings.jc_smtp_use_ssl:
             with smtplib.SMTP_SSL(
                 settings.jc_smtp_host,
                 settings.jc_smtp_port,
+                timeout=timeout,
                 context=context,
             ) as smtp:
                 smtp.login(settings.jc_smtp_user, settings.jc_smtp_password)
                 smtp.send_message(message)
             return
 
-        with smtplib.SMTP(settings.jc_smtp_host, settings.jc_smtp_port) as smtp:
+        with smtplib.SMTP(settings.jc_smtp_host, settings.jc_smtp_port, timeout=timeout) as smtp:
             smtp.starttls(context=context)
             smtp.login(settings.jc_smtp_user, settings.jc_smtp_password)
             smtp.send_message(message)

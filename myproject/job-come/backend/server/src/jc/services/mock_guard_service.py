@@ -18,10 +18,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from jc.authz.ownership import require_owned_profile
 from jc.authz.scope import RunScope
-from jc.coach.coverage import coverage_of
+from jc.coach.coverage import coverage_of, question_match_text
 from jc.models.enums import MAX_REPORT_RUNS, MockReportStatus, MockSessionStatus
 from jc.models.interview import MockSession
 from jc.models.job import Job
+from jc.services.interview_reply import refers_to_earlier_talk
 from jc.stores.interview_store import InterviewStore
 
 FULL_MAIN, FULL_FOLLOWUPS = 20, 2
@@ -110,7 +111,7 @@ def _close(session: MockSession, state: dict[str, Any], *, reason: str) -> None:
         # Ended before the first question: a review of nothing can only fail, so it is not run.
         session.report_status = MockReportStatus.FAILED
         session.report_attempts = MAX_REPORT_RUNS
-        session.report_error = "这场面试没有提问，没有可评审的内容。"
+        session.report_error = "这场面试还没有开始提问就结束了，没有可评审的回答。"
 
 
 async def supersede_active_sessions(db: AsyncSession, profile_id: str) -> list[str]:
@@ -169,7 +170,7 @@ async def _asked_stems(store: InterviewStore, asked: list[dict[str, Any]]) -> li
             continue
         question = await store.get_question(entry["question_id"])
         if question is not None:
-            stems.append(question.stem)
+            stems.append(question_match_text(question.stem, question.tags))
     return stems
 
 
@@ -372,6 +373,11 @@ async def ask(
     else:
         # A question the interviewer makes up is checked before it is written anywhere.
         text = (stem or "").strip()
+        if kind == "main" and refers_to_earlier_talk(text):
+            # A main question is asked fresh: one that points back at an earlier answer would be
+            # stored in the bank and asked to the next candidate, who never said it.
+            return _refuse("主问题不能以“你刚说”“你之前说”这类回顾开头，请写成一个独立的问题；"
+                           "要追问，请用 kind 为 followup。", code="refers_to_earlier_talk")
         if len(text) > MAX_STEM_CHARS:
             return _refuse(f"题干太长（{len(text)} 字，最多 {MAX_STEM_CHARS} 字）。"
                            "面试官一次只问一个具体的问题，请缩短。", code="stem_too_long")
@@ -390,6 +396,7 @@ async def ask(
         upserted = await question_upsert(
             scope, stem=stem, question_type=question_type, tags=tags, job_id=session.job_id,
             mock_session_id=mock_session_id, commit=False,
+            source="mock", bankable=(kind == "main"),
         )
         question_id = upserted["id"]
     if any(entry["question_id"] == question_id for entry in asked):

@@ -60,6 +60,11 @@ async def review_session(
         },
         budget_seconds=budget_seconds,
     )
-    # The reviewer wrote through its own tool call, on another session of the database.
+    # The reviewer wrote through its own tool call, on another session of the database, and
+    # committed. This session's transaction began before that write. Under MySQL's REPEATABLE READ
+    # the refresh below would read the snapshot from before it, see no report, and mark a stored
+    # report as failed (live, 2026-11-08: 15 failed sessions still held a report). Ending the
+    # transaction first makes the refresh read what was committed.
+    await db.commit()
     await db.refresh(session)
     return bool(session.report)

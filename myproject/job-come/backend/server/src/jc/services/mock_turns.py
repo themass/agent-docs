@@ -29,11 +29,14 @@ class Turn:
     #: For a follow-up, the main question it follows up.
     parent_question_id: str | None = None
     skipped: bool = False
+    #: The must-have names the interviewer tagged the question with.
+    tags: list[str] | None = None
 
     def as_transcript_entry(self) -> dict[str, object]:
         return {
             "question_id": self.question_id,
             "stem": self.stem,
+            "tags": list(self.tags or []),
             "answer": self.answer,
             "kind": self.kind,
             "parent_question_id": self.parent_question_id,
@@ -69,5 +72,6 @@ async def session_turns(store: InterviewStore, session: MockSession) -> list[Tur
             kind=entry.get("kind") or "main",
             parent_question_id=entry.get("parent_question_id"),
             skipped=skipped,
+            tags=list(question.tags or []) if question is not None else None,
         ))
     return turns

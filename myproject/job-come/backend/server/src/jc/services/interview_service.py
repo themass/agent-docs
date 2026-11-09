@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from jc.authz import RunScope, require_owned_references
+from jc.coach.coverage import question_match_text
 from jc.coach.level import LEVEL_SPECS, LEVELS, level_for_profile
 from jc.coach.planner import select_bank_draws
 from jc.coach.readiness import readiness
@@ -548,14 +549,18 @@ def _report_view(
             "reference": item.get("reference", []),
         })
     stems = {
-        turn["question_id"]: turn["stem"] for turn in transcript if turn.get("kind") != "followup"
+        turn["question_id"]: question_match_text(turn["stem"], turn.get("tags"))
+        for turn in transcript if turn.get("kind") != "followup"
     }
     # What was put to the candidate, from the session itself and not from what the reviewer chose to
     # list: a skipped question covers nothing, and a question the reviewer left out still counts.
     main_turns = [t for t in transcript if t.get("kind") != "followup"]
     derived = insights(
         report.get("questions", []), report.get("overall", {}), must_have, stems,
-        asked_stems=[t["stem"] for t in transcript if not t.get("skipped")],
+        asked_stems=[
+            question_match_text(t["stem"], t.get("tags"))
+            for t in transcript if not t.get("skipped")
+        ],
     )
     brief = not session.quota_counted
     return MockReportResponse(

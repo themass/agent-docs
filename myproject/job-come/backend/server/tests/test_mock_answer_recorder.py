@@ -251,12 +251,16 @@ async def test_a_turn_records_the_users_words_and_the_model_gets_them_wrapped(
 
 
 @pytest.mark.asyncio
-async def test_a_turn_before_any_question_records_nothing_but_still_runs(maker, monkeypatch):
+async def test_a_turn_before_any_question_records_nothing_and_gets_the_server_opening(
+    maker, monkeypatch
+):
+    # The first reply of an interview is the server's opening (jc/services/mock_opening.py), so the
+    # model is not run for it. Nothing is recorded: no question is on the table yet.
     await _open_session(maker, [])
     client, events = await _stream(maker, monkeypatch, "你好，我准备好了。")
     assert await _attempts(maker) == []
-    assert len(client.received) == 1
-    assert any(event.get("type") == "token" for event in events)
+    assert client.received == []
+    assert any("自我介绍" in (e.get("content") or "") for e in events if e.get("type") == "token")
 
 
 @pytest.mark.asyncio

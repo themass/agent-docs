@@ -122,7 +122,7 @@ async def test_the_report_transcript_keeps_its_old_keys_and_adds_the_new_ones(ma
         transcript = await session_transcript(store, await store.get_mock_session("ms1"))
     assert transcript[1] == {"question_id": "q2", "stem": "拆表时怎么保证数据一致",
                              "answer": A2, "kind": "followup", "parent_question_id": "q1",
-                             "skipped": False}
+                             "skipped": False, "tags": []}
 
 
 @pytest.mark.asyncio

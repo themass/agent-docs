@@ -82,6 +82,18 @@ def _parse_result(raw: Any) -> dict[str, Any] | None:
     return None
 
 
+def corrections_from_trace(rows: Sequence[AgentTrace]) -> dict[str, int]:
+    """How many interview replies were tried for one question, and how many of those failed to
+    come back with one. Written by the agent service as `interview_reply_corrected` rows."""
+    counts = {"corrected": 0, "kept_first": 0}
+    for row in rows:
+        if row.event_type == "interview_reply_corrected":
+            outcome = (row.payload or {}).get("outcome")
+            if outcome in counts:
+                counts[outcome] += 1
+    return counts
+
+
 def events_from_trace(rows: Sequence[AgentTrace]) -> tuple[list[Event], list[str]]:
     """The checklist's events for one session's ledger rows, and what could not be read."""
     events: list[Event] = []
@@ -157,6 +169,7 @@ async def record_interview(db: AsyncSession, mock_session_id: str) -> dict[str, 
         },
         "role_family": await family_of_session(db, session),
         "events": events,
+        "corrections": corrections_from_trace(rows),
         "answers": answers,
         "skipped": [t["question_id"] for t in transcript if t.get("skipped")],
         "control_messages": [t for t in candidate_lines if is_steering_message(t)],
