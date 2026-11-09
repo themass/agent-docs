@@ -1,8 +1,6 @@
 """持久化的记忆后端（MySQL，表 ca_memory_item）。
 
-临时替代进程内记忆：不需要 Qdrant 或 mem0，重启不丢。实现与 MemoryPort 同形，
-将来接入 mem0 时只替换这个适配器，上层不变。检索是朴素的子串匹配（不做语义召回），
-这一点在报告里明说。
+持久化的记忆（不依赖向量或模型）。检索是词法排序（domain/memory/recall.py），不是语义匹配。
 """
 
 from __future__ import annotations
@@ -14,7 +12,10 @@ from sqlalchemy import Column, DateTime, String, Table, Text, and_, delete, inse
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from companion.adapters.store.mysql.schema import TABLE_PREFIX, metadata as schema_metadata
+from companion.domain.memory.recall import rank
 from companion.ports.memory import MemoryItem, MemoryKind
+
+SEARCH_WINDOW = 500  # 每个用户参与排序的最近条数上限
 
 memory_item = Table(
     TABLE_PREFIX + "memory_item", schema_metadata,
@@ -50,14 +51,12 @@ class MysqlMemoryPort:
         return list(items)
 
     async def search(self, user_id: str, query: str, limit: int = 5) -> list[MemoryItem]:
-        needle = query.strip()
-        cond = [memory_item.c.user_id == user_id]
-        if needle:
-            cond.append(memory_item.c.content.contains(needle))
+        """在该用户最近的 SEARCH_WINDOW 条中做词法排序（不做全表扫描，也不依赖向量）。"""
         async with self._engine.connect() as conn:
-            rows = (await conn.execute(select(memory_item).where(and_(*cond))
-                                       .order_by(memory_item.c.created_at.desc()).limit(limit))).mappings().all()
-        return [_to_item(r) for r in rows]
+            rows = (await conn.execute(select(memory_item).where(memory_item.c.user_id == user_id)
+                                       .order_by(memory_item.c.created_at.desc()).limit(SEARCH_WINDOW))).mappings().all()
+        candidates = [(_to_item(r), r["content"], r["created_at"]) for r in rows]
+        return rank(query, candidates, limit)
 
     async def list_for_user(self, user_id: str, limit: int = 20, offset: int = 0) -> list[MemoryItem]:
         async with self._engine.connect() as conn:

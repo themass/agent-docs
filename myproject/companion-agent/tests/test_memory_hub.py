@@ -38,8 +38,7 @@ class Port:
         return len(self.rows.pop(uid, []))
 
 
-CONFIGS = [AppConfig("companion", "mem_companion", "QDRANT_TOKEN_COMPANION"),
-           AppConfig("jobcome", "mem_jobcome", "QDRANT_TOKEN_JOBCOME")]
+CONFIGS = [AppConfig("companion"), AppConfig("jobcome")]
 
 
 def test_composite_ids_and_their_validation():
@@ -51,11 +50,13 @@ def test_composite_ids_and_their_validation():
         compose_user_id("Bad!", "1")
 
 
-def test_startup_refuses_shared_collection_or_token():
+def test_startup_refuses_duplicate_or_unknown_apps():
     with pytest.raises(ConfigError):
-        validate_configs([AppConfig("companion", "mem_x", "T1"), AppConfig("jobcome", "mem_x", "T2")])
+        validate_configs([AppConfig("companion"), AppConfig("companion")])
     with pytest.raises(ConfigError):
-        validate_configs([AppConfig("companion", "mem_a", "T1"), AppConfig("jobcome", "mem_b", "T1")])
+        validate_configs([AppConfig("companion", backend="qdrant")])
+    with pytest.raises(ConfigError):
+        validate_configs([AppConfig("Bad!")])
     validate_configs(CONFIGS)
 
 

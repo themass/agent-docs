@@ -89,10 +89,7 @@ def build_platform(settings: Settings, *, brain: Any, prompts: Any, memory_port:
     timeline = InMemoryTimeline()
     # 记忆：默认持久化到 MySQL（ca_memory_item）。传入的 memory_port 仅用于测试替换。
     backend = memory_port if memory_port is not None else MysqlMemoryPort(engine)
-    hub = MemoryHub.from_config(
-        [AppConfig("companion", "ca_memory_companion", "COMPANION_QDRANT_TOKEN")],
-        lambda cfg: backend,
-    )
+    hub = MemoryHub.from_config([AppConfig("companion")], lambda cfg: backend)
     memory = hub.for_app("companion")
 
     registry = ToolRegistry()

@@ -42,3 +42,25 @@ def test_memory_survives_a_fresh_instance(migrated_memory=None):
             await second.dispose()
 
     asyncio.run(go())
+
+
+def test_durable_search_ranks_by_words_not_substring():
+    from companion.adapters.store.mysql.memory import MysqlMemoryPort
+
+    user = f"test-rank-{uuid.uuid4().hex[:8]}"
+    items = [MemoryItem(id=uuid.uuid4().hex, content=c, kind=MemoryKind.FACT, source_character_id="linche")
+             for c in ["喜欢喝茶", "在准备面试", "喜欢咖啡"]]
+
+    async def go():
+        engine = _engine()
+        try:
+            port = MysqlMemoryPort(engine)
+            await port.add(user, items)
+            hits = await port.search(user, "咖啡", limit=5)
+            assert [h.content for h in hits] == ["喜欢咖啡"]
+            assert [h.content for h in await port.search(user, "火箭", limit=5)] == []
+            await port.delete_user(user)
+        finally:
+            await engine.dispose()
+
+    asyncio.run(go())
