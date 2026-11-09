@@ -1,0 +1,1439 @@
+{
+ "divisions": {
+  "academic": "学术研究",
+  "design": "设计",
+  "engineering": "工程开发",
+  "finance": "财务金融",
+  "game-development": "游戏开发",
+  "gis": "地理信息",
+  "healthcare": "医疗健康",
+  "marketing": "市场营销",
+  "paid-media": "付费投放",
+  "product": "产品",
+  "project-management": "项目管理",
+  "research": "调研",
+  "sales": "销售",
+  "security": "安全",
+  "spatial-computing": "空间计算",
+  "specialized": "专项",
+  "support": "支持运营",
+  "testing": "测试质量"
+ },
+ "roles": {
+  "academic-anthropologist": {
+   "description": "精通文化体系、仪式、亲属关系、信仰体系与民族志方法，帮你构建真实可信、有生活气息的社会。",
+   "name": "人类学家",
+   "vibe": "没有哪种文化是随意的，每一种习俗背后都有它要解决的问题。"
+  },
+  "academic-geographer": {
+   "description": "精通自然与人文地理、气候系统和制图，帮你构建地形、气候、资源与聚落都合乎科学的世界",
+   "name": "地理学家",
+   "vibe": "地理即命运，你在哪里，就决定你成为谁"
+  },
+  "academic-historian": {
+   "description": "擅长历史分析、分期、物质文化与史学史，帮你检验设定的历史自洽性并补充真实的时代细节。",
+   "name": "历史学家",
+   "vibe": "历史不会重演，但总有相似的韵脚，而每一句我都熟。"
+  },
+  "academic-narratologist": {
+   "description": "精通叙事理论、故事结构与人物弧光，帮你分析作品、打磨故事。",
+   "name": "叙事学专家",
+   "vibe": "每个故事都有主张，我帮你找到你的故事真正想说什么"
+  },
+  "academic-psychologist": {
+   "description": "精通人类行为、人格理论、动机与认知模式，基于临床与研究框架塑造可信的人物和互动。",
+   "name": "心理学家",
+   "vibe": "人不会无缘无故做事，我来找出背后的原因。"
+  },
+  "academic-statistician": {
+   "description": "擅长定量研究方法、实验设计与统计推断，帮你检验结论、设计严谨研究、分清信号与噪声",
+   "name": "统计学家",
+   "vibe": "轶事不是数据，p 值也不是证明，先让我看看你的设计"
+  },
+  "design-brand-guardian": {
+   "description": "专注品牌识别塑造、一致性维护与品牌定位策略的品牌专家。",
+   "name": "品牌守护者",
+   "vibe": "你的品牌最坚定的守护者，也是最热情的代言人。"
+  },
+  "design-image-prompt-engineer": {
+   "description": "擅长撰写细致生动的AI绘图提示词，生成专业级摄影效果的图片。",
+   "name": "图像提示词工程师",
+   "vibe": "把视觉构想变成精准提示词，生成惊艳的AI摄影作品"
+  },
+  "design-inclusive-visuals-specialist": {
+   "description": "致力于消除 AI 的系统性偏见，生成文化准确、积极正面、不落刻板印象的图像和视频。",
+   "name": "包容性视觉专家",
+   "vibe": "消除 AI 偏见，让每一张图都准确、友善、有尊重。"
+  },
+  "design-persona-walkthrough": {
+   "description": "以指定用户画像的视角走查网页，记录每个滚动位置的感受与想法，并输出转化率优化报告",
+   "name": "用户画像走查专家",
+   "vibe": "我化身你的用户，让你看见数据分析看不到的东西"
+  },
+  "design-ui-designer": {
+   "description": "精通视觉设计系统、组件库与精细界面设计，打造美观、统一、易用且体现品牌调性的界面。",
+   "name": "UI设计师",
+   "vibe": "把界面做得美观、统一、无障碍，恰到好处。"
+  },
+  "design-ui-finish-gate-reviewer": {
+   "description": "基于真实产品依据与设计规范，在上线前揪出千篇一律的界面。",
+   "name": "UI 上线验收评审师",
+   "vibe": "见不得换个Logo就能套给任何产品的仪表盘"
+  },
+  "design-ux-architect": {
+   "description": "兼顾技术架构与用户体验，为开发者提供扎实的基础、CSS 体系和清晰的实现指引。",
+   "name": "UX 架构师",
+   "vibe": "给开发者打好地基，配上 CSS 体系和清晰的落地路径。"
+  },
+  "design-ux-researcher": {
+   "description": "擅长用户行为分析、可用性测试和数据驱动的设计洞察，帮你提升产品易用性与用户满意度",
+   "name": "用户体验研究员",
+   "vibe": "用真实用户数据验证设计决策，而不是靠猜测"
+  },
+  "design-visual-storyteller": {
+   "description": "擅长用视觉叙事、多媒体内容和品牌故事，把复杂信息变成打动人心的视觉表达。",
+   "name": "视觉叙事设计师",
+   "vibe": "把复杂的信息变成能打动人的视觉故事。"
+  },
+  "design-whimsy-injector": {
+   "description": "为品牌体验注入个性与趣味，打造让人会心一笑的互动细节。",
+   "name": "趣味体验设计师",
+   "vibe": "用意料之外的小惊喜，让品牌令人难忘"
+  },
+  "engineering-ai-data-remediation-engineer": {
+   "description": "专注自愈式数据管道，用本地离线小模型和语义聚类自动发现、分类并修复海量数据异常。",
+   "name": "AI 数据修复工程师",
+   "vibe": "用 AI 精准修复你的问题数据，一行都不丢。"
+  },
+  "engineering-ai-engineer": {
+   "description": "负责机器学习模型的开发、部署与集成，帮你打造智能功能、数据管道和 AI 应用",
+   "name": "AI 工程师",
+   "vibe": "把机器学习模型变成真正可规模化的产品功能"
+  },
+  "engineering-api-platform-engineer": {
+   "description": "负责公开和合作伙伴API，涵盖契约优先设计、版本与弃用策略、SDK生成、网关治理和开发者门户体验。",
+   "name": "API平台工程师",
+   "vibe": "公开的API是收不回的承诺。按用十年的标准去设计契约，因为你真的会用十年。"
+  },
+  "engineering-ats-validator-architect": {
+   "description": "设计并验证简历筛选系统与解析器，检查排版和文本层是否可被正确识别。",
+   "name": "ATS 简历解析架构师",
+   "vibe": "解析器读的是版面坐标和词元流，别让花哨样式埋没简历"
+  },
+  "engineering-autonomous-optimization-architect": {
+   "description": "持续对 API 做影子测试以提升性能，同时用严格的成本与安全护栏防止费用失控。",
+   "name": "自主优化架构师",
+   "vibe": "让系统越跑越快，又不会把预算烧光。"
+  },
+  "engineering-backend-architect": {
+   "description": "擅长可扩展系统设计、数据库架构、API 开发和云基础设施，构建安全高性能的服务端应用",
+   "name": "后端架构师",
+   "vibe": "设计支撑一切的系统：数据库、API、云与规模化"
+  },
+  "engineering-china-network-engineer": {
+   "description": "精通华为VRP、新华三Comware、锐捷RGOS、山石StoneOS，擅长路由交换、防火墙、NAT及等保2.0合规的边界设计。",
+   "name": "国内网络工程师",
+   "vibe": "四种命令行，一张网络，零丢包。变更窗口说一不二，回退方案先于第一条命令写好。"
+  },
+  "engineering-cms-developer": {
+   "description": "擅长 Drupal 与 WordPress 主题、插件开发和内容架构搭建。",
+   "name": "CMS 开发工程师",
+   "vibe": ""
+  },
+  "engineering-code-reviewer": {
+   "description": "提供有建设性、可落地的评审意见，关注正确性、可维护性、安全与性能，而非风格偏好。",
+   "name": "代码审查工程师",
+   "vibe": "像导师一样审代码，不做门卫，每条评论都有收获。"
+  },
+  "engineering-codebase-onboarding-engineer": {
+   "description": "通过阅读源码、追踪调用路径，帮新同事快速看懂陌生代码库，只说代码里有据可查的事实",
+   "name": "代码库上手向导",
+   "vibe": "读代码、追路径、讲事实，让新人更快上手，不多说一句废话"
+  },
+  "engineering-data-engineer": {
+   "description": "擅长构建可靠的数据管道、湖仓架构和可扩展的数据基础设施，把原始数据变成可信、可分析的资产。",
+   "name": "数据工程师",
+   "vibe": "搭好数据管道，让原始数据成为可信、可直接分析的资产。"
+  },
+  "engineering-data-visualization-engineer": {
+   "description": "帮你选对图表、设计易读且无障碍的配色，用 D3 等工具高效渲染大数据。",
+   "name": "数据可视化工程师",
+   "vibe": "图表的使命是快速说真话，选对编码，别让好看的坐标轴撒谎"
+  },
+  "engineering-database-optimizer": {
+   "description": "专注表结构设计、查询优化、索引策略与性能调优，覆盖 PostgreSQL、MySQL 及 Supabase 等新型数据库。",
+   "name": "数据库优化专家",
+   "vibe": "索引、执行计划、表结构都调好，数据库不再半夜叫醒你。"
+  },
+  "engineering-database-reliability-engineer": {
+   "description": "负责高可用与复制、自动故障切换、备份恢复、零停机变更和容灾演练，保障数据库稳定运行",
+   "name": "数据库可靠性工程师",
+   "vibe": "没验证过的备份只是个文件，演练恢复、预演切换、不停机变更"
+  },
+  "engineering-desktop-app-engineer": {
+   "description": "专注Electron和Tauri桌面应用，涵盖安全IPC与进程隔离、代码签名与公证、自动更新、系统原生集成和资源占用控制。",
+   "name": "桌面应用工程师",
+   "vibe": "网页是界面，系统是接口。体积小、IPC严、更新永不把人搞崩。"
+  },
+  "engineering-developer-tooling-engineer": {
+   "description": "构建命令行工具与内部开发平台，打磨命令设计、报错提示和跨平台分发。",
+   "name": "开发者工具工程师",
+   "vibe": "好工具尊重开发者的时间：快、直观、可脚本化，出错时给出解法"
+  },
+  "engineering-devops-automator": {
+   "description": "擅长基础设施自动化、CI/CD 流水线建设和云上运维。",
+   "name": "DevOps 自动化工程师",
+   "vibe": "把基础设施自动化，团队交付更快，睡得更香。"
+  },
+  "engineering-drupal-performance": {
+   "description": "专注 Drupal 10/11 性能优化，涵盖 Core Web Vitals、缓存、数据库查询与前端资源加载",
+   "name": "Drupal 性能工程师",
+   "vibe": "把每一次慢查询、缓存未命中和渲染瓶颈都当成自己的事来解决"
+  },
+  "engineering-drupal-shopping-cart": {
+   "description": "专注Drupal Commerce，负责商品目录、支付集成、结账流程、订单管理和税费促销配置。",
+   "name": "Drupal电商工程师",
+   "vibe": "把每家店铺当作别人收入的记账系统来做：价格永远正确，订单不会丢，支付分文不差，再差的手机、再慢的网络也能顺利结账。"
+  },
+  "engineering-electrical-engineer": {
+   "description": "负责通信站点与建筑的供配电设计，涵盖负荷、线缆、接地防雷和图纸审查。",
+   "name": "电气工程师",
+   "vibe": "先核对单位再算数，先引用标准再下结论，该持证工程师签字的绝不越界"
+  },
+  "engineering-email-intelligence-engineer": {
+   "description": "从原始邮件会话中提取结构化、便于推理的数据，供 AI 智能体和自动化系统使用。",
+   "name": "邮件智能工程师",
+   "vibe": "把杂乱的邮件原文整理成清晰的上下文，让你的智能体看到信号而不是噪音。"
+  },
+  "engineering-embedded-firmware-engineer": {
+   "description": "擅长裸机与 RTOS 固件开发，覆盖 ESP32、STM32、Nordic、FreeRTOS、Zephyr 等平台",
+   "name": "嵌入式固件工程师",
+   "vibe": "为不容崩溃的硬件编写生产级固件"
+  },
+  "engineering-feishu-integration-developer": {
+   "description": "全栈集成专家，精通飞书开放平台的机器人、小程序、审批、多维表格、消息卡片、Webhook和SSO，打造企业协作自动化方案。",
+   "name": "飞书集成开发工程师",
+   "vibe": "在飞书上搭建机器人、审批、数据同步和SSO，让团队工作流自动运转。"
+  },
+  "engineering-filament-optimization-specialist": {
+   "description": "重构并优化 Filament PHP 管理后台，让界面更好用、效率更高。",
+   "name": "Filament 后台优化师",
+   "vibe": "务实的完美主义者，把复杂后台梳理得清清爽爽"
+  },
+  "engineering-finops-engineer": {
+   "description": "负责 AWS/GCP/Azure 的成本分摊与标签、配置调优、承诺计划、流量与存储优化，并用单位经济看板把支出和业务价值挂钩。",
+   "name": "云成本优化工程师",
+   "vibe": "闲置资源就是没人退订的订阅。先分摊，再优化，别为省小钱引发大故障。"
+  },
+  "engineering-frontend-developer": {
+   "description": "精通现代 Web 技术与 React、Vue、Angular 框架，负责界面实现和性能优化",
+   "name": "前端开发工程师",
+   "vibe": "打造响应式、无障碍、像素级精准的网页应用"
+  },
+  "engineering-gaussdb-expert": {
+   "description": "专注华为GaussDB OLTP数据库，涵盖表结构与分布式表设计、查询优化、索引、Ustore引擎及分布式和集中式部署的调优。",
+   "name": "GaussDB专家工程师",
+   "vibe": "分布键、CN/DN执行计划、Ustore引擎，让数据库不再半夜叫醒你。"
+  },
+  "engineering-git-workflow-master": {
+   "description": "精通分支策略、规范提交、变基与工作树，让版本管理更清晰顺畅。",
+   "name": "Git 工作流专家",
+   "vibe": "提交历史干净，每次提交原子化，分支会讲故事"
+  },
+  "engineering-i18n-engineer": {
+   "description": "精通 ICU 消息格式、CLDR 复数规则、从右到左排版、本地化日期数字货币格式、文案提取与伪本地化测试。",
+   "name": "国际化工程师",
+   "vibe": "写死的字符串就是 bug，只在英文下能用，就等于差一点能用。"
+  },
+  "engineering-identity-access-engineer": {
+   "description": "负责 OAuth 2.0/OIDC、企业单点登录、SCIM、通行密钥、会话架构和多租户权限控制",
+   "name": "身份与访问管理工程师",
+   "vibe": "登录平时无人夸，出事才被记住，遵循标准，不耍小聪明"
+  },
+  "engineering-incident-response-commander": {
+   "description": "擅长生产事故管理、响应协调、复盘主持、SLO/SLI跟踪和值班机制设计，守护工程团队的可靠性。",
+   "name": "故障响应指挥官",
+   "vibe": "把线上混乱变成有序的处置。"
+  },
+  "engineering-iot-fleet-engineer": {
+   "description": "负责设备接入与身份、MQTT 遥测、分批 OTA 升级与回滚、边缘计算和监控。",
+   "name": "物联网设备集群工程师",
+   "vibe": "现场设备无法重启、网络时有时无，升级务必谨慎，否则一次就是上千台变砖"
+  },
+  "engineering-it-service-manager": {
+   "description": "基于 ITIL 4 做服务目录、事件与问题管理、变更控制、SLA 治理和 CMDB 维护，让 IT 稳定产出可衡量的业务价值。",
+   "name": "IT 服务经理",
+   "vibe": "IT 为业务服务。每个工单、每条 SLA 都是承诺，守住承诺，用数据说话，持续改进。"
+  },
+  "engineering-knowledge-graph-engineer": {
+   "description": "把信息和能力组织成实体与关系的网络，实现动态上下文导航、降低 token 成本并减少幻觉",
+   "name": "知识图谱工程师",
+   "vibe": "平面文件已过时，万物皆节点，关系即连线，在图谱中导航"
+  },
+  "engineering-llm-post-training-engineer": {
+   "description": "以证据为导向，负责SFT、偏好优化、RLHF/RLVR、MoE后训练，以及把检查点变成可信模型变更的发布关卡。",
+   "name": "大模型后训练工程师",
+   "vibe": "把每次训练当作一次受控的行为改变，只看损失、奖励、吞吐、退出码或检查点目录都不算证据。"
+  },
+  "engineering-minimal-change-engineer": {
+   "description": "只修改被要求的部分，拒绝范围蔓延，让修复不演变成大规模重构。",
+   "name": "最小改动工程师",
+   "vibe": "能解决问题的最小改动，多一行都是负担"
+  },
+  "engineering-mobile-app-builder": {
+   "description": "精通 iOS/Android 原生开发和跨平台框架，负责移动应用从设计到上线。",
+   "name": "移动应用开发工程师",
+   "vibe": "又快又好地交付 iOS 和 Android 原生品质的应用。"
+  },
+  "engineering-mobile-release-engineer": {
+   "description": "负责 iOS 与 Android 的签名、证书、fastlane 流水线、应用商店提审、灰度发布和崩溃监控",
+   "name": "移动端发布工程师",
+   "vibe": "做出应用只是一半，签名、过审、灰度、可回滚地发出去才是另一半"
+  },
+  "engineering-multi-agent-systems-architect": {
+   "description": "负责多智能体AI流水线的设计、协同与治理，涵盖拓扑选择、上下文管理、智能体间信任、故障恢复、人工把关和可观测性。",
+   "name": "多智能体系统架构师",
+   "vibe": "把一群AI智能体当分布式系统来设计，只能撑过演示、扛不住生产负载和连锁故障的，还谈不上架构。"
+  },
+  "engineering-network-engineer": {
+   "description": "精通思科、瞻博、派拓设备的路由、交换、防火墙配置与故障排查。",
+   "name": "网络工程师",
+   "vibe": "数据包不管你的意图，先验证路径、确认状态，再动配置"
+  },
+  "engineering-orgscript-engineer": {
+   "description": "擅长设计、解析和实现 OrgScript 语法、AST 校验与业务逻辑定义。",
+   "name": "OrgScript 工程师",
+   "vibe": "重流程、严语义，把人的业务流程变成 AI 能读懂的逻辑。"
+  },
+  "engineering-payments-billing-engineer": {
+   "description": "负责支付渠道对接、幂等支付流程、Webhook 处理、订阅计费、3DS 验证和财务对账",
+   "name": "支付与计费工程师",
+   "vibe": "钱要么只动一次，要么不动，幂等优先，Webhook 为准，对账不停"
+  },
+  "engineering-pdf-engine-architect": {
+   "description": "专注确定性的HTML转PDF编译、动态页面尺寸、精确排版和标签化PDF（PDF/UA、PDF/A）。",
+   "name": "PDF引擎架构师",
+   "vibe": "网页视口是无限的，纸张却寸步不让。别让动态内容破坏打印的版面。"
+  },
+  "engineering-platform-engineer": {
+   "description": "打造内部开发者平台，用标准化路径和自助式基础设施提升研发效率。",
+   "name": "平台工程师",
+   "vibe": "平台就是产品，开发者不能自助使用，就不算做完"
+  },
+  "engineering-privacy-engineer": {
+   "description": "用代码落实隐私保护：个人信息识别分类、数据最小化、接口层授权校验、跨服务数据删除与留存自动化。",
+   "name": "隐私工程师",
+   "vibe": "隐私政策是承诺，代码才是兑现。说删除就要处处真删，并且可证明。"
+  },
+  "engineering-prompt-engineer": {
+   "description": "擅长撰写、测试并系统优化大模型提示词，把模糊指令变成稳定可靠的生产级 AI 行为",
+   "name": "提示词工程师",
+   "vibe": "我写的不是提示词，而是人与模型之间的契约"
+  },
+  "engineering-rag-pipeline-engineer": {
+   "description": "专注生产级RAG，擅长分块策略、检索质量、混合检索、重排序和评测驱动的迭代，让流水线真正检索到对的上下文。",
+   "name": "RAG流水线工程师",
+   "vibe": "大模型背锅，检索才是案发现场，评测数据可以作证。"
+  },
+  "engineering-rapid-prototyper": {
+   "description": "用高效工具和框架极速完成概念验证与 MVP。",
+   "name": "快速原型工程师",
+   "vibe": "会还没开完，原型已经跑起来了"
+  },
+  "engineering-realtime-collaboration-engineer": {
+   "description": "擅长 WebSocket/SSE 基础设施、在线状态、CRDT/OT 协同编辑、离线优先同步与大规模消息分发。",
+   "name": "实时协作工程师",
+   "vibe": "每次按键都是一个分布式系统。要让数据收敛而不是冲突，并假设网络随时会断。"
+  },
+  "engineering-rust-refactoring-specialist": {
+   "description": "负责 Rust 仓库级重构、安全重命名、模块调整、去重、panic 加固和 Clippy 问题修复",
+   "name": "Rust 重构专家",
+   "vibe": "完整做完重构，证明它安全，不留半截迁移"
+  },
+  "engineering-search-relevance-engineer": {
+   "description": "专注Elasticsearch和OpenSearch，擅长索引设计、BM25调优、混合检索和相关性评估。",
+   "name": "搜索相关性工程师",
+   "vibe": "召回把它找出来，精排把它排上去，评测来证明。没测过的相关性改动，只是带上线按钮的感觉。"
+  },
+  "engineering-section-508-specialist": {
+   "description": "按美国 508 条款与 WCAG 标准做无障碍开发、读屏测试、审计与整改。",
+   "name": "508 无障碍规范专家",
+   "vibe": "用真实辅助技术测试，不迷信自动化评分，不让任何人被网站拒之门外"
+  },
+  "engineering-senior-developer": {
+   "description": "精通 Laravel/Livewire/FluxUI、高级 CSS 和 Three.js，能交付高品质的实现。",
+   "name": "高级开发工程师",
+   "vibe": "高品质全栈匠人，精通 Laravel、Livewire、Three.js 与高级 CSS。"
+  },
+  "engineering-servicenow-developer-mentor": {
+   "description": "精通 ServiceNow 平台开发，一步步带你排查问题，分清是原生功能还是自定义代码出错",
+   "name": "ServiceNow 开发导师",
+   "vibe": "先看日志、再隔离原生与自定义，别瞎猜，实例通常早已告诉你原因"
+  },
+  "engineering-software-architect": {
+   "description": "擅长系统设计、领域驱动设计、架构模式和技术决策，帮你构建可扩展、易维护的系统。",
+   "name": "软件架构师",
+   "vibe": "设计能比团队活得更久的系统。每个决策都有取舍，把它说清楚。"
+  },
+  "engineering-solidity-smart-contract-engineer": {
+   "description": "专注 EVM 合约架构、Gas 优化、可升级代理与 DeFi 协议开发，安全优先。",
+   "name": "Solidity 合约工程师",
+   "vibe": "久经考验的 Solidity 开发者，对 EVM 了如指掌"
+  },
+  "engineering-sre": {
+   "description": "专注 SLO、错误预算、可观测性、混沌工程和减少重复性运维，保障大规模生产系统稳定。",
+   "name": "站点可靠性工程师",
+   "vibe": "可靠性本身就是功能。错误预算用来换取迭代速度，要花得有数。"
+  },
+  "engineering-technical-writer": {
+   "description": "擅长撰写开发者文档、API 参考、README 和教程，把复杂技术讲得清楚准确又好读",
+   "name": "技术文档工程师",
+   "vibe": "写出开发者真正愿意读、用得上的文档"
+  },
+  "engineering-universal-document-compiler": {
+   "description": "专注与数据结构无关的文档语法树、数据形态驱动的版式推断、CST与画布双向同步，以及通用分页文档发布。",
+   "name": "通用文档编译架构师",
+   "vibe": "数据的形态决定页面的架构，思考不该被固定的结构所束缚。"
+  },
+  "engineering-uswds-developer": {
+   "description": "使用美国网站设计系统开发无障碍、响应式的政务界面，并满足联邦合规要求。",
+   "name": "USWDS 前端开发工程师",
+   "vibe": "用设计令牌定制主题而非硬改框架，把无障碍当作起点而不是补课"
+  },
+  "engineering-video-streaming-engineer": {
+   "description": "擅长自适应码率分发，包括 HLS/DASH 打包、ffmpeg 转码、CMAF 低延迟、DRM、CDN 和播放体验调优。",
+   "name": "视频流媒体工程师",
+   "vibe": "每一次转圈缓冲都是一个流失的用户。一次编码，适配所有网络，盯紧卡顿率。"
+  },
+  "engineering-voice-ai-integration-engineer": {
+   "description": "构建基于 Whisper 与云端 ASR 的语音转写流程，覆盖降噪、字幕生成、说话人区分和流式识别",
+   "name": "语音 AI 集成工程师",
+   "vibe": "把原始音频变成人和机器都能用的结构化文本"
+  },
+  "engineering-webassembly-engineer": {
+   "description": "擅长把Rust/C++/Go编译为Wasm，涵盖JS互操作与边界数据拷贝成本、WASI与服务端运行时、组件模型和接近原生的性能调优。",
+   "name": "WebAssembly工程师",
+   "vibe": "性能都死在边界上。让热点循环留在模块内，别再跨边界拷贝字符串。"
+  },
+  "engineering-wechat-mini-program-developer": {
+   "description": "精通小程序开发、微信接口、支付与订阅消息，熟悉完整微信生态。",
+   "name": "微信小程序开发工程师",
+   "vibe": "打造在微信生态里流畅运行的高性能小程序"
+  },
+  "engineering-wordpress-performance": {
+   "description": "专注 WordPress 站点提速：核心网页指标、对象与页面缓存、数据库查询、资源优化、CDN 与插件性能审计。",
+   "name": "WordPress 性能工程师",
+   "vibe": "务实的性能工程师：先用 Query Monitor 摸清问题，再用缓存和查询优化让网站在真实手机上也飞快。"
+  },
+  "engineering-wordpress-shopping-cart": {
+   "description": "专注 WooCommerce 电商开发，涵盖商品管理、支付接入、结账定制、订单、税费与优惠券配置",
+   "name": "WordPress 购物车工程师",
+   "vibe": "务实的电商工程师，把 WooCommerce 打造成高转化的店铺"
+  },
+  "finance-bookkeeper-controller": {
+   "description": "擅长日常账务、财务对账、月末结账和内部控制，确保账目准确、完整、及时，并随时满足GAAP合规和审计要求。",
+   "name": "会计主管",
+   "vibe": "每一分钱都有着落，每次结账都准时，是财务可信的根基。"
+  },
+  "finance-financial-analyst": {
+   "description": "擅长财务建模、预测与情景分析，把数据转化为决策依据。",
+   "name": "财务分析师",
+   "vibe": "把表格变成策略，每个数字都有故事，每个模型都指向决策"
+  },
+  "finance-fpa-analyst": {
+   "description": "负责预算、差异分析、财务规划与滚动预测，把数字讲成业务故事，支持经营与资源分配决策。",
+   "name": "财务规划与分析师",
+   "vibe": "预算高手，把计划变成数字，再把数字变成行动。"
+  },
+  "finance-investment-researcher": {
+   "description": "擅长市场研究、尽职调查、组合分析和资产估值，通过基本面与量化分析发现机会、评估风险",
+   "name": "投资研究员",
+   "vibe": "比市场共识挖得更深，从脚注里找超额收益，从故事里看风险"
+  },
+  "finance-tax-strategist": {
+   "description": "擅长税务优化、跨辖区合规、转让定价和税务规划，在完全合规的前提下降低各级和跨境税负。",
+   "name": "税务筹划师",
+   "vibe": "把税法里每一分合法的节税空间都找出来：合规是底线，优化是目标。"
+  },
+  "game-development-blender-blender-addon-engineer": {
+   "description": "开发 Blender 的 Python 插件、资产校验、导出工具和流程自动化，让重复工作一键完成",
+   "name": "Blender 插件工程师",
+   "vibe": "把繁琐的 Blender 流程变成美术真正爱用的一键工具"
+  },
+  "game-development-economy-designer": {
+   "description": "设计虚拟货币体系、产出与消耗、通胀控制和变现模型，平衡运营中的游戏经济。",
+   "name": "游戏经济系统设计师",
+   "vibe": "把游戏看作货币的流动，把玩家的每个选择看作一笔交易"
+  },
+  "game-development-game-audio-engineer": {
+   "description": "精通 FMOD/Wwise 集成、自适应音乐、空间音频和音频性能预算，适配各类游戏引擎。",
+   "name": "游戏音频工程师",
+   "vibe": "让每一声枪响、每一步脚步和每段配乐都在游戏世界里活起来。"
+  },
+  "game-development-game-designer": {
+   "description": "精通游戏设计文档、玩家心理、经济平衡和玩法循环设计，适用于各类引擎与游戏类型",
+   "name": "游戏策划",
+   "vibe": "用循环、杠杆和玩家动机的思路设计引人入胜的玩法"
+  },
+  "game-development-godot-godot-gameplay-scripter": {
+   "description": "专注组合式设计与信号稳健性，精通GDScript 2.0、C#集成、节点架构和类型安全的信号设计，适用于Godot 4项目。",
+   "name": "Godot玩法脚本工程师",
+   "vibe": "用软件架构师的严谨来搭建Godot 4玩法系统。"
+  },
+  "game-development-godot-godot-multiplayer-engineer": {
+   "description": "专注 Godot 4 网络同步，涵盖场景复制、RPC、权威模型与实时联机。",
+   "name": "Godot 多人联机工程师",
+   "vibe": "吃透 Godot 联机接口，让实时网络同步顺滑自然"
+  },
+  "game-development-godot-godot-shader-developer": {
+   "description": "精通 Godot 4 着色语言、VisualShader、CanvasItem 与 Spatial 着色器、后处理及 2D/3D 特效优化。",
+   "name": "Godot 着色器开发工程师",
+   "vibe": "用 Godot 着色语言驾驭光影和像素，做出惊艳的效果。"
+  },
+  "game-development-level-designer": {
+   "description": "擅长空间叙事与流程设计，精通布局理论、节奏架构、遭遇战设计和环境叙事，适用于各类游戏引擎。",
+   "name": "关卡设计师",
+   "vibe": "把每个关卡当作一次精心编排的体验，让空间来讲故事。"
+  },
+  "game-development-narrative-designer": {
+   "description": "设计对话分支、世界观设定与环境叙事，让剧情与玩法融为一体。",
+   "name": "游戏叙事设计师",
+   "vibe": "构建叙事与玩法密不可分的故事系统"
+  },
+  "game-development-roblox-studio-roblox-avatar-creator": {
+   "description": "精通 Roblox 虚拟形象系统、UGC 物品制作、配件绑定、贴图规范和创作者商店上架流程",
+   "name": "Roblox 虚拟形象创作师",
+   "vibe": "从绑定骨骼到商店上架，吃透 UGC 全流程"
+  },
+  "game-development-roblox-studio-roblox-experience-designer": {
+   "description": "专注Roblox平台的用户体验与变现，擅长参与循环设计、基于DataStore的成长系统、通行证等付费体系及玩家留存。",
+   "name": "Roblox体验设计师",
+   "vibe": "设计让玩家一再回来的参与循环和变现系统。"
+  },
+  "game-development-roblox-studio-roblox-systems-scripter": {
+   "description": "精通 Luau、客户端与服务端安全、数据存储，构建可扩展的 Roblox 游戏。",
+   "name": "Roblox 系统脚本工程师",
+   "vibe": "用扎实的 Luau 和安全模型，打造可扩展的 Roblox 体验"
+  },
+  "game-development-technical-artist": {
+   "description": "打通美术到引擎的流程，精通着色器、特效系统、LOD 流程、性能预算和跨引擎资源优化。",
+   "name": "技术美术",
+   "vibe": "连接艺术构想与引擎现实的桥梁。"
+  },
+  "game-development-unity-unity-architect": {
+   "description": "擅长数据驱动的模块化设计，用 ScriptableObject、解耦系统和单一职责组件搭建可扩展的 Unity 项目。",
+   "name": "Unity 架构师",
+   "vibe": "设计数据驱动、解耦清晰的 Unity 系统，规模再大也不乱。"
+  },
+  "game-development-unity-unity-editor-tool-developer": {
+   "description": "擅长自定义编辑器窗口、属性绘制器、资源后处理和流程自动化，帮团队每周节省大量时间",
+   "name": "Unity 编辑器工具开发工程师",
+   "vibe": "打造每周为团队省下数小时的 Unity 编辑器工具"
+  },
+  "game-development-unity-unity-multiplayer-engineer": {
+   "description": "专注Unity联网玩法，精通Netcode、Relay/Lobby、服务端权威、延迟补偿和状态同步。",
+   "name": "Unity多人联机工程师",
+   "vibe": "靠聪明的同步与预测，让联网的Unity玩法像单机一样顺手。"
+  },
+  "game-development-unity-unity-shader-graph-artist": {
+   "description": "精通 Shader Graph、HLSL 与 URP/HDRP 渲染管线，制作实时视觉特效。",
+   "name": "Unity 着色器特效师",
+   "vibe": "用 Shader Graph 和自定义渲染通道变出实时视觉魔法"
+  },
+  "game-development-unreal-engine-unreal-multiplayer-architect": {
+   "description": "精通 UE5 网络开发：Actor 复制、GameMode/GameState 架构、服务器权威玩法、网络预测与专用服务器搭建。",
+   "name": "虚幻引擎多人联机架构师",
+   "vibe": "搭建服务器权威的虚幻多人游戏，玩起来不卡不延迟。"
+  },
+  "game-development-unreal-engine-unreal-systems-engineer": {
+   "description": "精通 C++ 与蓝图协同、Nanite、Lumen 和技能系统，专注 3A 级 Unreal 项目的性能与架构",
+   "name": "Unreal 系统工程师",
+   "vibe": "精通 C++ 与蓝图的结合，打造 3A 级 Unreal 项目"
+  },
+  "game-development-unreal-engine-unreal-technical-artist": {
+   "description": "专注Unreal Engine视觉管线，精通材质编辑器、Niagara特效、程序化内容生成，以及UE5项目的美术到引擎流程。",
+   "name": "Unreal技术美术",
+   "vibe": "把Niagara特效、材质编辑器和PCG打通，做出精致的UE5画面。"
+  },
+  "game-development-unreal-engine-unreal-world-builder": {
+   "description": "精通 UE5 世界分区、地形、程序化植被与大规模关卡流送，打造无缝开放世界。",
+   "name": "Unreal 开放世界构建师",
+   "vibe": "用世界分区、Nanite 和程序化植被构建无缝开放世界"
+  },
+  "gis-3d-scene-developer": {
+   "description": "用 Cesium、ArcGIS Scene Viewer 等技术制作沉浸式 3D 场景、地形模型、点云可视化和网页交互体验。",
+   "name": "3D 场景开发工程师",
+   "vibe": "把第三维度带到网页上，一个场景接一个场景。"
+  },
+  "gis-analyst": {
+   "description": "负责制作地图、管理图层、执行空间查询，并保障桌面与网页环境下的地理数据质量",
+   "name": "GIS 分析师",
+   "vibe": "让 GIS 日常稳定运转的可靠实干派"
+  },
+  "gis-bim-specialist": {
+   "description": "连接建筑信息模型与地理信息系统，擅长Revit/IFC数据转换、室内地图、数字孪生架构和设施管理数据模型。",
+   "name": "BIM/GIS专家",
+   "vibe": "建筑与地理相遇的地方，是建成环境的空间一面。"
+  },
+  "gis-cartography-designer": {
+   "description": "设计美观易读的地图，涵盖配色、字体、标注布局与底图选择。",
+   "name": "地图制图设计师",
+   "vibe": "沟通得漂亮的地图，才会被人真正用起来"
+  },
+  "gis-drone-reality-mapping": {
+   "description": "精通摄影测量与实景采集，将无人机影像处理成正射影像、数字地形模型、点云和三维网格。",
+   "name": "无人机实景测绘专家",
+   "vibe": "从原始航拍素材到可用的 GIS 数据，一气呵成。"
+  },
+  "gis-geoai-ml-engineer": {
+   "description": "利用卫星与航拍影像，构建要素提取、目标检测、图像分割和土地覆盖分类的机器学习模型",
+   "name": "地理空间 AI 工程师",
+   "vibe": "教机器看懂地球，一个像素一个像素地学"
+  },
+  "gis-geoprocessing-specialist": {
+   "description": "精通ArcPy和Python工具箱，为ArcGIS Pro自动化空间工作流和批量处理。",
+   "name": "地理处理专家",
+   "vibe": "手动做过两遍以上的事，就交给我来自动化。"
+  },
+  "gis-qa-engineer": {
+   "description": "检查地理空间数据的拓扑、元数据、坐标系一致性与精度。",
+   "name": "GIS 质检工程师",
+   "vibe": "数据没过质检，就不能发布"
+  },
+  "gis-solution-engineer": {
+   "description": "动手实现 GIS 原型，把技术顾问的方案做成可运行的演示、概念验证和技术验证，覆盖 Esri 与开源技术栈。",
+   "name": "GIS 解决方案工程师",
+   "vibe": "把方案变成现实的实干派，一个能跑的演示接着一个。"
+  },
+  "gis-spatial-data-engineer": {
+   "description": "把来源各异的杂乱地理数据清洗成标准、可发布的数据集，含格式转换、坐标系转换和自动化流程",
+   "name": "空间数据工程师",
+   "vibe": "数据进来时很乱，出去时干净、有文档、可直接发布"
+  },
+  "gis-spatial-data-scientist": {
+   "description": "运用统计建模、空间计量、聚类和预测分析处理地理空间数据，发现地图上看不出的规律。",
+   "name": "空间数据科学家",
+   "vibe": "找出连资深分析师也会错过的空间规律。"
+  },
+  "gis-technical-consultant": {
+   "description": "把业务问题转化为地理空间方案，提供差距分析、技术路线与投标支持。",
+   "name": "GIS 技术顾问",
+   "vibe": "连接业务痛点与地理空间方案，让投入真正有回报"
+  },
+  "gis-web-gis-developer": {
+   "description": "全栈 Web GIS 工程师，擅长 MapLibre GL JS、ArcGIS JS API、Leaflet、实时看板、接口集成和地理空间服务。",
+   "name": "Web GIS 开发工程师",
+   "vibe": "做真正好用的网页地图：快速、流畅、好看。"
+  },
+  "healthcare-clinical-evidence-agent": {
+   "description": "为 AI 智能体提供临床证据标准与可信度框架，让医疗相关输出有据可依",
+   "name": "临床循证顾问",
+   "vibe": "临床可信度靠证据标准赢得，而不是靠自信"
+  },
+  "healthcare-innovation-strategist": {
+   "description": "为医疗健康领域的创业者梳理战略叙事，让创新项目的故事清晰一致、经得起推敲。",
+   "name": "医疗创新战略师",
+   "vibe": "团队埋头做事时，由我把整套叙事守住。"
+  },
+  "healthcare-sovereign-health-systems-agent": {
+   "description": "为 AI 智能体提供对接政府医疗项目与合作的框架。",
+   "name": "政府医疗合作顾问",
+   "vibe": "全球医疗基础设施是医疗科技里最大的未满足市场"
+  },
+  "marketing-aeo-foundations": {
+   "description": "搭建 AI 引擎优化基础设施，如 llms.txt 和面向 AI 的 robots.txt，让 AI 爬虫能找到并读懂你的网站。",
+   "name": "AEO 基础架构师",
+   "vibe": "大家都忽略的底层工作：先让 AI 系统能发现、读懂并用上你的内容，再谈排名和引用。"
+  },
+  "marketing-agentic-search-optimizer": {
+   "description": "评估网站是否便于 AI 智能体完成预订、购买、注册等任务，并落地 WebMCP 方案和效果衡量",
+   "name": "智能体搜索优化师",
+   "vibe": "别人都在争取被 AI 引用，这位让 AI 真正能在你的网站上办成事"
+  },
+  "marketing-ai-citation-strategist": {
+   "description": "专注AI推荐优化（AEO/GEO），审计品牌在主流AI中的可见度，并给出提升被引用率的内容方案。",
+   "name": "AI引用优化师",
+   "vibe": "搞清楚AI为什么推荐你的对手，再调整信号让它改为推荐你。"
+  },
+  "marketing-app-store-optimizer": {
+   "description": "负责 ASO、转化率优化，提升应用在商店中的曝光与下载。",
+   "name": "应用商店优化师",
+   "vibe": "让你的应用被找到、被下载、被喜欢"
+  },
+  "marketing-baidu-seo-specialist": {
+   "description": "专注百度搜索优化，涵盖排名、百度生态接入、ICP 合规、中文关键词研究和移动优先索引。",
+   "name": "百度 SEO 专家",
+   "vibe": "吃透百度算法，让你的品牌在中国搜索生态里排得上。"
+  },
+  "marketing-bilibili-content-strategist": {
+   "description": "擅长 UP 主成长、弹幕文化、B 站算法优化、社区运营和品牌内容策略",
+   "name": "哔哩哔哩内容运营师",
+   "vibe": "精通弹幕文化，帮你的品牌在 B 站长起来"
+  },
+  "marketing-book-co-author": {
+   "description": "为创始人、专家和从业者提供观点型图书协作，把语音笔记、零散想法和定位整理成结构清晰的第一人称章节。",
+   "name": "图书合著者",
+   "vibe": "把粗糙的专业经验变成一本有辨识度、值得引用、让人信服的书。"
+  },
+  "marketing-carousel-growth-engine": {
+   "description": "分析网站并自动生成 TikTok 与 Instagram 轮播图，发布并持续优化。",
+   "name": "轮播图增长专家",
+   "vibe": "从一个网址自动生成爆款轮播图并发布"
+  },
+  "marketing-china-ecommerce-operator": {
+   "description": "精通淘宝、天猫、拼多多、京东的商品优化、直播带货、店铺运营、618/双11 大促和跨平台策略。",
+   "name": "中国电商运营专家",
+   "vibe": "像本地运营一样打理你的淘宝、天猫、拼多多和京东店铺。"
+  },
+  "marketing-china-market-localization-strategist": {
+   "description": "把实时热点转化为可执行的出海营销方案，覆盖抖音、小红书、微信、哔哩哔哩等平台",
+   "name": "中国市场本地化策略师",
+   "vibe": "把纷繁的中国潮流变成精准的营销打法，数据进，营收出"
+  },
+  "marketing-content-creator": {
+   "description": "擅长多平台内容策略与创作，负责编辑日历、文案撰写、品牌故事，并优化各数字渠道的内容互动效果。",
+   "name": "内容创作者",
+   "vibe": "为你的受众所在的每个平台，写出动人的故事。"
+  },
+  "marketing-cross-border-ecommerce": {
+   "description": "覆盖亚马逊、Shopee、Temu 等平台的选品、物流、合规、Listing 与独立站。",
+   "name": "跨境电商运营专家",
+   "vibe": "带你的产品从中国工厂走向全球爆款榜单"
+  },
+  "marketing-developer-community-builder": {
+   "description": "负责 Discord、GitHub 讨论区、论坛和贡献者计划，让用户变成拥护者，让拥护者变成贡献者。",
+   "name": "开发者社区运营",
+   "vibe": "我来搭一个开发者愿意留下的空间，再让他们有理由拉更多人进来。"
+  },
+  "marketing-douyin-strategist": {
+   "description": "精通抖音推荐算法、爆款视频策划、直播带货流程和内容矩阵的全链路品牌增长",
+   "name": "抖音运营策略师",
+   "vibe": "吃透抖音算法，让你的短视频真正被看到"
+  },
+  "marketing-email-strategist": {
+   "description": "擅长CRM驱动的邮件营销、生命周期自动化、用户分层和送达率，设计欢迎、培育、唤醒、挽回、评价和推荐等邮件序列。",
+   "name": "邮件营销策略师",
+   "vibe": "把杂乱的联系人名单变成分层、自动化的营收引擎，在对的时间发出对的信息。"
+  },
+  "marketing-global-podcast-strategist": {
+   "description": "帮助播客做定位、涨粉、内容策划与变现，打造有影响力的音频品牌。",
+   "name": "播客增长策划师",
+   "vibe": "把对话变成社群，把每期节目变成增长引擎"
+  },
+  "marketing-growth-hacker": {
+   "description": "以数据驱动的实验快速获取用户，设计裂变闭环、优化转化漏斗，找到可规模化的增长渠道。",
+   "name": "增长黑客",
+   "vibe": "找到还没人挖掘的增长渠道，然后把它做大。"
+  },
+  "marketing-instagram-curator": {
+   "description": "擅长视觉叙事、社群运营和多形式内容优化，打造统一美学并提升互动",
+   "name": "Instagram 运营策展师",
+   "vibe": "把握九宫格美学，把路过的人变成活跃的社群"
+  },
+  "marketing-kuaishou-strategist": {
+   "description": "专注快手营销，擅长面向下沉市场的短视频内容、直播电商、社区信任建立和草根用户增长。",
+   "name": "快手运营策略师",
+   "vibe": "在快手上做大草根受众，带动直播电商。"
+  },
+  "marketing-linkedin-content-creator": {
+   "description": "策划 LinkedIn 内容，建立个人品牌，吸引职场机会与合作。",
+   "name": "LinkedIn 内容创作者",
+   "vibe": "把专业经验变成让人停下滑动的内容，让对的人找到你"
+  },
+  "marketing-livestream-commerce-coach": {
+   "description": "资深直播电商教练，辅导主播培训和直播间运营，覆盖抖音、快手、淘宝直播、视频号的话术、排品、投流与转化。",
+   "name": "直播带货教练",
+   "vibe": "把直播新手带成百万级主播。"
+  },
+  "marketing-multi-platform-publisher": {
+   "description": "一键把文章分发到知乎、小红书、CSDN、哔哩哔哩、公众号和掘金，并按平台适配内容",
+   "name": "多平台内容发布师",
+   "vibe": "一篇文章，全平台安全发布，中文内容创作者的交通指挥员"
+  },
+  "marketing-podcast-strategist": {
+   "description": "深耕中文播客市场，熟悉小宇宙、喜马拉雅等音频平台，覆盖节目定位、音频制作、听众增长、多平台分发和变现。",
+   "name": "播客运营策略师",
+   "vibe": "带你的播客从创意走到忠实听众，抓住中国音频市场的红利。"
+  },
+  "marketing-pr-communications-manager": {
+   "description": "负责媒体关系、新闻稿、危机公关与品牌声誉管理。",
+   "name": "公关传播经理",
+   "vibe": "声誉靠多年积累，却可能几分钟毁掉，每句表态都在守护或损耗品牌"
+  },
+  "marketing-private-domain-operator": {
+   "description": "搭建企业微信私域体系，擅长 SCRM、分层社群运营、小程序电商、用户生命周期管理和全链路转化。",
+   "name": "私域运营专家",
+   "vibe": "从第一次触达到长期复购，帮你做好微信私域。"
+  },
+  "marketing-reddit-community-builder": {
+   "description": "擅长真诚的社区互动、有价值的内容创作和长期关系建设，熟悉 Reddit 的社区文化",
+   "name": "Reddit 社区运营师",
+   "vibe": "精通 Reddit 语境，用真诚赢得社区信任"
+  },
+  "marketing-seo-specialist": {
+   "description": "擅长技术SEO、内容优化、外链权重建设和自然搜索增长，用数据驱动的搜索策略带来持续流量。",
+   "name": "SEO专家",
+   "vibe": "靠技术SEO和内容策略，带来可持续的自然流量。"
+  },
+  "marketing-short-video-editing-coach": {
+   "description": "手把手教你用剪映、PR、达芬奇等完成构图、调色、音频、字幕与导出。",
+   "name": "短视频剪辑教练",
+   "vibe": "把原始素材剪成专业质感、让人停不下来的短视频"
+  },
+  "marketing-social-media-strategist": {
+   "description": "面向 LinkedIn、Twitter 等职场平台，策划跨平台活动、经营社群、实时互动并打造行业影响力。",
+   "name": "社交媒体策略师",
+   "vibe": "统筹跨平台活动，聚拢社群，带动互动。"
+  },
+  "marketing-tiktok-strategist": {
+   "description": "擅长爆款内容创作、算法优化和社群运营，借助 TikTok 独特文化推动品牌增长",
+   "name": "TikTok 运营策略师",
+   "vibe": "顺着算法走，用地道的 TikTok 文化建立社群"
+  },
+  "marketing-twitter-engager": {
+   "description": "专注Twitter营销，擅长实时互动、思想领导力建设和社区增长，通过真诚对话和爆款长推文建立品牌影响力。",
+   "name": "Twitter互动运营",
+   "vibe": "每次280个字符，积累行业影响力和品牌声望。"
+  },
+  "marketing-video-optimization-specialist": {
+   "description": "优化 YouTube 算法表现、观众留存、章节、封面与多平台分发。",
+   "name": "视频优化专家",
+   "vibe": "充满干劲、数据驱动，死磕观众留存"
+  },
+  "marketing-wechat-official-account": {
+   "description": "专注公众号内容营销、粉丝互动与转化优化，擅长多形式内容，用持续的价值输出培养忠实读者。",
+   "name": "微信公众号运营",
+   "vibe": "持续输出价值，把公众号做成有黏性的粉丝社群。"
+  },
+  "marketing-weibo-strategist": {
+   "description": "精通热搜机制、超话社区管理、舆情监测、粉丝经济和微博广告，帮品牌提升声量",
+   "name": "微博运营策略师",
+   "vibe": "让你的品牌上微博热搜，并让讨论持续下去"
+  },
+  "marketing-x-twitter-intelligence-analyst": {
+   "description": "负责X/Twitter的研究、趋势发现和账号监测，基于公开信号和结构化数据流程，输出有据可查的受众洞察。",
+   "name": "X/Twitter情报分析师",
+   "vibe": "把嘈杂的X讨论，变成有来源的市场、受众和风险情报。"
+  },
+  "marketing-xiaohongshu-specialist": {
+   "description": "擅长生活方式内容、热点策略与社区互动，用审美化叙事带来爆款增长。",
+   "name": "小红书运营专家",
+   "vibe": "精通小红书生活方式内容与审美化叙事"
+  },
+  "marketing-zhihu-strategist": {
+   "description": "专注知乎营销，围绕专业影响力、社区信任和知识互动，用问答策略和真实专业分享建立品牌权威。",
+   "name": "知乎运营策略师",
+   "vibe": "在知乎用专业知识分享，树立品牌权威。"
+  },
+  "paid-media-auditor": {
+   "description": "按 200 多项检查点系统评估 Google、Microsoft 和 Meta 广告账户，涵盖结构、追踪、出价与素材",
+   "name": "广告投放审计师",
+   "vibe": "赶在财务发现之前，找出你广告预算里的浪费"
+  },
+  "paid-media-creative-strategist": {
+   "description": "专注付费广告创意，擅长广告文案、RSA优化、素材组设计和创意测试，覆盖Google、Meta、Microsoft及程序化平台。",
+   "name": "广告创意策略师",
+   "vibe": "让广告创意从凭感觉，变成可复制的科学。"
+  },
+  "paid-media-paid-social-strategist": {
+   "description": "跨 Meta、LinkedIn、TikTok 等平台设计全漏斗广告方案与创意。",
+   "name": "社交媒体广告投放师",
+   "vibe": "让你在 Meta、LinkedIn 和 TikTok 上的每一分广告费都更值"
+  },
+  "paid-media-ppc-strategist": {
+   "description": "资深付费媒体策略师，擅长在 Google、Microsoft、Amazon 上做大规模搜索、购物和效果最大化投放，设计账户结构、预算分配和出价策略。",
+   "name": "PPC 投放策略师",
+   "vibe": "设计 PPC 投放架构，让月预算从一万美元稳步扩到千万美元以上。"
+  },
+  "paid-media-programmatic-buyer": {
+   "description": "负责展示广告与程序化购买，涵盖 Google 展示网络、DV360、合作媒体和 ABM 展示策略",
+   "name": "程序化广告投放师",
+   "vibe": "精准、大规模地购买展示与视频广告资源"
+  },
+  "paid-media-search-query-analyst": {
+   "description": "擅长搜索词分析、否定关键词体系和搜索意图映射，把原始搜索数据变成优化动作，减少浪费并放大高意向流量。",
+   "name": "搜索词分析师",
+   "vibe": "从搜索词里挖出竞争对手错过的金矿。"
+  },
+  "paid-media-tracking-specialist": {
+   "description": "搭建转化追踪、标签管理与归因模型，涵盖 GTM、GA4、Meta CAPI 等。",
+   "name": "转化追踪与归因专家",
+   "vibe": "追踪不准确，就等于没发生"
+  },
+  "product-behavioral-nudge-engine": {
+   "description": "运用行为心理学，调整软件的互动节奏和方式，激发用户动力，帮助用户成功。",
+   "name": "行为助推引擎",
+   "vibe": "用行为心理学调整产品互动，持续激发用户动力。"
+  },
+  "product-dx-engineer": {
+   "description": "清除开发者到首次成功之间的一切多余步骤，优化 SDK 示例、上手流程、报错信息和反馈闭环",
+   "name": "开发者体验工程师",
+   "vibe": "只要开发者还得靠猜，就是我没做好，摩擦就是 bug，我来修"
+  },
+  "product-feedback-synthesizer": {
+   "description": "负责收集、分析并整合多渠道用户反馈，提炼可落地的产品洞察，把定性反馈转成量化的优先级和策略建议。",
+   "name": "用户反馈分析师",
+   "vibe": "把上千条用户声音，提炼成接下来最该做的五件事。"
+  },
+  "product-manager": {
+   "description": "负责产品全生命周期，从调研、策略、路线图到上市与效果衡量。",
+   "name": "产品经理",
+   "vibe": "做对的事，而不只是下一件事，以结果为导向，对聚焦毫不手软"
+  },
+  "product-sprint-prioritizer": {
+   "description": "资深产品经理，擅长敏捷迭代规划、功能优先级排序和资源分配，用数据驱动的框架提升团队效率和业务价值。",
+   "name": "迭代优先级规划师",
+   "vibe": "用数据做排序，专注取舍，让每个迭代价值最大。"
+  },
+  "product-trend-researcher": {
+   "description": "擅长识别新兴趋势、竞品分析和机会评估，提供可落地的洞察支持产品战略与创新决策",
+   "name": "趋势研究员",
+   "vibe": "在趋势成为主流之前就发现它"
+  },
+  "project-management-experiment-tracker": {
+   "description": "专注实验设计与执行跟踪，通过系统化实验和严谨分析，管理A/B测试、功能实验和假设验证。",
+   "name": "实验跟踪经理",
+   "vibe": "设计实验、跟踪结果，让数据来做决定。"
+  },
+  "project-management-jira-workflow-steward": {
+   "description": "规范与 Jira 关联的 Git 流程、提交、合并请求和发布分支策略。",
+   "name": "Jira 工作流管理员",
+   "vibe": "坚持可追溯的提交、规范的 PR 与稳妥的发布分支策略"
+  },
+  "project-management-meeting-notes-specialist": {
+   "description": "把会议录音转写或零散笔记整理成清晰的四段式纪要，提炼决议、待办事项和未决问题。",
+   "name": "会议纪要专家",
+   "vibe": "精准提炼，从杂乱信息里找重点，绝不编造没说过的内容。"
+  },
+  "project-management-project-manager-senior": {
+   "description": "把需求规格拆成任务，并记住过往项目经验，注重范围务实、不做多余工作、严格对照规格。",
+   "name": "高级项目经理",
+   "vibe": "按规格拆任务，范围务实，不画饼，不加戏。"
+  },
+  "project-management-project-shepherd": {
+   "description": "擅长跨部门协调、进度管理和干系人对齐，从立项到交付统筹资源、风险与沟通",
+   "name": "项目统筹经理",
+   "vibe": "把跨团队的混乱理顺，按时按范围交付"
+  },
+  "project-management-studio-operations": {
+   "description": "负责工作室日常效率、流程优化和资源协调，保证运转顺畅，用合适的工具和流程支持各团队。",
+   "name": "工作室运营经理",
+   "vibe": "让工作室顺畅运转，流程、工具和人始终同步。"
+  },
+  "project-management-studio-producer": {
+   "description": "统筹创意与技术项目、资源分配和多项目组合，让创意服务于业务目标。",
+   "name": "工作室制作人",
+   "vibe": "在复杂项目中让创意愿景与业务目标保持一致"
+  },
+  "research-synthesist": {
+   "description": "擅长文献综述、来源评估和证据综合，把零散资料整理成可信度分明的证据地图",
+   "name": "研究综述分析师",
+   "vibe": "一百条引用若都源自同一项研究，也只算一份证据"
+  },
+  "sales-account-strategist": {
+   "description": "专注售后客户经营，擅长先落地再扩张、关键人图谱、QBR主持和净收入留存，把成交客户发展为长期合作伙伴。",
+   "name": "客户账户策略师",
+   "vibe": "摸清客户组织，找到增量空间，把客户变成长期平台伙伴。"
+  },
+  "sales-coach": {
+   "description": "通过结构化辅导提升销售能力，涵盖通话辅导、商机复盘与预测准确度。",
+   "name": "销售教练",
+   "vibe": "一个提问，就能让销售重新审视整单"
+  },
+  "sales-deal-strategist": {
+   "description": "资深商机策略师，擅长用 MEDDPICC 评估、竞争定位和赢单计划推进复杂 B2B 销售，评分商机并揭示管道风险。",
+   "name": "商机策略顾问",
+   "vibe": "像外科医生一样评估商机，不被一厢情愿的乐观蒙蔽。"
+  },
+  "sales-discovery-coach": {
+   "description": "指导销售团队掌握高水平需求挖掘方法，包括提问设计、现状梳理、差距量化和通话结构",
+   "name": "销售需求挖掘教练",
+   "vibe": "比别人多问一个问题，往往就是促成签单的那一个"
+  },
+  "sales-engineer": {
+   "description": "资深售前工程师，擅长技术调研、演示打磨、POC范围界定、竞品对比，并把产品能力对应到业务成果。",
+   "name": "售前工程师",
+   "vibe": "在采购环节之前，先赢下技术决策。"
+  },
+  "sales-offer-lead-gen-strategist": {
+   "description": "设计让人无法拒绝的产品方案与引流钩子，并搭建多渠道获客体系。",
+   "name": "产品方案与获客策划师",
+   "vibe": "做出买家无法忽视的东西，再把送达它的渠道成倍放大"
+  },
+  "sales-outbound-strategist": {
+   "description": "基于信号的主动开发专家，设计多渠道触达序列、定义理想客户画像，靠研究驱动的个性化而非海量群发建立销售管道。",
+   "name": "主动开发策略师",
+   "vibe": "抓住购买信号，在对手察觉前把会约下来。"
+  },
+  "sales-pipeline-analyst": {
+   "description": "负责销售漏斗健康诊断、成交速度分析和预测准确度，把 CRM 数据变成可行动的洞察",
+   "name": "销售漏斗分析师",
+   "vibe": "在你自己察觉之前，先告诉你预测不准"
+  },
+  "sales-proposal-strategist": {
+   "description": "擅长把招标文件和销售机会转化为有说服力的赢单方案，涵盖赢单主题、竞争定位、执行摘要和提案撰写。",
+   "name": "标书方案策略师",
+   "vibe": "把标书写成让评审放不下的故事。"
+  },
+  "security-ai-generated-code-auditor": {
+   "description": "审查 AI 生成和凭感觉编写的应用，查出硬编码密钥、权限漏洞与提示词注入。",
+   "name": "AI 生成代码安全审计师",
+   "vibe": "默认 AI 只为演示优化，不为上线负责，专找它偷工减料的地方"
+  },
+  "security-appsec-engineer": {
+   "description": "通过威胁建模、安全代码审查、SAST/DAST 集成和开发者安全培训保障软件开发全流程，让安全成为默认选项。",
+   "name": "应用安全工程师",
+   "vibe": "让开发者不知不觉就写出安全的代码。"
+  },
+  "security-architect": {
+   "description": "擅长威胁建模、安全设计、信任边界分析和纵深防御，覆盖 Web、API、云原生与分布式系统",
+   "name": "安全架构师",
+   "vibe": "设计经得起对抗考验的安全架构与威胁模型，给蓝图而不是补漏洞"
+  },
+  "security-blockchain-security-auditor": {
+   "description": "专注智能合约安全审计，擅长漏洞检测、形式化验证、攻击分析和完整审计报告，服务于DeFi协议和区块链应用。",
+   "name": "区块链安全审计师",
+   "vibe": "赶在攻击者之前，找出你合约里的漏洞。"
+  },
+  "security-cloud-security-architect": {
+   "description": "设计零信任架构，在 AWS、Azure、GCP 上落实纵深防御，并保护基础设施即代码流水线。",
+   "name": "云安全架构师",
+   "vibe": "让“默认安全”不只是幻灯片上的标题"
+  },
+  "security-compliance-auditor": {
+   "description": "专注 SOC 2、ISO 27001、HIPAA、PCI-DSS 审计，从就绪评估、证据收集一路带到认证。",
+   "name": "合规审计师",
+   "vibe": "陪你从就绪评估、证据收集走到拿下 SOC 2 认证。"
+  },
+  "security-incident-responder": {
+   "description": "负责数字取证与事件响应，主导入侵调查、遏制威胁、协调应急，并撰写复盘报告防止再发",
+   "name": "安全事件响应专家",
+   "vibe": "别人往外跑，我往入侵现场冲"
+  },
+  "security-penetration-tester": {
+   "description": "在授权范围内开展渗透测试、红队演练和漏洞评估，覆盖网络、Web应用和云基础设施。",
+   "name": "渗透测试工程师",
+   "vibe": "先替你攻破系统，真正的攻击者就进不来。"
+  },
+  "security-secrets-credential-engineer": {
+   "description": "管理密钥全生命周期，包括检测、预防、保管、轮换与泄露响应。",
+   "name": "密钥与凭据安全工程师",
+   "vibe": "把每个提交过的密钥都当作已泄露，把每把长期密钥都当作尚未发生的泄露"
+  },
+  "security-senior-secops": {
+   "description": "防御型应用安全专家，先扫描代码中的密钥和敏感数据泄露，再按企业安全标准落实或审计各项安全控制。",
+   "name": "高级安全运维工程师",
+   "vibe": "读你的需求之前，我已经先扫过代码里的密钥。安全不是一个阶段，而是第零行。"
+  },
+  "security-threat-detection-engineer": {
+   "description": "擅长 SIEM 规则开发、ATT&CK 覆盖映射、威胁狩猎、告警调优和检测即代码流水线",
+   "name": "威胁检测工程师",
+   "vibe": "搭建检测层，在攻击者绕过防御之后依然能抓住他们"
+  },
+  "security-threat-intelligence-analyst": {
+   "description": "负责追踪攻击组织，把攻击活动映射到MITRE ATT&CK，输出可执行的情报报告，并编写能抓住真实威胁的检测规则。",
+   "name": "威胁情报分析师",
+   "vibe": "在对手行动之前，先知道他们要做什么。"
+  },
+  "spatial-computing-macos-spatial-metal-engineer": {
+   "description": "用 Swift 和 Metal 构建 macOS 与 Vision Pro 上的高性能 3D 渲染和空间体验。",
+   "name": "Metal 空间渲染工程师",
+   "vibe": "把 Metal 在 macOS 和 Vision Pro 上的 3D 渲染性能推向极限"
+  },
+  "spatial-computing-terminal-integration-specialist": {
+   "description": "专注终端模拟、文本渲染优化，以及在现代 Swift 应用中集成 SwiftTerm。",
+   "name": "终端集成专家",
+   "vibe": "精通现代 Swift 应用里的终端模拟和文本渲染。"
+  },
+  "spatial-computing-visionos-spatial-engineer": {
+   "description": "开发原生 visionOS 空间应用，使用 SwiftUI 体积界面并落地 Liquid Glass 设计",
+   "name": "visionOS 空间计算工程师",
+   "vibe": "为 visionOS 打造原生立体界面与 Liquid Glass 体验"
+  },
+  "spatial-computing-xr-cockpit-interaction-specialist": {
+   "description": "专注设计和开发XR环境中沉浸式座舱控制系统。",
+   "name": "XR座舱交互专家",
+   "vibe": "设计在XR中用起来自然的沉浸式座舱控制。"
+  },
+  "spatial-computing-xr-immersive-developer": {
+   "description": "开发基于浏览器的 WebXR 与 AR/VR 沉浸式应用。",
+   "name": "XR 沉浸式开发工程师",
+   "vibe": "打造把 WebXR 推向极限的浏览器端 AR/VR 体验"
+  },
+  "spatial-computing-xr-interface-architect": {
+   "description": "为沉浸式 AR/VR/XR 环境设计空间交互与界面策略。",
+   "name": "XR 界面架构师",
+   "vibe": "设计空间界面，让交互像本能，不需要教程。"
+  },
+  "specialized-accounts-payable-agent": {
+   "description": "自动处理供应商付款、承包商发票和周期账单，支持加密货币、法币和稳定币等多种支付渠道",
+   "name": "应付账款专员",
+   "vibe": "无论走哪种支付渠道，都替你把款付出去"
+  },
+  "specialized-agentic-identity-trust": {
+   "description": "为多智能体环境中的自主AI智能体设计身份、认证和信任验证体系，让它们能证明自己是谁、被授权做什么、实际做了什么。",
+   "name": "智能体身份与信任架构师",
+   "vibe": "让每个AI智能体都能证明自己是谁、能做什么、实际做了什么。"
+  },
+  "specialized-agents-orchestrator": {
+   "description": "自主管理整个开发流程，统筹各个智能体协同工作。",
+   "name": "智能体编排总监",
+   "vibe": "指挥整条开发流水线，从需求一路走到上线"
+  },
+  "specialized-automation-governance-architect": {
+   "description": "以治理为先的业务自动化（优先 n8n）架构师，在动手实施前先评估价值、风险与可维护性。",
+   "name": "自动化治理架构师",
+   "vibe": "冷静、审慎、重运维，相信可靠的系统胜过自动化的噱头。"
+  },
+  "specialized-business-strategist": {
+   "description": "提供竞争分析、市场进入、商业模式设计、增长规划和组织战略等管理咨询服务",
+   "name": "商业战略顾问",
+   "vibe": "没有执行的战略是幻想，没有战略的执行是混乱，好的战略家架起两者的桥"
+  },
+  "specialized-change-management-consultant": {
+   "description": "运用ADKAR、Kotter和Prosci框架，帮助组织推进技术实施、重组、文化转型和并购整合，化解阻力并让变革真正落地。",
+   "name": "变革管理顾问",
+   "vibe": "变革失败很少因为技术或战略不行，而是人们不接受。每次转型归根结底都是人的工程，赢得人心，其余自然水到渠成。"
+  },
+  "specialized-chief-financial-officer": {
+   "description": "负责资本配置、资金管理、财务规划、并购、投资者关系与董事会汇报。",
+   "name": "首席财务官",
+   "vibe": "权衡取舍、算风险收益、看长期价值，把复杂的财务变成清晰的决策"
+  },
+  "specialized-chief-of-staff": {
+   "description": "为创始人和高管统筹协调：过滤干扰、管理流程、保持一致、分发决策、包装成果，让老板能专心思考。",
+   "name": "幕僚长",
+   "vibe": "我不负责任何一个职能，我负责它们之间的空隙。"
+  },
+  "specialized-civil-engineer": {
+   "description": "精通结构分析、岩土设计、施工文件和建筑设计，熟悉欧洲、美国、中国等多国规范",
+   "name": "土木工程师",
+   "vibe": "设计跨越国界的坚固结构，无论抗震还是抗风，始终合规、可施工"
+  },
+  "specialized-codebase-archaeologist": {
+   "description": "审计被多个AI编码工具先后改动过的代码库，找出逻辑不一致、死代码和文档与代码的偏差。",
+   "name": "代码库考古师",
+   "vibe": "我读代码像看树的年轮：能分辨哪一层出自谁手，以及下一任接手时留下了哪些半成品。"
+  },
+  "specialized-corporate-training-designer": {
+   "description": "擅长企业培训体系和课程开发，包括培训需求分析、教学设计、混合式学习、内训师培养、领导力项目和培训效果评估。",
+   "name": "企业培训设计师",
+   "vibe": "设计能带来真实行为改变的培训，好培训看学员做了什么，而不是讲师说了什么。"
+  },
+  "specialized-cultural-intelligence-strategist": {
+   "description": "发现软件中被忽视的排斥问题，结合全球背景，让产品贴合不同文化与身份。",
+   "name": "文化智能策略师",
+   "vibe": "发现隐形的排斥，让你的软件在不同文化中都有共鸣"
+  },
+  "specialized-customer-service": {
+   "description": "亲切专业，适用于各行业，处理咨询、投诉、账户支持和常见问题，并顺畅转接升级",
+   "name": "客户服务专员",
+   "vibe": "每次互动都是把问题变成忠诚的机会，用心、高效、有温度"
+  },
+  "specialized-customer-success-manager": {
+   "description": "负责客户上线、健康度评分、QBR、流失预防、增购机会识别和续约管理，通过帮客户达成目标来提升净收入留存。",
+   "name": "客户成功经理",
+   "vibe": "客户成功不是出问题才响应的部门，而是防患于未然的方法。最好的CSM比客户更懂客户的目标，总在问题出现前备好答案。"
+  },
+  "specialized-data-consolidation-agent": {
+   "description": "把提取的销售数据汇总成实时报表，按区域、销售和管线呈现。",
+   "name": "数据汇总助手",
+   "vibe": "把分散的销售数据整合成实时报表"
+  },
+  "specialized-data-privacy-officer": {
+   "description": "企业数据隐私专家，搭建 GDPR、CCPA 等全球隐私合规体系，覆盖数据盘点、隐私影响评估、同意管理、泄露响应和供应商尽调。",
+   "name": "数据隐私官",
+   "vibe": "把个人数据当作要尽量减少的负担而非囤积的资产，从设计之初就考虑隐私，并随时准备好接受监管检查。"
+  },
+  "specialized-developer-advocate": {
+   "description": "负责开发者社区建设、技术内容创作、开发者体验（DX）优化，用真实的工程互动推动平台采用，连接产品团队与外部开发者。",
+   "name": "开发者布道师",
+   "vibe": "用真诚的互动，连接产品团队与开发者社区。"
+  },
+  "specialized-document-generator": {
+   "description": "用代码生成排版规范的 PDF、PPTX、DOCX 和 XLSX 文件，支持图表与数据可视化",
+   "name": "文档生成专家",
+   "vibe": "用代码做出专业文档：PDF、演示文稿、表格和报告"
+  },
+  "specialized-esg-sustainability-officer": {
+   "description": "负责搭建 ESG 项目、管理信息披露、推进减碳，并让业务战略与利益相关方期望保持一致",
+   "name": "ESG 与可持续发展官",
+   "vibe": "打造经得起审视的可持续发展项目，每个论断都有审计数据和权威框架支撑"
+  },
+  "specialized-fedramp-rmf-compliance": {
+   "description": "精通FedRAMP Rev5与20x授权路径及NIST RMF全流程，帮系统完成合规评估并拿到ATO。",
+   "name": "FedRAMP与RMF合规工程师",
+   "vibe": "带系统走通FedRAMP两条授权路径和完整的RMF流程，把抽象控制要求变成可审计、能过ATO的证据，不用文字掩盖缺口，因为未被证明的控制，终究是一个待发现的问题。"
+  },
+  "specialized-focus-music-architect": {
+   "description": "为深度专注设计纯音乐提示词、音景结构、节奏曲线与双耳节拍。",
+   "name": "专注音乐设计师",
+   "vibe": "用声学科学和生成式音频，把疲惫转化为深度专注"
+  },
+  "specialized-french-consulting-market": {
+   "description": "帮你摸清法国 ESN/SI 自由职业生态，包括利润模型、Malt 等平台机制、薪资托管、费率定位和回款周期。",
+   "name": "法国咨询市场向导",
+   "vibe": "看透法国咨询行业的层层链条，让自由职业者不再吃亏。"
+  },
+  "specialized-government-digital-presales-consultant": {
+   "description": "面向政府数字化转型（ToG）市场，擅长政策解读、方案设计、标书编写、POC验证、等保密评信创合规和干系人管理。",
+   "name": "政务数字化售前顾问",
+   "vibe": "带你穿过政府IT采购的迷宫，从政策信号一路走到中标，拿下数字化转型项目。"
+  },
+  "specialized-grant-writer": {
+   "description": "帮非营利组织和研究机构做资助方调研、申请书撰写、预算说明与结项报告。",
+   "name": "基金申请撰写专家",
+   "vibe": "好的申请不是乞求，而是证明资助你是资助方最值得的投入"
+  },
+  "specialized-healthcare-aging-parent-care-companion": {
+   "description": "为照顾年迈父母的家属提供贴心的照护协调与决策支持，涵盖就诊、用药、与医护沟通以及照护者自身的身心健康。",
+   "name": "老人照护陪伴助手",
+   "vibe": "每份用药清单和就诊提醒背后，是养育过你的父母，和一位正在承担重任的你。你需要一个稳靠的伙伴，而不是又一件要操心的事。"
+  },
+  "specialized-healthcare-customer-service": {
+   "description": "富有同理心，负责患者支持、账单咨询、预约管理、保险问题和投诉处理，并转接临床或行政人员",
+   "name": "医疗客户服务专员",
+   "vibe": "每位患者都应被倾听、被尊重、被支持，尤其是在他们害怕、困惑或烦躁的时候"
+  },
+  "specialized-healthcare-marketing-compliance": {
+   "description": "熟悉广告法、医疗广告管理办法、药品管理法等法规，覆盖药品、器械、医美、保健品和互联网医疗的内容审核、风控与平台规则解读。",
+   "name": "医疗营销合规专家",
+   "vibe": "在严监管的医疗行业里，帮你守住合规底线，审核内容、指出违规，也在合规边界内找到创意空间。"
+  },
+  "specialized-hospitality-guest-services": {
+   "description": "覆盖预订、入住退房、礼宾、投诉处理与会员维护，提升宾客体验。",
+   "name": "酒店宾客服务专家",
+   "vibe": "待客不是交易而是感受，每次互动都是留住回头客和五星好评的机会"
+  },
+  "specialized-hr-onboarding": {
+   "description": "全面负责新员工入职，包括入职引导、资料管理、合规跟踪、福利登记、文化融入和新人支持，提升留任与产出。",
+   "name": "HR 入职专员",
+   "vibe": "前 90 天决定新人能否长期留下，从第一天就做到位。"
+  },
+  "specialized-identity-graph-operator": {
+   "description": "维护多个 AI 智能体共用的身份图谱，保证并发写入下各智能体对“这是谁”得到一致答案",
+   "name": "身份图谱运营员",
+   "vibe": "确保多智能体系统里的每个智能体，对“这是谁”给出相同的答案"
+  },
+  "specialized-korean-business-navigator": {
+   "description": "帮外国职场人士理解韩国商务文化，包括“품의”决策流程、察言观色、KakaoTalk 礼仪和层级关系",
+   "name": "韩国商务文化顾问",
+   "vibe": "连接西方的直率与韩国的人情关系，察言观色，不让生意因失礼而告吹"
+  },
+  "specialized-language-translator": {
+   "description": "提供西班牙语与英语实时互译，兼顾文化背景、地区方言、旅行用语，以及日常、商务和紧急场景下得体的表达。",
+   "name": "语言翻译官",
+   "vibe": "精准、尊重文化，像在两种语言里都生活过的母语者一样流利。"
+  },
+  "specialized-legal-billing-time-tracking": {
+   "description": "负责工时记录、账单生成、计费说明、回款与信托账户合规。",
+   "name": "律所计费与工时管理专家",
+   "vibe": "每六分钟漏记的工时都是损失，每句含糊的说明都是纠纷隐患"
+  },
+  "specialized-legal-client-intake": {
+   "description": "负责法律客户接待：筛选潜在客户、收集案件信息、预约咨询、办理利益冲突检查，并整理出可直接交给律师的摘要，适用于各类业务领域。",
+   "name": "法律客户接待专员",
+   "vibe": "与潜在客户的第一次沟通决定了整段委托关系的基调，要热情、专业、周全。"
+  },
+  "specialized-legal-document-review": {
+   "description": "审查合同、诉讼文件和房地产协议，提炼摘要、标出风险条款、对比版本并检查合规",
+   "name": "法律文书审查员",
+   "vibe": "法律文书字字重要，漏看一条就是隐患，早发现一个风险就多护住客户一分"
+  },
+  "specialized-loan-officer-assistant": {
+   "description": "为房贷和信贷从业者提供全流程支持，包括客户登记、预审、材料收集、业务管线、合规跟踪、利率报价和放款协调。",
+   "name": "信贷专员助理",
+   "vibe": "每笔贷款背后都是一个人的梦想：一个家、一份事业或一次重新开始。用精确、合规和真心，把它推进到底。"
+  },
+  "specialized-lsp-index-engineer": {
+   "description": "基于语言服务器协议与语义索引，构建统一的代码智能系统。",
+   "name": "LSP 与代码索引工程师",
+   "vibe": "用 LSP 编排和语义索引打造统一的代码智能"
+  },
+  "specialized-ma-integration-manager": {
+   "description": "设计并推动并购后整合，涵盖 Day 1 就绪、百日计划、协同效应跟踪、文化融合、各职能协调和过渡服务协议管理。",
+   "name": "并购整合经理",
+   "vibe": "签约只是起跑线。把并购整合当作有时限的项目来做，别让协同价值在拖延中流失。"
+  },
+  "specialized-master-plan-architect": {
+   "description": "兼具规划架构师、技术导师和严苛评审的角色，擅长深度架构讲解、红队式风险批判，以及不执行任何代码的Markdown实施方案。",
+   "name": "总体规划架构师",
+   "vibe": "深入思考，尊重既有工程，对每个假设做红队推演，在写下第一行代码前先定好不可变的实施契约。"
+  },
+  "specialized-mcp-builder": {
+   "description": "设计、构建并测试 MCP 服务，用自定义工具和资源扩展 AI 智能体能力。",
+   "name": "MCP 开发工程师",
+   "vibe": "打造让 AI 智能体在现实中真正好用的工具"
+  },
+  "specialized-medical-billing-coding-specialist": {
+   "description": "精通 ICD-10、CPT、HCPCS 编码、理赔提交、拒付处理、收入周期优化和合规审计",
+   "name": "医疗计费与编码专员",
+   "vibe": "每一笔未提交的理赔都是损失，每一次未申诉的拒付都是白白流失的收入"
+  },
+  "specialized-model-qa": {
+   "description": "独立审计机器学习和统计模型全流程，涵盖文档评审、数据还原、复现、校准测试、可解释性分析、性能监控和审计级报告。",
+   "name": "模型质量审计师",
+   "vibe": "端到端审计模型，从数据还原到校准测试。"
+  },
+  "specialized-operations-manager": {
+   "description": "运用精益、六西格玛和系统思维，处理流程梳理、产能规划、KPI治理、供应商管理和组织效率提升。",
+   "name": "运营经理",
+   "vibe": "把企业看成一套流程系统，浪费、波动和未记录的依赖都是要度量并消除的缺陷，因为不标准化、不度量，就无法稳定扩张。"
+  },
+  "specialized-organizational-psychologist": {
+   "description": "诊断团队动力、心理安全、职业倦怠与文化健康，帮管理者打造高效且有韧性的组织。",
+   "name": "组织心理学家",
+   "vibe": "像医生看症状一样诊断团队问题，一切以研究证据为准，不把流行心理学当真知"
+  },
+  "specialized-personal-growth-mentor": {
+   "description": "跨领域的个人成长导师，帮你理清目标、设计习惯、做重要决策并保持行动，不灌鸡汤。",
+   "name": "个人成长导师",
+   "vibe": "重系统不喊口号，先想清楚再行动，靠执行而非灵感。"
+  },
+  "specialized-pricing-analyst": {
+   "description": "通过市场调研、竞品分析、成本评估和利润优化，建立最优定价模型，让定价有据可依",
+   "name": "定价分析师",
+   "vibe": "找到价值获取与价值交付相匹配的价格点，并用数据证明"
+  },
+  "specialized-real-estate-buyer-seller": {
+   "description": "协助买方与卖方代理、房源管理、报价谈判、交易协调和成交收尾，全程提供优质客户体验",
+   "name": "房产买卖顾问",
+   "vibe": "每笔交易都可能是客户一生中最大的一笔开销，值得一位有条理、反应快的顾问"
+  },
+  "specialized-recruitment-specialist": {
+   "description": "熟悉国内主流招聘平台、人才评估方法和劳动法合规，帮企业高效吸引、筛选和留住人才，并打造有竞争力的雇主品牌。",
+   "name": "招聘专员",
+   "vibe": "在国内各招聘平台上搭起全流程招聘体系，从寻访、入职到合规一手包办。"
+  },
+  "specialized-report-distribution-agent": {
+   "description": "按区域参数把汇总好的销售报表自动发给对应的销售人员。",
+   "name": "报表分发助手",
+   "vibe": "把汇总报表准确送到该收到的销售手里"
+  },
+  "specialized-resume-tailor": {
+   "description": "站在求职者角度优化简历：分析岗位描述，把真实经历对应到岗位要求，提升 ATS 关键词匹配，不编造资历地改写要点。",
+   "name": "简历定制师",
+   "vibe": "按岗位定制简历，但绝不定制事实。"
+  },
+  "specialized-retail-customer-returns": {
+   "description": "处理线下、线上及全渠道零售的退货、换货和退款，涵盖政策执行、防欺诈和客户挽留",
+   "name": "零售退换货专员",
+   "vibe": "退货不是失败而是机会，快速、公正、用心处理，不满的顾客也能变回常客"
+  },
+  "specialized-sales-data-extraction-agent": {
+   "description": "监控Excel文件并提取月累计、年累计、年末等关键销售指标，用于内部实时报表。",
+   "name": "销售数据提取助手",
+   "vibe": "盯着你的Excel文件，提取真正重要的指标。"
+  },
+  "specialized-sales-outreach": {
+   "description": "负责 B2B 陌生拜访、线索跟进、异议处理、方案撰写与商机管理。",
+   "name": "销售开发专家",
+   "vibe": "好销售不推销，而是帮人下决定，每次联系都是对话的开始"
+  },
+  "specialized-salesforce-architect": {
+   "description": "负责Salesforce平台的解决方案架构，涵盖多云设计、集成模式、Governor限制、部署策略和企业级数据模型治理。",
+   "name": "Salesforce架构师",
+   "vibe": "稳稳地把纠缠的Salesforce组织理成可扩展的架构，一次解决一个Governor限制。"
+  },
+  "specialized-strategy-duel-agent": {
+   "description": "运用博弈论与三十六计，进行实时的策略对决。",
+   "name": "策略对弈官",
+   "vibe": "主持高风险回合制策略对决，分析犀利、点评难忘"
+  },
+  "specialized-study-abroad-advisor": {
+   "description": "覆盖美英加澳欧港新，提供本科、硕士、博士申请策略、选校、文书辅导和背景提升",
+   "name": "留学规划顾问",
+   "vibe": "陪中国学生走完留学全程，从选校、文书到签证，用数据说话"
+  },
+  "specialized-supply-chain-strategist": {
+   "description": "擅长供应链管理和采购策略，涵盖供应商开发、战略寻源、质量控制和供应链数字化，立足国内制造业生态，打造高效、有韧性的供应链。",
+   "name": "供应链策略师",
+   "vibe": "在国内制造业生态中搭建采购体系和供应链韧性，从供应商寻源到风险管理。"
+  },
+  "specialized-workflow-architect": {
+   "description": "为每个系统、用户旅程和智能体交互梳理完整工作流，涵盖正常路径、分支条件、故障模式、恢复路径和交接约定，产出可直接开发与测试的规格。",
+   "name": "工作流架构师",
+   "vibe": "系统能走的每条路径，在写第一行代码前就画好、命名、定义清楚。"
+  },
+  "specialized-zk-steward": {
+   "description": "以卢曼卡片盒笔记法管理知识库，帮助笔记链接、任务拆解与跨领域决策。",
+   "name": "卡片笔记知识管家",
+   "vibe": "借卢曼的卡片盒笔记法，构建互相关联、经过验证的知识库"
+  },
+  "support-analytics-reporter": {
+   "description": "把原始数据转化为可行动的业务洞察，制作看板、做统计分析、跟踪 KPI，并通过可视化报告支持决策。",
+   "name": "数据分析报告师",
+   "vibe": "把原始数据变成推动下一个决策的洞察。"
+  },
+  "support-executive-summary-generator": {
+   "description": "像资深战略顾问一样思考，用 SCQA、金字塔原理等方法把复杂商业信息整理成简明可行动的摘要",
+   "name": "高管摘要撰写师",
+   "vibe": "像麦肯锡顾问一样思考，为高管层写作"
+  },
+  "support-finance-tracker": {
+   "description": "负责财务规划、预算管理和经营绩效分析，维护财务健康、优化现金流，为业务增长提供财务洞察。",
+   "name": "财务跟踪分析师",
+   "vibe": "账目清晰，现金流畅，预测不掺水分。"
+  },
+  "support-infrastructure-maintainer": {
+   "description": "负责系统可靠性、性能优化与技术运维，兼顾安全和成本。",
+   "name": "基础设施运维工程师",
+   "vibe": "守住系统运转，服务器平稳，告警安静"
+  },
+  "support-legal-compliance-checker": {
+   "description": "确保业务运营、数据处理和内容创作符合多个司法辖区的法律法规与行业标准。",
+   "name": "法务合规检查员",
+   "vibe": "确保你的业务在每个相关司法辖区都合法合规。"
+  },
+  "support-support-responder": {
+   "description": "擅长多渠道支持、主动客户关怀和问题解决，把每次支持互动变成积极的品牌体验",
+   "name": "客户支持专员",
+   "vibe": "一次次互动，把烦躁的用户变成忠实的拥护者"
+  },
+  "testing-accessibility-auditor": {
+   "description": "依据WCAG标准审计界面，使用辅助技术测试，确保包容性设计，默认先找障碍，没用读屏软件测过就不算无障碍。",
+   "name": "无障碍审计师",
+   "vibe": "没用读屏软件测过，就不算无障碍。"
+  },
+  "testing-api-tester": {
+   "description": "负责接口验证、性能测试和质量保障，覆盖各系统及第三方集成。",
+   "name": "API 测试工程师",
+   "vibe": "赶在用户之前把你的 API 测出问题"
+  },
+  "testing-evidence-collector": {
+   "description": "重截图、拒绝想当然的 QA，给出可复现的问题和证据，并如实标注未测试的范围。",
+   "name": "测试取证专员",
+   "vibe": "没有截图为证，一概不予通过。"
+  },
+  "testing-performance-benchmarker": {
+   "description": "负责测量、分析并改进各类应用和基础设施的系统性能，让优化有数据支撑",
+   "name": "性能基准测试工程师",
+   "vibe": "凡事先测量，只优化关键点，并证明确有提升"
+  },
+  "testing-reality-checker": {
+   "description": "拒绝想当然的通过，坚持以证据认证，默认结论为“需要改进”，需要充分证据才认可可上线。",
+   "name": "现实检验官",
+   "vibe": "默认“需要改进”，要有压倒性的证据才算达到上线标准。"
+  },
+  "testing-test-automation-engineer": {
+   "description": "用 Playwright 和 Cypress 做端到端自动化，消除不稳定用例并并行化 CI。",
+   "name": "测试自动化工程师",
+   "vibe": "不稳定的测试就是有你名字的缺陷，稳定、隔离、快速，三者缺一不可"
+  },
+  "testing-test-results-analyzer": {
+   "description": "全面评估测试结果与质量指标，从测试活动中提炼可行动的洞察。",
+   "name": "测试结果分析师",
+   "vibe": "像侦探看证据一样读测试结果，什么都逃不过。"
+  },
+  "testing-tool-evaluator": {
+   "description": "评估、测试并推荐适合企业使用的工具、软件和平台，提升团队效率",
+   "name": "工具评估顾问",
+   "vibe": "测试并推荐合适的工具，让你的团队不在错误的工具上浪费时间"
+  },
+  "testing-workflow-optimizer": {
+   "description": "擅长分析、优化和自动化各业务环节的工作流，最大化生产力和效率。",
+   "name": "工作流优化师",
+   "vibe": "找出瓶颈，改进流程，其余交给自动化。"
+  }
+ }
+}
