@@ -71,6 +71,9 @@ async def question_upsert(
     if existing is not None:
         if job_id and not existing.job_id:
             existing.job_id = job_id
+        if tags:
+            # The same question asked again may name a requirement it now targets; keep both.
+            existing.tags = list(dict.fromkeys([*(existing.tags or []), *tags]))
         if mock_session_id:
             await _attach_to_mock(
                 store,

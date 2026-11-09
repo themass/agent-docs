@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from jc.authz.ownership import require_owned_profile
 from jc.authz.scope import RunScope
-from jc.coach.coverage import coverage_of
+from jc.coach.coverage import coverage_of, question_match_text
 from jc.models.enums import MAX_REPORT_RUNS, MockReportStatus, MockSessionStatus
 from jc.models.interview import MockSession
 from jc.models.job import Job
@@ -170,7 +170,7 @@ async def _asked_stems(store: InterviewStore, asked: list[dict[str, Any]]) -> li
             continue
         question = await store.get_question(entry["question_id"])
         if question is not None:
-            stems.append(question.stem)
+            stems.append(question_match_text(question.stem, question.tags))
     return stems
 
 
