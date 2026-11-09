@@ -73,3 +73,14 @@ source_modules =
     companion.ports
     companion.products
 forbidden_modules = companion.bootstrap
+
+[importlinter:contract:vendor-only-in-memory-hub]
+name = mem0 只能被 memory_hub 的适配器引用，领域与应用层不得直接依赖
+type = forbidden
+source_modules =
+    companion.domain
+    companion.app
+    companion.api
+    companion.products
+forbidden_modules =
+    mem0
