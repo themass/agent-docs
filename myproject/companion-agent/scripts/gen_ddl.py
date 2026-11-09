@@ -8,6 +8,7 @@ from sqlalchemy.dialects import mysql
 from sqlalchemy.schema import CreateTable, DropTable
 
 from companion.adapters.store.mysql.schema import metadata
+import companion.adapters.store.mysql.memory  # noqa: F401
 
 
 def _sql(stmt) -> str:

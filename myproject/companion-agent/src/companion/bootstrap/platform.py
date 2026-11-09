@@ -28,6 +28,7 @@ from companion.adapters.store.mysql.repositories import (
     MysqlUploadStore,
 )
 from companion.adapters.timeline.memory import InMemoryTimeline
+from companion.adapters.store.mysql.memory import MysqlMemoryPort
 from companion.app.chat.lifecycle import DrainState
 from companion.app.roles.service import RoleService
 from companion.app.tools.builtin import register_builtin_tools
@@ -62,7 +63,7 @@ class Platform:
         await self.engine.dispose()
 
 
-def build_platform(settings: Settings, *, brain: Any, prompts: Any, memory_port: Any) -> Platform:
+def build_platform(settings: Settings, *, brain: Any, prompts: Any, memory_port: Any = None) -> Platform:
     """组装。缺少 MySQL 或 Redis 配置时直接失败（fail-closed），不退回内存实现。"""
     if not settings.companion_mysql_url or not settings.companion_redis_url:
         raise RuntimeError("COMPANION_MYSQL_URL and COMPANION_REDIS_URL are required for the chat platform")
@@ -86,9 +87,11 @@ def build_platform(settings: Settings, *, brain: Any, prompts: Any, memory_port:
     roles = RoleService(catalog, roles_store)
 
     timeline = InMemoryTimeline()
+    # 记忆：默认持久化到 MySQL（ca_memory_item）。传入的 memory_port 仅用于测试替换。
+    backend = memory_port if memory_port is not None else MysqlMemoryPort(engine)
     hub = MemoryHub.from_config(
         [AppConfig("companion", "ca_memory_companion", "COMPANION_QDRANT_TOKEN")],
-        lambda cfg: memory_port,
+        lambda cfg: backend,
     )
     memory = hub.for_app("companion")
 
