@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Protocol
 
 
@@ -20,3 +21,4 @@ class ToolCallRecord:
 
 class ToolCallStore(Protocol):
     async def append(self, record: ToolCallRecord) -> None: ...
+    async def trim_before(self, *, cutoff: datetime) -> int: ...

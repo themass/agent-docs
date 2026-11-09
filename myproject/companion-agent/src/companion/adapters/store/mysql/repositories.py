@@ -300,6 +300,14 @@ class MysqlConfirmationStore:
                 action_confirmation.c.status == "pending")).values(status=status, decided_at=_now()))
         return res.rowcount == 1
 
+    async def expire_due(self, *, now) -> int:
+        """把已过期的待确认置 expired。条件更新：重复执行结果相同。"""
+        async with self._engine.begin() as conn:
+            res = await conn.execute(update(action_confirmation).where(and_(
+                action_confirmation.c.status == "pending", action_confirmation.c.expires_at <= now))
+                .values(status="expired", decided_at=now))
+        return res.rowcount
+
     async def finish(self, *, owner_id: int, confirmation_id: str, status: str) -> bool:
         """执行结束：只允许从 processing 转到 executed/failed。"""
         async with self._engine.begin() as conn:
@@ -312,6 +320,13 @@ class MysqlConfirmationStore:
 class MysqlToolCallStore:
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
+
+    async def trim_before(self, *, cutoff) -> int:
+        from sqlalchemy import delete as sa_delete
+
+        async with self._engine.begin() as conn:
+            res = await conn.execute(sa_delete(tool_call).where(tool_call.c.created_at < cutoff))
+        return res.rowcount
 
     async def append(self, record) -> None:
         async with self._engine.begin() as conn:
