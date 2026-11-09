@@ -91,6 +91,13 @@ localize:
   scenario: flash
   skills: [localize]
 
+# ADR-007: two checked jobs for the server-driven mock interview (follow-up judgement, wording).
+mock-flow:
+  product: interview
+  mode: single
+  scenario: flash
+  skills: [mock-flow]
+
 profile-structurer:
   product: resume
   mode: single

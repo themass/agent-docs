@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 from typing import Any
 
 from agentkit.adapters.deerflow.client import AgentRunMetadata
@@ -51,6 +52,7 @@ from jc.services.agent_attachment_service import (
 )
 from jc.services.interview_reply import REWRITE_MESSAGE, needs_one_question, question_count
 from jc.services.mock_answer_recorder import record_mock_answer, records_mock_answer
+from jc.services.mock_interview_flow import run_turn as run_mock_turn
 from jc.services.mock_opening import (
     BRIEF_AFTER_OPENING,
     HOLDING_TEXT,
@@ -137,6 +139,12 @@ def _format_user_message(content: str, attachments: list[AgentAttachment]) -> st
         if said and said not in content:
             parts.append(said)
     return "\n\n".join(parts) if parts else ""
+
+
+async def _reply_events(text: str) -> AsyncIterator[dict]:
+    """A reply the server wrote, shaped like a model reply so the stream handles it the same way."""
+    yield {"type": "token", "content": text}
+    yield {"type": "done"}
 
 
 class AgentService:
@@ -364,11 +372,15 @@ class AgentService:
             default_skill=declared.default_skill,
             mock_session_id=mock_session_id,
         )
+        answered_on_table: str | None = None
+        # The candidate's own words, before the turn's context is wrapped around them. The server's
+        # flow reads commands ("下一题", "结束") from these, not from the wrapped text.
+        candidate_words = agent_message
         if interview_turn:
             # Written here, before the model runs, so a report never depends on the interviewer
             # remembering to save what the candidate said. The text is the user's own words (with
             # any photo already read into text), before the turn's context is wrapped around it.
-            await record_mock_answer(
+            answered_on_table = await record_mock_answer(
                 self._db,
                 profile_id=session.profile_id,
                 mock_session_id=mock_session_id,
@@ -459,9 +471,23 @@ class AgentService:
         # Commit trace setup before waiting on the model. InnoDB FK/read locks
         # must not span model latency or block an independent confirm request.
         await self._db.commit()
+        # ADR-007: with the server-driven flow on, the server decides the interview's reply. None
+        # means the model replies, as before (the candidate's own questions, or a refusal).
+        flow_reply: str | None = None
+        if interview_turn and mock_session_id and settings.jc_mock_state_machine:
+            flow_reply = await run_mock_turn(
+                self._db,
+                user_id=actor.user_id,
+                profile_id=session.profile_id,
+                mock_session_id=mock_session_id,
+                text=candidate_words,
+                answered=answered_on_table is not None,
+            )
         events = (
-            self._interview_events(client, session, agent_message, metadata, opening_state,
-                                   ui_context, actor)
+            _reply_events(flow_reply)
+            if flow_reply is not None
+            else self._interview_events(client, session, agent_message, metadata, opening_state,
+                                        ui_context, actor)
             if interview_turn
             else client.stream_message(session.deerflow_thread_id, agent_message, metadata=metadata)
         )
@@ -693,8 +719,13 @@ class AgentService:
         session = await self._require_session(session_id, actor=actor)
         from jc.adapters.deerflow_harness_client import request_session_cancel
 
+        # The request is stored, so the worker running this session stops it within
+        # CANCEL_POLL_SEC whichever worker received this call. `cancelled` says whether this
+        # worker held the run; it is False for a run in another worker, which is not an error.
         cancelled = request_session_cancel(session.id)
-        return {"cancelled": cancelled}
+        session.cancel_requested_at = datetime.now(UTC)
+        await self._db.commit()
+        return {"cancelled": cancelled, "requested": True}
 
     async def confirm_patch(
         self,

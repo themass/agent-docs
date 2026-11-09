@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     jc_env: str = Field("development", alias="JC_ENV")
     jc_api_prefix: str = Field("/api/v1", alias="JC_API_PREFIX")
     jc_docs_enabled: bool = Field(True, alias="JC_DOCS_ENABLED")
+    # ADR-007: the server decides each mock-interview turn and the model only words two checked
+    # things. Off: the model drives the interview as before.
+    jc_mock_state_machine: bool = Field(False, alias="JC_MOCK_STATE_MACHINE")
     jc_preview_writer_timeout_seconds: float = Field(
         120, gt=0, le=120, alias="JC_PREVIEW_WRITER_TIMEOUT_SECONDS",
         description="Whole writer fallback-chain budget, not a per-model timeout",

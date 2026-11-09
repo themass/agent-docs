@@ -12,6 +12,7 @@ import traceback
 from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -583,6 +584,37 @@ def _stream_producer(
         loop.call_soon_threadsafe(queue.put_nowait, ("done", None))
 
 
+#: How often a run checks the database for a stop request from another worker.
+CANCEL_POLL_SEC = 1.0
+
+
+def _utc_now() -> datetime:
+    return datetime.now(UTC)
+
+
+async def _stop_requested_since(session_id: str, since: datetime) -> bool:
+    """True when a stop was requested for this session at or after `since`. Reads the database, so
+    it sees a request made in any worker. A failed read is not a stop: the run goes on."""
+    from sqlalchemy import select
+
+    from jc.db.session import AsyncSessionLocal
+    from jc.models.agent import AgentSession
+
+    try:
+        async with AsyncSessionLocal() as db:
+            requested = await db.scalar(
+                select(AgentSession.cancel_requested_at).where(AgentSession.id == session_id)
+            )
+    except Exception:
+        logger.warning("stop-request check failed for session %s", session_id, exc_info=True)
+        return False
+    if requested is None:
+        return False
+    if requested.tzinfo is None:  # the column reads back naive on some drivers; it is UTC
+        requested = requested.replace(tzinfo=UTC)
+    return requested >= since
+
+
 def register_session_cancel(session_id: str) -> threading.Event:
     event = threading.Event()
     _SESSION_CANCEL[session_id] = event
@@ -737,9 +769,19 @@ class DeerFlowHarnessSessionClient(DeerFlowSessionClient):
         worker.start()
 
         saw_done = False
+        started_at = _utc_now()
         try:
             while True:
-                kind, payload = await queue.get()
+                try:
+                    kind, payload = await asyncio.wait_for(queue.get(), timeout=CANCEL_POLL_SEC)
+                except TimeoutError:
+                    # Nothing from the model this second. Look for a stop request that another
+                    # worker may have written: the event below is in this process only.
+                    if meta.session_id and await _stop_requested_since(meta.session_id, started_at):
+                        cancel_event.set()
+                        yield {"type": "done"}
+                        break
+                    continue
                 if kind == "done":
                     if not saw_done:
                         yield {"type": "done"}
