@@ -1,6 +1,6 @@
 # ADR-008：模拟面试的每一回合是“事件 → 状态转移 → 输出”，不再是补丁链
 
-- **状态**：Proposed（待审阅；审阅通过后按“实施步骤”推进）
+- **状态**：Accepted。进度：第 1 步、第 2 步已完成（`c82a683`、`c246f10`）；第 3–5 步在本地完成（见下，未提交、未部署）。
 - **日期**：2026-11-09
 - **取代**：ADR-007 中关于回合处理的部分（`run_turn` 的分支结构与状态写入）。ADR-007 的决策（服务器决定流程、模型只做两件窄任务）保留。
 
@@ -67,6 +67,15 @@ apply(state, event, context) -> (state', outputs)
 - 旧路径删除前，两套流程并存期间要保证新路径是唯一被开关打开的路径（本次开关不再新增，沿用 `JC_MOCK_STATE_MACHINE`）。
 
 ## 实施步骤
+
+进度（2026-11-09）：
+
+- 第 1 步 ✅ `mock_turn_events.py` 与 27 个表驱动测试。
+- 第 2 步 ✅ `mock_turn_state.py`（`apply`、`ask`、`open_qa`、`remember`）与 22 个测试。
+- 第 3 步 ✅（本地）`run_turn` 改为 `resolve → apply → decide → 写回`；守卫拒绝的主问题换下一题，不再交给模型；无题可问时明确结束。
+- 第 4 步 ✅（本地）剧本 S1–S10 在 `tests/test_mock_scenarios.py`，全部通过。
+- 真实模型本地一场（含跳过、复述、提问、结束）通过：事件流与账本一致，追踪表无工具调用。
+- 第 5 步 ✅（本地）删除旧路径：`_interview_events`、`_one_question_again`、暂存 token 与改写、看门狗与 `HOLDING_TEXT`、开场注入 `BRIEF_AFTER_OPENING`、`JC_MOCK_STATE_MACHINE` 开关（面试回合只走流程）。`coach-mock` 提示词精简为人设与约束，去掉 `jc_mock_*` 工具权限。删除的旧测试是断言这些旧规则的测试。
 
 1. 写事件分类 `classify` 与表驱动测试（纯函数，不碰数据库）。
 2. 写 `apply` 与状态结构，覆盖表中每一行。

@@ -57,12 +57,11 @@ def test_an_answer_with_nothing_on_the_table_is_not_recorded_and_moves_nothing()
     assert result.advance is False
 
 
-def test_talk_with_nothing_on_the_table_repeats_the_last_words_and_records_nothing():
-    state = remember(_started(), "请讲一个你用 Python 做过的事。")
+def test_talk_with_nothing_on_the_table_is_not_an_answer_and_moves_the_flow_on():
+    state = _started()
     result = apply(state, Event.TALK)
     assert result.state == state
-    assert _kinds(result) == [Say.REPEAT]
-    assert result.says[0].text == "请讲一个你用 Python 做过的事。"
+    assert result.advance is True and result.says == ()
 
 
 def test_a_skip_closes_its_main_question_and_hands_on():

@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from dataclasses import replace
 from typing import Any
 
 from agentkit.common.ids import new_id
@@ -29,16 +30,16 @@ from jc.models.interview import InterviewQuestion
 from jc.models.job import Job
 from jc.services import mock_guard_service as guard
 from jc.services.interview_reply import refers_to_earlier_talk
-from jc.services.mock_answer_recorder import is_steering_message
 from jc.services.mock_flow import (
     Action,
-    FlowState,
     Turn,
     check_followup,
     check_phrasing,
     decide,
 )
 from jc.services.mock_opening import opening_text
+from jc.services.mock_turn_events import Event, Flags, resolve, utterance
+from jc.services.mock_turn_state import TurnState, apply, ask, open_qa, remember
 from jc.stores.interview_store import InterviewStore
 
 logger = logging.getLogger(__name__)
@@ -59,10 +60,6 @@ _END = re.compile(r"结束|终止|停止")
 _SKIP = re.compile(r"下一|换一|换个|跳过")
 
 
-def _load(row: Any) -> dict[str, Any]:
-    return dict(row.coverage or {})
-
-
 async def _save(db: AsyncSession, row: Any, **updates: Any) -> None:
     # Read the stored value again: the guards commit their own changes to the same row.
     current = dict(row.coverage or {})
@@ -70,23 +67,6 @@ async def _save(db: AsyncSession, row: Any, **updates: Any) -> None:
     row.coverage = current
     await db.flush()
     await db.commit()
-
-
-def _flow_state(row: Any, state: dict[str, Any], main_limit: int, followup_limit: int) -> FlowState:
-    return FlowState(
-        opening_sent=bool(state.get("opening_sent")),
-        intro_done=bool(state.get("intro_done")),
-        asked=tuple(
-            Turn(a["question_id"], a["kind"], a.get("parent_question_id"))
-            for a in state.get("asked") or []
-        ),
-        answered=int(state.get("answered_upto") or 0),
-        closed_mains=frozenset(state.get("closed_mains") or []),
-        candidate_qa=bool(state.get("candidate_qa")),
-        ended=row.status != MockSessionStatus.ACTIVE,
-        main_limit=main_limit,
-        followup_limit=followup_limit,
-    )
 
 
 async def _bank(store: InterviewStore, profile_id: str, job_id: str | None) -> list[Candidate]:
@@ -221,6 +201,48 @@ async def _judge_followup(main_stem: str, answer: str, followups: int) -> str | 
     return str(data["question"]).strip()
 
 
+def _turn_state(row: Any) -> TurnState:
+    """The interview's state, read from the session. The guards own `asked`; the flow the rest."""
+    c = dict(row.coverage or {})
+    asked = tuple(
+        Turn(a["question_id"], a["kind"], a.get("parent_question_id"))
+        for a in c.get("asked") or []
+    )
+    return TurnState(
+        opening_sent=bool(c.get("opening_sent")),
+        intro_done=bool(c.get("intro_done")),
+        asked=asked,
+        answered=min(int(c.get("answered_upto") or 0), len(asked)),
+        closed_mains=frozenset(c.get("closed_mains") or []),
+        candidate_qa=bool(c.get("candidate_qa")),
+        ended=row.status != MockSessionStatus.ACTIVE,
+        last_said=c.get("last_text") or None,
+    )
+
+
+async def _persist(db: AsyncSession, row: Any, ts: TurnState, **extra: Any) -> None:
+    """The flow's own fields, written once per turn. `asked` is written by the guards, not here."""
+    await _save(
+        db, row,
+        opening_sent=ts.opening_sent,
+        intro_done=ts.intro_done,
+        answered_upto=ts.answered,
+        closed_mains=sorted(ts.closed_mains),
+        last_text=ts.last_said,
+        **extra,
+    )
+
+
+def _flags(ts: TurnState) -> Flags:
+    return Flags(
+        opening_sent=ts.opening_sent,
+        intro_done=ts.intro_done,
+        on_table=ts.on_table,
+        candidate_qa=ts.candidate_qa,
+        ended=ts.ended,
+    )
+
+
 async def run_turn(
     db: AsyncSession,
     *,
@@ -230,129 +252,109 @@ async def run_turn(
     text: str,
     answered: bool,
 ) -> str | None:
-    """The reply to one candidate message in a mock interview, or None when the model replies.
+    """The reply to one candidate message in a mock interview (ADR-008).
 
-    `answered` is whether the message was recorded as the answer to the question on the table (see
-    `record_mock_answer`)."""
+    The message is classified (`resolve`), the transition is `apply`, and when the flow must choose
+    a next step, `decide` does. The reply is built from what `apply` says. `answered` is whether
+    `record_mock_answer` recorded the message as an answer; the state decides, not this flag."""
     store = InterviewStore(db)
     row = await store.get_mock_session(mock_session_id)
     if row is None or row.profile_id != profile_id:
         return None
     scope = RunScope(db=db, user_id=user_id, profile_id=profile_id, mock_session_id=mock_session_id)
+    ts = _turn_state(row)
+    event = resolve(utterance(text), _flags(ts))
 
-    if row.status == MockSessionStatus.ACTIVE and is_steering_message(text) and _END.search(text):
-        await guard.end(scope, mock_session_id=mock_session_id, reason="user_ended")
-        return CLOSING_TEXT
-    state = _load(row)
-    if state.get("candidate_qa") and row.status == MockSessionStatus.ACTIVE:
-        # The candidate's turn. Their words are not an answer; they may ask about the job. A
-        # steering word here ("下一题") has nothing to skip, so the interview closes.
-        if is_steering_message(text):
-            await guard.end(scope, mock_session_id=mock_session_id, reason="completed")
-            return CLOSING_TEXT
+    if event is Event.CANDIDATE_QUESTION:
+        # Their turn to ask: the words are answered from the job text. Nothing in the flow changes.
         return await _answer_candidate(db, row, text)
-    if row.status != MockSessionStatus.ACTIVE:
+
+    if event is Event.EMPTY:
+        return ""
+
+    if event is Event.END:
+        reason = "completed" if ts.candidate_qa else "user_ended"
+        await guard.end(scope, mock_session_id=mock_session_id, reason=reason)
+        ts = apply(ts, Event.END).state
+        await _persist(db, row, ts)
         return CLOSING_TEXT
 
-    if not state.get("opening_sent"):
+    if event is Event.REPEAT:
+        # "没听清": the words said last, exactly. Nothing is recorded or moved.
+        return ts.last_said or ""
+
+    if event is Event.OPEN:
         job = await db.get(Job, row.job_id) if row.job_id else None
         opening = opening_text(job.company if job else None, job.title if job else None)
-        await _save(db, row, opening_sent=True, opening_text=opening)
+        ts = apply(ts, Event.OPEN).state
+        ts = remember(ts, opening)
+        await _persist(db, row, ts, opening_text=opening)
         return opening
 
-    just_introduced = False
-    if not state.get("intro_done"):
-        # The first message after the opening is the self-introduction: nothing is recorded for it.
-        await _save(db, row, intro_done=True)
-        just_introduced = True
-        state = _load(row)
-
-    steering = is_steering_message(text)
-    wants_skip = bool(state.get("asked")) and steering and bool(_SKIP.search(text))
-    if wants_skip and not answered:
-        on_table = state["asked"][-1]
+    if event is Event.SKIP and ts.on_table:
         await guard.skip(
-            scope, mock_session_id=mock_session_id, question_id=on_table["question_id"],
+            scope, mock_session_id=mock_session_id, question_id=ts.asked[-1].question_id,
         )
-        closed = list(state.get("closed_mains") or [])
-        # Skipping a main, or a follow-up on it, moves on from that main: it is not followed up.
-        main_id = on_table["question_id"] if on_table["kind"] == "main" else on_table.get(
-            "parent_question_id")
-        if main_id:
-            closed.append(main_id)
-        await _save(db, row, answered_upto=len(state["asked"]), closed_mains=closed)
-        state = _load(row)
-        answered = True
-        last_skip = True
-    else:
-        last_skip = False
 
-    if answered and state.get("asked"):
-        await _save(db, row, answered_upto=len(state["asked"]))
-        state = _load(row)
-
-    if (
-        not answered and not last_skip and state.get("asked")
-        and is_steering_message(text) and not _SKIP.search(text)
-    ):
-        # "没听清", "能再说一遍吗": repeat the words said last, exactly; record nothing.
-        return state.get("last_text") or None
-
-    return await _next_step(
-        db, scope, row, store, state, profile_id,
-        just_introduced=just_introduced, skipped=last_skip,
-    )
+    # Every other event: the transition, then the next step if the flow must choose one.
+    result = apply(ts, event)
+    ts = result.state
+    fixed = [said.text for said in result.says if said.text]
+    question: str | None = None
+    if result.advance:
+        question, ts = await _choose_next(db, scope, row, store, ts, profile_id)
+        fixed.append(question)
+    reply = "\n".join(fixed)
+    if not reply:
+        await _persist(db, row, ts)
+        return ""
+    # "没听清" repeats the question, not the acknowledgement before it.
+    ts = remember(ts, question if result.advance and question else reply)
+    await _persist(db, row, ts)
+    return reply
 
 
-def _skip_prefix(skipped: bool) -> str:
-    return f"{SKIP_TEXT}\n" if skipped else ""
-
-
-async def _said(db: AsyncSession, row: Any, text: str, *, prefix: str) -> str:
-    """What the candidate is shown, remembered as the last thing said (for "没听清")."""
-    await _save(db, row, last_text=text)
-    return prefix + text
-
-
-async def _next_step(
+async def _choose_next(
     db: AsyncSession,
     scope: RunScope,
     row: Any,
     store: InterviewStore,
-    state: dict[str, Any],
+    ts: TurnState,
     profile_id: str,
-    *,
-    just_introduced: bool,
-    skipped: bool,
-) -> str | None:
+) -> tuple[str | None, TurnState]:
+    """`decide` on the state, and the server's action for it. Returns the text to show next (None
+    when the flow has nothing to say yet) and the state after it."""
     mock_session_id = row.id
     main_limit, followup_limit = guard.limits(row)
     must = await guard.must_have_of(scope, row)
     asked_candidates = []
-    for entry in state.get("asked") or []:
-        question = await store.get_question(entry["question_id"])
+    for turn in ts.asked:
+        question = await store.get_question(turn.question_id)
         if question is not None:
             asked_candidates.append(Candidate(
                 question_id=question.id, stem=question_match_text(question.stem, question.tags),
             ))
     available = await _bank(store, profile_id, row.job_id)
-    if not state.get("asked"):
+    if not ts.asked:
         # Filled once, before the first question: the pool then covers the job's must-haves.
         available = await _fill_pool(db, store, row, profile_id, must, available)
 
-    for _ in range(3):  # a judged-closed main question moves on to the next one at most twice
-        state = _load(row)
-        flow = _flow_state(row, state, main_limit, followup_limit)
-        decision = decide(flow, must_have=must, available=available,
-                          asked_candidates=asked_candidates)
+    refused: set[str] = set()
+    for _ in range(3 + len(available)):  # a judged-closed or refused question moves on to the next
+        pool = [c for c in available if c.question_id not in refused]
+        decision = decide(
+            ts.flow(main_limit=main_limit, followup_limit=followup_limit),
+            must_have=must, available=pool, asked_candidates=asked_candidates,
+        )
         if decision.action is Action.JUDGE_FOLLOWUP:
             main = await store.get_question(decision.question_id)
             if main is None:
-                return None
+                ts = replace(ts, closed_mains=ts.closed_mains | {decision.question_id})
+                continue
             attempt = await store.get_latest_attempt_in_session(main.id, mock_session_id)
             answer = attempt.user_answer if attempt else ""
-            used = sum(1 for a in state["asked"]
-                       if a["kind"] == "followup" and a.get("parent_question_id") == main.id)
+            used = sum(1 for t in ts.asked
+                       if t.kind == "followup" and t.parent_question_id == main.id)
             question = await _judge_followup(main.stem, answer, used)
             if question:
                 result = await guard.ask(
@@ -360,42 +362,48 @@ async def _next_step(
                     stem=question, parent_question_id=main.id,
                 )
                 if result.get("accepted"):
-                    return await _said(db, row, question, prefix=_skip_prefix(skipped))
-            closed = list(state.get("closed_mains") or [])
-            closed.append(main.id)
-            await _save(db, row, closed_mains=closed)
+                    ts = ask(ts, result["question_id"], kind="followup", parent_id=main.id)
+                    return question, ts
+            # The judge found nothing to follow up: this main is done, the next one comes.
+            ts = replace(ts, closed_mains=ts.closed_mains | {main.id})
             continue
         if decision.action is Action.ASK_MAIN:
             chosen = await store.get_question(decision.question_id)
             if chosen is None:
-                return None
+                refused.add(decision.question_id)
+                continue
             result = await guard.ask(scope, mock_session_id=mock_session_id,
                                      question_id=chosen.id, kind="main")
             if not result.get("accepted"):
-                logger.info("main question refused by the server: %s", result.get("code"))
-                return None
-            wording = await _phrase(chosen.stem)
-            prefix = f"{AFTER_INTRO_TEXT}\n" if just_introduced else _skip_prefix(skipped)
-            return await _said(db, row, wording, prefix=prefix)
-        if decision.action is Action.OPEN_QA and not state.get("asked"):
-            # Nothing could be asked at all (no bank question for this job and none could be
-            # written). The interview ends here, rather than handing the floor to the candidate.
+                # The guard refused this question (already asked, or too like one asked). Another
+                # question is offered instead: the candidate is never handed to the model for it.
+                logger.warning("main question %s refused by the guard: %s",
+                               chosen.id, result.get("code"))
+                refused.add(chosen.id)
+                continue
+            ts = ask(ts, chosen.id, kind="main")
+            return await _phrase(chosen.stem), ts
+        if decision.action is Action.OPEN_QA and not ts.asked:
+            # Nothing could be asked at all: the interview ends here, not on the candidate's turn.
             await guard.end(scope, mock_session_id=mock_session_id, reason="user_ended")
-            return NO_QUESTIONS_TEXT
+            return NO_QUESTIONS_TEXT, apply(ts, Event.END).state
         if decision.action is Action.OPEN_QA:
             result = await guard.open_qa(scope, mock_session_id=mock_session_id)
             if not result.get("accepted"):
-                # The bank cannot yet support ending the questions (a must-have is uncovered).
-                # The model asks one more question then; this turn is not decided here.
-                return None
-            return QA_OPEN_TEXT
+                # The guard will not open the candidate's turn yet (a must-have is uncovered and
+                # the questions are not all asked). The bank cannot cover it: the interview ends.
+                logger.warning("interview %s: candidate turn refused: %s", row.id,
+                               result.get("code"))
+                await guard.end(scope, mock_session_id=row.id, reason="user_ended")
+                return NO_QUESTIONS_TEXT, apply(ts, Event.END).state
+            return QA_OPEN_TEXT, open_qa(ts).state
         if decision.action is Action.CLOSE:
-            return CLOSING_TEXT
-        # The last question has no answer yet: the candidate's message was not an answer
-        # (empty, or not recorded), so the question on the table is said again.
-        if state.get("asked"):
-            on_table = await store.get_question(state["asked"][-1]["question_id"])
-            return on_table.stem if on_table else None
-        return None
-    return None
-
+            return CLOSING_TEXT, apply(ts, Event.END).state
+        # Nothing for the flow to say next: an interview that cannot go on ends, rather than being
+        # handed to the model (ADR-008). The reason is in the log.
+        logger.warning("interview %s has no next step (%s): ending it", row.id, decision.action)
+        await guard.end(scope, mock_session_id=row.id, reason="user_ended")
+        return NO_QUESTIONS_TEXT, apply(ts, Event.END).state
+    logger.warning("interview %s: no question could be offered: ending it", row.id)
+    await guard.end(scope, mock_session_id=row.id, reason="user_ended")
+    return NO_QUESTIONS_TEXT, apply(ts, Event.END).state

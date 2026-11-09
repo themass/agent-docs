@@ -23,7 +23,6 @@ from jc.models.job import Job
 from jc.models.profile import Profile
 from jc.models.user import User
 from jc.services.mock_answer_recorder import record_mock_answer
-from jc.skills.loader import require_skill
 
 STEMS = [
     "讲一个你拆分数据的经历",
@@ -306,10 +305,6 @@ async def test_the_same_question_word_for_word_still_reads_as_already_asked(make
     await _ask(maker, STEMS[0])
     out = await _ask(maker, STEMS[0] + "。")
     assert out["accepted"] is False and out["code"] == "already_asked"
-
-
-def test_the_interviewer_holds_the_tool_for_the_candidates_turn():
-    assert "jc_mock_open_qa" in require_skill("coach-mock").allowed_tools
 
 
 @pytest.mark.asyncio

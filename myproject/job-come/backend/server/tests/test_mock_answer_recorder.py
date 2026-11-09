@@ -236,18 +236,19 @@ async def _stream(
 
 
 @pytest.mark.asyncio
-async def test_a_turn_records_the_users_words_and_the_model_gets_them_wrapped(
+async def test_a_turn_records_the_users_words_and_the_server_replies_without_the_model(
     maker, monkeypatch
 ):
+    """ADR-008: an interview turn is decided by the server. The answer is recorded as the candidate
+    wrote it, and the model is not run for the turn."""
     await _open_session(maker, [MAIN])
-    client, _ = await _stream(maker, monkeypatch, "我把结算接口拆成了两张表。")
+    client, events = await _stream(maker, monkeypatch, "我把结算接口拆成了两张表。")
     rows = await _attempts(maker)
-    # The record is what the candidate said, not the turn's task text wrapped around it.
     assert [(row.question_id, row.user_answer) for row in rows] == [
         ("q1", "我把结算接口拆成了两张表。")
     ]
-    assert "【面试模拟任务】" in client.received[0]
-    assert "我把结算接口拆成了两张表。" in client.received[0]
+    assert client.received == []
+    assert any(e.get("type") == "token" for e in events)
 
 
 @pytest.mark.asyncio
@@ -275,7 +276,7 @@ async def test_a_turn_sent_again_with_the_same_message_id_records_the_answer_onc
     again, events = await _stream(maker, monkeypatch, "我把结算接口拆成了两张表。",
                                   client_message_id="m1")
     assert [row.user_answer for row in await _attempts(maker)] == ["我把结算接口拆成了两张表。"]
-    assert len(again.received) == 1 and any(e.get("type") == "token" for e in events)
+    assert again.received == [] and any(e.get("type") == "token" for e in events)
 
 
 @pytest.mark.asyncio

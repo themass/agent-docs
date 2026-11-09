@@ -233,7 +233,7 @@ async def test_a_generated_stem_without_the_requirement_is_refused(db, monkeypat
         await session.execute(delete(InterviewQuestion).where(InterviewQuestion.job_id == "j1"))
         await session.commit()
     reply = await _turn(db, "我叫张三。")
-    assert reply == flow.NO_QUESTIONS_TEXT
+    assert reply.endswith(flow.NO_QUESTIONS_TEXT)
     async with db() as session:
         row = await InterviewStore(session).get_mock_session("ms1")
         assert row.status == MockSessionStatus.COMPLETED.value

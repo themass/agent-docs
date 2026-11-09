@@ -133,10 +133,9 @@ def apply(state: TurnState, event: Event) -> Result:
         return Result(state, (Said(Say.REPEAT, state.last_said),))
 
     if event is Event.TALK:
-        # Words with nothing on the table are not an answer, and do not move the interview on.
-        if not state.last_said:
-            return Result(state)
-        return Result(state, (Said(Say.REPEAT, state.last_said),))
+        # Words with nothing on the table are not an answer. Nothing is asked for them either: the
+        # interview's next step is decided as it would be after any turn with no question out.
+        return Result(state, advance=True)
 
     if event is Event.CANDIDATE_QUESTION:
         return Result(state, (Said(Say.CANDIDATE_ANSWER),))
