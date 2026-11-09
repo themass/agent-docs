@@ -11,7 +11,7 @@ import asyncio
 from collections.abc import AsyncIterator, Sequence
 from typing import Any
 
-from langchain_core.messages import AIMessageChunk, BaseMessage, HumanMessage, ToolMessage
+from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage, HumanMessage, ToolMessage
 
 from companion.ports.brain import BrainEvent, BrainTurn, TextDelta, ToolFinished, ToolStarted, TurnRequest
 from companion.adapters.brain.graph_middleware import (
@@ -70,8 +70,15 @@ def _text_of(content: Any) -> str:
 
 
 class DeerFlowBrain:
-    def __init__(self, graph: Any) -> None:
+    """tool_runtime 与 tool_allowed 由组合根注入：本回合允许的工具名，以及执行它们的运行时。
+    两者都为空时，图内工具中间件会拒绝所有工具调用（fail closed）。"""
+
+    def __init__(self, graph: Any, *, tool_runtime: Any = None, tool_allowed: frozenset[str] = frozenset(),
+                 tool_product: str = "chat") -> None:
         self._graph = graph
+        self._tool_runtime = tool_runtime
+        self._tool_allowed = tool_allowed
+        self._tool_product = tool_product
 
     async def stream(self, *, messages: list[BaseMessage], context: dict[str, Any]) -> AsyncIterator[BrainEvent]:
         seen_calls: set[str] = set()
@@ -79,7 +86,20 @@ class DeerFlowBrain:
             if isinstance(msg, ToolMessage):
                 yield ToolFinished(call_id=msg.tool_call_id or "", name=msg.name or "", content=_text_of(msg.content))
                 continue
-            if not isinstance(msg, AIMessageChunk):
+            if not isinstance(msg, (AIMessageChunk, AIMessage)):
+                continue
+            # 非流式的完整回复（AIMessage）：模型没有逐 token 输出时，正文整段到达，也要交付。
+            if isinstance(msg, AIMessage) and not isinstance(msg, AIMessageChunk):
+                if getattr(msg, "tool_calls", None):
+                    for call in msg.tool_calls:
+                        cid = call.get("id") or ""
+                        if cid and cid not in seen_calls:
+                            seen_calls.add(cid)
+                            yield ToolStarted(call_id=cid, name=call.get("name") or "")
+                    continue
+                text = _text_of(msg.content)
+                if text:
+                    yield TextDelta(text=text)
                 continue
             if msg.tool_call_chunks:
                 for chunk in msg.tool_call_chunks:
@@ -103,7 +123,21 @@ class DeerFlowBrain:
             "system_prompt": request.system_prompt,
             "user_id": request.user_id,
             "turn_id": turn_id,
+            "allowed_tools": self._tool_allowed,
         }
+        if self._tool_runtime is not None:
+            from companion.app.tools.runtime import ToolTurn
+
+            context["tool_runtime"] = self._tool_runtime
+            context["tool_turn"] = ToolTurn(
+                owner_id=int(request.user_id) if request.user_id.isdigit() else 0,
+                session_id=int(request.metadata.get("session_id", 0) or 0),
+                turn_id=turn_id,
+                character_id=request.character_id,
+                locale=str(request.metadata.get("locale", "zh-CN")),
+                product=self._tool_product,
+                allowed=self._tool_allowed,
+            )
         messages: list[BaseMessage] = [HumanMessage(content=request.message)]
 
         async def tokens() -> AsyncIterator[str]:
