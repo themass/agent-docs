@@ -36,6 +36,11 @@ from companion.adapters.livekit.tokens import TokenMinter
 from companion.api.http.routers.turns import TurnService, build_router as build_turn_router
 from companion.app.chat.lifecycle import DrainState
 from companion.api.http.routers.roles import build_router as build_roles_router
+from companion.api.http.routers.uploads import build_router as build_uploads_router
+from companion.api.http.routers.actions import build_router as build_actions_router
+from companion.api.http.routers.memory_v1 import build_router as build_memory_v1_router
+from companion.api.http.routers.chat import build_health_router
+from companion.bootstrap.platform import Platform
 from companion.app.roles.service import RoleService
 from companion.api.http.routers.chat import ChatApi, build_router as build_chat_router
 from companion.domain.turn.pipeline import TurnPipeline
@@ -96,6 +101,7 @@ def create_app(
     initiative_interval: float = INITIATIVE_INTERVAL_SECONDS,
     chat: ChatApi | None = None,
     roles: RoleService | None = None,
+    platform: Platform | None = None,
 ) -> FastAPI:
     """装配应用。参数都可注入，方便测试替换实现。
 
@@ -200,6 +206,16 @@ def create_app(
         app.include_router(build_chat_router(chat, current_user))
     if roles is not None:
         app.include_router(build_roles_router(roles, current_user))
+    if platform is not None:
+        # 新聊天栈：排空/停机状态与平台共享，探针随之生效（P §3.5）。
+        app.state.companion.drain = platform.drain
+        app.include_router(build_chat_router(platform.chat, current_user))
+        app.include_router(build_roles_router(platform.roles, current_user))
+        app.include_router(build_uploads_router(platform.uploads, current_user))
+        app.include_router(build_actions_router(platform.confirmations, current_user))
+        app.include_router(build_memory_v1_router(memory=platform.memory, timeline=platform.timeline,
+                                                  current_user=current_user))
+        app.include_router(build_health_router(platform.drain))
 
     # 客户端依赖的接口：角色目录、记忆与事件、动作确认与偏好、主动消息收件箱。
     catalog = CharacterCatalog(CharacterSource(PROJECT_ROOT / "characters"))

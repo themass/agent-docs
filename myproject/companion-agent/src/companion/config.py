@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     # 身份验证：redis_token（生产，读 Java 登录态）或 allow_all（仅 dev）。D §4、A §5.5
     companion_auth_verifier: str = "allow_all"
     auth_redis_url: str = ""
+    # 新聊天栈的存储：MySQL（vpn 库，表前缀 ca_）与 Redis（共用，键前缀 ca:）
+    companion_mysql_url: str = ""
+    companion_redis_url: str = ""
 
     # 对象存储：火山引擎 TOS（S3 兼容），与 job-come 同一个区域与接口（上传图片、解题附件）
     tos_endpoint: str = ""
