@@ -2,13 +2,19 @@
 
 一个回合 = 一把锁 + 一个 turn_id。本进程负责：
 - 续租锁（每 10 秒）；
-- 读取 turn:{tid}:ctl：merge 在首个可见 token 之前中止并用同一 turn_id 重跑；
+- 读取 turn:{tid}:ctl：merge 在首个可见 token（或第一个工具调用）之前中止并用同一 turn_id 重跑；
   steer 进收件箱；cancel 中止；
-- 维护 phase（pre_output → output → tool），只前进不回退；
-- 把回合覆盖的用户消息挂到回合上（attach_turn，见 D §3.3）：启动时的消息、合并进来的、
-  实际被注入的插话；未被注入的插话与无法合并的输入转回队列，不挂接；
+- 维护 phase（pre_output → output → tool），只前进不回退（撤销合并时例外，见下）；
+- 把回合覆盖的用户消息挂到回合上（attach_turn，见 D §3.3）；
 - 增量合并写 message.delta（50 毫秒或 64 字符一次），正文另存 turn:{tid}:text；
 - 结束时落库助手消息、释放锁、尝试排空。
+
+竞态（评审后修正）：Lua 判定「合并」时阶段是 pre_output，但控制消息由后台协程读取，
+首 token 可能先于读取到达。因此在输出开始前（以及第一个工具调用前）**同步**读取控制流：
+1. 先同步读一次，有合并请求就中止本次模型调用；
+2. 把阶段推进到 output；
+3. 再同步读一次：如果恰好夹在两步之间有合并，撤销阶段（退回 pre_output）并中止。
+Lua 与阶段推进在 Redis 中是线性的，所以任何被 Lua 判为合并的消息，都一定能被这两次同步读取看到。
 
 produce 由 bootstrap 注入（把 DeerFlow 的事件流接进来），这里不认识 LangGraph。
 """
@@ -60,6 +66,7 @@ class _RunState:
     deltas: list[str] = field(default_factory=list)
     pending: str = ""
     last_flush: float = field(default_factory=time.monotonic)
+    ctl_last: str = "0-0"      # 已处理的最后一条控制消息 id（去重用）
 
     def restart(self) -> None:
         self.merge_requested = False
@@ -68,6 +75,14 @@ class _RunState:
         self.deltas = []
         self.pending = ""
         self.last_flush = time.monotonic()
+
+
+def _id_after(a: str, b: str) -> bool:
+    """Redis Stream id 比较：'<毫秒>-<序号>'。"""
+    def key(v: str) -> tuple[int, int]:
+        ms, _, seq = v.partition("-")
+        return int(ms or 0), int(seq or 0)
+    return key(a) > key(b)
 
 
 class TurnRunner:
@@ -125,10 +140,11 @@ class TurnRunner:
                 restarts += 1
                 await self._attach_merged(inp, state)
                 texts = texts + [text for _mid, text in state.merged]
-                state.restart()  # 原地重置：控制协程持有的是同一个对象（首 token 前合并，无可见内容需撤回）
-                await self._control.publish(session_id=inp.session_id, event="turn.restarted",
-                                            data={"turn_id": inp.turn_id,
-                                                  "user_message_ids": inp.message_ids + [m for m, _ in state.merged]})
+                state.restart()  # 原地重置：控制协程持有的是同一个对象
+                await self._control.publish(
+                    session_id=inp.session_id, event="turn.restarted",
+                    data={"turn_id": inp.turn_id,
+                          "user_message_ids": inp.message_ids + [m for m, _ in state.merged]})
         except Exception:
             log.exception("turn failed", extra={"turn_id": inp.turn_id})
             failed = True
@@ -156,8 +172,15 @@ class TurnRunner:
                 if state.merge_requested and not state.output_started:
                     return "merged"
                 if isinstance(event, TextDelta):
+                    if not state.output_started and not await self._begin_output(inp, state, inbox):
+                        return "merged"
                     await self._on_text(inp, state, event.text)
                 elif isinstance(event, ToolStarted):
+                    # 工具有副作用：只有在没有合并请求时才允许进入 TOOL 阶段。
+                    await self._absorb(inp, state, inbox, await self._control.read_ctl_after(
+                        turn_id=inp.turn_id, last_id=state.ctl_last))
+                    if state.merge_requested and not state.output_started:
+                        return "merged"
                     await self._control.advance_phase(session_id=inp.session_id, phase=TurnPhase.TOOL)
                     await self._control.publish(session_id=inp.session_id, event="step",
                                                 data={"turn_id": inp.turn_id, "kind": "tool",
@@ -171,10 +194,23 @@ class TurnRunner:
         finally:
             await stream.aclose()
 
+    async def _begin_output(self, inp: TurnInput, state: _RunState, inbox: SteerInbox) -> bool:
+        """首个可见 token 之前的同步检查（见模块文档）。返回 False 表示必须中止并重跑。"""
+        await self._absorb(inp, state, inbox, await self._control.read_ctl_after(
+            turn_id=inp.turn_id, last_id=state.ctl_last))
+        if state.merge_requested:
+            return False
+        await self._control.advance_phase(session_id=inp.session_id, phase=TurnPhase.OUTPUT)
+        await self._absorb(inp, state, inbox, await self._control.read_ctl_after(
+            turn_id=inp.turn_id, last_id=state.ctl_last))
+        if state.merge_requested:
+            # 夹在两步之间有合并：阶段退回 pre_output，本次调用中止，由调用方重跑。
+            await self._control.set_phase(session_id=inp.session_id, phase=TurnPhase.PRE_OUTPUT)
+            return False
+        state.output_started = True
+        return True
+
     async def _on_text(self, inp: TurnInput, state: _RunState, text: str) -> None:
-        if not state.output_started:
-            state.output_started = True
-            await self._control.advance_phase(session_id=inp.session_id, phase=TurnPhase.OUTPUT)
         state.deltas.append(text)
         state.pending += text
         now = time.monotonic()
@@ -192,26 +228,33 @@ class TurnRunner:
 
     # ---- 控制流 ----
 
+    async def _absorb(self, inp: TurnInput, state: _RunState, inbox: SteerInbox,
+                      entries: list[tuple[str, dict[str, str]]]) -> None:
+        """处理控制消息。按 id 去重：同步读取与后台读取可能看到同一条。"""
+        for entry_id, fields in entries:
+            if not _id_after(entry_id, state.ctl_last):
+                continue
+            state.ctl_last = entry_id
+            kind = fields.get("kind")
+            message_id = int(fields.get("message_id", "0") or 0)
+            text = fields.get("text", "")
+            if kind == "merge":
+                if state.output_started:
+                    # 已经开始输出（不应发生：Lua 不会在 output 阶段合并）：改为排队，不丢输入。
+                    await self._requeue(inp, message_id, text)
+                else:
+                    state.merge_requested = True
+                    state.merged.append((message_id, text))
+            elif kind == "steer":
+                inbox.push(str(message_id), text)
+                state.steer_pushed.append(message_id)
+            elif kind == "cancel":
+                state.cancelled = True
+
     async def _watch_ctl(self, inp: TurnInput, inbox: SteerInbox, state: _RunState, stop: asyncio.Event) -> None:
-        last = "0-0"
         while not stop.is_set():
-            for entry_id, fields in await self._control.read_ctl(turn_id=inp.turn_id, last_id=last, block_ms=500):
-                last = entry_id
-                kind = fields.get("kind")
-                message_id = int(fields.get("message_id", "0") or 0)
-                text = fields.get("text", "")
-                if kind == "merge":
-                    if state.output_started:
-                        # Lua 与首 token 之间的竞态：已经开始输出，不能再合并。改为排队。
-                        await self._requeue(inp, message_id, text)
-                    else:
-                        state.merge_requested = True
-                        state.merged.append((message_id, text))
-                elif kind == "steer":
-                    inbox.push(str(message_id), text)
-                    state.steer_pushed.append(message_id)
-                elif kind == "cancel":
-                    state.cancelled = True
+            entries = await self._control.read_ctl(turn_id=inp.turn_id, last_id=state.ctl_last, block_ms=500)
+            await self._absorb(inp, state, inbox, entries)
 
     async def _renew(self, inp: TurnInput, stop: asyncio.Event) -> None:
         while not stop.is_set():
@@ -230,8 +273,8 @@ class TurnRunner:
                                     data={"message_id": message_id, "queue_position": item.id})
 
     async def _attach_merged(self, inp: TurnInput, state: _RunState) -> None:
-        ids = [message_id for message_id, _ in state.merged]
         # input.merged 由提交方发出（提交时即时反馈）；这里只负责挂接，不重复发事件。
+        ids = [message_id for message_id, _ in state.merged]
         await self._messages.attach_turn(owner_id=inp.owner_id, session_id=inp.session_id,
                                          message_ids=ids, turn_id=inp.turn_id)
 

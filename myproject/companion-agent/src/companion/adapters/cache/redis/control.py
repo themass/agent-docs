@@ -21,6 +21,8 @@ from typing import Any
 
 from companion.domain.turn.queue import Disposition, TurnPhase
 
+# 共用的 Redis：所有键带 ca: 前缀，与 job-come 的 jc:… 区分（不清库、不占用别的 db）。
+KEY_PREFIX = "ca:"
 LOCK_TTL_MS = 30_000
 EVENTS_MAXLEN = 5_000
 
@@ -35,7 +37,7 @@ local phase = redis.call('HGET', turn, 'phase') or 'none'
 local tid = redis.call('HGET', turn, 'turn_id') or ''
 local restarts = tonumber(redis.call('HGET', turn, 'restarts') or '0')
 local used = tonumber(redis.call('HGET', turn, 'steer_used') or '0')
-local ctl = 'turn:' .. tid .. ':ctl'
+local ctl = 'ca:turn:' .. tid .. ':ctl'
 if phase == 'pre_output' and restarts < max_restarts then
   redis.call('HINCRBY', turn, 'restarts', 1)
   redis.call('XADD', ctl, '*', 'kind', 'merge', 'message_id', mid, 'text', text)
@@ -77,23 +79,23 @@ return 0
 
 
 def turn_key(sid: int) -> str:
-    return f"sess:{sid}:turn"
+    return f"{KEY_PREFIX}sess:{sid}:turn"
 
 
 def lock_key(sid: int) -> str:
-    return f"sess:{sid}:lock"
+    return f"{KEY_PREFIX}sess:{sid}:lock"
 
 
 def ctl_key(tid: str) -> str:
-    return f"turn:{tid}:ctl"
+    return f"{KEY_PREFIX}turn:{tid}:ctl"
 
 
 def text_key(tid: str) -> str:
-    return f"turn:{tid}:text"
+    return f"{KEY_PREFIX}turn:{tid}:text"
 
 
 def events_key(sid: int) -> str:
-    return f"sess:{sid}:events"
+    return f"{KEY_PREFIX}sess:{sid}:events"
 
 
 class RedisTurnControl:
@@ -139,6 +141,10 @@ class RedisTurnControl:
     async def advance_phase(self, *, session_id: int, phase: TurnPhase) -> bool:
         return bool(await self._phase(keys=[turn_key(session_id)], args=[phase.value]))
 
+    async def set_phase(self, *, session_id: int, phase: TurnPhase) -> None:
+        """只允许回合进程自己撤销（首 token 前的合并被发现后，阶段要退回 pre_output）。"""
+        await self._r.hset(turn_key(session_id), "phase", phase.value)
+
     async def clear_turn(self, *, session_id: int) -> None:
         await self._r.delete(turn_key(session_id))
 
@@ -151,6 +157,12 @@ class RedisTurnControl:
             for entry_id, fields in entries:
                 out.append((_s(entry_id), {_s(k): _s(v) for k, v in fields.items()}))
         return out
+
+    async def read_ctl_after(self, *, turn_id: str, last_id: str) -> list[tuple[str, dict[str, str]]]:
+        """非阻塞读取 last_id 之后的控制消息（首 token 前的同步检查用）。"""
+        start = "-" if last_id in ("0", "0-0") else f"({last_id}"
+        res = await self._r.xrange(ctl_key(turn_id), min=start, count=100)
+        return [(_s(entry_id), {_s(k): _s(v) for k, v in fields.items()}) for entry_id, fields in res]
 
     async def send_cancel(self, *, turn_id: str) -> None:
         await self._r.xadd(ctl_key(turn_id), {"kind": "cancel"}, maxlen=100, approximate=True)

@@ -42,6 +42,8 @@ class Settings(BaseSettings):
     tos_bucket: str = ""
     tos_access_key: str = ""
     tos_secret_key: str = ""
+    # 桶内前缀：生产 companion/，测试 companion-test/（与 job-come 共用同一个桶）
+    tos_key_prefix: str = "companion/"
 
 
 settings = Settings()

@@ -12,6 +12,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from companion.adapters.cache.redis.control import lock_key, turn_key
+
 REDIS_URL = os.environ.get("COMPANION_TEST_REDIS_URL", "")
 pytestmark = pytest.mark.skipif(not REDIS_URL, reason="COMPANION_TEST_REDIS_URL not set")
 
@@ -95,7 +97,7 @@ async def test_lua_decision_matches_the_domain_table(control, redis_client, phas
         await control.advance_phase(session_id=sid, phase=TurnPhase.OUTPUT if phase == "output"
                                     else TurnPhase.TOOL if phase == "tool" else TurnPhase.PRE_OUTPUT)
         if used:
-            await redis_client.hset(f"sess:{sid}:turn", "steer_used", used)
+            await redis_client.hset(turn_key(sid), "steer_used", used)
         disposition, _tid = await control.decide(session_id=sid, message_id="9", text="x",
                                                  steerable=steerable, steer_budget=3, max_restarts=2)
         assert disposition.value == expected
@@ -122,9 +124,9 @@ async def test_lock_release_only_by_owner(control, redis_client):
         assert await control.acquire_lock(session_id=sid, owner="a:T1")
         assert not await control.acquire_lock(session_id=sid, owner="b:T2")
         await control.release_lock(session_id=sid, owner="b:T2")
-        assert await redis_client.exists(f"sess:{sid}:lock")
+        assert await redis_client.exists(lock_key(sid))
         await control.release_lock(session_id=sid, owner="a:T1")
-        assert not await redis_client.exists(f"sess:{sid}:lock")
+        assert not await redis_client.exists(lock_key(sid))
     finally:
         await _cleanup(redis_client, sid)
 
@@ -139,6 +141,7 @@ async def test_merge_during_pre_output_restarts_and_attaches_the_merged_message(
     messages, queue = Messages(), Queue()
     tasks, box = [], {}
     calls = {"n": 0}
+    gate = asyncio.Event()  # 首次模型调用在合并消息入队之后才产出首 token（不依赖时间）
 
     async def start_turn(*, owner_id, session_id, character_id, turn_id, owner, text, message_ids):
         turn = TurnInput(owner_id=owner_id, session_id=session_id, character_id=character_id, turn_id=turn_id,
@@ -148,7 +151,7 @@ async def test_merge_during_pre_output_restarts_and_attaches_the_merged_message(
     async def produce(request, inbox):
         calls["n"] += 1
         if calls["n"] == 1:
-            await asyncio.sleep(0.3)  # 首 token 前的合并窗口
+            await gate.wait()
         yield TextDelta("回答")
 
     tracker = DrainState()
@@ -161,6 +164,7 @@ async def test_merge_during_pre_output_restarts_and_attaches_the_merged_message(
         await asyncio.sleep(0.05)
         second = await submit.submit(owner_id=7, session_id=sid, character_id="linche", text="补充",
                                      client_message_id=None)
+        gate.set()
         await asyncio.gather(*tasks)
         assert first.disposition.value == "started"
         assert second.disposition.value == "merged"
@@ -169,7 +173,7 @@ async def test_merge_during_pre_output_restarts_and_attaches_the_merged_message(
         events = [name for _id, name, _data in await control.read_events_after(session_id=sid, after_id="0-0")]
         assert "turn.restarted" in events and events[-1] == "message.done"
         assert tracker.active_turns == 0
-        assert not await redis_client.exists(f"sess:{sid}:lock")
+        assert not await redis_client.exists(lock_key(sid))
     finally:
         await _cleanup(redis_client, sid)
 
@@ -282,5 +286,40 @@ async def test_sse_snapshot_resume_gone_reconnect_and_keepalive(control, redis_c
         idle = await take(event_stream(control=control, session_id=sid, last_event_id="99999999999999-0",
                                        draining=lambda: False, keepalive_sec=0.2), 1)
         assert idle[0] == ": keepalive\n\n"
+    finally:
+        await _cleanup(redis_client, sid)
+
+
+async def test_merge_that_lands_before_the_first_token_is_never_lost(control, redis_client):
+    """回归测试：合并消息在首 token 之前已进入控制流，但后台协程还没读到。
+
+    Lua 判定为合并后、运行器读到之前，首 token 就到了。修复前这条合并会被丢掉。
+    """
+    from companion.app.chat.turn_runner import TurnInput, TurnRunner
+    from companion.ports.brain import TextDelta
+    from companion.adapters.cache.redis.control import ctl_key
+
+    sid = _session_id()
+    messages, queue = Messages(), Queue()
+    calls = {"n": 0}
+
+    async def produce(request, inbox):
+        calls["n"] += 1
+        yield TextDelta("回答")  # 首 token 立即到达
+
+    runner = TurnRunner(control=control, messages=messages, queue=queue, produce=produce)
+    try:
+        assert await control.acquire_lock(session_id=sid, owner="p:RACE")
+        await control.init_turn(session_id=sid, turn_id="RACE", message_ids=[1])
+        # 模拟 Lua 在 pre_output 阶段写入的合并控制消息（运行器尚未读取）
+        await redis_client.xadd(ctl_key("RACE"), {"kind": "merge", "message_id": "77", "text": "补充一句"})
+        inp = TurnInput(owner_id=7, session_id=sid, character_id="linche", turn_id="RACE", owner="p:RACE",
+                        text="第一句", message_ids=[1])
+        await runner.run(inp)
+        assert calls["n"] == 2  # 首次被合并中止，重跑一次
+        assert messages.attached.get(77) == "RACE"
+        assert any(m.role == "assistant" and m.content == "回答" for m in messages.rows.values())
+        events = [name for _id, name, _data in await control.read_events_after(session_id=sid, after_id="0-0")]
+        assert "turn.restarted" in events
     finally:
         await _cleanup(redis_client, sid)

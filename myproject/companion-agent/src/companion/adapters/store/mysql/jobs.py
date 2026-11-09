@@ -1,4 +1,4 @@
-"""MySQL 实现：认领用 SELECT … FOR UPDATE SKIP LOCKED（O §2.1），多个 worker 不会抢同一条。
+"""MySQL 实现（兼容 5.6）：认领用条件 UPDATE，多个 worker 不会抢同一条（O §2.1）。
 
 租约过期的 running 任务与到期的 queued 任务一起被认领（视为上一个进程已崩溃）。
 """
@@ -15,6 +15,12 @@ from companion.adapters.store.mysql.schema import agent_job
 from companion.ports.jobs import JobRecord
 
 
+def _sec(value: datetime) -> datetime:
+    """MySQL 5.6 的 DATETIME 不保存小数秒，写入时会四舍五入。
+    写入与比较两侧都截到整秒，否则刚到期的任务会因为「进位」而暂时不可认领。"""
+    return value.replace(microsecond=0)
+
+
 class MysqlJobStore:
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
@@ -24,31 +30,42 @@ class MysqlJobStore:
         from sqlalchemy import insert
         from sqlalchemy.exc import IntegrityError
 
-        now = datetime.utcnow()
+        now = _sec(datetime.utcnow())
         try:
             async with self._engine.begin() as conn:
                 await conn.execute(insert(agent_job).values(
                     kind=kind, payload=payload, status="queued", attempts=0, max_attempts=max_attempts,
-                    run_after=run_after, dedupe_key=dedupe_key, created_at=now, updated_at=now))
+                    run_after=_sec(run_after), dedupe_key=dedupe_key, created_at=now, updated_at=now))
         except IntegrityError:
             return False  # dedupe_key 已存在：同一任务不重复入队
         return True
 
     async def claim(self, *, owner: str, now: datetime, lease_until: datetime, limit: int) -> list[JobRecord]:
-        async with self._engine.begin() as conn:
-            rows = (await conn.execute(
-                select(agent_job).where(or_(
+        """MySQL 5.6 没有 SKIP LOCKED：先取候选，再逐条做条件更新。只有一个 worker 的 UPDATE 能命中（rowcount == 1）。"""
+        now, lease_until = _sec(now), _sec(lease_until)
+        async with self._engine.connect() as conn:
+            candidates = (await conn.execute(
+                select(agent_job.c.id).where(or_(
                     and_(agent_job.c.status == "queued", agent_job.c.run_after <= now),
                     and_(agent_job.c.status == "running", agent_job.c.lease_until <= now),
-                )).order_by(agent_job.c.run_after).limit(limit).with_for_update(skip_locked=True)
-            )).mappings().all()
-            claimed = []
-            for row in rows:
-                await conn.execute(update(agent_job).where(agent_job.c.id == row["id"]).values(
-                    status="running", lease_owner=owner, lease_until=lease_until, attempts=row["attempts"] + 1,
-                    updated_at=now))
-                claimed.append(JobRecord(row["id"], row["kind"], dict(row["payload"] or {}),
-                                         row["attempts"] + 1, row["max_attempts"], row["dedupe_key"]))
+                )).order_by(agent_job.c.run_after).limit(limit)
+            )).scalars().all()
+        claimed: list[JobRecord] = []
+        for job_id in candidates:
+            async with self._engine.begin() as conn:
+                res = await conn.execute(update(agent_job).where(and_(
+                    agent_job.c.id == job_id,
+                    or_(
+                        and_(agent_job.c.status == "queued", agent_job.c.run_after <= now),
+                        and_(agent_job.c.status == "running", agent_job.c.lease_until <= now),
+                    ),
+                )).values(status="running", lease_owner=owner, lease_until=lease_until,
+                          attempts=agent_job.c.attempts + 1, updated_at=now))
+                if res.rowcount != 1:
+                    continue  # 别的 worker 先拿到了
+                row = (await conn.execute(select(agent_job).where(agent_job.c.id == job_id))).mappings().one()
+            claimed.append(JobRecord(row["id"], row["kind"], dict(row["payload"] or {}), row["attempts"],
+                                     row["max_attempts"], row["dedupe_key"]))
         return claimed
 
     async def renew(self, *, job_id: int, owner: str, lease_until: datetime) -> bool:

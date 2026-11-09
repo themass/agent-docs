@@ -1,7 +1,7 @@
 """MySQL 仓储与迁移的集成测试（T2、T13）。
 
-需要 COMPANION_TEST_MYSQL_URL 指向一个**专用测试库**。为防止误写生产表，库名必须以 `_test` 结尾，
-否则整组测试直接失败（不是跳过）。测试开始时删除并重建全部表（只在测试库里）。
+需要 COMPANION_TEST_MYSQL_URL。库可以与 Java 共用（vpn），但测试只碰 ca_ 前缀的表：
+守卫发现任何无前缀的表会直接失败。测试开始时删除并重建 ca_ 表。
 """
 
 import asyncio
@@ -19,11 +19,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def _guard_database_name() -> None:
-    from sqlalchemy.engine import make_url
+    """测试会删除并重建表。vpn 库与 Java 后端共用，所以只允许碰带 ca_ 前缀的表。"""
+    from companion.adapters.store.mysql.schema import TABLE_PREFIX, metadata
 
-    database = make_url(URL).database or ""
-    if not database.endswith("_test"):
-        raise AssertionError(f"refusing to run destructive tests on database {database!r}; name must end with _test")
+    foreign = [t for t in metadata.tables if not t.startswith(TABLE_PREFIX)]
+    if foreign:
+        raise AssertionError(f"refusing to run: tables without {TABLE_PREFIX!r} prefix: {foreign}")
 
 
 @pytest.fixture(scope="module")
@@ -146,13 +147,15 @@ def test_job_claim_is_exclusive_and_dedupe_holds(migrated):
         try:
             jobs = MysqlJobStore(engine)
             now = datetime.now(UTC).replace(tzinfo=None)
-            assert await jobs.enqueue(kind="audit.trim", payload={}, run_after=now, dedupe_key="t-dedupe-1")
-            assert not await jobs.enqueue(kind="audit.trim", payload={}, run_after=now, dedupe_key="t-dedupe-1")
+            import uuid
+            key = "t-dedupe-" + uuid.uuid4().hex
+            assert await jobs.enqueue(kind="audit.trim", payload={}, run_after=now, dedupe_key=key)
+            assert not await jobs.enqueue(kind="audit.trim", payload={}, run_after=now, dedupe_key=key)
             first = await jobs.claim(owner="w1", now=now, lease_until=now + timedelta(minutes=5), limit=50)
             second = await jobs.claim(owner="w2", now=now, lease_until=now + timedelta(minutes=5), limit=50)
             claimed_ids = {j.id for j in first}
             assert not claimed_ids & {j.id for j in second}
-            mine = next(j for j in first if j.dedupe_key == "t-dedupe-1")
+            mine = next(j for j in first if j.dedupe_key == key)
             assert await jobs.complete(job_id=mine.id, owner="w1")
             assert not await jobs.complete(job_id=mine.id, owner="w2")
         finally:

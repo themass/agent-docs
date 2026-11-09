@@ -29,8 +29,10 @@ class UploadRecord:
 
 
 class UploadService:
-    def __init__(self, *, objects: ObjectStore, records, normalize, clock=lambda: datetime.now(UTC)) -> None:
+    def __init__(self, *, objects: ObjectStore, records, normalize, clock=lambda: datetime.now(UTC),
+                 key_prefix: str = "") -> None:
         self._objects = objects
+        self._key_prefix = key_prefix  # 共用的 TOS 桶：生产用 companion/，测试用 companion-test/
         self._records = records
         self._normalize = normalize
         self._clock = clock
@@ -42,7 +44,7 @@ class UploadService:
             raise UploadRejected("unsupported file type")
         processed = self._normalize(data)
         upload_id = new_ulid()
-        key = f"uploads/{owner_id}/{upload_id}.jpg"  # 统一输出 JPEG，key 不依赖原始扩展名
+        key = f"{self._key_prefix}uploads/{owner_id}/{upload_id}.jpg"  # 统一输出 JPEG，key 不依赖原始扩展名
         await self._objects.put(key=key, data=processed.data, content_type="image/jpeg")
         record = UploadRecord(id=upload_id, owner_id=owner_id, object_key=key, mime="image/jpeg",
                               size=len(processed.data), width=processed.width, height=processed.height,
