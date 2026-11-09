@@ -31,10 +31,8 @@ models:
 skills:
   path: skills
 
-checkpointer:
-  # 多轮上下文靠它。没有 checkpointer 每次调用都是无状态的，记忆之外的历史会断。
-  type: sqlite
-  connection_string: .data/deerflow/checkpoints.sqlite3
+# 不配置 checkpointer：多副本部署，历史以 MySQL 为唯一权威，每回合无状态传入
+# （见 docs/chat-agent-prompt-skill-design.md §2.3、§6.6）。不使用 sqlite。
 
 token_usage:
   enabled: true
