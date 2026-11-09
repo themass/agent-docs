@@ -2,9 +2,9 @@ import asyncio
 
 import pytest
 
-from companion.brain import FakeBrain
-from companion.brain.deerflow import BrainUnavailable, DeerFlowBrain, _ai_text_delta, _thread_id_for
-from companion.brain.port import TurnRequest
+from companion.adapters.brain.fake import FakeBrain
+from companion.adapters.brain.deerflow import BrainUnavailable, DeerFlowBrain, _ai_text_delta, _thread_id_for
+from companion.ports.brain import TurnRequest
 
 
 def request(**kw):

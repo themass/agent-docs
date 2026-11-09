@@ -19,15 +19,18 @@ def main() -> None:
         log.error("缺少 LIVEKIT_URL / LIVEKIT_API_KEY / LIVEKIT_API_SECRET，无法启动 worker")
         raise SystemExit(2)
 
-    from companion.livekit_bridge import require
+    from companion.api.livekit.bridge import require
 
     require()
 
     from livekit.agents import WorkerOptions, cli
 
-    from companion.agent.entrypoint import entrypoint
+    from companion.api.livekit.entrypoint import make_entrypoint
+    from companion.bootstrap.container import create_container
+    from companion.bootstrap.voice_stack import build_voice_stack
 
-    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
+    entry = make_entrypoint(create_container(), voice_factory=build_voice_stack)
+    cli.run_app(WorkerOptions(entrypoint_fnc=entry))
 
 
 if __name__ == "__main__":

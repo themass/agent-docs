@@ -6,16 +6,10 @@
 
 import pytest
 
-from companion.proactive import (
-    Channel,
-    ChannelRouter,
-    DeliveryError,
-    InAppDelivery,
-    InMemorySendLedger,
-    InitiativePreferences,
-    PushDelivery,
-    RecordingDelivery,
-)
+from companion.domain.proactive.models import Channel, InitiativePreferences
+from companion.app.proactive.router import ChannelRouter
+from companion.ports.delivery import DeliveryError
+from companion.adapters.delivery.memory import InAppDelivery, InMemorySendLedger, PushDelivery, RecordingDelivery
 
 
 def at(hour=10):

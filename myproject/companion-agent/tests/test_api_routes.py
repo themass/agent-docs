@@ -8,11 +8,11 @@ import asyncio
 
 from fastapi.testclient import TestClient
 
-from companion.actions.executor import ActionRequest
-from companion.container import create_container
-from companion.memory.port import MemoryItem
-from companion.server.app import create_app
-from companion.server.memory_api import DEFAULT_PAGE, MAX_PAGE
+from companion.domain.tools.executor import ActionRequest
+from companion.bootstrap.container import create_container
+from companion.ports.memory import MemoryItem
+from companion.bootstrap.app import create_app
+from companion.api.http.routers.memory import DEFAULT_PAGE, MAX_PAGE
 
 
 def _client(container=None):

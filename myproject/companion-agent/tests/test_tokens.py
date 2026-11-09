@@ -4,19 +4,7 @@ import time
 
 import pytest
 
-from companion.server.tokens import (
-    AGENT_IDENTITY_PREFIX,
-    USER_IDENTITY_PREFIX,
-    InvalidSignature,
-    InvalidToken,
-    MissingCredentials,
-    TokenExpired,
-    TokenMinter,
-    agent_identity,
-    decode_jwt,
-    encode_jwt,
-    user_identity,
-)
+from companion.adapters.livekit.tokens import AGENT_IDENTITY_PREFIX, USER_IDENTITY_PREFIX, InvalidSignature, InvalidToken, MissingCredentials, TokenExpired, TokenMinter, agent_identity, decode_jwt, encode_jwt, user_identity
 
 SECRET = "test-only-secret"
 API_KEY = "test-api-key"

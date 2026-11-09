@@ -1,0 +1,128 @@
+"""提交与重跑（D §6.1、§6.6、A §5.1）。
+
+提交顺序固定：幂等 → 安全检测 → 落库 → Redis 原子判定 → 按处置执行。
+安全检测对每条输入都执行，包括之后会被合并、插话或排队的输入（T §1、M11）。
+重跑（重新生成、继续、重试）不经过判定：它只能在会话空闲时开始，否则返回忙。
+"""
+
+from __future__ import annotations
+
+import os
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+
+from companion.app.chat.ids import new_ulid
+from companion.domain.middleware.safety import check_input
+from companion.domain.turn.queue import Disposition
+from companion.ports.store import MessageStore, QueueStore
+from companion.ports.turn_control import TurnControlPort
+
+# 启动一个回合的回调（由 bootstrap 注入，内部把 TurnRunner 放到后台任务里跑）。
+StartTurn = Callable[..., Awaitable[None]]
+
+LOCK_RETRIES = 3
+
+
+@dataclass(frozen=True)
+class SubmitResult:
+    status: str                        # accepted | duplicate | denied
+    disposition: Disposition | None    # accepted 时有值
+    message_id: int
+    turn_id: str | None
+    reason: str | None = None
+
+
+class SubmitService:
+    def __init__(
+        self,
+        *,
+        messages: MessageStore,
+        queue: QueueStore,
+        control: TurnControlPort,
+        start_turn: StartTurn,
+        steer_budget: int = 3,
+        max_restarts: int = 2,
+        process_name: str | None = None,
+    ) -> None:
+        self._messages = messages
+        self._queue = queue
+        self._control = control
+        self._start_turn = start_turn
+        self._steer_budget = steer_budget
+        self._max_restarts = max_restarts
+        self._process = process_name or f"pid{os.getpid()}"
+
+    @property
+    def process_name(self) -> str:
+        return self._process
+
+    async def submit(self, *, owner_id: int, session_id: int, character_id: str, text: str,
+                     client_message_id: str | None, steerable: bool = True) -> SubmitResult:
+        if client_message_id:
+            existing = await self._messages.find_by_client_id(
+                owner_id=owner_id, session_id=session_id, client_message_id=client_message_id)
+            if existing is not None:
+                return SubmitResult("duplicate", None, existing.id, existing.turn_id)
+
+        denied = check_input(text)
+        if denied is not None:
+            return SubmitResult("denied", None, 0, None, reason=denied)
+
+        message = await self._messages.append(
+            owner_id=owner_id, session_id=session_id, role="user", content=text, kind="chat",
+            client_message_id=client_message_id, turn_id=None, meta={})
+        await self._control.publish(
+            session_id=session_id, event="message.created",
+            data={"message_id": message.id, "client_message_id": client_message_id, "role": "user",
+                  "kind": "chat", "content": text, "created_at": message.created_at.isoformat()})
+
+        for _ in range(LOCK_RETRIES):
+            disposition, turn_id = await self._control.decide(
+                session_id=session_id, message_id=str(message.id), text=text, steerable=steerable,
+                steer_budget=self._steer_budget, max_restarts=self._max_restarts)
+
+            if disposition is Disposition.STARTED:
+                started = await self._start(owner_id=owner_id, session_id=session_id,
+                                            character_id=character_id, text=text, message_ids=[message.id])
+                if started is not None:
+                    return SubmitResult("accepted", Disposition.STARTED, message.id, started)
+                continue  # 别的请求刚抢到锁：回到判定，这次大概率是合并/插话/排队
+
+            if disposition in (Disposition.MERGED, Disposition.STEERED):
+                # 控制消息已由 Lua 原子写入 turn:{tid}:ctl；回合进程会接手并挂接消息。
+                event = "input.merged" if disposition is Disposition.MERGED else "input.steered"
+                await self._control.publish(session_id=session_id, event=event,
+                                            data={"message_id": message.id, "turn_id": turn_id})
+                return SubmitResult("accepted", disposition, message.id, turn_id)
+
+            item = await self._queue.enqueue(
+                owner_id=owner_id, session_id=session_id, message_id=message.id,
+                client_message_id=client_message_id, text=text)
+            await self._control.publish(session_id=session_id, event="input.queued",
+                                        data={"message_id": message.id, "queue_position": item.id})
+            return SubmitResult("accepted", Disposition.QUEUED, message.id, turn_id)
+
+        # 抢锁反复失败：保守地排队，不丢输入。
+        item = await self._queue.enqueue(
+            owner_id=owner_id, session_id=session_id, message_id=message.id,
+            client_message_id=client_message_id, text=text)
+        await self._control.publish(session_id=session_id, event="input.queued",
+                                    data={"message_id": message.id, "queue_position": item.id})
+        return SubmitResult("accepted", Disposition.QUEUED, message.id, None)
+
+    async def rerun(self, *, owner_id: int, session_id: int, character_id: str, text: str,
+                    message_ids: list[int]) -> str | None:
+        """重新生成 / 继续 / 重试：会话空闲才开始；忙则返回 None（路由层映射为 409）。"""
+        return await self._start(owner_id=owner_id, session_id=session_id, character_id=character_id,
+                                 text=text, message_ids=message_ids)
+
+    async def _start(self, *, owner_id: int, session_id: int, character_id: str, text: str,
+                     message_ids: list[int]) -> str | None:
+        turn_id = new_ulid()
+        owner = f"{self._process}:{turn_id}"
+        if not await self._control.acquire_lock(session_id=session_id, owner=owner):
+            return None
+        await self._control.init_turn(session_id=session_id, turn_id=turn_id, message_ids=message_ids)
+        await self._start_turn(owner_id=owner_id, session_id=session_id, character_id=character_id,
+                               turn_id=turn_id, owner=owner, text=text, message_ids=message_ids)
+        return turn_id

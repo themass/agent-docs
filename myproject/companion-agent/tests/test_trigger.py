@@ -5,7 +5,7 @@
 
 import pytest
 
-from companion.trigger import Trigger, TriggerKind
+from companion.domain.turn.trigger import Trigger, TriggerKind
 
 
 def test_user_message_trigger_uses_payload_text():

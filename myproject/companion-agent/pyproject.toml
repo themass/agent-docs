@@ -5,18 +5,33 @@ description = "Companion (Her) roleplay agent service"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-    "livekit-agents>=1.0",
-    "litellm>=1.55.0",
+    # 大脑：DeerFlow 工厂（docs/implementation/spike-results.md T0）
+    "deerflow-harness==2.3.0.dev0",
+    "langgraph==1.2.20",
+    "langchain-openai>=1.7.4",
+    # 与 DeerFlow 自己的 uv.lock 对齐；mcp 2.x 会导致 deerflow 导入失败（T0-2）
+    "mcp==1.30.0",
+    "langchain-mcp-adapters==0.2.2",
+    # 服务
+    "fastapi>=0.115",
+    "uvicorn>=0.32",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "alembic>=1.14",
+    "redis>=5.0",
+    "pyjwt>=2.9.0",
+    "httpx>=0.28.0",
     "pydantic-settings>=2.6.0",
     "pyyaml>=6.0.0",
-    "httpx>=0.28.0",
-    "pyjwt>=2.9.0",
+    "litellm>=1.55.0",
 ]
 
 [project.optional-dependencies]
+# 角色扮演（LiveKit 房间与语音）才需要；浅聊不装
+livekit = ["livekit-agents==1.8.11"]
 dev = [
     "pytest>=8.3.0",
     "pytest-asyncio>=0.24.0",
+    "import-linter>=2.16",
 ]
 
 [build-system]

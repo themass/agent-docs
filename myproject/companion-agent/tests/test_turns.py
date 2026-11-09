@@ -8,11 +8,11 @@ import asyncio
 
 import pytest
 
-from companion.brain.fake import FakeBrain
-from companion.brain.port import BrainTurn, TurnRequest
-from companion.container import create_container
-from companion.memory.port import MemoryItem
-from companion.turn_pipeline import TurnPipeline
+from companion.adapters.brain.fake import FakeBrain
+from companion.ports.brain import BrainTurn, TurnRequest
+from companion.bootstrap.container import create_container
+from companion.ports.memory import MemoryItem
+from companion.domain.turn.pipeline import TurnPipeline
 
 
 async def drain(pipeline, request):
@@ -111,7 +111,7 @@ async def test_container_recalls_memory_into_prompt():
 
     container.brain.start_turn = capture  # type: ignore[method-assign]
 
-    from companion.conversation import TurnContext
+    from companion.app.chat.conversation import TurnContext
 
     await container.conversation.start_turn(
         TurnContext(user_id="u1", character_id="linche", message="考试让我焦虑")
@@ -124,7 +124,7 @@ def test_app_requires_livekit_for_sessions():
     pytest.importorskip("fastapi")
     from fastapi.testclient import TestClient
 
-    from companion.server.app import create_app
+    from companion.bootstrap.app import create_app
 
     client = TestClient(create_app(livekit_url=""))
     response = client.post("/companion/sessions", json={"character_id": "linche"})
@@ -135,7 +135,7 @@ def test_turn_endpoint_streams_sentences():
     pytest.importorskip("fastapi")
     from fastapi.testclient import TestClient
 
-    from companion.server.app import create_app
+    from companion.bootstrap.app import create_app
 
     client = TestClient(create_app(livekit_url="wss://example.test"))
     response = client.post(

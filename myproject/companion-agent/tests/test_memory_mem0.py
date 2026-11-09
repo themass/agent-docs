@@ -13,16 +13,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from companion.memory.mem0 import (
-    META_CHARACTER,
-    META_CREATED_AT,
-    META_KIND,
-    META_MESSAGE,
-    Mem0MemoryPort,
-    Mem0Unavailable,
-    available,
-)
-from companion.memory.port import MemoryItem, MemoryKind
+from companion.adapters.memory.mem0 import META_CHARACTER, META_CREATED_AT, META_KIND, META_MESSAGE, Mem0MemoryPort, Mem0Unavailable, available
+from companion.ports.memory import MemoryItem, MemoryKind
 
 
 class FakeMem0Client:

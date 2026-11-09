@@ -10,15 +10,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from companion.server.sessions import (
-    ROOM_PREFIX,
-    InMemorySessionStore,
-    SessionError,
-    SessionRecord,
-    SessionService,
-    room_name_for,
-)
-from companion.server.tokens import TokenMinter, decode_jwt, user_identity
+from companion.products.roleplay.sessions import ROOM_PREFIX, InMemorySessionStore, SessionError, SessionRecord, SessionService, room_name_for
+from companion.adapters.livekit.tokens import TokenMinter, decode_jwt, user_identity
 
 SECRET = "test-only-secret"
 API_KEY = "test-api-key"
@@ -82,7 +75,7 @@ async def test_missing_livekit_url_is_a_session_error(service):
 
 
 async def test_missing_credentials_surface_as_token_error(service):
-    from companion.server.tokens import MissingCredentials
+    from companion.adapters.livekit.tokens import MissingCredentials
 
     broken = SessionService(
         store=service.store,
@@ -127,7 +120,7 @@ def test_http_endpoint_wires_identity_room_and_token():
     pytest.importorskip("fastapi", reason="fastapi 不在测试 venv 里")
     from fastapi.testclient import TestClient
 
-    from companion.server.app import create_app
+    from companion.bootstrap.app import create_app
 
     app = create_app(
         minter=TokenMinter(api_key=API_KEY, api_secret=SECRET, ttl_sec=600),

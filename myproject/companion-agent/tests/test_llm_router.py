@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from companion.llm.router import LLMRouter
+from companion.adapters.llm.router import LLMRouter
 
 ROUTING = Path(__file__).resolve().parents[1] / "config" / "llm" / "routing.yaml"
 

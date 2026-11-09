@@ -32,5 +32,9 @@ class Settings(BaseSettings):
 
     companion_token_ttl_sec: int = 600
 
+    # 身份验证：redis_token（生产，读 Java 登录态）或 allow_all（仅 dev）。D §4、A §5.5
+    companion_auth_verifier: str = "allow_all"
+    auth_redis_url: str = ""
+
 
 settings = Settings()

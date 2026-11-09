@@ -1,8 +1,4 @@
-from companion.text.events import (
-    AVATAR_PROTOCOL_VERSION,
-    strip_emotion_tags,
-    to_avatar_events,
-)
+from companion.domain.text.events import AVATAR_PROTOCOL_VERSION, strip_emotion_tags, to_avatar_events
 
 
 def test_leading_bracket_tag_stripped_and_surfaced():

@@ -11,22 +11,17 @@ from datetime import UTC, datetime, time, timedelta
 
 import pytest
 
-from companion.brain.fake import FakeBrain
-from companion.brain.port import BrainTurn
-from companion.container import create_container
-from companion.proactive import (
-    Channel,
-    ChannelRouter,
-    InAppDelivery,
-    InMemorySendLedger,
-    InitiativeLoop,
-    InitiativePreferences,
-    InitiativeScheduler,
-    RecordingDelivery,
-)
-from companion.proactive.loop import _channel_of, occurrence_key
-from companion.timeline.models import EventKind, TimelineEvent
-from companion.trigger import Trigger, TriggerKind
+from companion.adapters.brain.fake import FakeBrain
+from companion.ports.brain import BrainTurn
+from companion.bootstrap.container import create_container
+from companion.domain.proactive.models import Channel, InitiativePreferences
+from companion.app.proactive.router import ChannelRouter
+from companion.adapters.delivery.memory import InAppDelivery, InMemorySendLedger, RecordingDelivery
+from companion.app.proactive.loop import InitiativeLoop
+from companion.app.proactive.scheduler import InitiativeScheduler
+from companion.app.proactive.loop import _channel_of, occurrence_key
+from companion.domain.timeline.models import EventKind, TimelineEvent
+from companion.domain.turn.trigger import Trigger, TriggerKind
 
 
 def at(hour=10, minute=0, day=7):

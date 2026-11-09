@@ -1,0 +1,75 @@
+# 包结构契约（A §4.1）。新目录生效；存量问题在 T1 修完前会报错，这是预期的。
+
+[importlinter]
+root_package = companion
+include_external_packages = True
+
+[importlinter:contract:layers]
+name = 分层：api → app → domain；adapters 与 products 不被上层直接依赖
+type = layers
+layers =
+    companion.api
+    companion.app
+    companion.domain
+
+[importlinter:contract:domain-pure]
+name = 领域层不得依赖 I/O 与框架
+type = forbidden
+source_modules = companion.domain
+forbidden_modules =
+    fastapi
+    sqlalchemy
+    redis
+    httpx
+    aiomysql
+    pymysql
+    livekit
+    companion.adapters
+    companion.bootstrap
+    companion.api
+    companion.app
+
+[importlinter:contract:app-no-adapters]
+name = 应用层只依赖端口，不依赖适配器
+type = forbidden
+source_modules = companion.app
+forbidden_modules = companion.adapters
+
+[importlinter:contract:api-no-adapters-or-bootstrap]
+name = 接口层不得依赖适配器与组合根
+type = forbidden
+source_modules = companion.api
+forbidden_modules =
+    companion.adapters
+    companion.bootstrap
+
+[importlinter:contract:ports-independent]
+name = 端口只依赖领域模型
+type = forbidden
+source_modules = companion.ports
+forbidden_modules =
+    companion.api
+    companion.app
+    companion.adapters
+    companion.bootstrap
+    companion.products
+
+[importlinter:contract:products-declare-only]
+name = 产品包不依赖适配器与组合根
+type = forbidden
+source_modules = companion.products
+forbidden_modules =
+    companion.adapters
+    companion.bootstrap
+
+[importlinter:contract:only-bootstrap-wires]
+name = 只有组合根与入口可以 import bootstrap
+type = forbidden
+source_modules =
+    companion.domain
+    companion.app
+    companion.api
+    companion.adapters
+    companion.ports
+    companion.products
+forbidden_modules = companion.bootstrap

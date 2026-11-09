@@ -9,9 +9,9 @@ from datetime import UTC, datetime
 
 from fastapi.testclient import TestClient
 
-from companion.container import create_container
-from companion.server.app import create_app
-from companion.timeline.models import EventKind, TimelineEvent
+from companion.bootstrap.container import create_container
+from companion.bootstrap.app import create_app
+from companion.domain.timeline.models import EventKind, TimelineEvent
 
 
 def _at(hour: int, minute: int = 0) -> datetime:

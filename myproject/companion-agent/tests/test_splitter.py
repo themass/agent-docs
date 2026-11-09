@@ -1,4 +1,4 @@
-from companion.text.splitter import SentenceSplitter, split_sentences
+from companion.domain.text.splitter import SentenceSplitter, split_sentences
 
 
 def stream(chunks, *, max_chars=SentenceSplitter.DEFAULT_MAX_CHARS):

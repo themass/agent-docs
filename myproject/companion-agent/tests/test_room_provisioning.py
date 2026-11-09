@@ -2,8 +2,8 @@
 
 import pytest
 
-from companion.server.sessions import InMemorySessionStore, SessionError, SessionService
-from companion.server.tokens import TokenMinter
+from companion.products.roleplay.sessions import InMemorySessionStore, SessionError, SessionService
+from companion.adapters.livekit.tokens import TokenMinter
 
 SECRET = "test-only-secret"
 API_KEY = "test-api-key"

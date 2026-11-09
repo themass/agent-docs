@@ -1,12 +1,6 @@
 import pytest
 
-from companion.prompt.character import (
-    PERSONA_MAX_CHARS,
-    CharacterFormatError,
-    from_v2_json,
-    render_persona,
-    to_v2_json,
-)
+from companion.domain.roles.card import PERSONA_MAX_CHARS, CharacterFormatError, from_v2_json, render_persona, to_v2_json
 
 V2_CARD = {
     "spec": "chara_card_v2",
