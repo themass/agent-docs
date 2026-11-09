@@ -200,3 +200,12 @@ def test_the_interviewer_says_the_closing_line_once_the_interview_is_ended():
     body = require_skill("coach-mock").body
     assert "必须用一两句话说出结束语" in body
     assert "报告由独立评审生成" in body
+
+
+def test_the_first_question_after_the_self_introduction_is_a_main_question():
+    # Live (2026-11-09, S01): a follow-up came before any main question, was refused
+    # (parent_not_asked), and the interview stalled until the candidate asked for the next question.
+    body = _prompt("coach-mock")
+    assert "顺序不能乱" in body
+    assert "第一个工具调用必须是" in body and "kind" in body and "main" in body
+    assert "parent_not_asked" in body
