@@ -20,6 +20,7 @@ from companion.adapters.store.mysql.schema import (
     chat_message,
     chat_queue,
     chat_session,
+    tool_call,
     user_role,
 )
 from companion.domain.turn.queue import QUEUE_TRANSITIONS
@@ -292,11 +293,33 @@ class MysqlConfirmationStore:
         return [_confirmation(r) for r in rows]
 
     async def decide(self, *, owner_id: int, confirmation_id: str, status: str) -> bool:
+        """只允许从 pending 转出（认领或拒绝/过期）。"""
         async with self._engine.begin() as conn:
             res = await conn.execute(update(action_confirmation).where(and_(
                 action_confirmation.c.id == confirmation_id, action_confirmation.c.owner_id == owner_id,
                 action_confirmation.c.status == "pending")).values(status=status, decided_at=_now()))
         return res.rowcount == 1
+
+    async def finish(self, *, owner_id: int, confirmation_id: str, status: str) -> bool:
+        """执行结束：只允许从 processing 转到 executed/failed。"""
+        async with self._engine.begin() as conn:
+            res = await conn.execute(update(action_confirmation).where(and_(
+                action_confirmation.c.id == confirmation_id, action_confirmation.c.owner_id == owner_id,
+                action_confirmation.c.status == "processing")).values(status=status))
+        return res.rowcount == 1
+
+
+class MysqlToolCallStore:
+    def __init__(self, engine: AsyncEngine) -> None:
+        self._engine = engine
+
+    async def append(self, record) -> None:
+        async with self._engine.begin() as conn:
+            await conn.execute(insert(tool_call).values(
+                turn_id=record.turn_id, owner_id=record.owner_id, tool=record.tool,
+                permission=record.permission, args_fingerprint=record.args_fingerprint,
+                status=record.status, latency_ms=record.latency_ms, result_chars=record.result_chars,
+                created_at=_now()))
 
 
 # ---- row mappers ----

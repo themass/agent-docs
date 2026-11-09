@@ -1,29 +1,32 @@
+"""MCP 外部 server 的配置、白名单与熔断（T §3）。纯逻辑。
+
+白名单默认拒绝：allow_tools 为空表示一个都不挂（与旧实现相反，见 T §3.3）。
+"""
+
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import Enum
 
 
 class Transport(str, Enum):
-    # SSE 正在被弃用，新接入优先 streamable HTTP。
+    # SSE 已被 MCP 规范弃用，新接入一律 streamable HTTP。
     STREAMABLE_HTTP = "streamable_http"
     SSE = "sse"
 
 
 @dataclass(frozen=True)
 class McpServerSpec:
-    """一个外部 MCP server 的配置。"""
-
     name: str
     url: str
     transport: Transport = Transport.STREAMABLE_HTTP
-    # 只暴露这些工具。空集合表示全部——但默认应该是白名单，不是黑名单。
-    allow_tools: frozenset[str] = field(default_factory=frozenset)
-    timeout_seconds: float = 60.0
-    # 鉴权凭据从环境变量读，不进配置。
-    auth_env: str | None = None
-    # 对外部系统的写操作默认要确认。读操作可以放开。
-    write_requires_confirm: bool = True
+    allow_tools: frozenset[str] = frozenset()       # 空 = 全部拒绝
+    tool_permission: Mapping[str, str] = field(default_factory=dict)  # 每个工具的权限
+    default_permission: str = "confirm"             # 未声明的工具一律需要确认
+    products: frozenset[str] = frozenset({"chat", "roleplay"})
+    timeout_seconds: float = 8.0
+    auth_env: str | None = None                     # 凭据只从环境变量读
 
 
 FORBIDDEN_TOOL_PATTERNS = (
@@ -44,23 +47,40 @@ def is_forbidden_tool(name: str) -> bool:
 
 
 def filter_tools(spec: McpServerSpec, names: list[str]) -> list[str]:
-    """按白名单与禁用规则过滤。
+    """两道过滤：白名单决定「要不要」，禁用规则决定「能不能」。白名单为空则全部拒绝。"""
+    return [n for n in names if n in spec.allow_tools and not is_forbidden_tool(n)]
 
-    两道都要过：白名单决定「要不要」，禁用规则决定「能不能」。一个外部 server
-    即使把 read_file 列进白名单，也不会被挂上。
-    """
-    allowed = spec.allow_tools
-    return [
-        name
-        for name in names
-        if not is_forbidden_tool(name) and (not allowed or name in allowed)
-    ]
+
+def permission_of(spec: McpServerSpec, tool: str) -> str:
+    return spec.tool_permission.get(tool, spec.default_permission)
+
+
+@dataclass
+class CircuitBreaker:
+    """连续失败达到阈值后打开，冷却期内该 server 的工具从白名单移除（T §3.5）。"""
+
+    threshold: int = 5
+    cooldown_s: float = 60.0
+    failures: int = 0
+    opened_at: float | None = None
+
+    def available(self, now: float) -> bool:
+        if self.opened_at is None:
+            return True
+        return now - self.opened_at >= self.cooldown_s
+
+    def record_success(self) -> None:
+        self.failures = 0
+        self.opened_at = None
+
+    def record_failure(self, now: float) -> None:
+        self.failures += 1
+        if self.failures >= self.threshold:
+            self.opened_at = now
 
 
 @dataclass
 class McpRegistry:
-    """登记外部 MCP server。装配层从这里取配置去建 toolset。"""
-
     _servers: dict[str, McpServerSpec] = field(default_factory=dict)
 
     def add(self, spec: McpServerSpec) -> None:

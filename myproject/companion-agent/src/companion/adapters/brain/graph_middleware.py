@@ -78,36 +78,38 @@ class SteerMiddleware(AgentMiddleware):
 
 @Prev(ToolErrorHandlingMiddleware)
 class ToolAuditMiddleware(AgentMiddleware):
-    """记录每次工具调用（状态、耗时）。参数只记指纹，不记原文（O §4.1、T §2.5）。"""
+    """工具审计的位置占位。
+
+    审计在 ``ToolRuntime`` 内完成（它知道最终状态与参数指纹，T §2.5），这里不再重复写，
+    避免同一次调用落两条记录。中间件保留是为了锚点顺序与将来的耗时指标。
+    """
 
     async def awrap_tool_call(self, request, handler):
-        started = time.monotonic()
-        name = request.tool_call.get("name", "")
-        status = "executed"
-        try:
-            result = await handler(request)
-            return result
-        except Exception:
-            status = "failed"
-            raise
-        finally:
-            emit = _ctx(request.runtime.context if request.runtime else None).get("audit")
-            if emit is not None:
-                await emit({"tool": name, "status": status,
-                            "latency_ms": int((time.monotonic() - started) * 1000)})
+        return await handler(request)
 
 
 @Next(ToolAuditMiddleware)
 class ToolAuthorizationMiddleware(AgentMiddleware):
-    """工具调用的最后一道关：不在白名单里的调用直接拒绝，不执行（T §2.3）。"""
+    """工具调用的唯一执行入口（T §2.3）。
+
+    模型只能看到白名单工具（ToolVisibilityMiddleware），这里再校验一次：白名单、参数、权限。
+    执行交给 ``ToolRuntime``，不调用 DeerFlow 传入的工具协程。
+    没有回合上下文时直接拒绝（fail closed）。
+    """
 
     async def awrap_tool_call(self, request, handler):
         name = request.tool_call.get("name", "")
         call_id = request.tool_call.get("id", "")
-        allowed = _ctx(request.runtime.context if request.runtime else None).get("allowed_tools")
-        if allowed is not None and name not in allowed:
+        args = dict(request.tool_call.get("args") or {})
+        ctx = _ctx(request.runtime.context if request.runtime else None)
+        turn = ctx.get("tool_turn")
+        runtime = ctx.get("tool_runtime")
+        if turn is None or runtime is None:
             return ToolMessage(
                 content=json.dumps({"error": "tool_not_available", "tool": name}, ensure_ascii=False),
                 tool_call_id=call_id, name=name, status="error",
             )
-        return await handler(request)
+        outcome = await runtime.invoke(turn, name, args)
+        ok = outcome.status in ("executed", "needs_confirmation")
+        return ToolMessage(content=outcome.model_text, tool_call_id=call_id, name=name,
+                           status="success" if ok else "error")
