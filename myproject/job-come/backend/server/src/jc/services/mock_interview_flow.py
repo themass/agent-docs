@@ -16,14 +16,16 @@ import logging
 import re
 from typing import Any
 
+from agentkit.common.ids import new_id
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from jc.agent.single import run_single
 from jc.authz.scope import RunScope
-from jc.coach.coverage import Candidate
+from jc.coach.coverage import Candidate, coverage_of, key_terms, question_match_text
 from jc.llm.call_context import llm_context
 from jc.llm.router import get_llm_router
-from jc.models.enums import MockSessionStatus
+from jc.models.enums import MockSessionStatus, QuestionSource
+from jc.models.interview import InterviewQuestion
 from jc.models.job import Job
 from jc.services import mock_guard_service as guard
 from jc.services.mock_answer_recorder import is_steering_message
@@ -42,6 +44,7 @@ logger = logging.getLogger(__name__)
 
 MOCK_FLOW_SKILL = "mock-flow"
 
+NO_QUESTIONS_TEXT = "这个岗位暂时没有可以问的题，这场面试先到这里。"
 CLOSING_TEXT = "今天的面试就到这里，谢谢你的时间。这场面试的报告可以在“面试归档”里查看。"
 QA_OPEN_TEXT = "我的问题都问完了。你有什么想问我的吗？"
 AFTER_INTRO_TEXT = "好，谢谢你的介绍。"
@@ -82,10 +85,63 @@ def _flow_state(row: Any, state: dict[str, Any], main_limit: int, followup_limit
 
 
 async def _bank(store: InterviewStore, profile_id: str, job_id: str | None) -> list[Candidate]:
+    """The questions this job can be asked: its own bank only. Another job's questions are never
+    put to this candidate, so an empty pool is filled by `_fill_pool`, not borrowed."""
+    if not job_id:
+        return []
     questions = await store.search_questions(profile_id, job_id=job_id, limit=200)
-    if not questions and job_id:
-        questions = await store.search_questions(profile_id, limit=200)
-    return [Candidate(question_id=q.id, stem=q.stem) for q in questions]
+    return [
+        Candidate(question_id=q.id, stem=question_match_text(q.stem, q.tags))
+        for q in questions
+    ]
+
+
+async def _stem_for(requirement: str, job_title: str | None, job_text: str | None) -> str | None:
+    """A main question for one must-have, written by the model and checked. None when it fails."""
+    data = await _model_json(
+        MOCK_FLOW_SKILL,
+        {"task": "stem", "requirement": requirement, "job_title": job_title or "",
+         "job_text": (job_text or "")[:1500]},
+        "mock_flow_stem",
+    )
+    text = (data or {}).get("question") if data else None
+    if not isinstance(text, str):
+        return None
+    text = text.strip()
+    check = check_phrasing(requirement, text)
+    if not check.ok or not (key_terms(requirement) & key_terms(text)):
+        logger.info("generated stem refused: %s", check.reason or "no_key_term")
+        return None
+    return text
+
+
+async def _fill_pool(
+    db: AsyncSession, store: InterviewStore, row: Any, profile_id: str, must: list[str],
+    pool: list[Candidate],
+) -> list[Candidate]:
+    """For each must-have the job's bank does not cover, write one main question for it into the
+    job's bank (source mock, tagged with the requirement). The next session finds it there."""
+    if not row.job_id or not must:
+        return pool
+    covered = coverage_of(must, [c.stem for c in pool]).covered
+    job = await db.get(Job, row.job_id)
+    added = list(pool)
+    for requirement in must:
+        if requirement in covered:
+            continue
+        stem = await _stem_for(requirement, job.title if job else None,
+                               job.raw_text if job else None)
+        if stem is None:
+            continue
+        question = InterviewQuestion(
+            id=new_id("iq"), profile_id=profile_id, job_id=row.job_id, stem=stem,
+            question_type="behavioral", source=QuestionSource.MOCK, tags=[requirement],
+        )
+        await store.create_question(question)
+        added.append(Candidate(question_id=question.id,
+                               stem=question_match_text(stem, [requirement])))
+    await db.flush()
+    return added
 
 
 async def _model_json(skill_id: str, payload: dict[str, Any], caller: str) -> dict[str, Any] | None:
@@ -230,8 +286,13 @@ async def _next_step(
     for entry in state.get("asked") or []:
         question = await store.get_question(entry["question_id"])
         if question is not None:
-            asked_candidates.append(Candidate(question_id=question.id, stem=question.stem))
+            asked_candidates.append(Candidate(
+                question_id=question.id, stem=question_match_text(question.stem, question.tags),
+            ))
     available = await _bank(store, profile_id, row.job_id)
+    if not state.get("asked"):
+        # Filled once, before the first question: the pool then covers the job's must-haves.
+        available = await _fill_pool(db, store, row, profile_id, must, available)
 
     for _ in range(3):  # a judged-closed main question moves on to the next one at most twice
         state = _load(row)
@@ -271,6 +332,11 @@ async def _next_step(
             prefix = f"{AFTER_INTRO_TEXT}\n" if just_introduced else (
                 f"{SKIP_TEXT}\n" if skipped else "")
             return prefix + wording
+        if decision.action is Action.OPEN_QA and not state.get("asked"):
+            # Nothing could be asked at all (no bank question for this job and none could be
+            # written). The interview ends here, rather than handing the floor to the candidate.
+            await guard.end(scope, mock_session_id=mock_session_id, reason="user_ended")
+            return NO_QUESTIONS_TEXT
         if decision.action is Action.OPEN_QA:
             result = await guard.open_qa(scope, mock_session_id=mock_session_id)
             if not result.get("accepted"):

@@ -45,7 +45,7 @@ async def db(tmp_path):
         session.add(Job(id="j1", profile_id="p1", company="示例", title="后端", raw_text="岗位",
                         requirements={"must_have_skills": MUST_HAVE}))
         for qid, stem in STEMS.items():
-            session.add(InterviewQuestion(id=qid, profile_id="p1", stem=stem,
+            session.add(InterviewQuestion(id=qid, profile_id="p1", job_id="j1", stem=stem,
                                           question_type="behavioral"))
         # Not counted against the quota: the warm-up limits (5 main questions, 1 follow-up) apply.
         session.add(MockSession(
@@ -69,6 +69,8 @@ class Model:
         self.calls.append(payload["task"])
         if payload["task"] == "followup":
             return self.followup
+        if payload["task"] == "stem":
+            return {"question": f"你在{payload['requirement']}上做过哪件事？"}
         return {"question": payload["question"]}
 
 
@@ -191,3 +193,43 @@ async def test_a_wording_that_points_back_is_replaced_by_the_bank_text(db, model
     await _turn(db, "你好")
     reply = await _turn(db, "我叫张三。")
     assert reply == "好，谢谢你的介绍。\n" + STEMS["q01"]
+
+
+async def test_another_jobs_questions_are_never_put_to_this_candidate(db, model, monkeypatch):
+    """The job has no bank questions of its own: the server writes its own, and borrows none."""
+    async with db() as session:
+        session.add(InterviewQuestion(id="other1", profile_id="p1", job_id="j2",
+                                      stem="你做过的增长实验是怎么设计的？",
+                                      question_type="behavioral"))
+        await session.execute(__import__("sqlalchemy").delete(InterviewQuestion).where(
+            InterviewQuestion.job_id == "j1"))
+        await session.commit()
+    await _turn(db, "你好")
+    reply = await _turn(db, "我叫张三。")
+    assert "增长实验" not in reply
+    assert "Python" in reply  # the first uncovered must-have gets a question of its own
+    state = await _coverage(db)
+    first = state["asked"][0]["question_id"]
+    async with db() as session:
+        written = await InterviewStore(session).get_question(first)
+        assert written.job_id == "j1" and written.tags == ["Python"]
+
+
+async def test_a_generated_stem_without_the_requirement_is_refused(db, monkeypatch):
+    async def off_topic(skill_id, payload, caller):
+        if payload["task"] == "stem":
+            return {"question": "讲讲你最喜欢的一部电影？"}
+        return {"question": payload.get("question", "")}
+
+    monkeypatch.setattr(flow, "_model_json", off_topic)
+    await _turn(db, "你好")
+    async with db() as session:
+        session.execute  # noqa: B018 - the pool is emptied below
+        from sqlalchemy import delete
+        await session.execute(delete(InterviewQuestion).where(InterviewQuestion.job_id == "j1"))
+        await session.commit()
+    reply = await _turn(db, "我叫张三。")
+    assert reply == flow.NO_QUESTIONS_TEXT
+    async with db() as session:
+        row = await InterviewStore(session).get_mock_session("ms1")
+        assert row.status == MockSessionStatus.COMPLETED.value

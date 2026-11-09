@@ -38,3 +38,14 @@ Input: `question`, a main interview question from the question bank.
 Output: `{"question": "..."}` with the same question in natural spoken Chinese, one question only.
 Keep the question's topic and its key words. Do not add a second question, a comment, or a
 greeting. Do not begin by pointing back to anything the candidate said.
+
+## task: "stem"
+
+Input: `requirement` (one must-have skill of the job, e.g. "MySQL"), `job_title`, `job_text` (the
+job description, for context only).
+
+Write one main interview question that asks the candidate to show experience with `requirement`.
+It must name the requirement in its words, so that the topic is clear. Ask about something the
+candidate did, not a definition. One question only, in plain spoken Chinese, ending with "？".
+
+Output: `{"question": "..."}`. Do not begin by pointing back to anything the candidate said.
