@@ -271,3 +271,57 @@ async def test_a_steering_word_in_the_candidates_turn_closes_the_interview(db, m
     async with db() as session:
         row = await InterviewStore(session).get_mock_session("ms1")
         assert row.status == MockSessionStatus.COMPLETED.value
+
+
+def test_back_references_are_recognised_however_they_open():
+    from jc.services.interview_reply import refers_to_earlier_talk
+
+    assert refers_to_earlier_talk("上一题你提到支付相关的写操作带唯一约束防重。那往大了说呢？")
+    assert refers_to_earlier_talk("前面你说的数据量是多少？")
+    assert refers_to_earlier_talk("你刚说的那个方案怎么做的？")
+    assert not refers_to_earlier_talk("上一次的项目里，你怎么做的分库分表？")
+    assert not refers_to_earlier_talk("讲讲你做过的一次性能优化。")
+
+
+async def test_skipping_a_follow_up_moves_on_without_judging_its_main_again(db, model):
+    """Skipping a follow-up skips its main question too: no second follow-up on it, and the reply
+    says the question is changed."""
+    await _turn(db, "你好")
+    await _turn(db, "我叫张三。")
+    model.followup = {"followup": True, "question": "样本量是怎么算出来的？",
+                      "quotes": ["样本量按每组五千人来定"]}
+    assert await _turn(db, ANSWER) == "样本量是怎么算出来的？"
+    calls_before = list(model.calls)
+    reply = await _turn(db, "下一题")
+    assert reply.startswith(flow.SKIP_TEXT)
+    assert model.calls[len(calls_before):].count("followup") == 0
+    state = await _coverage(db)
+    assert "q01" in state["closed_mains"]
+
+
+async def test_a_bank_question_that_points_back_is_never_offered(db, model):
+    async with db() as session:
+        session.add(InterviewQuestion(id="qback", profile_id="p1", job_id="j1",
+                                      stem="上一题你提到支付相关的写操作，怎么防重？",
+                                      question_type="behavioral"))
+        await session.commit()
+    await _turn(db, "你好")
+    reply = await _turn(db, "我叫张三。")
+    assert "上一题你提到" not in reply
+    state = await _coverage(db)
+    assert "qback" not in [a["question_id"] for a in state["asked"]]
+
+
+async def test_repeat_request_says_the_last_words_exactly(db, model, monkeypatch):
+    """"没听清" repeats what was said last, word for word, and does not re-word it."""
+    async def reword(skill_id, payload, caller):
+        if payload["task"] == "phrase":
+            return {"question": "这次换了说法，你做过哪件事？"}
+        return {"question": payload.get("question", "")}
+
+    await _turn(db, "你好")
+    monkeypatch.setattr(flow, "_model_json", reword)
+    first = await _turn(db, "我叫张三。")
+    monkeypatch.setattr(flow, "_model_json", model)
+    again = await _turn(db, "没听清，能再说一遍吗")
+    assert again == first.split("\n")[-1]

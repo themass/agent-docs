@@ -32,6 +32,9 @@ def needs_one_question(text: str) -> bool:
 # this interview or another one; as a main question they are asked to a candidate who never said it.
 _BACK_REFERENCE = re.compile(
     r"^(你|您)(刚|刚才|刚刚|又|说|提到|讲)|^我没问|^(你|您)(之前|前面|上一)(说|讲|提到)"
+    # "上一题你提到…", "前面你说…", "刚才的回答里你讲…": the same back-reference with the
+    # earlier answer named first (2026-11-09 round 8: "上一题你提到支付相关的写操作…" was asked).
+    r"|^(上一|上个|上道|前一|前面|刚才|刚刚|上面|之前)[^。？?！!]{0,12}?(说|讲|提到|回答|答)"
 )
 
 

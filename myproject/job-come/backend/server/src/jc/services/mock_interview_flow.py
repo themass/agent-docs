@@ -28,6 +28,7 @@ from jc.models.enums import MockSessionStatus, QuestionSource
 from jc.models.interview import InterviewQuestion
 from jc.models.job import Job
 from jc.services import mock_guard_service as guard
+from jc.services.interview_reply import refers_to_earlier_talk
 from jc.services.mock_answer_recorder import is_steering_message
 from jc.services.mock_flow import (
     Action,
@@ -43,6 +44,8 @@ from jc.stores.interview_store import InterviewStore
 logger = logging.getLogger(__name__)
 
 MOCK_FLOW_SKILL = "mock-flow"
+#: A checked job is short. A call that is still running after this falls back to the server's text.
+MODEL_TIMEOUT_SEC = 20
 
 REFER_TEXT = "这个我需要和团队确认后再回复你。"
 MAX_ANSWER_CHARS = 200
@@ -92,9 +95,12 @@ async def _bank(store: InterviewStore, profile_id: str, job_id: str | None) -> l
     if not job_id:
         return []
     questions = await store.search_questions(profile_id, job_id=job_id, limit=200)
+    # A bank question that points back at an earlier answer cannot stand as a main question. It is
+    # never offered: the guard would refuse it, and the interview would stall on it.
     return [
         Candidate(question_id=q.id, stem=question_match_text(q.stem, q.tags))
         for q in questions
+        if not refers_to_earlier_talk(q.stem)
     ]
 
 
@@ -154,6 +160,7 @@ async def _model_json(skill_id: str, payload: dict[str, Any], caller: str) -> di
             messages=[{"role": "user", "content": json.dumps(payload, ensure_ascii=False)}],
             response_format={"type": "json_object"},
             temperature=0.2,
+            timeout_seconds=MODEL_TIMEOUT_SEC,
             log_context=llm_context(caller),
         )
         data = json.loads(get_llm_router().content_from_response(raw))
@@ -268,8 +275,11 @@ async def run_turn(
             scope, mock_session_id=mock_session_id, question_id=on_table["question_id"],
         )
         closed = list(state.get("closed_mains") or [])
-        if on_table["kind"] == "main":
-            closed.append(on_table["question_id"])
+        # Skipping a main, or a follow-up on it, moves on from that main: it is not followed up.
+        main_id = on_table["question_id"] if on_table["kind"] == "main" else on_table.get(
+            "parent_question_id")
+        if main_id:
+            closed.append(main_id)
         await _save(db, row, answered_upto=len(state["asked"]), closed_mains=closed)
         state = _load(row)
         answered = True
@@ -285,14 +295,23 @@ async def run_turn(
         not answered and not last_skip and state.get("asked")
         and is_steering_message(text) and not _SKIP.search(text)
     ):
-        # "没听清", "能再说一遍吗": repeat the question on the table, record nothing.
-        repeated = await store.get_question(state["asked"][-1]["question_id"])
-        return repeated.stem if repeated else None
+        # "没听清", "能再说一遍吗": repeat the words said last, exactly; record nothing.
+        return state.get("last_text") or None
 
     return await _next_step(
         db, scope, row, store, state, profile_id,
         just_introduced=just_introduced, skipped=last_skip,
     )
+
+
+def _skip_prefix(skipped: bool) -> str:
+    return f"{SKIP_TEXT}\n" if skipped else ""
+
+
+async def _said(db: AsyncSession, row: Any, text: str, *, prefix: str) -> str:
+    """What the candidate is shown, remembered as the last thing said (for "没听清")."""
+    await _save(db, row, last_text=text)
+    return prefix + text
 
 
 async def _next_step(
@@ -341,7 +360,7 @@ async def _next_step(
                     stem=question, parent_question_id=main.id,
                 )
                 if result.get("accepted"):
-                    return question
+                    return await _said(db, row, question, prefix=_skip_prefix(skipped))
             closed = list(state.get("closed_mains") or [])
             closed.append(main.id)
             await _save(db, row, closed_mains=closed)
@@ -356,9 +375,8 @@ async def _next_step(
                 logger.info("main question refused by the server: %s", result.get("code"))
                 return None
             wording = await _phrase(chosen.stem)
-            prefix = f"{AFTER_INTRO_TEXT}\n" if just_introduced else (
-                f"{SKIP_TEXT}\n" if skipped else "")
-            return prefix + wording
+            prefix = f"{AFTER_INTRO_TEXT}\n" if just_introduced else _skip_prefix(skipped)
+            return await _said(db, row, wording, prefix=prefix)
         if decision.action is Action.OPEN_QA and not state.get("asked"):
             # Nothing could be asked at all (no bank question for this job and none could be
             # written). The interview ends here, rather than handing the floor to the candidate.
