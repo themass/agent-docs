@@ -5,6 +5,7 @@ import os
 from alembic import context
 
 from companion.adapters.store.mysql.schema import metadata
+import companion.adapters.store.mysql.memory  # noqa: F401 — 注册 ca_memory_item 到同一个 metadata
 
 config = context.config
 target_metadata = metadata

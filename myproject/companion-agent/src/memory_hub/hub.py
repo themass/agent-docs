@@ -19,7 +19,11 @@ class UnknownApp(KeyError):
 
 
 class ScopedMemory:
-    """作用域客户端：方法签名与 MemoryPort 一致，外部传入的 user_id 永远是应用内用户 id。"""
+    """作用域客户端：方法签名与 companion.ports.memory.MemoryPort 完全一致（规范 §3）。
+
+    外部传入的 user_id 永远是应用内用户 id；这里统一加上 ``app:`` 前缀后交给后端。
+    kinds 原样透传给后端（不在这里做事后过滤），保证每个后端的结果一致。
+    """
 
     def __init__(self, *, app: str, port: Any) -> None:
         self._app = app
@@ -35,29 +39,18 @@ class ScopedMemory:
     async def add(self, user_id: str, items: Sequence[Any]) -> list[Any]:
         return await self._port.add(self._uid(user_id), items)
 
-    async def search(self, user_id: str, query: str, limit: int = 5, *,
-                     kinds: Iterable[str] | None = None) -> list[Any]:
-        if not kinds:
-            return await self._port.search(self._uid(user_id), query, limit=limit)
-        wanted = {k.upper() for k in kinds}
-        # 多取一些再过滤：过滤在端口之外做，避免依赖后端的 metadata 过滤能力。
-        rows = await self._port.search(self._uid(user_id), query, limit=max(limit * 4, 20))
-        matched = [r for r in rows if _kind_of(r) in wanted]
-        return matched[:limit]
+    async def search(self, user_id: str, query: str, limit: int = 5,
+                     kinds: Iterable[Any] | None = None) -> list[Any]:
+        return await self._port.search(self._uid(user_id), query, limit=limit, kinds=kinds)
 
-    async def list_for_user(self, user_id: str, *, limit: int = 20, offset: int = 0) -> list[Any]:
+    async def list_for_user(self, user_id: str, limit: int = 50, offset: int = 0) -> list[Any]:
         return await self._port.list_for_user(self._uid(user_id), limit=limit, offset=offset)
 
     async def delete_one(self, user_id: str, memory_id: str) -> bool:
         return await self._port.delete_one(self._uid(user_id), memory_id)
 
-    async def delete_user(self, user_id: str) -> int | None:
+    async def delete_user(self, user_id: str) -> int:
         return await self._port.delete_user(self._uid(user_id))
-
-
-def _kind_of(item: Any) -> str:
-    kind = getattr(item, "kind", "")
-    return str(getattr(kind, "value", kind)).upper()
 
 
 class MemoryHub:

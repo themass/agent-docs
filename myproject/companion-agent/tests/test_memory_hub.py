@@ -22,8 +22,11 @@ class Port:
         self.rows.setdefault(uid, []).extend(items)
         return list(items)
 
-    async def search(self, uid, query, limit=5):
-        return self.rows.get(uid, [])[:limit]
+    async def search(self, uid, query, limit=5, kinds=None):
+        pool = self.rows.get(uid, [])
+        if kinds:
+            pool = [r for r in pool if r.kind in {str(getattr(k, "value", k)) for k in kinds}]
+        return pool[:limit]
 
     async def list_for_user(self, uid, limit=20, offset=0):
         return self.rows.get(uid, [])[offset:offset + limit]
@@ -38,8 +41,7 @@ class Port:
         return len(self.rows.pop(uid, []))
 
 
-CONFIGS = [AppConfig("companion", "mem_companion", "QDRANT_TOKEN_COMPANION"),
-           AppConfig("jobcome", "mem_jobcome", "QDRANT_TOKEN_JOBCOME")]
+CONFIGS = [AppConfig("companion"), AppConfig("jobcome")]
 
 
 def test_composite_ids_and_their_validation():
@@ -51,11 +53,13 @@ def test_composite_ids_and_their_validation():
         compose_user_id("Bad!", "1")
 
 
-def test_startup_refuses_shared_collection_or_token():
+def test_startup_refuses_duplicate_or_unknown_apps():
     with pytest.raises(ConfigError):
-        validate_configs([AppConfig("companion", "mem_x", "T1"), AppConfig("jobcome", "mem_x", "T2")])
+        validate_configs([AppConfig("companion"), AppConfig("companion")])
     with pytest.raises(ConfigError):
-        validate_configs([AppConfig("companion", "mem_a", "T1"), AppConfig("jobcome", "mem_b", "T1")])
+        validate_configs([AppConfig("companion", backend="qdrant")])
+    with pytest.raises(ConfigError):
+        validate_configs([AppConfig("Bad!")])
     validate_configs(CONFIGS)
 
 
@@ -71,14 +75,15 @@ async def test_two_apps_sharing_one_backend_still_cannot_see_each_other():
     assert len(await companion.list_for_user("7")) == 1
 
 
-async def test_kind_filter_is_applied_outside_the_backend():
+async def test_kinds_are_passed_through_to_the_backend():
+    """kinds 原样透传给后端，由后端过滤（规范 §3），而不是在 hub 里事后过滤。"""
     port = Port()
     hub = MemoryHub.from_config(CONFIGS, lambda cfg: port)
     companion = hub.for_app("companion")
     fact = SimpleNamespace(id="f", content="喜欢茶", kind="FACT")
     event = SimpleNamespace(id="e", content="面试", kind="EVENT")
     await companion.add("7", [fact, event])
-    assert [r.id for r in await companion.search("7", "x", kinds=["event"])] == ["e"]
+    assert [r.id for r in await companion.search("7", "x", kinds=["EVENT"])] == ["e"]
 
 
 def test_unknown_app_is_refused():
