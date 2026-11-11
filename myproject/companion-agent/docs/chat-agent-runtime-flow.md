@@ -40,6 +40,7 @@ bootstrap（组合根：只有它知道具体实现）
 | 工具与确认 | `domain/tools/` | `app/tools/` | `adapters/brain/tools.py` |
 | 定时提醒（主动消息） | `domain/reminders.py` | `app/proactive/reminders.py` | `adapters/store/sql/reminders.py`、`adapters/push/` |
 | 账号注销 | — | `app/account/purge.py` | `adapters/store/sql/account.py`、Redis `purge_session`、`CheckpointThreadEraser` |
+| 时间线（带时间点的事） | `domain/timeline/` | `app/timeline/recorder.py` | `adapters/store/sql/timeline.py` |
 | 存储 | — | — | `adapters/store/sql/`（Postgres，兼容 MySQL） |
 
 ## 3. 数据：三份，各管一件事
@@ -101,6 +102,18 @@ worker 每 5 秒：claim_due（Postgres SKIP LOCKED，租约 2 分钟；租约�
 客户端：kind=proactive 的指令不显示；角色的回复照常出现
 ```
 
+## 6.0 时间线
+
+存 `ca_timeline_event`（Postgres，按「用户 + 角色」隔离）。来源有三种：工具写的（`remember_event`、
+`create_reminder`）、回合后抽取的（`timeline.record` 任务）、记忆页手动加的。
+
+- 同一件事只留一条（`dedupe_key` = 标题归一化 + 当地日期）：工具记过、抽取再记一次会合并。
+- 每条事件记 `source_message_id`：删除用户消息 → 由它得来的事件置 `stale`；编辑 → 同样置 `stale`，
+  新的内容在下一轮抽取时写回来。手动添加的不受影响。都在会话锁内做。
+- 读：`upcoming`（14 天内）+ `recent_past`（2 天内、还不知道结果的）进提示词；`recall_events` 工具同源。
+- 事件本身不会触达用户；会主动找用户的只有 `ca_reminder`。
+- 注销时随关系库一起物理删除。设计见 `chat-agent-timeline-design.md`。
+
 ## 6.1 记忆按角色隔离
 
 记忆主体 id = `{owner}.{role}`（`domain/memory/subject.py`），memory_hub 再加上 `companion:` 前缀。
@@ -124,13 +137,13 @@ worker：再关一次会话 → Redis（取消回合、删锁 / 回合状态 / �
 | 进程 | 入口 | 做什么 |
 |---|---|---|
 | API（多副本） | `python -m companion.serve` | HTTP / SSE；回合在接到请求的进程里跑 |
-| worker（可多副本） | `python -m companion.worker_jobs` | 任务队列（确认过期、审计清理、记忆写入、摘要重建、账号注销）+ 提醒调度；主动回合在 worker 里跑 |
+| worker（可多副本） | `python -m companion.worker_jobs` | 任务队列（确认过期、审计清理、记忆写入、事件抽取、摘要重建、账号注销）+ 提醒调度；主动回合在 worker 里跑 |
 
 两种进程用同一个 `build_platform`，`Platform.astart()` 在事件循环里打开 checkpoint 连接池并建表（幂等）。
 
 配置（环境变量）：`COMPANION_DATABASE_URL`（Postgres，`postgresql+psycopg://…`）、`COMPANION_REDIS_URL`、`COMPANION_CHECKPOINT_URL`（可省，从数据库地址推导）、`COMPANION_LLM_API_BASE` / `COMPANION_LLM_API_KEY`、`COMPANION_SUMMARY_TRIGGER_TOKENS`、`COMPANION_SUMMARY_KEEP_MESSAGES`、TOS（可省，省略时不挂上传接口）。
 
-迁移：`alembic upgrade head`。Postgres 的 `0001` 直接建出完整结构；MySQL 走 0001 → 0002 → 0003。
+迁移：`alembic upgrade head`。Postgres 的 `0001` 直接建出完整结构；MySQL 走 0001 → 0002 → 0003 → 0004。
 
 ## 8. 客户端（Android，`agent-chat-client` 分支）
 
@@ -145,5 +158,5 @@ worker：再关一次会话 → Redis（取消回合、删锁 / 回合状态 / �
 - 推送：只有日志实现，FCM / 厂商通道待接。
 - 账号注销的兜底对账（`account.reconcile`，对比 Java 用户表）：未做，需要只读账号。
 - 换一个回答（同位置多候选）与对话分支：数据结构未做，待产品决定。
-- 时间线仍是进程内实现，重启即丢。持久化设计见 `chat-agent-timeline-design.md`，待确认后实现。
+- 时间线：生日 / 纪念日的自动提醒（`InitiativeScheduler` 那条旧路径）没有迁到新栈；旧栈仍在用它。
 - 真实模型冒烟：需要批准使用线上网关。

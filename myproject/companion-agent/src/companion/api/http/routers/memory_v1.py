@@ -14,7 +14,7 @@ from typing import Any
 
 from companion.app.chat.ids import new_ulid
 from companion.domain.memory.subject import role_subject
-from companion.domain.timeline.models import EventKind, EventStatus, TimelineEvent
+from companion.domain.timeline.models import EventKind, EventOrigin, EventStatus, TimelineEvent
 from companion.ports.memory import MemoryItem, MemoryKind
 
 PREFIX = "/api/agent/v1"
@@ -40,6 +40,10 @@ def _event_json(event: TimelineEvent) -> dict[str, Any]:
         "status": event.status.value,
         "source_character_id": event.source_character_id,
         "confidence": event.confidence,
+        "recurrence": event.recurrence.value,
+        "all_day": event.all_day,
+        "reminder_id": event.reminder_id,
+        "session_id": event.session_id,
     }
 
 
@@ -105,36 +109,31 @@ def build_router(*, memory, timeline, current_user):
     async def list_events(limit: int = Query(default=20, ge=1, le=100), include_past: bool = False,
                           role_id: str | None = role_q(),
                           user_id: str = Depends(current_user)) -> dict[str, Any]:
-        events = await timeline.list_for_user(user_id, limit=limit, include_past=include_past)
-        if role_id:
-            events = [e for e in events if e.source_character_id == role_id]
+        events = await timeline.list_for_owner(owner_id=user_id, role_id=role_id, include_past=include_past,
+                                               limit=limit)
         return {"items": [_event_json(e) for e in events]}
 
     @router.post("/events", status_code=201)
     async def add_event(body: EventIn, role_id: str | None = role_q(),
                         user_id: str = Depends(current_user)) -> dict[str, Any]:
         event = TimelineEvent(
-            id=new_ulid(), user_id=user_id,
+            id="", user_id=user_id,
             kind=EventKind(body.kind) if body.kind in EventKind._value2member_map_ else EventKind.OTHER,
-            title=body.title, at=body.at, source_character_id=role_id or "", confidence=1.0)  # 用户亲口说的，可信度最高
-        await timeline.add(event)
-        return _event_json(event)
+            title=body.title, at=body.at, source_character_id=role_id or "",
+            origin=EventOrigin.MANUAL, confidence=1.0)  # 用户亲口说的，可信度最高
+        return _event_json(await timeline.upsert(event))
 
     @router.patch("/events/{event_id}")
     async def set_event_status(event_id: str, body: EventStatusIn, user_id: str = Depends(current_user)) -> dict[str, Any]:
         if body.status not in {s.value for s in EventStatus}:
             raise HTTPException(status_code=422, detail={"code": "validation", "reason": "unknown status"})
-        setter = getattr(timeline, "set_status", None)
-        if setter is None:
-            # 时间线端口还没有状态更新方法（T9 之后补）；明确返回未实现，而不是假装成功。
-            raise HTTPException(status_code=501, detail={"code": "not_implemented"})
-        if not await setter(user_id, event_id, EventStatus(body.status)):
+        if not await timeline.set_status(owner_id=user_id, public_id=event_id, status=EventStatus(body.status)):
             raise HTTPException(status_code=404, detail={"code": "not_found"})
         return {"id": event_id, "status": body.status}
 
     @router.delete("/events/{event_id}", status_code=204)
     async def delete_event(event_id: str, user_id: str = Depends(current_user)) -> Response:
-        if not await timeline.delete_one(user_id, event_id):
+        if not await timeline.delete(owner_id=user_id, public_id=event_id):
             raise HTTPException(status_code=404, detail={"code": "not_found"})
         return Response(status_code=204)
 

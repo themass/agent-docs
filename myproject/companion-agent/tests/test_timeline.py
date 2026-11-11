@@ -56,7 +56,7 @@ async def test_user_isolation_on_read_and_write():
 async def test_delete_user_removes_everything():
     store = InMemoryTimeline()
     await store.add(event(id="e1", user_id="u1"))
-    await store.add(event(id="e2", user_id="u1"))
+    await store.add(event(id="e2", user_id="u1", title="复诊"))
     await store.add(event(id="e3", user_id="u2"))
     assert await store.delete_user("u1") == 2
     assert await store.list_for_user("u1", include_past=True) == []

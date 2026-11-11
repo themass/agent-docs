@@ -25,9 +25,10 @@ from companion.app.jobs.handlers import (
     confirmation_expire,
     memory_record,
     session_resummarize,
+    timeline_record,
 )
 from companion.app.jobs.worker import JobWorker
-from companion.domain.history.summary import RESUMMARIZE_JOB
+from companion.domain.history.summary import RESUMMARIZE_JOB, TIMELINE_RECORD_JOB
 
 REMINDER_POLL_SEC = 5.0
 log = logging.getLogger("companion.worker")
@@ -61,6 +62,8 @@ async def main() -> None:
         handlers[MEMORY_RECORD_JOB] = memory_record(platform.pipeline, sessions=platform.sessions)
     if platform.resummarize is not None:
         handlers[RESUMMARIZE_JOB] = session_resummarize(platform.resummarize)
+    if platform.timeline_recorder is not None:
+        handlers[TIMELINE_RECORD_JOB] = timeline_record(platform.timeline_recorder, sessions=platform.sessions)
     if platform.account is not None:
         handlers[PURGE_JOB] = account_purge(platform.account)
 

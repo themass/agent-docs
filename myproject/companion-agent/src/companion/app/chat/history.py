@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from companion.domain.history.summary import RESUMMARIZE_JOB
 from companion.ports.conversation import ConversationStatePort, lc_assistant_id, lc_user_id
@@ -43,11 +44,23 @@ def _now() -> datetime:
 
 class HistoryService:
     def __init__(self, *, messages: MessageStore, control: TurnControlPort,
-                 conversation: ConversationStatePort | None = None, jobs: JobStore | None = None) -> None:
+                 conversation: ConversationStatePort | None = None, jobs: JobStore | None = None,
+                 timeline: Any = None) -> None:
+        """``timeline``：时间线存储。删除或编辑用户消息时，由这条消息得来（非手动添加）的事件置 stale；
+        物理删除会话时清掉。在会话锁内执行，与回合互斥。"""
         self._messages = messages
         self._control = control
         self._conversation = conversation
         self._jobs = jobs
+        self._timeline = timeline
+
+    async def _stale_events(self, *, owner_id: int, message_id: int) -> None:
+        if self._timeline is None:
+            return
+        try:
+            await self._timeline.mark_stale_for_source(owner_id=str(owner_id), message_id=str(message_id))
+        except Exception:  # noqa: BLE001 —— 联动失败不该让删除 / 编辑失败
+            pass
 
     async def _locked(self, session_id: int):
         owner = f"history:{uuid.uuid4().hex}"
@@ -71,6 +84,8 @@ class HistoryService:
         try:
             if not await self._messages.soft_delete(owner_id=owner_id, message_id=message_id):
                 return False
+            if message.role == "user":
+                await self._stale_events(owner_id=owner_id, message_id=message_id)
             wanted = lc_ids_of(message)
             removed = await self._conversation.remove(session_id=message.session_id, ids=wanted)
             if removed == 0:
@@ -93,6 +108,8 @@ class HistoryService:
         try:
             if not await self._messages.edit(owner_id=owner_id, message_id=message_id, content=content):
                 return None
+            # 编辑后旧事件作废（内容可能变了），时间线重建由下一次抽取或用户手动修正
+            await self._stale_events(owner_id=owner_id, message_id=message_id)
             replaced = await self._conversation.replace_user_text(
                 session_id=message.session_id, lc_id=lc_user_id(message_id), text=content)
             if not replaced:

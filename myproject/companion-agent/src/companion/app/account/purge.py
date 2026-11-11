@@ -91,7 +91,7 @@ class AccountPurgeService:
         for subject in [role_subject(owner_id, r) for r in roles] + [str(owner_id)]:
             memories += await self._memory.delete_user(subject)
 
-        events = await self._timeline.delete_user(str(owner_id)) if self._timeline is not None else 0
+        events = await self._timeline.delete_user(owner_id=str(owner_id)) if self._timeline is not None else 0
 
         objects = 0
         if self._objects is not None:

@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 from uuid import uuid4
@@ -14,7 +15,7 @@ from pydantic import AwareDatetime, BaseModel, Field
 
 from companion.domain.memory.subject import role_subject
 from companion.domain.reminders import local_time_text
-from companion.domain.timeline.models import EventKind, TimelineEvent
+from companion.domain.timeline.models import EventKind, EventOrigin, TimelineEvent
 from companion.domain.tools.registry import ToolRegistry
 from companion.domain.tools.spec import Permission, SideEffect, ToolContext, ToolSpec
 from companion.ports.memory import MemoryItem
@@ -55,6 +56,9 @@ class CancelReminderParams(BaseModel):
     reminder_id: int = Field(ge=1)
 
 
+RECALL_HORIZON = timedelta(days=14)
+
+
 def register_builtin_tools(registry: ToolRegistry, *, memory: Any, timeline: Any,
                            clock: Callable[[], datetime] = lambda: datetime.now(UTC),
                            reminders: Any = None) -> None:
@@ -78,30 +82,32 @@ def register_builtin_tools(registry: ToolRegistry, *, memory: Any, timeline: Any
         return {"saved": "fact"}
 
     async def recall_events(ctx: ToolContext, args: RecallEventsParams) -> list[dict[str, str]]:
-        events = await timeline.list_for_user(str(ctx.owner_id), limit=args.limit)
-        if ctx.character_id:
-            events = [e for e in events if e.source_character_id == ctx.character_id]
+        events = await timeline.upcoming(owner_id=str(ctx.owner_id), role_id=ctx.character_id,
+                                         now=clock(), horizon=RECALL_HORIZON, limit=args.limit)
         return [{"title": e.title, "at": e.at.isoformat(), "kind": e.kind.value} for e in events]
 
     async def remember_event(ctx: ToolContext, args: RememberEventParams) -> dict[str, str]:
         event = TimelineEvent(
-            id=uuid4().hex, user_id=str(ctx.owner_id), kind=EventKind(args.kind), title=args.title,
-            at=args.at, source_character_id=ctx.character_id, confidence=0.8)
-        await timeline.add(event)
-        return {"event_id": event.id, "at": event.at.isoformat()}
+            id="", user_id=str(ctx.owner_id), kind=EventKind(args.kind), title=args.title, at=args.at,
+            source_character_id=ctx.character_id, session_id=ctx.session_id, origin=EventOrigin.TOOL,
+            confidence=0.8)
+        saved = await timeline.upsert(event)
+        return {"event_id": saved.id, "at": saved.at.isoformat()}
 
     async def create_reminder(ctx: ToolContext, args: CreateReminderParams) -> dict[str, str]:
         """只在用户确认后执行。同一确认重复执行只建一条（按 confirmation_id 幂等）。"""
         event = TimelineEvent(
-            id=uuid4().hex, user_id=str(ctx.owner_id), kind=EventKind.OTHER, title=args.title, at=args.at,
-            source_character_id=ctx.character_id, confidence=1.0, remind_before=timedelta(minutes=30))
+            id="", user_id=str(ctx.owner_id), kind=EventKind.OTHER, title=args.title, at=args.at,
+            source_character_id=ctx.character_id, session_id=ctx.session_id, origin=EventOrigin.TOOL,
+            confidence=1.0, remind_before=timedelta(minutes=30))
         if reminders is None:
-            await timeline.add(event)
-            return {"event_id": event.id, "remind_before_minutes": "30"}
+            saved = await timeline.upsert(event)
+            return {"event_id": saved.id, "remind_before_minutes": "30"}
         record = await reminders.create(owner_id=ctx.owner_id, session_id=ctx.session_id, at=args.at,
                                         timezone=args.timezone, content=args.title,
                                         confirmation_id=ctx.confirmation_id)
-        await timeline.add(event)  # 时间线也记一笔：之后的对话能自然地提起这件事
+        # 时间线也记一笔：之后的对话能自然地提起这件事（同一件事只留一条）
+        await timeline.upsert(replace(event, reminder_id=record.id))
         return {"reminder_id": str(record.id), "due_local": local_time_text(record.due_at, record.timezone),
                 "timezone": record.timezone}
 

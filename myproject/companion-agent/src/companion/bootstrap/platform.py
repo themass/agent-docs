@@ -28,6 +28,7 @@ from companion.adapters.roles.catalog_files import load_system_catalog
 from companion.adapters.storage.images import normalize_image
 from companion.adapters.store.sql.account import SqlAccountStore
 from companion.adapters.store.sql.jobs import SqlJobStore
+from companion.adapters.store.sql.timeline import SqlTimelineStore
 from companion.adapters.store.sql.memory import SqlMemoryPort
 from companion.adapters.store.sql.reminders import SqlReminderStore
 from companion.adapters.store.sql.repositories import (
@@ -39,7 +40,6 @@ from companion.adapters.store.sql.repositories import (
     SqlToolCallStore,
     SqlUploadStore,
 )
-from companion.adapters.timeline.memory import InMemoryTimeline
 from companion.api.http.routers.chat import ChatApi
 from companion.app.account.purge import AccountPurgeService
 from companion.app.chat.assembler import PromptAssembler, skill_id_of
@@ -50,6 +50,7 @@ from companion.app.chat.resummarize import ResummarizeService
 from companion.app.chat.turn_runner import TurnOutcome
 from companion.app.memory.extraction import MemoryExtractor
 from companion.app.memory.recorder import ExtractionRecorder
+from companion.app.timeline.recorder import TimelineRecorder
 from companion.app.proactive.reminders import ReminderDispatcher, ReminderService, SessionGone
 from companion.app.roles.resolver import RoleProfileResolver
 from companion.app.roles.service import RoleService
@@ -59,6 +60,7 @@ from companion.app.tools.runtime import ToolRuntime
 from companion.app.uploads.service import UploadService
 from companion.bootstrap.chat_stack import build_chat_api
 from companion.config import PROJECT_ROOT, Settings
+from companion.domain.history.summary import TIMELINE_RECORD_JOB
 from companion.domain.memory.pipeline import MemoryPipeline
 from companion.domain.tools.registry import ToolRegistry
 from companion.ports.brain import TextDelta, TurnRequest
@@ -92,6 +94,7 @@ class Platform:
     resummarize: ResummarizeService | None = None
     pipeline: MemoryPipeline | None = None
     jobs: SqlJobStore | None = None
+    timeline_recorder: TimelineRecorder | None = None
     account: AccountPurgeService | None = None
     sessions: Any = None
     _pool: Any = None
@@ -190,7 +193,7 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     catalog = load_system_catalog(PROJECT_ROOT / "roles" / "catalog", reserved_ids=BUILTIN_PERSONA_IDS)
     roles = RoleService(catalog, roles_store)
 
-    timeline = InMemoryTimeline()
+    timeline = SqlTimelineStore(engine)
     backend = memory_port if memory_port is not None else SqlMemoryPort(engine)
     hub = MemoryHub.from_config([AppConfig("companion")], lambda cfg: backend)
     memory = hub.for_app("companion")
@@ -223,7 +226,8 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
                                    characters=getattr(prompts, "characters", None),
                                    skills=getattr(prompts, "skills", None), skill_id_of=skill_id_of)
     context = ContextBuilder(roles=resolver, messages=messages, sessions=sessions, memory=pipeline)
-    history = HistoryService(messages=messages, control=control, conversation=conversation, jobs=jobs)
+    history = HistoryService(messages=messages, control=control, conversation=conversation, jobs=jobs,
+                             timeline=timeline)
     resummarize = (ResummarizeService(messages=messages, conversation=conversation, control=control, llm=llm)
                    if conversation is not None and llm is not None else None)
 
@@ -242,6 +246,8 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
         async for chunk in turn.tokens:
             yield TextDelta(chunk)
 
+    timeline_recorder = TimelineRecorder(timeline, llm) if llm is not None else None
+
     async def after_turn(outcome: TurnOutcome) -> None:
         # 拿着会话锁：补记中断的回复，让模型知道上一句说到哪里。
         if outcome.interrupted and outcome.assistant_message_id and outcome.assistant_text and not outcome.lock_lost:
@@ -255,6 +261,13 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
                 "turn_id": outcome.turn_id, "user_text": outcome.user_text,
                 "assistant_text": outcome.assistant_text}, run_after=_utcnow(),
                 dedupe_key=f"{MEMORY_RECORD_JOB}:{outcome.turn_id}")
+        # 事件的来源是这一回合的第一条用户消息（重新生成、合并时也指向它）。
+        if timeline_recorder is not None and not outcome.failed and outcome.user_message_ids:
+            await jobs.enqueue(kind=TIMELINE_RECORD_JOB, payload={
+                "owner_id": outcome.owner_id, "session_id": outcome.session_id, "role_id": outcome.character_id,
+                "user_message_id": outcome.user_message_ids[0], "turn_id": outcome.turn_id,
+                "user_text": outcome.user_text, "assistant_text": outcome.assistant_text},
+                run_after=_utcnow(), dedupe_key=f"{TIMELINE_RECORD_JOB}:{outcome.user_message_ids[0]}")
 
     drain = DrainState()
     api, _close = build_chat_api(
@@ -299,4 +312,4 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     return Platform(chat=api, roles=roles, uploads=uploads, confirmations=confirmations,
                     memory=memory, timeline=timeline, drain=drain, engine=engine, redis=redis,
                     reminders=reminders, history=history, dispatcher=dispatcher, resummarize=resummarize,
-                    pipeline=pipeline, jobs=jobs, account=account, sessions=sessions, _pool=pool, _checkpointer=checkpointer)
+                    pipeline=pipeline, jobs=jobs, timeline_recorder=timeline_recorder, account=account, sessions=sessions, _pool=pool, _checkpointer=checkpointer)

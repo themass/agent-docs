@@ -131,3 +131,41 @@ async def test_interrupted_reply_is_noted_in_the_thread():
     svc, msgs, conv, *_ = _service([], [])
     await svc.note_interrupted(session_id=5, assistant_message_id=9, text="我想说的是")
     assert conv.appended == [("a9", "我想说的是（回复被中断）")]
+
+
+class Timeline:
+    def __init__(self):
+        self.stale = []
+
+    async def mark_stale_for_source(self, *, owner_id, message_id):
+        self.stale.append((owner_id, message_id))
+        return 1
+
+
+async def test_deleting_a_user_message_stales_its_events():
+    """时间线事件跟着用户消息走：消息删了，由它得来的事件作废（chat-agent-timeline-design.md §5）。"""
+    msgs, conv, ctl, jobs = Messages([_msg(30), _msg(31, role="assistant")]), Conversation(["m30"]), Control(), Jobs()
+    timeline = Timeline()
+    svc = HistoryService(messages=msgs, control=ctl, conversation=conv, jobs=jobs, timeline=timeline)
+
+    assert await svc.delete(owner_id=1, message_id=30)
+    assert timeline.stale == [("1", "30")]
+
+
+async def test_editing_a_user_message_stales_its_events():
+    msgs, conv, ctl, jobs = Messages([_msg(40)]), Conversation(["m40"]), Control(), Jobs()
+    timeline = Timeline()
+    svc = HistoryService(messages=msgs, control=ctl, conversation=conv, jobs=jobs, timeline=timeline)
+
+    assert await svc.edit(owner_id=1, message_id=40, content="面试改到周四") is not None
+    assert timeline.stale == [("1", "40")]
+
+
+async def test_a_failing_timeline_does_not_block_deletion():
+    class Broken:
+        async def mark_stale_for_source(self, **kw):
+            raise RuntimeError("db down")
+
+    msgs, conv, ctl, jobs = Messages([_msg(50)]), Conversation(["m50"]), Control(), Jobs()
+    svc = HistoryService(messages=msgs, control=ctl, conversation=conv, jobs=jobs, timeline=Broken())
+    assert await svc.delete(owner_id=1, message_id=50)

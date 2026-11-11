@@ -6,14 +6,12 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from companion.domain.memory.hooks import RecallQuery, RecallResult, RecalledItem
 from companion.domain.memory.subject import role_subject
-
-SCHEDULED = "scheduled"
-
 
 def _naive_utc(value: datetime | None) -> datetime | None:
     if value is None:
@@ -51,32 +49,39 @@ class MemoryPortRecaller:
 
 
 class TimelineRecaller:
-    """时间线：只取将来、未完成的事件（过去的不提，避免「你上周那个面试」这种已过时的话）。
+    """时间线：将来的事，加上刚过去、还不知道结果的（「你上周那个面试」只在这时提）。
 
     ``per_role``：只取当前角色记下的事件（与记忆一样按角色隔离）。
     """
 
-    def __init__(self, timeline: Any, *, name: str = "timeline", per_role: bool = True) -> None:
+    HORIZON = timedelta(days=14)
+    RECENT = timedelta(days=2)
+
+    def __init__(self, timeline: Any, *, name: str = "timeline", per_role: bool = True,
+                 clock: Callable[[], datetime] = lambda: datetime.now(UTC)) -> None:
         self._timeline = timeline
         self.name = name
         self._per_role = per_role
+        self._clock = clock
 
     async def recall(self, query: RecallQuery) -> RecallResult:
+        now = self._clock()
+        role = (query.role_id or "") if self._per_role else ""
         try:
-            events = await self._timeline.list_for_user(query.user_id, limit=query.limit)
+            upcoming = await self._timeline.upcoming(owner_id=query.user_id, role_id=role, now=now,
+                                                     horizon=self.HORIZON, limit=query.limit)
+            past = await self._timeline.recent_past(owner_id=query.user_id, role_id=role, now=now,
+                                                    window=self.RECENT, limit=max(1, query.limit // 2))
         except Exception as exc:  # noqa: BLE001
             return RecallResult(source=self.name, error=type(exc).__name__)
         out: list[RecalledItem] = []
-        for event in events:
-            if getattr(getattr(event, "status", None), "value", "") != SCHEDULED:
-                continue
-            if self._per_role and query.role_id and getattr(event, "source_character_id", "") != query.role_id:
-                continue
+        for event in [*past, *upcoming]:
             at = _naive_utc(getattr(event, "at", None))
             when = at.strftime("%m-%d %H:%M") if at else ""
             out.append(RecalledItem(text=f"{when} {event.title}".strip(), source=self.name, ref=str(event.id),
                                     occurred_at=at, tags=frozenset({"event"})))
-        return RecallResult(source=self.name, items=tuple(out))
+        return RecallResult(source=self.name, items=tuple(out), truncated=len(upcoming) >= query.limit)
+
 
 
 class MemoryPortForgetter:

@@ -242,3 +242,30 @@ reminder = Table(
     Index("ca_ix_reminder_owner_status", "owner_id", "status"),
     UniqueConstraint("confirmation_id", name="ca_uq_reminder_confirmation"),
 )
+
+
+timeline_event = Table(
+    TABLE_PREFIX + "timeline_event", metadata,
+    _pk(),
+    Column("public_id", String(26), nullable=False, unique=True),   # ULID，对外暴露
+    Column("owner_id", BigInteger, nullable=False),
+    Column("role_id", String(128), nullable=False),                 # 空串 = 用户级（记忆页手动添加）
+    Column("session_id", BigInteger, nullable=True),
+    Column("source_message_id", String(26), nullable=True),         # 由哪条用户消息得来；手动添加为空
+    Column("origin", String(16), nullable=False),                   # tool | extracted | manual
+    Column("kind", String(16), nullable=False),
+    Column("title", String(60), nullable=False),
+    Column("at_utc", DateTime, nullable=False),
+    Column("timezone", String(64), nullable=False, server_default="UTC"),
+    Column("all_day", Boolean, nullable=False, server_default="0"),
+    Column("recurrence", String(16), nullable=False, server_default="none"),
+    Column("next_at_utc", DateTime, nullable=True),                 # 按时间查用：一次性 = at，重复 = 下一次
+    Column("status", String(16), nullable=False, server_default="scheduled"),
+    Column("confidence", types.Float, nullable=False, server_default="1"),
+    Column("reminder_id", BigInteger, nullable=True),
+    Column("dedupe_key", String(64), nullable=False),
+    _now(), _upd(),
+    UniqueConstraint("owner_id", "role_id", "dedupe_key", name="ca_uq_timeline_dedupe"),
+    Index("ca_ix_timeline_owner_role_next", "owner_id", "role_id", "status", "next_at_utc"),
+    Index("ca_ix_timeline_source", "source_message_id"),
+)

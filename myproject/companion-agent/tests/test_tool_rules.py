@@ -123,7 +123,10 @@ class Messages:
 
 def build():
     memory = SimpleNamespace(search=AsyncMock(return_value=[SimpleNamespace(content="喜欢茶")]), add=AsyncMock())
-    timeline = SimpleNamespace(add=AsyncMock(), list_for_user=AsyncMock(return_value=[]))
+    async def _upsert(event):
+        return event
+
+    timeline = SimpleNamespace(upsert=AsyncMock(side_effect=_upsert), upcoming=AsyncMock(return_value=[]))
     reg = ToolRegistry()
     register_builtin_tools(reg, memory=memory, timeline=timeline)
     confirmations, audit, messages = Confirmations(), Audit(), Messages()
@@ -166,13 +169,13 @@ async def test_confirmation_requires_owner_and_runs_once_and_writes_action_messa
     created = await env.runtime.invoke(turn({"create_reminder"}), "create_reminder",
                                        {"title": "吃药", "at": "2026-12-01T09:00:00+00:00"})
     assert created.status == "needs_confirmation"
-    assert env.timeline.add.await_count == 0
+    assert env.timeline.upsert.await_count == 0
     cid = created.confirmation_id
 
     assert await env.service.decide(owner_id=8, confirmation_id=cid, accept=True) is None
     first = await env.service.decide(owner_id=7, confirmation_id=cid, accept=True)
     assert first.status == "executed"
-    assert env.timeline.add.await_count == 1
+    assert env.timeline.upsert.await_count == 1
     assert env.messages.rows[-1].kind == "action"
     assert await env.service.decide(owner_id=7, confirmation_id=cid, accept=True) is None
 
@@ -183,7 +186,7 @@ async def test_decline_never_executes():
                                        {"title": "喝水", "at": "2026-12-02T09:00:00+00:00"})
     result = await env.service.decide(owner_id=7, confirmation_id=created.confirmation_id, accept=False)
     assert result.status == "declined"
-    assert env.timeline.add.await_count == 0
+    assert env.timeline.upsert.await_count == 0
 
 
 async def test_expired_confirmation_is_not_executed():
@@ -194,7 +197,7 @@ async def test_expired_confirmation_is_not_executed():
     env.service._clock = lambda: later
     result = await env.service.decide(owner_id=7, confirmation_id=created.confirmation_id, accept=True)
     assert result.status == "expired"
-    assert env.timeline.add.await_count == 0
+    assert env.timeline.upsert.await_count == 0
 
 
 async def test_every_call_is_audited_with_fingerprint():

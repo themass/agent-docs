@@ -14,6 +14,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 RESUMMARIZE_JOB = "session.resummarize"
+TIMELINE_RECORD_JOB = "timeline.record"
 MAX_TRANSCRIPT_CHARS = 16000
 SUMMARY_MAX_CHARS = 1200
 

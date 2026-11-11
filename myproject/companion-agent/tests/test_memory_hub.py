@@ -113,12 +113,18 @@ def test_fact_endpoints_respect_ownership(memory_client):
                                headers=ME).status_code == 200
 
 
-def test_event_endpoints_respect_ownership_and_status_is_not_faked(memory_client):
+def test_event_endpoints_respect_ownership_and_update_status(memory_client):
     eid = memory_client.post("/api/agent/v1/memory/events",
                              json={"title": "评审", "at": "2026-12-01T10:00:00+00:00"}, headers=ME).json()["id"]
     assert memory_client.delete(f"/api/agent/v1/memory/events/{eid}", headers=BOB).status_code == 404
+    # 改了状态：完成的事件不再出现在「将来」列表里
     assert memory_client.patch(f"/api/agent/v1/memory/events/{eid}", json={"status": "done"},
-                               headers=ME).status_code == 501
+                               headers=BOB).status_code == 404
+    assert memory_client.patch(f"/api/agent/v1/memory/events/{eid}", json={"status": "done"},
+                               headers=ME).status_code == 200
+    assert memory_client.get("/api/agent/v1/memory/events", headers=ME).json()["items"] == []
+    assert memory_client.patch(f"/api/agent/v1/memory/events/{eid}", json={"status": "nope"},
+                               headers=ME).status_code == 422
     assert memory_client.delete(f"/api/agent/v1/memory/events/{eid}", headers=ME).status_code == 204
 
 

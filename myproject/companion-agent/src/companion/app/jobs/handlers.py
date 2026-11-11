@@ -69,3 +69,19 @@ def account_purge(service: Any):
                           requested_at=datetime.fromisoformat(requested) if requested else None)
 
     return handle
+
+
+def timeline_record(service: Any, *, sessions: Any = None):
+    """回合后的事件抽取（chat-agent-timeline-design.md §5）。会话已删除或账号已注销时跳过。"""
+
+    async def handle(payload: dict[str, Any]) -> None:
+        if sessions is not None and payload.get("session_id") is not None:
+            if await sessions.get(owner_id=int(payload["owner_id"]), session_id=int(payload["session_id"])) is None:
+                return
+        await service.record_turn(owner_id=int(payload["owner_id"]), role_id=str(payload.get("role_id", "")),
+                                  session_id=payload.get("session_id"),
+                                  user_message_id=int(payload["user_message_id"]),
+                                  user_text=str(payload.get("user_text", "")),
+                                  assistant_text=str(payload.get("assistant_text", "")))
+
+    return handle

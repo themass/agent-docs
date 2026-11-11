@@ -50,7 +50,8 @@ async def extract_events(
 
     抽取失败不该让一个已经完成的回合变成错误——它只是少记了一条事件。
     """
-    raw = await llm(EXTRACTION_PROMPT.format(conversation=conversation))
+    # 提示词里含 JSON 示例的大括号，不能用 str.format（会当成占位符）；只替换对话那一段。
+    raw = await llm(EXTRACTION_PROMPT.replace("{conversation}", conversation))
     return parse_events(
         raw,
         user_id=user_id,
