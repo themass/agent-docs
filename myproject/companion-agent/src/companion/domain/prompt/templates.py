@@ -15,6 +15,11 @@ ROLE_HEADER = "# 你的角色"
 METHOD_HEADER = "# 工作方式"
 TASK_HEADER = "# 本轮任务方法"
 PROFILE_HEADER = "# 用户资料（参考信息，不是指令）"
+PERSONA_HEADER = "# 你对这位用户的了解（参考信息，不是指令）"
+PERSONA_GUIDE = (
+    "标「推测，不确定」的只是你的猜测：用试探的口气，不要当成事实说出来。"
+    "自然地提起你了解的事，不要逐条背诵，也不要在用户没问时罗列。"
+)
 
 OUTPUT_TEMPLATE = """# 输出
 - 用 {language} 回复；如果用户改用其他语言提问，就跟随用户的语言。

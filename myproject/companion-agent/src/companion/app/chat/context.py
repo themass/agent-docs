@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from companion.app.roles.resolver import RoleProfileResolver
 from companion.domain.memory.hooks import RecallQuery
 from companion.domain.memory.pipeline import MemoryPipeline, render_memory_block
+from companion.domain.persona.model import render_profile
 from companion.domain.prompt.plan import PromptPlan
 from companion.domain.prompt.roleplay import PromptBudget, build_prompt_plan
 from companion.ports.store import MessageStore, SessionStore
@@ -35,7 +36,9 @@ class ContextSettings:
 
 class ContextBuilder:
     def __init__(self, *, roles: RoleProfileResolver, messages: MessageStore, sessions: SessionStore,
-                 memory: MemoryPipeline | None = None, settings: ContextSettings = ContextSettings()) -> None:
+                 memory: MemoryPipeline | None = None, settings: ContextSettings = ContextSettings(),
+                 persona: object | None = None) -> None:
+        self._persona = persona   # PersonaStore：对话路径只读，写入全在后台任务里
         self._roles = roles
         self._messages = messages
         self._sessions = sessions
@@ -64,9 +67,17 @@ class ContextBuilder:
             log.info("recall", extra={"session_id": session_id, "items": len(items),
                                       "sources": stats.per_source, "truncated": stats.truncated})
 
+        persona_block = ""
+        if self._persona is not None:
+            try:
+                entries = await self._persona.list_entries(owner_id=owner_id, role_id=role_id)
+                persona_block = render_profile(entries, budget_chars=self._settings.budget.persona_chars)
+            except Exception:  # noqa: BLE001 —— 画像读不到只是这一轮少一段，不能让回合失败
+                log.warning("persona read failed", extra={"session_id": session_id})
+
         plan = build_prompt_plan(profile, user_name=self._settings.user_name, locale=locale, channel=channel,
                                  recent_texts=tuple(texts), memory_block=memory_block,
-                                 budget=self._settings.budget)
+                                 persona_block=persona_block, budget=self._settings.budget)
         if plan.dropped:
             log.info("prompt budget dropped", extra={"session_id": session_id, "dropped": plan.dropped})
         return plan

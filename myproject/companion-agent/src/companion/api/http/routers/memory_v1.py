@@ -20,6 +20,15 @@ from companion.ports.memory import MemoryItem, MemoryKind
 PREFIX = "/api/agent/v1"
 
 
+def _uid(user_id: str) -> int:
+    """画像表的 owner_id 是整数；登录态已保证是正整数，非数字按不存在处理。"""
+    from fastapi import HTTPException
+
+    if not user_id.isdigit():
+        raise HTTPException(status_code=404, detail={"code": "not_found"})
+    return int(user_id)
+
+
 def _fact_json(item) -> dict[str, Any]:
     kind = getattr(item, "kind", MemoryKind.FACT)
     return {
@@ -47,7 +56,7 @@ def _event_json(event: TimelineEvent) -> dict[str, Any]:
     }
 
 
-def build_router(*, memory, timeline, current_user):
+def build_router(*, memory, timeline, current_user, persona=None):
     from fastapi import APIRouter, Depends, HTTPException, Query, Response
     from pydantic import AwareDatetime, BaseModel, Field
 
@@ -96,6 +105,9 @@ def build_router(*, memory, timeline, current_user):
         item = MemoryItem(id=uuid.uuid4().hex, content=body.content, kind=MemoryKind.FACT,
                           source_character_id=role_id or "")
         await memory.add(subject, [item])
+        if persona is not None:
+            # 事实被改写了（旧 id 消失）：只靠旧事实归纳的画像条目已经没有依据，一并清掉，下一批按新内容重新归纳
+            await persona.drop_for_facts(owner_id=_uid(user_id), fact_ids=[fact_id])
         return _fact_json(item)
 
     @router.delete("/facts/{fact_id}", status_code=204)
@@ -103,6 +115,9 @@ def build_router(*, memory, timeline, current_user):
                           user_id: str = Depends(current_user)) -> Response:
         if not await memory.delete_one(role_subject(user_id, role_id), fact_id):
             raise HTTPException(status_code=404, detail={"code": "not_found"})
+        if persona is not None:
+            # 联动：只靠这条事实归纳出来的画像条目一并删除，用户说「忘掉」就真的忘掉
+            await persona.drop_for_facts(owner_id=_uid(user_id), fact_ids=[fact_id])
         return Response(status_code=204)
 
     @router.get("/events")
@@ -137,9 +152,34 @@ def build_router(*, memory, timeline, current_user):
             raise HTTPException(status_code=404, detail={"code": "not_found"})
         return Response(status_code=204)
 
+    def _entry_json(e) -> dict[str, Any]:
+        return {"id": e.id, "topic": e.topic, "memo": e.memo, "section": e.section,
+                "is_inference": e.is_inference, "confidence": e.confidence,
+                "source_fact_ids": list(e.source_fact_ids), "suppressed": e.suppressed,
+                "superseded_by": e.superseded_by,
+                "mentioned_at": e.mentioned_at.isoformat() if e.mentioned_at else None}
+
     @router.get("/profile")
-    async def profile(user_id: str = Depends(current_user)) -> dict[str, Any]:
-        # L3 画像由 P4 的汇总任务生成（D §10.6）；现在没有就明确返回空，而不是编造。
-        return {"markdown": None, "version": None}
+    async def profile(role_id: str | None = role_q(), include_history: bool = False,
+                      user_id: str = Depends(current_user)) -> dict[str, Any]:
+        """这个角色对你的了解：当前有效的条目；``include_history`` 时带上被取代和被压住的（「为什么记得」）。
+        没有画像存储（未配置）或还没有生成就明确返回空，不编造。"""
+        if persona is None or not role_id:
+            return {"items": [], "markdown": None, "version": None}
+        entries = await persona.list_entries(owner_id=_uid(user_id), role_id=role_id, include_history=include_history)
+        return {"items": [_entry_json(e) for e in entries], "markdown": None, "version": None}
+
+    @router.post("/profile/{entry_id}/suppress", status_code=204)
+    async def suppress_entry(entry_id: int, user_id: str = Depends(current_user)) -> Response:
+        """「别再提」：这条不再注入提示词，同一话题也不会被重新生成。"""
+        if persona is None or not await persona.suppress(owner_id=_uid(user_id), entry_id=entry_id):
+            raise HTTPException(status_code=404, detail={"code": "not_found"})
+        return Response(status_code=204)
+
+    @router.delete("/profile/{entry_id}", status_code=204)
+    async def delete_entry(entry_id: int, user_id: str = Depends(current_user)) -> Response:
+        if persona is None or not await persona.delete(owner_id=_uid(user_id), entry_id=entry_id):
+            raise HTTPException(status_code=404, detail={"code": "not_found"})
+        return Response(status_code=204)
 
     return router

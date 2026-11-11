@@ -33,6 +33,7 @@ class PromptBudget:
     lore_chars: int = 1500
     examples_chars: int = 1500
     memory_chars: int = 800
+    persona_chars: int = 700   # 画像始终注入，单独的预算，不和召回的记忆抢
 
 
 @dataclass(frozen=True)
@@ -97,6 +98,7 @@ def build_prompt_plan(
     channel: str = "text",
     recent_texts: tuple[str, ...] = (),
     memory_block: str = "",
+    persona_block: str = "",
     author_note: AuthorNote | None = None,
     budget: PromptBudget = PromptBudget(),
 ) -> PromptPlan:
@@ -119,10 +121,14 @@ def build_prompt_plan(
                         for e in lore.entries if e.position == "after_char")
     examples = _examples_block(profile.examples, char=char, user=user_name, budget=budget.examples_chars)
     memory = memory_block.strip()[:budget.memory_chars]
+    # 画像渲染时已经按预算裁过（按重要性取舍）；这里不再硬截断，截断会把一条画像切成半句
+    persona = persona_block.strip()
+    if len(persona) > budget.persona_chars:
+        persona = ""
 
-    optional = {"examples": examples, "lore": before + after, "memory": memory}
+    optional = {"examples": examples, "lore": before + after, "memory": memory, "persona": persona}
     dropped: list[str] = []
-    for name in ("examples", "lore", "memory"):  # 超预算时的丢弃顺序
+    for name in ("examples", "lore", "memory", "persona"):  # 超预算时的丢弃顺序：画像最后丢
         if mandatory + sum(len(v) for v in optional.values()) <= budget.system_chars:
             break
         if optional[name]:
@@ -140,6 +146,8 @@ def build_prompt_plan(
     if optional["examples"]:
         parts.append(optional["examples"])
     parts.append(output)
+    if optional["persona"]:
+        parts.append(f"{T.PERSONA_HEADER}\n\n{T.PERSONA_GUIDE}\n\n{optional['persona']}")
     if optional["memory"]:
         parts.append(f"{T.PROFILE_HEADER}\n\n{optional['memory']}")
 

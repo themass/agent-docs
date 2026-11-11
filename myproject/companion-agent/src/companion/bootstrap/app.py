@@ -229,7 +229,7 @@ def create_app(
             app.include_router(build_avatars_router(platform.avatars, current_user,
                                                     admin_token=platform.admin_token))
         app.include_router(build_memory_v1_router(memory=platform.memory, timeline=platform.timeline,
-                                                  current_user=current_user))
+                                                  current_user=current_user, persona=platform.persona))
         app.include_router(build_health_router(platform.drain))
 
     # 客户端依赖的接口：角色目录、记忆与事件、动作确认与偏好、主动消息收件箱。

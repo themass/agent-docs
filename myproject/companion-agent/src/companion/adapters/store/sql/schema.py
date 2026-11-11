@@ -295,3 +295,33 @@ avatar_release = Table(
     UniqueConstraint("avatar_key", "version", name="ca_uq_avatar_version"),
     Index("ca_ix_avatar_status_role", "status", "role_id"),
 )
+
+
+persona_entry = Table(
+    TABLE_PREFIX + "persona_entry", metadata,
+    _pk(),
+    Column("owner_id", BigInteger, nullable=False),
+    Column("role_id", String(128), nullable=False),                  # 按「用户 + 角色」隔离，和记忆一致
+    Column("topic", String(32), nullable=False),
+    Column("memo", String(255), nullable=False),
+    Column("section", String(8), nullable=False),                    # static | dynamic
+    Column("is_inference", Boolean, nullable=False, server_default="0"),
+    Column("confidence", types.Float, nullable=False, server_default="0.8"),
+    Column("source_fact_ids", JsonText, nullable=True),              # 由哪些事实记忆归纳而来
+    Column("mentioned_at", DateTime, nullable=True),
+    Column("happened_at", DateTime, nullable=True),
+    Column("superseded_by", BigInteger, nullable=True),              # 被哪条取代；空 = 当前有效
+    Column("suppressed", Boolean, nullable=False, server_default="0"),   # 用户说「别再提」
+    _now(), _upd(),
+    Index("ca_ix_persona_owner_role", "owner_id", "role_id", "superseded_by"),
+)
+
+persona_cursor = Table(
+    TABLE_PREFIX + "persona_cursor", metadata,
+    Column("owner_id", BigInteger, primary_key=True),
+    Column("role_id", String(128), primary_key=True),
+    # 上次抽取处理到的位置：已处理的用户消息 id、待处理的累计字数（批量触发用，不每轮抽取）
+    Column("last_message_id", BigInteger, nullable=False, server_default="0"),
+    Column("pending_chars", Integer, nullable=False, server_default="0"),
+    Column("updated_at", DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP")),
+)

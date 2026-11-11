@@ -29,6 +29,7 @@ from companion.adapters.storage.images import normalize_image
 from companion.adapters.store.sql.account import SqlAccountStore
 from companion.adapters.store.sql.avatar import SqlAvatarReleaseStore
 from companion.adapters.store.sql.jobs import SqlJobStore
+from companion.adapters.store.sql.persona import SqlPersonaStore
 from companion.adapters.store.sql.timeline import SqlTimelineStore
 from companion.adapters.store.sql.memory import SqlMemoryPort
 from companion.adapters.store.sql.reminders import SqlReminderStore
@@ -52,6 +53,7 @@ from companion.app.chat.resummarize import ResummarizeService
 from companion.app.chat.turn_runner import TurnOutcome
 from companion.app.memory.extraction import MemoryExtractor
 from companion.app.memory.recorder import ExtractionRecorder
+from companion.app.persona.updater import PERSONA_JOB, PersonaUpdater
 from companion.app.timeline.recorder import TimelineRecorder
 from companion.app.proactive.reminders import ReminderDispatcher, ReminderService, SessionGone
 from companion.app.roles.resolver import RoleProfileResolver
@@ -97,6 +99,8 @@ class Platform:
     pipeline: MemoryPipeline | None = None
     jobs: SqlJobStore | None = None
     timeline_recorder: TimelineRecorder | None = None
+    persona_updater: PersonaUpdater | None = None
+    persona: Any = None
     account: AccountPurgeService | None = None
     avatars: AvatarCatalog | None = None
     admin_token: str = ""
@@ -229,7 +233,9 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     resolver = RoleProfileResolver(catalog=catalog, user_roles=roles_store,
                                    characters=getattr(prompts, "characters", None),
                                    skills=getattr(prompts, "skills", None), skill_id_of=skill_id_of)
-    context = ContextBuilder(roles=resolver, messages=messages, sessions=sessions, memory=pipeline)
+    persona = SqlPersonaStore(engine)
+    persona_updater = PersonaUpdater(store=persona, memory=memory, messages=messages, llm=llm) if llm is not None else None
+    context = ContextBuilder(roles=resolver, messages=messages, sessions=sessions, memory=pipeline, persona=persona)
     history = HistoryService(messages=messages, control=control, conversation=conversation, jobs=jobs,
                              timeline=timeline)
     resummarize = (ResummarizeService(messages=messages, conversation=conversation, control=control, llm=llm)
@@ -265,6 +271,11 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
                 "turn_id": outcome.turn_id, "user_text": outcome.user_text,
                 "assistant_text": outcome.assistant_text}, run_after=_utcnow(),
                 dedupe_key=f"{MEMORY_RECORD_JOB}:{outcome.turn_id}")
+        # 画像：累计用户发言字数，够一批才入队（对话路径只记数，不抽取、不等模型）。
+        if persona_updater is not None and not outcome.failed and outcome.user_text.strip() and outcome.user_message_ids:
+            await persona_updater.note_turn(
+                owner_id=outcome.owner_id, role_id=outcome.character_id, last_message_id=max(outcome.user_message_ids),
+                user_text=outcome.user_text, jobs=jobs, session_id=outcome.session_id)
         # 事件的来源是这一回合的第一条用户消息（重新生成、合并时也指向它）。
         if timeline_recorder is not None and not outcome.failed and outcome.user_message_ids:
             await jobs.enqueue(kind=TIMELINE_RECORD_JOB, payload={
@@ -320,5 +331,6 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     return Platform(chat=api, roles=roles, uploads=uploads, confirmations=confirmations,
                     memory=memory, timeline=timeline, drain=drain, engine=engine, redis=redis,
                     reminders=reminders, history=history, dispatcher=dispatcher, resummarize=resummarize,
-                    pipeline=pipeline, jobs=jobs, timeline_recorder=timeline_recorder, account=account, avatars=avatars,
+                    pipeline=pipeline, jobs=jobs, timeline_recorder=timeline_recorder, persona_updater=persona_updater,
+                    persona=persona, account=account, avatars=avatars,
                     admin_token=settings.companion_admin_token, sessions=sessions, _pool=pool, _checkpointer=checkpointer)
