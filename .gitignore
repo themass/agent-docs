@@ -36,3 +36,6 @@ data-raw/
 *.zip
 
 _build/
+
+# 会话工具的本地目录（worktree、缓存），不入库
+myproject/*/.claude/
