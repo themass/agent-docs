@@ -27,9 +27,11 @@ from companion.app.jobs.handlers import (
     persona_update,
     session_resummarize,
     timeline_record,
+    timeline_sweep,
 )
 from companion.app.jobs.worker import JobWorker
 from companion.app.persona.updater import PERSONA_JOB
+from companion.app.timeline.sweep import TIMELINE_SWEEP_JOB
 from companion.domain.history.summary import RESUMMARIZE_JOB, TIMELINE_RECORD_JOB
 
 REMINDER_POLL_SEC = 5.0
@@ -44,6 +46,32 @@ async def _reminder_loop(dispatcher, stop: asyncio.Event) -> None:
             log.exception("reminder dispatch round failed")
         try:
             await asyncio.wait_for(stop.wait(), timeout=REMINDER_POLL_SEC)
+        except asyncio.TimeoutError:
+            pass
+
+
+DAILY_CHECK_SEC = 3600.0
+
+
+async def _schedule_daily(platform) -> None:
+    """入队今天的整理任务：按日期去重，多个 worker 同时入队也只有一条。"""
+    from companion.app.timeline.sweep import TIMELINE_SWEEP_JOB
+
+    today = datetime.now(UTC).date().isoformat()
+    await platform.jobs.enqueue(kind=TIMELINE_SWEEP_JOB, payload={}, run_after=datetime.now(UTC).replace(tzinfo=None),
+                                dedupe_key=f"{TIMELINE_SWEEP_JOB}:{today}")
+
+
+async def _daily_loop(platform, stop: asyncio.Event) -> None:
+    """每小时看一眼今天的整理任务入队没有。worker 连续跑几天也会在日期变了之后补上；
+    入队已存在时是空操作，所以检查得勤也不产生额外任务。不需要单独的定时器进程。"""
+    while not stop.is_set():
+        try:
+            await _schedule_daily(platform)
+        except Exception:  # noqa: BLE001 —— 入队失败下个小时再试，不能让 worker 退出
+            log.exception("daily schedule failed")
+        try:
+            await asyncio.wait_for(stop.wait(), timeout=DAILY_CHECK_SEC)
         except asyncio.TimeoutError:
             pass
 
@@ -66,6 +94,8 @@ async def main() -> None:
         handlers[RESUMMARIZE_JOB] = session_resummarize(platform.resummarize)
     if platform.timeline_recorder is not None:
         handlers[TIMELINE_RECORD_JOB] = timeline_record(platform.timeline_recorder, sessions=platform.sessions)
+    if platform.timeline is not None:
+        handlers[TIMELINE_SWEEP_JOB] = timeline_sweep(platform.timeline)
     if platform.persona_updater is not None:
         handlers[PERSONA_JOB] = persona_update(platform.persona_updater, sessions=platform.sessions)
     if platform.account is not None:
@@ -75,12 +105,14 @@ async def main() -> None:
     worker = JobWorker(store=platform.jobs, handlers=handlers, owner=owner)
     stop = asyncio.Event()
     reminders = asyncio.create_task(_reminder_loop(platform.dispatcher, stop)) if platform.dispatcher else None
+    daily = asyncio.create_task(_daily_loop(platform, stop))
     try:
         await worker.run_forever()
     finally:
         stop.set()
         if reminders is not None:
             await reminders
+        await daily
         await platform.aclose()
 
 

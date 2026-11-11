@@ -130,6 +130,20 @@ class SqlTimelineStore:
                 timeline_event.c.origin != EventOrigin.MANUAL.value)))
         return res.rowcount
 
+    async def close_overdue(self, *, now: datetime, grace: timedelta, limit: int = 500) -> int:
+        """分批：一次最多 ``limit`` 条，避免一个大事务锁很多行；调用方循环到返回 0。"""
+        cutoff = _naive(now - grace)
+        async with self._engine.begin() as conn:
+            ids = (await conn.execute(select(timeline_event.c.id).where(and_(
+                timeline_event.c.status == EventStatus.SCHEDULED.value,
+                timeline_event.c.recurrence == Recurrence.NONE.value,
+                timeline_event.c.at_utc < cutoff)).limit(limit))).scalars().all()
+            if not ids:
+                return 0
+            res = await conn.execute(update(timeline_event).where(timeline_event.c.id.in_(ids)).values(
+                status=EventStatus.MISSED.value, next_at_utc=None, updated_at=_now()))
+        return res.rowcount
+
     async def delete_user(self, *, owner_id: str) -> int:
         async with self._engine.begin() as conn:
             res = await conn.execute(delete(timeline_event).where(timeline_event.c.owner_id == int(owner_id)))

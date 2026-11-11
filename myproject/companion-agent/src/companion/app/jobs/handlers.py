@@ -60,6 +60,16 @@ def session_resummarize(service: Any):
     return handle
 
 
+def timeline_sweep(store: Any):
+    """每日整理时间线（过期的一次性事件置 missed）。任务本身与用户无关，没有载荷。"""
+    from companion.app.timeline.sweep import sweep_overdue
+
+    async def handle(payload: dict[str, Any]) -> None:
+        await sweep_overdue(store)
+
+    return handle
+
+
 def persona_update(updater: Any, *, sessions: Any = None):
     """批量更新用户画像。会话已删除或账号已注销时跳过，不把画像写回来。"""
 

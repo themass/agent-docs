@@ -46,4 +46,9 @@ class TimelineStore(Protocol):
         """会话被物理删除时清掉来源是该会话、且手动添加之外的事件。"""
         ...
 
+    async def close_overdue(self, *, now: datetime, grace: timedelta, limit: int = 500) -> int:
+        """一次性、仍为 scheduled、发生时间已超过 ``grace`` 的事件置 missed。返回条数。
+        重复事件不动（它们有下一次）。"""
+        ...
+
     async def delete_user(self, *, owner_id: str) -> int: ...

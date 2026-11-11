@@ -81,6 +81,15 @@ class InMemoryTimeline:
                 del self._items[key]
             return len(doomed)
 
+    async def close_overdue(self, *, now: datetime, grace: timedelta, limit: int = 500) -> int:
+        cutoff = _aware(now) - grace
+        async with self._lock:
+            hits = [e for e in self._items.values()
+                    if e.status == EventStatus.SCHEDULED and not e.is_recurring and e.at < cutoff][:limit]
+            for event in hits:
+                event.status = EventStatus.MISSED
+            return len(hits)
+
     async def delete_user(self, owner_id: str | None = None, *, user_id: str | None = None) -> int:
         owner_id = owner_id or user_id or ""
         async with self._lock:

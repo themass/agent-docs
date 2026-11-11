@@ -146,6 +146,14 @@ worker 每 5 秒：claim_due（Postgres SKIP LOCKED，租约 2 分钟；租约�
 - **用户控制**（`/api/agent/v1/memory/profile`）：`GET ?role_id=`（`include_history` 看「为什么记得」）、`POST /profile/{id}/suppress`（别再提）、`DELETE /profile/{id}`。删除或改写一条事实记忆时，只靠这条事实归纳的画像条目一并删除。
 - 注销时随关系库一起删除；`persona.update` 任务执行前确认会话还在。
 
+## 6.0.4 每日整理（目前只做时间线）
+
+worker 每小时检查一次今天的 `timeline.sweep` 任务是否已入队（按日期去重，多个 worker 只有一条）。任务把「一次性、仍是 scheduled、
+发生时间已过 2 天以上」的事件置 `missed`；重复事件和 2 天内的不动。纯规则、分批、可重复执行，不调模型。
+
+**没做的整合**：事实记忆的去重与矛盾消解、把过期事件的说法改写成过去时、画像的定期重建。原因：记忆接口只有增、查、删，没有「取代」，
+直接删会丢证据；报告建议先给事实表加 `is_latest` / `supersedes_id`（接口变更），这一步需要你确认后再做。
+
 ## 6.1 记忆按角色隔离
 
 记忆主体 id = `{owner}.{role}`（`domain/memory/subject.py`），memory_hub 再加上 `companion:` 前缀。
@@ -190,6 +198,6 @@ worker：再关一次会话 → Redis（取消回合、删锁 / 回合状态 / �
 - 推送：只有日志实现，FCM / 厂商通道待接。
 - 账号注销的兜底对账（`account.reconcile`，对比 Java 用户表）：未做，需要只读账号。
 - 换一个回答（同位置多候选）与对话分支：数据结构未做，待产品决定。
-- 画像：没有对应的客户端画像页；没有「每日整合」（去重、时态改写）；中文检索未实测。
+- 画像与事实：没有事实的去重、矛盾消解和时态改写（要先给事实表加 `is_latest` / `supersedes_id`）；中文检索未实测。
 - 时间线：生日 / 纪念日的自动提醒（`InitiativeScheduler` 那条旧路径）没有迁到新栈；旧栈仍在用它。
 - 真实模型冒烟：需要批准使用线上网关。
