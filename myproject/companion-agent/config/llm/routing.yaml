@@ -11,16 +11,16 @@ providers:
 scenarios:
   # 对话主脑：DeerFlow 内部经此场景选择模型，流式输出，文字与语音共用
   companion_chat:
-    - model: openai/deepseek-v4-pro
+    - model: doubao-seed-2-1-pro-260915
       provider: gateway
       timeout_sec: 60
-    - model: openai/deepseek-v4-flash
+    - model: doubao-seed-2-1-lite-260915
       provider: gateway
       timeout_sec: 60
 
   # 记忆提取：结构化 JSON 输出，用便宜模型，关闭隐式推理
   memory_extract:
-    - model: openai/deepseek-v4-flash
+    - model: doubao-seed-2-1-lite-260915
       provider: gateway
       timeout_sec: 60
       reasoning_effort: none
@@ -30,7 +30,7 @@ scenarios:
 
   # 会话摘要：长对话超过阈值时压缩较早的消息；删除已压缩的消息后重建摘要。便宜模型，关闭推理
   session_summarize:
-    - model: openai/deepseek-v4-flash
+    - model: doubao-seed-2-1-lite-260915
       provider: gateway
       timeout_sec: 60
       reasoning_effort: none
@@ -40,7 +40,7 @@ scenarios:
 
   # 长任务/内容生成之后的角色化转述（DeerFlow 子任务结果 → 角色口吻）
   companion_rewrite:
-    - model: openai/deepseek-v4-flash
+    - model: doubao-seed-2-1-lite-260915
       provider: gateway
       timeout_sec: 60
 
