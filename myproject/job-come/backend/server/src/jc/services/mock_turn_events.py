@@ -18,7 +18,7 @@ import re
 from dataclasses import dataclass
 from enum import StrEnum
 
-from jc.services.mock_answer_recorder import is_steering_message
+from jc.services.mock_answer_recorder import is_refusal, is_steering_message
 
 _END = re.compile(r"结束|终止|停止")
 _SKIP = re.compile(r"下一|换一|换个|跳过")
@@ -30,6 +30,7 @@ class Utterance(StrEnum):
     EMPTY = "empty"      # nothing but spaces, punctuation or a bare filler
     END = "end"          # "结束", "我想结束这场面试"
     SKIP = "skip"        # "下一题", "换一题", "跳过"
+    REFUSE = "refuse"    # "这题我不想答", "不回答" (the whole message; not an answer, not scored)
     REPEAT = "repeat"    # "没听清", "能再说一遍吗"
     WORDS = "words"      # anything else: the candidate speaking to the question
 
@@ -62,6 +63,8 @@ def utterance(text: str) -> Utterance:
     """What the words are. The command words are matched here and nowhere else."""
     if not _NOTHING.sub("", text or ""):
         return Utterance.EMPTY
+    if is_refusal(text):
+        return Utterance.REFUSE
     if not is_steering_message(text):
         return Utterance.WORDS
     if _END.search(text):
@@ -92,6 +95,9 @@ def resolve(said: Utterance, flags: Flags) -> Event:
         return Event.INTRO
     if said is Utterance.SKIP:
         return Event.SKIP
+    if said is Utterance.REFUSE:
+        # A refusal moves on from the question like a skip, and the question is not scored.
+        return Event.SKIP if flags.on_table else Event.TALK
     if said is Utterance.REPEAT:
         return Event.REPEAT
     # Ordinary words. With a question on the table they answer it; with none (nothing asked yet,

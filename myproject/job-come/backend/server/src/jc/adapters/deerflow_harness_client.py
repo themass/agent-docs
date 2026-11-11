@@ -667,6 +667,10 @@ class DeerFlowHarnessSessionClient(DeerFlowSessionClient):
         async for event in self.stream_message(thread_id, message, metadata=metadata, db=db):
             if event.get("type") == "token":
                 parts.append(event.get("content", ""))
+            elif event.get("type") == "error":
+                # A failed run used to end with no trace: the caller saw an empty result and
+                # reported "no output". The failure is logged here, with the run's identity.
+                logger.error("subtask %s failed: %s", skill, event.get("message") or event)
         return "".join(parts)
 
     async def stream_events(

@@ -33,6 +33,11 @@ def _flags(**overrides) -> Flags:
     ("结束", Utterance.END),
     ("我想结束这场面试", Utterance.END),
     ("我做过三年用户增长", Utterance.WORDS),
+    ("这题我不想答", Utterance.REFUSE),
+    ("我不想回答这个问题。", Utterance.REFUSE),
+    ("不回答", Utterance.REFUSE),
+    ("我不想回答这种问题，因为我们从没碰过", Utterance.WORDS),
+    ("我不想跳槽", Utterance.WORDS),
     ("好的", Utterance.WORDS),
     ("我们把结算拆成两张表，耗时三周。", Utterance.WORDS),
 ])
@@ -96,6 +101,14 @@ def test_skip_with_nothing_on_the_table_is_still_a_skip_for_the_state_to_handle(
 
 def test_repeat_is_a_repeat_when_a_question_is_on_the_table():
     assert resolve(Utterance.REPEAT, _flags(on_table=True)) is Event.REPEAT
+
+
+def test_a_refusal_with_a_question_on_the_table_is_a_skip_not_an_answer():
+    assert resolve(Utterance.REFUSE, _flags(on_table=True)) is Event.SKIP
+
+
+def test_a_refusal_with_nothing_on_the_table_is_talk():
+    assert resolve(Utterance.REFUSE, _flags(on_table=False)) is Event.TALK
 
 
 def test_in_the_candidates_turn_words_are_a_question_and_a_command_closes():

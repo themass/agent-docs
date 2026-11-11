@@ -65,3 +65,8 @@ Rules:
 - Do not evaluate the candidate and do not promise anything.
 
 Output: `{"answer": "..."}`.
+
+## task: "stem" with an "angle"
+
+When `angle` is given, write the question from that angle, still about `requirement`: for example a
+decision and its basis, or a problem and how it was handled. Still one question, ending with "？".

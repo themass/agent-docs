@@ -35,10 +35,25 @@ _STEERING = tuple(
 )
 #: Said before a steering phrase and meaning nothing by themselves ("好的，下一题", "嗯，没听清").
 _FILLERS = frozenset({"好", "好的", "嗯", "嗯嗯", "那", "那就", "行", "好吧", "呃", "哦"})
+# A refusal is the whole message: "这题我不想答" declines the question, so it is not an answer and
+# is never recorded as one. "我不想回答这种问题，因为我们从没碰过" is an answer and is not matched.
+_REFUSAL = re.compile(
+    r"(我)?(不想|不愿意|不太想|不打算|不方便|不便|不能|不会|无法|不准备)(回答|答|说|谈|讲)"
+    r"(这|这个|这道|这题|这一题|这个问题|这道题|这题目)?(题|问题)?(吧|了|呢)?"
+    r"|(这|这个|这道|这题|这一题)?(我)?(不想|不愿意|不打算|不太想)(答|回答|说|谈)"
+    r"(这|这个|这道|这题|这一题)?(题|问题)?(吧|了)?"
+    r"|(这|这个|这道|这题|这一题)(题|问题)?(我)?(不答|不回答|不说了|就不答|就不说了|不谈)(了|吧)?"
+    r"|不回答|不答了|不想答|不想说|无可奉告"
+)
 _NOT_WORDS = re.compile(r"[\s。，、！？!?,.;；：:~…\-—]+")
 #: How many recent message ids a session remembers. A resend comes seconds after the first try, so
 #: the last few are enough; the list lives in `coverage` and must not grow with the interview.
 _REMEMBERED_MESSAGES = 50
+
+
+def is_refusal(text: str) -> bool:
+    """True for a message that declines the question ("这题我不想答"). Not an answer."""
+    return bool(_REFUSAL.fullmatch(_NOT_WORDS.sub("", text or "")))
 
 
 def is_steering_message(text: str) -> bool:
@@ -47,6 +62,8 @@ def is_steering_message(text: str) -> bool:
     words = _NOT_WORDS.sub("", text)
     if not words:
         return False
+    if is_refusal(text):
+        return True
     # "没听清，能再说一遍吗" is two steering phrases in one breath, and "好的，下一题" is one with a
     # filler in front. A filler on its own is an answer ("好的" to "可以开始吗？").
     parts = [part for part in _NOT_WORDS.split(text.strip()) if part]

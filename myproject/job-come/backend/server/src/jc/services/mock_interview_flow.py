@@ -84,12 +84,23 @@ async def _bank(store: InterviewStore, profile_id: str, job_id: str | None) -> l
     ]
 
 
-async def _stem_for(requirement: str, job_title: str | None, job_text: str | None) -> str | None:
+#: Angles a second and third question on the same requirement take, so one requirement can carry
+#: more than one question (an interview may have more main questions than requirements).
+STEM_ANGLES = (
+    "",
+    "一次取舍或决策：你当时怎么判断，依据是什么",
+    "一次出错或复盘：出了什么问题，怎么处理的",
+)
+
+
+async def _stem_for(
+    requirement: str, job_title: str | None, job_text: str | None, angle: str = "",
+) -> str | None:
     """A main question for one must-have, written by the model and checked. None when it fails."""
     data = await _model_json(
         MOCK_FLOW_SKILL,
-        {"task": "stem", "requirement": requirement, "job_title": job_title or "",
-         "job_text": (job_text or "")[:1500]},
+        {"task": "stem", "requirement": requirement, "angle": angle,
+         "job_title": job_title or "", "job_text": (job_text or "")[:1500]},
         "mock_flow_stem",
     )
     text = (data or {}).get("question") if data else None
@@ -105,22 +116,23 @@ async def _stem_for(requirement: str, job_title: str | None, job_text: str | Non
 
 async def _fill_pool(
     db: AsyncSession, store: InterviewStore, row: Any, profile_id: str, must: list[str],
-    pool: list[Candidate],
+    pool: list[Candidate], target: int,
 ) -> list[Candidate]:
-    """For each must-have the job's bank does not cover, write one main question for it into the
-    job's bank (source mock, tagged with the requirement). The next session finds it there."""
-    if not row.job_id or not must:
+    """Writes main questions into the job's bank (source mock, tagged with the requirement) until
+    the bank carries `target` questions. Every requirement the bank does not cover gets one first;
+    then more, on other angles, round by round. The next session finds them in the bank."""
+    if not row.job_id or not must or len(pool) >= target:
         return pool
-    covered = coverage_of(must, [c.stem for c in pool]).covered
     job = await db.get(Job, row.job_id)
+    title = job.title if job else None
+    text = job.raw_text if job else None
+    covered = coverage_of(must, [c.stem for c in pool]).covered
     added = list(pool)
-    for requirement in must:
-        if requirement in covered:
-            continue
-        stem = await _stem_for(requirement, job.title if job else None,
-                               job.raw_text if job else None)
+
+    async def write(requirement: str, angle: str) -> None:
+        stem = await _stem_for(requirement, title, text, angle)
         if stem is None:
-            continue
+            return
         question = InterviewQuestion(
             id=new_id("iq"), profile_id=profile_id, job_id=row.job_id, stem=stem,
             question_type="behavioral", source=QuestionSource.MOCK, tags=[requirement],
@@ -128,6 +140,15 @@ async def _fill_pool(
         await store.create_question(question)
         added.append(Candidate(question_id=question.id,
                                stem=question_match_text(stem, [requirement])))
+
+    for requirement in must:
+        if requirement not in covered:
+            await write(requirement, STEM_ANGLES[0])
+    for angle in STEM_ANGLES[1:]:
+        for requirement in must:
+            if len(added) >= target:
+                break
+            await write(requirement, angle)
     await db.flush()
     return added
 
@@ -336,8 +357,9 @@ async def _choose_next(
             ))
     available = await _bank(store, profile_id, row.job_id)
     if not ts.asked:
-        # Filled once, before the first question: the pool then covers the job's must-haves.
-        available = await _fill_pool(db, store, row, profile_id, must, available)
+        # Filled once, before the first question: the bank then carries every main question the
+        # interview can ask, so a refused or skipped question never empties it.
+        available = await _fill_pool(db, store, row, profile_id, must, available, main_limit + 1)
 
     refused: set[str] = set()
     for _ in range(3 + len(available)):  # a judged-closed or refused question moves on to the next
