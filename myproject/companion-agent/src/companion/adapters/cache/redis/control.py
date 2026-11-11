@@ -86,6 +86,10 @@ def lock_key(sid: int) -> str:
     return f"{KEY_PREFIX}sess:{sid}:lock"
 
 
+def fence_key(sid: int) -> str:
+    return f"{KEY_PREFIX}sess:{sid}:fence"
+
+
 def ctl_key(tid: str) -> str:
     return f"{KEY_PREFIX}turn:{tid}:ctl"
 
@@ -128,6 +132,10 @@ class RedisTurnControl:
 
     async def release_lock(self, *, session_id: int, owner: str) -> None:
         await self._release(keys=[lock_key(session_id)], args=[owner])
+
+    async def next_fence(self, *, session_id: int) -> int:
+        """单调递增的围栏号。拿到锁之后取一次，随回合传递；写回复时按它做条件写。"""
+        return int(await self._r.incr(fence_key(session_id)))
 
     # ---- 回合状态 ----
 

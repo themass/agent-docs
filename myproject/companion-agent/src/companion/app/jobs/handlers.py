@@ -29,3 +29,25 @@ def audit_trim(audit_store: ToolCallStore, clock: Callable[[], datetime] = utc_n
         await audit_store.trim_before(cutoff=clock() - AUDIT_RETENTION)
 
     return handle
+
+
+def memory_record(pipeline: Any, *, scope: str = "companion", clock: Callable[[], datetime] = utc_now):
+    """回合后的记忆写入（chat-agent-memory-hooks.md §4.2）。任务按 turn_id 去重入队。"""
+    from companion.domain.memory.hooks import TurnRecord
+
+    async def handle(payload: dict[str, Any]) -> None:
+        await pipeline.record(TurnRecord(
+            scope=scope, user_id=str(payload["owner_id"]), turn_id=str(payload["turn_id"]),
+            user_text=str(payload.get("user_text", "")), assistant_text=str(payload.get("assistant_text", "")),
+            occurred_at=clock(), role_id=payload.get("role_id"), session_id=payload.get("session_id")))
+
+    return handle
+
+
+def session_resummarize(service: Any):
+    """删除或编辑了已被摘要压缩的消息后，重建摘要。会话正忙时抛错，由任务退避重试。"""
+
+    async def handle(payload: dict[str, Any]) -> None:
+        await service.run(owner_id=int(payload["owner_id"]), session_id=int(payload["session_id"]))
+
+    return handle

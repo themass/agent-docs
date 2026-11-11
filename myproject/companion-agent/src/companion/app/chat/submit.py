@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from companion.app.chat.ids import new_ulid
 from companion.domain.middleware.safety import check_input
 from companion.domain.turn.queue import Disposition
-from companion.ports.store import MessageStore, QueueStore
+from companion.ports.store import MessageStore, QueueStore, SessionStore
 from companion.ports.turn_control import TurnControlPort
 
 # 启动一个回合的回调（由 bootstrap 注入，内部把 TurnRunner 放到后台任务里跑）。
@@ -43,8 +43,10 @@ class SubmitService:
         steer_budget: int = 3,
         max_restarts: int = 2,
         process_name: str | None = None,
+        sessions: SessionStore | None = None,
     ) -> None:
         self._messages = messages
+        self._sessions = sessions
         self._queue = queue
         self._control = control
         self._start_turn = start_turn
@@ -57,7 +59,10 @@ class SubmitService:
         return self._process
 
     async def submit(self, *, owner_id: int, session_id: int, character_id: str, text: str,
-                     client_message_id: str | None, steerable: bool = True) -> SubmitResult:
+                     client_message_id: str | None, steerable: bool = True, role: str = "user",
+                     kind: str = "chat") -> SubmitResult:
+        """``role`` / ``kind``：用户消息是 user/chat；服务端发起的主动回合（到点提醒）是 system/proactive，
+        走同一条判定路径（会话忙时排队），模型看到的是一条带标记的指令。"""
         if client_message_id:
             existing = await self._messages.find_by_client_id(
                 owner_id=owner_id, session_id=session_id, client_message_id=client_message_id)
@@ -69,12 +74,12 @@ class SubmitService:
             return SubmitResult("denied", None, 0, None, reason=denied)
 
         message = await self._messages.append(
-            owner_id=owner_id, session_id=session_id, role="user", content=text, kind="chat",
+            owner_id=owner_id, session_id=session_id, role=role, content=text, kind=kind,
             client_message_id=client_message_id, turn_id=None, meta={})
         await self._control.publish(
             session_id=session_id, event="message.created",
-            data={"message_id": message.id, "client_message_id": client_message_id, "role": "user",
-                  "kind": "chat", "content": text, "created_at": message.created_at.isoformat()})
+            data={"message_id": message.id, "client_message_id": client_message_id, "role": role,
+                  "kind": kind, "content": text, "created_at": message.created_at.isoformat()})
 
         for _ in range(LOCK_RETRIES):
             disposition, turn_id = await self._control.decide(
@@ -122,7 +127,14 @@ class SubmitService:
         owner = f"{self._process}:{turn_id}"
         if not await self._control.acquire_lock(session_id=session_id, owner=owner):
             return None
+        # 围栏：拿到锁就取一个更大的号并记到会话上。之后这把锁哪怕过期被别人接手，
+        # 旧回合写回复时围栏号已不是最新，写入会被拒绝（chat-agent-context-design.md §4.2）。
+        fencing: dict[str, int] = {}
+        if self._sessions is not None:
+            fence = await self._control.next_fence(session_id=session_id)
+            await self._sessions.advance_fence(session_id=session_id, fence=fence)
+            fencing["fence"] = fence
         await self._control.init_turn(session_id=session_id, turn_id=turn_id, message_ids=message_ids)
         await self._start_turn(owner_id=owner_id, session_id=session_id, character_id=character_id,
-                               turn_id=turn_id, owner=owner, text=text, message_ids=message_ids)
+                               turn_id=turn_id, owner=owner, text=text, message_ids=message_ids, **fencing)
         return turn_id

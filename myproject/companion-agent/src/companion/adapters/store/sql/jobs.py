@@ -1,4 +1,7 @@
-"""MySQL 实现（兼容 5.6）：认领用条件 UPDATE，多个 worker 不会抢同一条（O §2.1）。
+"""后台任务存储（O §2.1）。多个 worker 不会抢同一条：
+
+- Postgres：一条 ``SELECT … FOR UPDATE SKIP LOCKED`` 在同一事务里取候选并改为 running；
+- MySQL 5.6（兼容方言，没有 SKIP LOCKED）：先取候选，再逐条做条件 UPDATE，rowcount == 1 才算拿到。
 
 租约过期的 running 任务与到期的 queued 任务一起被认领（视为上一个进程已崩溃）。
 """
@@ -11,7 +14,7 @@ from typing import Any
 from sqlalchemy import and_, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from companion.adapters.store.mysql.schema import agent_job
+from companion.adapters.store.sql.schema import agent_job
 from companion.ports.jobs import JobRecord
 
 
@@ -21,7 +24,7 @@ def _sec(value: datetime) -> datetime:
     return value.replace(microsecond=0)
 
 
-class MysqlJobStore:
+class SqlJobStore:
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
 
@@ -41,6 +44,34 @@ class MysqlJobStore:
         return True
 
     async def claim(self, *, owner: str, now: datetime, lease_until: datetime, limit: int) -> list[JobRecord]:
+        if self._engine.dialect.name == "postgresql":
+            return await self._claim_skip_locked(owner=owner, now=now, lease_until=lease_until, limit=limit)
+        return await self._claim_conditional(owner=owner, now=now, lease_until=lease_until, limit=limit)
+
+    async def _claim_skip_locked(self, *, owner: str, now: datetime, lease_until: datetime,
+                                 limit: int) -> list[JobRecord]:
+        due = or_(
+            and_(agent_job.c.status == "queued", agent_job.c.run_after <= now),
+            and_(agent_job.c.status == "running", agent_job.c.lease_until <= now),
+        )
+        async with self._engine.begin() as conn:
+            ids = (await conn.execute(
+                select(agent_job.c.id).where(due).order_by(agent_job.c.run_after)
+                .limit(limit).with_for_update(skip_locked=True)
+            )).scalars().all()
+            if not ids:
+                return []
+            rows = (await conn.execute(
+                update(agent_job).where(agent_job.c.id.in_(ids))
+                .values(status="running", lease_owner=owner, lease_until=lease_until,
+                        attempts=agent_job.c.attempts + 1, updated_at=now)
+                .returning(agent_job)
+            )).mappings().all()
+        return [JobRecord(r["id"], r["kind"], dict(r["payload"] or {}), r["attempts"], r["max_attempts"],
+                          r["dedupe_key"]) for r in sorted(rows, key=lambda r: r["run_after"])]
+
+    async def _claim_conditional(self, *, owner: str, now: datetime, lease_until: datetime,
+                                 limit: int) -> list[JobRecord]:
         """MySQL 5.6 没有 SKIP LOCKED：先取候选，再逐条做条件更新。只有一个 worker 的 UPDATE 能命中（rowcount == 1）。"""
         now, lease_until = _sec(now), _sec(lease_until)
         async with self._engine.connect() as conn:

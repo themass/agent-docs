@@ -44,13 +44,17 @@ class Messages:
         self.attached = {}
         self.next_id = 1000
 
-    async def append(self, *, owner_id, session_id, role, content, kind, client_message_id, turn_id, meta):
+    async def append(self, *, owner_id, session_id, role, content, kind, client_message_id, turn_id, meta,
+                     fence=None):
         m = SimpleNamespace(id=self.next_id, owner_id=owner_id, session_id=session_id, role=role,
                             content=content, kind=kind, client_message_id=client_message_id, turn_id=turn_id,
-                            created_at=datetime.now(UTC), interrupted=False)
+                            created_at=datetime.now(UTC), interrupted=False, meta=dict(meta or {}))
         self.next_id += 1
         self.rows[m.id] = m
         return m
+
+    async def get(self, *, owner_id, message_id):
+        return self.rows.get(message_id)
 
     async def find_by_client_id(self, **kw):
         return None

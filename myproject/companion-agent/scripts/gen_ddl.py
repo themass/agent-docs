@@ -1,14 +1,17 @@
-"""从 adapters/store/mysql/schema.py 生成 0001 迁移的 DDL（MySQL 5.6 兼容，见 D §3）。
+"""从 adapters/store/sql/schema.py 生成 0001 迁移的 DDL（MySQL 5.6 兼容，见 D §3）。
 
 用法：PYTHONPATH=src python scripts/gen_ddl.py > migrations/versions/0001_initial.py
 修改模型后重新生成；不要手改生成的迁移。
+
+注意：0001 里另有 Postgres 基线（UPGRADE_SQL_PG，截至 0003 的完整结构）。改表结构时不要重新生成 0001，
+而是新增迁移，并让它对两种方言都生效。
 """
 
 from sqlalchemy.dialects import mysql
 from sqlalchemy.schema import CreateTable, DropTable
 
-from companion.adapters.store.mysql.schema import metadata
-import companion.adapters.store.mysql.memory  # noqa: F401
+from companion.adapters.store.sql.schema import metadata
+import companion.adapters.store.sql.memory  # noqa: F401
 
 
 def _sql(stmt) -> str:

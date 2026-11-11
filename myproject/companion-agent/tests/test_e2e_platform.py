@@ -15,17 +15,17 @@ from pathlib import Path
 
 import pytest
 
-MYSQL = os.environ.get("COMPANION_TEST_MYSQL_URL", "")
+MYSQL = (os.environ.get("COMPANION_TEST_DATABASE_URL") or os.environ.get("COMPANION_TEST_MYSQL_URL", ""))
 REDIS = os.environ.get("COMPANION_TEST_REDIS_URL", "")
 ROOT = Path(__file__).resolve().parents[1]
-pytestmark = pytest.mark.skipif(not (MYSQL and REDIS), reason="needs COMPANION_TEST_MYSQL_URL and COMPANION_TEST_REDIS_URL")
+pytestmark = pytest.mark.skipif(not (MYSQL and REDIS), reason="needs COMPANION_TEST_DATABASE_URL (or COMPANION_TEST_MYSQL_URL) and COMPANION_TEST_REDIS_URL")
 
 ME = {"Authorization": "Bearer 91001"}
 
 
 @pytest.fixture(scope="module")
 def migrated():
-    env = {**os.environ, "COMPANION_MYSQL_URL": MYSQL, "PYTHONPATH": str(ROOT / "src")}
+    env = {**os.environ, "COMPANION_MYSQL_URL": MYSQL, "COMPANION_DATABASE_URL": MYSQL, "PYTHONPATH": str(ROOT / "src")}
     subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"], cwd=ROOT, env=env, check=True,
                    capture_output=True)
     yield
@@ -109,7 +109,7 @@ def test_end_to_end_over_http(migrated):
                            headers=ME).status_code == 404
 
         # 上传到 TOS（companion-test/ 前缀），再用签名地址读回
-        if platform.uploads._objects is not None and os.environ.get("TOS_BUCKET"):
+        if platform.uploads is not None and os.environ.get("TOS_BUCKET"):
             up = client.post("/api/agent/v1/uploads", content=_png(), headers=ME)
             assert up.status_code == 201, up.text
             url = client.get(f"/api/agent/v1/uploads/{up.json()['upload_id']}", headers=ME).json()["url"]

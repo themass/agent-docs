@@ -30,6 +30,14 @@ class PromptAssembler:
         self._characters = characters
         self._skills = skills
 
+    @property
+    def characters(self) -> CharacterSourcePort:
+        return self._characters
+
+    @property
+    def skills(self) -> SkillCatalog:
+        return self._skills
+
     def build(self, character_id: str, memory_block: str = "") -> str:
         card = self._characters.load(character_id)
         skill_text = ""

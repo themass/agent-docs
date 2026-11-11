@@ -22,16 +22,19 @@ def test_hub_scoped_client_over_in_memory_conforms():
     asyncio.run(check_port(hub.for_app("companion")))
 
 
-@pytest.mark.skipif(not os.environ.get("COMPANION_TEST_MYSQL_URL"), reason="needs COMPANION_TEST_MYSQL_URL")
-def test_mysql_backend_conforms(memory_schema):
+DB_URL = os.environ.get("COMPANION_TEST_DATABASE_URL") or os.environ.get("COMPANION_TEST_MYSQL_URL", "")
+
+
+@pytest.mark.skipif(not DB_URL, reason="needs COMPANION_TEST_DATABASE_URL (or COMPANION_TEST_MYSQL_URL)")
+def test_sql_backend_conforms(memory_schema):
     from sqlalchemy.ext.asyncio import create_async_engine
 
-    from companion.adapters.store.mysql.memory import MysqlMemoryPort
+    from companion.adapters.store.sql.memory import SqlMemoryPort
 
     async def go():
-        engine = create_async_engine(os.environ["COMPANION_TEST_MYSQL_URL"], pool_pre_ping=True)
+        engine = create_async_engine(DB_URL, pool_pre_ping=True)
         try:
-            await check_port(MysqlMemoryPort(engine))
+            await check_port(SqlMemoryPort(engine))
         finally:
             await engine.dispose()
 

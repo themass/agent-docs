@@ -28,6 +28,16 @@ scenarios:
         thinking:
           type: disabled
 
+  # 会话摘要：长对话超过阈值时压缩较早的消息；删除已压缩的消息后重建摘要。便宜模型，关闭推理
+  session_summarize:
+    - model: openai/deepseek-v4-flash
+      provider: gateway
+      timeout_sec: 60
+      reasoning_effort: none
+      extra_body:
+        thinking:
+          type: disabled
+
   # 长任务/内容生成之后的角色化转述（DeerFlow 子任务结果 → 角色口吻）
   companion_rewrite:
     - model: openai/deepseek-v4-flash

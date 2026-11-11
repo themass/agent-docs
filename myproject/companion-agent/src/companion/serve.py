@@ -34,12 +34,24 @@ class DrainingServer(uvicorn.Server):
         super().handle_exit(sig, frame)
 
 
-def main() -> None:
+def build_app():
+    """配置了数据库与 Redis 时用新聊天栈（/api/agent/v1，Postgres checkpoint + DeerFlow 大脑）；
+    否则退回旧的进程内链路（只用于本地开发）。"""
     from companion.bootstrap.app import create_app
+    from companion.config import settings
 
+    if settings.database_url and settings.companion_redis_url:
+        from companion.bootstrap.platform import build_platform, default_prompts
+
+        platform = build_platform(settings, prompts=default_prompts())
+        return create_app(platform=platform)
+    return create_app()
+
+
+def main() -> None:
     host = os.environ.get("COMPANION_HOST", "127.0.0.1")
     port = int(os.environ.get("COMPANION_PORT", "8081"))
-    app = create_app()
+    app = build_app()
     config = uvicorn.Config(app, host=host, port=port, log_config=None)
     server = DrainingServer(config, app.state.companion.drain)
     server.run()

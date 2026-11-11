@@ -35,9 +35,30 @@ class Settings(BaseSettings):
     # 身份验证：redis_token（生产，读 Java 登录态）或 allow_all（仅 dev）。D §4、A §5.5
     companion_auth_verifier: str = "allow_all"
     auth_redis_url: str = ""
-    # 新聊天栈的存储：MySQL（vpn 库，表前缀 ca_）与 Redis（共用，键前缀 ca:）
+    # 新聊天栈的存储。目标库是 Postgres（表前缀 ca_），例如 postgresql+psycopg://user:pass@host/db；
+    # companion_mysql_url 是旧的 MySQL 测试库，只在没配 Postgres 时使用。Redis 共用，键前缀 ca:。
+    companion_database_url: str = ""
     companion_mysql_url: str = ""
     companion_redis_url: str = ""
+    # 大脑对话线程的 checkpoint（LangGraph AsyncPostgresSaver，psycopg 连接串）。
+    # 留空时从 companion_database_url 推导；两者都没有则大脑无状态（每轮只看本轮输入，仅用于测试）。
+    companion_checkpoint_url: str = ""
+    # 会话内压缩：未摘要的历史超过这么多 token 时，把较早的消息压成摘要，保留最近这么多条原文。
+    companion_summary_trigger_tokens: int = 9000
+    companion_summary_keep_messages: int = 20
+
+    @property
+    def database_url(self) -> str:
+        return self.companion_database_url or self.companion_mysql_url
+
+    @property
+    def checkpoint_url(self) -> str:
+        """psycopg 连接串：去掉 SQLAlchemy 的驱动后缀。只有 Postgres 才能用作 checkpoint。"""
+        url = self.companion_checkpoint_url or self.companion_database_url
+        if not url.startswith(("postgresql", "postgres")):
+            return ""
+        scheme, _, rest = url.partition("://")
+        return f"postgresql://{rest}" if rest else ""
 
     # 对象存储：火山引擎 TOS（S3 兼容），与 job-come 同一个区域与接口（上传图片、解题附件）
     tos_endpoint: str = ""

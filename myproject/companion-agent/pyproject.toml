@@ -6,6 +6,9 @@ readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "boto3>=1.34",
+    # 存储：Postgres（目标库，psycopg 3 同时用于 SQLAlchemy 与 LangGraph checkpoint）；MySQL 驱动保留做兼容
+    "psycopg[binary,pool]>=3.2",
+    "langgraph-checkpoint-postgres>=2.0",
     "aiomysql>=0.2",
     "pymysql>=1.1",
     # 大脑：DeerFlow 工厂（docs/implementation/spike-results.md T0）

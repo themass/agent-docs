@@ -1,4 +1,9 @@
-"""MySQL 表结构（D §3、O §2.1、O §10）。Alembic 迁移从这里生成 DDL，见 migrations/versions/。"""
+"""表结构（D §3、O §2.1、O §10）。Alembic 迁移从这里生成 DDL，见 migrations/versions/。
+
+方言可移植：目标库是 Postgres；MySQL 保留为兼容方言（历史测试库）。两处方言差异都收在本文件：
+- ``LongText``：Postgres 用 TEXT，MySQL 用 MEDIUMTEXT（TEXT 只有 64KB）；
+- ``JsonText``：Postgres 用 JSONB，MySQL 5.6 没有 JSON 类型，以 MEDIUMTEXT 存储并编解码。
+"""
 
 from sqlalchemy import (
     BigInteger, Boolean, DateTime, Index, Integer, MetaData, String, Table, Text,
@@ -7,6 +12,7 @@ from sqlalchemy import (
 import json
 
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
+from sqlalchemy.dialects.postgresql import JSONB
 
 # 共用的 vpn 库里有 Java 的表（chat_session、chat_message 等）：所有 companion 表都带这个前缀。
 TABLE_PREFIX = "ca_"
@@ -14,14 +20,26 @@ TABLE_PREFIX = "ca_"
 metadata = MetaData(naming_convention={"ix": TABLE_PREFIX + "ix_%(column_0_name)s"})
 
 
-class JsonText(types.TypeDecorator):
-    """MySQL 5.6 没有 JSON 类型：以 MEDIUMTEXT 存储，读写时编解码。"""
+LongText = Text().with_variant(MEDIUMTEXT(), "mysql")
 
-    impl = MEDIUMTEXT
+
+class JsonText(types.TypeDecorator):
+    """JSON 列。Postgres 用原生 JSONB；MySQL 5.6 没有 JSON 类型，以 MEDIUMTEXT 存储，读写时编解码。"""
+
+    impl = Text
     cache_ok = True
 
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "postgresql":
+            return dialect.type_descriptor(JSONB())
+        if dialect.name == "mysql":
+            return dialect.type_descriptor(MEDIUMTEXT())
+        return dialect.type_descriptor(Text())
+
     def process_bind_param(self, value, dialect):
-        return None if value is None else json.dumps(value, ensure_ascii=False, default=str)
+        if value is None or dialect.name == "postgresql":
+            return value  # JSONB 由驱动编码
+        return json.dumps(value, ensure_ascii=False, default=str)
 
     def process_result_value(self, value, dialect):
         if value is None or value == "":
@@ -42,6 +60,9 @@ chat_session = Table(
     Column("locale", String(16), nullable=False, server_default="zh-CN"),
     _now(), _upd(),
     Column("deleted", Boolean, nullable=False, server_default="0"),
+    # 写入围栏：每次拿到会话锁都会得到更大的围栏号；助手消息只在围栏号仍是最新时写入，
+    # 锁过期后被别的进程接手的旧回合因此写不进来（chat-agent-context-design.md §4.2）。
+    Column("fence", BigInteger, nullable=False, server_default="0"),
     Index("ca_ix_session_owner_deleted_updated", "owner_id", "deleted", "updated_at"),
 )
 
@@ -51,7 +72,7 @@ chat_message = Table(
     Column("session_id", BigInteger, nullable=False),
     Column("owner_id", BigInteger, nullable=False),
     Column("role", String(16), nullable=False),
-    Column("content", MEDIUMTEXT, nullable=False),
+    Column("content", LongText, nullable=False),
     Column("kind", String(16), nullable=False, server_default="chat"),
     Column("meta", JsonText, nullable=True),
     Column("client_message_id", String(64), nullable=True),
@@ -87,7 +108,7 @@ chat_queue = Table(
     Column("owner_id", BigInteger, nullable=False),
     Column("message_id", BigInteger, nullable=False),
     Column("client_message_id", String(64), nullable=True),
-    Column("text", MEDIUMTEXT, nullable=False),
+    Column("text", LongText, nullable=False),
     Column("attachments", JsonText, nullable=True),
     Column("status", String(16), nullable=False),
     Column("turn_id", String(26), nullable=True),
@@ -118,7 +139,7 @@ user_role = Table(
     Column("name", String(60), nullable=False),
     Column("tagline", String(120), nullable=False, server_default=""),
     Column("description", Text, nullable=False),
-    Column("prompt", MEDIUMTEXT, nullable=False),
+    Column("prompt", LongText, nullable=False),
     Column("locale", String(16), nullable=False, server_default="zh-CN"),
     _now(), _upd(),
     Column("deleted", Boolean, nullable=False, server_default="0"),
@@ -166,7 +187,7 @@ persona_profile = Table(
     Column("owner_id", BigInteger, nullable=False),
     Column("app", String(32), nullable=False),
     Column("version", Integer, nullable=False),
-    Column("markdown", MEDIUMTEXT, nullable=False),
+    Column("markdown", LongText, nullable=False),
     Column("source", String(16), nullable=False),
     Column("generated_from", JsonText, nullable=True),
     _now(),
@@ -197,4 +218,27 @@ account_purge_log = Table(
     Column("user_hash", String(64), nullable=False),  # 不存原 user_id（O §3）
     Column("requested_at", DateTime, nullable=False),
     Column("finished_at", DateTime, nullable=True),
+)
+
+reminder = Table(
+    TABLE_PREFIX + "reminder", metadata,
+    _pk(),
+    Column("owner_id", BigInteger, nullable=False),
+    Column("session_id", BigInteger, nullable=False),
+    Column("role_id", String(128), nullable=False),
+    Column("due_at", DateTime, nullable=False),           # UTC
+    Column("timezone", String(64), nullable=False, server_default="UTC"),
+    Column("content", Text, nullable=False),
+    Column("status", String(16), nullable=False),         # pending | claimed | sent | cancelled | failed
+    Column("attempts", Integer, nullable=False, server_default="0"),
+    Column("lease_owner", String(64), nullable=True),
+    Column("lease_until", DateTime, nullable=True),
+    # 由确认执行创建：同一确认只建一条（重放、重复确认幂等）。
+    Column("confirmation_id", String(40), nullable=True),
+    Column("sent_turn_id", String(26), nullable=True),
+    Column("last_error", Text, nullable=True),
+    _now(), _upd(),
+    Index("ca_ix_reminder_status_due", "status", "due_at"),
+    Index("ca_ix_reminder_owner_status", "owner_id", "status"),
+    UniqueConstraint("confirmation_id", name="ca_uq_reminder_confirmation"),
 )

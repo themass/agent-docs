@@ -1,4 +1,4 @@
-"""MySQL 仓储实现（SQLAlchemy Core，异步）。
+"""SQL 仓储实现（SQLAlchemy Core，异步；目标库 Postgres，兼容 MySQL）。
 
 约定：
 - 每个查询都带 owner_id（用户隔离）。查不到、或不属于该用户，统一返回 None / False。
@@ -15,7 +15,7 @@ from typing import Any
 from sqlalchemy import and_, delete, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from companion.adapters.store.mysql.schema import (
+from companion.adapters.store.sql.schema import (
     action_confirmation,
     chat_message,
     chat_queue,
@@ -38,7 +38,7 @@ def _now() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
 
 
-class MysqlSessionStore:
+class SqlSessionStore:
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
 
@@ -80,15 +80,32 @@ class MysqlSessionStore:
                 .values(deleted=True))
         return res.rowcount == 1
 
+    async def advance_fence(self, *, session_id: int, fence: int) -> bool:
+        """把会话围栏推进到 ``fence``。只增不减：拿到更新的锁的进程总能推进，旧的推进不了。"""
+        async with self._engine.begin() as conn:
+            res = await conn.execute(update(chat_session).where(and_(
+                chat_session.c.id == session_id, chat_session.c.fence < fence))
+                .values(fence=fence))
+        return res.rowcount == 1
 
-class MysqlMessageStore:
+
+class SqlMessageStore:
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
 
     async def append(self, *, owner_id: int, session_id: int, role: str, content: str, kind: str,
-                     client_message_id: str | None, turn_id: str | None, meta: dict[str, Any]) -> MessageRecord:
+                     client_message_id: str | None, turn_id: str | None, meta: dict[str, Any],
+                     fence: int | None = None) -> MessageRecord | None:
+        """写入一条消息。给了 ``fence`` 时，只有会话围栏仍等于它才写入（否则返回 None）：
+        锁丢失后被别的进程接手的旧回合，回复写不进来。"""
         now = _now()
         async with self._engine.begin() as conn:
+            if fence is not None:
+                current = (await conn.execute(
+                    select(chat_session.c.fence).where(chat_session.c.id == session_id).with_for_update()
+                )).scalar()
+                if current != fence:
+                    return None
             res = await conn.execute(insert(chat_message).values(
                 session_id=session_id, owner_id=owner_id, role=role, content=content, kind=kind,
                 client_message_id=client_message_id, turn_id=turn_id, interrupted=False,
@@ -113,6 +130,22 @@ class MysqlMessageStore:
             rows = (await conn.execute(select(chat_message).where(and_(*cond))
                     .order_by(chat_message.c.id.desc()).limit(limit))).mappings().all()
         return [_message(r) for r in rows]
+
+    async def list_after(self, *, owner_id: int, session_id: int, after_id: int, limit: int) -> list[MessageRecord]:
+        """``after_id`` 之后的消息，按 id 升序（不含已删除）。"""
+        async with self._engine.connect() as conn:
+            rows = (await conn.execute(select(chat_message).where(and_(
+                chat_message.c.session_id == session_id, chat_message.c.owner_id == owner_id,
+                chat_message.c.deleted == False, chat_message.c.id > after_id))  # noqa: E712
+                .order_by(chat_message.c.id).limit(limit))).mappings().all()
+        return [_message(r) for r in rows]
+
+    async def get_any(self, *, owner_id: int, message_id: int) -> MessageRecord | None:
+        """包括已删除的消息（重建摘要时需要知道哪些被删）。"""
+        async with self._engine.connect() as conn:
+            row = (await conn.execute(select(chat_message).where(and_(
+                chat_message.c.id == message_id, chat_message.c.owner_id == owner_id)))).mappings().first()
+        return _message(row) if row else None
 
     async def mark_interrupted(self, *, owner_id: int, message_id: int) -> bool:
         async with self._engine.begin() as conn:
@@ -165,7 +198,7 @@ class MysqlMessageStore:
         return res.rowcount == 1
 
 
-class MysqlQueueStore:
+class SqlQueueStore:
     """排队输入。状态转移只允许 D §3.3 列出的那几条，其余拒绝。"""
 
     ALLOWED = QUEUE_TRANSITIONS  # 单一来源：domain/turn/queue.py
@@ -220,7 +253,7 @@ class MysqlQueueStore:
         return [_queue(r) for r in rows]
 
 
-class MysqlRoleStore:
+class SqlRoleStore:
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
 
@@ -267,7 +300,7 @@ class MysqlRoleStore:
         return res.rowcount == 1
 
 
-class MysqlUploadStore:
+class SqlUploadStore:
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
 
@@ -290,7 +323,7 @@ class MysqlUploadStore:
                             row["width"] or 0, row["height"] or 0, bool(row["referenced"]), row["created_at"])
 
 
-class MysqlConfirmationStore:
+class SqlConfirmationStore:
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
 
@@ -341,7 +374,7 @@ class MysqlConfirmationStore:
         return res.rowcount == 1
 
 
-class MysqlToolCallStore:
+class SqlToolCallStore:
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
 

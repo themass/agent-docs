@@ -1,11 +1,11 @@
-"""Alembic 环境。连接串来自 COMPANION_MYSQL_URL（O §8.1），不进仓库。"""
+"""Alembic 环境。连接串来自 COMPANION_DATABASE_URL（Postgres）或 COMPANION_MYSQL_URL（O §8.1），不进仓库。"""
 
 import os
 
 from alembic import context
 
-from companion.adapters.store.mysql.schema import metadata
-import companion.adapters.store.mysql.memory  # noqa: F401 — 注册 ca_memory_item 到同一个 metadata
+from companion.adapters.store.sql.schema import metadata
+import companion.adapters.store.sql.memory  # noqa: F401 — 注册 ca_memory_item 到同一个 metadata
 
 config = context.config
 target_metadata = metadata
@@ -14,9 +14,9 @@ VERSION_TABLE = "ca_alembic_version"
 
 
 def _url() -> str:
-    url = os.environ.get("COMPANION_MYSQL_URL", "")
+    url = os.environ.get("COMPANION_DATABASE_URL") or os.environ.get("COMPANION_MYSQL_URL", "")
     if not url:
-        raise RuntimeError("COMPANION_MYSQL_URL 未设置")
+        raise RuntimeError("COMPANION_DATABASE_URL（或 COMPANION_MYSQL_URL）未设置")
     return url
 
 
@@ -32,7 +32,8 @@ def run_migrations_online() -> None:
     from sqlalchemy import create_engine
 
     # 迁移是同步执行的：把运行时的异步驱动换成同步驱动，连接串其它部分不变。
-    engine = create_engine(_url().replace("+aiomysql", "+pymysql"))
+    # psycopg（3）同时支持同步与异步，Postgres 连接串不用改；asyncpg 换成 psycopg。
+    engine = create_engine(_url().replace("+aiomysql", "+pymysql").replace("+asyncpg", "+psycopg"))
     with engine.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata, version_table=VERSION_TABLE)
         with context.begin_transaction():

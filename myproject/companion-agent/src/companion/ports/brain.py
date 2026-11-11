@@ -9,6 +9,8 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import Protocol
 
+from companion.domain.prompt.plan import PromptPlan
+
 
 @dataclass
 class BrainTurn:
@@ -28,12 +30,22 @@ class BrainTurn:
 CancelFn = "Callable[[], Awaitable[None]]"
 
 
+@dataclass(frozen=True)
+class TurnInputMessage:
+    """本回合的一条用户输入。``message_id`` 是消息表主键，大脑用它生成稳定的消息 id，
+    这样合并重跑、插话、删除、重新生成都能按 id 精确操作（chat-agent-next-plan.md §2.2）。"""
+
+    message_id: int
+    text: str
+
+
 @dataclass
 class TurnRequest:
     """一次回合的输入。
 
-    ``user_id`` 与 ``character_id`` 一起决定记忆与线程；``thread_id`` 为空时由
-    实现方新建，用于把多轮对话串起来。
+    ``session_id`` 决定大脑的对话线程（历史由大脑的 checkpoint 按会话保存）。
+    ``inputs`` 是本回合覆盖的用户消息；为空时退回 ``message``（语音等旧链路）。
+    ``prompt`` 是本轮的提示词计划（系统提示词 + 按深度注入）；为空时用 ``system_prompt``。
     """
 
     user_id: str
@@ -42,6 +54,9 @@ class TurnRequest:
     thread_id: str | None = None
     system_prompt: str = ""
     metadata: dict[str, object] = field(default_factory=dict)
+    session_id: int | None = None
+    inputs: tuple[TurnInputMessage, ...] = ()
+    prompt: PromptPlan | None = None
 
 
 class BrainPort(Protocol):
@@ -70,4 +85,13 @@ class ToolFinished:
     content: str
 
 
-BrainEvent = TextDelta | ToolStarted | ToolFinished
+@dataclass(frozen=True)
+class GraphMessageIds:
+    """本次尝试里大脑写进对话线程的消息 id（助手回复、工具调用与结果）。
+
+    回合层把它们记到助手消息的 meta 里，之后删除或重新生成时按 id 从线程里移除。"""
+
+    ids: tuple[str, ...]
+
+
+BrainEvent = TextDelta | ToolStarted | ToolFinished | GraphMessageIds

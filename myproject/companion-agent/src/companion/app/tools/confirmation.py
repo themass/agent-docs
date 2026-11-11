@@ -51,7 +51,8 @@ class ConfirmationService:
             return None
         outcome = await self._runtime.run_confirmed(
             owner_id=owner_id, session_id=record.session_id, turn_id=record.turn_id or "",
-            character_id="", locale="", name=record.tool, args=dict(record.args or {}))
+            character_id="", locale="", name=record.tool, args=dict(record.args or {}),
+            confirmation_id=confirmation_id)
         status = "executed" if outcome.status == "executed" else "failed"
         await self._store.finish(owner_id=owner_id, confirmation_id=confirmation_id, status=status)
         text = f"已完成：{record.title}" if status == "executed" else f"未能完成：{record.title}，请稍后重试"

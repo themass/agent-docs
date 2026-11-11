@@ -48,6 +48,7 @@ class ToolContext:
     turn_id: str
     character_id: str
     locale: str
+    confirmation_id: str | None = None   # 确认后执行时有值：处理函数据此做幂等（同一确认只生效一次）
 
 
 @dataclass(frozen=True)

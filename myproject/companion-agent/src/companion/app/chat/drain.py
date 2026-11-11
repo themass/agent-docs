@@ -57,7 +57,7 @@ class DrainService:
 
     async def _fail(self, batch: list[QueueItem]) -> None:
         for item in batch:
-            # 认领时 drain_attempts 已经 +1（见 MysqlQueueStore.transition），这里直接用它判断上限。
+            # 认领时 drain_attempts 已经 +1（见 SqlQueueStore.transition），这里直接用它判断上限。
             exhausted = item.drain_attempts + 1 >= DRAIN_MAX_ATTEMPTS  # 认领前读到的值，+1 即本次计数
             await self._queue.transition(item_id=item.id, from_status="draining",
                                          to_status="failed" if exhausted else "queued")

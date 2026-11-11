@@ -17,6 +17,11 @@
 Lua 与阶段推进在 Redis 中是线性的，所以任何被 Lua 判为合并的消息，都一定能被这两次同步读取看到。
 
 produce 由 bootstrap 注入（把 DeerFlow 的事件流接进来），这里不认识 LangGraph。
+
+锁丢失（续租失败）：立即停止产出，不写助手消息，按失败收尾。写回复时还带围栏号做条件写，
+锁过期后被别的进程接手的旧回合因此写不进来（chat-agent-context-design.md §4.2）。
+
+after_turn：收尾时、**释放锁之前**调用（拿着锁，才能安全地改对话线程，例如补记被中断的回复）。
 """
 
 from __future__ import annotations
@@ -30,7 +35,15 @@ from dataclasses import dataclass, field
 from companion.app.chat.lifecycle import DrainState
 from companion.domain.turn.queue import TurnPhase
 from companion.domain.turn.steer import SteerInbox
-from companion.ports.brain import BrainEvent, TextDelta, ToolFinished, ToolStarted, TurnRequest
+from companion.ports.brain import (
+    BrainEvent,
+    GraphMessageIds,
+    TextDelta,
+    ToolFinished,
+    ToolStarted,
+    TurnInputMessage,
+    TurnRequest,
+)
 from companion.ports.store import MessageStore, QueueStore
 from companion.ports.turn_control import TurnControlPort
 
@@ -45,6 +58,28 @@ Produce = Callable[[TurnRequest, SteerInbox], AsyncIterator[BrainEvent]]
 Drain = Callable[..., Awaitable[None]]
 
 
+@dataclass(frozen=True)
+class TurnOutcome:
+    """一个回合结束时的事实，交给 after_turn（记忆写入、补记中断回复等）。"""
+
+    owner_id: int
+    session_id: int
+    character_id: str
+    turn_id: str
+    user_message_ids: tuple[int, ...]
+    user_text: str
+    assistant_message_id: int | None
+    assistant_text: str
+    interrupted: bool
+    cancelled: bool
+    failed: bool
+    lock_lost: bool
+    lc_ids: tuple[str, ...]
+
+
+AfterTurn = Callable[[TurnOutcome], Awaitable[None]]
+
+
 @dataclass
 class TurnInput:
     owner_id: int
@@ -54,6 +89,7 @@ class TurnInput:
     owner: str                 # 锁持有者，形如 "{process}:{turn_id}"
     text: str
     message_ids: list[int]     # 启动时覆盖的用户消息（排空时可能有多条）
+    fence: int | None = None   # 拿锁时取得的围栏号；None 表示不做围栏检查
 
 
 @dataclass
@@ -67,6 +103,8 @@ class _RunState:
     pending: str = ""
     last_flush: float = field(default_factory=time.monotonic)
     ctl_last: str = "0-0"      # 已处理的最后一条控制消息 id（去重用）
+    lost: bool = False         # 续租失败：这把锁已经不是我们的
+    lc_ids: list[str] = field(default_factory=list)   # 大脑写进对话线程的消息 id（跨重跑累计）
 
     def restart(self) -> None:
         self.merge_requested = False
@@ -96,7 +134,9 @@ class TurnRunner:
         drain: Drain | None = None,
         tracker: DrainState | None = None,
         steer_budget: int = 3,
+        after_turn: AfterTurn | None = None,
     ) -> None:
+        self._after_turn = after_turn
         self._control = control
         self._messages = messages
         self._queue = queue
@@ -117,10 +157,10 @@ class TurnRunner:
     async def _run(self, inp: TurnInput) -> None:
         state = _RunState()
         inbox = SteerInbox(budget=self._steer_budget)
-        texts = [inp.text]
+        inputs = await self._load_inputs(inp)
         restarts = 0
         stop = asyncio.Event()
-        renew = asyncio.create_task(self._renew(inp, stop))
+        renew = asyncio.create_task(self._renew(inp, state, stop))
         watch = asyncio.create_task(self._watch_ctl(inp, inbox, state, stop))
         failed = False
         try:
@@ -129,7 +169,7 @@ class TurnRunner:
             await self._control.publish(session_id=inp.session_id, event="turn.started",
                                         data={"turn_id": inp.turn_id, "user_message_ids": inp.message_ids})
             while True:
-                outcome = await self._attempt(inp, texts, inbox, state)
+                outcome = await self._attempt(inp, inputs, inbox, state)
                 if outcome != "merged":
                     break
                 if restarts >= MAX_RESTARTS:
@@ -139,7 +179,7 @@ class TurnRunner:
                     break
                 restarts += 1
                 await self._attach_merged(inp, state)
-                texts = texts + [text for _mid, text in state.merged]
+                inputs = inputs + [TurnInputMessage(message_id=mid, text=text) for mid, text in state.merged]
                 state.restart()  # 原地重置：控制协程持有的是同一个对象
                 await self._control.publish(
                     session_id=inp.session_id, event="turn.restarted",
@@ -161,14 +201,34 @@ class TurnRunner:
 
     # ---- 一次模型调用 ----
 
-    async def _attempt(self, inp: TurnInput, texts: list[str], inbox: SteerInbox, state: _RunState) -> str:
-        request = TurnRequest(user_id=str(inp.owner_id), character_id=inp.character_id,
-                              message="\n\n".join(texts), thread_id=inp.turn_id)
+    async def _load_inputs(self, inp: TurnInput) -> list[TurnInputMessage]:
+        """本回合覆盖的用户消息，逐条带 id（排空时有多条）。没有消息 id 的重跑（如「继续」）返回空，
+        由大脑用 ``message`` 字段兜底。"""
+        loaded: list[TurnInputMessage] = []
+        for mid in inp.message_ids:
+            record = await self._messages.get(owner_id=inp.owner_id, message_id=mid)
+            if record is not None:
+                loaded.append(TurnInputMessage(message_id=mid, text=record.content))
+        if inp.message_ids and not loaded:
+            loaded = [TurnInputMessage(message_id=inp.message_ids[0], text=inp.text)]
+        return loaded
+
+    async def _attempt(self, inp: TurnInput, inputs: list[TurnInputMessage], inbox: SteerInbox,
+                       state: _RunState) -> str:
+        message = "\n\n".join(i.text for i in inputs) if inputs else inp.text
+        request = TurnRequest(user_id=str(inp.owner_id), character_id=inp.character_id, message=message,
+                              session_id=inp.session_id, inputs=tuple(inputs),
+                              metadata={"turn_id": inp.turn_id, "session_id": inp.session_id})
         stream = self._produce(request, inbox)
         try:
             async for event in stream:
+                if state.lost:
+                    return "lost"
                 if state.cancelled:
                     return "cancelled"
+                if isinstance(event, GraphMessageIds):
+                    state.lc_ids.extend(i for i in event.ids if i not in state.lc_ids)
+                    continue
                 if state.merge_requested and not state.output_started:
                     return "merged"
                 if isinstance(event, TextDelta):
@@ -256,11 +316,12 @@ class TurnRunner:
             entries = await self._control.read_ctl(turn_id=inp.turn_id, last_id=state.ctl_last, block_ms=500)
             await self._absorb(inp, state, inbox, entries)
 
-    async def _renew(self, inp: TurnInput, stop: asyncio.Event) -> None:
+    async def _renew(self, inp: TurnInput, state: _RunState, stop: asyncio.Event) -> None:
         while not stop.is_set():
             await asyncio.sleep(LOCK_RENEW_SEC)
             if not await self._control.renew_lock(session_id=inp.session_id, owner=inp.owner):
                 log.error("lock lost", extra={"turn_id": inp.turn_id})
+                state.lost = True   # 主循环在下一个事件处停止产出
                 stop.set()
                 return
 
@@ -281,6 +342,9 @@ class TurnRunner:
     # ---- 收尾 ----
 
     async def _finish(self, inp: TurnInput, state: _RunState, inbox: SteerInbox, failed: bool = False) -> None:
+        if state.lost:
+            await self._finish_lost(inp, state)
+            return
         await self._flush(inp, state)
         full = "".join(state.deltas)
         interrupted = state.cancelled or failed
@@ -288,7 +352,13 @@ class TurnRunner:
         if full or interrupted:
             saved = await self._messages.append(
                 owner_id=inp.owner_id, session_id=inp.session_id, role="assistant", content=full,
-                kind="chat", client_message_id=None, turn_id=inp.turn_id, meta={})
+                kind="chat", client_message_id=None, turn_id=inp.turn_id,
+                meta={"lc_ids": list(state.lc_ids)} if state.lc_ids else {}, fence=inp.fence)
+            if saved is None:
+                # 围栏号已不是最新：这把锁过期后被别的进程接手过。不写、不发完成事件。
+                state.lost = True
+                await self._finish_lost(inp, state)
+                return
             saved_id = saved.id
             if interrupted:
                 await self._messages.mark_interrupted(owner_id=inp.owner_id, message_id=saved.id)
@@ -311,8 +381,33 @@ class TurnRunner:
             await self._control.publish(session_id=inp.session_id, event="turn.cancelled",
                                         data={"turn_id": inp.turn_id, "assistant_message_id": saved_id})
 
+        await self._notify(inp, state, saved_id=saved_id, text=full, interrupted=interrupted,
+                           failed=failed)
         await self._control.clear_turn(session_id=inp.session_id)
         await self._control.release_lock(session_id=inp.session_id, owner=inp.owner)
         if self._drain is not None and not failed:
             await self._drain(owner_id=inp.owner_id, session_id=inp.session_id,
                               character_id=inp.character_id)
+
+    async def _finish_lost(self, inp: TurnInput, state: _RunState) -> None:
+        """锁已不是我们的：不写回复、不清回合状态、不排空（这些都属于接手的那个进程）。"""
+        await self._control.publish(session_id=inp.session_id, event="error",
+                                    data={"turn_id": inp.turn_id, "code": "turn_failed",
+                                          "message": "回答中断，请重试", "retryable": True})
+        await self._notify(inp, state, saved_id=None, text="", interrupted=True, failed=True)
+        await self._control.release_lock(session_id=inp.session_id, owner=inp.owner)  # 只释放自己的
+
+    async def _notify(self, inp: TurnInput, state: _RunState, *, saved_id: int | None, text: str,
+                      interrupted: bool, failed: bool) -> None:
+        if self._after_turn is None:
+            return
+        user_ids = tuple(inp.message_ids) + tuple(mid for mid, _ in state.merged)
+        outcome = TurnOutcome(
+            owner_id=inp.owner_id, session_id=inp.session_id, character_id=inp.character_id,
+            turn_id=inp.turn_id, user_message_ids=user_ids, user_text=inp.text,
+            assistant_message_id=saved_id, assistant_text=text, interrupted=interrupted,
+            cancelled=state.cancelled, failed=failed, lock_lost=state.lost, lc_ids=tuple(state.lc_ids))
+        try:
+            await self._after_turn(outcome)
+        except Exception:  # noqa: BLE001 —— 收尾钩子失败不影响回合结果
+            log.exception("after_turn failed", extra={"turn_id": inp.turn_id})

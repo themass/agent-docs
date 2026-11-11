@@ -14,7 +14,7 @@ from sqlalchemy import Column, DateTime, String, Table, Text, and_, delete, inse
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from companion.adapters.store.mysql.schema import TABLE_PREFIX, metadata as schema_metadata
+from companion.adapters.store.sql.schema import TABLE_PREFIX, metadata as schema_metadata
 from companion.domain.memory.recall import rank_scored
 from companion.ports.memory import (
     MAX_BATCH,
@@ -45,7 +45,7 @@ def _now() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None, microsecond=0)
 
 
-class MysqlMemoryPort:
+class SqlMemoryPort:
     """MemoryPort 的 MySQL 实现。user_id 是复合 app:uid（由 memory_hub 加上）。"""
 
     def __init__(self, engine: AsyncEngine) -> None:

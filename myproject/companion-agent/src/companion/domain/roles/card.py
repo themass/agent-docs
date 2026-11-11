@@ -138,6 +138,8 @@ class CharacterCard:
     system_prompt: str = ""
     post_history_instructions: str = ""
     alternate_greetings: list[str] = field(default_factory=list)
+    # 角色绑定的世界书（V2/V3 的 character_book），原样保留；解析见 domain/lorebook/model.py。
+    character_book: dict[str, Any] | None = None
     spec_version: str = SPEC_VERSION_V2
 
     @property
@@ -198,6 +200,7 @@ def from_v2_json(payload: dict[str, Any]) -> CharacterCard:
         system_prompt=_text(data.get("system_prompt")),
         post_history_instructions=_text(data.get("post_history_instructions")),
         alternate_greetings=_string_list(data.get("alternate_greetings")),
+        character_book=_mapping(data.get("character_book")) or None,
         spec_version=spec_version or ("3.0" if v3 else SPEC_VERSION_V2),
     )
 
@@ -238,6 +241,8 @@ def to_v2_json(card: CharacterCard) -> dict[str, Any]:
         data["post_history_instructions"] = card.post_history_instructions
     if card.alternate_greetings:
         data["alternate_greetings"] = list(card.alternate_greetings)
+    if card.character_book:
+        data["character_book"] = dict(card.character_book)
     return {"spec": SPEC_V2, "spec_version": card.spec_version, "data": data}
 
 

@@ -39,6 +39,7 @@ from companion.api.http.routers.roles import build_router as build_roles_router
 from companion.api.http.routers.uploads import build_router as build_uploads_router
 from companion.api.http.routers.actions import build_router as build_actions_router
 from companion.api.http.routers.memory_v1 import build_router as build_memory_v1_router
+from companion.api.http.routers.reminders import build_router as build_reminders_router
 from companion.api.http.routers.chat import build_health_router
 from companion.bootstrap.platform import Platform
 from companion.app.roles.service import RoleService
@@ -156,6 +157,8 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        if platform is not None:
+            await platform.astart()   # checkpoint 连接池必须在服务的事件循环里打开
         worker: asyncio.Task | None = None
         if run_initiative:
             worker = asyncio.create_task(
@@ -169,6 +172,8 @@ def create_app(
                 with suppress(asyncio.CancelledError):
                     await worker
             await app.state.companion.store.aclose()
+            if platform is not None:
+                await platform.aclose()
 
     app = FastAPI(title="companion-agent", version="0.1.0", lifespan=lifespan)
     app.state.companion = AppState(
@@ -211,7 +216,10 @@ def create_app(
         app.state.companion.drain = platform.drain
         app.include_router(build_chat_router(platform.chat, current_user))
         app.include_router(build_roles_router(platform.roles, current_user))
-        app.include_router(build_uploads_router(platform.uploads, current_user))
+        if platform.uploads is not None:
+            app.include_router(build_uploads_router(platform.uploads, current_user))
+        if platform.reminders is not None:
+            app.include_router(build_reminders_router(platform.reminders, current_user))
         app.include_router(build_actions_router(platform.confirmations, current_user))
         app.include_router(build_memory_v1_router(memory=platform.memory, timeline=platform.timeline,
                                                   current_user=current_user))

@@ -1,19 +1,23 @@
-"""DeerFlow 大脑（P §2）。用 create_deerflow_agent 构图；每回合无状态，历史由调用方给出。
+"""DeerFlow 大脑（P §2）。用 create_deerflow_agent 构图，对话历史保存在 checkpoint 里。
 
-- build_turn_graph：一次性编译（进程内复用，图本身无状态；每轮的提示词、工具白名单、
-  steer 收件箱都经 runtime.context 传入）。
-- DeerFlowBrain.stream：把图的 messages 流翻译成 BrainEvent（文本增量、工具开始、工具结束）。
+分工（chat-agent-next-plan.md §2.2）：
+- 对话线程 = 会话（``thread_id_for(session_id)``）。模型每轮看到的历史来自 checkpoint，
+  请求里只带本回合的新输入；摘要（``summary_text``）由 DeerFlow 的摘要中间件维护。
+- 新输入用稳定 id（``lc_user_id(message_id)``）：合并后重跑时，同一条用户消息按 id 覆盖，不会重复。
+- 本轮的提示词计划经 ``runtime.context`` 交给 ``PromptMiddleware``，图本身可以缓存复用。
+
+``build_turn_graph``：一次性编译（进程内复用）。没有 checkpointer 时退回无状态（每轮只看本轮输入）。
 """
 
 from __future__ import annotations
 
 import asyncio
+import uuid
 from collections.abc import AsyncIterator, Sequence
 from typing import Any
 
 from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage, HumanMessage, ToolMessage
 
-from companion.ports.brain import BrainEvent, BrainTurn, TextDelta, ToolFinished, ToolStarted, TurnRequest
 from companion.adapters.brain.graph_middleware import (
     PromptMiddleware,
     SteerMiddleware,
@@ -21,6 +25,16 @@ from companion.adapters.brain.graph_middleware import (
     ToolAuthorizationMiddleware,
     ToolVisibilityMiddleware,
 )
+from companion.ports.brain import (
+    BrainEvent,
+    BrainTurn,
+    GraphMessageIds,
+    TextDelta,
+    ToolFinished,
+    ToolStarted,
+    TurnRequest,
+)
+from companion.ports.conversation import lc_user_id
 from deerflow.agents.factory import create_deerflow_agent
 from deerflow.agents.features import RuntimeFeatures
 
@@ -28,12 +42,16 @@ from deerflow.agents.features import RuntimeFeatures
 _PLACEHOLDER_SYSTEM = "You are a helpful assistant."
 
 
-def default_features(*, token_budget: bool = True) -> RuntimeFeatures:
-    """P §2.2 的开关表。沙箱、记忆、摘要、子 agent 一律关闭。"""
+def thread_id_for(session_id: int) -> str:
+    return f"session-{session_id}"
+
+
+def default_features(*, token_budget: bool = True, summarization: Any = False) -> RuntimeFeatures:
+    """P §2.2 的开关表。沙箱、记忆、子 agent 一律关闭；摘要需要传入中间件实例才开启。"""
     return RuntimeFeatures(
         sandbox=False,
         memory=False,
-        summarization=False,
+        summarization=summarization,
         subagent=False,
         vision=False,
         auto_title=False,
@@ -43,20 +61,40 @@ def default_features(*, token_budget: bool = True) -> RuntimeFeatures:
     )
 
 
+def build_summarization(model: Any, *, trigger_tokens: int = 9000, keep_messages: int = 20) -> Any:
+    """会话内的上下文压缩（chat-agent-context-design.md §3.2、§5）。
+
+    超过 ``trigger_tokens`` 时，把较早的消息压成 ``summary_text``，保留最近 ``keep_messages`` 条原文；
+    界面历史在消息表里，不受影响。
+    """
+    from deerflow.agents.middlewares.summarization_middleware import DeerFlowSummarizationMiddleware
+
+    return DeerFlowSummarizationMiddleware(
+        model=model, trigger=("tokens", trigger_tokens), keep=("messages", keep_messages))
+
+
 def build_turn_graph(model: Any, tools: Sequence[Any] = (), *, name: str = "companion-turn",
-                     features: RuntimeFeatures | None = None):
+                     features: RuntimeFeatures | None = None, checkpointer: Any = None,
+                     summarization: Any = None, fallback_models: Sequence[Any] = ()):
+    """``fallback_models``：主模型报错时依次尝试（LangChain 的模型降级中间件，按请求重新绑定工具）。"""
+    extra: list[Any] = [
+        PromptMiddleware(),
+        ToolVisibilityMiddleware(),
+        SteerMiddleware(),
+        ToolAuditMiddleware(),
+        ToolAuthorizationMiddleware(),
+    ]
+    if fallback_models:
+        from langchain.agents.middleware import ModelFallbackMiddleware
+
+        extra.append(ModelFallbackMiddleware(*fallback_models))
     return create_deerflow_agent(
         model,
         tools=list(tools),
         system_prompt=_PLACEHOLDER_SYSTEM,
-        features=features or default_features(),
-        extra_middleware=[
-            PromptMiddleware(),
-            ToolVisibilityMiddleware(),
-            SteerMiddleware(),
-            ToolAuditMiddleware(),
-            ToolAuthorizationMiddleware(),
-        ],
+        features=features or default_features(summarization=summarization or False),
+        extra_middleware=extra,
+        checkpointer=checkpointer,
         name=name,
     )
 
@@ -69,20 +107,37 @@ def _text_of(content: Any) -> str:
     return ""
 
 
+def _input_messages(request: TurnRequest) -> list[BaseMessage]:
+    if request.inputs:
+        return [HumanMessage(id=lc_user_id(i.message_id), content=i.text) for i in request.inputs]
+    return [HumanMessage(content=request.message)]
+
+
 class DeerFlowBrain:
     """tool_runtime 与 tool_allowed 由组合根注入：本回合允许的工具名，以及执行它们的运行时。
     两者都为空时，图内工具中间件会拒绝所有工具调用（fail closed）。"""
 
     def __init__(self, graph: Any, *, tool_runtime: Any = None, tool_allowed: frozenset[str] = frozenset(),
-                 tool_product: str = "chat") -> None:
+                 tool_product: str = "chat", stateful: bool = False) -> None:
         self._graph = graph
         self._tool_runtime = tool_runtime
         self._tool_allowed = tool_allowed
         self._tool_product = tool_product
+        self._stateful = stateful   # 图是否带 checkpointer（决定是否按会话传 thread_id）
 
-    async def stream(self, *, messages: list[BaseMessage], context: dict[str, Any]) -> AsyncIterator[BrainEvent]:
+    async def stream(self, *, messages: list[BaseMessage], context: dict[str, Any],
+                     config: dict[str, Any] | None = None) -> AsyncIterator[BrainEvent]:
         seen_calls: set[str] = set()
-        async for msg, _meta in self._graph.astream({"messages": messages}, context=context, stream_mode="messages"):
+        seen_ids: set[str] = set()
+        input_ids = {m.id for m in messages if m.id}
+        kwargs: dict[str, Any] = {"context": context, "stream_mode": "messages"}
+        if config is not None:   # 只有带 checkpoint 的图才按会话传线程
+            kwargs["config"] = config
+        async for msg, _meta in self._graph.astream({"messages": messages}, **kwargs):
+            mid = getattr(msg, "id", None)
+            if mid and mid not in seen_ids and mid not in input_ids and isinstance(msg, (AIMessage, ToolMessage)):
+                seen_ids.add(mid)
+                yield GraphMessageIds(ids=(mid,))
             if isinstance(msg, ToolMessage):
                 yield ToolFinished(call_id=msg.tool_call_id or "", name=msg.name or "", content=_text_of(msg.content))
                 continue
@@ -112,36 +167,54 @@ class DeerFlowBrain:
             if text:
                 yield TextDelta(text=text)
 
-
-    async def start_turn(self, request: TurnRequest) -> BrainTurn:
-        """BrainPort 兼容入口：只产出文本增量（工具事件由 stream() 的调用方消费）。"""
-        import uuid
-
-        cancelled = asyncio.Event()
-        turn_id = uuid.uuid4().hex
+    def _context(self, request: TurnRequest, turn_id: str, steer_inbox: Any = None) -> dict[str, Any]:
         context: dict[str, Any] = {
             "system_prompt": request.system_prompt,
+            "prompt_plan": request.prompt,
             "user_id": request.user_id,
             "turn_id": turn_id,
             "allowed_tools": self._tool_allowed,
         }
+        if steer_inbox is not None:
+            context["steer_inbox"] = steer_inbox
         if self._tool_runtime is not None:
             from companion.app.tools.runtime import ToolTurn
 
+            session_id = request.session_id or int(request.metadata.get("session_id", 0) or 0)
             context["tool_runtime"] = self._tool_runtime
             context["tool_turn"] = ToolTurn(
                 owner_id=int(request.user_id) if request.user_id.isdigit() else 0,
-                session_id=int(request.metadata.get("session_id", 0) or 0),
+                session_id=session_id,
                 turn_id=turn_id,
                 character_id=request.character_id,
                 locale=str(request.metadata.get("locale", "zh-CN")),
                 product=self._tool_product,
                 allowed=self._tool_allowed,
             )
-        messages: list[BaseMessage] = [HumanMessage(content=request.message)]
+        return context
+
+    def _config(self, request: TurnRequest) -> dict[str, Any] | None:
+        if not self._stateful or request.session_id is None:
+            return None
+        return {"configurable": {"thread_id": thread_id_for(request.session_id)}}
+
+    async def run(self, request: TurnRequest, steer_inbox: Any = None) -> AsyncIterator[BrainEvent]:
+        """回合层用的入口：产出全部事件（文本、工具、写入线程的消息 id）。"""
+        turn_id = str(request.metadata.get("turn_id") or uuid.uuid4().hex)
+        async for event in self.stream(messages=_input_messages(request),
+                                       context=self._context(request, turn_id, steer_inbox),
+                                       config=self._config(request)):
+            yield event
+
+    async def start_turn(self, request: TurnRequest) -> BrainTurn:
+        """BrainPort 兼容入口（语音等旧链路）：只产出文本增量。"""
+        cancelled = asyncio.Event()
+        turn_id = uuid.uuid4().hex
 
         async def tokens() -> AsyncIterator[str]:
-            async for event in self.stream(messages=messages, context=context):
+            async for event in self.stream(messages=_input_messages(request),
+                                           context=self._context(request, turn_id),
+                                           config=self._config(request)):
                 if cancelled.is_set():
                     return
                 if isinstance(event, TextDelta):
@@ -151,3 +224,6 @@ class DeerFlowBrain:
             cancelled.set()
 
         return BrainTurn(tokens=tokens(), cancel=cancel, turn_id=turn_id)
+
+    async def aclose(self) -> None:
+        return None

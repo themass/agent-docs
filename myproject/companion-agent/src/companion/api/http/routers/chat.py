@@ -11,6 +11,7 @@ from typing import Any
 from companion.app.chat.lifecycle import DrainState
 from companion.api.sse.stream import event_stream
 from companion.app.chat.drain import DrainService
+from companion.app.chat.history import HistoryBusy, HistoryService
 from companion.app.chat.submit import SubmitService
 from companion.domain.turn.queue import DRAIN_MAX_ATTEMPTS
 from companion.ports.store import MessageStore, QueueStore, SessionStore
@@ -30,6 +31,8 @@ class ChatApi:
     submit: SubmitService
     drain: DrainState
     drainer: DrainService | None = None
+    # 编辑、删除、重新生成时同步改大脑的对话线程；没有时只改消息表（无状态大脑）。
+    history: HistoryService | None = None
 
 
 def _owner_id(user_id: str) -> int:
@@ -158,9 +161,20 @@ def build_router(api: ChatApi, current_user):
         rows = await api.messages.list_before(owner_id=owner, session_id=session_id, before_id=before, limit=limit)
         return {"items": [_message_json(m) for m in rows]}
 
+    def _busy() -> HTTPException:
+        return HTTPException(status_code=409, detail={"code": "conflict", "reason": "busy"})
+
     @router.patch("/messages/{message_id}")
     async def edit_message(message_id: int, body: EditMessage, user_id: str = Depends(current_user)) -> dict[str, Any]:
         owner = _owner_id(user_id)
+        if api.history is not None:
+            try:
+                message = await api.history.edit(owner_id=owner, message_id=message_id, content=body.content)
+            except HistoryBusy:
+                raise _busy()
+            if message is None:
+                raise HTTPException(status_code=404, detail={"code": "not_found"})
+            return _message_json(message)
         if not await api.messages.edit(owner_id=owner, message_id=message_id, content=body.content):
             raise HTTPException(status_code=404, detail={"code": "not_found"})
         message = await api.messages.get(owner_id=owner, message_id=message_id)
@@ -169,7 +183,12 @@ def build_router(api: ChatApi, current_user):
     @router.delete("/messages/{message_id}", status_code=204)
     async def delete_message(message_id: int, user_id: str = Depends(current_user)) -> Response:
         owner = _owner_id(user_id)
-        if not await api.messages.soft_delete(owner_id=owner, message_id=message_id):
+        try:
+            deleted = (await api.history.delete(owner_id=owner, message_id=message_id) if api.history is not None
+                       else await api.messages.soft_delete(owner_id=owner, message_id=message_id))
+        except HistoryBusy:
+            raise _busy()
+        if not deleted:
             raise HTTPException(status_code=404, detail={"code": "not_found"})
         return Response(status_code=204)
 
@@ -217,6 +236,13 @@ def build_router(api: ChatApi, current_user):
 
     async def _rerun(owner: int, session, text: str, message_ids: list[int]) -> dict[str, Any]:
         ensure_open(api.drain.draining)
+        if api.history is not None and message_ids:
+            # 先把旧回复从对话线程里移除，模型不会看到它；消息表里的旧回复保留（可作为备选回复）。
+            try:
+                await api.history.forget_replies_after(owner_id=owner, session_id=session.id,
+                                                       user_message_id=min(message_ids))
+            except HistoryBusy:
+                raise _busy()
         turn_id = await api.submit.rerun(owner_id=owner, session_id=session.id, character_id=session.role_id,
                                          text=text, message_ids=message_ids)
         if turn_id is None:

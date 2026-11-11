@@ -13,14 +13,14 @@ from pathlib import Path
 
 import pytest
 
-URL = os.environ.get("COMPANION_TEST_MYSQL_URL", "")
-pytestmark = pytest.mark.skipif(not URL, reason="COMPANION_TEST_MYSQL_URL not set")
+URL = (os.environ.get("COMPANION_TEST_DATABASE_URL") or os.environ.get("COMPANION_TEST_MYSQL_URL", ""))
+pytestmark = pytest.mark.skipif(not URL, reason="COMPANION_TEST_DATABASE_URL not set")
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def _guard_database_name() -> None:
     """测试会删除并重建表。vpn 库与 Java 后端共用，所以只允许碰带 ca_ 前缀的表。"""
-    from companion.adapters.store.mysql.schema import TABLE_PREFIX, metadata
+    from companion.adapters.store.sql.schema import TABLE_PREFIX, metadata
 
     foreign = [t for t in metadata.tables if not t.startswith(TABLE_PREFIX)]
     if foreign:
@@ -30,7 +30,7 @@ def _guard_database_name() -> None:
 @pytest.fixture(scope="module")
 def migrated():
     _guard_database_name()
-    env = {**os.environ, "COMPANION_MYSQL_URL": URL, "PYTHONPATH": str(ROOT / "src")}
+    env = {**os.environ, "COMPANION_MYSQL_URL": URL, "COMPANION_DATABASE_URL": URL, "PYTHONPATH": str(ROOT / "src")}
     py = sys.executable
     subprocess.run([py, "-m", "alembic", "downgrade", "base"], cwd=ROOT, env=env, check=True, capture_output=True)
     subprocess.run([py, "-m", "alembic", "upgrade", "head"], cwd=ROOT, env=env, check=True, capture_output=True)
@@ -41,7 +41,7 @@ def migrated():
 def test_migration_is_reversible_and_creates_all_tables(migrated):
     from sqlalchemy import create_engine, inspect
 
-    from companion.adapters.store.mysql.schema import metadata
+    from companion.adapters.store.sql.schema import metadata
 
     sync_url = migrated.replace("+aiomysql", "+pymysql")
     engine = create_engine(sync_url)
@@ -64,13 +64,13 @@ def run(coro):
 
 
 def test_message_store_attach_edit_and_soft_delete(migrated):
-    from companion.adapters.store.mysql.repositories import MysqlMessageStore, MysqlSessionStore
+    from companion.adapters.store.sql.repositories import SqlMessageStore, SqlSessionStore
 
     async def go():
         engine = await _engine(migrated)
         try:
-            sessions = MysqlSessionStore(engine)
-            messages = MysqlMessageStore(engine)
+            sessions = SqlSessionStore(engine)
+            messages = SqlMessageStore(engine)
             s = await sessions.create(owner_id=9001, role_id="linche", name="t", locale="zh-CN")
             m = await messages.append(owner_id=9001, session_id=s.id, role="user", content="你好", kind="chat",
                                       client_message_id="c-1", turn_id=None, meta={})
@@ -91,15 +91,15 @@ def test_message_store_attach_edit_and_soft_delete(migrated):
 
 
 def test_queue_transitions_follow_the_table_and_refuse_illegal_ones(migrated):
-    from companion.adapters.store.mysql.repositories import MysqlMessageStore, MysqlQueueStore, MysqlSessionStore
+    from companion.adapters.store.sql.repositories import SqlMessageStore, SqlQueueStore, SqlSessionStore
 
     async def go():
         engine = await _engine(migrated)
         try:
-            s = await MysqlSessionStore(engine).create(owner_id=9003, role_id="linche", name="q", locale="zh-CN")
-            m = await MysqlMessageStore(engine).append(owner_id=9003, session_id=s.id, role="user", content="排队",
+            s = await SqlSessionStore(engine).create(owner_id=9003, role_id="linche", name="q", locale="zh-CN")
+            m = await SqlMessageStore(engine).append(owner_id=9003, session_id=s.id, role="user", content="排队",
                                                        kind="chat", client_message_id=None, turn_id=None, meta={})
-            queue = MysqlQueueStore(engine)
+            queue = SqlQueueStore(engine)
             item = await queue.enqueue(owner_id=9003, session_id=s.id, message_id=m.id,
                                        client_message_id=None, text="排队")
             assert await queue.transition(item_id=item.id, from_status="queued", to_status="draining")
@@ -115,13 +115,13 @@ def test_queue_transitions_follow_the_table_and_refuse_illegal_ones(migrated):
 
 
 def test_confirmation_claim_finish_and_expiry(migrated):
-    from companion.adapters.store.mysql.repositories import MysqlConfirmationStore
+    from companion.adapters.store.sql.repositories import SqlConfirmationStore
     from companion.ports.store import ConfirmationRecord
 
     async def go():
         engine = await _engine(migrated)
         try:
-            store = MysqlConfirmationStore(engine)
+            store = SqlConfirmationStore(engine)
             now = datetime.now(UTC).replace(tzinfo=None)
             rec = ConfirmationRecord(id="cfm_test_1", owner_id=9004, session_id=1, turn_id=None, tool="create_reminder",
                                      args={"title": "吃药"}, args_fingerprint="0123456789abcdef", title="提醒",
@@ -140,12 +140,12 @@ def test_confirmation_claim_finish_and_expiry(migrated):
 
 
 def test_job_claim_is_exclusive_and_dedupe_holds(migrated):
-    from companion.adapters.store.mysql.jobs import MysqlJobStore
+    from companion.adapters.store.sql.jobs import SqlJobStore
 
     async def go():
         engine = await _engine(migrated)
         try:
-            jobs = MysqlJobStore(engine)
+            jobs = SqlJobStore(engine)
             now = datetime.now(UTC).replace(tzinfo=None)
             import uuid
             key = "t-dedupe-" + uuid.uuid4().hex
@@ -165,13 +165,13 @@ def test_job_claim_is_exclusive_and_dedupe_holds(migrated):
 
 
 def test_tool_call_audit_trim_removes_only_old_rows(migrated):
-    from companion.adapters.store.mysql.repositories import MysqlToolCallStore
+    from companion.adapters.store.sql.repositories import SqlToolCallStore
     from companion.ports.tools import ToolCallRecord
 
     async def go():
         engine = await _engine(migrated)
         try:
-            store = MysqlToolCallStore(engine)
+            store = SqlToolCallStore(engine)
             await store.append(ToolCallRecord(turn_id="01DDDDDDDDDDDDDDDDDDDDDDDD", owner_id=9005, tool="recall_facts",
                                               permission="read", args_fingerprint="0123456789abcdef",
                                               status="executed", latency_ms=5, result_chars=10))

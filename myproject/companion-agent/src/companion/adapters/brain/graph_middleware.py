@@ -10,10 +10,12 @@ import time
 from typing import Any
 
 from langchain.agents.middleware import AgentMiddleware
-from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langgraph.types import Command
 
+from companion.domain.prompt.plan import splice_injections
 from companion.domain.turn.steer import render_steer_block
+from companion.ports.conversation import lc_user_id
 
 # DeerFlow 的锚点装饰器（deerflow/agents/features.py）。锚点名必须与 factory 中的类一致。
 from deerflow.agents.features import Next, Prev
@@ -30,14 +32,38 @@ def _ctx(obj: Any) -> dict[str, Any]:
     return dict(obj) if hasattr(obj, "keys") else {}
 
 
+def _injection_message(role: str, text: str, *, system_as_user: bool):
+    """对话中间的注入。严格的后端（千问、vLLM、Anthropic）拒绝不在开头的 system 消息，
+    所以默认把 system 角色的注入写成带标记的用户消息。"""
+    if role == "assistant":
+        return AIMessage(content=text)
+    if role == "system" and not system_as_user:
+        return SystemMessage(content=text)
+    body = f"<system_note>\n{text}\n</system_note>" if role == "system" else text
+    return HumanMessage(content=body, additional_kwargs={"hide_from_ui": True})
+
+
 @Prev(SystemMessageCoalescingMiddleware)
 class PromptMiddleware(AgentMiddleware):
-    """每回合的系统提示词写进 request.system_message（图可缓存，提示词每轮重算，P §2.4）。"""
+    """每次模型调用都由我们决定提示词（P §2.4）：
+
+    - 系统提示词写进 ``request.system_message``（图可缓存，提示词每轮重算）；
+    - 提示词计划里的按深度注入（角色备注、世界书、作者注、历史后指令）插进本次请求的消息列表，
+      **只进请求，不写回对话线程**。
+    """
 
     async def awrap_model_call(self, request, handler):
-        prompt = _ctx(request.runtime.context if request.runtime else None).get("system_prompt")
+        ctx = _ctx(request.runtime.context if request.runtime else None)
+        plan = ctx.get("prompt_plan")
+        prompt = plan.system if plan is not None else ctx.get("system_prompt")
         if prompt:
             request = request.override(system_message=SystemMessage(content=prompt))
+        if plan is not None and plan.injections:
+            system_as_user = bool(ctx.get("system_injection_as_user", True))
+            messages = splice_injections(
+                list(request.messages), plan.injections,
+                lambda role, text: _injection_message(role, text, system_as_user=system_as_user))
+            request = request.override(messages=messages)
         return await handler(request)
 
 
@@ -73,7 +99,9 @@ class SteerMiddleware(AgentMiddleware):
         emit = ctx.get("events")
         if emit is not None:
             await emit({"type": "steered", "message_ids": [mid for mid, _ in items]})
-        return {"messages": [HumanMessage(content=render_steer_block(items))]}
+        # 每条插话一条消息，id 用消息表主键：之后删除或编辑这条插话时能精确找到它。
+        return {"messages": [HumanMessage(id=lc_user_id(int(mid)), content=render_steer_block([(mid, text)]))
+                             for mid, text in items]}
 
 
 @Prev(ToolErrorHandlingMiddleware)

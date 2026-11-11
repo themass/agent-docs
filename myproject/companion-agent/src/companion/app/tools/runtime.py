@@ -84,7 +84,8 @@ class ToolRuntime:
         return outcome
 
     async def run_confirmed(self, *, owner_id: int, session_id: int, turn_id: str, character_id: str,
-                            locale: str, name: str, args: dict[str, Any]) -> ToolOutcome:
+                            locale: str, name: str, args: dict[str, Any],
+                            confirmation_id: str | None = None) -> ToolOutcome:
         """确认后执行快照参数。不做授权（已由用户确认），也不调用模型（T §2.4）。"""
         registered = self._registry.get(name)
         if registered is None:
@@ -93,7 +94,7 @@ class ToolRuntime:
         if problem is not None:
             return ToolOutcome("failed", _json({"error": "invalid_args", "detail": problem}))
         ctx = ToolContext(owner_id=owner_id, session_id=session_id, turn_id=turn_id,
-                          character_id=character_id, locale=locale)
+                          character_id=character_id, locale=locale, confirmation_id=confirmation_id)
         started = time.monotonic()
         outcome = await self._execute_with_ctx(ctx, registered.handler, registered.spec, parsed)
         if self._audit is not None:
