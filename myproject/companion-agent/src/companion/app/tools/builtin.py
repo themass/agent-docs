@@ -12,6 +12,7 @@ from uuid import uuid4
 
 from pydantic import AwareDatetime, BaseModel, Field
 
+from companion.domain.memory.subject import role_subject
 from companion.domain.reminders import local_time_text
 from companion.domain.timeline.models import EventKind, TimelineEvent
 from companion.domain.tools.registry import ToolRegistry
@@ -63,17 +64,23 @@ def register_builtin_tools(registry: ToolRegistry, *, memory: Any, timeline: Any
     async def get_current_time(ctx: ToolContext, args: NoParams) -> dict[str, str]:
         return {"now": clock().isoformat(), "timezone": "UTC"}
 
+    def subject(ctx: ToolContext) -> str:
+        # 记忆按角色隔离：工具只看得到、只写得进当前角色的记忆空间。
+        return role_subject(ctx.owner_id, ctx.character_id or None)
+
     async def recall_facts(ctx: ToolContext, args: RecallFactsParams) -> list[dict[str, str]]:
-        items = await memory.search(str(ctx.owner_id), args.query, limit=args.limit)
+        items = await memory.search(subject(ctx), args.query, limit=args.limit)
         return [{"content": i.content} for i in items]
 
     async def remember_fact(ctx: ToolContext, args: RememberFactParams) -> dict[str, str]:
         item = MemoryItem(id=uuid4().hex, content=args.content, source_character_id=ctx.character_id)
-        await memory.add(str(ctx.owner_id), [item])
+        await memory.add(subject(ctx), [item])
         return {"saved": "fact"}
 
     async def recall_events(ctx: ToolContext, args: RecallEventsParams) -> list[dict[str, str]]:
         events = await timeline.list_for_user(str(ctx.owner_id), limit=args.limit)
+        if ctx.character_id:
+            events = [e for e in events if e.source_character_id == ctx.character_id]
         return [{"title": e.title, "at": e.at.isoformat(), "kind": e.kind.value} for e in events]
 
     async def remember_event(ctx: ToolContext, args: RememberEventParams) -> dict[str, str]:

@@ -31,11 +31,18 @@ def audit_trim(audit_store: ToolCallStore, clock: Callable[[], datetime] = utc_n
     return handle
 
 
-def memory_record(pipeline: Any, *, scope: str = "companion", clock: Callable[[], datetime] = utc_now):
-    """回合后的记忆写入（chat-agent-memory-hooks.md §4.2）。任务按 turn_id 去重入队。"""
+def memory_record(pipeline: Any, *, scope: str = "companion", clock: Callable[[], datetime] = utc_now,
+                  sessions: Any = None):
+    """回合后的记忆写入（chat-agent-memory-hooks.md §4.2）。任务按 turn_id 去重入队。
+
+    ``sessions``：给了就先确认会话还在。会话被删除或账号已注销时跳过，不把记忆写回来。
+    """
     from companion.domain.memory.hooks import TurnRecord
 
     async def handle(payload: dict[str, Any]) -> None:
+        if sessions is not None and payload.get("session_id") is not None:
+            if await sessions.get(owner_id=int(payload["owner_id"]), session_id=int(payload["session_id"])) is None:
+                return
         await pipeline.record(TurnRecord(
             scope=scope, user_id=str(payload["owner_id"]), turn_id=str(payload["turn_id"]),
             user_text=str(payload.get("user_text", "")), assistant_text=str(payload.get("assistant_text", "")),
@@ -49,5 +56,16 @@ def session_resummarize(service: Any):
 
     async def handle(payload: dict[str, Any]) -> None:
         await service.run(owner_id=int(payload["owner_id"]), session_id=int(payload["session_id"]))
+
+    return handle
+
+
+def account_purge(service: Any):
+    """账号注销的跨存储删除。每一步可重复执行，失败整体重试（chat-agent-ops-design.md §3）。"""
+
+    async def handle(payload: dict[str, Any]) -> None:
+        requested = payload.get("requested_at")
+        await service.run(owner_id=int(payload["owner_id"]),
+                          requested_at=datetime.fromisoformat(requested) if requested else None)
 
     return handle

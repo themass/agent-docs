@@ -56,3 +56,14 @@ class DeerFlowConversationState:
 
     async def set_summary(self, *, session_id: int, text: str) -> None:
         await self._update(session_id, {"summary_text": text})
+
+
+class CheckpointThreadEraser:
+    """注销用：删除会话对应的对话线程（checkpoint 与写入记录）。线程不存在时什么也不做。"""
+
+    def __init__(self, checkpointer: Any) -> None:
+        self._checkpointer = checkpointer
+
+    async def delete_threads(self, *, session_ids: Sequence[int]) -> None:
+        for sid in session_ids:
+            await self._checkpointer.adelete_thread(thread_id_for(sid))

@@ -215,6 +215,20 @@ class RedisTurnControl:
         parsed = {_s(k): _s(v) for k, v in raw.items()} if raw else {}
         return parsed if parsed.get("turn_id") else None
 
+    async def purge_session(self, *, session_id: int) -> None:
+        """注销用：取消进行中的回合，删掉会话的锁、回合状态、围栏与事件流。
+
+        锁被删后，进行中的回合下一次续租失败就会停止；它的回复写入也会因为会话围栏已推进而被拒。
+        """
+        raw = await self._r.hgetall(turn_key(session_id))
+        tid = _s(raw.get(b"turn_id") or raw.get("turn_id") or "") if raw else ""
+        if tid:
+            await self.send_cancel(turn_id=tid)
+        keys = [turn_key(session_id), lock_key(session_id), fence_key(session_id), events_key(session_id)]
+        if tid:
+            keys += [ctl_key(tid), text_key(tid)]
+        await self._r.delete(*keys)
+
     async def tail_event_id(self, *, session_id: int) -> str:
         res = await self._r.xrevrange(events_key(session_id), count=1)
         return _s(res[0][0]) if res else "0-0"

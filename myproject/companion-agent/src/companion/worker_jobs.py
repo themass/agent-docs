@@ -3,7 +3,7 @@
 用法：python -m companion.worker_jobs    （需要 COMPANION_DATABASE_URL 与 COMPANION_REDIS_URL）
 
 两件事并行：
-- 任务队列：确认过期、审计清理、回合后记忆写入、摘要重建；未知 kind 置 dead，不静默丢弃；
+- 任务队列：确认过期、审计清理、回合后记忆写入、摘要重建、账号注销；未知 kind 置 dead，不静默丢弃；
 - 提醒调度：每隔几秒认领到期提醒，发起主动回合（多个 worker 同时跑也只发一次）。
 
 装配与 API 进程相同（同一个 build_platform），所以主动回合的角色、记忆、提示词与普通回合一致。
@@ -18,7 +18,14 @@ import socket
 from datetime import UTC, datetime
 
 from companion.adapters.store.sql.repositories import SqlConfirmationStore, SqlToolCallStore
-from companion.app.jobs.handlers import audit_trim, confirmation_expire, memory_record, session_resummarize
+from companion.app.account.purge import PURGE_JOB
+from companion.app.jobs.handlers import (
+    account_purge,
+    audit_trim,
+    confirmation_expire,
+    memory_record,
+    session_resummarize,
+)
 from companion.app.jobs.worker import JobWorker
 from companion.domain.history.summary import RESUMMARIZE_JOB
 
@@ -51,9 +58,11 @@ async def main() -> None:
         "audit.trim": audit_trim(SqlToolCallStore(platform.engine)),
     }
     if platform.pipeline is not None:
-        handlers[MEMORY_RECORD_JOB] = memory_record(platform.pipeline)
+        handlers[MEMORY_RECORD_JOB] = memory_record(platform.pipeline, sessions=platform.sessions)
     if platform.resummarize is not None:
         handlers[RESUMMARIZE_JOB] = session_resummarize(platform.resummarize)
+    if platform.account is not None:
+        handlers[PURGE_JOB] = account_purge(platform.account)
 
     owner = f"{socket.gethostname()}:{os.getpid()}"
     worker = JobWorker(store=platform.jobs, handlers=handlers, owner=owner)

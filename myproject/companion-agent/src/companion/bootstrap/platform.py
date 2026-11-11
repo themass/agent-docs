@@ -26,6 +26,7 @@ from companion.adapters.memory.recallers import MemoryPortRecaller, TimelineReca
 from companion.adapters.push.log import LogPush
 from companion.adapters.roles.catalog_files import load_system_catalog
 from companion.adapters.storage.images import normalize_image
+from companion.adapters.store.sql.account import SqlAccountStore
 from companion.adapters.store.sql.jobs import SqlJobStore
 from companion.adapters.store.sql.memory import SqlMemoryPort
 from companion.adapters.store.sql.reminders import SqlReminderStore
@@ -40,6 +41,7 @@ from companion.adapters.store.sql.repositories import (
 )
 from companion.adapters.timeline.memory import InMemoryTimeline
 from companion.api.http.routers.chat import ChatApi
+from companion.app.account.purge import AccountPurgeService
 from companion.app.chat.assembler import PromptAssembler, skill_id_of
 from companion.app.chat.context import ContextBuilder
 from companion.app.chat.history import HistoryService
@@ -90,6 +92,8 @@ class Platform:
     resummarize: ResummarizeService | None = None
     pipeline: MemoryPipeline | None = None
     jobs: SqlJobStore | None = None
+    account: AccountPurgeService | None = None
+    sessions: Any = None
     _pool: Any = None
     _checkpointer: Any = None
     _started: bool = field(default=False, repr=False)
@@ -272,17 +276,27 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     dispatcher = ReminderDispatcher(store=reminder_store, submit=submit_proactive,
                                     owner=f"{socket.gethostname()}:{os.getpid()}", push=push or LogPush())
 
-    uploads = None
+    uploads = objects = None
     if settings.tos_endpoint:
         from companion.adapters.storage.tos import TosObjectStore
 
-        uploads = UploadService(
-            objects=TosObjectStore(endpoint=settings.tos_endpoint, bucket=settings.tos_bucket,
-                                   access_key=settings.tos_access_key, secret_key=settings.tos_secret_key,
-                                   region=settings.tos_region),
-            records=uploads_store, normalize=normalize_image, key_prefix=settings.tos_key_prefix)
+        objects = TosObjectStore(endpoint=settings.tos_endpoint, bucket=settings.tos_bucket,
+                                 access_key=settings.tos_access_key, secret_key=settings.tos_secret_key,
+                                 region=settings.tos_region)
+        uploads = UploadService(objects=objects, records=uploads_store, normalize=normalize_image,
+                                key_prefix=settings.tos_key_prefix)
+
+    threads = None
+    if checkpointer is not None:
+        from companion.adapters.brain.conversation_state import CheckpointThreadEraser
+
+        threads = CheckpointThreadEraser(checkpointer)
+    system_role_ids = tuple(r.id for r in catalog.roles) + tuple(sorted(BUILTIN_PERSONA_IDS))
+    account = AccountPurgeService(store=SqlAccountStore(engine), jobs=jobs, control=control, threads=threads,
+                                  memory=memory, timeline=timeline, objects=objects,
+                                  system_roles=lambda: system_role_ids)
 
     return Platform(chat=api, roles=roles, uploads=uploads, confirmations=confirmations,
                     memory=memory, timeline=timeline, drain=drain, engine=engine, redis=redis,
                     reminders=reminders, history=history, dispatcher=dispatcher, resummarize=resummarize,
-                    pipeline=pipeline, jobs=jobs, _pool=pool, _checkpointer=checkpointer)
+                    pipeline=pipeline, jobs=jobs, account=account, sessions=sessions, _pool=pool, _checkpointer=checkpointer)

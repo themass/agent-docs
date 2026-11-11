@@ -7,18 +7,20 @@ from __future__ import annotations
 
 from companion.app.memory.extraction import MemoryExtractor
 from companion.domain.memory.hooks import RecordOutcome, TurnRecord
+from companion.domain.memory.subject import role_subject
 
 
 class ExtractionRecorder:
-    def __init__(self, extractor: MemoryExtractor, *, name: str = "facts") -> None:
+    def __init__(self, extractor: MemoryExtractor, *, name: str = "facts", per_role: bool = True) -> None:
         self._extractor = extractor
         self.name = name
+        self._per_role = per_role
 
     async def record(self, turn: TurnRecord) -> RecordOutcome:
         if not turn.user_text.strip():
             return RecordOutcome(source=self.name, skipped=1)
         items = await self._extractor.extract(
-            user_id=turn.user_id,
+            user_id=role_subject(turn.user_id, turn.role_id) if self._per_role else turn.user_id,
             character_id=turn.role_id or "",
             message_id=turn.turn_id,
             user_message=turn.user_text,

@@ -157,7 +157,8 @@ async def test_identity_comes_from_context_not_arguments():
     outcome = await env.runtime.invoke(turn({"recall_facts"}, owner=7), "recall_facts",
                                        {"query": "茶", "user_id": "99"})
     assert outcome.status == "executed"
-    assert env.memory.search.await_args.args[0] == "7"
+    # 身份来自上下文；记忆按角色隔离，所以是「用户 + 当前角色」的记忆主体，而不是参数里的 99。
+    assert env.memory.search.await_args.args[0] == "7.linche"
 
 
 async def test_confirmation_requires_owner_and_runs_once_and_writes_action_message():

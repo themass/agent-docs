@@ -39,6 +39,7 @@ bootstrap（组合根：只有它知道具体实现）
 | 记忆 | `domain/memory/hooks.py`、`pipeline.py` | `app/memory/recorder.py`、`extraction.py` | `adapters/memory/recallers.py`、`adapters/store/sql/memory.py` |
 | 工具与确认 | `domain/tools/` | `app/tools/` | `adapters/brain/tools.py` |
 | 定时提醒（主动消息） | `domain/reminders.py` | `app/proactive/reminders.py` | `adapters/store/sql/reminders.py`、`adapters/push/` |
+| 账号注销 | — | `app/account/purge.py` | `adapters/store/sql/account.py`、Redis `purge_session`、`CheckpointThreadEraser` |
 | 存储 | — | — | `adapters/store/sql/`（Postgres，兼容 MySQL） |
 
 ## 3. 数据：三份，各管一件事
@@ -100,12 +101,30 @@ worker 每 5 秒：claim_due（Postgres SKIP LOCKED，租约 2 分钟；租约�
 客户端：kind=proactive 的指令不显示；角色的回复照常出现
 ```
 
+## 6.1 记忆按角色隔离
+
+记忆主体 id = `{owner}.{role}`（`domain/memory/subject.py`），memory_hub 再加上 `companion:` 前缀。
+召回（`MemoryPortRecaller`）、回合后写入（`ExtractionRecorder`）、工具（`recall_facts` / `remember_fact`）都用当前角色的主体，
+所以任何满足记忆接口的后端都自动隔离。时间线事件按 `source_character_id` 过滤。
+记忆接口 `/api/agent/v1/memory/facts|events` 带可选的 `role_id`；不带是用户级空间（手动添加的记忆）。
+
+## 6.2 账号注销
+
+```
+DELETE /api/agent/v1/me  → 关闭全部会话（标记删除 + 推进围栏）→ 入队 account.purge → 202
+worker：再关一次会话 → Redis（取消回合、删锁 / 回合状态 / 事件流）→ 删 checkpoint 线程
+      → 每个角色的记忆空间 + 用户级空间 → 时间线 → 对象存储 → 关系库物理删除（含未执行的记忆写入任务）
+      → ca_account_purge_log 只记哈希
+```
+
+每一步可重复执行，失败整体重试。记忆写入任务执行前会确认会话还在，注销后不会把记忆写回来。
+
 ## 7. 进程与部署
 
 | 进程 | 入口 | 做什么 |
 |---|---|---|
 | API（多副本） | `python -m companion.serve` | HTTP / SSE；回合在接到请求的进程里跑 |
-| worker（可多副本） | `python -m companion.worker_jobs` | 任务队列（确认过期、审计清理、记忆写入、摘要重建）+ 提醒调度；主动回合在 worker 里跑 |
+| worker（可多副本） | `python -m companion.worker_jobs` | 任务队列（确认过期、审计清理、记忆写入、摘要重建、账号注销）+ 提醒调度；主动回合在 worker 里跑 |
 
 两种进程用同一个 `build_platform`，`Platform.astart()` 在事件循环里打开 checkpoint 连接池并建表（幂等）。
 
@@ -124,8 +143,7 @@ worker 每 5 秒：claim_due（Postgres SKIP LOCKED，租约 2 分钟；租约�
 ## 9. 尚未实现
 
 - 推送：只有日志实现，FCM / 厂商通道待接。
-- 账号注销：没有跨存储清理（消息、线程 checkpoint、记忆、提醒）。
+- 账号注销的兜底对账（`account.reconcile`，对比 Java 用户表）：未做，需要只读账号。
 - 换一个回答（同位置多候选）与对话分支：数据结构未做，待产品决定。
-- 记忆按角色隔离：未做，待产品决定（召回查询已带 role_id，来源可以据此过滤）。
-- 时间线仍是进程内实现，重启即丢。
+- 时间线仍是进程内实现，重启即丢。持久化设计见 `chat-agent-timeline-design.md`，待确认后实现。
 - 真实模型冒烟：需要批准使用线上网关。

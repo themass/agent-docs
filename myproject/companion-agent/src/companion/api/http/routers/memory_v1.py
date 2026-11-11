@@ -3,12 +3,17 @@
 复用 MemoryApi 的用户隔离、分页夹取与删除语义（已在旧路由上测过）。
 PATCH 事实记忆采用「删除旧条目 + 写入新条目」：后端没有原地更新接口，因此 id 会变化，
 返回值里给出新 id。
+
+记忆按角色隔离：事实接口都带可选的 ``role_id``，给了就只读写该角色的记忆空间
+（domain/memory/subject.py）；不给是用户级空间（手动添加、不属于任何角色的记忆）。
+事件按 ``source_character_id`` 过滤。
 """
 
 import uuid
 from typing import Any
 
 from companion.app.chat.ids import new_ulid
+from companion.domain.memory.subject import role_subject
 from companion.domain.timeline.models import EventKind, EventStatus, TimelineEvent
 from companion.ports.memory import MemoryItem, MemoryKind
 
@@ -59,46 +64,59 @@ def build_router(*, memory, timeline, current_user):
 
     router = APIRouter(prefix=f"{PREFIX}/memory", tags=["memory"])
 
+    def role_q():
+        return Query(default=None, min_length=1, max_length=128)
+
     @router.get("/facts")
     async def list_facts(limit: int = Query(default=20, ge=1, le=100), offset: int = Query(default=0, ge=0, le=1000),
+                         role_id: str | None = role_q(),
                          user_id: str = Depends(current_user)) -> dict[str, Any]:
-        rows = await memory.list_for_user(user_id, limit=limit + 1, offset=offset)
+        rows = await memory.list_for_user(role_subject(user_id, role_id), limit=limit + 1, offset=offset)
         return {"items": [_fact_json(i) for i in rows[:limit]], "has_more": len(rows) > limit,
                 "limit": limit, "offset": offset}
 
     @router.post("/facts", status_code=201)
-    async def add_fact(body: FactIn, user_id: str = Depends(current_user)) -> dict[str, Any]:
+    async def add_fact(body: FactIn, role_id: str | None = role_q(),
+                       user_id: str = Depends(current_user)) -> dict[str, Any]:
         kind = MemoryKind.EVENT if body.kind.upper() == "EVENT" else MemoryKind.FACT
-        item = MemoryItem(id=uuid.uuid4().hex, content=body.content, kind=kind, source_character_id="")
-        await memory.add(user_id, [item])
+        item = MemoryItem(id=uuid.uuid4().hex, content=body.content, kind=kind, source_character_id=role_id or "")
+        await memory.add(role_subject(user_id, role_id), [item])
         return _fact_json(item)
 
     @router.patch("/facts/{fact_id}")
-    async def edit_fact(fact_id: str, body: FactPatch, user_id: str = Depends(current_user)) -> dict[str, Any]:
-        if not await memory.delete_one(user_id, fact_id):
+    async def edit_fact(fact_id: str, body: FactPatch, role_id: str | None = role_q(),
+                        user_id: str = Depends(current_user)) -> dict[str, Any]:
+        subject = role_subject(user_id, role_id)
+        if not await memory.delete_one(subject, fact_id):
             raise HTTPException(status_code=404, detail={"code": "not_found"})
-        item = MemoryItem(id=uuid.uuid4().hex, content=body.content, kind=MemoryKind.FACT, source_character_id="")
-        await memory.add(user_id, [item])
+        item = MemoryItem(id=uuid.uuid4().hex, content=body.content, kind=MemoryKind.FACT,
+                          source_character_id=role_id or "")
+        await memory.add(subject, [item])
         return _fact_json(item)
 
     @router.delete("/facts/{fact_id}", status_code=204)
-    async def delete_fact(fact_id: str, user_id: str = Depends(current_user)) -> Response:
-        if not await memory.delete_one(user_id, fact_id):
+    async def delete_fact(fact_id: str, role_id: str | None = role_q(),
+                          user_id: str = Depends(current_user)) -> Response:
+        if not await memory.delete_one(role_subject(user_id, role_id), fact_id):
             raise HTTPException(status_code=404, detail={"code": "not_found"})
         return Response(status_code=204)
 
     @router.get("/events")
     async def list_events(limit: int = Query(default=20, ge=1, le=100), include_past: bool = False,
+                          role_id: str | None = role_q(),
                           user_id: str = Depends(current_user)) -> dict[str, Any]:
         events = await timeline.list_for_user(user_id, limit=limit, include_past=include_past)
+        if role_id:
+            events = [e for e in events if e.source_character_id == role_id]
         return {"items": [_event_json(e) for e in events]}
 
     @router.post("/events", status_code=201)
-    async def add_event(body: EventIn, user_id: str = Depends(current_user)) -> dict[str, Any]:
+    async def add_event(body: EventIn, role_id: str | None = role_q(),
+                        user_id: str = Depends(current_user)) -> dict[str, Any]:
         event = TimelineEvent(
             id=new_ulid(), user_id=user_id,
             kind=EventKind(body.kind) if body.kind in EventKind._value2member_map_ else EventKind.OTHER,
-            title=body.title, at=body.at, confidence=1.0)  # 用户亲口说的，可信度最高
+            title=body.title, at=body.at, source_character_id=role_id or "", confidence=1.0)  # 用户亲口说的，可信度最高
         await timeline.add(event)
         return _event_json(event)
 

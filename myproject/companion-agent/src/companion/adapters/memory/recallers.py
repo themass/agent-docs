@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from companion.domain.memory.hooks import RecallQuery, RecallResult, RecalledItem
+from companion.domain.memory.subject import role_subject
 
 SCHEDULED = "scheduled"
 
@@ -21,15 +22,20 @@ def _naive_utc(value: datetime | None) -> datetime | None:
 
 
 class MemoryPortRecaller:
-    """长期记忆（事实、偏好、事件）。``port`` 是作用域客户端（memory_hub 的 ScopedMemory）。"""
+    """长期记忆（事实、偏好、事件）。``port`` 是作用域客户端（memory_hub 的 ScopedMemory）。
 
-    def __init__(self, port: Any, *, name: str = "facts") -> None:
+    ``per_role``：按角色隔离（默认）。查询带 role_id 时只查该角色的记忆主体（domain/memory/subject.py）。
+    """
+
+    def __init__(self, port: Any, *, name: str = "facts", per_role: bool = True) -> None:
         self._port = port
         self.name = name
+        self._per_role = per_role
 
     async def recall(self, query: RecallQuery) -> RecallResult:
+        subject = role_subject(query.user_id, query.role_id) if self._per_role else query.user_id
         try:
-            items = await self._port.search(query.user_id, query.text, limit=query.limit)
+            items = await self._port.search(subject, query.text, limit=query.limit)
         except Exception as exc:  # noqa: BLE001 —— 协议要求不抛
             return RecallResult(source=self.name, error=type(exc).__name__)
         out: list[RecalledItem] = []
@@ -45,11 +51,15 @@ class MemoryPortRecaller:
 
 
 class TimelineRecaller:
-    """时间线：只取将来、未完成的事件（过去的不提，避免「你上周那个面试」这种已过时的话）。"""
+    """时间线：只取将来、未完成的事件（过去的不提，避免「你上周那个面试」这种已过时的话）。
 
-    def __init__(self, timeline: Any, *, name: str = "timeline") -> None:
+    ``per_role``：只取当前角色记下的事件（与记忆一样按角色隔离）。
+    """
+
+    def __init__(self, timeline: Any, *, name: str = "timeline", per_role: bool = True) -> None:
         self._timeline = timeline
         self.name = name
+        self._per_role = per_role
 
     async def recall(self, query: RecallQuery) -> RecallResult:
         try:
@@ -60,6 +70,8 @@ class TimelineRecaller:
         for event in events:
             if getattr(getattr(event, "status", None), "value", "") != SCHEDULED:
                 continue
+            if self._per_role and query.role_id and getattr(event, "source_character_id", "") != query.role_id:
+                continue
             at = _naive_utc(getattr(event, "at", None))
             when = at.strftime("%m-%d %H:%M") if at else ""
             out.append(RecalledItem(text=f"{when} {event.title}".strip(), source=self.name, ref=str(event.id),
@@ -68,6 +80,8 @@ class TimelineRecaller:
 
 
 class MemoryPortForgetter:
+    """``user_id`` 由调用方给出记忆主体（按角色隔离时用 role_subject）。"""
+
     def __init__(self, port: Any, *, name: str = "facts") -> None:
         self._port = port
         self.name = name
