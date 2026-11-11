@@ -27,6 +27,7 @@ from companion.adapters.push.log import LogPush
 from companion.adapters.roles.catalog_files import load_system_catalog
 from companion.adapters.storage.images import normalize_image
 from companion.adapters.store.sql.account import SqlAccountStore
+from companion.adapters.store.sql.avatar import SqlAvatarReleaseStore
 from companion.adapters.store.sql.jobs import SqlJobStore
 from companion.adapters.store.sql.timeline import SqlTimelineStore
 from companion.adapters.store.sql.memory import SqlMemoryPort
@@ -42,6 +43,7 @@ from companion.adapters.store.sql.repositories import (
 )
 from companion.api.http.routers.chat import ChatApi
 from companion.app.account.purge import AccountPurgeService
+from companion.app.avatar.catalog import AvatarCatalog
 from companion.app.chat.assembler import PromptAssembler, skill_id_of
 from companion.app.chat.context import ContextBuilder
 from companion.app.chat.history import HistoryService
@@ -96,6 +98,8 @@ class Platform:
     jobs: SqlJobStore | None = None
     timeline_recorder: TimelineRecorder | None = None
     account: AccountPurgeService | None = None
+    avatars: AvatarCatalog | None = None
+    admin_token: str = ""
     sessions: Any = None
     _pool: Any = None
     _checkpointer: Any = None
@@ -299,6 +303,10 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
         uploads = UploadService(objects=objects, records=uploads_store, normalize=normalize_image,
                                 key_prefix=settings.tos_key_prefix)
 
+    # 形象发布需要对象存储（形象包是 zip）；没配 TOS 就不挂这组接口。
+    avatars = (AvatarCatalog(store=SqlAvatarReleaseStore(engine), objects=objects,
+                             key_prefix=settings.tos_key_prefix) if objects is not None else None)
+
     threads = None
     if checkpointer is not None:
         from companion.adapters.brain.conversation_state import CheckpointThreadEraser
@@ -312,4 +320,5 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     return Platform(chat=api, roles=roles, uploads=uploads, confirmations=confirmations,
                     memory=memory, timeline=timeline, drain=drain, engine=engine, redis=redis,
                     reminders=reminders, history=history, dispatcher=dispatcher, resummarize=resummarize,
-                    pipeline=pipeline, jobs=jobs, timeline_recorder=timeline_recorder, account=account, sessions=sessions, _pool=pool, _checkpointer=checkpointer)
+                    pipeline=pipeline, jobs=jobs, timeline_recorder=timeline_recorder, account=account, avatars=avatars,
+                    admin_token=settings.companion_admin_token, sessions=sessions, _pool=pool, _checkpointer=checkpointer)

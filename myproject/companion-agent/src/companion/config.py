@@ -68,6 +68,8 @@ class Settings(BaseSettings):
     tos_secret_key: str = ""
     # 桶内前缀：生产 companion/，测试 companion-test/（与 job-come 共用同一个桶）
     tos_key_prefix: str = "companion/"
+    # 运营接口（形象上下线）的管理令牌。为空 = 这些接口关闭，不留默认口令。
+    companion_admin_token: str = ""
 
 
 settings = Settings()

@@ -114,6 +114,25 @@ worker 每 5 秒：claim_due（Postgres SKIP LOCKED，租约 2 分钟；租约�
 - 事件本身不会触达用户；会主动找用户的只有 `ca_reminder`。
 - 注销时随关系库一起物理删除。设计见 `chat-agent-timeline-design.md`。
 
+## 6.0.1 换一个回答（左右滑动）
+
+`ca_chat_message` 加了 `alt_group` / `alt_selected`：同一次提问的多个候选回复同属一组（组 id = 第一条回复的消息 id），
+只有 `alt_selected` 的一条进历史、进模型上下文，其余候选只通过 `alt_ids` 暴露给客户端。
+
+- 重新生成：路由先找出这条用户消息当前的回复（`find_reply`，只在最新一轮才有），作为 `alt_of` 一路传到回合收尾；
+  新回复写入时成为组内选中的一条，旧回复保留为候选。`message.done` 事件带 `alt_group`，客户端据此重拉历史。
+- 切换：`POST /messages/{id}/select`。在会话锁内把线程里当前那条的 id 移除、把目标候选的最终文本作为助手消息放到末尾。
+  只允许在最新一轮切换（之后还有别的消息 → 409 `not_latest`），回合进行中 409 `busy`。工具调用的中间步骤不会随切换还原。
+- 删除：删的是未选中的候选 → 只软删；删的是选中的 → 最新一轮由最新的剩余候选顶上，否则整组删除。
+- 历史接口：有多个候选的消息带 `alt_group`、`alt_index`、`alt_count`、`alt_ids`。
+
+## 6.0.2 形象发布
+
+`ca_avatar_release`：形象包（zip + manifest.json，格式见 `domain/avatar/package.py`）存对象存储，库里只存元数据和状态。
+运营接口 `/api/agent/v1/admin/avatars`（`X-Admin-Token`，`COMPANION_ADMIN_TOKEN` 为空则关闭）：上传 → 草稿 → 上线 / 下线；
+上线新版本会让同一个形象的旧在线版本自动下线。客户端 `GET /avatars?role_id=&app_version=` 取该角色可用的最新在线版本，
+返回 sha256 与一小时有效的下载地址。客户端内置一个默认形象，包校验失败或断网时保持原样。没配对象存储就不挂这组接口。
+
 ## 6.1 记忆按角色隔离
 
 记忆主体 id = `{owner}.{role}`（`domain/memory/subject.py`），memory_hub 再加上 `companion:` 前缀。

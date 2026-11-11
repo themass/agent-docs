@@ -39,6 +39,7 @@ from companion.api.http.routers.roles import build_router as build_roles_router
 from companion.api.http.routers.uploads import build_router as build_uploads_router
 from companion.api.http.routers.actions import build_router as build_actions_router
 from companion.api.http.routers.account import build_router as build_account_router
+from companion.api.http.routers.avatars import build_router as build_avatars_router
 from companion.api.http.routers.memory_v1 import build_router as build_memory_v1_router
 from companion.api.http.routers.reminders import build_router as build_reminders_router
 from companion.api.http.routers.chat import build_health_router
@@ -224,6 +225,9 @@ def create_app(
         app.include_router(build_actions_router(platform.confirmations, current_user))
         if platform.account is not None:
             app.include_router(build_account_router(platform.account, current_user))
+        if platform.avatars is not None:
+            app.include_router(build_avatars_router(platform.avatars, current_user,
+                                                    admin_token=platform.admin_token))
         app.include_router(build_memory_v1_router(memory=platform.memory, timeline=platform.timeline,
                                                   current_user=current_user))
         app.include_router(build_health_router(platform.drain))

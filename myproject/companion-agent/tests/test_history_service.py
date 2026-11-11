@@ -9,10 +9,10 @@ from companion.app.chat.history import HistoryBusy, HistoryService, lc_ids_of
 from companion.domain.history.summary import RESUMMARIZE_JOB
 
 
-def _msg(mid, role="user", meta=None, kind="chat", session_id=5):
+def _msg(mid, role="user", meta=None, kind="chat", session_id=5, alt_group=None, alt_selected=True):
     return SimpleNamespace(id=mid, session_id=session_id, owner_id=1, role=role, content=f"c{mid}", kind=kind,
                            meta=meta or {}, created_at=datetime.now(UTC), interrupted=False, turn_id=None,
-                           client_message_id=None)
+                           client_message_id=None, alt_group=alt_group, alt_selected=alt_selected)
 
 
 class Messages:
@@ -35,7 +35,19 @@ class Messages:
         return True
 
     async def list_after(self, *, owner_id, session_id, after_id, limit):
-        return [m for i, m in sorted(self.rows.items()) if i > after_id and i not in self.deleted][:limit]
+        return [m for i, m in sorted(self.rows.items())
+                if i > after_id and i not in self.deleted and m.alt_selected][:limit]
+
+    async def alternatives(self, *, owner_id, session_id, alt_group):
+        return [m for i, m in sorted(self.rows.items()) if m.alt_group == alt_group and i not in self.deleted]
+
+    async def select_alternative(self, *, owner_id, session_id, alt_group, message_id):
+        group = [m for m in self.rows.values() if m.alt_group == alt_group and m.id not in self.deleted]
+        if message_id not in {m.id for m in group}:
+            return False
+        for m in group:
+            m.alt_selected = m.id == message_id
+        return True
 
 
 class Conversation:
@@ -169,3 +181,78 @@ async def test_a_failing_timeline_does_not_block_deletion():
     msgs, conv, ctl, jobs = Messages([_msg(50)]), Conversation(["m50"]), Control(), Jobs()
     svc = HistoryService(messages=msgs, control=ctl, conversation=conv, jobs=jobs, timeline=Broken())
     assert await svc.delete(owner_id=1, message_id=50)
+
+
+# ---- 候选回复（左右滑动切换）----
+
+def _alt_service(rows, ids):
+    return _service(rows, ids)
+
+
+def _swipe_rows():
+    """用户 1 → 候选回复 2（未选中）与 3（选中）。"""
+    return [_msg(1), _msg(2, role="assistant", meta={"lc_ids": ["run-a"]}, alt_group=2, alt_selected=False),
+            _msg(3, role="assistant", meta={"lc_ids": ["run-b"]}, alt_group=2, alt_selected=True)]
+
+
+async def test_selecting_an_alternative_swaps_the_reply_in_the_thread():
+    svc, msgs, conv, ctl, jobs = _service(_swipe_rows(), ["m1", "run-b"])
+    chosen = await svc.select_alternative(owner_id=1, message_id=2)
+    assert chosen.id == 2
+    assert [m.id for m in msgs.rows.values() if m.alt_selected] == [1, 2]
+    assert conv.ids == ["m1"] and conv.appended == [("a2", "c2")]   # 旧回复移除、新候选的文本进线程
+    assert jobs.items == [] and len(ctl.released) == 1
+
+
+async def test_selecting_the_current_alternative_is_a_noop():
+    svc, msgs, conv, ctl, jobs = _service(_swipe_rows(), ["m1", "run-b"])
+    assert (await svc.select_alternative(owner_id=1, message_id=3)).id == 3
+    assert conv.ids == ["m1", "run-b"] and conv.appended == []
+
+
+async def test_only_the_latest_turn_can_swap_alternatives():
+    from companion.app.chat.history import NotLatest
+
+    rows = _swipe_rows() + [_msg(4)]   # 之后又来了一条用户消息
+    svc, msgs, conv, ctl, jobs = _service(rows, ["m1", "run-b", "m4"])
+    with pytest.raises(NotLatest):
+        await svc.select_alternative(owner_id=1, message_id=2)
+    assert conv.appended == [] and len(ctl.released) == 1       # 锁照常释放
+
+
+async def test_selecting_a_summarized_reply_rebuilds_the_summary():
+    svc, msgs, conv, ctl, jobs = _service(_swipe_rows(), ["m1"])   # 旧回复已被压缩，线程里没有
+    await svc.select_alternative(owner_id=1, message_id=2)
+    assert [kind for kind, _ in jobs.items] == [RESUMMARIZE_JOB]
+
+
+async def test_selecting_while_a_turn_runs_is_busy():
+    svc, *_ = _service(_swipe_rows(), ["m1", "run-b"], free=False)
+    with pytest.raises(HistoryBusy):
+        await svc.select_alternative(owner_id=1, message_id=2)
+
+
+async def test_non_candidates_cannot_be_selected():
+    svc, *_ = _service(_swipe_rows() + [_msg(9, role="assistant")], ["m1"])
+    assert await svc.select_alternative(owner_id=1, message_id=9) is None   # 不在任何候选组里
+    assert await svc.select_alternative(owner_id=1, message_id=1) is None   # 用户消息
+
+
+async def test_deleting_the_selected_latest_reply_promotes_the_newest_sibling():
+    svc, msgs, conv, ctl, jobs = _service(_swipe_rows(), ["m1", "run-b"])
+    assert await svc.delete(owner_id=1, message_id=3)
+    assert [m.id for m in msgs.rows.values() if m.alt_selected and m.id not in msgs.deleted] == [1, 2]
+    assert conv.ids == ["m1"] and conv.appended == [("a2", "c2")]
+
+
+async def test_deleting_an_unselected_alternative_leaves_the_thread_alone():
+    svc, msgs, conv, ctl, jobs = _service(_swipe_rows(), ["m1", "run-b"])
+    assert await svc.delete(owner_id=1, message_id=2)
+    assert conv.ids == ["m1", "run-b"] and conv.appended == []
+
+
+async def test_deleting_a_selected_reply_in_an_older_turn_removes_the_whole_group():
+    rows = _swipe_rows() + [_msg(4), _msg(5, role="assistant")]
+    svc, msgs, conv, ctl, jobs = _service(rows, ["m1", "run-b", "m4", "a5"])
+    assert await svc.delete(owner_id=1, message_id=3)
+    assert {2, 3} <= msgs.deleted and conv.appended == []

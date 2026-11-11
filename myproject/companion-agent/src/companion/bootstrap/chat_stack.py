@@ -38,9 +38,11 @@ def build_chat_api(
     drainer_ref: dict[str, DrainService] = {}
 
     async def start_turn(*, owner_id: int, session_id: int, character_id: str, turn_id: str,
-                         owner: str, text: str, message_ids: list[int], fence: int | None = None) -> None:
+                         owner: str, text: str, message_ids: list[int], fence: int | None = None,
+                         alt_of: int | None = None) -> None:
         turn = TurnInput(owner_id=owner_id, session_id=session_id, character_id=character_id,
-                         turn_id=turn_id, owner=owner, text=text, message_ids=message_ids, fence=fence)
+                         turn_id=turn_id, owner=owner, text=text, message_ids=message_ids, fence=fence,
+                         alt_of=alt_of)
         task = asyncio.create_task(runner_ref["runner"].run(turn))
         tasks.add(task)
         task.add_done_callback(tasks.discard)

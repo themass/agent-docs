@@ -162,36 +162,9 @@ CREATE TABLE ca_user_role (
 	PRIMARY KEY (id), 
 	UNIQUE (public_id)
 );
-CREATE TABLE ca_timeline_event (
-	id BIGINT NOT NULL AUTO_INCREMENT, 
-	public_id VARCHAR(26) NOT NULL UNIQUE, 
-	owner_id BIGINT NOT NULL, 
-	role_id VARCHAR(128) NOT NULL, 
-	session_id BIGINT, 
-	source_message_id VARCHAR(26), 
-	origin VARCHAR(16) NOT NULL, 
-	kind VARCHAR(16) NOT NULL, 
-	title VARCHAR(60) NOT NULL, 
-	at_utc DATETIME NOT NULL, 
-	timezone VARCHAR(64) NOT NULL DEFAULT 'UTC', 
-	all_day BOOLEAN NOT NULL DEFAULT 0, 
-	recurrence VARCHAR(16) NOT NULL DEFAULT 'none', 
-	next_at_utc DATETIME, 
-	status VARCHAR(16) NOT NULL DEFAULT 'scheduled', 
-	confidence FLOAT NOT NULL DEFAULT 1, 
-	reminder_id BIGINT, 
-	dedupe_key VARCHAR(64) NOT NULL, 
-	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, 
-	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, 
-	PRIMARY KEY (id), 
-	CONSTRAINT ca_uq_timeline_dedupe UNIQUE (owner_id, role_id, dedupe_key)
-);
-CREATE INDEX ca_ix_timeline_owner_role_next ON ca_timeline_event (owner_id, role_id, status, next_at_utc);
-CREATE INDEX ca_ix_timeline_source ON ca_timeline_event (source_message_id);
 """
 
 DOWNGRADE_SQL = """
-DROP TABLE IF EXISTS ca_timeline_event;
 DROP TABLE IF EXISTS ca_user_role;
 DROP TABLE IF EXISTS ca_upload;
 DROP TABLE IF EXISTS ca_tool_call;

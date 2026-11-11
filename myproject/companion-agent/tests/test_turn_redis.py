@@ -45,10 +45,16 @@ class Messages:
         self.next_id = 1000
 
     async def append(self, *, owner_id, session_id, role, content, kind, client_message_id, turn_id, meta,
-                     fence=None):
+                     fence=None, alt_of=None):
+        self.alt_of_seen = alt_of
+        group = None
+        if alt_of is not None and alt_of in self.rows:
+            group = self.rows[alt_of].alt_group or alt_of
+            self.rows[alt_of].alt_group = group
         m = SimpleNamespace(id=self.next_id, owner_id=owner_id, session_id=session_id, role=role,
                             content=content, kind=kind, client_message_id=client_message_id, turn_id=turn_id,
-                            created_at=datetime.now(UTC), interrupted=False, meta=dict(meta or {}))
+                            created_at=datetime.now(UTC), interrupted=False, meta=dict(meta or {}),
+                            alt_group=group, alt_selected=True)
         self.next_id += 1
         self.rows[m.id] = m
         return m

@@ -12,7 +12,7 @@ import json
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import and_, delete, insert, select, update
+from sqlalchemy import and_, delete, insert, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from companion.adapters.store.sql.schema import (
@@ -95,9 +95,12 @@ class SqlMessageStore:
 
     async def append(self, *, owner_id: int, session_id: int, role: str, content: str, kind: str,
                      client_message_id: str | None, turn_id: str | None, meta: dict[str, Any],
-                     fence: int | None = None) -> MessageRecord | None:
+                     fence: int | None = None, alt_of: int | None = None) -> MessageRecord | None:
         """写入一条消息。给了 ``fence`` 时，只有会话围栏仍等于它才写入（否则返回 None）：
-        锁丢失后被别的进程接手的旧回合，回复写不进来。"""
+        锁丢失后被别的进程接手的旧回合，回复写不进来。
+
+        给了 ``alt_of``（重新生成）：新消息作为那条回复的另一个候选写入，成为组内被选中的一条；
+        组还不存在就以被重生成的那条的 id 建组。``alt_of`` 找不到或不是同会话的助手消息时当作普通消息写入。"""
         now = _now()
         async with self._engine.begin() as conn:
             if fence is not None:
@@ -106,13 +109,23 @@ class SqlMessageStore:
                 )).scalar()
                 if current != fence:
                     return None
+            group: int | None = None
+            if alt_of is not None and role == "assistant":
+                origin = (await conn.execute(select(chat_message.c.id, chat_message.c.alt_group).where(and_(
+                    chat_message.c.id == alt_of, chat_message.c.session_id == session_id,
+                    chat_message.c.owner_id == owner_id, chat_message.c.role == "assistant")))).first()
+                if origin is not None:
+                    group = origin.alt_group or origin.id
+                    await conn.execute(update(chat_message).where(
+                        or_(chat_message.c.id == group, chat_message.c.alt_group == group))
+                        .values(alt_group=group, alt_selected=False))
             res = await conn.execute(insert(chat_message).values(
                 session_id=session_id, owner_id=owner_id, role=role, content=content, kind=kind,
                 client_message_id=client_message_id, turn_id=turn_id, interrupted=False,
-                meta=meta or None, created_at=now, deleted=False))
+                meta=meta or None, created_at=now, deleted=False, alt_group=group, alt_selected=True))
             new_id = res.inserted_primary_key[0]
         return MessageRecord(new_id, session_id, owner_id, role, content, kind, client_message_id,
-                             turn_id, False, now, dict(meta or {}))
+                             turn_id, False, now, dict(meta or {}), alt_group=group, alt_selected=True)
 
     async def find_by_client_id(self, *, owner_id: int, session_id: int, client_message_id: str) -> MessageRecord | None:
         async with self._engine.connect() as conn:
@@ -123,7 +136,8 @@ class SqlMessageStore:
 
     async def list_before(self, *, owner_id: int, session_id: int, before_id: int | None, limit: int) -> list[MessageRecord]:
         cond = [chat_message.c.session_id == session_id, chat_message.c.owner_id == owner_id,
-                chat_message.c.deleted == False]  # noqa: E712
+                chat_message.c.deleted == False,  # noqa: E712
+                chat_message.c.alt_selected == True]  # noqa: E712 —— 未选中的候选不进历史
         if before_id is not None:
             cond.append(chat_message.c.id < before_id)
         async with self._engine.connect() as conn:
@@ -136,7 +150,8 @@ class SqlMessageStore:
         async with self._engine.connect() as conn:
             rows = (await conn.execute(select(chat_message).where(and_(
                 chat_message.c.session_id == session_id, chat_message.c.owner_id == owner_id,
-                chat_message.c.deleted == False, chat_message.c.id > after_id))  # noqa: E712
+                chat_message.c.deleted == False, chat_message.c.alt_selected == True,  # noqa: E712
+                chat_message.c.id > after_id))
                 .order_by(chat_message.c.id).limit(limit))).mappings().all()
         return [_message(r) for r in rows]
 
@@ -146,6 +161,40 @@ class SqlMessageStore:
             row = (await conn.execute(select(chat_message).where(and_(
                 chat_message.c.id == message_id, chat_message.c.owner_id == owner_id)))).mappings().first()
         return _message(row) if row else None
+
+    async def alternatives(self, *, owner_id: int, session_id: int, alt_group: int) -> list[MessageRecord]:
+        async with self._engine.connect() as conn:
+            rows = (await conn.execute(select(chat_message).where(and_(
+                chat_message.c.session_id == session_id, chat_message.c.owner_id == owner_id,
+                chat_message.c.alt_group == alt_group, chat_message.c.deleted == False))  # noqa: E712
+                .order_by(chat_message.c.id))).mappings().all()
+        return [_message(r) for r in rows]
+
+    async def alt_ids_for(self, *, owner_id: int, session_id: int, groups: list[int]) -> dict[int, list[int]]:
+        if not groups:
+            return {}
+        async with self._engine.connect() as conn:
+            rows = (await conn.execute(select(chat_message.c.id, chat_message.c.alt_group).where(and_(
+                chat_message.c.session_id == session_id, chat_message.c.owner_id == owner_id,
+                chat_message.c.alt_group.in_(groups), chat_message.c.deleted == False))  # noqa: E712
+                .order_by(chat_message.c.id))).all()
+        out: dict[int, list[int]] = {g: [] for g in groups}
+        for mid, group in rows:
+            out[group].append(mid)
+        return out
+
+    async def select_alternative(self, *, owner_id: int, session_id: int, alt_group: int, message_id: int) -> bool:
+        async with self._engine.begin() as conn:
+            member = (await conn.execute(select(chat_message.c.id).where(and_(
+                chat_message.c.id == message_id, chat_message.c.session_id == session_id,
+                chat_message.c.owner_id == owner_id, chat_message.c.alt_group == alt_group,
+                chat_message.c.deleted == False)))).first()  # noqa: E712
+            if member is None:
+                return False
+            await conn.execute(update(chat_message).where(and_(
+                chat_message.c.session_id == session_id, chat_message.c.owner_id == owner_id,
+                chat_message.c.alt_group == alt_group)).values(alt_selected=(chat_message.c.id == message_id)))
+        return True
 
     async def mark_interrupted(self, *, owner_id: int, message_id: int) -> bool:
         async with self._engine.begin() as conn:
@@ -405,7 +454,8 @@ def _message(r) -> MessageRecord:
     if isinstance(meta, str):
         meta = json.loads(meta)
     return MessageRecord(r["id"], r["session_id"], r["owner_id"], r["role"], r["content"], r["kind"],
-                         r["client_message_id"], r["turn_id"], bool(r["interrupted"]), r["created_at"], dict(meta or {}))
+                         r["client_message_id"], r["turn_id"], bool(r["interrupted"]), r["created_at"], dict(meta or {}),
+                         alt_group=r["alt_group"], alt_selected=bool(r["alt_selected"]))
 
 
 def _queue(r) -> QueueItem:

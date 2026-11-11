@@ -30,12 +30,29 @@ class HistoryBusy(RuntimeError):
     """会话正在进行回合；历史操作要等它结束。"""
 
 
+class NotLatest(RuntimeError):
+    """候选回复只能在「最新一轮」切换：线程是顺序的，往中间插入会让模型看到错乱的对话。"""
+
+
 def lc_ids_of(message: MessageRecord) -> list[str]:
     if message.role == "user" or message.kind == "proactive":
         return [lc_user_id(message.id)]
     ids = [str(i) for i in (message.meta or {}).get("lc_ids", []) if i]
     ids.append(lc_assistant_id(message.id))   # 中断回复的补记
     return ids
+
+
+async def find_reply(messages: MessageStore, *, owner_id: int, session_id: int, user_message_id: int) -> int | None:
+    """这条用户消息当前的回复（最新一轮才有意义）：它之后、下一条用户消息之前被选中的最后一条助手回复。
+    后面已经有别的用户消息（不是最新一轮）返回 None：旧的轮次不做候选，重新生成按普通消息写入。"""
+    later = await messages.list_after(owner_id=owner_id, session_id=session_id, after_id=user_message_id, limit=50)
+    reply: int | None = None
+    for m in later:
+        if m.role == "assistant":
+            reply = m.id
+        elif m.role == "user" or m.kind == "proactive":
+            return None
+    return reply
 
 
 def _now() -> datetime:
@@ -74,12 +91,87 @@ class HistoryService:
         await self._jobs.enqueue(kind=RESUMMARIZE_JOB, payload={"owner_id": owner_id, "session_id": session_id},
                                  run_after=_now(), dedupe_key=f"{RESUMMARIZE_JOB}:{session_id}:{reason}")
 
+    # ---- 候选回复（左右滑动切换）----
+
+    async def _is_latest(self, message: MessageRecord, siblings: list[MessageRecord]) -> bool:
+        """这一组候选之后，会话里没有别的（选中且未删除的）消息。"""
+        last = max([m.id for m in siblings] + [message.id])
+        return not await self._messages.list_after(owner_id=message.owner_id, session_id=message.session_id,
+                                                   after_id=last, limit=1)
+
+    async def _put_in_thread(self, *, session_id: int, message: MessageRecord) -> None:
+        """把一条候选的最终文本作为助手消息放进线程末尾（工具调用的中间步骤不再还原）。"""
+        text = message.content + (INTERRUPTED_SUFFIX if message.interrupted else "")
+        if text.strip():
+            await self._conversation.append_assistant(
+                session_id=session_id, lc_id=lc_assistant_id(message.id), text=text)
+
+    async def reply_to(self, *, owner_id: int, session_id: int, user_message_id: int) -> int | None:
+        return await find_reply(self._messages, owner_id=owner_id, session_id=session_id,
+                                user_message_id=user_message_id)
+
+    async def select_alternative(self, *, owner_id: int, message_id: int) -> MessageRecord | None:
+        """切换到这条候选。返回切换后的消息；不存在或不是候选返回 None；不在最新一轮抛 NotLatest。"""
+        target = await self._messages.get(owner_id=owner_id, message_id=message_id)
+        if target is None or target.role != "assistant" or target.alt_group is None:
+            return None
+        group = target.alt_group
+        sid = target.session_id
+        if self._conversation is None:
+            ok = await self._messages.select_alternative(owner_id=owner_id, session_id=sid, alt_group=group,
+                                                         message_id=message_id)
+            return await self._messages.get(owner_id=owner_id, message_id=message_id) if ok else None
+        owner = await self._locked(sid)
+        try:
+            siblings = await self._messages.alternatives(owner_id=owner_id, session_id=sid, alt_group=group)
+            if message_id not in {m.id for m in siblings}:
+                return None
+            current = next((m for m in siblings if m.alt_selected), None)
+            if current is not None and current.id == message_id:
+                return target
+            if not await self._is_latest(target, siblings):
+                raise NotLatest(message_id)
+            if not await self._messages.select_alternative(owner_id=owner_id, session_id=sid, alt_group=group,
+                                                           message_id=message_id):
+                return None
+            removed = await self._conversation.remove(session_id=sid, ids=lc_ids_of(current)) if current else 0
+            if current is not None and removed == 0:
+                # 旧的那条已被摘要压缩进去：摘要里还留着它的内容，重建一次
+                await self._resummarize_later(owner_id=owner_id, session_id=sid,
+                                              reason=f"select:{message_id}:{uuid.uuid4().hex[:8]}")
+            await self._put_in_thread(session_id=sid, message=target)
+        finally:
+            await self._control.release_lock(session_id=sid, owner=owner)
+        return await self._messages.get(owner_id=owner_id, message_id=message_id)
+
+    async def _after_alt_deleted(self, *, message: MessageRecord) -> None:
+        """删掉的是一组候选里的一条。被删的若是当前选中的：最新一轮 → 选最新的剩余候选顶上；
+        不是最新一轮 → 整组删除（往中间放回候选会让线程错乱）。没被选中的候选直接删，不动线程。"""
+        if message.alt_group is None or not message.alt_selected:
+            return
+        sid, oid = message.session_id, message.owner_id
+        siblings = await self._messages.alternatives(owner_id=oid, session_id=sid, alt_group=message.alt_group)
+        if not siblings:
+            return
+        if await self._is_latest(message, siblings):
+            promoted = siblings[-1]
+            await self._messages.select_alternative(owner_id=oid, session_id=sid, alt_group=message.alt_group,
+                                                    message_id=promoted.id)
+            if self._conversation is not None:
+                await self._put_in_thread(session_id=sid, message=promoted)
+            return
+        for m in siblings:
+            await self._messages.soft_delete(owner_id=oid, message_id=m.id)
+
     async def delete(self, *, owner_id: int, message_id: int) -> bool:
         message = await self._messages.get(owner_id=owner_id, message_id=message_id)
         if message is None:
             return False
         if self._conversation is None:
-            return await self._messages.soft_delete(owner_id=owner_id, message_id=message_id)
+            if not await self._messages.soft_delete(owner_id=owner_id, message_id=message_id):
+                return False
+            await self._after_alt_deleted(message=message)
+            return True
         owner = await self._locked(message.session_id)
         try:
             if not await self._messages.soft_delete(owner_id=owner_id, message_id=message_id):
@@ -93,6 +185,7 @@ class HistoryService:
                 # 前者必须重建摘要；后者重建一次也无害。
                 await self._resummarize_later(owner_id=owner_id, session_id=message.session_id,
                                               reason=f"delete:{message_id}")
+            await self._after_alt_deleted(message=message)
         finally:
             await self._control.release_lock(session_id=message.session_id, owner=owner)
         return True

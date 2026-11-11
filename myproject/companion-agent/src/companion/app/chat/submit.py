@@ -116,13 +116,15 @@ class SubmitService:
         return SubmitResult("accepted", Disposition.QUEUED, message.id, None)
 
     async def rerun(self, *, owner_id: int, session_id: int, character_id: str, text: str,
-                    message_ids: list[int]) -> str | None:
-        """重新生成 / 继续 / 重试：会话空闲才开始；忙则返回 None（路由层映射为 409）。"""
+                    message_ids: list[int], alt_of: int | None = None) -> str | None:
+        """重新生成 / 继续 / 重试：会话空闲才开始；忙则返回 None（路由层映射为 409）。
+
+        ``alt_of``：被重新生成的那条助手回复。新回复会作为它的另一个候选保存（左右滑动切换）。"""
         return await self._start(owner_id=owner_id, session_id=session_id, character_id=character_id,
-                                 text=text, message_ids=message_ids)
+                                 text=text, message_ids=message_ids, alt_of=alt_of)
 
     async def _start(self, *, owner_id: int, session_id: int, character_id: str, text: str,
-                     message_ids: list[int]) -> str | None:
+                     message_ids: list[int], alt_of: int | None = None) -> str | None:
         turn_id = new_ulid()
         owner = f"{self._process}:{turn_id}"
         if not await self._control.acquire_lock(session_id=session_id, owner=owner):
@@ -134,6 +136,8 @@ class SubmitService:
             fence = await self._control.next_fence(session_id=session_id)
             await self._sessions.advance_fence(session_id=session_id, fence=fence)
             fencing["fence"] = fence
+        if alt_of is not None:
+            fencing["alt_of"] = alt_of   # 只在有值时传：不关心候选的启动回调不用改
         await self._control.init_turn(session_id=session_id, turn_id=turn_id, message_ids=message_ids)
         await self._start_turn(owner_id=owner_id, session_id=session_id, character_id=character_id,
                                turn_id=turn_id, owner=owner, text=text, message_ids=message_ids, **fencing)

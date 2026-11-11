@@ -90,6 +90,7 @@ class TurnInput:
     text: str
     message_ids: list[int]     # 启动时覆盖的用户消息（排空时可能有多条）
     fence: int | None = None   # 拿锁时取得的围栏号；None 表示不做围栏检查
+    alt_of: int | None = None  # 重新生成：被重生成的助手回复 id；新回复作为它的另一个候选保存
 
 
 @dataclass
@@ -349,17 +350,20 @@ class TurnRunner:
         full = "".join(state.deltas)
         interrupted = state.cancelled or failed
         saved_id: int | None = None
+        saved_alt_group: int | None = None
         if full or interrupted:
             saved = await self._messages.append(
                 owner_id=inp.owner_id, session_id=inp.session_id, role="assistant", content=full,
                 kind="chat", client_message_id=None, turn_id=inp.turn_id,
-                meta={"lc_ids": list(state.lc_ids)} if state.lc_ids else {}, fence=inp.fence)
+                meta={"lc_ids": list(state.lc_ids)} if state.lc_ids else {}, fence=inp.fence,
+                **({"alt_of": inp.alt_of} if inp.alt_of is not None else {}))
             if saved is None:
                 # 围栏号已不是最新：这把锁过期后被别的进程接手过。不写、不发完成事件。
                 state.lost = True
                 await self._finish_lost(inp, state)
                 return
             saved_id = saved.id
+            saved_alt_group = saved.alt_group
             if interrupted:
                 await self._messages.mark_interrupted(owner_id=inp.owner_id, message_id=saved.id)
 
@@ -376,7 +380,8 @@ class TurnRunner:
             await self._control.publish(
                 session_id=inp.session_id, event="message.done",
                 data={"turn_id": inp.turn_id, "assistant_message_id": saved_id,
-                      "steered_message_ids": injected, "usage": None})
+                      "steered_message_ids": injected, "usage": None,
+                      **({"alt_group": saved_alt_group} if saved_alt_group is not None else {})})
         if state.cancelled:
             await self._control.publish(session_id=inp.session_id, event="turn.cancelled",
                                         data={"turn_id": inp.turn_id, "assistant_message_id": saved_id})

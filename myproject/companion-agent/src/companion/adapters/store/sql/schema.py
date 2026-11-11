@@ -80,7 +80,13 @@ chat_message = Table(
     Column("interrupted", Boolean, nullable=False, server_default="0"),
     _now(),
     Column("deleted", Boolean, nullable=False, server_default="0"),
+    # 同一次提问的多个候选回复（左右滑动切换）：同组的助手消息 alt_group 相同（取第一条回复的消息 id），
+    # 其中只有 alt_selected 为真的一条属于「当前对话」，其余候选不进历史、不进模型上下文。
+    # 普通消息两列为空 / 真。
+    Column("alt_group", BigInteger, nullable=True),
+    Column("alt_selected", Boolean, nullable=False, server_default="1"),
     Index("ca_ix_message_session_deleted_id", "session_id", "deleted", "id"),
+    Index("ca_ix_message_alt_group", "alt_group"),
     UniqueConstraint("session_id", "client_message_id", name="ca_uq_message_client_id"),
 )
 
@@ -268,4 +274,24 @@ timeline_event = Table(
     UniqueConstraint("owner_id", "role_id", "dedupe_key", name="ca_uq_timeline_dedupe"),
     Index("ca_ix_timeline_owner_role_next", "owner_id", "role_id", "status", "next_at_utc"),
     Index("ca_ix_timeline_source", "source_message_id"),
+)
+
+
+avatar_release = Table(
+    TABLE_PREFIX + "avatar_release", metadata,
+    _pk(),
+    Column("avatar_key", String(64), nullable=False),               # 形象的稳定名，如 linche-spring
+    Column("version", Integer, nullable=False),                      # 同一 avatar_key 下自增
+    Column("name", String(60), nullable=False),
+    Column("role_id", String(128), nullable=False, server_default=""),   # 空串 = 所有角色可用
+    Column("status", String(16), nullable=False),                    # draft | online | offline
+    Column("manifest", JsonText, nullable=False),
+    Column("object_key", String(255), nullable=False),
+    Column("size_bytes", BigInteger, nullable=False),
+    Column("sha256", String(64), nullable=False),
+    Column("min_app_version", Integer, nullable=False, server_default="0"),
+    Column("published_at", DateTime, nullable=True),
+    _now(), _upd(),
+    UniqueConstraint("avatar_key", "version", name="ca_uq_avatar_version"),
+    Index("ca_ix_avatar_status_role", "status", "role_id"),
 )

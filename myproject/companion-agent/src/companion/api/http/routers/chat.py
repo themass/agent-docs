@@ -11,7 +11,7 @@ from typing import Any
 from companion.app.chat.lifecycle import DrainState
 from companion.api.sse.stream import event_stream
 from companion.app.chat.drain import DrainService
-from companion.app.chat.history import HistoryBusy, HistoryService
+from companion.app.chat.history import HistoryBusy, HistoryService, NotLatest, find_reply
 from companion.app.chat.submit import SubmitService
 from companion.domain.turn.queue import DRAIN_MAX_ATTEMPTS
 from companion.ports.store import MessageStore, QueueStore, SessionStore
@@ -53,9 +53,15 @@ def _session_json(s) -> dict[str, Any]:
             "updated_at": _iso(s.updated_at)}
 
 
-def _message_json(m) -> dict[str, Any]:
-    return {"id": m.id, "role": m.role, "kind": m.kind, "content": m.content, "turn_id": m.turn_id,
-            "interrupted": m.interrupted, "created_at": _iso(m.created_at)}
+def _message_json(m, alt_ids: list[int] | None = None) -> dict[str, Any]:
+    """``alt_ids``：这条消息所在候选组的全部候选 id（升序）。多于一条才带 alt_* 字段，客户端据此显示滑动切换。
+    ``alt_index`` 是这条消息在组里的位置（从 0 起）。"""
+    out = {"id": m.id, "role": m.role, "kind": m.kind, "content": m.content, "turn_id": m.turn_id,
+           "interrupted": m.interrupted, "created_at": _iso(m.created_at)}
+    if alt_ids and len(alt_ids) > 1 and m.id in alt_ids:
+        out.update({"alt_group": m.alt_group, "alt_index": alt_ids.index(m.id), "alt_count": len(alt_ids),
+                    "alt_ids": alt_ids})
+    return out
 
 
 def build_router(api: ChatApi, current_user):
@@ -159,7 +165,9 @@ def build_router(api: ChatApi, current_user):
                       user_id: str = Depends(current_user)) -> dict[str, Any]:
         owner, _ = await owned_session(user_id, session_id)
         rows = await api.messages.list_before(owner_id=owner, session_id=session_id, before_id=before, limit=limit)
-        return {"items": [_message_json(m) for m in rows]}
+        groups = sorted({m.alt_group for m in rows if m.alt_group is not None})
+        alts = await api.messages.alt_ids_for(owner_id=owner, session_id=session_id, groups=groups)
+        return {"items": [_message_json(m, alts.get(m.alt_group)) for m in rows]}
 
     def _busy() -> HTTPException:
         return HTTPException(status_code=409, detail={"code": "conflict", "reason": "busy"})
@@ -179,6 +187,31 @@ def build_router(api: ChatApi, current_user):
             raise HTTPException(status_code=404, detail={"code": "not_found"})
         message = await api.messages.get(owner_id=owner, message_id=message_id)
         return _message_json(message)
+
+    @router.post("/messages/{message_id}/select")
+    async def select_alternative(message_id: int, user_id: str = Depends(current_user)) -> dict[str, Any]:
+        """切换到这条候选回复（左右滑动）。只能在最新一轮切换；回合进行中 409。"""
+        owner = _owner_id(user_id)
+        try:
+            if api.history is not None:
+                message = await api.history.select_alternative(owner_id=owner, message_id=message_id)
+            else:
+                message = await api.messages.get(owner_id=owner, message_id=message_id)
+                if message is not None and message.role == "assistant" and message.alt_group is not None:
+                    await api.messages.select_alternative(owner_id=owner, session_id=message.session_id,
+                                                          alt_group=message.alt_group, message_id=message_id)
+                    message = await api.messages.get(owner_id=owner, message_id=message_id)
+                else:
+                    message = None
+        except HistoryBusy:
+            raise _busy()
+        except NotLatest:
+            raise HTTPException(status_code=409, detail={"code": "conflict", "reason": "not_latest"})
+        if message is None:
+            raise HTTPException(status_code=404, detail={"code": "not_found"})
+        alts = await api.messages.alt_ids_for(owner_id=owner, session_id=message.session_id,
+                                              groups=[message.alt_group] if message.alt_group is not None else [])
+        return _message_json(message, alts.get(message.alt_group))
 
     @router.delete("/messages/{message_id}", status_code=204)
     async def delete_message(message_id: int, user_id: str = Depends(current_user)) -> Response:
@@ -236,6 +269,9 @@ def build_router(api: ChatApi, current_user):
 
     async def _rerun(owner: int, session, text: str, message_ids: list[int]) -> dict[str, Any]:
         ensure_open(api.drain.draining)
+        # 重新生成：新回复作为当前回复的另一个候选保存（左右滑动切换）。要在移除旧回复之前找到它。
+        alt_of = (await find_reply(api.messages, owner_id=owner, session_id=session.id,
+                                   user_message_id=min(message_ids)) if message_ids else None)
         if api.history is not None and message_ids:
             # 先把旧回复从对话线程里移除，模型不会看到它；消息表里的旧回复保留（可作为备选回复）。
             try:
@@ -244,7 +280,7 @@ def build_router(api: ChatApi, current_user):
             except HistoryBusy:
                 raise _busy()
         turn_id = await api.submit.rerun(owner_id=owner, session_id=session.id, character_id=session.role_id,
-                                         text=text, message_ids=message_ids)
+                                         text=text, message_ids=message_ids, alt_of=alt_of)
         if turn_id is None:
             raise HTTPException(status_code=409, detail={"code": "conflict", "reason": "busy"})
         return {"status": "accepted", "turn_id": turn_id}
