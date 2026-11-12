@@ -13,9 +13,6 @@ dependencies = [
     # Postgres driver for the business database and the LangGraph checkpointer.
     # `[binary]` ships a prebuilt libpq, so a deploy host needs no build toolchain.
     "psycopg[binary]>=3.3.3",
-    # aiomysql stays: JC_DATABASE_URL can still point at MySQL, and removing it
-    # would make that impossible without a code change.
-    "aiomysql>=0.2.0",
     "python-multipart>=0.0.12",
     "bcrypt>=4.2.0",
     "pydantic-settings>=2.6.0",

@@ -10,9 +10,8 @@ Two tables by design, not one:
   and the admin's drawer render the same rows; only the chrome around them
   (whose avatar is "me") differs by viewer.
 
-This mirrors the `jc_agent_trace` (ledger) vs `jc_agent_message` (UI
-projection) split used for agent sessions — a thread's current state should
-be a cheap read, and the full transcript a separate, append-only one.
+This mirrors the split used for agent sessions between a thread's current state
+(a cheap read) and its full transcript (an append-only ledger).
 """
 
 from __future__ import annotations

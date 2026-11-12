@@ -7,7 +7,6 @@ photo upload service remains the sole owner of normalization and profile binding
 from __future__ import annotations
 
 import asyncio
-import json
 from typing import Any
 
 from sqlalchemy import select
@@ -15,7 +14,7 @@ from sqlalchemy import select
 from jc.authz import RunScope, require_owned_profile
 from jc.exceptions import AppError, NotFoundError
 from jc.models.agent import AgentSession
-from jc.models.agent_message import AgentMessage
+from jc.models.agent_trace import AgentTrace
 from jc.storage_backend import get_storage_backend
 from jc.storage_keys import storage_key
 
@@ -30,21 +29,21 @@ async def session_images(scope: RunScope, message_id: str | None = None) -> list
     ):
         raise NotFoundError("未找到当前会话的图片。", code="photo_source_not_found")
     stmt = (
-        select(AgentMessage)
+        select(AgentTrace)
         .where(
-            AgentMessage.session_id == session.id,
-            AgentMessage.role == "user",
-            AgentMessage.event_type == "message",
+            AgentTrace.session_id == session.id,
+            AgentTrace.event_type == "user_message",
+            AgentTrace.ui_event.isnot(None),
         )
-        .order_by(AgentMessage.created_at.desc(), AgentMessage.id.desc())
+        .order_by(AgentTrace.seq.desc())
     )
     if message_id:
-        stmt = stmt.where(AgentMessage.id == message_id)
+        stmt = stmt.where(AgentTrace.id == message_id)
     rows = (await scope.db.execute(stmt.limit(100))).scalars()
     for row in rows:
         try:
-            attachments = json.loads(row.payload_json or "{}").get("attachments", [])
-        except (ValueError, AttributeError):
+            attachments = (row.payload or {}).get("attachments", [])
+        except (AttributeError, TypeError):
             continue
         if not isinstance(attachments, list):
             continue

@@ -6,7 +6,6 @@ restarts and work across instances sharing the database. Locking is session-loca
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from agentkit.common.ids import new_id
@@ -16,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from jc.authz import RunScope
 from jc.exceptions import ConflictError, NotFoundError
 from jc.models.agent import AgentSession
-from jc.models.agent_message import AgentMessage
+from jc.models.agent_trace import AgentTrace
 from jc.models.profile_patch_confirm import ProfilePatchConfirm
 
 
@@ -116,12 +115,14 @@ async def _recover_historical_card(scope: RunScope, confirm_id: str) -> ProfileP
     messages = (
         (
             await scope.db.execute(
-                select(AgentMessage)
+                select(AgentTrace)
                 .where(
-                    AgentMessage.session_id == scope.session_id,
-                    AgentMessage.event_type.in_(["confirm", "confirm_applied", "confirm_rejected"]),
+                    AgentTrace.session_id == scope.session_id,
+                    AgentTrace.event_type.in_(
+                        ["confirm", "confirm_applied", "confirm_rejected"]
+                    ),
                 )
-                .order_by(AgentMessage.created_at, AgentMessage.id)
+                .order_by(AgentTrace.seq)
             )
         )
         .scalars()
@@ -129,11 +130,8 @@ async def _recover_historical_card(scope: RunScope, confirm_id: str) -> ProfileP
     )
     proposal = None
     for message in messages:
-        try:
-            payload = json.loads(message.payload_json or "{}")
-        except (ValueError, TypeError):
-            continue
-        if not isinstance(payload, dict):
+        payload = message.payload if isinstance(message.payload, dict) else None
+        if payload is None:
             continue
         if payload.get("confirm_id") == confirm_id:
             if message.event_type != "confirm":

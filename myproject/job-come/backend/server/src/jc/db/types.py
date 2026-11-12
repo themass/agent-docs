@@ -1,4 +1,11 @@
-"""Database column types."""
+"""Database column types — Postgres only.
+
+There is no second dialect to stay compatible with, so these are thin: Postgres
+`TEXT` has no length limit, which is exactly what a resume prompt, a full trace
+payload or a generated draft needs. The named types stay instead of bare `Text`
+so the column still says what it holds, and so a future switch to `JSONB` is one
+edit here rather than fifteen at the call sites.
+"""
 
 from __future__ import annotations
 
@@ -7,17 +14,20 @@ from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import DateTime, Text
-from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.types import TypeDecorator
 
-# Prompts and model responses routinely exceed MySQL TEXT (64 KB), and CJK costs
-# 3 bytes per character in utf8mb4 — a 20k-character resume prompt already does not
-# fit. Payload columns must use this variant, not a bare Text.
-LongText = Text().with_variant(LONGTEXT, "mysql")
+#: Unbounded text. A whole document, not a short string.
+LongText = Text()
 
 
 class JSONText(TypeDecorator[Any]):
-    """Store JSON documents in TEXT/LONGTEXT for MySQL 5.6 compatibility."""
+    """A JSON document stored as text.
+
+    Text rather than `JSONB` on purpose: every writer hands over a Python dict
+    and every reader gets one back, so the database never looks inside. JSONB
+    would buy indexability nothing queries, and it adds a second serialization
+    path — psycopg encoding a `str` into a JSON *string literal* is a known trap.
+    """
 
     impl = Text
     cache_ok = True
@@ -34,22 +44,14 @@ class JSONText(TypeDecorator[Any]):
 
 
 class JSONLongText(TypeDecorator[Any]):
-    """Store JSON documents in LONGTEXT — for payloads that can exceed 64 KB.
+    """`JSONText` for documents that can be very large.
 
-    `JSONText` above is `Text` (64 KB), which is enough for small structured
-    fields (tags, progress counters) but not for a full agent-trace event: a
-    `tool_result` payload or a `run_context` system prompt is exactly the kind
-    of content `LongText` (see above) exists to hold, and this is its JSON
-    counterpart — same MySQL variant, JSON (de)serialization on top.
+    Same storage as `JSONText` on Postgres; kept as a separate name because the
+    call sites already say it and because "may exceed a page" is worth stating.
     """
 
     impl = Text
     cache_ok = True
-
-    def load_dialect_impl(self, dialect: Any) -> Any:
-        if dialect.name == "mysql":
-            return dialect.type_descriptor(LONGTEXT())
-        return dialect.type_descriptor(Text())
 
     def process_bind_param(self, value: Any | None, dialect: object) -> str | None:
         if value is None:
@@ -63,42 +65,20 @@ class JSONLongText(TypeDecorator[Any]):
 
 
 class UTCDateTime(TypeDecorator[datetime]):
-    """`DateTime` that always round-trips as UTC-aware, regardless of driver.
+    """`DateTime` that always round-trips as UTC-aware.
 
-    MySQL's `DATETIME` column has no timezone concept at all: whatever gets
-    written is stored as a bare wall-clock value, and `aiomysql` reads it back
-    as a *naive* `datetime` no matter what SQLAlchemy column type requested it
-    (`DateTime(timezone=True)` only changes DDL on dialects that support a
-    real `TIMESTAMP WITH TIME ZONE`; MySQL is not one of them). Every writer
-    in this codebase (`TimestampMixin`, `bind_snapshot_source`, etc.) stores
-    `datetime.now(UTC)`, so the *value* is always UTC — the problem is purely
-    that the naive datetime coming back from the driver has lost the label
-    saying so.
+    The column is `TIMESTAMP WITH TIME ZONE`, so Postgres stores an instant and
+    the offset survives. The conversions below guard the boundary: an aware
+    value is normalized to UTC before it is sent (a caller that accidentally
+    passes local time must not store the wrong instant), and a naive value
+    coming back is labeled UTC rather than left ambiguous.
 
-    That loss is not cosmetic. FastAPI/Pydantic serializes a naive `datetime`
-    via `.isoformat()` with no `Z`/offset suffix (e.g. `2026-10-19T08:30:00`).
-    `JSON.parse` + `new Date(...)` on the frontend treats an offset-less ISO
-    string as *local* time, not UTC, so a UTC instant gets displayed as if it
-    already were wall-clock time in the browser's timezone — every admin
-    list, trace, and message timestamp in the UI showed up offset by exactly
-    the browser's UTC offset (8 hours fast in Asia/Shanghai) until this type
-    existed.
-
-    `process_bind_param` strips tzinfo before handing the value to the MySQL
-    driver (a MySQL `DATETIME` cannot store an offset; passing an aware value
-    through unchanged works today only by accident of driver behavior) but
-    first converts to UTC so a caller that accidentally passes a non-UTC
-    aware datetime does not silently store the wrong wall-clock value.
-    `process_result_value` re-attaches `tzinfo=UTC` on the way out, which is
-    safe precisely because every write path already guarantees UTC going in.
+    Why it matters: FastAPI serializes a naive `datetime` via `.isoformat()`
+    with no `Z`/offset, and `new Date(...)` in the browser reads an offset-less
+    ISO string as *local* time — every admin list, trace and message timestamp
+    rendered 8 hours fast in Asia/Shanghai until this existed.
     """
 
-    # `timezone=True` is what tells Postgres to create `TIMESTAMP WITH TIME ZONE`;
-    # MySQL ignores it and creates a plain `DATETIME`. On Postgres the column then
-    # carries the instant itself, so the server-side default (`CURRENT_TIMESTAMP`,
-    # written under a UTC-pinned session — see `Settings.db_connect_args`) and the
-    # Python-side default land in the same instant space. On MySQL the conversion
-    # below is what supplies the missing label.
     impl = DateTime(timezone=True)
     cache_ok = True
 

@@ -1,8 +1,7 @@
-"""Admin session audit — MySQL timeline + LangGraph checkpoint reads."""
+"""Admin session audit — ledger timeline + LangGraph checkpoint reads."""
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,7 +10,7 @@ from jc.adapters.deerflow_client import _client_config
 from jc.adapters.deerflow_harness_client import _get_embedded_client
 from jc.agent.roles import default_role, role
 from jc.exceptions import NotFoundError
-from jc.models.agent_message import AgentMessage
+from jc.models.agent_trace import AgentTrace
 from jc.schemas.admin_session import (
     AdminCheckpointMessage,
     AdminCheckpointResponse,
@@ -26,18 +25,17 @@ from jc.schemas.admin_session import (
     AdminTraceItem,
     AdminTraceListResponse,
 )
-from jc.stores.agent_message_store import AgentMessageStore
 from jc.stores.agent_store import AgentStore
 from jc.stores.agent_trace_store import AgentTraceStore
 from jc.stores.user_store import UserStore
 
 
-def _parse_payload(row: AgentMessage) -> dict[str, Any] | None:
-    if not row.payload_json:
+def _parse_payload(row: AgentTrace) -> dict[str, Any] | None:
+    if not row.payload:
         return None
     try:
-        return json.loads(row.payload_json)
-    except json.JSONDecodeError:
+        return row.payload if isinstance(row.payload, dict) else None
+    except (TypeError, ValueError):
         return None
 
 
@@ -69,7 +67,7 @@ def _serialize_lc_message(msg: Any, index: int) -> AdminCheckpointMessage:
     )
 
 
-def _build_turns(rows: list[AgentMessage]) -> list[AdminTimelineTurn]:
+def _build_turns(rows: list[AgentTrace]) -> list[AdminTimelineTurn]:
     turns: list[AdminTimelineTurn] = []
     current: AdminTimelineTurn | None = None
     turn_idx = 0
@@ -119,7 +117,7 @@ class SessionAuditService:
     def __init__(self, db: AsyncSession) -> None:
         self._db = db
         self._sessions = AgentStore(db)
-        self._messages = AgentMessageStore(db)
+        self._trace = AgentTraceStore(db)
         self._users = UserStore(db)
 
     async def _user_labels(self, user_ids: list[str]) -> dict[str, tuple[str | None, str | None]]:
@@ -216,7 +214,7 @@ class SessionAuditService:
         session = await self._sessions.get_by_id(session_id)
         if session is None:
             raise NotFoundError("会话不存在或已删除。", code="session_not_found")
-        rows = await self._messages.list_for_session(session_id, limit=limit)
+        rows = await self._trace.list_ui_for_session(session_id, limit=limit)
         turns = _build_turns(rows)
         return AdminTimelineResponse(
             session_id=session.id,
@@ -269,12 +267,15 @@ class SessionAuditService:
         session = await self._sessions.get_by_id(session_id)
         if session is None:
             raise NotFoundError("会话不存在或已删除。", code="session_not_found")
-        rows = await self._messages.list_for_session(session_id, limit=limit)
+        rows = await self._trace.list_ui_for_session(session_id, limit=limit)
         items = [
             AdminMessageItem(
                 id=row.id,
                 session_id=row.session_id,
                 role=row.role,
+                # The audit view names the event canonically (`tool_call`, not
+                # `tool_start`) — it is there to describe what happened, and the
+                # canonical name is what the trace export and the reviewer use.
                 event_type=row.event_type,
                 content=row.content,
                 payload=_parse_payload(row),
@@ -303,7 +304,6 @@ class SessionAuditService:
                 event_type=row.event_type,
                 role=row.role,
                 payload=row.payload,
-                attachments=row.attachments,
                 created_at=row.created_at,
             )
             for row in rows

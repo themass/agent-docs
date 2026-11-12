@@ -31,13 +31,10 @@ class TimestampMixin:
     (migrations backfilling data, manual SQL), not the primary source of
     truth for ORM-created rows.
 
-    Column type is `UTCDateTime` (see `jc.db.types`), not a bare
-    `DateTime(timezone=True)`: MySQL's `DATETIME` has no timezone concept, so
-    a plain `DateTime(timezone=True)` column round-trips through `aiomysql`
-    as a naive datetime no matter what gets written. `UTCDateTime` is the one
-    place that re-attaches `tzinfo=UTC` on every read, which is what makes
-    the API's `.isoformat()` output carry a `Z` suffix instead of silently
-    being read back as local time by the browser.
+    Column type is `UTCDateTime` (see `jc.db.types`), which is
+    `TIMESTAMP WITH TIME ZONE` and labels every read UTC. Without that label a
+    naive datetime reaches the API, `.isoformat()` emits no `Z`, and the browser
+    reads a UTC instant as local time.
     """
 
     created_at: Mapped[datetime] = mapped_column(

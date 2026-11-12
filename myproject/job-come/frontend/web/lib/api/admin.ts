@@ -252,7 +252,6 @@ export type AdminTraceItem = {
   event_type: string;
   role: string;
   payload: unknown;
-  attachments: unknown[] | null;
   created_at: string;
 };
 

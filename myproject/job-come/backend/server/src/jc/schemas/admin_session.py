@@ -178,7 +178,6 @@ class AdminTraceItem(BaseModel):
     event_type: str
     role: str
     payload: Any = None
-    attachments: list[Any] | None = None
     created_at: datetime
 
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from types import SimpleNamespace
 
 import httpx
@@ -16,7 +15,7 @@ from jc.api.auth_router import register_exception_handlers
 from jc.authz import RunScope
 from jc.db.base import Base
 from jc.models.agent import AgentSession
-from jc.models.agent_message import AgentMessage
+from jc.models.agent_trace import AgentTrace
 from jc.models.profile import Profile
 from jc.models.profile_patch_confirm import ProfilePatchConfirm
 from jc.models.profile_snapshot import ProfileSnapshot
@@ -119,21 +118,21 @@ async def click(env, confirm_id, approved=True, session_id="session_owned", edit
 @pytest.mark.asyncio
 async def test_failure_does_not_consume_command_or_partially_save(env, monkeypatch):
     cid = await propose(env)
-    from jc.stores.agent_message_store import AgentMessageStore
+    from jc.stores.agent_trace_store import AgentTraceStore
 
-    original = AgentMessageStore.append
+    original = AgentTraceStore.append
 
     async def broken(*args, **kwargs):
         raise RuntimeError("simulate audit failure after profile UPDATE")
 
-    monkeypatch.setattr(AgentMessageStore, "append", broken)
+    monkeypatch.setattr(AgentTraceStore, "append", broken)
     with pytest.raises(RuntimeError, match="audit failure"):
         await click(env, cid)
     async with env.sessions() as db:
         assert (await db.get(Profile, "prof_owned")).version == 1
         assert (await db.get(ProfilePatchConfirm, cid)).status == "pending"
         assert not (await db.execute(select(ProfileSnapshot))).scalars().all()
-    monkeypatch.setattr(AgentMessageStore, "append", original)
+    monkeypatch.setattr(AgentTraceStore, "append", original)
     assert (await click(env, cid)).json()["version"] == 2
 
 
@@ -144,19 +143,19 @@ async def test_failure_does_not_consume_command_or_partially_save(env, monkeypat
 async def old_card(env, version=1):
     async with env.sessions() as db:
         db.add(
-            AgentMessage(
-                id="agm_legacy",
+            AgentTrace(
+                id="agtr_legacy",
                 session_id="session_owned",
+                seq=1,
                 role="assistant",
                 event_type="confirm",
-                payload_json=json.dumps(
-                    {
-                        "confirm_id": "cfm_legacy",
-                        "profile_id": "prof_owned",
-                        "patch": {"summary": "历史卡片修改"},
-                        "preview": {"version_before": version},
-                    }
-                ),
+                ui_event="confirm",
+                payload={
+                    "confirm_id": "cfm_legacy",
+                    "profile_id": "prof_owned",
+                    "patch": {"summary": "历史卡片修改"},
+                    "preview": {"version_before": version},
+                },
             )
         )
         await db.commit()

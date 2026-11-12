@@ -86,7 +86,13 @@ def _parse_result(raw: Any) -> dict[str, Any] | None:
 
 def corrections_from_trace(rows: Sequence[AgentTrace]) -> dict[str, int]:
     """How many interview replies were tried for one question, and how many of those failed to
-    come back with one. Written by the agent service as `interview_reply_corrected` rows."""
+    come back with one.
+
+    Always zero now: `interview_reply_corrected` was written by the reply-rewriting path that
+    ADR-008 removed, and no current code writes that event. Kept as a reported field so the
+    acceptance checklist keeps one stable shape across old and new sessions rather than
+    dropping a key whose absence a reader would have to special-case.
+    """
     counts = {"corrected": 0, "kept_first": 0}
     for row in rows:
         if row.event_type == "interview_reply_corrected":

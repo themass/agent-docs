@@ -1,6 +1,6 @@
 # JC API Server
 
-JC 的后端服务：FastAPI + SQLAlchemy(async) + aiomysql，内嵌 DeerFlow Agent 运行时。
+JC 的后端服务：FastAPI + SQLAlchemy(async) + PostgreSQL，内嵌 DeerFlow Agent 运行时。
 
 本包为 `pyproject.toml` 中声明的 `jc` 发行包提供项目说明；构建与 `uv sync` 都依赖本文件存在。
 

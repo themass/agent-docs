@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
@@ -30,7 +29,7 @@ from jc.authz import RunScope, require_owned_references
 from jc.config import settings
 from jc.exceptions import AppError, ConflictError, NotFoundError
 from jc.models.agent import AgentSession
-from jc.models.agent_message import AgentMessage
+from jc.models.agent_trace import AgentTrace
 from jc.models.enums import AgentSessionStatus, MockSessionStatus
 from jc.observability.events import log_product_event
 from jc.schemas.agent import (
@@ -55,7 +54,6 @@ from jc.services.mock_interview_flow import run_turn as run_mock_turn
 from jc.services.patch_confirm_service import hydrate_confirmation_event, load_confirmation
 from jc.services.profile_patch_service import apply_confirmed_patch
 from jc.services.profile_service import ProfileService
-from jc.stores.agent_message_store import AgentMessageStore
 from jc.stores.agent_store import AgentStore
 from jc.stores.agent_trace_store import AgentTraceStore
 from jc.stores.interview_store import InterviewStore
@@ -142,7 +140,6 @@ class AgentService:
     def __init__(self, db: AsyncSession) -> None:
         self._db = db
         self._store = AgentStore(db)
-        self._messages = AgentMessageStore(db)
         self._profiles = ProfileService(db)
         self._trace = AgentTraceStore(db)
 
@@ -214,7 +211,7 @@ class AgentService:
             limit=min(limit, 50),
         )
         session_ids = [s.id for s in rows]
-        titles = await self._messages.first_user_titles(session_ids)
+        titles = await self._trace.first_ui_content(session_ids)
         return AgentSessionListResponse(
             sessions=[
                 AgentSessionListItem(
@@ -234,7 +231,7 @@ class AgentService:
         self, session_id: str, *, actor: UserActor
     ) -> AgentMessageListResponse:
         await self._require_session(session_id, actor=actor)
-        rows = await self._messages.list_for_session(session_id)
+        rows = await self._trace.list_ui_for_session(session_id)
         return AgentMessageListResponse(
             session_id=session_id,
             messages=[self._to_message_record(row) for row in rows],
@@ -310,14 +307,24 @@ class AgentService:
             if ui_context is not None:
                 persist_payload["ui_context"] = ui_context.model_dump()
 
-        await self._messages.append(
-            message_id=message_id,
-            session_id=session.id,
-            role="user",
-            event_type="message",
-            content=user_text,
-            payload=persist_payload,
-        )
+        # The row the user's turn needs, held until the model input is known: the
+        # ledger stores what the model actually received (profile digest and
+        # methodology already wrapped in), but the chat UI must show what the user
+        # typed. Both belong on one row, and only the second is known this early.
+        user_turn = {
+            "trace_id_pk": new_id("agtr"),
+            "session_id": session.id,
+            "event_type": "user_message",
+            "ui_event": "message",
+            "role": "user",
+            "content": user_text,
+            "payload": dict(persist_payload or {}),
+            "user_id": actor.user_id,
+            "profile_id": session.profile_id,
+            "job_id": session.job_id,
+            "mock_session_id": ui_context.mock_session_id if ui_context else None,
+            "trace_id": session.trace_id,
+        }
         await self._db.commit()
 
         client = get_deerflow_client(db=self._db)
@@ -396,22 +403,14 @@ class AgentService:
         # after `system_prompt` lands (or immediately, for a session whose
         # `system_prompt` was already written by an earlier turn).
         trace_needs_system_prompt = not await self._trace.has_system_prompt(session.id)
-        trace_user_message_pending = {
-            "trace_id_pk": new_id("agtr"),
-            "session_id": session.id,
-            "event_type": "user_message",
-            "role": "user",
-            # `agent_message` is what DeerFlow actually receives for this turn
-            # (profile digest / methodology / locale instruction already
-            # wrapped in) -- the literal model input, not the raw textbox
-            # value already captured by `jc_agent_message`.
-            "payload": {"text": agent_message},
-            "user_id": actor.user_id,
-            "profile_id": session.profile_id,
-            "job_id": session.job_id,
-            "mock_session_id": ui_context.mock_session_id if ui_context else None,
-            "trace_id": session.trace_id,
-        }
+        # One row per user turn, carrying both halves: `content` is what the user
+        # typed (the chat UI shows it), `payload.text` is what DeerFlow actually
+        # received (profile digest / methodology / locale already wrapped in).
+        # They differ on purpose and both are worth keeping — the first is the
+        # transcript, the second is the only way to answer "what did the model
+        # see that made it reply that".
+        user_turn["payload"] = {**user_turn["payload"], "text": agent_message}
+        trace_user_message_pending = user_turn
         if not trace_needs_system_prompt:
             await self._trace.append(**trace_user_message_pending)
             trace_user_message_pending = None
@@ -520,7 +519,6 @@ class AgentService:
                 had_tool_activity = True
             if event_type in _PERSIST_EVENT_TYPES:
                 await self._trace.lock_session(session.id)
-                await self._persist_stream_event(session.id, event)
                 if event_type in {"tool_start", "confirm"}:
                     log_product_event(
                         f"agent_{event_type}",
@@ -561,18 +559,13 @@ class AgentService:
         )
         if final_content:
             await self._trace.lock_session(session.id)
-            await self._messages.append(
-                message_id=new_id("agm"),
-                session_id=session.id,
-                role="assistant",
-                event_type="message",
-                content=final_content,
-            )
             await self._trace.append(
                 trace_id_pk=new_id("agtr"),
                 session_id=session.id,
                 event_type="assistant_message",
+                ui_event="message",
                 role="assistant",
+                content=final_content,
                 payload={"text": final_content},
                 user_id=actor.user_id,
                 profile_id=session.profile_id,
@@ -617,10 +610,10 @@ class AgentService:
                 )
             if pending.status == "pending":
                 pending.status = "rejected"
-                await self._messages.append(
-                    message_id=new_id("agm"), session_id=session.id, role="user",
-                    event_type="confirm_rejected", content=None,
-                    payload={"confirm_id": body.confirm_id},
+                await self._trace.append(
+                    trace_id_pk=new_id("agtr"), session_id=session.id, role="user",
+                    event_type="confirm_rejected", ui_event="confirm_rejected",
+                    content=None, payload={"confirm_id": body.confirm_id},
                 )
             await self._db.commit()
             return AgentConfirmResponse(status="rejected", confirm_id=body.confirm_id,
@@ -631,11 +624,12 @@ class AgentService:
         )
         edited = bool(result.get("edited"))
         if not result.pop("already_applied", False):
-            await self._messages.append(
-                message_id=new_id("agm"),
+            await self._trace.append(
+                trace_id_pk=new_id("agtr"),
                 session_id=session.id,
                 role="assistant",
                 event_type="confirm_applied",
+                ui_event="confirm_applied",
                 content=f"Profile updated to version {result.get('version')}",
                 payload={"confirm_id": body.confirm_id, "profile_id": result.get("id"),
                          "version": result.get("version"), "status": "applied",
@@ -674,17 +668,38 @@ class AgentService:
             raise NotFoundError("会话不存在或已删除。", code="agent_session_not_found")
         return session
 
-    # Which stream events get a `jc_agent_trace` row, and what event_type they
-    # map to there. Not every `_PERSIST_EVENT_TYPES` entry needs one: `usage`
-    # and `plan_todos`/`subagent_start`/`subagent_done` are UI projections of
-    # information already fully present in `tool_call`/`tool_result` rows
-    # (`task` tool calls) or in `jc_llm_call` (token counts), so duplicating
-    # them here would be a second place that could drift from the first
-    # rather than new information.
+    # Which chat widget a stream event becomes. Absent = an audit-only row the UI
+    # never draws. This is the single mapping: the writer sets `ui_event` once and
+    # every reader filters on it, instead of each reader re-deriving the decision.
+    _UI_EVENT_MAP = {
+        "thinking": "thinking",
+        "tool_start": "tool_start",
+        "tool": "tool_result",
+        "tool_result": "tool_result",
+        "plan_todos": "plan_todos",
+        "subagent_start": "subagent_start",
+        "subagent_done": "subagent_done",
+        "confirm": "confirm",
+        "usage": "usage",
+        "skill": "skill",
+        "error": "error",
+    }
+
+    # The canonical ledger name for a stream event. Separate from UI naming
+    # because "what this event is" and "how the chat draws it" differ: a
+    # `tool_start` is a `tool_call` in the ledger, and reasoning is `reasoning`
+    # there but a `thinking` bubble in the UI.
     _TRACE_EVENT_MAP = {
         "thinking": "reasoning",
         "tool_start": "tool_call",
+        "tool": "tool_result",
         "tool_result": "tool_result",
+        "plan_todos": "plan_todos",
+        "subagent_start": "subagent_start",
+        "subagent_done": "subagent_done",
+        "confirm": "confirm",
+        "usage": "usage",
+        "skill": "skill",
         "error": "error",
     }
 
@@ -696,30 +711,44 @@ class AgentService:
         event: dict[str, Any],
         diagnostics: dict[str, Any] | None = None,
     ) -> None:
-        event_type = event.get("type")
-        trace_event_type = self._TRACE_EVENT_MAP.get(str(event_type))
-        if trace_event_type is None:
+        """Write one stream event as exactly one ledger row.
+
+        This replaces the pair of writers that used to exist — one for the UI
+        projection, one for the audit ledger, both reading the same event — so
+        every tool call and every reasoning block was stored twice. Now one row
+        carries both faces: `ui_event`/`content` for the chat, `payload` for
+        audit.
+        """
+        stream_type = str(event.get("type") or "event")
+        ledger_type = self._TRACE_EVENT_MAP.get(stream_type)
+        if ledger_type is None:
             return
-        if trace_event_type == "reasoning":
-            # `full_content` is the untruncated text added alongside the
-            # UI-sized `content` in `_map_raw_event` -- see that function's
-            # docstring for why the trace table cannot reuse `content`.
-            reasoning_text = event.get("full_content") or event.get("content") or ""
-            payload: dict[str, Any] = {"text": reasoning_text}
-        elif trace_event_type == "tool_call":
+
+        ui_event = self._UI_EVENT_MAP.get(stream_type)
+        payload: dict[str, Any]
+        content: str | None = None
+
+        if ledger_type == "reasoning":
+            # `full_content` is the untruncated text `_map_raw_event` adds beside
+            # the UI-sized `content`.
+            content = event.get("full_content") or event.get("content") or ""
+            payload = {"text": content}
+        elif ledger_type == "tool_call":
             payload = {"name": event.get("name"), "arguments": event.get("args")}
-        elif trace_event_type == "tool_result":
+        elif ledger_type == "tool_result":
+            content = event.get("result") or ""
             payload = {
                 "name": event.get("name"),
                 "result": event.get("full_result") or event.get("result") or "",
             }
-        else:  # error
-            # The traceback is stored under the failure's own keys rather than
+        elif ledger_type == "error":
+            # The traceback lives under the failure's own keys rather than
             # flattened into `message`, so the admin console can render "what
-            # broke" (exception type + stage) separately from "what the user was
-            # told" -- and so a future reader can tell a run that died before
-            # reaching the model apart from one that died on its final answer.
-            payload = {"message": event.get("message") or ""}
+            # broke" separately from "what the user was told", and a reader can
+            # tell a run that died before reaching the model apart from one that
+            # died on its final answer.
+            content = event.get("message") or ""
+            payload = {"message": content}
             if diagnostics:
                 payload.update(
                     {
@@ -729,11 +758,22 @@ class AgentService:
                         "traceback": diagnostics.get("traceback") or "",
                     }
                 )
+        else:
+            payload = {
+                k: v
+                for k, v in event.items()
+                if k not in {"type", "content", "full_content", "full_result"}
+            }
+            raw = event.get("content")
+            content = raw if isinstance(raw, str) else None
+
         await self._trace.append(
             trace_id_pk=new_id("agtr"),
             session_id=session.id,
-            event_type=trace_event_type,
-            role="assistant" if trace_event_type != "tool_result" else "tool",
+            event_type=ledger_type,
+            ui_event=ui_event,
+            role="tool" if ledger_type == "tool_result" else "assistant",
+            content=content,
             payload=payload,
             user_id=actor.user_id,
             profile_id=session.profile_id,
@@ -742,40 +782,23 @@ class AgentService:
             trace_id=session.trace_id,
         )
 
-    async def _persist_stream_event(self, session_id: str, event: dict[str, Any]) -> None:
-        event_type = str(event.get("type") or "event")
-        payload = {
-            k: v for k, v in event.items()
-            if k not in {"type", "content", "full_content", "full_result"}
-        }
-        content = event.get("content")
-        if content is not None and not isinstance(content, str):
-            content = json.dumps(content, ensure_ascii=False)
-        await self._messages.append(
-            message_id=new_id("agm"),
-            session_id=session_id,
-            role="assistant",
-            event_type=event_type,
-            content=content if isinstance(content, str) else None,
-            payload=payload or None,
-        )
-
     @staticmethod
-    def _to_message_record(row: AgentMessage) -> AgentMessageRecord:
-        payload: dict[str, Any] | None = None
-        if row.payload_json:
-            # Signed media URLs outlive nothing; a transcript outlives everything. The
-            # stored URL is only a cache, so replaying re-signs from `storage_key`.
-            payload = resign_persisted_attachments(json.loads(row.payload_json))
+    def _to_message_record(row: AgentTrace) -> AgentMessageRecord:
+        # Signed media URLs outlive nothing; a transcript outlives everything. The
+        # stored URL is only a cache, so replaying re-signs from `storage_key`.
+        payload = resign_persisted_attachments(row.payload) if row.payload else None
         return AgentMessageRecord(
             id=row.id,
             session_id=row.session_id,
             role=row.role,
-            event_type=row.event_type,
+            # The wire keeps its own vocabulary: this endpoint has always spoken
+            # `event_type` in UI terms, and `ui_event` is exactly that.
+            event_type=row.ui_event or row.event_type,
             content=row.content,
             payload=payload,
             created_at=row.created_at,
         )
+
 
     @staticmethod
     def _to_response(session: AgentSession) -> AgentSessionResponse:

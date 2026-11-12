@@ -9,7 +9,6 @@
 import jc.db.profile_snapshot_hook  # noqa: F401,I001
 
 from jc.models.agent import AgentSession
-from jc.models.agent_message import AgentMessage
 from jc.models.agent_trace import AgentTrace
 from jc.models.feedback import FeedbackMessage, FeedbackThread
 from jc.models.guest import GuestSession, PasswordResetToken
@@ -38,7 +37,6 @@ from jc.models.user import User, UserMeta
 
 __all__ = [
     "AdminAuditLog",
-    "AgentMessage",
     "AgentSession",
     "AgentTrace",
     "AnswerAttempt",

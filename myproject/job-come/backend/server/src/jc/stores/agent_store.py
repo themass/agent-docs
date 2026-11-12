@@ -6,7 +6,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from jc.models.agent import AgentSession
-from jc.models.agent_message import AgentMessage
+from jc.models.agent_trace import AgentTrace
 from jc.models.user import User
 from jc.stores.sorting import SortSpec
 
@@ -102,12 +102,22 @@ class AgentStore:
         return rows, total, field, direction
 
     async def message_counts(self, session_ids: list[str]) -> dict[str, int]:
+        """Chat-visible rows per session, for the audit list's "messages" column.
+
+        Counts `ui_event IS NOT NULL` — the rows a user would see — rather than
+        every ledger row: the ledger also holds the system prompt, the wrapped
+        model input and each tool call, and folding those into a user-facing
+        count would make a session with six turns read as two hundred messages.
+        """
         if not session_ids:
             return {}
         stmt = (
-            select(AgentMessage.session_id, func.count())
-            .where(AgentMessage.session_id.in_(session_ids))
-            .group_by(AgentMessage.session_id)
+            select(AgentTrace.session_id, func.count())
+            .where(
+                AgentTrace.session_id.in_(session_ids),
+                AgentTrace.ui_event.isnot(None),
+            )
+            .group_by(AgentTrace.session_id)
         )
         rows = (await self._db.execute(stmt)).all()
         return {session_id: int(count) for session_id, count in rows}

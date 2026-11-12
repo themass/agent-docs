@@ -20,7 +20,7 @@ class ProfilePhoto(BaseModel):
     """The candidate's headshot, stored as an object-storage pointer plus a switch.
 
     `storage_key` is the durable record and `download_url` is a short-lived signed
-    URL re-derived on read (same contract as `jc_agent_message` attachments) — a
+    URL re-derived on read (same contract as chat attachments) — a
     payload that persisted only the signed URL would render a broken image as soon
     as it expired.
 

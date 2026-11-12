@@ -1,4 +1,4 @@
-# TECH-DATA：MySQL、Redis、TOS 与命名规范
+# TECH-DATA：PostgreSQL、Redis、TOS 与命名规范
 
 - **状态**：已确认的 V1 数据与存储约定
 - **最后更新**：2026-10-15
@@ -7,7 +7,7 @@
 
 | 依赖 | 是否使用 | 用途 |
 |---|---|---|
-| MySQL | 是 | 用户、档案、职位、面试、应用漏斗、会话关联等持久业务数据 |
+| PostgreSQL | 是 | 业务数据（用户、档案、职位、面试、应用漏斗）与 LangGraph 检查点，同一个库 |
 | Redis | 是 | 登录/访客会话、邮件验证、密码重置、一次性确认与短期缓存 |
 | Volcengine TOS（S3 兼容） | 是 | 原始上传、导出 PDF/DOCX/HTML 等对象 |
 | 本地对象目录 | 仅开发兜底 | 未配置 TOS AK/SK 时的本地存储，不用于生产 |
@@ -45,7 +45,7 @@ jc/{environment}/{resource-category}/{resource-id}/...
 - 不把原始对象 key 直接当作永久公开链接；
 - 原始上传和用户导出物按用户/资源归属校验后访问。
 
-### MySQL
+### PostgreSQL
 
 JC 的业务表统一使用 `jc_` 前缀；schema 演进在：
 
@@ -56,7 +56,7 @@ backend/server/alembic/
 
 不要在 JC 项目根保留单独的 `alembic.ini`（旧布局遗留会导致 `script_location` 找不到）。未上线期间不保留旧 `jobcome_*` 兼容表或双写逻辑。所有 schema 修改必须包含 Alembic migration 和回归测试。
 
-### MySQL 会话与连接生命周期
+### 数据库会话与连接生命周期
 
 JC **不使用显式事务控制**：没有 `FOR UPDATE`、没有隔离级别覆写、没有 savepoint、没有 `async with db.begin()` 块。原因是 V1 的写入模式本身不需要——绝大多数端点是单表写，少数跨表写只要在同一个 `commit()` 里即可。规则：
 
@@ -75,7 +75,7 @@ JC **不使用显式事务控制**：没有 `FOR UPDATE`、没有隔离级别覆
    | 投递流水线 | application + job.tag |
    | 生成双语优化稿 | resume_draft ×2（中/英） |
 
-5. **调模型之前必须释放连接。** 简历生成、简历审稿、JD 解析单次可运行数分钟，连接挂在池里不动会被远端 MySQL 掐断 socket，表现为 API 连接重置（`ECONNRESET` / socket hang up）。统一调用：
+5. **调模型之前必须释放连接。** 简历生成、简历审稿、JD 解析单次可运行数分钟，连接挂在池里不动会被远端连接超时掐断 socket，表现为 API 连接重置（`ECONNRESET` / socket hang up）。统一调用：
 
    ```python
    from jc.db.session import release_db_connection
@@ -109,13 +109,12 @@ JC **不使用显式事务控制**：没有 `FOR UPDATE`、没有隔离级别覆
 简历源文件（`profile_service.upload`）、导出件（`resume_service`）、
 舟卡聊天附件（`agent_attachment_service.offload_for_persistence`）。
 
-`jc_agent_message.payload_json` 是 `Text`（MySQL 64 KB），**不是 `LongText`**，
-所以聊天里的图片与语音必须先上传再入库。
-一张 1280×720 摄像头照片 base64 后约 400 KB，内联写入必然超限。
+聊天附件必须先上传再入库：`jc_agent_trace.payload` 是 `TEXT`，Postgres 不限制长度，
+所以数据库**不会**拦下内联的图片字节。一张 1280×720 摄像头照片 base64 后约 400 KB，
+写进账本会让每次读历史都拖着图片走。
 
-这里有一个测试结构上看不见的陷阱：**测试跑 SQLite，其 `TEXT` 没有长度限制**，
-所以"列放不下"这类缺陷在测试环境永远是绿的。
-因此针对列容量的回归必须断言**序列化后的字符串/字节数**，不能指望数据库报错
+这一点现在只能靠代码守：因为数据库不再报错，"列放不下"之类的问题没有信号。
+针对附件容量的回归断言**序列化后的字符串/字节数**
 （见 `tests/test_agent_attachments.py`）。
 
 ### 语音：录音在 TOS，文字在表里，两者必须同行
@@ -125,7 +124,7 @@ JC **不使用显式事务控制**：没有 `FOR UPDATE`、没有隔离级别覆
 | 数据 | 落在哪 | 没有它会怎样 |
 |---|---|---|
 | 原始录音 | TOS `jc/<env>/agent/<sid>/attachments/<mid>-<i>.<ext>`，行里留 `storage_key` | 「这个数字他到底有没有亲口说过」无从回答 |
-| 转写文字 `transcript` | `payload_json` 的 attachment 行内（纯文本，不占容量） | 聊天记录退化成一串谁也搜不到、读不了、引用不了的播放器；本版本服务端无 STT，模型直接读不到这条消息 |
+| 转写文字 `transcript` | 该轮 `jc_agent_trace.payload.attachments` 行内（纯文本，不占容量） | 聊天记录退化成一串谁也搜不到、读不了、引用不了的播放器；本版本服务端无 STT，模型直接读不到这条消息 |
 | 时长 `duration_ms` | 同上 | 气泡无法显示长度（webm/opus 容器常报 `duration: Infinity`，问 `<audio>` 元素不可靠，所以由浏览器按墙钟计时上报） |
 
 上传失败时 `storage_key` 为 `null` 并置 `storage_error: true`，同时打一条 warning。
@@ -145,10 +144,10 @@ JC **不使用显式事务控制**：没有 `FOR UPDATE`、没有隔离级别覆
 | 模拟面试、真实题、回答 | 个人私有；共享能力后置且需脱敏、显式授权 |
 | 密码重置/邮箱验证 | Redis 内保存哈希凭据与用户关联；验证链接和 4 位码共享 TTL，重发/成功即同时失效，验证码最多 5 次失败尝试 |
 | Agent 会话 | 用户和业务资源双重归属校验；运行态与业务持久化分离 |
-| 聊天附件（图片/语音） | 字节存 `jc/<env>/agent/<session_id>/attachments/`，消息行只留 `storage_key`；下载走短期签名 URL，每次读历史重签 |
+| 聊天附件（图片/语音） | 字节存 `jc/<env>/agent/<session_id>/attachments/`，该轮账本行只留 `storage_key`；下载走短期签名 URL，每次读历史重签 |
 | 语音转写文字（`attachment.transcript`） | 用户亲口说的话，与简历正文同级的个人数据。由浏览器识别，与录音写在同一行；本版本服务端无 STT，**它是录音唯一可读的形式** |
 | LLM 调用审计（`jc_llm_call`） | 指标与失败码可长期保留；prompt/响应/思考原文含简历正文，受 `JC_LLM_LOG_PAYLOAD` 控制并按留存窗口清理 |
 
 ## 4. 配置检查
 
-上线前确认：MySQL 可连接且迁移成功；Redis key 前缀是 `jc:prod:`；TOS bucket、endpoint、region、AK/SK 正确并可读写 `jc/prod/`；CDN/签名下载策略符合域名和时效要求；`JC_LLM_LOG_PAYLOAD` 的取值与留存窗口已明确，并已安排 `scripts/prune_llm_log.py` 定时执行。
+上线前确认：PostgreSQL 可连接且迁移成功（`alembic upgrade head`，检查点表由 DeerFlow 首次连接时自建）；Redis key 前缀是 `jc:prod:`；TOS bucket、endpoint、region、AK/SK 正确并可读写 `jc/prod/`；CDN/签名下载策略符合域名和时效要求；`JC_LLM_LOG_PAYLOAD` 的取值与留存窗口已明确，并已安排 `scripts/prune_llm_log.py` 与 `scripts/prune_agent_trace.py`（账本保留 60 天）定时执行。

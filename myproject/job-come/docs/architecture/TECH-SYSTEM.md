@@ -13,7 +13,7 @@ Nginx
   ├── /              → Next.js（frontend/web）
   └── /api/v1/*      → FastAPI（backend/server）
                             ├── 内嵌 DeerFlow Agent
-                            ├── MySQL
+                            ├── PostgreSQL（业务表 + LangGraph 检查点）
                             ├── Redis
                             ├── TOS / CDN
                             ├── LiteLLM / 模型提供方
@@ -33,7 +33,7 @@ frontend/
 backend/
   server/                      # FastAPI、数据库迁移、测试、服务端配置
     src/jc/                    # Python 包 jc
-    alembic/                    # MySQL schema migration
+    alembic/                    # PostgreSQL schema migration
     tests/                      # Python 测试
     nginx/                      # Nginx 配置样例
   agent/                       # Agent 不随业务代码散落
@@ -64,7 +64,7 @@ docs/                           # 仅保留当前规范与历史归档
 | `src/jc/agent/` | 角色定义、工具目录、消息成形 | `mcp/`、`api/`、`diagnostics/` |
 | `src/jc/skills/` | 按角色组装 prompt（宿主侧组装，不靠模型读文件） | `services/`、`mcp/`、`api/`、`agent/` |
 | `src/jc/llm/` | 模型路由、传输、failover、审计日志、多模态线格式 | `services/`、`mcp/`、`api/`、`agent/`、`adapters/` |
-| `src/jc/stores/` | MySQL/Redis 资源访问与归属隔离 | 以上所有编排层 |
+| `src/jc/stores/` | PostgreSQL/Redis 资源访问与归属隔离 | 以上所有编排层 |
 | `src/jc/domain/` | 纯方法论：岗位 playbook、结构规则、评分启发式。**零 I/O** | 一切有状态的层 |
 | `src/jc/authz/` | `RunScope` 与归属守卫，失败即闭合 | 一切编排层 |
 | `src/jc/diagnostics/` | 运维内省（harness 清单）。**读所有层，不被任何层依赖** | — |

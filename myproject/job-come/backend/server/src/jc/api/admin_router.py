@@ -160,7 +160,7 @@ async def admin_session_checkpoint(
 @router.get(
     "/sessions/{session_id}/messages",
     response_model=AdminMessageListResponse,
-    summary="该会话的 UI 投影消息列表（jc_agent_message）",
+    summary="该会话的 UI 投影消息列表（jc_agent_trace 中 ui_event 非空的行）",
 )
 async def admin_session_messages(
     session_id: str,
@@ -330,7 +330,7 @@ async def admin_export_session_trace(
     does not require buffering the whole array in memory to parse the next line —
     both matter once this is the thing an operator opens to debug a user's report.
 
-    `payload`/`attachments` are returned in full, never truncated — this table's
+    `payload` is returned in full, never truncated — this table's
     one rule (see its docstring) is that it is not allowed to already be lossy,
     so an export that trimmed it here would quietly defeat the reason the table
     exists. `include_payload`-style gating (as `GET /admin/llm/calls/{id}` does)
@@ -354,7 +354,6 @@ async def admin_export_session_trace(
                 "event_type": row.event_type,
                 "role": row.role,
                 "payload": row.payload,
-                "attachments": row.attachments,
                 "created_at": row.created_at.isoformat(),
             },
             ensure_ascii=False,

@@ -1,17 +1,15 @@
 """Chat attachments: keep the bytes out of the message row.
 
 A voice clip and a photo both arrive from the browser as a `data:` URL, and the whole
-base64 string used to be written into `jc_agent_message.payload_json`. That column is
-MySQL `TEXT`, which holds 65,535 **bytes**. A single frame from the in-app camera
-(1280x720 JPEG at q0.92, see `lib/camera-capture.ts`) is around 300 KB raw, so roughly
-400 KB once base64 inflates it by 4/3 — about six times over the limit, and a photo
-picked from a phone album is tens of times over.
+base64 string used to be written straight into the message row. One frame from the
+in-app camera (1280x720 JPEG at q0.92, see `lib/camera-capture.ts`) is around 300 KB
+raw — roughly 400 KB once base64 inflates it by 4/3 — and an album photo is tens of
+times that. Keeping bytes in a ledger row makes every transcript read drag the image
+along with it.
 
-Why no test caught it: the suite runs on SQLite, whose TEXT has no length limit. The
-failure only exists on the real database, which is the same shape of defect as the
-路径 one — a difference between the test environment and production that the tests are
-structurally unable to see. So the guard here is a size check in code plus
-`tests/test_agent_attachments.py`, not a column type.
+The guard is a size check in code plus `tests/test_agent_attachments.py`, not a column
+type: Postgres `TEXT` is unbounded, so the database will happily accept payloads that
+would make the ledger unusable to read.
 
 The blob goes to object storage under a JC-owned key (`storage_keys.storage_key`),
 exactly like resume sources and exports already do, and the message row keeps the key

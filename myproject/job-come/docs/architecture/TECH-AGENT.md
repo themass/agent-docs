@@ -317,9 +317,9 @@ JC 是智能体产品，所以功能增强应该落在 **hook / 中间件 / 拦�
 
 四条必须守住的约束：
 
-1. **`payload_json` 里永远不能出现 `data:`。** 该列是 MySQL `TEXT`（65,535 字节），
-   一张 1280×720 摄像头照片 base64 后约 400 KB，是上限的 6 倍。
-   **测试跑 SQLite，其 TEXT 无长度限制，这类缺陷测不出来** ——
+1. **账本 `payload` 里永远不能出现 `data:`。** Postgres `TEXT` 不限制长度，
+   一张 1280×720 摄像头照片 base64 后约 400 KB 写得进去 —— 正因为它写得进去，
+   数据库不会拦你，只会让每次读历史都拖着图片走。
    所以 `tests/test_agent_attachments.py` 直接断言序列化后的字节数，不依赖数据库报错。
 2. **flatten 只能做一次。** `flatten_message_for_text_agent` 不是幂等的：
    它把 OCR 文本追加进消息，再跑一次就会二次调用 vision 并追加第二份。
