@@ -1,11 +1,11 @@
-"""角色接口（D §5.3）。前缀 /api/agent/v1。不用 __future__ 注解（FastAPI 运行时注解）。"""
+"""角色接口（D §5.3）。前缀 /v1。不用 __future__ 注解（FastAPI 运行时注解）。"""
 
 from typing import Any
 
 from companion.app.roles.service import RoleForbidden, RoleService
 from companion.domain.roles.catalog import negotiate_locale
 
-PREFIX = "/api/agent/v1"
+PREFIX = "/v1"
 
 
 def _owner_id(user_id: str) -> int:

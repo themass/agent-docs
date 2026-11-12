@@ -1,11 +1,11 @@
-"""工具确认接口（T §2.4、D §7.1）。前缀 /api/agent/v1。不用 __future__ 注解。"""
+"""工具确认接口（T §2.4、D §7.1）。前缀 /v1。不用 __future__ 注解。"""
 
 from typing import Any
 
 from companion.api.http.routers.chat import _owner_id
 from companion.app.tools.confirmation import ConfirmationService
 
-PREFIX = "/api/agent/v1"
+PREFIX = "/v1"
 
 
 def build_router(service: ConfirmationService, current_user):

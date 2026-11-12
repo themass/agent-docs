@@ -1,11 +1,11 @@
-"""上传接口（O §5）。前缀 /api/agent/v1。原始字节上传，不依赖 multipart。不用 __future__ 注解。"""
+"""上传接口（O §5）。前缀 /v1。原始字节上传，不依赖 multipart。不用 __future__ 注解。"""
 
 from typing import Any
 
 from companion.app.uploads.service import UploadService
 from companion.domain.uploads.policy import UploadRejected
 
-PREFIX = "/api/agent/v1"
+PREFIX = "/v1"
 
 
 def build_router(service: UploadService, current_user):

@@ -1,4 +1,4 @@
-"""记忆接口 v1（D §7.1、§10.5）。前缀 /api/agent/v1/memory。不用 __future__ 注解。
+"""记忆接口 v1（D §7.1、§10.5）。前缀 /v1/memory。不用 __future__ 注解。
 
 复用 MemoryApi 的用户隔离、分页夹取与删除语义（已在旧路由上测过）。
 PATCH 事实记忆采用「删除旧条目 + 写入新条目」：后端没有原地更新接口，因此 id 会变化，
@@ -17,7 +17,7 @@ from companion.domain.memory.subject import role_subject
 from companion.domain.timeline.models import EventKind, EventOrigin, EventStatus, TimelineEvent
 from companion.ports.memory import MemoryItem, MemoryKind
 
-PREFIX = "/api/agent/v1"
+PREFIX = "/v1"
 
 
 def _uid(user_id: str) -> int:

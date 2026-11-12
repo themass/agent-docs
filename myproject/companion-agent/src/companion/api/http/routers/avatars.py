@@ -1,4 +1,4 @@
-"""形象接口（前缀 /api/agent/v1）。不用 __future__ 注解。
+"""形象接口（前缀 /v1）。不用 __future__ 注解。
 
 - 客户端：``GET /avatars?role_id=&app_version=`` —— 该角色可用的、已上线的最新形象，带短期下载地址与校验值。
   客户端比较本地版本，需要时下载 zip、核对 sha256、解压后按 manifest 渲染；服务端下线的形象下次同步时不再出现。
@@ -12,7 +12,7 @@ from typing import Any
 from companion.app.avatar.catalog import AvatarCatalog, ReleaseNotFound, ReleaseStateError
 from companion.domain.avatar.package import MAX_PACKAGE_BYTES, InvalidPackage
 
-PREFIX = "/api/agent/v1"
+PREFIX = "/v1"
 
 
 def _release_json(r) -> dict[str, Any]:

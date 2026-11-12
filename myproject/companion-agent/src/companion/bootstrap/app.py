@@ -46,7 +46,6 @@ from companion.api.http.routers.reminders import build_router as build_reminders
 from companion.api.http.routers.chat import build_health_router
 from companion.adapters.timeline.legacy_adapter import LegacyTimelineAdapter
 from companion.app.tools.legacy_actions import LegacyActionsAdapter
-from companion.api.http.prefix_alias import PrefixAliasMiddleware
 from companion.bootstrap.platform import Platform
 from companion.app.roles.service import RoleService
 from companion.api.http.routers.chat import ChatApi, build_router as build_chat_router
@@ -204,9 +203,6 @@ def create_app(
                 await platform.aclose()
 
     app = FastAPI(title="companion-agent", version="0.1.0", lifespan=lifespan)
-    # 对外正式前缀是 /v1；/api/agent/v1 保留给已安装的客户端。
-    # 一层路径重写，两套前缀走同一份路由，不存在第二份实现。
-    app.add_middleware(PrefixAliasMiddleware)
     app.state.companion = AppState(
         drain=DrainState(),
         service=service,

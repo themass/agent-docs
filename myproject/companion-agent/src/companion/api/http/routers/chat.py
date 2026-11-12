@@ -1,4 +1,4 @@
-"""会话接口（D §7.1）。前缀 /api/agent/v1。
+"""会话接口（D §7.1）。前缀 /v1。
 
 本模块只做 HTTP ↔ 应用服务的转换；判定、落库、排队、重跑都在 app/chat。
 不用 ``from __future__ import annotations``：FastAPI 需要运行时注解（见 turns.py）。
@@ -17,7 +17,7 @@ from companion.domain.turn.queue import DRAIN_MAX_ATTEMPTS
 from companion.ports.store import MessageStore, QueueStore, SessionStore
 from companion.ports.turn_control import TurnControlPort
 
-PREFIX = "/api/agent/v1"
+PREFIX = "/v1"
 REGENERATE_NOTE = "请基于上面的对话重新回答最后一条消息。"
 CONTINUE_NOTE = "请接着上一条被中断的回答继续写完。"
 

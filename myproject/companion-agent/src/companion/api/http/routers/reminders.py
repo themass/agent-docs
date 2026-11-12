@@ -1,4 +1,4 @@
-"""定时提醒接口（前缀 /api/agent/v1）。创建只经由工具 + 确认流程；这里只提供查看与取消。不用 __future__ 注解。"""
+"""定时提醒接口（前缀 /v1）。创建只经由工具 + 确认流程；这里只提供查看与取消。不用 __future__ 注解。"""
 
 from typing import Any
 
@@ -6,7 +6,7 @@ from companion.api.http.routers.chat import _owner_id
 from companion.app.proactive.reminders import ReminderService
 from companion.domain.reminders import local_time_text
 
-PREFIX = "/api/agent/v1"
+PREFIX = "/v1"
 
 
 def _json(r) -> dict[str, Any]:

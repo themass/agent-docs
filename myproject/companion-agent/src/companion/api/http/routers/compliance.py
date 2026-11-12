@@ -1,4 +1,4 @@
-"""合规接口（前缀 /api/agent/v1）。不用 __future__ 注解。
+"""合规接口（前缀 /v1）。不用 __future__ 注解。
 
 - ``GET /consent`` / ``PATCH /consent``：训练用途同意（默认关）、主动联系总开关、是否成年人。
 - ``GET /export``：导出自己的全部数据（JSON 下载）。办法要求可复制。
@@ -10,7 +10,7 @@ from typing import Any
 
 from companion.app.compliance.service import export_user_data
 
-PREFIX = "/api/agent/v1"
+PREFIX = "/v1"
 
 
 def _consent_json(c) -> dict[str, Any]:
