@@ -16,9 +16,8 @@ import time
 from collections.abc import AsyncIterator
 from typing import Any
 
-from companion.adapters.brain.platform_brain import TurnRefused
 from companion.domain.turn.pipeline import EventSink, TurnPipeline
-from companion.ports.brain import TurnRequest
+from companion.ports.brain import TurnRefused, TurnRequest
 from companion.api.livekit.bridge import require
 
 logger = logging.getLogger(__name__)
@@ -213,7 +212,7 @@ def build_agent_class() -> type:
             return self._captured_tts(text, model_settings)
 
         async def _captured_tts(self, text: Any, model_settings: Any):
-            from companion.adapters.voice.tts_capture import TtsCapture
+            from companion.domain.voice.tts_capture import TtsCapture
 
             capture = TtsCapture()
             turn_ref: dict[str, Any] = {}

@@ -89,7 +89,9 @@ def main() -> None:
     # 质检记录里的供应商与音色：取自实际装配的配置，不靠事后猜
     voice_info = {"stt_provider": cfg.provider, "tts_provider": cfg.provider,
                   "tts_voice": cfg.voice_id or os.environ.get("VOLC_TTS_VOICE", "saturn_zh_female_keainvsheng_tob")}
-    entry = make_entrypoint(_platform, voice_factory=build_voice_stack, voice_info=voice_info)
+    from companion.bootstrap.voice_wiring import voice_wiring
+
+    entry = make_entrypoint(_platform, voice_factory=build_voice_stack, wire_voice=voice_wiring(voice_info))
     cli.run_app(WorkerOptions(entrypoint_fnc=entry))
 
 

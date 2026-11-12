@@ -27,7 +27,10 @@ class Compliance:
 
 
 def _speaker(submit, control, sessions=None, compliance=None):
-    return PlatformSpeaker(sessions=sessions or Sessions(), submit=submit, control=control, compliance=compliance)
+    from companion.adapters.brain.platform_brain import PlatformBrain
+
+    brain = PlatformBrain(submit=submit, control=control, role="system", kind="proactive")
+    return PlatformSpeaker(sessions=sessions or Sessions(), brain=brain, compliance=compliance)
 
 
 async def test_she_speaks_through_the_turn_engine_as_a_system_proactive_message():

@@ -15,7 +15,7 @@ from companion.worker import load_env
 load_env()      # 适配器直接读 os.environ，不读 .env
 
 from companion.adapters.voice.stt_transcribe import transcribe_wav
-from companion.adapters.voice.tts_capture import pcm_to_wav
+from companion.domain.voice.tts_capture import pcm_to_wav
 from companion.adapters.voice.volcengine_livekit import NewConsoleSTT, NewConsoleTTS
 from companion.app.voice.tts_accuracy import cer
 

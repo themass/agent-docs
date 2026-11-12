@@ -435,37 +435,33 @@ send_record = Table(
 )
 
 
-# 每次模型调用一行。一个回合可能调用多次（工具往返、摘要），所以挂在 turn_id 下。
-# 指标列（token、耗时、结束原因）永远写；内容列（输入输出、思考）只在用户同意质检留存时写，
-# content_kept 记录这一行当时是否带了内容，清理与导出时据此区分。
-llm_call = Table(
-    TABLE_PREFIX + "llm_call", metadata,
-    _pk(),
-    Column("turn_id", String(26), nullable=False),
+# 回合追踪：一个回合一行，存完整执行链路（每次模型调用的输入、输出、思考、工具请求与指标）。
+# 体量靠两招控制，细节见 domain/trace/model.py：消息正文按段落切开、按内容哈希存进 ca_text_blob 去重；
+# 回合内后一次调用只存比前一次多出来的部分。指标永远写；正文只在用户同意质检留存时写（content_kept）。
+turn_trace = Table(
+    TABLE_PREFIX + "turn_trace", metadata,
+    Column("turn_id", String(26), primary_key=True),
     Column("session_id", BigInteger, nullable=False),
     Column("owner_id", BigInteger, nullable=False),
     Column("role_id", String(128), nullable=True),
-    Column("seq", Integer, nullable=False, server_default="0"),          # 回合内第几次调用
-    Column("provider", String(64), nullable=True),
-    Column("model", String(128), nullable=True),
-    Column("prompt_version", String(32), nullable=True),
     Column("content_kept", Boolean, nullable=False, server_default="0"),
-    Column("input_messages", JsonText, nullable=True),
-    Column("output_text", LongText, nullable=True),
-    Column("reasoning_text", LongText, nullable=True),
-    # 这次调用请求的工具：[{id, name, args}]。工具名总是记；参数是用户话里的内容，只在同意后记。
-    Column("tool_calls", JsonText, nullable=True),
-    Column("input_tokens", Integer, nullable=True),
-    Column("output_tokens", Integer, nullable=True),
-    Column("cached_tokens", Integer, nullable=True),
-    Column("first_token_ms", Integer, nullable=True),
-    Column("total_ms", Integer, nullable=True),
-    Column("finish_reason", String(32), nullable=True),
-    Column("error_code", String(64), nullable=True),
+    Column("version", Integer, nullable=False, server_default="1"),
+    Column("attempts", Integer, nullable=False, server_default="1"),   # 回合被合并重跑过几次
+    Column("steps", JsonText, nullable=False),
     Column("created_at", UTCDateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP")),
-    Index("ca_ix_llmcall_turn", "turn_id"),
-    Index("ca_ix_llmcall_owner_created", "owner_id", "created_at"),
-    Index("ca_ix_llmcall_created", "created_at"),
+    Index("ca_ix_turntrace_owner_created", "owner_id", "created_at"),
+    Index("ca_ix_turntrace_created", "created_at"),
+)
+
+# 去重后的文本块。按用户隔离（owner_id 在主键里）：注销时整批删除，不会因为别的用户有一样的文字而误留或误删。
+# last_seen_at 每次被引用时刷新：到期清理按它判断，所以仍被未到期的追踪引用的块不会被清掉。
+text_blob = Table(
+    TABLE_PREFIX + "text_blob", metadata,
+    Column("owner_id", BigInteger, primary_key=True, autoincrement=False),
+    Column("hash", String(32), primary_key=True),
+    Column("body", LongText, nullable=False),
+    Column("last_seen_at", UTCDateTime, nullable=False),
+    Index("ca_ix_textblob_seen", "last_seen_at"),
 )
 
 # 每个语音回合一行：用户说的被识别成了什么、送去合成的每一句、用的哪个声音。模型原文在 ca_llm_call.output_text，不在这里存第二份。

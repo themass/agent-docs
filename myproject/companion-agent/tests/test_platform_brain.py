@@ -153,7 +153,7 @@ async def test_interrupting_cancels_this_turn_on_the_control_plane():
 
 
 async def test_denied_input_is_not_spoken_and_not_silent():
-    from companion.adapters.brain.platform_brain import TurnRefused
+    from companion.ports.brain import TurnRefused
 
     control = FakeControl()
     with pytest.raises(TurnRefused) as info:

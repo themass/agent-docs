@@ -61,6 +61,14 @@ class TurnRequest:
     prompt: PromptPlan | None = None
 
 
+class TurnRefused(Exception):
+    """输入被拒绝（内容安全等）。调用方应该让用户听到/看到一句回应，而不是沉默。"""
+
+    def __init__(self, reason: str | None) -> None:
+        super().__init__(reason or "refused")
+        self.reason = reason or ""
+
+
 class BrainPort(Protocol):
     async def start_turn(self, request: TurnRequest) -> BrainTurn: ...
 

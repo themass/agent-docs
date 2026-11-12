@@ -9,19 +9,19 @@ from __future__ import annotations
 
 from typing import Any
 
-from companion.adapters.brain.platform_brain import PlatformBrain, TurnRefused
 from companion.app.chat.voice_session import ChatSessionError, resolve_chat_session
 from companion.app.proactive.loop import SpeakDenied
 from companion.domain.turn.trigger import Trigger
-from companion.ports.brain import TurnRequest
+from companion.ports.brain import TurnRefused, TurnRequest
 
 
 class PlatformSpeaker:
-    def __init__(self, *, sessions: Any, submit: Any, control: Any, compliance: Any = None) -> None:
+    def __init__(self, *, sessions: Any, brain: Any, compliance: Any = None) -> None:
+        """``brain`` 是 BrainPort，由组合根构造成 system/proactive 身份：模型看到的是带标记的指令，
+        会话忙时排队而不是插进别人的回合。"""
         self._sessions = sessions
         self._compliance = compliance
-        # system/proactive：模型看到的是带标记的指令；steerable=False：会话忙时排队，不插进别人的回合
-        self._brain = PlatformBrain(submit=submit, control=control, role="system", kind="proactive")
+        self._brain = brain
 
     async def __call__(self, trigger: Trigger) -> str:
         if not trigger.user_id.isdigit():

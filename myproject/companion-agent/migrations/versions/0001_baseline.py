@@ -383,37 +383,32 @@ CREATE TABLE ca_user_role (
 
 CREATE INDEX ca_ix_role_owner_deleted ON ca_user_role (owner_id, deleted);
 
-CREATE TABLE ca_llm_call (
-	id BIGSERIAL NOT NULL, 
+CREATE TABLE ca_text_blob (
+	owner_id BIGINT NOT NULL, 
+	hash VARCHAR(32) NOT NULL, 
+	body TEXT NOT NULL, 
+	last_seen_at TIMESTAMP WITH TIME ZONE NOT NULL, 
+	PRIMARY KEY (owner_id, hash)
+);
+
+CREATE INDEX ca_ix_textblob_seen ON ca_text_blob (last_seen_at);
+
+CREATE TABLE ca_turn_trace (
 	turn_id VARCHAR(26) NOT NULL, 
 	session_id BIGINT NOT NULL, 
 	owner_id BIGINT NOT NULL, 
 	role_id VARCHAR(128), 
-	seq INTEGER DEFAULT '0' NOT NULL, 
-	provider VARCHAR(64), 
-	model VARCHAR(128), 
-	prompt_version VARCHAR(32), 
 	content_kept BOOLEAN DEFAULT '0' NOT NULL, 
-	input_messages JSONB, 
-	output_text TEXT, 
-	reasoning_text TEXT, 
-	tool_calls JSONB, 
-	input_tokens INTEGER, 
-	output_tokens INTEGER, 
-	cached_tokens INTEGER, 
-	first_token_ms INTEGER, 
-	total_ms INTEGER, 
-	finish_reason VARCHAR(32), 
-	error_code VARCHAR(64), 
+	version INTEGER DEFAULT '1' NOT NULL, 
+	attempts INTEGER DEFAULT '1' NOT NULL, 
+	steps JSONB NOT NULL, 
 	created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL, 
-	PRIMARY KEY (id)
+	PRIMARY KEY (turn_id)
 );
 
-CREATE INDEX ca_ix_llmcall_created ON ca_llm_call (created_at);
+CREATE INDEX ca_ix_turntrace_created ON ca_turn_trace (created_at);
 
-CREATE INDEX ca_ix_llmcall_owner_created ON ca_llm_call (owner_id, created_at);
-
-CREATE INDEX ca_ix_llmcall_turn ON ca_llm_call (turn_id);
+CREATE INDEX ca_ix_turntrace_owner_created ON ca_turn_trace (owner_id, created_at);
 
 CREATE TABLE ca_voice_turn (
 	id BIGSERIAL NOT NULL, 
@@ -813,37 +808,32 @@ CREATE TABLE ca_user_role (
 
 CREATE INDEX ca_ix_role_owner_deleted ON ca_user_role (owner_id, deleted);
 
-CREATE TABLE ca_llm_call (
-	id BIGINT NOT NULL AUTO_INCREMENT, 
+CREATE TABLE ca_text_blob (
+	owner_id BIGINT NOT NULL, 
+	hash VARCHAR(32) NOT NULL, 
+	body MEDIUMTEXT NOT NULL, 
+	last_seen_at DATETIME NOT NULL, 
+	PRIMARY KEY (owner_id, hash)
+);
+
+CREATE INDEX ca_ix_textblob_seen ON ca_text_blob (last_seen_at);
+
+CREATE TABLE ca_turn_trace (
 	turn_id VARCHAR(26) NOT NULL, 
 	session_id BIGINT NOT NULL, 
 	owner_id BIGINT NOT NULL, 
 	role_id VARCHAR(128), 
-	seq INTEGER NOT NULL DEFAULT '0', 
-	provider VARCHAR(64), 
-	model VARCHAR(128), 
-	prompt_version VARCHAR(32), 
 	content_kept BOOL NOT NULL DEFAULT '0', 
-	input_messages MEDIUMTEXT, 
-	output_text MEDIUMTEXT, 
-	reasoning_text MEDIUMTEXT, 
-	tool_calls MEDIUMTEXT, 
-	input_tokens INTEGER, 
-	output_tokens INTEGER, 
-	cached_tokens INTEGER, 
-	first_token_ms INTEGER, 
-	total_ms INTEGER, 
-	finish_reason VARCHAR(32), 
-	error_code VARCHAR(64), 
+	version INTEGER NOT NULL DEFAULT '1', 
+	attempts INTEGER NOT NULL DEFAULT '1', 
+	steps MEDIUMTEXT NOT NULL, 
 	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, 
-	PRIMARY KEY (id)
+	PRIMARY KEY (turn_id)
 );
 
-CREATE INDEX ca_ix_llmcall_created ON ca_llm_call (created_at);
+CREATE INDEX ca_ix_turntrace_created ON ca_turn_trace (created_at);
 
-CREATE INDEX ca_ix_llmcall_owner_created ON ca_llm_call (owner_id, created_at);
-
-CREATE INDEX ca_ix_llmcall_turn ON ca_llm_call (turn_id);
+CREATE INDEX ca_ix_turntrace_owner_created ON ca_turn_trace (owner_id, created_at);
 
 CREATE TABLE ca_voice_turn (
 	id BIGINT NOT NULL AUTO_INCREMENT, 

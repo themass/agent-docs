@@ -91,11 +91,16 @@ def _turn(client, user: int, text="今天好累"):
     raise AssertionError("assistant never replied")
 
 
-async def _calls(platform, user):
-    from companion.adapters.store.sql.schema import llm_call
+async def _traces(platform, user):
+    from companion.adapters.store.sql.schema import turn_trace
 
     async with platform.engine.connect() as conn:
-        return (await conn.execute(select(llm_call).where(llm_call.c.owner_id == user))).mappings().all()
+        return (await conn.execute(select(turn_trace).where(turn_trace.c.owner_id == user))).mappings().all()
+
+
+async def _read(platform, user):
+    (row,) = await _traces(platform, user)
+    return await platform.qa.read_trace(turn_id=row["turn_id"], owner_id=user)
 
 
 @pytestmark_e2e
@@ -108,15 +113,18 @@ async def test_a_turn_records_metrics_but_not_content_without_consent():
     platform = _platform(_ModelBrain(reply))
     with TestClient(create_app(livekit_url="", platform=platform)) as client:
         _turn(client, user)
-    rows = await _calls(platform, user)
-    assert len(rows) == 1 and not rows[0]["content_kept"]
-    assert rows[0]["output_text"] is None and rows[0]["input_messages"] is None
-    assert (rows[0]["input_tokens"], rows[0]["output_tokens"], rows[0]["finish_reason"]) == (50, 6, "stop")
-    assert rows[0]["prompt_version"] and rows[0]["role_id"] == "linche" and rows[0]["turn_id"]
+    t = await _read(platform, user)
+    assert t["content_kept"] is False and len(t["steps"]) == 1
+    step = t["steps"][0]
+    assert step["input"] == []                                  # 没有正文：还原出来的输入是空的
+    assert "output" not in step and "reasoning" not in step
+    assert (step["in"], step["out"], step["fr"]) == (50, 6, "stop")
+    assert t["role_id"] == "linche"
+    assert (await platform.qa.count())["text_blob"] == 0
 
 
 @pytestmark_e2e
-async def test_with_consent_the_turn_content_is_recorded():
+async def test_with_consent_the_whole_turn_can_be_reconstructed():
     from companion.bootstrap.app import create_app
 
     user = random.randint(10**6, 10**7)
@@ -125,9 +133,11 @@ async def test_with_consent_the_turn_content_is_recorded():
         h = {"Authorization": f"Bearer {user}"}
         assert client.patch("/v1/consent", json={"qa_retention": True}, headers=h).json()["qa_retention"] is True
         _turn(client, user, text="今天好累")
-    (row,) = await _calls(platform, user)
-    assert row["content_kept"] and row["output_text"] == "先歇一会儿"
-    assert row["input_messages"][-1]["content"] == "今天好累"
+    t = await _read(platform, user)
+    assert t["content_kept"] is True
+    (step,) = t["steps"]
+    assert step["output"] == "先歇一会儿"
+    assert step["input"][-1] == {"role": "human", "content": "今天好累"}
 
 
 @pytestmark_e2e
@@ -162,5 +172,5 @@ async def test_the_turn_summary_records_model_skills_usage_and_final_state():
     assert turn["role_id"] == "linche" and turn["prompt_version"]
     assert "companion-core" in turn["skills"]           # 常驻的陪伴底线也算“这一轮用了的 skill”
     assert turn["usage"]["calls"] == 1 and turn["usage"]["output_tokens"] == 6
-    (call,) = await _calls(platform, user)
-    assert call["turn_id"] == turn["id"]                # 汇总行与明细行能对上
+    (trace,) = await _traces(platform, user)
+    assert trace["turn_id"] == turn["id"]                # 汇总行与追踪行能对上

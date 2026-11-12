@@ -18,34 +18,16 @@ from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from companion.adapters.store.sql.schema import chat_turn, llm_call, voice_turn
+from companion.adapters.store.sql.schema import chat_turn, text_blob, turn_trace, voice_turn
+from companion.domain.trace.model import LlmCall, build_trace, read_trace, referenced_hashes, usage_of
 
 
 def _now() -> datetime:
     return datetime.now(UTC)
 
 
-@dataclass
-class LlmCallRecord:
-    turn_id: str
-    session_id: int
-    owner_id: int
-    role_id: str = ""
-    seq: int = 0
-    provider: str = ""
-    model: str = ""
-    prompt_version: str = ""
-    input_messages: list[dict[str, Any]] | None = None
-    output_text: str = ""
-    reasoning_text: str = ""
-    tool_calls: list[dict[str, Any]] = field(default_factory=list)
-    input_tokens: int | None = None
-    output_tokens: int | None = None
-    cached_tokens: int | None = None
-    first_token_ms: int | None = None
-    total_ms: int | None = None
-    finish_reason: str = ""
-    error_code: str = ""
+# 一次 INSERT 最多带多少个文本块。Postgres 单条语句最多 65535 个参数，每块 4 个，留足余量。
+BLOB_BATCH = 500
 
 
 @dataclass
@@ -88,26 +70,73 @@ class SqlQaStore:
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
 
-    async def record_llm_calls(self, records: list[LlmCallRecord], *, keep_content: bool) -> int:
-        if not records:
-            return 0
-        rows = [dict(
-            turn_id=r.turn_id, session_id=r.session_id, owner_id=r.owner_id, role_id=r.role_id or None, seq=r.seq,
-            provider=r.provider or None, model=r.model or None, prompt_version=r.prompt_version or None,
-            content_kept=keep_content,
-            input_messages=r.input_messages if keep_content else None,
-            output_text=r.output_text if keep_content else None,
-            reasoning_text=(r.reasoning_text or None) if keep_content else None,
-            # 工具名永远记（不含用户原话）；参数可能带用户说的内容，没同意就去掉
-            tool_calls=([{"id": c.get("id"), "name": c.get("name"),
-                          **({"args": c.get("args")} if keep_content else {})} for c in r.tool_calls] or None),
-            input_tokens=r.input_tokens, output_tokens=r.output_tokens, cached_tokens=r.cached_tokens,
-            first_token_ms=r.first_token_ms, total_ms=r.total_ms,
-            finish_reason=r.finish_reason or None, error_code=r.error_code or None, created_at=_now(),
-        ) for r in records]
+    # ---- 回合追踪 ----
+
+    async def record_trace(self, *, turn_id: str, session_id: int, owner_id: int, role_id: str,
+                           calls: list[LlmCall], keep_content: bool) -> list[dict[str, Any]]:
+        """写入一个回合的追踪，返回合并后的全部步骤（供调用方算用量）。
+
+        回合被合并重跑时同一个 ``turn_id`` 会来第二次：不覆盖，把新的步骤接在后面并记下第几次尝试。
+        """
+        if not calls:
+            return []
+        now = _now()
         async with self._engine.begin() as conn:
-            await conn.execute(insert(llm_call), rows)
-        return len(rows)
+            row = (await conn.execute(select(turn_trace.c.steps, turn_trace.c.attempts, turn_trace.c.content_kept)
+                                      .where(turn_trace.c.turn_id == turn_id))).first()
+            attempt = row.attempts if row else 0
+            steps, blobs = build_trace(calls, keep_content=keep_content, attempt=attempt)
+            if blobs:
+                await self._touch_blobs(conn, owner_id, blobs, now)
+            if row is None:
+                try:
+                    async with conn.begin_nested():
+                        await conn.execute(insert(turn_trace).values(
+                            turn_id=turn_id, session_id=session_id, owner_id=owner_id, role_id=role_id or None,
+                            content_kept=keep_content, steps=steps, attempts=1, created_at=now))
+                    return steps
+                except IntegrityError:
+                    # 另一个写入方刚好先插入了：当作第二次尝试合并
+                    row = (await conn.execute(select(turn_trace.c.steps, turn_trace.c.attempts, turn_trace.c.content_kept)
+                                              .where(turn_trace.c.turn_id == turn_id))).first()
+                    attempt = row.attempts
+                    steps, blobs = build_trace(calls, keep_content=keep_content, attempt=attempt)
+                    if blobs:
+                        await self._touch_blobs(conn, owner_id, blobs, now)
+            merged = list(row.steps or []) + steps
+            # 任何一次尝试带了正文，这一行就算带正文（读取时据此知道里面有没有内容）
+            await conn.execute(update(turn_trace).where(turn_trace.c.turn_id == turn_id).values(
+                steps=merged, attempts=row.attempts + 1, content_kept=bool(row.content_kept) or bool(keep_content)))
+            return merged
+
+    async def _touch_blobs(self, conn: Any, owner_id: int, blobs: dict[str, str], now: datetime) -> None:
+        """新块插入，已有的块刷新 last_seen_at。刷新是必须的：清理按它判断，不刷新的话
+        一段长期稳定的角色卡会因为“第一次存的时间太久”而被清掉，而仍在被新追踪引用。"""
+        items = list(blobs.items())
+        for i in range(0, len(items), BLOB_BATCH):
+            batch = items[i:i + BLOB_BATCH]
+            rows = [dict(owner_id=owner_id, hash=h, body=body, last_seen_at=now) for h, body in batch]
+            await conn.execute(_upsert_blobs(conn, rows))
+
+    async def read_trace(self, *, turn_id: str, owner_id: int | None = None) -> dict[str, Any] | None:
+        """还原一个回合：每次模型调用实际看到的输入、输出、思考、工具请求和指标。"""
+        where = [turn_trace.c.turn_id == turn_id]
+        if owner_id is not None:
+            where.append(turn_trace.c.owner_id == owner_id)
+        async with self._engine.connect() as conn:
+            row = (await conn.execute(select(turn_trace).where(*where))).mappings().first()
+            if row is None:
+                return None
+            steps = list(row["steps"] or [])
+            hashes = referenced_hashes(steps)
+            blobs: dict[str, str] = {}
+            if hashes:
+                got = (await conn.execute(select(text_blob.c.hash, text_blob.c.body).where(
+                    text_blob.c.owner_id == row["owner_id"], text_blob.c.hash.in_(list(hashes))))).all()
+                blobs = {h: body for h, body in got}
+        return {"turn_id": turn_id, "session_id": row["session_id"], "owner_id": row["owner_id"],
+                "role_id": row["role_id"], "content_kept": row["content_kept"], "attempts": row["attempts"],
+                "created_at": row["created_at"], "usage": usage_of(steps), "steps": read_trace(steps, blobs)}
 
     async def record_voice_turn(self, record: VoiceTurnRecord, *, keep_content: bool) -> None:
         """写入或合并一个语音回合。内容字段只在 ``keep_content`` 时写；音频是用户相关的声音，同意之前一律不留。"""
@@ -138,17 +167,23 @@ class SqlQaStore:
                 await conn.execute(update(voice_turn).where(voice_turn.c.turn_id == record.turn_id).values(**values))
 
     async def purge_before(self, *, cutoff: datetime) -> Purged:
-        """删除 ``cutoff`` 之前的全部记录，返回要一并从对象存储删除的音频键。"""
+        """删除 ``cutoff`` 之前的全部记录，返回要一并从对象存储删除的音频键。
+
+        文本块按 last_seen_at 清：每次引用都会刷新它，所以只要还有未到期的追踪在引用，块就不会被清掉。
+        追踪行和块刷新用的是同一个事务里的同一个时刻，不会出现“追踪留着、块先到期”的间隙。
+        """
         async with self._engine.begin() as conn:
             keys = await self._audio_keys(conn, voice_turn.c.created_at < cutoff)
-            n = (await conn.execute(delete(llm_call).where(llm_call.c.created_at < cutoff))).rowcount or 0
+            n = (await conn.execute(delete(turn_trace).where(turn_trace.c.created_at < cutoff))).rowcount or 0
+            n += (await conn.execute(delete(text_blob).where(text_blob.c.last_seen_at < cutoff))).rowcount or 0
             n += (await conn.execute(delete(voice_turn).where(voice_turn.c.created_at < cutoff))).rowcount or 0
         return Purged(rows=n, object_keys=keys)
 
     async def delete_user(self, *, owner_id: int) -> Purged:
         async with self._engine.begin() as conn:
             keys = await self._audio_keys(conn, voice_turn.c.owner_id == owner_id)
-            n = (await conn.execute(delete(llm_call).where(llm_call.c.owner_id == owner_id))).rowcount or 0
+            n = (await conn.execute(delete(turn_trace).where(turn_trace.c.owner_id == owner_id))).rowcount or 0
+            n += (await conn.execute(delete(text_blob).where(text_blob.c.owner_id == owner_id))).rowcount or 0
             n += (await conn.execute(delete(voice_turn).where(voice_turn.c.owner_id == owner_id))).rowcount or 0
         return Purged(rows=n, object_keys=keys)
 
@@ -162,7 +197,8 @@ class SqlQaStore:
 
     async def count(self) -> dict[str, int]:
         async with self._engine.connect() as conn:
-            return {"llm_call": (await conn.execute(select(func.count()).select_from(llm_call))).scalar_one(),
+            return {"turn_trace": (await conn.execute(select(func.count()).select_from(turn_trace))).scalar_one(),
+                    "text_blob": (await conn.execute(select(func.count()).select_from(text_blob))).scalar_one(),
                     "voice_turn": (await conn.execute(select(func.count()).select_from(voice_turn))).scalar_one()}
 
 
@@ -172,20 +208,14 @@ class SqlQaStore:
     # 两者谁先到都行，所以都是“有则更新、无则插入”。
 
     async def note_turn_models(self, *, turn_id: str, session_id: int, owner_id: int, role_id: str,
-                               prompt_version: str, skills: tuple[str, ...], records: list[LlmCallRecord],
+                               prompt_version: str, skills: tuple[str, ...], steps: list[dict[str, Any]],
                                started_at: datetime) -> None:
-        usage = {
-            "calls": len(records),
-            "input_tokens": sum(r.input_tokens or 0 for r in records),
-            "output_tokens": sum(r.output_tokens or 0 for r in records),
-            "cached_tokens": sum(r.cached_tokens or 0 for r in records),
-            "llm_ms": sum(r.total_ms or 0 for r in records),
-            "tool_calls": sum(len(r.tool_calls) for r in records),
-        }
-        model = next((r.model for r in reversed(records) if r.model), "")
+        """回合汇总里的模型、用量。``steps`` 是 ``record_trace`` 返回的合并后全部步骤，
+        所以回合被重跑过时用量是各次尝试的总和，而不是只有最后一次。"""
+        model = next((x["m"] for x in reversed(steps) if x.get("m")), "")
         await self._upsert_turn(turn_id, session_id=session_id, owner_id=owner_id, role_id=role_id,
                                 changes=dict(model=model or None, prompt_version=prompt_version or None,
-                                             skills=list(skills), usage=usage, started_at=started_at))
+                                             skills=list(skills), usage=usage_of(steps), started_at=started_at))
 
     async def finish_turn(self, *, turn_id: str, session_id: int, owner_id: int, role_id: str, state: str,
                           error_code: str = "") -> None:
@@ -207,3 +237,24 @@ class SqlQaStore:
             # 另一个写入方刚好先插入了：改为更新
             async with self._engine.begin() as conn:
                 await conn.execute(update(chat_turn).where(chat_turn.c.id == turn_id).values(**changes))
+
+
+def _upsert_blobs(conn: Any, rows: list[dict[str, Any]]):
+    """“有则只刷新 last_seen_at，无则插入”。三种方言的写法不同；body 不更新（哈希相同则内容相同）。"""
+    name = conn.dialect.name
+    if name == "postgresql":
+        from sqlalchemy.dialects.postgresql import insert as dialect_insert
+
+        stmt = dialect_insert(text_blob).values(rows)
+        return stmt.on_conflict_do_update(index_elements=["owner_id", "hash"],
+                                          set_={"last_seen_at": stmt.excluded.last_seen_at})
+    if name == "sqlite":
+        from sqlalchemy.dialects.sqlite import insert as dialect_insert
+
+        stmt = dialect_insert(text_blob).values(rows)
+        return stmt.on_conflict_do_update(index_elements=["owner_id", "hash"],
+                                          set_={"last_seen_at": stmt.excluded.last_seen_at})
+    from sqlalchemy.dialects.mysql import insert as dialect_insert
+
+    stmt = dialect_insert(text_blob).values(rows)
+    return stmt.on_duplicate_key_update(last_seen_at=stmt.inserted.last_seen_at)

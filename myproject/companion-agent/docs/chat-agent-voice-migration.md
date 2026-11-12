@@ -189,15 +189,42 @@ PYTHONPATH=src .venv/bin/python -m companion.worker dev
 做质检、算成本、排查"为什么这句话这么回"都需要知道模型每次收到了什么、回了什么、花了多少。
 语音还需要判断 **TTS 念得对不对**：要同时有"送进 TTS 的文本"和"出来的音频"。
 
-### 11.2 `ca_llm_call`（每次模型调用一行，已实现）
+### 11.2 `ca_turn_trace` + `ca_text_blob`（一个回合一条完整链路，已实现）
 
-字段：`turn_id` `session_id` `owner_id` `role_id` `seq`（回合内第几次调用）`provider` `model` `prompt_version`
-`content_kept` `input_messages` `output_text` `reasoning_text` `input_tokens` `output_tokens` `cached_tokens`
-`first_token_ms` `total_ms` `finish_reason` `error_code` `created_at`。
+**一个回合一行**，存这个回合从头到尾的执行链路：每一次模型调用的输入（系统提示词、历史、用户消息、工具结果）、
+输出、思考、请求的工具、token、耗时，足以还原模型每一次实际看到了什么。回合被"合并重跑"时同一个 `turn_id`
+会再来一次，新的步骤接在后面并记第几次尝试，不覆盖，用量也是各次尝试的总和。
 
-采集方式：`LlmCallCollector` 是 LangChain 回调处理器，挂在 DeerFlow 图的 `config.callbacks` 上，工具往返、
-摘要等每一次模型调用各记一行（流里看不到这些）。回合收尾时 `platform.produce` 按用户同意写库，失败只记日志。
-单条消息超过 16000 字符截断（系统提示词带角色卡、记忆、技能，一轮可达数万字）。
+（最初我做成了"调用一次存一行"的 `ca_llm_call`，每行都带完整输入，同一段历史会重复存很多遍，
+也不符合"一个回合是完整链路"。已删除，表也从 baseline 里去掉了。）
+
+**消息太长怎么办**，先说量级。用真实的林澈角色卡、技能、记忆画像预算量过：
+
+- 系统提示词约 2.5K 字（上限 8000 字，角色卡/技能/记忆/画像各有预算），目录角色约 4–5K；
+- 历史由摘要中间件控制（超过 9000 token 就把较早的压成摘要，只留最近 20 条），约 3K 字；
+- 工具结果单条上限 2000 字（`result_budget_chars`）。
+
+所以**单次调用的输入通常在 10K 字以内，并不大**。真正的浪费是重复：同一回合里工具往返会再调一次模型，
+输入几乎一样；跨回合，角色卡、技能和历史基本不变。解决办法是两层，不是靠截断：
+
+1. **内容寻址去重**：消息正文按空行切成段落，每段按内容哈希（128 位）存进 `ca_text_blob`，追踪里只存哈希。
+   稳定的段落（角色卡、技能、已经说过的历史）全局只存一份，变化的（本轮召回的记忆、新的一句话）才新增。
+   切法是确定的，某一段改了不会让邻居的哈希跟着变。
+2. **回合内增量**：第 k+1 次调用的输入就是第 k 次加上"模型回复 + 工具结果"，只存追加的部分；
+   接不上时（中间件改写了历史）退回存一份新的完整输入，不会错位。
+
+**单条消息兜底上限 20000 字**（保留头 14000 + 尾 6000，中间标明省略了多少字，并记录原长）。这只防极端情况，
+不是主要手段；被截断的消息还原时会带 `truncated_from`。
+
+**实测**（模拟 30 个回合、其中 10 个有工具往返共 40 次模型调用，用真实林澈角色卡与技能，每轮召回的记忆不同）：
+旧方案每次调用存完整输入共 191,230 字；去重后只存 10,964 字（97 个文本块），约 5.7%；单个回合的追踪行
+引用部分约 3.8KB。**这是模拟数据，不是线上数据**：真实的节省比例取决于用户每轮召回的记忆变化多快、
+对话多长，不应当作承诺。
+
+**清理不会误删仍在用的块**：块有 `last_seen_at`，每次被新的追踪引用就刷新；到期清理按它判断。
+否则一段 100 天前第一次存下、今天仍被引用的角色卡会被清掉（测试专门覆盖了这个情形）。
+块按用户隔离（主键含 `owner_id`），注销时整批删除，不会因为别的用户有一样的文字而误留或误删。
+还原时如果某个块已被清理，正文里会显示"缺失文本块"，不会悄悄变成空串。
 
 ### 11.3 `ca_voice_turn`（每个语音回合一行，已实现）
 
@@ -215,8 +242,9 @@ PYTHONPATH=src .venv/bin/python -m companion.worker dev
 ### 11.4 同意与留存（已实现）
 
 - `ca_user_consent.qa_retention`，**默认关**，`PATCH /v1/consent {"qa_retention": true}` 打开。
-- **指标永远写，内容看同意**：token、耗时、结束原因、供应商、音色不含用户原话，总是记；输入输出、思考、识别文本、
-  送去合成的句子、音频键只在同意后写（`content_kept` 标记这一行当时是否带了内容）。
+- **指标永远写，内容看同意**：token、耗时、结束原因、供应商、音色、工具名不含用户原话，总是记；输入输出、思考、工具参数、
+  识别文本、送去合成的句子、音频键只在同意后写（`content_kept` 标记这一行当时是否带了内容）。不同意时不产生任何文本块，
+  测试里检查了数据库里查不到用户说过的话、模型回的话、系统提示词和工具参数。
 - 读取同意失败按"不同意"处理（fail-closed）：宁可少存，不可多存。
 - 保留期限 `COMPANION_QA_RETENTION_DAYS`，默认 **90 天**（待确认）。后台进程每天入队 `qa.purge`，删除到期记录，
   音频对象同步删除；对象删除失败只记日志，不让任务失败重试（表里的记录已删，重试找不到键）。
@@ -266,21 +294,32 @@ PYTHONPATH=src .venv/bin/python -m companion.worker dev
 没返回置信度时填 `0.0`，那是"未知"不是"完全不确定"，所以 0 和缺失都存空。**没验证火山的接口是否真的会返回置信度**，
 可能这一列大多是空的。
 
-### 11.7 工具调用与 skill（回答"ca_llm_call 会不会存下 tool 和 skill"）
+### 11.7 工具调用与 skill
 
-之前**不会**：采集器只取文本正文，一次只请求工具、没有正文的调用会存成一行空输出，看不出调了什么工具；
-`ca_tool_call` 只有工具名、参数指纹、耗时，没有参数和结果（这是为隐私刻意的）；`ca_chat_turn` 有 `skills` 列
-但没有任何代码写入。现在：
-
-- `ca_llm_call.tool_calls`：这次调用请求的工具 `[{id, name, args}]`。**工具名总是记，参数只在同意后记**
-  （参数里会有用户说的事，如"周五面试"）。工具返回的结果出现在下一次调用的 `input_messages` 里
-  （`role=tool`，带 `tool_call_id` 和工具名，能对上是哪次调用的结果）。
+- 工具请求：每一步的 `tools` 记 `[{id, name, args}]`，**工具名总是记，参数只在同意后记**（参数里有用户说的事）。
+  工具返回的结果出现在下一步的输入里（`role=tool`，带 `tool_call_id` 和工具名，能对上是哪次请求的结果）。
+  `ca_tool_call` 仍只有工具名、参数指纹、耗时（为隐私刻意不存参数和结果）。
 - skill：`PromptPlan.skills` 记录本轮提示词实际用到的 skill，**包括常驻的**（如 `companion-core`）。
   `SkillLibrary.selected_ids()` 是 `compose` 用的同一份选择逻辑，不会出现"记的和用的不一致"。
-- `ca_chat_turn`（回合一行的汇总）：`model` `prompt_version` `skills` `usage`（调用次数、输入/输出/缓存 token、
-  模型耗时合计、工具调用次数）`state`（done/failed/cancelled/lost）`error_code` `started_at` `finished_at`。
-  由两处写入：`produce` 收尾时带来模型与用量，`TurnRunner` 的 `after_turn` 带来最终状态，谁先到都行。
-  它与 `ca_llm_call` 的关系：前者一个回合一行，后者一次模型调用一行。
+- `ca_chat_turn`（回合一行的汇总，长期保留，不含正文）：`model` `prompt_version` `skills` `usage`（调用次数、
+  输入/输出/缓存 token、模型耗时合计、工具调用次数）`state`（done/failed/cancelled/lost）`error_code`
+  `started_at` `finished_at`。两处写入：`produce` 收尾时带来模型与用量，`TurnRunner` 的 `after_turn` 带来最终状态，
+  谁先到都行。它和 `ca_turn_trace` 的分工：汇总行不含用户内容、可以长期留；追踪行含正文、按保留期限清理。
+
+### 11.8 分层契约（一次回归）
+
+本项目用 import-linter 守 7 条分层契约（`.importlinter`）。**这一阶段我引入了 6 处违规、打破了 3 条契约**
+（接口层和应用层直接引了适配器，`config` 经 `bootstrap` 越层），而我在汇报"测试全过"时没有跑
+`lint-imports`。已修，基线提交 `7a0d153` 是 7 条全过，现在也是：
+
+- `TurnRefused` 是大脑端口约定的异常，移到 `ports/brain.py`；
+- `PlatformBrain`、`TtsArchiver`、质检记录写入口由组合根构造，`bootstrap/voice_wiring.py` 返回 `VoiceParts` 交给
+  `make_entrypoint`；`PlatformSpeaker` 改为注入大脑；
+- `TtsCapture` 是纯标准库逻辑，放进 `domain/voice/`；
+- 连接串的纯函数拆到 `companion/dburl.py`，`config` 不再依赖 `bootstrap`。
+
+**先前我对比"基线"时用错了环境**：可编辑安装让在 worktree 里跑的 lint 读到的还是当前代码，两次输出一模一样，
+差点据此得出"没有新增违规"的错误结论；强制 `PYTHONPATH` 后才看到真实差异。
 
 ## 12. 重复实现盘点与待定事项
 

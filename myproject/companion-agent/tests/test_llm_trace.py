@@ -3,7 +3,7 @@
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
-from companion.adapters.brain.llm_trace import MAX_MESSAGE_CHARS, LlmCallCollector
+from companion.adapters.brain.llm_trace import LlmCallCollector
 
 
 def _model(*messages):
@@ -74,12 +74,15 @@ async def test_reasoning_is_taken_from_additional_kwargs_or_content_blocks():
     assert c2.drain()[0].reasoning_text == "再想想"
 
 
-async def test_very_long_prompts_are_clipped_not_stored_whole():
+async def test_the_collector_keeps_long_prompts_whole_clipping_is_the_builders_job():
+    # 裁剪只在 build_trace 里做一次（domain/trace/model.py）；采集器只在内存里攒一个回合，不需要自己再裁
+    from langchain_core.messages import SystemMessage
+
     collector = LlmCallCollector()
     await _model(AIMessage(content="x")).ainvoke(
-        [SystemMessage(content="词" * (MAX_MESSAGE_CHARS + 500))], config={"callbacks": [collector]})
-    stored = collector.drain()[0].input_messages[0]["content"]
-    assert len(stored) < MAX_MESSAGE_CHARS + 60 and "截断" in stored
+        [SystemMessage(content="词" * 30_000)], config={"callbacks": [collector]})
+    assert len(collector.drain()[0].input_messages[0]["content"]) == 30_000
+
 
 
 from langchain_core.language_models.chat_models import BaseChatModel

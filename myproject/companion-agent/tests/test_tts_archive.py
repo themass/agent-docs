@@ -8,7 +8,7 @@ from sqlalchemy import select
 from companion.adapters.store.sql.qa import SqlQaStore
 from companion.adapters.store.sql.schema import voice_turn
 from companion.adapters.voice.tts_archive import MAX_OPEN_TURNS, TtsArchiver
-from companion.adapters.voice.tts_capture import TtsSegment
+from companion.domain.voice.tts_capture import TtsSegment
 
 
 def seg(text="先歇一会儿。", pcm=b"\x01\x00" * 16000, rate=16000, completed=True, ttfb=300, truncated=False):

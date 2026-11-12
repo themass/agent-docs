@@ -17,7 +17,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy.engine import URL, make_url
+from companion.dburl import is_postgres, to_psycopg_conninfo
 
 log = logging.getLogger("companion.database")
 
@@ -63,29 +63,6 @@ def profile_for(name: str) -> PoolProfile:
         return PROFILES[name]
     except KeyError:
         raise ValueError(f"unknown pool profile {name!r}, expected one of {sorted(PROFILES)}") from None
-
-
-def build_url(*, host: str, port: int, database: str, user: str, password: str,
-              driver: str = "postgresql+psycopg") -> URL:
-    """用各部分拼连接串。
-
-    密码里常有 ``@``、``:``、``/``、``#``，直接字符串拼接会把它们当成分隔符，
-    解析出错误的主机名。``URL.create`` 保存原始值，渲染时才做百分号转义。
-    """
-    return URL.create(drivername=driver, username=user or None, password=password or None,
-                      host=host, port=port, database=database)
-
-
-def is_postgres(url: str | URL) -> bool:
-    return make_url(url).get_backend_name() == "postgresql"
-
-
-def to_psycopg_conninfo(url: str | URL) -> str:
-    """SQLAlchemy 连接串 → psycopg 连接串（去掉驱动后缀，密码保持转义）。非 Postgres 返回空串。"""
-    parsed = make_url(url)
-    if parsed.get_backend_name() != "postgresql":
-        return ""
-    return parsed.set(drivername="postgresql").render_as_string(hide_password=False)
 
 
 def server_options(application_name: str) -> dict[str, str]:

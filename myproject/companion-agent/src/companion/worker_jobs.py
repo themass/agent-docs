@@ -72,8 +72,10 @@ def build_initiative_loop(platform):
         # SET NX：同一次发生只有一个后台进程抢得到；过期时间远长于扫描窗口
         return bool(await platform.redis.set(f"ca:initiative:{key}", b"1", nx=True, ex=CLAIM_TTL_SEC))
 
-    speaker = PlatformSpeaker(sessions=platform.sessions, submit=platform.chat.submit,
-                              control=platform.chat.control, compliance=platform.compliance)
+    from companion.adapters.brain.platform_brain import PlatformBrain
+
+    brain = PlatformBrain(submit=platform.chat.submit, control=platform.chat.control, role="system", kind="proactive")
+    speaker = PlatformSpeaker(sessions=platform.sessions, brain=brain, compliance=platform.compliance)
     return InitiativeLoop(
         scheduler=InitiativeScheduler(timeline=platform.timeline, preferences_loader=platform.preferences.load,
                                       state_loader=platform.ledger.state_for),

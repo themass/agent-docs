@@ -19,7 +19,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from companion.domain.turn.queue import Disposition
-from companion.ports.brain import BrainTurn, TurnRequest
+from companion.ports.brain import BrainTurn, TurnRefused, TurnRequest
 
 logger = logging.getLogger(__name__)
 
@@ -27,14 +27,6 @@ logger = logging.getLogger(__name__)
 DEFAULT_TURN_TIMEOUT_SEC = 120.0
 _POLL_MS = 1000
 _END_EVENTS = frozenset({"message.done", "turn.cancelled", "error"})
-
-
-class TurnRefused(Exception):
-    """输入被拒绝（内容安全等）。语音端应该告诉用户“这个我不能聊”，而不是沉默。"""
-
-    def __init__(self, reason: str | None) -> None:
-        super().__init__(reason or "refused")
-        self.reason = reason or ""
 
 
 class PlatformBrain:

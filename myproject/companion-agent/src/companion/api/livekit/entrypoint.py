@@ -145,41 +145,24 @@ def build_session_options(*, mode: str = "text", voice_factory: Any = None) -> d
     return options
 
 
-def build_voice_recorder(platform: Any, voice_info: dict[str, str] | None = None):
-    """语音回合的质检记录写入口。内容（识别文本、送去合成的句子）只在用户同意质检留存时才写；
-    供应商与音色这类不含用户原话的信息总是写。"""
-    info = voice_info or {}
-    qa, compliance = getattr(platform, "qa", None), getattr(platform, "compliance", None)
-    if qa is None:
-        return None
+@dataclass
+class VoiceParts:
+    """一个房间需要的、由组合根按平台装配好的零件。接口层只认这几个形状，不认具体实现。"""
 
-    async def record(rec: Any) -> None:
-        rec.stt_provider = info.get("stt_provider", "")
-        rec.tts_provider, rec.tts_voice = info.get("tts_provider", ""), info.get("tts_voice", "")
-        keep = await compliance.qa_content_allowed(owner_id=rec.owner_id) if compliance is not None else False
-        await qa.record_voice_turn(rec, keep_content=keep)
-
-    return record
+    brain: Any                 # BrainPort：把语音识别出的话交给回合引擎
+    recorder: Any = None       # async (VoiceTurnRecord) -> None
+    tts_sink: Any = None       # async (**turn 信息, segment=TtsSegment) -> None
 
 
-def build_tts_archiver(platform: Any, voice_info: dict[str, str] | None = None):
-    """TTS 采集的归档器：文本与耗时写库，音频（用户同意后）传对象存储。没有质检存储就不采集。"""
-    if getattr(platform, "qa", None) is None:
-        return None
-    from companion.adapters.voice.tts_archive import TtsArchiver
-
-    info = voice_info or {}
-    return TtsArchiver(qa=platform.qa, compliance=getattr(platform, "compliance", None),
-                       objects=getattr(platform, "objects", None), key_prefix=getattr(platform, "tos_key_prefix", ""),
-                       provider=info.get("tts_provider", ""), voice=info.get("tts_voice", ""))
-
-
-def make_entrypoint(platform_factory: Any, voice_factory: Any = None, voice_info: dict[str, str] | None = None):
+def make_entrypoint(platform_factory: Any, voice_factory: Any = None, wire_voice: Any = None):
     """装配好的 worker 入口。
 
     ``platform_factory`` 是协程函数，返回和 HTTP 服务同一套 platform（同库、同 Redis、同回合引擎）。
     语音回合因此与文字共用会话、历史、对话线程和回合后处理，而不是另一条直连大脑的管线。
     它必须在事件循环里调用（checkpoint 连接池要用运行中的循环），所以放在入口里而不是启动时。
+
+    ``wire_voice(platform) -> VoiceParts`` 由组合根提供：大脑、质检记录、TTS 采集的具体实现都在那里构造，
+    本模块（接口层）不依赖适配器。
     """
 
     async def entrypoint(ctx: Any) -> None:
@@ -188,7 +171,6 @@ def make_entrypoint(platform_factory: Any, voice_factory: Any = None, voice_info
 
         from livekit.agents import AgentSession
 
-        from companion.adapters.brain.platform_brain import PlatformBrain
         from companion.api.livekit.agent import build_agent_class
         from companion.domain.turn.pipeline import TurnPipeline
 
@@ -212,8 +194,8 @@ def make_entrypoint(platform_factory: Any, voice_factory: Any = None, voice_info
         publisher = AvatarPublisher(ctx.room)
         publisher.set_local_participant(ctx.room.local_participant)
 
-        brain = PlatformBrain(submit=platform.chat.submit, control=platform.chat.control)
-        pipeline = TurnPipeline(brain, event_sink=publisher)
+        parts: VoiceParts = wire_voice(platform)
+        pipeline = TurnPipeline(parts.brain, event_sink=publisher)
         agent_class = build_agent_class()
 
         # 提示词由回合引擎按会话组装（角色卡、技能、记忆、画像），这里不再自己拼一份。
@@ -222,8 +204,8 @@ def make_entrypoint(platform_factory: Any, voice_factory: Any = None, voice_info
             character_id=identity.character_id,
             user_id=identity.user_id,
             chat_session_id=identity.chat_session_id,
-            recorder=build_voice_recorder(platform, voice_info),
-            tts_sink=build_tts_archiver(platform, voice_info),
+            recorder=parts.recorder,
+            tts_sink=parts.tts_sink,
         )
 
         # 语音栈必须显式按 voice 模式装配：不传 mode 时默认是 text，STT/TTS/VAD 都不会挂上，

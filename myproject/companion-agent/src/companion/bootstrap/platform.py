@@ -263,28 +263,26 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     resummarize = (ResummarizeService(messages=messages, conversation=conversation, control=control, llm=llm)
                    if conversation is not None and llm is not None else None)
 
-    async def record_llm_calls(collector: LlmCallCollector, request: TurnRequest, *, owner_id: int, role_id: str,
-                               started_at: datetime) -> None:
-        """回合收尾时把这一回合的模型调用写库。内容只在用户同意质检留存时才写；任何失败只记日志，
+    async def record_trace(collector: LlmCallCollector, request: TurnRequest, *, owner_id: int, role_id: str,
+                           started_at: datetime) -> None:
+        """回合收尾时把这一回合的完整执行链路写成一条追踪。正文只在用户同意质检留存时才写；任何失败只记日志，
         不能影响回答本身（回答已经交付，记录是旁路）。"""
         try:
-            records = collector.drain()
-            if not records:
+            calls = collector.drain()
+            if not calls:
                 return
             turn_id = str(request.metadata.get("turn_id") or "")
-            for r in records:
-                r.turn_id, r.session_id, r.owner_id, r.role_id = turn_id, request.session_id or 0, owner_id, role_id
-                r.prompt_version = PROMPT_VERSION
             keep = await compliance.qa_content_allowed(owner_id=owner_id)
-            await qa.record_llm_calls(records, keep_content=keep)
+            steps = await qa.record_trace(turn_id=turn_id, session_id=request.session_id or 0, owner_id=owner_id,
+                                          role_id=role_id, calls=calls, keep_content=keep)
             # 回合汇总：模型、提示词版本、用了哪些 skill、用量合计。skill 名不含用户原话，总是记。
             plan = request.prompt
             await qa.note_turn_models(
                 turn_id=turn_id, session_id=request.session_id or 0, owner_id=owner_id, role_id=role_id,
                 prompt_version=getattr(plan, "version", "") or PROMPT_VERSION,
-                skills=tuple(getattr(plan, "skills", ()) or ()), records=records, started_at=started_at)
+                skills=tuple(getattr(plan, "skills", ()) or ()), steps=steps, started_at=started_at)
         except Exception:  # noqa: BLE001
-            log.warning("llm call record failed", extra={"turn_id": request.metadata.get("turn_id")})
+            log.warning("turn trace record failed", extra={"turn_id": request.metadata.get("turn_id")})
 
     async def produce(request: TurnRequest, inbox: Any) -> AsyncIterator[Any]:
         owner_id = int(request.user_id)
@@ -301,8 +299,8 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
                 async for event in brain.run(request, inbox):
                     yield event
             finally:
-                await record_llm_calls(collector, request, owner_id=owner_id, role_id=request.character_id,
-                                       started_at=started_at)
+                await record_trace(collector, request, owner_id=owner_id, role_id=request.character_id,
+                                   started_at=started_at)
             return
         turn = await brain.start_turn(request)   # 测试用的假大脑只实现了 start_turn
         async for chunk in turn.tokens:

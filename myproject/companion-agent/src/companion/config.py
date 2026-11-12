@@ -61,7 +61,7 @@ class Settings(BaseSettings):
         if self.companion_database_url:
             return self.companion_database_url
         if self.companion_db_host and self.companion_db_name:
-            from companion.bootstrap.database import build_url
+            from companion.dburl import build_url
 
             return build_url(host=self.companion_db_host, port=self.companion_db_port,
                              database=self.companion_db_name, user=self.companion_db_user,
@@ -71,7 +71,7 @@ class Settings(BaseSettings):
     @property
     def checkpoint_url(self) -> str:
         """psycopg 连接串：去掉 SQLAlchemy 的驱动后缀。只有 Postgres 才能用作 checkpoint。"""
-        from companion.bootstrap.database import to_psycopg_conninfo
+        from companion.dburl import to_psycopg_conninfo
 
         url = self.companion_checkpoint_url or self.companion_database_url or (
             self.database_url if self.companion_db_host else "")

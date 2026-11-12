@@ -4,6 +4,7 @@ import logging
 
 import pytest
 
+from companion import dburl
 from companion.bootstrap import database as db
 from companion.config import Settings
 
@@ -20,40 +21,40 @@ PASSWORD = "Pa@ss:w/rd#1"   # 故意放进所有会被当成分隔符的字符
 
 
 def test_special_characters_in_the_password_survive_the_url():
-    url = db.build_url(host="db.internal", port=5432, database="app", user="svc", password=PASSWORD)
+    url = dburl.build_url(host="db.internal", port=5432, database="app", user="svc", password=PASSWORD)
     rendered = url.render_as_string(hide_password=False)
     # 渲染出的串能被重新解析回原样；直接字符串拼接做不到
-    parsed = db.make_url(rendered)
+    parsed = dburl.make_url(rendered)
     assert (parsed.host, parsed.port, parsed.username, parsed.password) == ("db.internal", 5432, "svc", PASSWORD)
 
 
 def test_the_password_is_hidden_when_the_url_is_printed():
-    url = db.build_url(host="h", port=1, database="d", user="u", password=PASSWORD)
+    url = dburl.build_url(host="h", port=1, database="d", user="u", password=PASSWORD)
     assert PASSWORD not in str(url)
 
 
 def test_psycopg_conninfo_keeps_the_escaped_password_and_drops_the_driver():
-    url = db.build_url(host="h", port=1, database="d", user="u", password=PASSWORD)
-    info = db.to_psycopg_conninfo(url)
+    url = dburl.build_url(host="h", port=1, database="d", user="u", password=PASSWORD)
+    info = dburl.to_psycopg_conninfo(url)
     assert info.startswith("postgresql://") and "+psycopg" not in info
-    assert db.make_url(info).password == PASSWORD
+    assert dburl.make_url(info).password == PASSWORD
 
 
 def test_non_postgres_has_no_checkpoint_conninfo():
-    assert db.to_psycopg_conninfo("sqlite+aiosqlite:///:memory:") == ""
+    assert dburl.to_psycopg_conninfo("sqlite+aiosqlite:///:memory:") == ""
 
 
 def test_settings_build_the_url_from_parts():
     s = Settings(_env_file=None, companion_db_host="h", companion_db_name="d", companion_db_user="u",
                  companion_db_password=PASSWORD, companion_db_port=6543)
-    assert db.make_url(s.database_url).password == PASSWORD
-    assert db.make_url(s.checkpoint_url).port == 6543
+    assert dburl.make_url(s.database_url).password == PASSWORD
+    assert dburl.make_url(s.checkpoint_url).port == 6543
 
 
 def test_a_full_url_wins_over_parts():
     s = Settings(_env_file=None, companion_database_url="postgresql+psycopg://a:b@x/y",
                  companion_db_host="other", companion_db_name="other")
-    assert db.make_url(s.database_url).host == "x"
+    assert dburl.make_url(s.database_url).host == "x"
 
 
 def test_parts_without_a_host_do_not_make_a_url():
@@ -78,7 +79,7 @@ def test_unknown_profile_is_an_error_not_a_default():
 
 
 def test_postgres_engine_gets_the_profile_pool():
-    url = db.build_url(host="h", port=1, database="d", user="u", password="p").render_as_string(hide_password=False)
+    url = dburl.build_url(host="h", port=1, database="d", user="u", password="p").render_as_string(hide_password=False)
     engine = db.make_engine(url, db.profile_for("voice"))
     pool = engine.sync_engine.pool
     assert (pool.size(), pool._max_overflow) == (2, 2)
@@ -99,7 +100,7 @@ def test_connections_are_tagged_with_the_process_role_and_timeouts():
 
 
 def test_checkpoint_pool_is_closed_until_the_loop_opens_it():
-    url = db.build_url(host="h", port=1, database="d", user="u", password="p").render_as_string(hide_password=False)
+    url = dburl.build_url(host="h", port=1, database="d", user="u", password="p").render_as_string(hide_password=False)
     pool = db.make_checkpoint_pool(url, db.profile_for("api"))
     assert pool.closed and pool.max_size == db.profile_for("api").checkpoint_max
 

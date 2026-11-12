@@ -12,7 +12,7 @@ from collections import OrderedDict
 from typing import Any
 
 from companion.adapters.store.sql.qa import VoiceTurnRecord
-from companion.adapters.voice.tts_capture import TtsSegment, pcm_to_wav
+from companion.domain.voice.tts_capture import TtsSegment, pcm_to_wav
 
 log = logging.getLogger("companion.voice.archive")
 

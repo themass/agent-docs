@@ -15,12 +15,7 @@ from uuid import UUID
 
 from langchain_core.callbacks import BaseCallbackHandler
 
-from companion.adapters.store.sql.qa import LlmCallRecord
-
-# 单条消息超过这个长度就截断：系统提示词带角色卡、记忆、技能，一轮可达数万字，
-# 每次调用都原样存一份会让表迅速膨胀。
-MAX_MESSAGE_CHARS = 16_000
-
+from companion.domain.trace.model import LlmCall
 
 def _text(content: Any) -> str:
     if isinstance(content, str):
@@ -30,13 +25,9 @@ def _text(content: Any) -> str:
     return str(content or "")
 
 
-def _clip(text: str) -> str:
-    return text if len(text) <= MAX_MESSAGE_CHARS else text[:MAX_MESSAGE_CHARS] + f"…[截断，原长 {len(text)}]"
-
-
 def _input_item(m: Any) -> dict[str, Any]:
     """送进模型的一条消息。工具结果要带上是哪次调用的（tool_call_id）和哪个工具，否则回看时对不上号。"""
-    item: dict[str, Any] = {"role": getattr(m, "type", "?"), "content": _clip(_text(getattr(m, "content", "")))}
+    item: dict[str, Any] = {"role": getattr(m, "type", "?"), "content": _text(getattr(m, "content", ""))}
     if getattr(m, "tool_call_id", None):
         item["tool_call_id"] = m.tool_call_id
     if getattr(m, "name", None):
@@ -70,7 +61,7 @@ class LlmCallCollector(BaseCallbackHandler):
 
     def __init__(self) -> None:
         self._open: dict[UUID, dict[str, Any]] = {}
-        self._done: list[LlmCallRecord] = []
+        self._done: list[LlmCall] = []
         self._seq = 0
 
     # ---- LangChain 回调 ----
@@ -103,8 +94,7 @@ class LlmCallCollector(BaseCallbackHandler):
         details = usage.get("input_token_details") or {}
         meta = (getattr(message, "response_metadata", None) or {}) if message is not None else {}
         now = time.monotonic()
-        self._done.append(LlmCallRecord(
-            turn_id="", session_id=0, owner_id=0,             # 由调用方补齐
+        self._done.append(LlmCall(
             seq=call["seq"], provider=call["provider"], model=str(meta.get("model_name") or call["model"]),
             input_messages=call["input"], output_text=_text(getattr(message, "content", "")) if message else "",
             reasoning_text=_reasoning(message) if message is not None else "",
@@ -119,13 +109,13 @@ class LlmCallCollector(BaseCallbackHandler):
         call = self._open.pop(run_id, None)
         if call is None:
             return
-        self._done.append(LlmCallRecord(
-            turn_id="", session_id=0, owner_id=0, seq=call["seq"], provider=call["provider"], model=call["model"],
+        self._done.append(LlmCall(
+            seq=call["seq"], provider=call["provider"], model=call["model"],
             input_messages=call["input"], total_ms=int((time.monotonic() - call["t0"]) * 1000),
             error_code=type(error).__name__[:64]))
 
     # ---- 取用 ----
 
-    def drain(self) -> list[LlmCallRecord]:
+    def drain(self) -> list[LlmCall]:
         done, self._done = sorted(self._done, key=lambda r: r.seq), []
         return done

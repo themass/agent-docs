@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from companion.adapters.store.sql.qa import SqlQaStore, VoiceTurnRecord
 from companion.adapters.store.sql.schema import voice_turn
 from companion.api.livekit.agent import build_agent_class
-from companion.api.livekit.entrypoint import build_voice_recorder
+from companion.bootstrap.voice_wiring import build_voice_recorder
 from companion.ports.brain import BrainTurn
 from sqlalchemy import select
 
@@ -78,7 +78,7 @@ async def test_an_interrupted_turn_is_still_recorded_with_what_was_already_sent(
 
 
 async def test_a_refused_input_has_no_turn_so_nothing_is_recorded():
-    from companion.adapters.brain.platform_brain import TurnRefused
+    from companion.ports.brain import TurnRefused
 
     rec = Recorder()
     agent = _agent(Pipeline(error=TurnRefused("blocked"), turn_id=""), rec)
