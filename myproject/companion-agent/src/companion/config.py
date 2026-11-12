@@ -38,6 +38,13 @@ class Settings(BaseSettings):
     # 新聊天栈的存储。目标库是 Postgres（表前缀 ca_），例如 postgresql+psycopg://user:pass@host/db；
     # companion_mysql_url 是旧的 MySQL 测试库，只在没配 Postgres 时使用。Redis 共用，键前缀 ca:。
     companion_database_url: str = ""
+    # 也可以不给整串，而是分开给各部分（密码里有 @ : / 等字符时更安全，由代码负责转义）。
+    # 整串 companion_database_url 优先；分开给时 host 与 name 必填。
+    companion_db_host: str = ""
+    companion_db_port: int = 5432
+    companion_db_name: str = ""
+    companion_db_user: str = ""
+    companion_db_password: str = ""
     companion_mysql_url: str = ""
     companion_redis_url: str = ""
     # 大脑对话线程的 checkpoint（LangGraph AsyncPostgresSaver，psycopg 连接串）。
@@ -49,16 +56,26 @@ class Settings(BaseSettings):
 
     @property
     def database_url(self) -> str:
-        return self.companion_database_url or self.companion_mysql_url
+        if self.companion_database_url:
+            return self.companion_database_url
+        if self.companion_db_host and self.companion_db_name:
+            from companion.bootstrap.database import build_url
+
+            return build_url(host=self.companion_db_host, port=self.companion_db_port,
+                             database=self.companion_db_name, user=self.companion_db_user,
+                             password=self.companion_db_password).render_as_string(hide_password=False)
+        return self.companion_mysql_url
 
     @property
     def checkpoint_url(self) -> str:
         """psycopg 连接串：去掉 SQLAlchemy 的驱动后缀。只有 Postgres 才能用作 checkpoint。"""
-        url = self.companion_checkpoint_url or self.companion_database_url
+        from companion.bootstrap.database import to_psycopg_conninfo
+
+        url = self.companion_checkpoint_url or self.companion_database_url or (
+            self.database_url if self.companion_db_host else "")
         if not url.startswith(("postgresql", "postgres")):
             return ""
-        scheme, _, rest = url.partition("://")
-        return f"postgresql://{rest}" if rest else ""
+        return to_psycopg_conninfo(url)
 
     # 对象存储：火山引擎 TOS（S3 兼容），与 job-come 同一个区域与接口（上传图片、解题附件）
     tos_endpoint: str = ""

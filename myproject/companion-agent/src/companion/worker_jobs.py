@@ -4,7 +4,8 @@
 
 两件事并行：
 - 任务队列：确认过期、审计清理、回合后记忆写入、摘要重建、账号注销；未知 kind 置 dead，不静默丢弃；
-- 提醒调度：每隔几秒认领到期提醒，发起主动回合（多个 worker 同时跑也只发一次）。
+- 提醒调度：每隔几秒认领到期提醒，发起主动回合（多个 worker 同时跑也只发一次）；
+- 主动开口：每分钟扫时间线里快到的事，让她说一句并投递到收件箱（Redis 抢占，多个进程也只发一次）。
 
 装配与 API 进程相同（同一个 build_platform），所以主动回合的角色、记忆、提示词与普通回合一致。
 """
@@ -50,6 +51,50 @@ async def _reminder_loop(dispatcher, stop: asyncio.Event) -> None:
             pass
 
 
+INITIATIVE_POLL_SEC = 60.0
+CLAIM_TTL_SEC = 24 * 3600
+
+
+def build_initiative_loop(platform):
+    """主动开口：扫时间线里快到的事 → 让她说一句 → 投递到收件箱。
+
+    全部用平台里的 Postgres 存储（偏好、收件箱、频控账本、时间线），说的话经回合引擎落进会话历史。
+    """
+    from companion.app.proactive.loop import InitiativeLoop
+    from companion.app.proactive.router import ChannelRouter
+    from companion.app.proactive.scheduler import InitiativeScheduler
+    from companion.app.proactive.speaker import PlatformSpeaker
+    from companion.domain.proactive.models import Channel
+
+    async def claim(key: str) -> bool:
+        # SET NX：同一次发生只有一个后台进程抢得到；过期时间远长于扫描窗口
+        return bool(await platform.redis.set(f"ca:initiative:{key}", b"1", nx=True, ex=CLAIM_TTL_SEC))
+
+    speaker = PlatformSpeaker(sessions=platform.sessions, submit=platform.chat.submit,
+                              control=platform.chat.control, compliance=platform.compliance)
+    return InitiativeLoop(
+        scheduler=InitiativeScheduler(timeline=platform.timeline, preferences_loader=platform.preferences.load,
+                                      state_loader=platform.ledger.state_for),
+        speak=speaker,
+        router=ChannelRouter({Channel.IN_APP: platform.delivery}, recorder=platform.ledger),
+        preferences_loader=platform.preferences.load,
+        state_loader=platform.ledger.state_for,
+        claim=claim,
+    )
+
+
+async def _initiative_loop(loop, stop: asyncio.Event) -> None:
+    while not stop.is_set():
+        try:
+            await loop.run_once()
+        except Exception:  # noqa: BLE001 —— 一轮失败不能让后台进程退出
+            log.exception("initiative round failed")
+        try:
+            await asyncio.wait_for(stop.wait(), timeout=INITIATIVE_POLL_SEC)
+        except asyncio.TimeoutError:
+            pass
+
+
 DAILY_CHECK_SEC = 3600.0
 
 
@@ -81,7 +126,7 @@ async def main() -> None:
     from companion.config import settings
 
     logging.basicConfig(level=os.environ.get("COMPANION_LOG_LEVEL", "INFO"))
-    platform = build_platform(settings, prompts=default_prompts())
+    platform = build_platform(settings, prompts=default_prompts(), profile="jobs")
     await platform.astart()
 
     handlers = {
@@ -106,6 +151,7 @@ async def main() -> None:
     stop = asyncio.Event()
     reminders = asyncio.create_task(_reminder_loop(platform.dispatcher, stop)) if platform.dispatcher else None
     daily = asyncio.create_task(_daily_loop(platform, stop))
+    initiative = asyncio.create_task(_initiative_loop(build_initiative_loop(platform), stop))
     try:
         await worker.run_forever()
     finally:
@@ -113,6 +159,7 @@ async def main() -> None:
         if reminders is not None:
             await reminders
         await daily
+        await initiative
         await platform.aclose()
 
 

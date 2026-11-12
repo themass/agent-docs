@@ -11,13 +11,11 @@ from datetime import UTC, datetime, time, timedelta
 
 import pytest
 
-from companion.adapters.brain.fake import FakeBrain
-from companion.ports.brain import BrainTurn
-from companion.bootstrap.container import create_container
+from companion.adapters.timeline.memory import InMemoryTimeline
 from companion.domain.proactive.models import Channel, InitiativePreferences
 from companion.app.proactive.router import ChannelRouter
 from companion.adapters.delivery.memory import InAppDelivery, InMemorySendLedger, RecordingDelivery
-from companion.app.proactive.loop import InitiativeLoop
+from companion.app.proactive.loop import InitiativeLoop, SpeakDenied
 from companion.app.proactive.scheduler import InitiativeScheduler
 from companion.app.proactive.loop import _channel_of, occurrence_key
 from companion.domain.timeline.models import EventKind, TimelineEvent
@@ -38,38 +36,17 @@ def permissive() -> InitiativePreferences:
     )
 
 
-class ExplodingBrain:
-    """回合直接抛错。用来证明「回合失败不发」不是靠空字符串碰巧成立的。"""
+class Speaker:
+    """可编排的 speak：返回固定文本、抛错或被拒绝，并数调用次数。"""
 
-    def __init__(self) -> None:
-        self.requests = 0
+    def __init__(self, text="面试加油，我在这儿陪你。", error=None) -> None:
+        self.text, self.error, self.calls = text, error, 0
 
-    async def start_turn(self, request):
-        self.requests += 1
-        raise RuntimeError("model unavailable")
-
-    async def aclose(self) -> None:
-        return None
-
-
-class SilentBrain:
-    """只发出情绪标签、没有可读文本的回合。"""
-
-    def __init__(self, script=("[joy]",)) -> None:
-        self._script = script
-
-    async def start_turn(self, request):
-        async def tokens():
-            for chunk in self._script:
-                yield chunk
-
-        async def cancel() -> None:
-            return None
-
-        return BrainTurn(tokens=tokens(), cancel=cancel, turn_id="t-silent")
-
-    async def aclose(self) -> None:
-        return None
+    async def __call__(self, trigger) -> str:
+        self.calls += 1
+        if self.error is not None:
+            raise self.error
+        return self.text
 
 
 def _loader(prefs: InitiativePreferences):
@@ -79,29 +56,29 @@ def _loader(prefs: InitiativePreferences):
     return load
 
 
-async def build(*, brain=None, scheduler_prefs=None, loop_prefs=None, fail_times=0):
-    """装配一条真实链路：真容器 + 真中间件 + 真时间线，只换投递与主脑。"""
-    container = create_container(brain=brain)
+async def build(*, speak=None, scheduler_prefs=None, loop_prefs=None, fail_times=0):
+    """装配一条真实链路：真时间线 + 真调度器 + 真循环，只换投递与“她说什么”。"""
+    timeline = InMemoryTimeline()
     ledger = InMemorySendLedger()
     delivery = RecordingDelivery(fail_times=fail_times)
     router = ChannelRouter({Channel.IN_APP: delivery}, recorder=ledger)
 
     scheduler = InitiativeScheduler(
-        timeline=container.timeline,
+        timeline=timeline,
         preferences_loader=_loader(scheduler_prefs or permissive()),
         state_loader=ledger.state_for,
     )
     loop = InitiativeLoop(
         scheduler=scheduler,
-        conversation=container.conversation,
+        speak=speak or Speaker(),
         router=router,
         preferences_loader=_loader(loop_prefs or InitiativePreferences()),
         state_loader=ledger.state_for,
     )
-    return container, loop, delivery, ledger
+    return timeline, loop, delivery, ledger
 
 
-async def seed(container, *, event_id="e1", kind=EventKind.INTERVIEW, when=None, user_id="u1"):
+async def seed(timeline, *, event_id="e1", kind=EventKind.INTERVIEW, when=None, user_id="u1"):
     event = TimelineEvent(
         id=event_id,
         user_id=user_id,
@@ -112,12 +89,12 @@ async def seed(container, *, event_id="e1", kind=EventKind.INTERVIEW, when=None,
         source_character_id="linche",
         confidence=0.9,
     )
-    return await container.timeline.add(event)
+    return await timeline.add(event)
 
 
 async def test_due_event_becomes_one_message_and_one_record():
-    container, loop, delivery, ledger = await build()
-    await seed(container)
+    timeline, loop, delivery, ledger = await build()
+    await seed(timeline)
 
     result = await loop.run_once(at())
 
@@ -133,8 +110,8 @@ async def test_due_event_becomes_one_message_and_one_record():
 
 async def test_second_cycle_with_the_same_event_delivers_nothing():
     """扫描窗口是分钟级的，同一个事件会被扫到好几次。重复投递在这里挡住。"""
-    container, loop, delivery, ledger = await build()
-    await seed(container)
+    timeline, loop, delivery, ledger = await build()
+    await seed(timeline)
 
     await loop.run_once(at())
     second = await loop.run_once(at(minute=1))
@@ -147,8 +124,8 @@ async def test_second_cycle_with_the_same_event_delivers_nothing():
 
 async def test_delivery_failure_is_not_retried():
     """补发的消息比漏发的更烦人：失败就放弃，下一轮也不重来。"""
-    container, loop, delivery, ledger = await build(fail_times=1)
-    await seed(container)
+    timeline, loop, delivery, ledger = await build(fail_times=1)
+    await seed(timeline)
 
     first = await loop.run_once(at())
     assert first.delivered == []
@@ -162,13 +139,13 @@ async def test_delivery_failure_is_not_retried():
 
 
 async def test_a_failing_turn_never_delivers_half_a_sentence():
-    brain = ExplodingBrain()
-    container, loop, delivery, ledger = await build(brain=brain)
-    await seed(container)
+    speaker = Speaker(error=RuntimeError("model unavailable"))
+    timeline, loop, delivery, ledger = await build(speak=speaker)
+    await seed(timeline)
 
     result = await loop.run_once(at())
 
-    assert brain.requests == 1
+    assert speaker.calls == 1
     assert result.delivered == []
     assert result.failed and result.failed[0][1] == "turn:RuntimeError"
     assert delivery.attempts == 0
@@ -178,8 +155,8 @@ async def test_a_failing_turn_never_delivers_half_a_sentence():
 
 async def test_a_turn_with_no_text_is_not_delivered():
     """模型只吐了情绪标签：没有可读内容，就不发一条空消息。"""
-    container, loop, delivery, _ = await build(brain=SilentBrain())
-    await seed(container)
+    timeline, loop, delivery, _ = await build(speak=Speaker(text="[joy]"))
+    await seed(timeline)
 
     result = await loop.run_once(at())
 
@@ -191,8 +168,8 @@ async def test_a_turn_with_no_text_is_not_delivered():
 @pytest.mark.parametrize("hour", [23, 0, 3, 7])
 async def test_quiet_hours_are_honoured_even_if_the_decision_says_yes(hour):
     """策略放了行，循环仍要在投递前看一眼时间——半夜发出的推送收不回来。"""
-    container, loop, delivery, _ = await build(loop_prefs=InitiativePreferences())
-    await seed(container, when=at(hour=hour, minute=3))
+    timeline, loop, delivery, _ = await build(loop_prefs=InitiativePreferences())
+    await seed(timeline, when=at(hour=hour, minute=3))
 
     result = await loop.run_once(at(hour=hour, minute=0))
 
@@ -203,8 +180,8 @@ async def test_quiet_hours_are_honoured_even_if_the_decision_says_yes(hour):
 
 async def test_quiet_hours_skip_is_not_remembered_as_delivered():
     """安静时段跳过 ≠ 处理过：时段结束后，这件事仍该出现在用户早上打开应用时。"""
-    container, loop, delivery, _ = await build()
-    await seed(container, when=at(hour=8, minute=2))
+    timeline, loop, delivery, _ = await build()
+    await seed(timeline, when=at(hour=8, minute=2))
 
     quiet = await loop.run_once(at(hour=7, minute=59))
     assert quiet.delivered == []
@@ -217,10 +194,10 @@ async def test_quiet_hours_skip_is_not_remembered_as_delivered():
 
 async def test_two_events_in_one_cycle_respect_the_daily_cap():
     """一轮里三件事到期，不能三条一起发：频控要复检**上一次投递之后**的状态。"""
-    container, loop, delivery, ledger = await build()
-    await seed(container, event_id="e1")
-    await seed(container, event_id="e2")
-    await seed(container, event_id="e3")
+    timeline, loop, delivery, ledger = await build()
+    await seed(timeline, event_id="e1")
+    await seed(timeline, event_id="e2")
+    await seed(timeline, event_id="e3")
 
     result = await loop.run_once(at())
 
@@ -231,10 +208,10 @@ async def test_two_events_in_one_cycle_respect_the_daily_cap():
 
 
 async def test_paused_user_is_not_disturbed():
-    container, loop, delivery, _ = await build(
+    timeline, loop, delivery, _ = await build(
         loop_prefs=InitiativePreferences(paused_until=at(hour=12))
     )
-    await seed(container)
+    await seed(timeline)
 
     result = await loop.run_once(at())
 
@@ -246,15 +223,15 @@ async def test_paused_user_is_not_disturbed():
 async def test_in_app_inbox_holds_what_was_delivered():
     """端上 v1 就是这么拿到的：轮询收件箱。"""
     box = InAppDelivery()
-    container = create_container()
-    await seed(container)
+    timeline = InMemoryTimeline()
+    await seed(timeline)
 
     scheduler = InitiativeScheduler(
-        timeline=container.timeline, preferences_loader=_loader(permissive())
+        timeline=timeline, preferences_loader=_loader(permissive())
     )
     loop = InitiativeLoop(
         scheduler=scheduler,
-        conversation=container.conversation,
+        speak=Speaker(),
         router=ChannelRouter({Channel.IN_APP: box}),
         preferences_loader=_loader(InitiativePreferences()),
     )
@@ -268,8 +245,8 @@ async def test_in_app_inbox_holds_what_was_delivered():
 
 
 async def test_seen_records_are_pruned_so_memory_does_not_grow_forever():
-    container, loop, _, _ = await build()
-    await seed(container)
+    timeline, loop, _, _ = await build()
+    await seed(timeline)
     await loop.run_once(at())
     assert loop._seen  # noqa: SLF001
 
@@ -324,10 +301,45 @@ async def test_unknown_channel_falls_back_instead_of_raising():
     assert _channel_of(trigger) == Channel.IN_APP
 
 
-async def test_fake_brain_path_is_exercised():
-    """确认上面的断言不是靠空语料侥幸通过：默认主脑确实吐得出文本。"""
-    brain = FakeBrain(["面试加油。"])
-    container, loop, delivery, _ = await build(brain=brain)
-    await seed(container)
+async def test_a_denied_turn_is_skipped_not_failed():
+    """安全检查拒绝：没有内容可发，也不是故障。"""
+    timeline, loop, delivery, _ = await build(speak=Speaker(error=SpeakDenied("crisis")))
+    await seed(timeline)
+
+    result = await loop.run_once(at())
+
+    assert result.delivered == [] and result.failed == []
+    assert ("event:e1", "denied:crisis") in result.skipped
+    assert delivery.attempts == 0
+
+
+async def test_a_trigger_claimed_by_another_process_is_not_sent_here():
+    """多个后台进程同时扫到同一件事：抢不到的那个不发。"""
+    timeline = InMemoryTimeline()
+    ledger = InMemorySendLedger()
+    delivery = RecordingDelivery()
+    speaker = Speaker()
+
+    async def lost(key: str) -> bool:
+        return False
+
+    loop = InitiativeLoop(
+        scheduler=InitiativeScheduler(timeline=timeline, preferences_loader=_loader(permissive()),
+                                      state_loader=ledger.state_for),
+        speak=speaker, router=ChannelRouter({Channel.IN_APP: delivery}, recorder=ledger),
+        preferences_loader=_loader(InitiativePreferences()), state_loader=ledger.state_for, claim=lost)
+    await seed(timeline)
+
+    result = await loop.run_once(at())
+
+    assert result.delivered == [] and speaker.calls == 0
+    assert ("event:e1", "claimed_elsewhere") in result.skipped
+
+
+async def test_the_spoken_text_is_what_gets_delivered():
+    timeline, loop, delivery, _ = await build(speak=Speaker(text="[joy]面试加油。"))
+    await seed(timeline)
+
     await loop.run_once(at())
-    assert delivery.deliveries[0].text == "面试加油。"
+
+    assert delivery.deliveries[0].text == "面试加油。"   # 情绪标签被剥掉

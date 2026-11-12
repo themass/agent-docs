@@ -111,6 +111,7 @@ class Platform:
     avatars: AvatarCatalog | None = None
     admin_token: str = ""
     sessions: Any = None
+    brain: Any = None
     # 主动消息的三块持久化（原来是进程内，重启即丢）
     preferences: Any = None
     delivery: Any = None
@@ -135,14 +136,13 @@ class Platform:
         await self.engine.dispose()
 
 
-def _checkpointer(url: str) -> tuple[Any, Any]:
+def _checkpointer(url: str, profile: Any, tag: str = "") -> tuple[Any, Any]:
     """LangGraph 的 Postgres checkpoint。连接池先不打开（open=False），在 astart 里打开。"""
     from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-    from psycopg.rows import dict_row
-    from psycopg_pool import AsyncConnectionPool
 
-    pool = AsyncConnectionPool(url, open=False, max_size=10,
-                               kwargs={"autocommit": True, "prepare_threshold": 0, "row_factory": dict_row})
+    from companion.bootstrap.database import make_checkpoint_pool
+
+    pool = make_checkpoint_pool(url, profile, process_tag=tag)
     return pool, AsyncPostgresSaver(pool)
 
 
@@ -181,20 +181,22 @@ def default_prompts() -> PromptAssembler:
 
 
 def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None, memory_port: Any = None,
-                   llm: Any = None, push: Any = None) -> Platform:
+                   llm: Any = None, push: Any = None, profile: str = "api") -> Platform:
     """组装。缺少数据库或 Redis 配置时直接失败（fail-closed），不退回内存实现。
 
     ``brain`` 为空时按配置构造 DeerFlow 大脑（需要网关配置）；测试可以传入假大脑。
     ``prompts`` 是 PromptAssembler（陪伴角色卡与 skill），为空时只支持目录角色与用户自建角色；
     入口进程用 ``default_prompts()``。
+    ``profile``：进程角色（api / jobs / voice），决定数据库连接池大小，见 ``bootstrap/database.py``。
     """
     if not settings.database_url or not settings.companion_redis_url:
         raise RuntimeError("COMPANION_DATABASE_URL (or COMPANION_MYSQL_URL) and COMPANION_REDIS_URL are required")
 
     from redis import asyncio as redis_async
-    from sqlalchemy.ext.asyncio import create_async_engine
+    from companion.bootstrap.database import make_engine, profile_for
 
-    engine = create_async_engine(settings.database_url, pool_pre_ping=True)
+    pool_profile = profile_for(profile)
+    engine = make_engine(settings.database_url, pool_profile)
     redis = redis_async.from_url(settings.companion_redis_url, decode_responses=False)
 
     sessions = SqlSessionStore(engine)
@@ -225,7 +227,7 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     pool = checkpointer = graph = None
     if brain is None:
         if settings.checkpoint_url:
-            pool, checkpointer = _checkpointer(settings.checkpoint_url)
+            pool, checkpointer = _checkpointer(settings.checkpoint_url, pool_profile)
         brain, graph, built_llm = _build_brain(settings, registry=registry, runtime=runtime,
                                                checkpointer=checkpointer)
         llm = llm or built_llm
@@ -377,4 +379,4 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
                     reminders=reminders, history=history, dispatcher=dispatcher, resummarize=resummarize,
                     pipeline=pipeline, jobs=jobs, timeline_recorder=timeline_recorder, persona_updater=persona_updater,
                     persona=persona, compliance=compliance, account=account, avatars=avatars,
-                    admin_token=settings.companion_admin_token, sessions=sessions, _pool=pool, _checkpointer=checkpointer)
+                    admin_token=settings.companion_admin_token, sessions=sessions, brain=brain, _pool=pool, _checkpointer=checkpointer)

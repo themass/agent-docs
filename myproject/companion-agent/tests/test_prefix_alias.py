@@ -21,15 +21,14 @@ def client():
     from companion.adapters.brain.fake import FakeBrain
     from companion.adapters.memory.fake import InMemoryMemoryPort
     from companion.bootstrap.app import create_app
-    from companion.bootstrap.container import create_container
+    from companion.bootstrap.platform import default_prompts
     from companion.bootstrap.platform import build_platform
     from companion.config import Settings
 
-    container = create_container()
     settings = Settings(companion_mysql_url=URL, companion_redis_url=os.environ.get("COMPANION_TEST_REDIS_URL", ""))
-    platform = build_platform(settings, brain=FakeBrain(["好"]), prompts=container.prompts,
+    platform = build_platform(settings, brain=FakeBrain(["好"]), prompts=default_prompts(),
                               memory_port=InMemoryMemoryPort())
-    app = create_app(livekit_url="", run_initiative=False, platform=platform)
+    app = create_app(livekit_url="", platform=platform)
     with TestClient(app) as c:
         yield c
 

@@ -41,7 +41,8 @@ async def _platform():
 
     if not (settings.database_url and settings.companion_redis_url):
         raise RuntimeError("语音 worker 需要 COMPANION_DATABASE_URL 与 COMPANION_REDIS_URL（与 HTTP 服务相同）")
-    return build_platform(settings, prompts=default_prompts())
+    # 每个房间一个任务进程，各自一份连接池：用最小的档，同时在线的房间多了也不会占满数据库
+    return build_platform(settings, prompts=default_prompts(), profile="voice")
 
 
 def main() -> None:

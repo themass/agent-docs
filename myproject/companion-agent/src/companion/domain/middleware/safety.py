@@ -1,7 +1,6 @@
-"""安全中间件：平台策略、注入防护。
+"""输入侧安全检测：平台策略、注入防护。
 
-放在链首。它的拒绝是**硬拒绝**：后面的环节不运行，也不降级——降级意味着未过
-安全的内容仍然产出给用户。
+拒绝是硬拒绝：不降级——降级意味着未过安全的内容仍然产出给用户。
 
 角色卡是作者可写的文本，用户消息是不可信输入。两者都可能包含指令，所以系统
 提示词里安全层在前、人设层在后（见 prompt/instructions.py），这里再做一次输入侧
@@ -11,10 +10,6 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Awaitable, Callable
-from typing import Any
-
-from companion.domain.middleware.chain import MiddlewareContext
 
 # 明显的越权尝试。不做穷举——这是第一道筛子，不是唯一防线；真正的边界在
 # 「模型不能改变自己的工具权限」这条结构约束上。
@@ -29,21 +24,6 @@ _CRISIS_PATTERNS = [
     re.compile(r"(不想活|活不下去|想自杀|结束生命)"),
     re.compile(r"(suicide|kill myself|end my life)", re.I),
 ]
-
-
-class SafetyMiddleware:
-    name = "safety"
-
-    async def __call__(
-        self,
-        ctx: MiddlewareContext,
-        next_mw: Callable[[MiddlewareContext], Awaitable[Any]],
-    ) -> Any:
-        reason = check_input(ctx.message)
-        if reason is not None:
-            ctx.denied_reason = reason
-            return None
-        return await next_mw(ctx)
 
 
 def check_input(text: str) -> str | None:

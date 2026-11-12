@@ -83,7 +83,9 @@ class UTCDateTime(types.TypeDecorator):
         return value if value.tzinfo else value.replace(tzinfo=UTC)
 
 
-_pk = lambda: Column("id", BigInteger, primary_key=True, autoincrement=True)  # noqa: E731
+# SQLite 只有 INTEGER PRIMARY KEY 才会自增；变体只影响 SQLite（测试用），Postgres 的 BIGSERIAL 不变。
+_PK_TYPE = BigInteger().with_variant(Integer(), "sqlite")
+_pk = lambda: Column("id", _PK_TYPE, primary_key=True, autoincrement=True)  # noqa: E731
 _now = lambda: Column("created_at", UTCDateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP"))  # noqa: E731
 _upd = lambda: Column("updated_at", UTCDateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP"), onupdate=func.now())  # noqa: E731
 
@@ -421,7 +423,7 @@ delivery_receipt = Table(
 # 原来在进程内，多 worker 各自计数，用户可能一天收到两倍的消息。
 send_record = Table(
     TABLE_PREFIX + "send_record", metadata,
-    Column("id", BigInteger, primary_key=True, autoincrement=True),
+    _pk(),
     Column("owner_id", BigInteger, nullable=False),
     Column("at", UTCDateTime, nullable=False),
     Column("channel", String(16), nullable=False),

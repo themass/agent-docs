@@ -12,26 +12,6 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-class ActionsApi:
-    def __init__(self, *, executor: Any) -> None:
-        self._executor = executor
-
-    async def pending(self, user_id: str) -> list[dict]:
-        """待确认动作。过滤在执行器里做（它持有确认存储），这里只做转交。"""
-        return await self._executor.pending(user_id)
-
-    async def confirm(self, user_id: str, confirmation_id: str, *, accepted: bool):
-        if not accepted:
-            # 拒绝也要消费掉这条确认，否则它会一直挂在待办里。
-            await self._executor.discard(confirmation_id, user_id)
-            return {"status": "declined"}
-        outcome = await self._executor.confirm(confirmation_id, user_id)
-        return {
-            "status": getattr(outcome, "status", "unknown"),
-            "reason": getattr(outcome, "reason", ""),
-        }
-
-
 class PreferencesApi:
     """主动性的偏好。默认值来自 InitiativePreferences，不是这里另定一套。"""
 
@@ -86,9 +66,7 @@ def _apply_patch(preferences: Any, patch: dict) -> Any:
     return replace(preferences, **values)
 
 
-def build_router(
-    *, actions: ActionsApi, preferences: PreferencesApi, current_user: Any
-):
+def build_router(*, preferences: PreferencesApi, current_user: Any):
     from fastapi import APIRouter, Depends, HTTPException
     from pydantic import BaseModel
 

@@ -8,8 +8,7 @@ import asyncio
 
 from fastapi.testclient import TestClient
 
-from companion.domain.tools.executor import ActionRequest
-from companion.bootstrap.container import create_container
+from companion.bootstrap.platform import default_prompts
 from companion.ports.memory import MemoryItem
 from companion.bootstrap.app import create_app
 from companion.api.http.routers.memory import DEFAULT_PAGE, MAX_PAGE
@@ -27,13 +26,12 @@ def _platform():
     url = os.environ.get("COMPANION_TEST_DATABASE_URL") or os.environ.get("COMPANION_TEST_MYSQL_URL", "")
     settings = Settings(companion_mysql_url=url,
                         companion_redis_url=os.environ.get("COMPANION_TEST_REDIS_URL", ""))
-    container = create_container()
-    return build_platform(settings, brain=FakeBrain(["好"]), prompts=container.prompts,
+    return build_platform(settings, brain=FakeBrain(["好"]), prompts=default_prompts(),
                           memory_port=InMemoryMemoryPort())
 
 
 def _client(platform=None):
-    return TestClient(create_app(livekit_url="", run_initiative=False,
+    return TestClient(create_app(livekit_url="",
                                  platform=platform or _platform()))
 
 

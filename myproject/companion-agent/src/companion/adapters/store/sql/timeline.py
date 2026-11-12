@@ -176,6 +176,22 @@ class SqlTimelineStore:
             )).order_by(timeline_event.c.next_at_utc).limit(limit))).mappings().all()
         return [_event(r) for r in rows]
 
+    async def due_between(self, *, start: datetime, end: datetime, limit: int = 500) -> list[TimelineEvent]:
+        """所有用户里 ``next_at_utc`` 落在 [start, end] 的未完成事件，供主动开口的调度器扫描。
+
+        带 ``reminder_id`` 的事件排除在外：它们已经有一条提醒（``ca_reminder``）按用户要求的时间发出，
+        再由这里主动开口就是同一件事通知两次。
+        """
+        async with self._engine.connect() as conn:
+            rows = (await conn.execute(select(timeline_event).where(and_(
+                timeline_event.c.status == EventStatus.SCHEDULED.value,
+                timeline_event.c.reminder_id.is_(None),
+                timeline_event.c.next_at_utc.isnot(None),
+                timeline_event.c.next_at_utc >= _naive(start),
+                timeline_event.c.next_at_utc <= _naive(end),
+            )).order_by(timeline_event.c.next_at_utc).limit(max(0, min(limit, 1000))))).mappings().all()
+        return [_event(r) for r in rows]
+
     async def recent_past(self, *, owner_id: str, role_id: str, now: datetime, window: timedelta,
                           limit: int = 2) -> list[TimelineEvent]:
         async with self._engine.connect() as conn:

@@ -42,7 +42,7 @@ def _png() -> bytes:
 
 def _platform():
     from companion.adapters.memory.fake import InMemoryMemoryPort
-    from companion.bootstrap.container import create_container
+    from companion.bootstrap.platform import default_prompts
     from companion.bootstrap.platform import build_platform
     from companion.adapters.brain.fake import FakeBrain
     from companion.config import Settings
@@ -59,9 +59,8 @@ def _platform():
         tos_region=os.environ.get("COMPANION_TEST_TOS_REGION", "cn-beijing"),
         tos_key_prefix="companion-test/",
     )
-    container = create_container()
     return build_platform(settings, brain=FakeBrain(["你好，", "我记住了。"]),
-                          prompts=container.prompts, memory_port=InMemoryMemoryPort())
+                          prompts=default_prompts(), memory_port=InMemoryMemoryPort())
 
 
 def test_end_to_end_over_http(migrated):
@@ -71,7 +70,7 @@ def test_end_to_end_over_http(migrated):
     from companion.bootstrap.app import create_app
 
     platform = _platform()
-    app = create_app(livekit_url="", run_initiative=False, verifier=AllowAllVerifier(), platform=platform)
+    app = create_app(livekit_url="", verifier=AllowAllVerifier(), platform=platform)
     with TestClient(app) as client:
         # 会话与回合
         session = client.post("/v1/sessions", json={"role_id": "academic-anthropologist"}, headers=ME)

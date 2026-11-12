@@ -24,7 +24,6 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, time, timedelta
 from typing import Any
 
-from companion.app.chat.conversation import ConversationService, TurnContext
 from companion.app.proactive.router import ChannelRouter
 from companion.ports.delivery import DeliveryError, DeliveryReceipt
 from companion.domain.proactive.models import Channel, InitiativePreferences, InitiativeState
@@ -33,6 +32,17 @@ from companion.domain.text.events import strip_emotion_tags
 from companion.domain.turn.trigger import Trigger
 
 logger = logging.getLogger(__name__)
+
+class SpeakDenied(Exception):
+    """主动回合被安全检查拒绝：没有内容可发，也不换一条路径绕过它。"""
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason)
+        self.reason = reason
+
+
+# 让「她」对一个触发开口，返回一句可以直接发出去的话（可能带情绪标签，由循环剥掉）。
+Speak = Callable[[Trigger], Awaitable[str]]
 
 # 去重记录保留多久。它只需要覆盖「同一次发生不会被下一轮再扫到」的时间跨度——
 # 扫描窗口是分钟级，留一天已经很宽裕。定长了只会白占内存。
@@ -91,19 +101,23 @@ class InitiativeLoop:
         self,
         *,
         scheduler: InitiativeScheduler,
-        conversation: ConversationService,
+        speak: Speak,
         router: ChannelRouter,
         preferences_loader: Callable[[str], Awaitable[InitiativePreferences]] | None = None,
         state_loader: Callable[[str], Awaitable[InitiativeState]] | None = None,
         seen_ttl: timedelta = _SEEN_TTL,
+        claim: Callable[[str], Awaitable[bool]] | None = None,
     ) -> None:
+        """``claim``：跨进程的“这一次发生归我处理”。多个后台进程同时扫到同一事件时，
+        只有抢到的那个继续；不给就只有进程内去重（单进程部署）。"""
         self._scheduler = scheduler
-        self._conversation = conversation
+        self._speak_fn = speak
         self._router = router
         self._preferences_loader = preferences_loader or _default_preferences
         self._state_loader = state_loader or _default_state
         self._seen_ttl = seen_ttl
         self._seen: dict[tuple[str, str, str], datetime] = {}
+        self._claim = claim
 
     async def run_once(self, now: datetime | None = None) -> InitiativeRunResult:
         current = now or datetime.now(UTC)
@@ -146,6 +160,9 @@ class InitiativeLoop:
         # 先占位再动手：没有占位的话，一个必然失败的回合会每五分钟重跑一次，
         # 既烧 token 又可能在某次「恰好成功」时补发一条过期提醒。
         self._seen[key] = now
+        if self._claim is not None and not await self._claim("|".join(key)):
+            result.skipped.append((trigger.origin, "claimed_elsewhere"))
+            return
 
         text = await self._speak(trigger, result)
         if text is None:
@@ -179,22 +196,18 @@ class InitiativeLoop:
 
     async def _speak(self, trigger: Trigger, result: InitiativeRunResult) -> str | None:
         """跑主动回合，拿到一句可以直接发出去的话。失败返回 None。"""
-        ctx = TurnContext.from_trigger(trigger)
         try:
-            turn = await self._conversation.start_turn(ctx)
-            chunks = [chunk async for chunk in turn.chunks]
+            raw = await self._speak_fn(trigger)
+        except SpeakDenied as denied:
+            logger.info("proactive turn denied (%s) for %s", denied.reason, trigger.origin)
+            result.skipped.append((trigger.origin, f"denied:{denied.reason}"))
+            return None
         except Exception as exc:  # noqa: BLE001 —— 回合失败不是投递的是非题
             logger.warning("proactive turn failed for %s: %s", trigger.origin, exc)
             result.failed.append((trigger.origin, f"turn:{type(exc).__name__}"))
             return None
 
-        if turn.denied_reason:
-            # 安全拒绝：没有内容可发，也不该换一条路径绕过它。
-            logger.info("proactive turn denied (%s) for %s", turn.denied_reason, trigger.origin)
-            result.skipped.append((trigger.origin, f"denied:{turn.denied_reason}"))
-            return None
-
-        clean, _emotions = strip_emotion_tags("".join(chunks))
+        clean, _emotions = strip_emotion_tags(raw)
         text = clean.strip()
         if not text:
             # 空回合（模型没开口、或只吐了标签）不发空消息。
@@ -238,4 +251,4 @@ async def _default_state(user_id: str) -> InitiativeState:
     return InitiativeState()
 
 
-__all__ = ["InitiativeLoop", "InitiativeRunResult", "in_quiet_hours", "occurrence_key"]
+__all__ = ["InitiativeLoop", "InitiativeRunResult", "SpeakDenied", "Speak", "in_quiet_hours", "occurrence_key"]

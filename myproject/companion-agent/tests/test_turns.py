@@ -10,8 +10,6 @@ import pytest
 
 from companion.adapters.brain.fake import FakeBrain
 from companion.ports.brain import BrainTurn, TurnRequest
-from companion.bootstrap.container import create_container
-from companion.ports.memory import MemoryItem
 from companion.domain.turn.pipeline import TurnPipeline
 
 
@@ -90,35 +88,6 @@ async def test_pipeline_cancel_reaches_brain():
     assert brain.cancelled is True
 
 
-async def test_container_recalls_memory_into_prompt():
-    """召回的记忆要真的进到提示词，否则「记得用户」只是文档里的一句话。
-
-    检索本身是关键词匹配，所以查询要包含记忆里的词——否则测的是检索算法
-    而不是装配链路。
-    """
-    container = create_container()
-    await container.memory.add(
-        "u1",
-        [MemoryItem(id="m1", content="用户在准备考试", source_character_id="linche")],
-    )
-    seen: dict[str, str] = {}
-
-    original = container.brain.start_turn
-
-    async def capture(request):
-        seen["prompt"] = request.system_prompt
-        return await original(request)
-
-    container.brain.start_turn = capture  # type: ignore[method-assign]
-
-    from companion.app.chat.conversation import TurnContext
-
-    await container.conversation.start_turn(
-        TurnContext(user_id="u1", character_id="linche", message="考试让我焦虑")
-    )
-    assert "用户在准备考试" in seen["prompt"]
-
-
 def test_app_requires_livekit_for_sessions():
     """没配 LiveKit 时建会话要明确报错，而不是发一个空 token 出去。"""
     pytest.importorskip("fastapi")
@@ -129,19 +98,3 @@ def test_app_requires_livekit_for_sessions():
     client = TestClient(create_app(livekit_url=""))
     response = client.post("/v1/voice/sessions", json={"character_id": "linche"})
     assert response.status_code >= 400
-
-
-def test_turn_endpoint_streams_sentences():
-    pytest.importorskip("fastapi")
-    from fastapi.testclient import TestClient
-
-    from companion.bootstrap.app import create_app
-
-    client = TestClient(create_app(livekit_url="wss://example.test"))
-    response = client.post(
-        "/v1/voice/turns",
-        json={"character_id": "linche", "message": "我最近有点卡住"},
-    )
-    assert response.status_code == 200
-    assert "data: " in response.text
-    assert "data: [DONE]" in response.text

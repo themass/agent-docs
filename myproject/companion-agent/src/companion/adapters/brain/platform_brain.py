@@ -40,10 +40,15 @@ class TurnRefused(Exception):
 class PlatformBrain:
     """``BrainPort`` 的实现：提交到平台，读回同一回合的文字流。"""
 
-    def __init__(self, *, submit: Any, control: Any, turn_timeout_sec: float = DEFAULT_TURN_TIMEOUT_SEC) -> None:
+    def __init__(self, *, submit: Any, control: Any, turn_timeout_sec: float = DEFAULT_TURN_TIMEOUT_SEC,
+                 role: str = "user", kind: str = "voice") -> None:
+        """``role`` / ``kind`` 是这条输入在历史里的身份：语音是 user/voice；
+        服务端主动开口是 system/proactive（模型看到的是一条带标记的指令，不是用户说的话）。"""
         self._submit = submit
         self._control = control
         self._timeout = turn_timeout_sec
+        self._role = role
+        self._kind = kind
 
     async def start_turn(self, request: TurnRequest) -> BrainTurn:
         if request.session_id is None:
@@ -61,8 +66,8 @@ class PlatformBrain:
             text=request.message, client_message_id=None,
             # 语音一次一句，用户说完才提交；不做“插话进正在跑的回合”
             steerable=False,
-            # 来源标记（已确认的决定）：转写文字和打字的区别在这里，质检与记忆降置信度都靠它
-            kind="voice")
+            # 来源标记：转写文字和打字的区别在这里，质检与记忆降置信度都靠它
+            role=self._role, kind=self._kind)
 
         if result.status == "denied":
             raise TurnRefused(getattr(result, "reason", None))
