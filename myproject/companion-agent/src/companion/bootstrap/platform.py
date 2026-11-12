@@ -47,7 +47,7 @@ from companion.adapters.store.sql.compliance import SqlComplianceStore
 from companion.app.account.purge import AccountPurgeService
 from companion.app.compliance.service import ComplianceService
 from companion.app.avatar.catalog import AvatarCatalog
-from companion.app.chat.assembler import PromptAssembler, skill_id_of
+from companion.app.chat.assembler import PromptAssembler, skill_ids_of
 from companion.app.chat.context import ContextBuilder
 from companion.app.chat.history import HistoryService
 from companion.app.chat.lifecycle import DrainState
@@ -235,7 +235,7 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     # prompts：PromptAssembler（角色卡来源 + skill 目录），陪伴角色卡与它声明的 skill 都从这里来。
     resolver = RoleProfileResolver(catalog=catalog, user_roles=roles_store,
                                    characters=getattr(prompts, "characters", None),
-                                   skills=getattr(prompts, "skills", None), skill_id_of=skill_id_of)
+                                   skills=getattr(prompts, "skills", None), skill_ids_of=skill_ids_of)
     compliance = ComplianceService(store=SqlComplianceStore(engine))
     persona = SqlPersonaStore(engine)
     persona_updater = PersonaUpdater(store=persona, memory=memory, messages=messages, llm=llm) if llm is not None else None

@@ -30,12 +30,19 @@ class RoleNotFound(LookupError):
 class RoleProfileResolver:
     def __init__(self, *, catalog: Any, user_roles: RoleStore, characters: CharacterSourcePort | None = None,
                  skills: SkillCatalog | None = None,
-                 skill_id_of: Callable[[Any], str | None] | None = None) -> None:
+                 skill_id_of: Callable[[Any], str | None] | None = None,
+                 skill_ids_of: Callable[[Any], list[str]] | None = None) -> None:
         self._catalog = catalog              # RoleIndex：get(role_id) -> SystemRole | None
         self._user_roles = user_roles
         self._characters = characters
         self._skills = skills
-        self._skill_id_of = skill_id_of
+        # 新接口优先；只给老的单值函数时包成列表，行为与之前一致。
+        if skill_ids_of is not None:
+            self._skill_ids_of = skill_ids_of
+        elif skill_id_of is not None:
+            self._skill_ids_of = lambda card: [s] if (s := skill_id_of(card)) else []
+        else:
+            self._skill_ids_of = None
 
     async def resolve(self, *, role_id: str, owner_id: int, locale: str = "zh-CN") -> RoleProfile:
         if role_id.startswith(USER_ROLE_PREFIX):
@@ -63,13 +70,12 @@ class RoleProfileResolver:
         return profile
 
     def _method_for(self, card: Any) -> str:
-        if self._skills is None or self._skill_id_of is None:
+        if self._skills is None or self._skill_ids_of is None:
             return ""
-        skill_id = self._skill_id_of(card)
-        if not skill_id:
-            return ""
+        skill_ids = self._skill_ids_of(card)
         try:
-            return self._skills.compose([skill_id])
+            # 空列表也 compose：常驻 skill（陪伴底线）对每张陪伴卡都生效
+            return self._skills.compose(skill_ids)
         except Exception:  # noqa: BLE001 —— skill 缺失不该让对话开不起来
-            log.warning("skill compose failed", extra={"skill": skill_id})
+            log.warning("skill compose failed", extra={"skills": skill_ids})
             return ""

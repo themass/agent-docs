@@ -10,13 +10,28 @@ from companion.domain.prompt.instructions import build_instructions
 from companion.ports.skills import SkillCatalog
 
 
-def skill_id_of(card: CharacterCard) -> str | None:
-    """角色卡在 extensions.vvv.skill 里声明它用哪个 skill 包。"""
+def skill_ids_of(card: CharacterCard) -> list[str]:
+    """角色卡在 extensions.vvv.skill 里声明用哪些 skill 包。
+
+    既接受单个字符串（老卡），也接受字符串列表（一张卡可以叠多个 skill）。
+    非字符串、空串、重复项直接丢掉，保持声明顺序。
+    """
     vvv = card.extensions.get("vvv")
     if not isinstance(vvv, dict):
-        return None
+        return []
     skill = vvv.get("skill")
-    return skill if isinstance(skill, str) and skill else None
+    raw = [skill] if isinstance(skill, str) else skill if isinstance(skill, list) else []
+    ids: list[str] = []
+    for item in raw:
+        if isinstance(item, str) and item and item not in ids:
+            ids.append(item)
+    return ids
+
+
+def skill_id_of(card: CharacterCard) -> str | None:
+    """第一个 skill id；保留给只认单个 skill 的老调用方。"""
+    ids = skill_ids_of(card)
+    return ids[0] if ids else None
 
 
 class PromptAssembler:
@@ -41,13 +56,12 @@ class PromptAssembler:
     def build(self, character_id: str, memory_block: str = "") -> str:
         card = self._characters.load(character_id)
         skill_text = ""
-        skill_id = skill_id_of(card)
-        if skill_id:
-            # skill 缺失不该让对话开不起来：角色人设本身已经能支撑一轮对话。
-            try:
-                skill_text = self._skills.compose([skill_id])
-            except Exception:
-                skill_text = ""
+        # 没声明 skill 也要 compose：常驻 skill（陪伴底线）对每个角色卡都生效。
+        # skill 缺失不该让对话开不起来：角色人设本身已经能支撑一轮对话。
+        try:
+            skill_text = self._skills.compose(skill_ids_of(card))
+        except Exception:
+            skill_text = ""
         return build_instructions(
             persona=render_persona(card),
             skill_text=skill_text,
