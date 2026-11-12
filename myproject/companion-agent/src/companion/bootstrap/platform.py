@@ -43,7 +43,9 @@ from companion.adapters.store.sql.repositories import (
     SqlUploadStore,
 )
 from companion.api.http.routers.chat import ChatApi
+from companion.adapters.store.sql.compliance import SqlComplianceStore
 from companion.app.account.purge import AccountPurgeService
+from companion.app.compliance.service import ComplianceService
 from companion.app.avatar.catalog import AvatarCatalog
 from companion.app.chat.assembler import PromptAssembler, skill_id_of
 from companion.app.chat.context import ContextBuilder
@@ -101,6 +103,7 @@ class Platform:
     timeline_recorder: TimelineRecorder | None = None
     persona_updater: PersonaUpdater | None = None
     persona: Any = None
+    compliance: ComplianceService | None = None
     account: AccountPurgeService | None = None
     avatars: AvatarCatalog | None = None
     admin_token: str = ""
@@ -233,6 +236,7 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     resolver = RoleProfileResolver(catalog=catalog, user_roles=roles_store,
                                    characters=getattr(prompts, "characters", None),
                                    skills=getattr(prompts, "skills", None), skill_id_of=skill_id_of)
+    compliance = ComplianceService(store=SqlComplianceStore(engine))
     persona = SqlPersonaStore(engine)
     persona_updater = PersonaUpdater(store=persona, memory=memory, messages=messages, llm=llm) if llm is not None else None
     context = ContextBuilder(roles=resolver, messages=messages, sessions=sessions, memory=pipeline, persona=persona)
@@ -257,6 +261,29 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
             yield TextDelta(chunk)
 
     timeline_recorder = TimelineRecorder(timeline, llm) if llm is not None else None
+
+    # 连续使用提醒：用户发消息就算活跃；一段内到 2 小时，在这条回合的 SSE 里带一条提醒给客户端。
+    # 计时失败只记日志（ComplianceService 内部已兜住），不会让回合失败。
+    upstream_submit = api.submit
+
+    class _ActivityAwareSubmit:
+        async def submit(self, **kw):
+            result = await upstream_submit.submit(**kw)
+            if getattr(result, "status", "") == "accepted":
+                try:
+                    reminder = await compliance.note_activity(owner_id=int(kw["owner_id"]))
+                except Exception:  # noqa: BLE001
+                    log.warning("usage reminder failed", extra={"owner_id": kw.get("owner_id")})
+                    reminder = None
+                if reminder:
+                    await control.publish(session_id=int(kw["session_id"]), event="usage.reminder",
+                                          data={"text": reminder, "turn_id": result.turn_id or ""})
+            return result
+
+        def __getattr__(self, name):
+            return getattr(upstream_submit, name)
+
+    api.submit = _ActivityAwareSubmit()
 
     async def after_turn(outcome: TurnOutcome) -> None:
         # 拿着会话锁：补记中断的回复，让模型知道上一句说到哪里。
@@ -294,6 +321,10 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     async def submit_proactive(owner_id: int, session_id: int, role_id: str, text: str) -> str | None:
         if await sessions.get(owner_id=owner_id, session_id=session_id) is None:
             raise SessionGone(session_id)
+        # 主动联系总开关：关掉后调度器不再发起。用户明确要求的提醒是另一条路径（到点兑现），不受这个开关影响。
+        if not await compliance.proactive_allowed(owner_id=owner_id):
+            log.info("proactive skipped by consent", extra={"owner_id": owner_id, "session_id": session_id})
+            return None
         result = await api.submit.submit(owner_id=owner_id, session_id=session_id, character_id=role_id,
                                          text=text, client_message_id=None, steerable=False,
                                          role="system", kind="proactive")
@@ -332,5 +363,5 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
                     memory=memory, timeline=timeline, drain=drain, engine=engine, redis=redis,
                     reminders=reminders, history=history, dispatcher=dispatcher, resummarize=resummarize,
                     pipeline=pipeline, jobs=jobs, timeline_recorder=timeline_recorder, persona_updater=persona_updater,
-                    persona=persona, account=account, avatars=avatars,
+                    persona=persona, compliance=compliance, account=account, avatars=avatars,
                     admin_token=settings.companion_admin_token, sessions=sessions, _pool=pool, _checkpointer=checkpointer)

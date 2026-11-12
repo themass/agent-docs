@@ -325,3 +325,25 @@ persona_cursor = Table(
     Column("pending_chars", Integer, nullable=False, server_default="0"),
     Column("updated_at", DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP")),
 )
+
+
+user_consent = Table(
+    TABLE_PREFIX + "user_consent", metadata,
+    Column("owner_id", BigInteger, primary_key=True, autoincrement=False),
+    # 训练用途单独同意：默认 False，必须用户明确打开。办法第 16 条一类要求不能捆绑在同意服务条款里。
+    Column("training_consent", Boolean, nullable=False, server_default="0"),
+    # 主动联系总开关。关闭后调度器不再发起主动回合（用户明确要求的提醒仍会发，那是对请求的兑现）。
+    Column("proactive_enabled", Boolean, nullable=False, server_default="1"),
+    Column("age_verified_adult", Boolean, nullable=False, server_default="0"),
+    Column("updated_at", DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP")),
+)
+
+usage_span = Table(
+    TABLE_PREFIX + "usage_span", metadata,
+    Column("owner_id", BigInteger, primary_key=True, autoincrement=False),
+    # 连续使用的起点与最近一次活跃。超过 30 分钟没有活跃就视为新的一段（与常见「连续使用」口径一致）。
+    Column("started_at", DateTime, nullable=False),
+    Column("last_seen_at", DateTime, nullable=False),
+    Column("reminded_at", DateTime, nullable=True),
+    Column("updated_at", DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP")),
+)
