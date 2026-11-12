@@ -10,7 +10,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import replace
 from datetime import UTC, datetime
 
-from sqlalchemy import Column, DateTime, String, Table, Text, and_, delete, insert, select
+from sqlalchemy import Boolean, Column, DateTime, String, Table, Text, and_, delete, insert, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
@@ -38,6 +38,10 @@ memory_item = Table(
     Column("source_character_id", String(64), nullable=False, server_default=""),
     Column("source_message_id", String(64), nullable=False, server_default=""),
     Column("created_at", DateTime, nullable=False),
+    # 事实可以被「取代」而不是删除：新的那条 is_latest=1 并记下 supersedes_id，旧的回溯保留但不再被召回。
+    # 用户说「我说错了」时能说清楚是哪条取代了哪条；删除仍然走 delete_one / delete_user。
+    Column("supersedes_id", String(64), nullable=True),
+    Column("is_latest", Boolean, nullable=False, server_default="1"),
 )
 
 
@@ -78,7 +82,7 @@ class SqlMemoryPort:
         """在该用户最近的 SEARCH_WINDOW 条中按 kinds 过滤后做词法排序（规范 §5）。"""
         validate_user_id(user_id)
         limit = max(0, min(limit, MAX_SEARCH_LIMIT))
-        cond = [memory_item.c.user_id == user_id]
+        cond = [memory_item.c.user_id == user_id, memory_item.c.is_latest == True]  # noqa: E712 —— 被取代的不再召回
         if kinds:
             cond.append(memory_item.c.kind.in_([MemoryKind(k).value for k in kinds]))
         async with self._engine.connect() as conn:
@@ -88,11 +92,16 @@ class SqlMemoryPort:
         candidates = [(_to_item(r), r["content"], r["created_at"]) for r in rows]
         return [replace(r.item, score=r.score) for r in rank_scored(query, candidates, limit)]
 
-    async def list_for_user(self, user_id: str, limit: int = 50, offset: int = 0) -> list[MemoryItem]:
+    async def list_for_user(self, user_id: str, limit: int = 50, offset: int = 0,
+                            include_history: bool = False) -> list[MemoryItem]:
+        """默认只列当前有效的事实；``include_history`` 时连被取代的一起（「为什么改了」）。"""
         validate_user_id(user_id)
         limit = max(0, min(limit, MAX_LIST_LIMIT))
+        cond = [memory_item.c.user_id == user_id]
+        if not include_history:
+            cond.append(memory_item.c.is_latest == True)  # noqa: E712
         async with self._engine.connect() as conn:
-            rows = (await conn.execute(select(memory_item).where(memory_item.c.user_id == user_id)
+            rows = (await conn.execute(select(memory_item).where(and_(*cond))
                                        .order_by(memory_item.c.created_at.desc(), memory_item.c.id.desc())
                                        .limit(limit).offset(max(0, offset)))).mappings().all()
         return [_to_item(r) for r in rows]
@@ -111,7 +120,29 @@ class SqlMemoryPort:
         return res.rowcount
 
 
+    async def supersede(self, user_id: str, old_id: str, item: MemoryItem) -> MemoryItem | None:
+        validate_user_id(user_id)
+        validate_content(item.content)
+        now = _now()
+        new_id = item.id or uuid.uuid4().hex
+        async with self._engine.begin() as conn:
+            old = (await conn.execute(select(memory_item.c.id).where(and_(
+                memory_item.c.id == old_id, memory_item.c.user_id == user_id)))).first()
+            if old is None:
+                return None
+            await conn.execute(insert(memory_item).values(
+                id=new_id, user_id=user_id, kind=MemoryKind(item.kind).value, content=item.content,
+                source_character_id=item.source_character_id or "",
+                source_message_id=item.source_message_id or "", created_at=now,
+                supersedes_id=old_id, is_latest=True))
+            await conn.execute(update(memory_item).where(and_(
+                memory_item.c.id == old_id, memory_item.c.user_id == user_id)).values(is_latest=False))
+        return replace(item, id=new_id, created_at=now.replace(tzinfo=UTC), is_latest=True, supersedes_id=old_id)
+
+
 def _to_item(row) -> MemoryItem:
     return MemoryItem(id=row["id"], content=row["content"], kind=MemoryKind(row["kind"]),
                       source_character_id=row["source_character_id"], source_message_id=row["source_message_id"],
-                      created_at=row["created_at"].replace(tzinfo=UTC))
+                      created_at=row["created_at"].replace(tzinfo=UTC),
+                      is_latest=bool(row["is_latest"]) if "is_latest" in row.keys() else True,
+                      supersedes_id=row["supersedes_id"] if "supersedes_id" in row.keys() else None)

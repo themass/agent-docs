@@ -28,8 +28,20 @@ class Port:
             pool = [r for r in pool if r.kind in {str(getattr(k, "value", k)) for k in kinds}]
         return pool[:limit]
 
-    async def list_for_user(self, uid, limit=20, offset=0):
-        return self.rows.get(uid, [])[offset:offset + limit]
+    async def list_for_user(self, uid, limit=20, offset=0, include_history=False):
+        rows = self.rows.get(uid, [])
+        if not include_history:
+            rows = [r for r in rows if getattr(r, "is_latest", True)]
+        return rows[offset:offset + limit]
+
+    async def supersede(self, uid, old_id, item):
+        rows = self.rows.get(uid, [])
+        if not any(r.id == old_id for r in rows):
+            return None
+        # 与真实后端一致：旧条目标为被取代、保留在历史里；新条目追加
+        from dataclasses import replace
+        self.rows[uid] = [replace(r, is_latest=False) if r.id == old_id else r for r in rows] + [item]
+        return item
 
     async def delete_one(self, uid, memory_id):
         rows = self.rows.get(uid, [])
@@ -109,8 +121,14 @@ def test_fact_endpoints_respect_ownership(memory_client):
     fid = memory_client.post("/api/agent/v1/memory/facts", json={"content": "喜欢喝茶"}, headers=ME).json()["id"]
     assert memory_client.get("/api/agent/v1/memory/facts", headers=BOB).json()["items"] == []
     assert memory_client.delete(f"/api/agent/v1/memory/facts/{fid}", headers=BOB).status_code == 404
-    assert memory_client.patch(f"/api/agent/v1/memory/facts/{fid}", json={"content": "更喜欢绿茶"},
-                               headers=ME).status_code == 200
+    # 改写 = 取代：旧条目保留在历史里，新条目接上它
+    edited = memory_client.patch(f"/api/agent/v1/memory/facts/{fid}", json={"content": "更喜欢绿茶"},
+                                 headers=ME)
+    assert edited.status_code == 200 and edited.json()["content"] == "更喜欢绿茶"
+    current = memory_client.get("/api/agent/v1/memory/facts", headers=ME).json()["items"]
+    assert [i["content"] for i in current] == ["更喜欢绿茶"]
+    history = memory_client.get("/api/agent/v1/memory/facts?include_history=true", headers=ME).json()["items"]
+    assert len(history) == 2
 
 
 def test_event_endpoints_respect_ownership_and_update_status(memory_client):

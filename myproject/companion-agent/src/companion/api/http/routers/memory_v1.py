@@ -82,9 +82,11 @@ def build_router(*, memory, timeline, current_user, persona=None):
 
     @router.get("/facts")
     async def list_facts(limit: int = Query(default=20, ge=1, le=100), offset: int = Query(default=0, ge=0, le=1000),
-                         role_id: str | None = role_q(),
+                         role_id: str | None = role_q(), include_history: bool = False,
                          user_id: str = Depends(current_user)) -> dict[str, Any]:
-        rows = await memory.list_for_user(role_subject(user_id, role_id), limit=limit + 1, offset=offset)
+        """默认只列当前有效的；``include_history`` 带上被取代的（看「改过什么」）。"""
+        rows = await memory.list_for_user(role_subject(user_id, role_id), limit=limit + 1, offset=offset,
+                                          include_history=include_history)
         return {"items": [_fact_json(i) for i in rows[:limit]], "has_more": len(rows) > limit,
                 "limit": limit, "offset": offset}
 
@@ -100,15 +102,13 @@ def build_router(*, memory, timeline, current_user, persona=None):
     async def edit_fact(fact_id: str, body: FactPatch, role_id: str | None = role_q(),
                         user_id: str = Depends(current_user)) -> dict[str, Any]:
         subject = role_subject(user_id, role_id)
-        if not await memory.delete_one(subject, fact_id):
-            raise HTTPException(status_code=404, detail={"code": "not_found"})
+        # 改写 = 取代，不是删除再新增：旧条目保留可回溯，新条目从旧条目接上来源，画像不会因此失去依据
         item = MemoryItem(id=uuid.uuid4().hex, content=body.content, kind=MemoryKind.FACT,
                           source_character_id=role_id or "")
-        await memory.add(subject, [item])
-        if persona is not None:
-            # 事实被改写了（旧 id 消失）：只靠旧事实归纳的画像条目已经没有依据，一并清掉，下一批按新内容重新归纳
-            await persona.drop_for_facts(owner_id=_uid(user_id), fact_ids=[fact_id])
-        return _fact_json(item)
+        superseded = await memory.supersede(subject, fact_id, item)
+        if superseded is None:
+            raise HTTPException(status_code=404, detail={"code": "not_found"})
+        return _fact_json(superseded)
 
     @router.delete("/facts/{fact_id}", status_code=204)
     async def delete_fact(fact_id: str, role_id: str | None = role_q(),

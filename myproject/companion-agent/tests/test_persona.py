@@ -248,6 +248,8 @@ def test_deleting_or_rewriting_a_fact_removes_profile_entries_derived_from_it(pr
     assert client.delete(f"/api/agent/v1/memory/facts/{created['id']}?role_id=linche", headers=ME).status_code == 204
     assert store.dropped == [(7, [created["id"]])]
     created2 = client.post("/api/agent/v1/memory/facts?role_id=linche", json={"content": "喜欢喝茶"}, headers=ME).json()
+    before = len(store.dropped)
     assert client.patch(f"/api/agent/v1/memory/facts/{created2['id']}?role_id=linche",
                         json={"content": "更喜欢绿茶"}, headers=ME).status_code == 200
-    assert store.dropped[-1] == (7, [created2["id"]])
+    # 改写是「取代」，旧事实仍作为历史保留，画像的依据没丢，所以不联动删除
+    assert len(store.dropped) == before

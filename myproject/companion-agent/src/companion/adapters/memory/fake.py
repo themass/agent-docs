@@ -75,13 +75,31 @@ class InMemoryMemoryPort:
         validate_user_id(user_id)
         return len(self._items.pop(user_id, []))
 
-    async def list_for_user(self, user_id: str, limit: int = 50, offset: int = 0) -> list[MemoryItem]:
+    async def list_for_user(self, user_id: str, limit: int = 50, offset: int = 0,
+                            include_history: bool = False) -> list[MemoryItem]:
         self.calls.append(("list_for_user", user_id))
         validate_user_id(user_id)
         limit = max(0, min(limit, MAX_LIST_LIMIT))
+        items = self._items.get(user_id, [])
+        if not include_history:
+            items = [i for i in items if i.is_latest]   # 与 SQL 后端一致：被取代的不列
         # 与 MySQL 后端一致：created_at 倒序，同一时间按 id 倒序（稳定分页，规范 §4）
-        ordered = sorted(self._items.get(user_id, []), key=lambda i: (i.created_at, i.id), reverse=True)
+        ordered = sorted(items, key=lambda i: (i.created_at, i.id), reverse=True)
         return [copy.deepcopy(i) for i in ordered[max(0, offset): max(0, offset) + limit]]
+
+    async def supersede(self, user_id: str, old_id: str, item: MemoryItem) -> MemoryItem | None:
+        self.calls.append(("supersede", user_id))
+        validate_user_id(user_id)
+        validate_content(item.content)
+        rows = self._items.get(user_id, [])
+        old = next((i for i in rows if i.id == old_id), None)
+        if old is None:
+            return None
+        # 旧条目标为被取代（保留在历史里），新条目追加一条并记下来源
+        new_item = replace(item, supersedes_id=old_id, is_latest=True)
+        self._items[user_id] = [replace(i, is_latest=False) if i.id == old_id else i for i in rows] + [
+            copy.deepcopy(new_item)]
+        return new_item
 
     # 仅测试用：断言零残留时直接看原始存储，不经过任何检索路径。
     def raw_count(self, user_id: str) -> int:

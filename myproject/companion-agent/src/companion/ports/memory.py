@@ -87,6 +87,9 @@ class MemoryItem:
     source_message_id: str = ""
     created_at: datetime = field(default_factory=utc_now)
     score: float | None = None
+    # 事实被新信息取代时，旧条目 is_latest=False 并记下 supersedes_id；只有 is_latest 的条目参与召回。
+    is_latest: bool = True
+    supersedes_id: str | None = None
 
 
 def validate_content(content: str) -> None:
@@ -134,4 +137,9 @@ class MemoryPort(Protocol):
 
     async def delete_user(self, user_id: str) -> int:
         """删除该用户的全部记忆，返回删除条数。删除是否完整以 ``list_for_user`` 为空为准（规范 §6）。"""
+        ...
+
+    async def supersede(self, user_id: str, old_id: str, item: MemoryItem) -> MemoryItem | None:
+        """用一条新事实取代旧事实：新条目 is_latest=True 且 supersedes_id=old_id，旧条目 is_latest=False。
+        旧条目保留（可回溯、可撤销），只是不再被召回。``old_id`` 不存在或不属于该用户返回 None。"""
         ...

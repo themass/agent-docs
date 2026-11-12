@@ -43,8 +43,13 @@ class ScopedMemory:
                      kinds: Iterable[Any] | None = None) -> list[Any]:
         return await self._port.search(self._uid(user_id), query, limit=limit, kinds=kinds)
 
-    async def list_for_user(self, user_id: str, limit: int = 50, offset: int = 0) -> list[Any]:
-        return await self._port.list_for_user(self._uid(user_id), limit=limit, offset=offset)
+    async def list_for_user(self, user_id: str, limit: int = 50, offset: int = 0,
+                            include_history: bool = False) -> list[Any]:
+        return await self._port.list_for_user(self._uid(user_id), limit=limit, offset=offset,
+                                              include_history=include_history)
+
+    async def supersede(self, user_id: str, old_id: str, item: Any) -> Any | None:
+        return await self._port.supersede(self._uid(user_id), old_id, item)
 
     async def delete_one(self, user_id: str, memory_id: str) -> bool:
         return await self._port.delete_one(self._uid(user_id), memory_id)
