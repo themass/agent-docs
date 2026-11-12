@@ -43,14 +43,14 @@ def test_due_event_reaches_the_owner_inbox_once_and_is_drained():
     asyncio.run(app.state.companion.loop.run_once(_at(10, 0)))
 
     client = TestClient(app)
-    first = client.get("/companion/inbox", headers=_as("alice")).json()
+    first = client.get("/v1/inbox", headers=_as("alice")).json()
     assert len(first) == 1
     assert first[0]["text"]
     assert first[0]["trigger"] == "event_due"
     assert first[0]["channel"] == "in_app"
 
     # 取走即清空：同一条不会再出现第二次。
-    assert client.get("/companion/inbox", headers=_as("alice")).json() == []
+    assert client.get("/v1/inbox", headers=_as("alice")).json() == []
 
 
 def test_inbox_is_private_to_the_owner():
@@ -60,8 +60,8 @@ def test_inbox_is_private_to_the_owner():
     asyncio.run(app.state.companion.loop.run_once(_at(10, 0)))
 
     client = TestClient(app)
-    assert client.get("/companion/inbox", headers=_as("bob")).json() == []
-    assert len(client.get("/companion/inbox", headers=_as("alice")).json()) == 1
+    assert client.get("/v1/inbox", headers=_as("bob")).json() == []
+    assert len(client.get("/v1/inbox", headers=_as("alice")).json()) == 1
 
 
 def test_quiet_hours_produce_no_inbox_message():
@@ -72,7 +72,7 @@ def test_quiet_hours_produce_no_inbox_message():
     asyncio.run(app.state.companion.loop.run_once(_at(23, 25)))
 
     client = TestClient(app)
-    assert client.get("/companion/inbox", headers=_as("alice")).json() == []
+    assert client.get("/v1/inbox", headers=_as("alice")).json() == []
 
 
 def test_background_worker_is_started_and_stopped_with_the_app():

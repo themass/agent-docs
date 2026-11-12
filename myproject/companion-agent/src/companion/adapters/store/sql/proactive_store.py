@@ -48,7 +48,10 @@ def _apply_patch(current: InitiativePreferences, patch: dict[str, Any]) -> Initi
             hour, _, minute = value.partition(":")
             changes[key] = time(int(hour), int(minute or 0))
         elif key == "paused_until" and isinstance(value, str):
-            changes[key] = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            # 空串 = 恢复（旧接口的约定：传 "" 表示不再暂停）。
+            # 直接 fromisoformat("") 会抛 ValueError，把「恢复」变成 500。
+            changes[key] = (datetime.fromisoformat(value.replace("Z", "+00:00"))
+                            if value.strip() else None)
         else:
             changes[key] = value
     return replace(current, **changes)

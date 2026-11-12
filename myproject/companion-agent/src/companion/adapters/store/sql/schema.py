@@ -5,6 +5,8 @@
 - ``JsonText``：Postgres 用 JSONB，MySQL 5.6 没有 JSON 类型，以 MEDIUMTEXT 存储并编解码。
 """
 
+from datetime import UTC
+
 from sqlalchemy import (
     BigInteger, Boolean, DateTime, Index, Integer, MetaData, String, Table, Text,
     UniqueConstraint, Column, func, text, types,
@@ -47,9 +49,43 @@ class JsonText(types.TypeDecorator):
         return json.loads(value) if isinstance(value, str) else value
 
 
+class UTCDateTime(types.TypeDecorator):
+    """统一的时间列。
+
+    为什么要包一层：以前用裸 ``DateTime``（Postgres 是 timestamp without time zone），
+    读回来是「不带时区」的 datetime，和 ``datetime.now(UTC)`` 一比较就抛
+    TypeError: can't compare offset-naive and offset-aware。全仓为此散落了 32 处
+    ``replace(tzinfo=None)`` / ``replace(tzinfo=UTC)``，任何一处漏了就是一个 500。
+
+    现在：Postgres 用 timestamptz（带时区），写入时保证带 UTC，读出来按 UTC 解释。
+    MySQL 没有独立时区类型，仍存 DATETIME，但读写两侧都在这里统一按 UTC 处理。
+    """
+
+    impl = DateTime
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "postgresql":
+            from sqlalchemy.dialects.postgresql import TIMESTAMP
+            return dialect.type_descriptor(TIMESTAMP(timezone=True))
+        return dialect.type_descriptor(DateTime())
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            return value.replace(tzinfo=UTC)
+        return value.astimezone(UTC)
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
+        return value if value.tzinfo else value.replace(tzinfo=UTC)
+
+
 _pk = lambda: Column("id", BigInteger, primary_key=True, autoincrement=True)  # noqa: E731
-_now = lambda: Column("created_at", DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP"))  # noqa: E731
-_upd = lambda: Column("updated_at", DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP"), onupdate=func.now())  # noqa: E731
+_now = lambda: Column("created_at", UTCDateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP"))  # noqa: E731
+_upd = lambda: Column("updated_at", UTCDateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP"), onupdate=func.now())  # noqa: E731
 
 chat_session = Table(
     TABLE_PREFIX + "chat_session", metadata,
@@ -102,8 +138,8 @@ chat_turn = Table(
     Column("skills", JsonText, nullable=True),
     Column("usage", JsonText, nullable=True),
     Column("error_code", String(64), nullable=True),
-    Column("started_at", DateTime, nullable=True),
-    Column("finished_at", DateTime, nullable=True),
+    Column("started_at", UTCDateTime, nullable=True),
+    Column("finished_at", UTCDateTime, nullable=True),
     Index("ca_ix_turn_state_started", "state", "started_at"),
 )
 
@@ -164,8 +200,8 @@ action_confirmation = Table(
     Column("title", String(120), nullable=False),
     Column("summary", Text, nullable=False),
     Column("status", String(16), nullable=False),
-    Column("expires_at", DateTime, nullable=False),
-    Column("decided_at", DateTime, nullable=True),
+    Column("expires_at", UTCDateTime, nullable=False),
+    Column("decided_at", UTCDateTime, nullable=True),
     _now(),
     Index("ca_ix_confirm_owner_status", "owner_id", "status"),
     Index("ca_ix_confirm_status_expires", "status", "expires_at"),
@@ -208,9 +244,9 @@ agent_job = Table(
     Column("status", String(16), nullable=False),
     Column("attempts", Integer, nullable=False, server_default="0"),
     Column("max_attempts", Integer, nullable=False, server_default="5"),
-    Column("run_after", DateTime, nullable=False),
+    Column("run_after", UTCDateTime, nullable=False),
     Column("lease_owner", String(64), nullable=True),
-    Column("lease_until", DateTime, nullable=True),
+    Column("lease_until", UTCDateTime, nullable=True),
     Column("dedupe_key", String(191), nullable=True),
     Column("last_error", Text, nullable=True),
     _now(), _upd(),
@@ -222,8 +258,8 @@ account_purge_log = Table(
     TABLE_PREFIX + "account_purge_log", metadata,
     _pk(),
     Column("user_hash", String(64), nullable=False),  # 不存原 user_id（O §3）
-    Column("requested_at", DateTime, nullable=False),
-    Column("finished_at", DateTime, nullable=True),
+    Column("requested_at", UTCDateTime, nullable=False),
+    Column("finished_at", UTCDateTime, nullable=True),
 )
 
 reminder = Table(
@@ -232,13 +268,13 @@ reminder = Table(
     Column("owner_id", BigInteger, nullable=False),
     Column("session_id", BigInteger, nullable=False),
     Column("role_id", String(128), nullable=False),
-    Column("due_at", DateTime, nullable=False),           # UTC
+    Column("due_at", UTCDateTime, nullable=False),           # UTC
     Column("timezone", String(64), nullable=False, server_default="UTC"),
     Column("content", Text, nullable=False),
     Column("status", String(16), nullable=False),         # pending | claimed | sent | cancelled | failed
     Column("attempts", Integer, nullable=False, server_default="0"),
     Column("lease_owner", String(64), nullable=True),
-    Column("lease_until", DateTime, nullable=True),
+    Column("lease_until", UTCDateTime, nullable=True),
     # 由确认执行创建：同一确认只建一条（重放、重复确认幂等）。
     Column("confirmation_id", String(40), nullable=True),
     Column("sent_turn_id", String(26), nullable=True),
@@ -261,11 +297,11 @@ timeline_event = Table(
     Column("origin", String(16), nullable=False),                   # tool | extracted | manual
     Column("kind", String(16), nullable=False),
     Column("title", String(60), nullable=False),
-    Column("at_utc", DateTime, nullable=False),
+    Column("at_utc", UTCDateTime, nullable=False),
     Column("timezone", String(64), nullable=False, server_default="UTC"),
     Column("all_day", Boolean, nullable=False, server_default="0"),
     Column("recurrence", String(16), nullable=False, server_default="none"),
-    Column("next_at_utc", DateTime, nullable=True),                 # 按时间查用：一次性 = at，重复 = 下一次
+    Column("next_at_utc", UTCDateTime, nullable=True),                 # 按时间查用：一次性 = at，重复 = 下一次
     Column("status", String(16), nullable=False, server_default="scheduled"),
     Column("confidence", types.Float, nullable=False, server_default="1"),
     Column("reminder_id", BigInteger, nullable=True),
@@ -290,7 +326,7 @@ avatar_release = Table(
     Column("size_bytes", BigInteger, nullable=False),
     Column("sha256", String(64), nullable=False),
     Column("min_app_version", Integer, nullable=False, server_default="0"),
-    Column("published_at", DateTime, nullable=True),
+    Column("published_at", UTCDateTime, nullable=True),
     _now(), _upd(),
     UniqueConstraint("avatar_key", "version", name="ca_uq_avatar_version"),
     Index("ca_ix_avatar_status_role", "status", "role_id"),
@@ -308,8 +344,8 @@ persona_entry = Table(
     Column("is_inference", Boolean, nullable=False, server_default="0"),
     Column("confidence", types.Float, nullable=False, server_default="0.8"),
     Column("source_fact_ids", JsonText, nullable=True),              # 由哪些事实记忆归纳而来
-    Column("mentioned_at", DateTime, nullable=True),
-    Column("happened_at", DateTime, nullable=True),
+    Column("mentioned_at", UTCDateTime, nullable=True),
+    Column("happened_at", UTCDateTime, nullable=True),
     Column("superseded_by", BigInteger, nullable=True),              # 被哪条取代；空 = 当前有效
     Column("suppressed", Boolean, nullable=False, server_default="0"),   # 用户说「别再提」
     _now(), _upd(),
@@ -323,7 +359,7 @@ persona_cursor = Table(
     # 上次抽取处理到的位置：已处理的用户消息 id、待处理的累计字数（批量触发用，不每轮抽取）
     Column("last_message_id", BigInteger, nullable=False, server_default="0"),
     Column("pending_chars", Integer, nullable=False, server_default="0"),
-    Column("updated_at", DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP")),
+    Column("updated_at", UTCDateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP")),
 )
 
 
@@ -335,17 +371,17 @@ user_consent = Table(
     # 主动联系总开关。关闭后调度器不再发起主动回合（用户明确要求的提醒仍会发，那是对请求的兑现）。
     Column("proactive_enabled", Boolean, nullable=False, server_default="1"),
     Column("age_verified_adult", Boolean, nullable=False, server_default="0"),
-    Column("updated_at", DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP")),
+    Column("updated_at", UTCDateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP")),
 )
 
 usage_span = Table(
     TABLE_PREFIX + "usage_span", metadata,
     Column("owner_id", BigInteger, primary_key=True, autoincrement=False),
     # 连续使用的起点与最近一次活跃。超过 30 分钟没有活跃就视为新的一段（与常见「连续使用」口径一致）。
-    Column("started_at", DateTime, nullable=False),
-    Column("last_seen_at", DateTime, nullable=False),
-    Column("reminded_at", DateTime, nullable=True),
-    Column("updated_at", DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP")),
+    Column("started_at", UTCDateTime, nullable=False),
+    Column("last_seen_at", UTCDateTime, nullable=False),
+    Column("reminded_at", UTCDateTime, nullable=True),
+    Column("updated_at", UTCDateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP")),
 )
 
 
@@ -361,8 +397,8 @@ proactive_preferences = Table(
     Column("quiet_end", String(5), nullable=False, server_default="08:00"),
     Column("max_per_day", Integer, nullable=False, server_default="2"),
     Column("max_per_week", Integer, nullable=False, server_default="6"),
-    Column("paused_until", DateTime, nullable=True),
-    Column("updated_at", DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP")),
+    Column("paused_until", UTCDateTime, nullable=True),
+    Column("updated_at", UTCDateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP")),
 )
 
 # 应用内收件箱。原来在进程内且有 200 条上限、重启即丢：主动消息发出去、用户还没看到就没了。
@@ -375,9 +411,9 @@ delivery_receipt = Table(
     Column("text", LongText, nullable=False),
     Column("channel", String(16), nullable=False, server_default="in_app"),
     Column("meta", JsonText, nullable=True),
-    Column("at", DateTime, nullable=False),
-    Column("drained_at", DateTime, nullable=True),
-    Column("created_at", DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP")),
+    Column("at", UTCDateTime, nullable=False),
+    Column("drained_at", UTCDateTime, nullable=True),
+    Column("created_at", UTCDateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP")),
     Index("ca_ix_receipt_owner_drained_at", "owner_id", "drained_at", "at"),
 )
 
@@ -387,7 +423,7 @@ send_record = Table(
     TABLE_PREFIX + "send_record", metadata,
     Column("id", BigInteger, primary_key=True, autoincrement=True),
     Column("owner_id", BigInteger, nullable=False),
-    Column("at", DateTime, nullable=False),
+    Column("at", UTCDateTime, nullable=False),
     Column("channel", String(16), nullable=False),
     Column("trigger", String(64), nullable=False, server_default=""),
     Index("ca_ix_send_owner_at", "owner_id", "at"),

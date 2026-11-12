@@ -98,7 +98,7 @@ ME = {"Authorization": "Bearer 7"}
 
 
 def test_memory_api_scopes_facts_by_role(client):
-    url = "/api/agent/v1/memory/facts"
+    url = "/v1/memory/facts"
     fid = client.post(f"{url}?role_id=linche", json={"content": "喜欢喝茶"}, headers=ME).json()["id"]
     assert [i["content"] for i in client.get(f"{url}?role_id=linche", headers=ME).json()["items"]] == ["喜欢喝茶"]
     assert client.get(f"{url}?role_id=sudai", headers=ME).json()["items"] == []

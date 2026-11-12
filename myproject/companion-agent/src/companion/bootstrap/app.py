@@ -264,29 +264,9 @@ def create_app(
     # 客户端依赖的接口：角色目录、记忆与事件、动作确认与偏好、主动消息收件箱。
     catalog = CharacterCatalog(CharacterSource(PROJECT_ROOT / "characters"))
     app.include_router(characters_router.build_router(catalog, current_user))
-    # 陪伴页的「她记得的 / 重要日子」走这两个旧路径。有平台时必须读 Postgres：
-    # 否则陪伴页看到的是旧容器的内存存储，重启就空，且与新栈的 /api/agent/v1 数据不一致。
-    if platform is not None:
-        _legacy_memory = platform.memory
-        _legacy_timeline = LegacyTimelineAdapter(platform.timeline)
-    else:
-        _legacy_memory = resolved.memory
-        _legacy_timeline = resolved.timeline
-    app.include_router(
-        memory_router.build_router(
-            memory_router.MemoryApi(memory=_legacy_memory, timeline=_legacy_timeline),
-            current_user,
-        )
-    )
-    # 旧 /companion 的确认动作：有平台时走 Postgres 的 ConfirmationService，
-    # 和 /api/agent/v1/actions 用同一份实现；没有平台（离线/测试）才用旧执行器。
-    _legacy_actions = (
-        LegacyActionsAdapter(platform.confirmations) if platform is not None
-        else control_router.ActionsApi(executor=resolved.executor)
-    )
     app.include_router(
         control_router.build_router(
-            actions=_legacy_actions,
+            actions=control_router.ActionsApi(executor=resolved.executor),
             preferences=control_router.PreferencesApi(store=preferences_store),
             current_user=current_user,
         )

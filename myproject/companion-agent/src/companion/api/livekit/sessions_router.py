@@ -39,7 +39,7 @@ def build_router(service: SessionService, current_user):
         expires_at: str
         identity: str
 
-    router = APIRouter(prefix="/companion", tags=["companion"])
+    router = APIRouter(prefix="/v1/voice", tags=["companion"])
 
     @router.post("/sessions", response_model=SessionResponse)
     async def create_session(

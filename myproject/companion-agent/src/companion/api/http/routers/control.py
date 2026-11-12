@@ -105,24 +105,9 @@ def build_router(
         max_per_week: int | None = None
         paused_until: str | None = None
 
-    router = APIRouter(prefix="/companion", tags=["companion"])
-
-    @router.get("/actions/pending")
-    async def list_pending(user_id: str = Depends(current_user)) -> list[dict]:
-        return await actions.pending(user_id)
-
-    @router.post("/actions/{confirmation_id}/confirm")
-    async def confirm(
-        confirmation_id: str,
-        body: ConfirmIn,
-        user_id: str = Depends(current_user),
-    ) -> dict:
-        result = await actions.confirm(user_id, confirmation_id, accepted=body.accepted)
-        if result.get("status") in {"denied", "unknown"} and result.get("reason") == (
-            "confirmation_invalid"
-        ):
-            raise HTTPException(status_code=404, detail="confirmation not found")
-        return result
+    # 确认动作已经统一到 /v1/actions（读的是同一份 Postgres 确认存储），
+    # 这里只保留偏好——它是 /v1 下唯一还没有对应实现的资源。
+    router = APIRouter(prefix="/v1", tags=["companion"])
 
     @router.get("/prefs")
     async def get_prefs(user_id: str = Depends(current_user)) -> dict:

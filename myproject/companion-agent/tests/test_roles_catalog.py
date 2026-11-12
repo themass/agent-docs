@@ -112,25 +112,25 @@ BOB = {"Authorization": "Bearer 8"}
 
 
 def test_user_roles_are_private_and_system_roles_are_read_only(client):
-    created = client.post("/api/agent/v1/roles", json={"name": "我的助手", "prompt": "你是导师"}, headers=ME)
+    created = client.post("/v1/roles", json={"name": "我的助手", "prompt": "你是导师"}, headers=ME)
     assert created.status_code == 201
     rid = created.json()["id"]
     assert rid.startswith("u_")
-    assert client.get(f"/api/agent/v1/roles/{rid}", headers=BOB).status_code == 404
-    assert client.put(f"/api/agent/v1/roles/{rid}", json={"name": "新"}, headers=BOB).status_code == 404
-    assert client.put(f"/api/agent/v1/roles/{rid}", json={"name": "新"}, headers=ME).json()["name"] == "新"
-    assert client.put("/api/agent/v1/roles/academic-anthropologist", json={"name": "x"}, headers=ME).status_code == 403
-    assert client.delete("/api/agent/v1/roles/academic-anthropologist", headers=ME).status_code == 403
-    assert client.delete(f"/api/agent/v1/roles/{rid}", headers=ME).status_code == 204
-    assert client.delete(f"/api/agent/v1/roles/{rid}", headers=ME).status_code == 404
+    assert client.get(f"/v1/roles/{rid}", headers=BOB).status_code == 404
+    assert client.put(f"/v1/roles/{rid}", json={"name": "新"}, headers=BOB).status_code == 404
+    assert client.put(f"/v1/roles/{rid}", json={"name": "新"}, headers=ME).json()["name"] == "新"
+    assert client.put("/v1/roles/academic-anthropologist", json={"name": "x"}, headers=ME).status_code == 403
+    assert client.delete("/v1/roles/academic-anthropologist", headers=ME).status_code == 403
+    assert client.delete(f"/v1/roles/{rid}", headers=ME).status_code == 204
+    assert client.delete(f"/v1/roles/{rid}", headers=ME).status_code == 404
 
 
 def test_role_prompt_length_is_capped(client):
-    assert client.post("/api/agent/v1/roles", json={"name": "x", "prompt": "p" * 5000}, headers=ME).status_code == 422
+    assert client.post("/v1/roles", json={"name": "x", "prompt": "p" * 5000}, headers=ME).status_code == 422
 
 
 def test_role_list_is_paged_and_searchable(client):
-    page = client.get("/api/agent/v1/roles", params={"limit": 2}, headers=ME).json()
+    page = client.get("/v1/roles", params={"limit": 2}, headers=ME).json()
     assert page["total"] >= 283 and len(page["items"]) == 2
-    hits = client.get("/api/agent/v1/roles", params={"q": "anthropologist", "limit": 5}, headers=ME).json()
+    hits = client.get("/v1/roles", params={"q": "anthropologist", "limit": 5}, headers=ME).json()
     assert hits["total"] == 1

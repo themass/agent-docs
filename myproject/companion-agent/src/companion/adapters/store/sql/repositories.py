@@ -486,5 +486,10 @@ def _confirmation(r) -> ConfirmationRecord:
     args = r["args"]
     if isinstance(args, str):
         args = json.loads(args)
+    expires = r["expires_at"]
+    # 数据库存的是不带时区的时间（UTC）；读回来若直接与 datetime.now(UTC) 比较会抛
+    # TypeError: can't compare offset-naive and offset-aware。库里统一按 UTC 解释。
+    if expires is not None and expires.tzinfo is None:
+        expires = expires.replace(tzinfo=UTC)
     return ConfirmationRecord(r["id"], r["owner_id"], r["session_id"], r["turn_id"], r["tool"], dict(args or {}),
-                              r["args_fingerprint"], r["title"], r["summary"], r["status"], r["expires_at"])
+                              r["args_fingerprint"], r["title"], r["summary"], r["status"], expires)

@@ -78,7 +78,7 @@ def build_router(service: TurnService, current_user):
         thread_id: str | None = None
         mode: str = "text"
 
-    router = APIRouter(prefix="/companion", tags=["companion"])
+    router = APIRouter(prefix="/v1/voice", tags=["companion"])
 
     @router.post("/turns")
     async def create_turn(

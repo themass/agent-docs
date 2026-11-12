@@ -233,23 +233,23 @@ ME = {"Authorization": "Bearer 7"}
 
 def test_profile_endpoints(profile_client):
     client, store = profile_client
-    items = client.get("/api/agent/v1/memory/profile?role_id=linche", headers=ME).json()["items"]
+    items = client.get("/v1/memory/profile?role_id=linche", headers=ME).json()["items"]
     assert [(i["topic"], i["is_inference"]) for i in items] == [("职业", False), ("性格", True)]
-    assert client.get("/api/agent/v1/memory/profile", headers=ME).json()["items"] == []     # 不带角色：不猜
-    assert client.post("/api/agent/v1/memory/profile/1/suppress", headers=ME).status_code == 204
-    assert client.post("/api/agent/v1/memory/profile/9/suppress", headers=ME).status_code == 404
-    assert client.delete("/api/agent/v1/memory/profile/1", headers=ME).status_code == 204
+    assert client.get("/v1/memory/profile", headers=ME).json()["items"] == []     # 不带角色：不猜
+    assert client.post("/v1/memory/profile/1/suppress", headers=ME).status_code == 204
+    assert client.post("/v1/memory/profile/9/suppress", headers=ME).status_code == 404
+    assert client.delete("/v1/memory/profile/1", headers=ME).status_code == 204
     assert store.suppressed[0] == (7, 1) and store.deleted[0] == (7, 1)
 
 
 def test_deleting_or_rewriting_a_fact_removes_profile_entries_derived_from_it(profile_client):
     client, store = profile_client
-    created = client.post("/api/agent/v1/memory/facts?role_id=linche", json={"content": "在做前端开发"}, headers=ME).json()
-    assert client.delete(f"/api/agent/v1/memory/facts/{created['id']}?role_id=linche", headers=ME).status_code == 204
+    created = client.post("/v1/memory/facts?role_id=linche", json={"content": "在做前端开发"}, headers=ME).json()
+    assert client.delete(f"/v1/memory/facts/{created['id']}?role_id=linche", headers=ME).status_code == 204
     assert store.dropped == [(7, [created["id"]])]
-    created2 = client.post("/api/agent/v1/memory/facts?role_id=linche", json={"content": "喜欢喝茶"}, headers=ME).json()
+    created2 = client.post("/v1/memory/facts?role_id=linche", json={"content": "喜欢喝茶"}, headers=ME).json()
     before = len(store.dropped)
-    assert client.patch(f"/api/agent/v1/memory/facts/{created2['id']}?role_id=linche",
+    assert client.patch(f"/v1/memory/facts/{created2['id']}?role_id=linche",
                         json={"content": "更喜欢绿茶"}, headers=ME).status_code == 200
     # 改写是「取代」，旧事实仍作为历史保留，画像的依据没丢，所以不联动删除
     assert len(store.dropped) == before

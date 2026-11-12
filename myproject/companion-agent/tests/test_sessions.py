@@ -129,7 +129,7 @@ def test_http_endpoint_wires_identity_room_and_token():
     with TestClient(app) as client:
         assert client.get("/health").json() == {"status": "ok"}
         response = client.post(
-            "/companion/sessions",
+            "/v1/voice/sessions",
             json={"character_id": "xiaowu"},
             headers={"Authorization": "Bearer u1"},
         )

@@ -30,7 +30,7 @@ class InboxApi:
 def build_router(*, inbox: InboxApi, current_user: Any):
     from fastapi import APIRouter, Depends, Query
 
-    router = APIRouter(prefix="/companion", tags=["companion"])
+    router = APIRouter(prefix="/v1", tags=["companion"])
 
     @router.get("/inbox")
     async def take_inbox(

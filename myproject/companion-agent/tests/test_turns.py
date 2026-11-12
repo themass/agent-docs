@@ -127,7 +127,7 @@ def test_app_requires_livekit_for_sessions():
     from companion.bootstrap.app import create_app
 
     client = TestClient(create_app(livekit_url=""))
-    response = client.post("/companion/sessions", json={"character_id": "linche"})
+    response = client.post("/v1/voice/sessions", json={"character_id": "linche"})
     assert response.status_code >= 400
 
 
@@ -139,7 +139,7 @@ def test_turn_endpoint_streams_sentences():
 
     client = TestClient(create_app(livekit_url="wss://example.test"))
     response = client.post(
-        "/companion/turns",
+        "/v1/voice/turns",
         json={"character_id": "linche", "message": "我最近有点卡住"},
     )
     assert response.status_code == 200

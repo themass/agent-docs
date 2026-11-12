@@ -74,10 +74,10 @@ def test_end_to_end_over_http(migrated):
     app = create_app(livekit_url="", run_initiative=False, verifier=AllowAllVerifier(), platform=platform)
     with TestClient(app) as client:
         # 会话与回合
-        session = client.post("/api/agent/v1/sessions", json={"role_id": "academic-anthropologist"}, headers=ME)
+        session = client.post("/v1/sessions", json={"role_id": "academic-anthropologist"}, headers=ME)
         assert session.status_code == 201
         sid = session.json()["id"]
-        receipt = client.post(f"/api/agent/v1/sessions/{sid}/messages", json={"text": "你好吗"}, headers=ME)
+        receipt = client.post(f"/v1/sessions/{sid}/messages", json={"text": "你好吗"}, headers=ME)
         assert receipt.status_code == 202
         assert receipt.json()["disposition"] == "started"
 
@@ -85,7 +85,7 @@ def test_end_to_end_over_http(migrated):
         reply = None
         deadline = time.time() + 20
         while time.time() < deadline and reply is None:
-            items = client.get(f"/api/agent/v1/sessions/{sid}/messages", headers=ME).json()["items"]
+            items = client.get(f"/v1/sessions/{sid}/messages", headers=ME).json()["items"]
             reply = next((m for m in items if m["role"] == "assistant"), None)
             if reply is None:
                 time.sleep(0.3)
@@ -95,27 +95,27 @@ def test_end_to_end_over_http(migrated):
 
         # 他人不可见
         stranger = {"Authorization": "Bearer 91002"}
-        assert client.get(f"/api/agent/v1/sessions/{sid}/messages", headers=stranger).status_code == 404
+        assert client.get(f"/v1/sessions/{sid}/messages", headers=stranger).status_code == 404
 
         # 角色目录
-        roles = client.get("/api/agent/v1/roles", params={"limit": 1}, headers=ME).json()
+        roles = client.get("/v1/roles", params={"limit": 1}, headers=ME).json()
         assert roles["total"] >= 283
 
         # 记忆（内存实现，重启即丢：见 T13 报告）
-        fact = client.post("/api/agent/v1/memory/facts", json={"content": "喜欢喝茶"}, headers=ME)
+        fact = client.post("/v1/memory/facts", json={"content": "喜欢喝茶"}, headers=ME)
         assert fact.status_code == 201
-        assert client.delete(f"/api/agent/v1/memory/facts/{fact.json()['id']}", headers=ME).status_code == 204
+        assert client.delete(f"/v1/memory/facts/{fact.json()['id']}", headers=ME).status_code == 204
 
         # 确认：未知编号按不存在处理
-        assert client.get("/api/agent/v1/actions/pending", headers=ME).status_code == 200
-        assert client.post("/api/agent/v1/actions/cfm_unknown/confirm", json={"accepted": True},
+        assert client.get("/v1/actions/pending", headers=ME).status_code == 200
+        assert client.post("/v1/actions/cfm_unknown/confirm", json={"accepted": True},
                            headers=ME).status_code == 404
 
         # 上传到 TOS（companion-test/ 前缀），再用签名地址读回
         if platform.uploads is not None and os.environ.get("COMPANION_TEST_TOS_BUCKET"):
-            up = client.post("/api/agent/v1/uploads", content=_png(), headers=ME)
+            up = client.post("/v1/uploads", content=_png(), headers=ME)
             assert up.status_code == 201, up.text
-            url = client.get(f"/api/agent/v1/uploads/{up.json()['upload_id']}", headers=ME).json()["url"]
+            url = client.get(f"/v1/uploads/{up.json()['upload_id']}", headers=ME).json()["url"]
             with urllib.request.urlopen(url, timeout=20) as resp:
                 assert resp.status == 200
                 assert resp.read()[:3] == b"\xff\xd8\xff"  # 重新编码后的 JPEG

@@ -118,38 +118,38 @@ BOB = {"Authorization": "Bearer 8"}
 
 
 def test_fact_endpoints_respect_ownership(memory_client):
-    fid = memory_client.post("/api/agent/v1/memory/facts", json={"content": "喜欢喝茶"}, headers=ME).json()["id"]
-    assert memory_client.get("/api/agent/v1/memory/facts", headers=BOB).json()["items"] == []
-    assert memory_client.delete(f"/api/agent/v1/memory/facts/{fid}", headers=BOB).status_code == 404
+    fid = memory_client.post("/v1/memory/facts", json={"content": "喜欢喝茶"}, headers=ME).json()["id"]
+    assert memory_client.get("/v1/memory/facts", headers=BOB).json()["items"] == []
+    assert memory_client.delete(f"/v1/memory/facts/{fid}", headers=BOB).status_code == 404
     # 改写 = 取代：旧条目保留在历史里，新条目接上它
-    edited = memory_client.patch(f"/api/agent/v1/memory/facts/{fid}", json={"content": "更喜欢绿茶"},
+    edited = memory_client.patch(f"/v1/memory/facts/{fid}", json={"content": "更喜欢绿茶"},
                                  headers=ME)
     assert edited.status_code == 200 and edited.json()["content"] == "更喜欢绿茶"
-    current = memory_client.get("/api/agent/v1/memory/facts", headers=ME).json()["items"]
+    current = memory_client.get("/v1/memory/facts", headers=ME).json()["items"]
     assert [i["content"] for i in current] == ["更喜欢绿茶"]
-    history = memory_client.get("/api/agent/v1/memory/facts?include_history=true", headers=ME).json()["items"]
+    history = memory_client.get("/v1/memory/facts?include_history=true", headers=ME).json()["items"]
     assert len(history) == 2
 
 
 def test_event_endpoints_respect_ownership_and_update_status(memory_client):
-    eid = memory_client.post("/api/agent/v1/memory/events",
+    eid = memory_client.post("/v1/memory/events",
                              json={"title": "评审", "at": "2026-12-01T10:00:00+00:00"}, headers=ME).json()["id"]
-    assert memory_client.delete(f"/api/agent/v1/memory/events/{eid}", headers=BOB).status_code == 404
+    assert memory_client.delete(f"/v1/memory/events/{eid}", headers=BOB).status_code == 404
     # 改了状态：完成的事件不再出现在「将来」列表里
-    assert memory_client.patch(f"/api/agent/v1/memory/events/{eid}", json={"status": "done"},
+    assert memory_client.patch(f"/v1/memory/events/{eid}", json={"status": "done"},
                                headers=BOB).status_code == 404
-    assert memory_client.patch(f"/api/agent/v1/memory/events/{eid}", json={"status": "done"},
+    assert memory_client.patch(f"/v1/memory/events/{eid}", json={"status": "done"},
                                headers=ME).status_code == 200
-    assert memory_client.get("/api/agent/v1/memory/events", headers=ME).json()["items"] == []
-    assert memory_client.patch(f"/api/agent/v1/memory/events/{eid}", json={"status": "nope"},
+    assert memory_client.get("/v1/memory/events", headers=ME).json()["items"] == []
+    assert memory_client.patch(f"/v1/memory/events/{eid}", json={"status": "nope"},
                                headers=ME).status_code == 422
-    assert memory_client.delete(f"/api/agent/v1/memory/events/{eid}", headers=ME).status_code == 204
+    assert memory_client.delete(f"/v1/memory/events/{eid}", headers=ME).status_code == 204
 
 
 def test_profile_is_explicitly_empty_without_a_store(memory_client):
     """没有画像存储（未配置）或没有指定角色：明确返回空，不编造。"""
     empty = {"items": [], "markdown": None, "version": None}
-    assert memory_client.get("/api/agent/v1/memory/profile", headers=ME).json() == empty
-    assert memory_client.get("/api/agent/v1/memory/profile?role_id=linche", headers=ME).json() == empty
-    assert memory_client.post("/api/agent/v1/memory/profile/1/suppress", headers=ME).status_code == 404
-    assert memory_client.delete("/api/agent/v1/memory/profile/1", headers=ME).status_code == 404
+    assert memory_client.get("/v1/memory/profile", headers=ME).json() == empty
+    assert memory_client.get("/v1/memory/profile?role_id=linche", headers=ME).json() == empty
+    assert memory_client.post("/v1/memory/profile/1/suppress", headers=ME).status_code == 404
+    assert memory_client.delete("/v1/memory/profile/1", headers=ME).status_code == 404

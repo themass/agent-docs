@@ -192,7 +192,7 @@ def build_router(catalog: CharacterCatalog, current_user):
         alternate_greetings: list[str]
         skill: str
 
-    router = APIRouter(prefix="/companion", tags=["companion"])
+    router = APIRouter(prefix="/v1", tags=["companion"])
 
     @router.get("/characters", response_model=CharacterListResponse)
     async def list_characters(
