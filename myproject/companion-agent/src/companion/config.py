@@ -55,6 +55,10 @@ class Settings(BaseSettings):
     # 质检记录总开关。关闭后所有写入点（模型调用追踪、回合汇总、语音识别与 TTS 记录）都不再写；
     # 已有的数据仍按保留期限清理、账号注销仍会删除。打开后，正文是否保存仍取决于用户自己的同意。
     companion_qa_enabled: bool = True
+    # 单个语音 worker 进程最多同时接多少个房间（0 = 不限，沿用 LiveKit 默认的按 CPU 判断，对我们等于没限）。
+    # 每个房间是独立进程、各占一份数据库连接池（峰值 6 条），所以这个数要和库的连接数预算一起算。
+    # 总容量 = 这个数 × worker 进程数。
+    companion_voice_max_rooms: int = 5
     # 会话内压缩：未摘要的历史超过这么多 token 时，把较早的消息压成摘要，保留最近这么多条原文。
     companion_summary_trigger_tokens: int = 9000
     companion_summary_keep_messages: int = 20

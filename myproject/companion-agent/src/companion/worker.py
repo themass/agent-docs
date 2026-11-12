@@ -92,7 +92,10 @@ def main() -> None:
     from companion.bootstrap.voice_wiring import voice_wiring
 
     entry = make_entrypoint(_platform, voice_factory=build_voice_stack, wire_voice=voice_wiring(voice_info))
-    cli.run_app(WorkerOptions(entrypoint_fnc=entry))
+    from companion.api.livekit.capacity import worker_options_kwargs
+
+    # 按房间数限流：默认按 CPU 判断的话语音 agent 永远“不满”，房间会把数据库连接占满
+    cli.run_app(WorkerOptions(entrypoint_fnc=entry, **worker_options_kwargs(settings.companion_voice_max_rooms)))
 
 
 if __name__ == "__main__":

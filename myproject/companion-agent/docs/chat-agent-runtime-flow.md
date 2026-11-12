@@ -194,14 +194,47 @@ worker：再关一次会话 → Redis（取消回合、删锁 / 回合状态 / �
 
 ## 7. 进程与部署
 
-| 进程 | 入口 | 做什么 |
-|---|---|---|
-| API（多副本） | `python -m companion.serve` | HTTP / SSE；回合在接到请求的进程里跑 |
-| worker（可多副本） | `python -m companion.worker_jobs` | 任务队列（确认过期、审计清理、记忆写入、事件抽取、摘要重建、账号注销）+ 提醒调度；主动回合在 worker 里跑 |
+三种进程，各自独立启动、独立扩缩，**缺哪一种，对应的功能就静默失效**：
 
-两种进程用同一个 `build_platform`，`Platform.astart()` 在事件循环里打开 checkpoint 连接池并建表（幂等）。
+| 进程 | 入口 | 做什么 | 不部署会怎样 |
+|---|---|---|---|
+| **API**（多副本） | `python -m companion.serve` | 手机 App 的 HTTP / SSE 请求：发消息、拉历史、角色、记忆、偏好、建语音房间（`/v1/voice/sessions`）；文字回合在接到请求的进程里跑 | App 什么都用不了 |
+| **后台任务进程**（可多副本） | `python -m companion.worker_jobs` | 不接 HTTP，循环干活：回合后写记忆/画像/时间线、会话摘要重建、到期清理（含质检数据）、账号注销、用户设的提醒到点发送、**按时间线事件主动找用户** | **聊天本身照常，但记忆不更新、画像不更新、提醒不响、主动消息不发、注销不执行**——任务只会堆在 `ca_agent_job` 表里没人处理，没有任何报错 |
+| **语音 worker**（可多副本） | `python -m companion.worker` | 连到 LiveKit，用户开语音时被派到房间里，听、想、说 | 开语音时房间里没有 agent，用户只听到静音 |
 
-配置（环境变量）：`COMPANION_DATABASE_URL`（Postgres，`postgresql+psycopg://…`）、`COMPANION_REDIS_URL`、`COMPANION_CHECKPOINT_URL`（可省，从数据库地址推导）、`COMPANION_LLM_API_BASE` / `COMPANION_LLM_API_KEY`、`COMPANION_SUMMARY_TRIGGER_TOKENS`、`COMPANION_SUMMARY_KEEP_MESSAGES`、TOS（可省，省略时不挂上传接口）。
+为什么后台任务不能放进 API 进程：API 会开多个副本，每个都扫一遍就会重复发（同一条提醒发 N 次）；
+而且这些活要持续跑，不该和用户请求抢同一个进程。后台任务进程之间靠数据库的行锁和 Redis 抢占保证同一件事只做一次，
+所以它可以开多个。
+
+**语音 worker 的配置要和 API 一致**，指的是这几个环境变量必须指向**同一个**库、同一个 Redis、同一个模型网关：
+`COMPANION_DATABASE_URL`（或分开的 `COMPANION_DB_*`）、`COMPANION_REDIS_URL`、`COMPANION_LLM_API_BASE` /
+`COMPANION_LLM_API_KEY`。原因：语音回合现在走和文字同一个回合引擎，会话历史在数据库、会话锁和事件流在 Redis，
+一旦指到不同的库或 Redis，语音和文字就又变回两份互不相干的历史，还会各自拿各自的锁、互相踩。
+（语音 worker 不需要 `COMPANION_AUTH_VERIFIER`：它不接用户请求，房间身份由 API 建房间时写进房间元数据，客户端改不了。）
+
+**语音房间并发上限 `COMPANION_VOICE_MAX_ROOMS`（单个 worker 进程，默认 5，0 = 不限）**：
+
+- LiveKit 默认按 **CPU 占用**判断一个 worker 满没满（生产默认到 70% 才满）。语音 agent 大部分时间在等网络，
+  CPU 很低，所以按 CPU 永远不会满，房间会一直接。而我们的瓶颈是**数据库连接**：每个房间是一个独立进程，
+  各占一份连接池（峰值 6 条）。
+- 现在改成按房间数：当前房间数 / 上限，到 1.0 就报“已满”，LiveKit 不再把新房间派给这个 worker。
+- **总容量 = 上限 × worker 进程数**。要多撑房间，加 worker 进程，但每多一个房间都占库的连接，见下面的预算。
+- **全部 worker 都满了会怎样：这个我没解决。** LiveKit 派不出 agent，用户进了房间但没人应答（静音）。
+  建房间的接口（`/v1/voice/sessions`）目前不知道 worker 满没满，没法提前拒绝或提示。需要的话要另做容量查询。
+- 这个上限只在单测里验证过（负载函数、和 SDK 真实的 `WorkerOptions` 对接、生产模式校验）；
+  **没有在真实 LiveKit 派单下验证过“满了之后确实不再派”**。
+
+**连接数预算**（库 `max_connections=100`，预留 10 给运维，探测时别的服务已占约 6，剩 84）：
+
+| 进程 | 每进程峰值连接 |
+|---|---|
+| API | 30 |
+| 后台任务 | 12 |
+| 每个语音房间 | 6 |
+
+1 个 API + 1 个后台任务 = 42，剩 42，**峰值下最多 7 个语音房间**；2 个 API + 1 个后台任务 = 72，剩 12，**最多 2 个**。
+这是**峰值上界**，真实用量通常低得多（池是按需建连接，不是启动就占满），所以这个数偏保守，但上线前应该按这个算，
+再用 `pg_stat_activity` 看真实占用（连接带 `application_name`，能分清是哪类进程）。
 
 迁移：`alembic upgrade head`。Postgres 的 `0001` 直接建出完整结构；MySQL 走 0001 → 0002 → 0003 → 0004。
 
