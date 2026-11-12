@@ -262,29 +262,6 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
 
     timeline_recorder = TimelineRecorder(timeline, llm) if llm is not None else None
 
-    # 连续使用提醒：用户发消息就算活跃；一段内到 2 小时，在这条回合的 SSE 里带一条提醒给客户端。
-    # 计时失败只记日志（ComplianceService 内部已兜住），不会让回合失败。
-    upstream_submit = api.submit
-
-    class _ActivityAwareSubmit:
-        async def submit(self, **kw):
-            result = await upstream_submit.submit(**kw)
-            if getattr(result, "status", "") == "accepted":
-                try:
-                    reminder = await compliance.note_activity(owner_id=int(kw["owner_id"]))
-                except Exception:  # noqa: BLE001
-                    log.warning("usage reminder failed", extra={"owner_id": kw.get("owner_id")})
-                    reminder = None
-                if reminder:
-                    await control.publish(session_id=int(kw["session_id"]), event="usage.reminder",
-                                          data={"text": reminder, "turn_id": result.turn_id or ""})
-            return result
-
-        def __getattr__(self, name):
-            return getattr(upstream_submit, name)
-
-    api.submit = _ActivityAwareSubmit()
-
     async def after_turn(outcome: TurnOutcome) -> None:
         # 拿着会话锁：补记中断的回复，让模型知道上一句说到哪里。
         if outcome.interrupted and outcome.assistant_message_id and outcome.assistant_text and not outcome.lock_lost:
@@ -317,6 +294,30 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
         produce=produce, drain=drain, process_name=None, after_turn=after_turn, fence_sessions=True,
     )
     api.history = history
+
+    # 连续使用提醒：用户发消息就算活跃；一段内到 2 小时，在这条回合的 SSE 里带一条提醒给客户端。
+    # 计时失败只记日志（ComplianceService 内部已兜住），不会让回合失败。
+    upstream_submit = api.submit
+
+    class _ActivityAwareSubmit:
+        async def submit(self, **kw):
+            result = await upstream_submit.submit(**kw)
+            if getattr(result, "status", "") == "accepted":
+                try:
+                    reminder = await compliance.note_activity(owner_id=int(kw["owner_id"]))
+                except Exception:  # noqa: BLE001
+                    log.warning("usage reminder failed", extra={"owner_id": kw.get("owner_id")})
+                    reminder = None
+                if reminder:
+                    await control.publish(session_id=int(kw["session_id"]), event="usage.reminder",
+                                          data={"text": reminder, "turn_id": result.turn_id or ""})
+            return result
+
+        def __getattr__(self, name):
+            return getattr(upstream_submit, name)
+
+    api.submit = _ActivityAwareSubmit()
+
 
     async def submit_proactive(owner_id: int, session_id: int, role_id: str, text: str) -> str | None:
         if await sessions.get(owner_id=owner_id, session_id=session_id) is None:
