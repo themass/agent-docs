@@ -413,33 +413,34 @@ Alembic 是 SQLAlchemy 配套的**数据库结构版本管理工具**。它把"�
 - **全部基于文档和 1.8.11 源码核对，没有在真实 LiveKit 房间里跑过。** 单测用假默认实现驱动 `tts_node`；
   真实环境里 `Agent.default.tts_node` 需要活跃的 AgentActivity，行为是否一致只能联调确认。
 
-## 14. 远程 Postgres 的状态（2026-11-12）
+## 14. 远程 Postgres 的状态（2026-11-12 更新：已建表）
 
-连接信息（主机 `newdb.sspacee.com`、库 `uher`、账号 `vpn@server`）已写入 `.env`（权限 600，不入库）。
-**实测这个账号不能建表**：
+连接信息（主机 `newdb.sspacee.com`、库 `uher`、账号 `vpn@server`）在 `.env`（权限 600，不入库）。
+`vpn@server` 起初对 `public` 没有 CREATE，授权后（ACL 里已是 `UC`）已建表：
 
-- 对 `public` schema 只有 `USAGE`，没有 `CREATE`（`CREATE TABLE` 报 `permission denied for schema public`）；
-- 对数据库没有 `CREATE`（建不了新 schema），只有 `TEMP`；
-- 库里只有一张别人的 `zz_perm_test`，没有 `ca_*` 表，也没有 LangGraph 的 checkpoint 表；
-- 服务器 PostgreSQL 17.11，`max_connections=100`（探测时已有 6 条连接在用）；
-- **`pgvector` 不可用**（`pg_available_extensions` 里没有 `vector`），向量记忆召回在这个库上做不了。
+- `alembic upgrade head` 建了基线里的 **25 张 `ca_*` 表**，版本表是 `ca_alembic_version`（加了前缀，
+  避免和这个共用库里其他服务的迁移表重名），版本 `0001_baseline`。
+- 对照 `schema.py` 核对过：表、列、索引全部一致，没有多出或缺少；`ca_turn_trace.steps` 是 `jsonb`，
+  时间列是 `timestamptz`，`voice_turn.turn_id` 唯一索引在。表的所有者是 `vpn@server`，运行时账号和所有者一致，
+  不需要再补授权。
+- 其他服务的表：`public` 里原来只有一张别人的 `zz_perm_test`，我这次查看时它已经不在了（应该是授权时被删掉），
+  所以现在库里除本服务外没有别的表，我没动过任何非 `ca_` 的东西。
+- 用服务真实的连接池代码在这台库上跑过：引擎和 checkpoint 池的会话参数生效（`application_name`
+  带进程角色、`statement_timeout=30s`、`idle_in_transaction_session_timeout=1min`），没有被前置的连接代理拒绝。
+  `AsyncPostgresSaver.setup()` 成功，建了 `checkpoints`、`checkpoint_blobs`、`checkpoint_writes`、
+  `checkpoint_migrations` 四张表（服务启动时本来就会建）。
+- 用保留的测试用户号（`9999999001`）在永久表上做过一次完整读写回路：追踪、回合汇总、语音识别与 TTS 两个写入方
+  合并成一行，读回内容与写入逐字一致，然后删除，**四张表里该用户的行数全部回到 0**。
 
-我没有换用别的账号或绕过限制。已做的验证：把 baseline 的 50 条 DDL 作为 **TEMP 表**在这台真实服务器上
-执行（临时表随连接消失，库里不留任何东西），全部通过，并验证了 JSONB、`timestamptz`、自增主键、
-`turn_id` 唯一约束；断开重连后确认没有任何 `ca_` 表残留。
+**写一个回合很慢**：这次回路里，写一个回合（追踪、汇总、状态、两次语音记录）一共用了约 **17.8 秒**。
+我本机到这台库的往返延迟中位约 500 毫秒（线上服务器离库近的话会小得多，**这个数不能代表线上**），
+这里每个写入要几次往返、加上新建连接。这正是质检写入必须走后台队列、不能放在回复路径上的原因（见 11.7a）。
+如果线上服务器到库的延迟也是几百毫秒，每个回合的追踪写入要好几秒，队列（1000 条、2 个 worker）的吞吐是
+大约每秒不到 1 个回合，**会先丢记录而不是拖慢回复**。上线后要看 `trace_writer.stats.dropped`，
+有丢弃就说明写入跟不上，需要加 worker 或把库放近。
 
-**让服务能跑起来需要有 CREATE 权限的人执行一次**（任选其一）：
+**`pgvector` 在这台库上不可用**（`pg_available_extensions` 里没有 `vector`），向量记忆召回做不了。
 
-```sql
--- 方案 A：让 vpn@server 能在 public 建表（它会成为这些表的所有者，应用运行时也用它，不需要再授权）
-GRANT CREATE ON SCHEMA public TO "vpn@server";
-```
-
-之后在 `companion-agent` 目录执行 `alembic upgrade head` 建 `ca_*` 表；LangGraph 的 checkpoint 表
-由服务启动时 `AsyncPostgresSaver.setup()` 自建，同样需要这个权限。
-
-不推荐用库所有者账号（`sspacee`）建表后再授权：应用运行时账号拿不到表的读写权限，还要补一串 `GRANT`。
-
-**连接数预算**：库上限 100，已有约 6 条在用（可能是 Java 服务）。我们的池上限：API 30、后台任务 12、
+**连接数预算**：库上限 100，探测时已有 6 条左右在用（可能是 Java 服务）。我们的池上限：API 30、后台任务 12、
 每个语音房间进程 6。例如 2 个 API + 1 个后台 + 10 个同时在线的语音房间 = 132，**超过上限**。
 需要定语音房间的并发上限，或把池再调小；`bootstrap/database.py` 的 `check_budget()` 可以算。
