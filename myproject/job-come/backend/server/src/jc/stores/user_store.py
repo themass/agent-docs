@@ -84,7 +84,10 @@ class UserStore:
         )
         if search:
             pattern = f"%{search.lower()}%"
-            condition = or_(User.email.like(pattern), UserMeta.display_name.like(pattern))
+            # ILIKE, not LIKE: Postgres LIKE is case-sensitive and MySQL's
+            # default collation was not, so plain LIKE would silently stop
+            # matching mixed-case display names and emails after the move.
+            condition = or_(User.email.ilike(pattern), UserMeta.display_name.ilike(pattern))
             base = base.where(condition)
             count_stmt = count_stmt.where(condition)
         order_by, field, direction = USER_SORT.order_by(sort_by, sort_dir)

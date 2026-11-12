@@ -227,6 +227,11 @@ def _configure_deerflow_paths(config: DeerFlowClientConfig) -> None:
     )
     os.environ["DEER_FLOW_EXTENSIONS_CONFIG_PATH"] = str(runtime_ext)
     os.environ["DEER_FLOW_SKILLS_PATH"] = str(root / settings.jc_skills_root)
+    # `config.yaml checkpointer:` reads these two via `$VAR`. Assigned, not
+    # setdefault: a stale sqlite path inherited from a parent process would
+    # silently split conversation history across two stores.
+    os.environ["JC_DEERFLOW_CHECKPOINT_BACKEND"] = settings.jc_deerflow_checkpoint_backend
+    os.environ["JC_DEERFLOW_CHECKPOINT_DSN"] = settings.deerflow_checkpoint_dsn
     os.environ["JC_PRODUCT_RULES_PATH"] = str(
         root / ".." / "agent" / "deerflow" / "product_rules.md"
     )

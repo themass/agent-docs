@@ -89,9 +89,9 @@ class AgentStore:
         if search:
             pattern = f"%{search.lower()}%"
             condition = or_(
-                AgentSession.id.like(pattern),
-                AgentSession.deerflow_thread_id.like(pattern),
-                User.email.like(pattern),
+                AgentSession.id.ilike(pattern),
+                AgentSession.deerflow_thread_id.ilike(pattern),
+                User.email.ilike(pattern),
             )
             base = base.join(User, User.id == AgentSession.user_id).where(condition)
             count_stmt = count_stmt.join(User, User.id == AgentSession.user_id).where(condition)

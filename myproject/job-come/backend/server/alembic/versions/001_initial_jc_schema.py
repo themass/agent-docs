@@ -8,6 +8,10 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.mysql import LONGTEXT
 
+# MySQL TEXT is 64 KB; Postgres TEXT is unbounded. `with_variant` keeps the
+# narrowing MySQL needs without making the DDL unrenderable on Postgres.
+_PAYLOAD = sa.Text().with_variant(LONGTEXT(), "mysql")
+
 revision: str = "001_initial_jc"
 down_revision: str | None = None
 branch_labels: str | Sequence[str] | None = None
@@ -73,7 +77,7 @@ def upgrade() -> None:
         sa.Column("status", sa.String(16), nullable=False, server_default="draft"),
         sa.Column("version", sa.Integer(), nullable=False, server_default="1"),
         sa.Column("locale", sa.String(16), nullable=False, server_default="zh-CN"),
-        sa.Column("payload", LONGTEXT, nullable=False),
+        sa.Column("payload", _PAYLOAD, nullable=False),
         sa.Column("summary_text", sa.String(512), nullable=True),
         sa.Column("contact_name", sa.String(128), nullable=True),
         sa.Column("confirmed_at", sa.DateTime(timezone=True), nullable=True),

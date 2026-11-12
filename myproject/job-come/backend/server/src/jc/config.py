@@ -86,6 +86,11 @@ class Settings(BaseSettings):
     )
     jc_public_url: str = Field("http://127.0.0.1:3000", alias="JC_PUBLIC_URL")
 
+    # Full SQLAlchemy URL. When set it wins over the JC_DB_* parts below — that is
+    # what lets one image run on Postgres (production) without a code change. The
+    # driver must be async (`postgresql+psycopg`, `mysql+aiomysql`); a bare
+    # `postgresql://` resolves psycopg2 and cannot drive the async session.
+    jc_database_url: str = Field("", alias="JC_DATABASE_URL")
     jc_db_host: str = Field("127.0.0.1", alias="JC_DB_HOST")
     jc_db_port: int = Field(3306, alias="JC_DB_PORT")
     jc_db_name: str = Field("vpn", alias="JC_DB_NAME")
@@ -287,18 +292,37 @@ class Settings(BaseSettings):
 
     @property
     def deerflow_checkpoint_dsn(self) -> str:
-        """LangGraph checkpointer DSN (sqlite file now; postgres later)."""
+        """LangGraph checkpointer DSN, matching ``jc_deerflow_checkpoint_backend``.
+
+        Postgres takes an explicit URL. When that is empty the business database
+        URL is reused: one database, one set of credentials, and no second copy of
+        the password to rotate. The backend must agree with whatever this returns,
+        so a `postgres` backend with no usable URL raises instead of quietly
+        falling back to sqlite — a silent fallback is how conversation history
+        ends up split across two stores that each look healthy.
+        """
         backend = self.jc_deerflow_checkpoint_backend.lower()
         if backend == "postgres":
-            if not self.jc_deerflow_checkpoint_postgres_url:
-                raise ValueError("JC_DEERFLOW_CHECKPOINT_POSTGRES_URL is required")
-            return self.jc_deerflow_checkpoint_postgres_url
+            url = self.jc_deerflow_checkpoint_postgres_url or (
+                self.jc_database_url if self.database_is_postgres else ""
+            )
+            if not url:
+                raise ValueError(
+                    "checkpointer backend is 'postgres' but neither "
+                    "JC_DEERFLOW_CHECKPOINT_POSTGRES_URL nor a postgres JC_DATABASE_URL is set"
+                )
+            return url
+        # A plain filesystem path, not a `sqlite://` URL: this value is handed to
+        # DeerFlow's `resolve_sqlite_conn_str`, which resolves a path and rejects
+        # `file:` URIs. A URL here would create a file literally named "sqlite:".
         path = Path(self.jc_deerflow_checkpoint_sqlite_path).resolve()
         path.parent.mkdir(parents=True, exist_ok=True)
-        return f"sqlite:///{path}"
+        return str(path)
 
     @property
     def database_url(self) -> str:
+        if self.jc_database_url:
+            return self.jc_database_url
         user = quote_plus(self.jc_db_user)
         password = quote_plus(self.jc_db_password)
         return (
@@ -306,6 +330,30 @@ class Settings(BaseSettings):
             f"@{self.jc_db_host}:{self.jc_db_port}/{self.jc_db_name}"
             f"?charset=utf8mb4"
         )
+
+    @property
+    def database_is_postgres(self) -> bool:
+        return self.database_url.startswith(("postgresql", "postgres"))
+
+    @property
+    def db_connect_args(self) -> dict[str, object]:
+        """Driver-specific connect arguments for every engine we open.
+
+        `connect_timeout` is a libpq parameter as well as a MySQL one, so both
+        drivers accept it — without it an unreachable host hangs for the OS TCP
+        timeout and `alembic upgrade` looks like a silent hang instead of failing.
+
+        Postgres sessions are pinned to UTC. `server_default=func.now()` writes
+        `CURRENT_TIMESTAMP`, which for a `TIMESTAMP WITHOUT TIME ZONE` column is
+        whatever wall clock the *session* has; the server here runs
+        Asia/Shanghai, so an unpinned session would stamp local time into columns
+        every application writer fills with UTC. Pinning the session is what
+        makes the database-side default agree with the Python-side one.
+        """
+        args: dict[str, object] = {"connect_timeout": self.jc_db_connect_timeout_seconds}
+        if self.database_is_postgres:
+            args["options"] = "-c timezone=UTC"
+        return args
 
 
 settings = Settings()

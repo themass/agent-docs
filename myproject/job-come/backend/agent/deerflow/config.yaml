@@ -62,9 +62,14 @@ models:
 skills:
   path: skills
 
+# Both values come from JC settings via `$VAR` (see AppConfig.resolve_env_variables):
+# the DSN holds a password and must not be committed, and the backend has to be
+# switchable so a developer box without Postgres can still run on sqlite.
+# `postgresql+psycopg://` is a SQLAlchemy URL; DeerFlow strips the `+driver`
+# before handing it to libpq.
 checkpointer:
-  type: sqlite
-  connection_string: .data/deerflow/checkpoints.sqlite3
+  type: $JC_DEERFLOW_CHECKPOINT_BACKEND
+  connection_string: $JC_DEERFLOW_CHECKPOINT_DSN
 
 token_usage:
   enabled: true

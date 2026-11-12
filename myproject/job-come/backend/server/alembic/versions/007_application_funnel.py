@@ -24,14 +24,20 @@ def upgrade() -> None:
             "UPDATE jc_application SET status = 'applied' WHERE applied_at IS NOT NULL"
         )
     )
+    # Keep the lowest id per (profile, job). Written as a NOT IN subquery rather
+    # than MySQL's `DELETE a FROM ... INNER JOIN ...`: that syntax is MySQL-only
+    # and this migration must also run on Postgres.
     op.execute(
         sa.text(
             """
-            DELETE a FROM jc_application a
-            INNER JOIN jc_application b
-              ON a.profile_id = b.profile_id
-             AND a.job_id = b.job_id
-             AND a.id > b.id
+            DELETE FROM jc_application
+             WHERE id NOT IN (
+                   SELECT keep_id FROM (
+                       SELECT MIN(id) AS keep_id
+                         FROM jc_application
+                        GROUP BY profile_id, job_id
+                   ) AS keep
+             )
             """
         )
     )

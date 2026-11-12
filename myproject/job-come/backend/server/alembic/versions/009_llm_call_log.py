@@ -44,12 +44,12 @@ def upgrade() -> None:
         sa.Column("total_tokens", sa.Integer(), nullable=True),
         sa.Column("cost_micro_usd", sa.Integer(), nullable=True),
         sa.Column("trace_id", sa.String(32), nullable=True),
-        sa.Column("stream", sa.Boolean(), nullable=False, server_default=sa.text("0")),
+        sa.Column("stream", sa.Boolean(), nullable=False, server_default=sa.false()),
         sa.Column("prompt_text", _PAYLOAD, nullable=True),
         sa.Column("response_text", _PAYLOAD, nullable=True),
         sa.Column("reasoning_text", _PAYLOAD, nullable=True),
         sa.Column(
-            "payload_truncated", sa.Boolean(), nullable=False, server_default=sa.text("0")
+            "payload_truncated", sa.Boolean(), nullable=False, server_default=sa.false()
         ),
         sa.Column(
             "created_at",
@@ -83,7 +83,7 @@ def upgrade() -> None:
         sa.Column("error_code", sa.String(64), nullable=True),
         sa.Column("error_message", sa.String(1024), nullable=True),
         sa.Column(
-            "validator_failed", sa.Boolean(), nullable=False, server_default=sa.text("0")
+            "validator_failed", sa.Boolean(), nullable=False, server_default=sa.false()
         ),
         sa.Column("latency_ms", sa.Integer(), nullable=True),
         sa.Column("prompt_tokens", sa.Integer(), nullable=True),

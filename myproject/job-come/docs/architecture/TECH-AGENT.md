@@ -43,7 +43,7 @@ DeerFlow 的运行态不写入项目根历史缓存，而写入：
 backend/server/.data/deerflow/runtime/
 ```
 
-checkpoint 默认使用 SQLite（路径由 `JC_DEERFLOW_CHECKPOINT_*` 配置）；生产可根据并发与恢复需求评审专用持久化后端。
+checkpoint 后端由 `JC_DEERFLOW_CHECKPOINT_BACKEND` 选择：生产是 `postgres`，和业务表同一个库（`langgraph` 检查点表在 `public` schema 下，由 DeerFlow 首次连接时 `setup()` 建好），因此会话历史跨进程、跨机器可读；开发机默认 `sqlite`（`JC_DEERFLOW_CHECKPOINT_SQLITE_PATH`），它不能被多个进程共享，只能单人本地跑。
 
 ## 3. 权限与安全边界（不可放宽）
 

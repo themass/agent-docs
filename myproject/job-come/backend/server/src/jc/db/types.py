@@ -93,7 +93,13 @@ class UTCDateTime(TypeDecorator[datetime]):
     safe precisely because every write path already guarantees UTC going in.
     """
 
-    impl = DateTime
+    # `timezone=True` is what tells Postgres to create `TIMESTAMP WITH TIME ZONE`;
+    # MySQL ignores it and creates a plain `DATETIME`. On Postgres the column then
+    # carries the instant itself, so the server-side default (`CURRENT_TIMESTAMP`,
+    # written under a UTC-pinned session — see `Settings.db_connect_args`) and the
+    # Python-side default land in the same instant space. On MySQL the conversion
+    # below is what supplies the missing label.
+    impl = DateTime(timezone=True)
     cache_ok = True
 
     def process_bind_param(self, value: datetime | None, dialect: object) -> datetime | None:

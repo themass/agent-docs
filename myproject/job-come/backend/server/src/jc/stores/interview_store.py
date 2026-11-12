@@ -39,8 +39,8 @@ class InterviewStore:
             like = f"%{query.strip()}%"
             stmt = stmt.where(
                 or_(
-                    InterviewQuestion.stem.like(like),
-                    InterviewQuestion.company.like(like),
+                    InterviewQuestion.stem.ilike(like),
+                    InterviewQuestion.company.ilike(like),
                 )
             )
         stmt = stmt.order_by(InterviewQuestion.updated_at.desc()).limit(limit)

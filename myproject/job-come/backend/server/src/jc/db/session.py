@@ -6,7 +6,6 @@ import logging
 from collections.abc import AsyncGenerator
 
 import anyio
-
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -21,7 +20,7 @@ engine = create_async_engine(
     pool_pre_ping=True,
     pool_recycle=settings.jc_db_pool_recycle_seconds,
     pool_timeout=settings.jc_db_pool_timeout_seconds,
-    connect_args={"connect_timeout": settings.jc_db_connect_timeout_seconds},
+    connect_args=settings.db_connect_args,
 )
 
 AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
@@ -40,11 +39,13 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
             try:
                 await session.close()
             except DBAPIError:
-                logger.warning("Discarding broken MySQL session during request cleanup", exc_info=True)
+                logger.warning(
+                    "Discarding broken DB session during request cleanup", exc_info=True
+                )
                 try:
                     await session.invalidate()
                 except DBAPIError:
-                    logger.warning("Unable to invalidate broken MySQL session", exc_info=True)
+                    logger.warning("Unable to invalidate broken DB session", exc_info=True)
 
 
 async def release_db_connection(session: AsyncSession) -> None:

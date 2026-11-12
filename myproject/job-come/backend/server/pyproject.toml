@@ -10,6 +10,11 @@ dependencies = [
     "deerflow-harness==2.3.0.dev0",
     "sqlalchemy[asyncio]>=2.0.36",
     "uvicorn[standard]>=0.32.0",
+    # Postgres driver for the business database and the LangGraph checkpointer.
+    # `[binary]` ships a prebuilt libpq, so a deploy host needs no build toolchain.
+    "psycopg[binary]>=3.3.3",
+    # aiomysql stays: JC_DATABASE_URL can still point at MySQL, and removing it
+    # would make that impossible without a code change.
     "aiomysql>=0.2.0",
     "python-multipart>=0.0.12",
     "bcrypt>=4.2.0",
@@ -24,6 +29,10 @@ dependencies = [
     "jinja2>=3.1.0",
     "litellm>=1.55.0",
     "langgraph==1.2.19",
+    # Checkpointer tables (langgraph_checkpoints*) in the same Postgres database.
+    # Required at import time by DeerFlow's postgres checkpointer provider.
+    "langgraph-checkpoint-postgres>=3.1.2,<3.2",
+    "psycopg-pool>=3.3.0",
     "pyyaml>=6.0.0",
     "mcp>=1.26,<2",
     "markitdown==0.1.5",

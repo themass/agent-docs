@@ -67,7 +67,7 @@ WAIT_INTRO → ASKING_MAIN → (LISTENING) → FOLLOWUP? → ASKING_MAIN … →
 
 - **好处**：规则由代码强制，不依赖模型遵守；账本即事实；回放验收可比；多机只需共享 MySQL。
 - **代价**：实施工作量大（预计先在一条分支上实现，并保留旧路径开关，通过验收后删除旧路径）；模型的口语化能力受限于两个窄任务的提示词质量，需要单独评估。
-- **多机当前状态**：检查点仍是本机 SQLite（1 GB，无清理）。在状态机落地前，多机部署不安全；这一点由你决定是否在此之前引入 Postgres 检查点或粘性路由（已选择暂时保持现状）。
+- **多机当前状态（已更新 2026-11-12）**：检查点已迁到 PostgreSQL，与业务表同库（`JC_DEERFLOW_CHECKPOINT_BACKEND=postgres`，DSN 默认复用 `JC_DATABASE_URL`），会话历史不再绑在某台机器上；本地 SQLite 检查点文件已删除。业务库本身也已从 MySQL 切到 PostgreSQL（`JC_DATABASE_URL`），31 张业务表由 Alembic `025_agent_cancel_request` 一次建全。
 - **停止信号**：跨 worker 修复已实现（迁移 025，`run_once` 每秒轮询）。
 
 ## Implementation plan（分步，每步可独立验收）
