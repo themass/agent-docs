@@ -136,9 +136,12 @@ def build_session_options(*, mode: str = "text", voice_factory: Any = None) -> d
     """
     options: dict[str, Any] = {}
     if mode == "voice" and voice_factory is not None:
-        tts, stt = voice_factory()
+        tts, stt, *rest = voice_factory()
         options["tts"] = tts
         options["stt"] = stt
+        if rest:
+            # 官方 silero VAD：语音端点检测交给框架的模型，不自己写
+            options["vad"] = rest[0]
     return options
 
 
@@ -177,7 +180,9 @@ def make_entrypoint(container: Any, voice_factory: Any = None):
             instructions=instructions,
         )
 
-        session = AgentSession(**build_session_options(voice_factory=voice_factory))
+        # 语音栈必须显式按 voice 模式装配：不传 mode 时默认是 text，STT/TTS/VAD 都不会挂上，
+        # 表现是「agent 进房间了但一句话不说」。
+        session = AgentSession(**build_session_options(mode="voice", voice_factory=voice_factory))
         await session.start(agent, room=ctx.room)
         logger.info(
             "companion joined room user=%s character=%s",

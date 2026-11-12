@@ -64,3 +64,48 @@ entrypoint 解析它，写坏了拒绝入场（用错会话会写进别人的对
 - 火山 STT / TTS 的具体接入方式（实时流式 STT、还是分段识别；音色选择）。
 - 语音来源的转写在记忆与画像抽取里是否降置信度：口误与识别错误会被当成用户说过的话。
 - 语音回合与文字回合并发时的合并策略（现有 submit 的合并 / 插话 / 排队规则可直接复用，但要验证语音打断映射到 cancel 的时机）。
+
+---
+
+## 8. 实现记录（2026-11-12）
+
+**已跑通并验证的部分**
+
+| 环节 | 状态 | 验证方式 |
+|---|---|---|
+| 火山流式 ASR | ✅ | 用阿里合成的「你好，我是林澈。」反过来识别，结果完全一致 |
+| 火山 TTS | ✅ | 合成 3.56 秒音频（113,888 字节 PCM） |
+| LiveKit 语音栈装配 | ✅ | `build_voice_stack()` 返回 TTS / STT / silero VAD |
+| worker 连云端 | ✅ | 注册成功，region: Japan |
+| 语音用 DeerFlow | ✅ | 日志确认 `voice brain: DeerFlow`，不再是 FakeBrain |
+
+**为什么用插件 + 覆盖鉴权，而不是自己写协议**
+
+社区插件 `livekit-plugins-volcengine` 已经实现了 URL、请求体、分包、响应解析、重连。它唯一的
+问题是鉴权头写死成旧版控制台格式，而我们的凭据是新版控制台签发的。所以只覆盖
+`get_ws_header`（STT）和 `get_http_header`（TTS），其余全部沿用插件。见
+`adapters/voice/volcengine_livekit.py`。
+
+**踩到并修掉的坑**
+
+1. worker 启动报 `ws_url is required`：LiveKit CLI 读 `os.environ`，不读 pydantic 的 `.env`。
+   已在 `worker._export_livekit_env()` 里把配置写回环境变量。
+2. `build_session_options` 没传 `mode`，默认 `text`，导致 STT/TTS/VAD 全都没挂上——表现是
+   agent 进了房间但一句话不说。已修。
+3. worker 原本固定用 `FakeBrain`：能听能说，但回答是写死的。现在优先用 DeerFlow，配置不全才降级，
+   并且降级时打警告。
+4. 音色与资源 id 必须配对：`BV503_streaming` 是 1.0 音色，这组 key 没有 1.0 权限。
+   可用组合是 `seed-tts-2.0` + `saturn_zh_female_keainvsheng_tob`。
+
+**还没做的**
+
+- 语音和文字**共用会话**：`chat_session_id` 已经能从房间 metadata 传到 entrypoint，但 entrypoint
+  仍走旧的 `TurnPipeline`，没接新服务的 `TurnRunner`。所以语音里说的话还不会进文字对话的历史与记忆。
+- 手机上验证：需要手机能访问到后端 API（当前 `Constants.BASE_IP` 指向生产域名）。
+
+**启动命令**
+
+```bash
+cd /Users/gqli/work/deepagents/docs/myproject/companion-agent
+PYTHONPATH=src .venv/bin/python -m companion.worker dev
+```

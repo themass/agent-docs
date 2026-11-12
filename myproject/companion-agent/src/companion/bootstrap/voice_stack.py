@@ -41,31 +41,43 @@ def config_from_env() -> VoiceStackConfig:
 
 def build_voice_stack(
     config: VoiceStackConfig | None = None,
-) -> tuple[object, object]:
-    """返回 (tts, stt)，供 `AgentSession(tts=..., stt=...)`。
+) -> tuple[object, object, object]:
+    """返回 (tts, stt, vad)，供 ``AgentSession(tts=..., stt=..., vad=...)``。
 
-    未配置语音供应商时抛错而不是返回 None：静默降级会让「语音模式」看起来能用
-    但实际上没有声音，比直接失败更难查。
+    **用社区插件 ``livekit-plugins-volcengine``**，不自己实现协议：插件负责 URL、
+    请求体、分包、响应解析与重连；我们只覆盖鉴权头（新版控制台签发的是
+    ``X-Api-Key``，插件写死的是旧版头）。见 ``adapters/voice/volcengine_livekit.py``。
+
+    VAD 用 LiveKit 官方默认的 silero：语音端点检测是通用问题，官方模型已经调好，
+    自己实现只会更差。
+
+    未配置时抛错而不是返回 None：静默降级会让「语音模式」看起来能用但没声音，
+    比直接失败更难查。
     """
     resolved = config or config_from_env()
     if not resolved.enabled:
-        raise RuntimeError(
-            "语音未启用：设置 COMPANION_VOICE_ENABLED=true 并配置供应商凭据"
-        )
+        raise RuntimeError("语音未启用：设置 COMPANION_VOICE_ENABLED=true 并配置供应商凭据")
 
-    
-    gateway = build_gateway()
     try:
-        from companion.voice.livekit_adapters import GatewaySTT, GatewayTTS
+        from livekit.plugins import silero
     except ImportError as exc:
-        raise RuntimeError(
-            "语音需要 livekit-agents：pip install 'livekit-agents'"
-        ) from exc
+        raise RuntimeError("语音需要 livekit-agents：uv pip install livekit-agents") from exc
 
-    return (
-        GatewayTTS(gateway, provider=resolved.provider, voice_id=resolved.voice_id),
-        GatewaySTT(gateway, provider=resolved.provider),
-    )
+    from livekit.agents import vad as lk_vad
+
+    if resolved.provider != "volcengine":
+        raise RuntimeError(f"暂只接了火山（volcengine），当前配置是 {resolved.provider!r}")
+
+    from companion.adapters.voice.volcengine_livekit import NewConsoleSTT, NewConsoleTTS
+
+    voice = resolved.voice_id or os.getenv("VOLC_TTS_VOICE", "saturn_zh_female_keainvsheng_tob")
+    tts = NewConsoleTTS(voice=voice, sample_rate=16000)
+    stt = NewConsoleSTT()
+    # silero 需要在 worker 启动时预加载（prewarm），否则第一句会有明显延迟。
+    vad = silero.VAD.load()
+    if not isinstance(vad, lk_vad.VAD):
+        raise RuntimeError("VAD 不是 LiveKit 的 VAD 实例")
+    return tts, stt, vad
 
 
 # ---- 以下从 app/voice/gateway.py 移入：装配火山引擎等具体供应商，属于组合根 ----

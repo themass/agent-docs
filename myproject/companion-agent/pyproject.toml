@@ -33,7 +33,13 @@ dependencies = [
 
 [project.optional-dependencies]
 # 角色扮演（LiveKit 房间与语音）才需要；浅聊不装
-livekit = ["livekit-agents==1.8.11"]
+livekit = [
+    "livekit-agents==1.8.11",
+    # 火山 TTS/STT 用社区插件；我们只覆盖它的鉴权头，不重写协议
+    "livekit-plugins-volcengine==1.8.10",
+    # 官方语音端点检测
+    "livekit-plugins-silero==1.8.11",
+]
 dev = [
     "pytest>=8.3.0",
     "pytest-asyncio>=0.24.0",
