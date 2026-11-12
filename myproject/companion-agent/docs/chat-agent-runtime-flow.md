@@ -168,6 +168,12 @@ worker 每小时检查一次今天的 `timeline.sweep` 任务是否已入队（�
 
 **没做**：显式 AI 标识的界面展示（需要客户端）、未成年人年龄识别与隔离、紧急联系人流程、危机识别的模型侧判定（提示词第 5 条已有基本处理）。
 
+## 6.0.6 事实的取代
+
+`ca_memory_item` 加 `is_latest` / `supersedes_id`：改写一条事实不再是「删除再新增」，而是新条目 `is_latest=1`、
+旧条目 `is_latest=0` 并保留。召回与默认列表只取当前有效的；`GET /memory/facts?include_history=true` 能看改过什么。
+好处：用户说「我说错了」时能查清是哪条取代了哪条，画像的依据也不会因为一次改写而丢失。
+
 ## 6.1 记忆按角色隔离
 
 记忆主体 id = `{owner}.{role}`（`domain/memory/subject.py`），memory_hub 再加上 `companion:` 前缀。
