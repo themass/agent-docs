@@ -97,6 +97,22 @@ async def _initiative_worker(loop: InitiativeLoop, interval: float) -> None:
         await asyncio.sleep(interval)
 
 
+def _default_room_store(settings: Any) -> Any:
+    """配了 Redis 就用 Redis 版；没配（本地开发/测试）用内存版。"""
+    url = getattr(settings, "companion_redis_url", "") or ""
+    if url:
+        try:
+            from redis import asyncio as redis_async
+
+            from companion.adapters.store.redis.sessions import RedisSessionStore
+
+            return RedisSessionStore(redis_async.from_url(url, decode_responses=True))
+        except Exception:  # noqa: BLE001 —— Redis 不可用时不能让整个服务起不来
+            pass
+    from companion.products.roleplay.sessions import InMemorySessionStore
+
+    return InMemorySessionStore()
+
 def create_app(
     *,
     verifier: CredentialVerifier | None = None,
@@ -129,7 +145,8 @@ def create_app(
 
         verifier = RedisTokenVerifier(redis_async.from_url(settings.auth_redis_url, decode_responses=True))
 
-    resolved_store = store or InMemorySessionStore()
+    # 房间会话：有 Redis 就存 Redis（多副本可见、重启不丢），否则退回进程内。
+    resolved_store = store or _default_room_store(settings)
     service = SessionService(
         store=resolved_store,
         minter=minter or TokenMinter.from_settings(settings),
