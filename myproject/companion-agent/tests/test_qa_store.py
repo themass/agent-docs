@@ -19,7 +19,7 @@ def _llm(turn="T1", owner=1002, **kw) -> LlmCallRecord:
 
 def _voice(turn="T1", owner=1002, **kw) -> VoiceTurnRecord:
     base = dict(turn_id=turn, session_id=7, owner_id=owner, role_id="linche", user_message_id=11,
-                stt_provider="volc", stt_text="今天好累", stt_confidence=0.93, llm_text="[calm]先歇一会儿。",
+                stt_provider="volc", stt_text="今天好累", stt_confidence=0.93,
                 tts_provider="volc", tts_voice="saturn", tts_text=["先歇一会儿。"],
                 audio_in_key="qa/in/1.wav", audio_out_key="qa/out/1.wav",
                 first_sentence_ms=700, total_ms=2100)
@@ -59,7 +59,7 @@ async def test_without_consent_only_metrics_are_kept(sqlite_engine):
     assert (call["first_token_ms"], call["total_ms"], call["finish_reason"]) == (420, 1300, "stop")
 
     (voice,) = await _row(sqlite_engine, voice_turn)
-    assert voice["stt_text"] is None and voice["llm_text"] is None and voice["tts_text"] is None
+    assert voice["stt_text"] is None and voice["tts_text"] is None
     # 用户的声音：未同意绝不留音频键
     assert voice["audio_in_key"] is None and voice["audio_out_key"] is None
     assert (voice["first_sentence_ms"], voice["total_ms"], voice["stt_provider"]) == (700, 2100, "volc")
@@ -162,3 +162,99 @@ async def test_account_footprint_includes_voice_audio_and_purge_removes_the_rows
     foot = await SqlAccountStore(sqlite_engine).footprint(owner_id=1002)
     assert "qa/out/x.wav" in foot.object_keys               # 注销时和上传文件一起从对象存储删除
     assert llm_call in _OWNED and voice_turn in _OWNED       # 注销按 owner_id 删这两张表
+
+
+# ---- 回合汇总 ca_chat_turn ----
+
+def _turn_row(engine):
+    from companion.adapters.store.sql.schema import chat_turn
+
+    async def go():
+        async with engine.connect() as conn:
+            return (await conn.execute(select(chat_turn))).mappings().all()
+    return go()
+
+
+async def test_turn_summary_merges_usage_skills_and_final_state_in_either_order(sqlite_engine):
+    store = SqlQaStore(sqlite_engine)
+    calls = [_llm(seq=0, input_tokens=100, output_tokens=5, total_ms=400, tool_calls=[{"id": "c1", "name": "x"}]),
+             _llm(seq=1, input_tokens=140, output_tokens=20, total_ms=900)]
+    kw = dict(turn_id="TA", session_id=7, owner_id=1002, role_id="linche")
+    # 先模型、后状态
+    await store.note_turn_models(**kw, prompt_version="v1", skills=("companion-core", "active-listening"),
+                                 records=calls, started_at=datetime.now(UTC))
+    await store.finish_turn(**kw, state="done")
+    # 先状态、后模型（after_turn 先到的情况）
+    await store.finish_turn(**{**kw, "turn_id": "TB"}, state="cancelled")
+    await store.note_turn_models(**{**kw, "turn_id": "TB"}, prompt_version="v1", skills=("companion-core",),
+                                 records=calls[:1], started_at=datetime.now(UTC))
+
+    rows = {r["id"]: r for r in await _turn_row(sqlite_engine)}
+    a, b = rows["TA"], rows["TB"]
+    assert a["state"] == "done" and a["finished_at"] is not None and a["started_at"] is not None
+    assert a["skills"] == ["companion-core", "active-listening"] and a["prompt_version"] == "v1"
+    assert a["usage"] == {"calls": 2, "input_tokens": 240, "output_tokens": 25, "cached_tokens": 200,
+                          "llm_ms": 1300, "tool_calls": 1}
+    assert b["state"] == "cancelled" and b["usage"]["calls"] == 1      # 状态没被后到的模型信息盖掉
+
+
+async def test_a_turn_with_no_model_call_still_gets_its_final_state(sqlite_engine):
+    store = SqlQaStore(sqlite_engine)
+    await store.finish_turn(turn_id="TC", session_id=7, owner_id=1002, role_id="linche", state="failed",
+                            error_code="turn_failed")
+    (row,) = await _turn_row(sqlite_engine)
+    assert (row["state"], row["error_code"], row["usage"]) == ("failed", "turn_failed", None)
+
+
+# ---- 工具调用 ----
+
+async def test_tool_names_are_always_kept_but_arguments_only_with_consent(sqlite_engine):
+    store = SqlQaStore(sqlite_engine)
+    call = [{"id": "c1", "name": "add_event", "args": {"title": "周五面试", "at": "2026-11-13T10:00"}}]
+    await store.record_llm_calls([_llm("T1", tool_calls=call)], keep_content=False)
+    await store.record_llm_calls([_llm("T2", tool_calls=call)], keep_content=True)
+
+    rows = {r["turn_id"]: r for r in await _row(sqlite_engine, llm_call)}
+    assert rows["T1"]["tool_calls"] == [{"id": "c1", "name": "add_event"}]          # 参数里有用户说的事，不留
+    assert rows["T2"]["tool_calls"] == [{"id": "c1", "name": "add_event", "args": call[0]["args"]}]
+    assert _llm("T3").tool_calls == []
+    await store.record_llm_calls([_llm("T3")], keep_content=True)
+    assert {r["turn_id"]: r for r in await _row(sqlite_engine, llm_call)}["T3"]["tool_calls"] is None
+
+
+# ---- 语音回合：识别方与 TTS 方按 turn_id 合并 ----
+
+async def test_the_stt_side_and_the_tts_side_merge_into_one_row_in_either_order(sqlite_engine):
+    store = SqlQaStore(sqlite_engine)
+    stt = VoiceTurnRecord(turn_id="TA", session_id=7, owner_id=1002, role_id="linche", user_message_id=11,
+                          stt_text="今天好累", stt_confidence=0.9, first_sentence_ms=700, total_ms=2100)
+    tts = VoiceTurnRecord(turn_id="TA", session_id=7, owner_id=1002, tts_provider="volc", tts_voice="saturn",
+                          tts_text=["先歇一会儿。"], audio_out_key="qa/a.wav", tts_ttfb_ms=300, tts_audio_ms=2500)
+    await store.record_voice_turn(stt, keep_content=True)
+    await store.record_voice_turn(tts, keep_content=True)
+    # 反过来：TTS 方先到
+    await store.record_voice_turn(VoiceTurnRecord(**{**tts.__dict__, "turn_id": "TB"}), keep_content=True)
+    await store.record_voice_turn(VoiceTurnRecord(**{**stt.__dict__, "turn_id": "TB"}), keep_content=True)
+
+    rows = {r["turn_id"]: r for r in await _row(sqlite_engine, voice_turn)}
+    assert len(rows) == 2
+    for r in rows.values():
+        assert (r["stt_text"], r["stt_confidence"], r["first_sentence_ms"]) == ("今天好累", 0.9, 700)
+        assert (r["tts_text"], r["audio_out_key"], r["tts_ttfb_ms"], r["tts_audio_ms"]) == (["先歇一会儿。"], "qa/a.wav", 300, 2500)
+        assert (r["user_message_id"], r["role_id"], r["tts_voice"]) == (11, "linche", "saturn")
+
+
+async def test_a_later_write_does_not_blank_what_the_other_side_wrote(sqlite_engine):
+    store = SqlQaStore(sqlite_engine)
+    await store.record_voice_turn(_voice(), keep_content=True)
+    await store.record_voice_turn(VoiceTurnRecord(turn_id="T1", session_id=7, owner_id=1002, tts_ttfb_ms=250), keep_content=True)
+    (row,) = await _row(sqlite_engine, voice_turn)
+    assert row["stt_text"] == "今天好累" and row["tts_text"] == ["先歇一会儿。"] and row["tts_ttfb_ms"] == 250
+
+
+async def test_interruption_can_only_be_set_never_cleared_by_the_other_side(sqlite_engine):
+    store = SqlQaStore(sqlite_engine)
+    await store.record_voice_turn(VoiceTurnRecord(turn_id="T1", session_id=7, owner_id=1002, interrupted=True), keep_content=False)
+    await store.record_voice_turn(VoiceTurnRecord(turn_id="T1", session_id=7, owner_id=1002, total_ms=900), keep_content=False)
+    (row,) = await _row(sqlite_engine, voice_turn)
+    assert row["interrupted"]

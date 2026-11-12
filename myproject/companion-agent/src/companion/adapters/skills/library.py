@@ -184,17 +184,13 @@ class SkillLibrary:
             root=self.root,
         )
 
-    def compose(
+    def selected_ids(
         self,
         skill_ids: Iterable[str],
         always_loaded_overrides: Mapping[str, bool] | None = None,
-    ) -> str:
-        """按顺序拼出提示词块：先请求的（保持顺序、去重），再常驻的（按 id 排序）。
-
-        ``always_loaded_overrides`` 覆盖 frontmatter 的 ``metadata.always-loaded``：
-        True 强制常驻，False 让常驻 skill 从自动集合里退出。显式请求的 skill 不受
-        False 影响——调用方点名要的，就给它。
-        """
+    ) -> list[str]:
+        """``compose`` 实际会用到的 skill id（含常驻的）。质检要记“这一轮用了哪些 skill”，
+        只记请求里点名的会漏掉常驻的陪伴底线。"""
         overrides = dict(always_loaded_overrides or {})
         requested: list[str] = []
         for skill_id in skill_ids:
@@ -213,6 +209,20 @@ class SkillLibrary:
             if overrides.get(skill_id, package.always_loaded):
                 selected.append(skill_id)
 
+        return selected
+
+    def compose(
+        self,
+        skill_ids: Iterable[str],
+        always_loaded_overrides: Mapping[str, bool] | None = None,
+    ) -> str:
+        """按顺序拼出提示词块：先请求的（保持顺序、去重），再常驻的（按 id 排序）。
+
+        ``always_loaded_overrides`` 覆盖 frontmatter 的 ``metadata.always-loaded``：
+        True 强制常驻，False 让常驻 skill 从自动集合里退出。显式请求的 skill 不受
+        False 影响——调用方点名要的，就给它。
+        """
+        selected = self.selected_ids(skill_ids, always_loaded_overrides)
         blocks = [self._render(self.load(skill_id)) for skill_id in selected]
         return "\n\n---\n\n".join(block for block in blocks if block)
 

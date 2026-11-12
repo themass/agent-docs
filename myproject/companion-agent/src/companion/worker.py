@@ -9,7 +9,25 @@ from __future__ import annotations
 import logging
 import os
 
-from companion.config import settings
+from companion.config import PROJECT_ROOT, settings
+
+
+def load_env(path=None) -> int:
+    """把 ``.env`` 里的变量载入进程环境，已存在的环境变量优先（部署时由平台注入的值不能被文件盖掉）。
+
+    为什么需要：``Settings``（pydantic）会读 ``.env``，但语音适配器、LiveKit 的 CLI 直接读 ``os.environ``。
+    不加载的话，配置在文件里写着、进程里却读不到，表现是音色和供应商悄悄退回默认值，很难查。
+    返回新载入的变量个数。
+    """
+    from dotenv import dotenv_values
+
+    values = dotenv_values(path or (PROJECT_ROOT / ".env"))
+    loaded = 0
+    for name, value in values.items():
+        if value is not None and name not in os.environ:
+            os.environ[name] = value
+            loaded += 1
+    return loaded
 
 
 def _export_livekit_env() -> None:
@@ -47,6 +65,7 @@ async def _platform():
 
 
 def main() -> None:
+    load_env()      # 要在读任何语音配置之前
     logging.basicConfig(level=settings.companion_log_level)
     log = logging.getLogger("companion.worker")
 

@@ -172,4 +172,5 @@ def build_prompt_plan(
         version=T.PROMPT_VERSION,
         lore_uids=tuple(e.uid for e in lore.entries) if optional["lore"] else (),
         dropped=tuple(dropped) + tuple(f"lore:{uid}" for uid in lore.dropped),
+        skills=tuple(profile.skills),
     )

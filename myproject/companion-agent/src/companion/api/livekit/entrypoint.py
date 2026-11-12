@@ -162,6 +162,18 @@ def build_voice_recorder(platform: Any, voice_info: dict[str, str] | None = None
     return record
 
 
+def build_tts_archiver(platform: Any, voice_info: dict[str, str] | None = None):
+    """TTS 采集的归档器：文本与耗时写库，音频（用户同意后）传对象存储。没有质检存储就不采集。"""
+    if getattr(platform, "qa", None) is None:
+        return None
+    from companion.adapters.voice.tts_archive import TtsArchiver
+
+    info = voice_info or {}
+    return TtsArchiver(qa=platform.qa, compliance=getattr(platform, "compliance", None),
+                       objects=getattr(platform, "objects", None), key_prefix=getattr(platform, "tos_key_prefix", ""),
+                       provider=info.get("tts_provider", ""), voice=info.get("tts_voice", ""))
+
+
 def make_entrypoint(platform_factory: Any, voice_factory: Any = None, voice_info: dict[str, str] | None = None):
     """装配好的 worker 入口。
 
@@ -211,6 +223,7 @@ def make_entrypoint(platform_factory: Any, voice_factory: Any = None, voice_info
             user_id=identity.user_id,
             chat_session_id=identity.chat_session_id,
             recorder=build_voice_recorder(platform, voice_info),
+            tts_sink=build_tts_archiver(platform, voice_info),
         )
 
         # 语音栈必须显式按 voice 模式装配：不传 mode 时默认是 text，STT/TTS/VAD 都不会挂上，

@@ -397,6 +397,7 @@ CREATE TABLE ca_llm_call (
 	input_messages JSONB, 
 	output_text TEXT, 
 	reasoning_text TEXT, 
+	tool_calls JSONB, 
 	input_tokens INTEGER, 
 	output_tokens INTEGER, 
 	cached_tokens INTEGER, 
@@ -425,13 +426,15 @@ CREATE TABLE ca_voice_turn (
 	stt_provider VARCHAR(64), 
 	stt_text TEXT, 
 	stt_confidence FLOAT, 
-	llm_text TEXT, 
 	tts_provider VARCHAR(64), 
 	tts_voice VARCHAR(128), 
 	tts_text JSONB, 
 	audio_in_key VARCHAR(255), 
 	audio_out_key VARCHAR(255), 
 	first_sentence_ms INTEGER, 
+	tts_ttfb_ms INTEGER, 
+	tts_audio_ms INTEGER, 
+	tts_truncated BOOLEAN DEFAULT '0' NOT NULL, 
 	total_ms INTEGER, 
 	interrupted BOOLEAN DEFAULT '0' NOT NULL, 
 	created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL, 
@@ -442,7 +445,7 @@ CREATE INDEX ca_ix_voiceturn_created ON ca_voice_turn (created_at);
 
 CREATE INDEX ca_ix_voiceturn_owner_created ON ca_voice_turn (owner_id, created_at);
 
-CREATE INDEX ca_ix_voiceturn_turn ON ca_voice_turn (turn_id);
+CREATE UNIQUE INDEX ca_uq_voiceturn_turn ON ca_voice_turn (turn_id);
 """
 
 MYSQL = """
@@ -824,6 +827,7 @@ CREATE TABLE ca_llm_call (
 	input_messages MEDIUMTEXT, 
 	output_text MEDIUMTEXT, 
 	reasoning_text MEDIUMTEXT, 
+	tool_calls MEDIUMTEXT, 
 	input_tokens INTEGER, 
 	output_tokens INTEGER, 
 	cached_tokens INTEGER, 
@@ -852,13 +856,15 @@ CREATE TABLE ca_voice_turn (
 	stt_provider VARCHAR(64), 
 	stt_text MEDIUMTEXT, 
 	stt_confidence FLOAT, 
-	llm_text MEDIUMTEXT, 
 	tts_provider VARCHAR(64), 
 	tts_voice VARCHAR(128), 
 	tts_text MEDIUMTEXT, 
 	audio_in_key VARCHAR(255), 
 	audio_out_key VARCHAR(255), 
 	first_sentence_ms INTEGER, 
+	tts_ttfb_ms INTEGER, 
+	tts_audio_ms INTEGER, 
+	tts_truncated BOOL NOT NULL DEFAULT '0', 
 	total_ms INTEGER, 
 	interrupted BOOL NOT NULL DEFAULT '0', 
 	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, 
@@ -869,7 +875,7 @@ CREATE INDEX ca_ix_voiceturn_created ON ca_voice_turn (created_at);
 
 CREATE INDEX ca_ix_voiceturn_owner_created ON ca_voice_turn (owner_id, created_at);
 
-CREATE INDEX ca_ix_voiceturn_turn ON ca_voice_turn (turn_id);
+CREATE UNIQUE INDEX ca_uq_voiceturn_turn ON ca_voice_turn (turn_id);
 """
 
 

@@ -137,3 +137,30 @@ async def test_consent_defaults_to_off():
     user = random.randint(10**6, 10**7)
     with TestClient(create_app(livekit_url="", platform=_platform(_ModelBrain(AIMessage(content="x"))))) as client:
         assert client.get("/v1/consent", headers={"Authorization": f"Bearer {user}"}).json()["qa_retention"] is False
+
+
+async def _turns(platform, user):
+    from companion.adapters.store.sql.schema import chat_turn
+
+    async with platform.engine.connect() as conn:
+        return (await conn.execute(select(chat_turn).where(chat_turn.c.owner_id == user))).mappings().all()
+
+
+@pytestmark_e2e
+async def test_the_turn_summary_records_model_skills_usage_and_final_state():
+    from companion.bootstrap.app import create_app
+
+    user = random.randint(10**6, 10**7)
+    platform = _platform(_ModelBrain(AIMessage(content="先歇一会儿",
+                                               usage_metadata={"input_tokens": 50, "output_tokens": 6, "total_tokens": 56})))
+    with TestClient(create_app(livekit_url="", platform=platform)) as client:
+        _turn(client, user)
+        import time
+        time.sleep(0.3)      # after_turn 在回复交付之后才跑
+    (turn,) = await _turns(platform, user)
+    assert turn["state"] == "done" and turn["finished_at"] is not None and turn["started_at"] is not None
+    assert turn["role_id"] == "linche" and turn["prompt_version"]
+    assert "companion-core" in turn["skills"]           # 常驻的陪伴底线也算“这一轮用了的 skill”
+    assert turn["usage"]["calls"] == 1 and turn["usage"]["output_tokens"] == 6
+    (call,) = await _calls(platform, user)
+    assert call["turn_id"] == turn["id"]                # 汇总行与明细行能对上

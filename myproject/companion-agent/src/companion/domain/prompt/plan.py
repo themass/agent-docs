@@ -40,6 +40,7 @@ class PromptPlan:
     version: str = ""
     lore_uids: tuple[str, ...] = ()      # 本轮激活的世界书条目（排查用，不含正文）
     dropped: tuple[str, ...] = ()        # 因预算放不下而丢掉的可选块
+    skills: tuple[str, ...] = ()         # 本轮提示词里用到的 skill（含常驻），质检用
 
 
 def splice_injections(messages: Sequence[T], injections: Sequence[DepthInjection],

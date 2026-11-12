@@ -34,6 +34,23 @@ def _clip(text: str) -> str:
     return text if len(text) <= MAX_MESSAGE_CHARS else text[:MAX_MESSAGE_CHARS] + f"…[截断，原长 {len(text)}]"
 
 
+def _input_item(m: Any) -> dict[str, Any]:
+    """送进模型的一条消息。工具结果要带上是哪次调用的（tool_call_id）和哪个工具，否则回看时对不上号。"""
+    item: dict[str, Any] = {"role": getattr(m, "type", "?"), "content": _clip(_text(getattr(m, "content", "")))}
+    if getattr(m, "tool_call_id", None):
+        item["tool_call_id"] = m.tool_call_id
+    if getattr(m, "name", None):
+        item["name"] = m.name
+    if getattr(m, "tool_calls", None):
+        item["tool_calls"] = [{"id": c.get("id"), "name": c.get("name")} for c in m.tool_calls]
+    return item
+
+
+def _tool_calls(message: Any) -> list[dict[str, Any]]:
+    return [{"id": c.get("id"), "name": c.get("name"), "args": c.get("args")}
+            for c in (getattr(message, "tool_calls", None) or [])]
+
+
 def _reasoning(message: Any) -> str:
     """不同供应商把思考放在不同位置：additional_kwargs，或内容块里 type 为 reasoning / thinking。"""
     extra = getattr(message, "additional_kwargs", None) or {}
@@ -64,8 +81,7 @@ class LlmCallCollector(BaseCallbackHandler):
         self._open[run_id] = {
             "t0": time.monotonic(), "first": None, "seq": self._seq,
             "provider": str(meta.get("ls_provider") or ""), "model": str(meta.get("ls_model_name") or ""),
-            "input": [{"role": getattr(m, "type", "?"), "content": _clip(_text(getattr(m, "content", "")))}
-                      for m in (messages[0] if messages else [])],
+            "input": [_input_item(m) for m in (messages[0] if messages else [])],
         }
         self._seq += 1
 
@@ -92,6 +108,7 @@ class LlmCallCollector(BaseCallbackHandler):
             seq=call["seq"], provider=call["provider"], model=str(meta.get("model_name") or call["model"]),
             input_messages=call["input"], output_text=_text(getattr(message, "content", "")) if message else "",
             reasoning_text=_reasoning(message) if message is not None else "",
+            tool_calls=_tool_calls(message) if message is not None else [],
             input_tokens=usage.get("input_tokens"), output_tokens=usage.get("output_tokens"),
             cached_tokens=details.get("cache_read"),
             first_token_ms=int((call["first"] - call["t0"]) * 1000) if call["first"] else None,

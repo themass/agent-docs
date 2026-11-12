@@ -117,6 +117,7 @@ class Platform:
     qa: Any = None
     objects: Any = None
     qa_retention_days: int = 90
+    tos_key_prefix: str = ""
     # 主动消息的三块持久化（原来是进程内，重启即丢）
     preferences: Any = None
     delivery: Any = None
@@ -262,7 +263,8 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     resummarize = (ResummarizeService(messages=messages, conversation=conversation, control=control, llm=llm)
                    if conversation is not None and llm is not None else None)
 
-    async def record_llm_calls(collector: LlmCallCollector, request: TurnRequest, *, owner_id: int, role_id: str) -> None:
+    async def record_llm_calls(collector: LlmCallCollector, request: TurnRequest, *, owner_id: int, role_id: str,
+                               started_at: datetime) -> None:
         """回合收尾时把这一回合的模型调用写库。内容只在用户同意质检留存时才写；任何失败只记日志，
         不能影响回答本身（回答已经交付，记录是旁路）。"""
         try:
@@ -275,6 +277,12 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
                 r.prompt_version = PROMPT_VERSION
             keep = await compliance.qa_content_allowed(owner_id=owner_id)
             await qa.record_llm_calls(records, keep_content=keep)
+            # 回合汇总：模型、提示词版本、用了哪些 skill、用量合计。skill 名不含用户原话，总是记。
+            plan = request.prompt
+            await qa.note_turn_models(
+                turn_id=turn_id, session_id=request.session_id or 0, owner_id=owner_id, role_id=role_id,
+                prompt_version=getattr(plan, "version", "") or PROMPT_VERSION,
+                skills=tuple(getattr(plan, "skills", ()) or ()), records=records, started_at=started_at)
         except Exception:  # noqa: BLE001
             log.warning("llm call record failed", extra={"turn_id": request.metadata.get("turn_id")})
 
@@ -288,11 +296,13 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
         if hasattr(brain, "run"):
             collector = LlmCallCollector()
             request.metadata["llm_collector"] = collector
+            started_at = datetime.now(UTC)
             try:
                 async for event in brain.run(request, inbox):
                     yield event
             finally:
-                await record_llm_calls(collector, request, owner_id=owner_id, role_id=request.character_id)
+                await record_llm_calls(collector, request, owner_id=owner_id, role_id=request.character_id,
+                                       started_at=started_at)
             return
         turn = await brain.start_turn(request)   # 测试用的假大脑只实现了 start_turn
         async for chunk in turn.tokens:
@@ -301,6 +311,15 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     timeline_recorder = TimelineRecorder(timeline, llm) if llm is not None else None
 
     async def after_turn(outcome: TurnOutcome) -> None:
+        # 回合最终状态写进 ca_chat_turn。放在最前面且自己兜住异常：后面的记忆、画像入队失败不该让它丢。
+        try:
+            state = "lost" if outcome.lock_lost else "failed" if outcome.failed else \
+                "cancelled" if outcome.cancelled else "done"
+            await qa.finish_turn(turn_id=outcome.turn_id, session_id=outcome.session_id, owner_id=outcome.owner_id,
+                                 role_id=outcome.character_id, state=state,
+                                 error_code="turn_failed" if outcome.failed else "")
+        except Exception:  # noqa: BLE001
+            log.warning("turn summary write failed", extra={"turn_id": outcome.turn_id})
         # 拿着会话锁：补记中断的回复，让模型知道上一句说到哪里。
         if outcome.interrupted and outcome.assistant_message_id and outcome.assistant_text and not outcome.lock_lost:
             await history.note_interrupted(session_id=outcome.session_id,
@@ -409,4 +428,5 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
                     pipeline=pipeline, jobs=jobs, timeline_recorder=timeline_recorder, persona_updater=persona_updater,
                     persona=persona, compliance=compliance, account=account, avatars=avatars,
                     admin_token=settings.companion_admin_token, sessions=sessions, brain=brain, qa=qa, objects=objects,
-                    qa_retention_days=settings.companion_qa_retention_days, _pool=pool, _checkpointer=checkpointer)
+                    qa_retention_days=settings.companion_qa_retention_days,
+                    tos_key_prefix=settings.tos_key_prefix, _pool=pool, _checkpointer=checkpointer)

@@ -23,7 +23,7 @@ from companion.api.livekit.bridge import require
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["build_agent_class", "build_event_sink", "build_request", "last_user_message"]
+__all__ = ["build_agent_class", "build_event_sink", "build_request", "last_user_confidence", "last_user_message"]
 
 
 REFUSED_LINE = "这个我不太方便聊，我们说点别的吧。"
@@ -60,6 +60,17 @@ def last_user_message(chat_ctx: Any) -> str:
         if isinstance(text, str) and text.strip():
             return text.strip()
     return ""
+
+
+def last_user_confidence(chat_ctx: Any) -> float | None:
+    """最后一条用户消息的识别置信度。供应商没返回时框架给的是 0.0，那是“未知”而不是“完全不确定”，
+    存进去会让质检把所有这类回合都当成低置信度，所以 0 和缺失都按 None。"""
+    for item in reversed(list(getattr(chat_ctx, "items", None) or [])):
+        if getattr(item, "role", None) != "user":
+            continue
+        value = getattr(item, "transcript_confidence", None)
+        return float(value) if isinstance(value, (int, float)) and 0.0 < value <= 1.0 else None
+    return None
 
 
 def build_event_sink(room: Any) -> EventSink:
@@ -109,6 +120,7 @@ def build_agent_class() -> type:
             character_id: str,
             chat_session_id: int,
             recorder: Any = None,
+            tts_sink: Any = None,
         ) -> None:
             # 提示词由回合引擎按会话组装；llm_node 被重写后框架不会用到这里的 instructions
             super().__init__(instructions="")
@@ -118,6 +130,8 @@ def build_agent_class() -> type:
             self._chat_session_id = chat_session_id
             # 语音质检记录的写入口：async (VoiceTurnRecord) -> None。不给就不记（离线测试）。
             self._recorder = recorder
+            # TTS 采集的写入口：async (**turn 信息, segment=TtsSegment)。不给就不采集（不改变 tts_node 行为）。
+            self._tts_sink = tts_sink
             self._background: set[asyncio.Task[Any]] = set()
 
         async def llm_node(
@@ -134,6 +148,7 @@ def build_agent_class() -> type:
             message = last_user_message(chat_ctx)
             if not message:
                 return
+            confidence = last_user_confidence(chat_ctx)
             request = build_request(
                 user_id=self._user_id,
                 character_id=self._character_id,
@@ -163,10 +178,10 @@ def build_agent_class() -> type:
             finally:
                 # 被打断时生成器会在这里被关闭：记录要放到后台任务里，不能在关闭路径上 await
                 self._record(message, sentences, first_ms, int((time.monotonic() - started) * 1000),
-                             interrupted=not finished)
+                             interrupted=not finished, confidence=confidence)
 
         def _record(self, message: str, sentences: list[str], first_ms: int | None, total_ms: int, *,
-                    interrupted: bool) -> None:
+                    interrupted: bool, confidence: float | None = None) -> None:
             turn = self._pipeline.last_turn
             if self._recorder is None or turn is None or not turn.turn_id:
                 return    # 没有回合（被拒绝、排队）就没有可对账的记录
@@ -175,7 +190,8 @@ def build_agent_class() -> type:
             record = VoiceTurnRecord(
                 turn_id=turn.turn_id, session_id=self._chat_session_id, owner_id=int(self._user_id),
                 role_id=self._character_id, user_message_id=turn.user_message_id, stt_text=message,
-                tts_text=list(sentences), first_sentence_ms=first_ms, total_ms=total_ms, interrupted=interrupted)
+                stt_confidence=confidence, first_sentence_ms=first_ms, total_ms=total_ms,
+                interrupted=True if interrupted else None)
             task = asyncio.ensure_future(self._safe_record(record))
             self._background.add(task)
             task.add_done_callback(self._background.discard)
@@ -185,6 +201,55 @@ def build_agent_class() -> type:
                 await self._recorder(record)
             except Exception:  # noqa: BLE001 —— 记录是旁路，失败不能影响通话
                 logger.warning("voice turn record failed turn=%s", record.turn_id)
+
+        async def tts_node(self, text: Any, model_settings: Any):
+            """合成语音，同时留一份“送进 TTS 的文本 + 出来的音频”，供质检判断 TTS 准不准。
+
+            这里拿到的文本是框架做完文本变换（默认过滤 markdown / emoji）之后真正送给合成引擎的那份。
+            没配采集（离线、没开质检）时直接走默认实现，行为完全不变。
+            """
+            if self._tts_sink is None:
+                return Agent.default.tts_node(self, text, model_settings)
+            return self._captured_tts(text, model_settings)
+
+        async def _captured_tts(self, text: Any, model_settings: Any):
+            from companion.adapters.voice.tts_capture import TtsCapture
+
+            capture = TtsCapture()
+            turn_ref: dict[str, Any] = {}
+
+            async def watched(chunks: Any):
+                async for chunk in chunks:
+                    # 第一段文本到达时，这句话属于哪个回合就定了；等到结束再取，可能已经是下一个回合
+                    turn_ref.setdefault("turn", self._pipeline.last_turn)
+                    yield chunk
+
+            completed = False
+            try:
+                # 默认实现是异步生成器（async def + yield），调用得到的就是生成器，不能 await
+                frames = Agent.default.tts_node(self, capture.tee_text(watched(text)), model_settings)
+                async for frame in capture.tee_frames(frames):
+                    yield frame
+                completed = True
+            finally:
+                self._archive_tts(capture, turn_ref.get("turn"), completed)
+
+        def _archive_tts(self, capture: Any, turn: Any, completed: bool) -> None:
+            # 被打断时生成器在这里被关闭：写库放后台，不能在关闭路径上 await
+            if self._tts_sink is None or turn is None or not turn.turn_id or not capture.started:
+                return
+            segment = capture.finish(completed=completed)
+            task = asyncio.ensure_future(self._safe_tts(turn, segment))
+            self._background.add(task)
+            task.add_done_callback(self._background.discard)
+
+        async def _safe_tts(self, turn: Any, segment: Any) -> None:
+            try:
+                await self._tts_sink(turn_id=turn.turn_id, session_id=self._chat_session_id,
+                                     owner_id=int(self._user_id), role_id=self._character_id,
+                                     user_message_id=turn.user_message_id, segment=segment)
+            except Exception:  # noqa: BLE001 —— 记录是旁路，失败不能影响通话
+                logger.warning("tts record failed turn=%s", turn.turn_id)
 
         async def cancel_turn(self) -> None:
             """用户打断。由框架或上层调用；幂等。"""

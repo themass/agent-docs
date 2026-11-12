@@ -28,6 +28,7 @@ class RoleProfile:
     lorebook: Lorebook | None = None
     depth_prompt: DepthInjection | None = None
     method: str = ""               # skill 的方法层常驻段（P §5），由解析方填入
+    skills: tuple[str, ...] = ()   # method 实际由哪些 skill 合成（含常驻的），质检用
     source: str = "catalog"        # catalog | companion | user
 
 

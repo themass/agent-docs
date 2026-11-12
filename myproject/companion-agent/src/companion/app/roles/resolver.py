@@ -62,20 +62,23 @@ class RoleProfileResolver:
         except FileNotFoundError as exc:
             raise RoleNotFound(role_id) from exc
         profile = from_card(card)
-        method = self._method_for(card)
+        method, skills = self._method_for(card)
         if method:
             from dataclasses import replace
 
-            profile = replace(profile, method=method)
+            profile = replace(profile, method=method, skills=tuple(skills))
         return profile
 
-    def _method_for(self, card: Any) -> str:
+    def _method_for(self, card: Any) -> tuple[str, list[str]]:
+        """返回 (方法层文本, 实际用到的 skill id)。"""
         if self._skills is None or self._skill_ids_of is None:
-            return ""
+            return "", []
         skill_ids = self._skill_ids_of(card)
         try:
             # 空列表也 compose：常驻 skill（陪伴底线）对每张陪伴卡都生效
-            return self._skills.compose(skill_ids)
+            text = self._skills.compose(skill_ids)
         except Exception:  # noqa: BLE001 —— skill 缺失不该让对话开不起来
             log.warning("skill compose failed", extra={"skills": skill_ids})
-            return ""
+            return "", []
+        selected = getattr(self._skills, "selected_ids", None)
+        return text, (list(selected(skill_ids)) if selected else list(skill_ids))

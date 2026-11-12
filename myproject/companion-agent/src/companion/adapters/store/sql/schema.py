@@ -453,6 +453,8 @@ llm_call = Table(
     Column("input_messages", JsonText, nullable=True),
     Column("output_text", LongText, nullable=True),
     Column("reasoning_text", LongText, nullable=True),
+    # 这次调用请求的工具：[{id, name, args}]。工具名总是记；参数是用户话里的内容，只在同意后记。
+    Column("tool_calls", JsonText, nullable=True),
     Column("input_tokens", Integer, nullable=True),
     Column("output_tokens", Integer, nullable=True),
     Column("cached_tokens", Integer, nullable=True),
@@ -466,7 +468,7 @@ llm_call = Table(
     Index("ca_ix_llmcall_created", "created_at"),
 )
 
-# 每个语音回合一行：用户说的被识别成了什么、模型回了什么、送去合成的每一句、用的哪个声音。
+# 每个语音回合一行：用户说的被识别成了什么、送去合成的每一句、用的哪个声音。模型原文在 ca_llm_call.output_text，不在这里存第二份。
 # 判断 TTS 准不准需要“送进去的文本”和“出来的音频”两样；音频在对象存储里，这里只存键（可空）。
 voice_turn = Table(
     TABLE_PREFIX + "voice_turn", metadata,
@@ -480,17 +482,20 @@ voice_turn = Table(
     Column("stt_provider", String(64), nullable=True),
     Column("stt_text", LongText, nullable=True),
     Column("stt_confidence", Float, nullable=True),
-    Column("llm_text", LongText, nullable=True),
     Column("tts_provider", String(64), nullable=True),
     Column("tts_voice", String(128), nullable=True),
     Column("tts_text", JsonText, nullable=True),                         # 送去合成的句子，JSON 数组
     Column("audio_in_key", String(255), nullable=True),
     Column("audio_out_key", String(255), nullable=True),
     Column("first_sentence_ms", Integer, nullable=True),                 # 从收到识别文本到第一句可朗读文本
+    Column("tts_ttfb_ms", Integer, nullable=True),                       # TTS 节点收到第一段文本到吐出第一帧音频
+    Column("tts_audio_ms", Integer, nullable=True),                      # 合成出的音频时长
+    Column("tts_truncated", Boolean, nullable=False, server_default="0"),  # 音频超过采集上限被截断
     Column("total_ms", Integer, nullable=True),
     Column("interrupted", Boolean, nullable=False, server_default="0"),
     Column("created_at", UTCDateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP")),
-    Index("ca_ix_voiceturn_turn", "turn_id"),
+    # 一个回合一行：语音这边（识别、耗时）和 TTS 那边（送进去的文本、音频）各写各的字段，按 turn_id 合并
+    Index("ca_uq_voiceturn_turn", "turn_id", unique=True),
     Index("ca_ix_voiceturn_owner_created", "owner_id", "created_at"),
     Index("ca_ix_voiceturn_created", "created_at"),
 )

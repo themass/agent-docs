@@ -201,12 +201,16 @@ PYTHONPATH=src .venv/bin/python -m companion.worker dev
 
 ### 11.3 `ca_voice_turn`（每个语音回合一行，已实现）
 
-字段：`turn_id` `session_id` `owner_id` `role_id` `user_message_id`（指向 `kind=voice` 的消息）`content_kept`
-`stt_provider` `stt_text` `stt_confidence` `llm_text` `tts_provider` `tts_voice` `tts_text`（句子 JSON 数组）
-`audio_in_key` `audio_out_key` `first_sentence_ms` `total_ms` `interrupted` `created_at`。
+字段：`turn_id`（唯一）`session_id` `owner_id` `role_id` `user_message_id`（指向 `kind=voice` 的消息）`content_kept`
+`stt_provider` `stt_text` `stt_confidence` `tts_provider` `tts_voice` `tts_text`（送进 TTS 的句子，JSON 数组）
+`audio_in_key` `audio_out_key` `first_sentence_ms` `tts_ttfb_ms` `tts_audio_ms` `tts_truncated` `total_ms`
+`interrupted` `created_at`。
 
-被用户打断的回合同样记录（`interrupted=true`，`tts_text` 是打断前已送出的句子）。被内容检查拒绝或排队的输入
-没有回合，不记。
+**识别方和 TTS 方各写各的字段，按 `turn_id` 合并**（`llm_node` 和 `tts_node` 完成的时间不同步，打断时更是各自结束）：
+没给的字段不会覆盖对方已经写下的值，`interrupted` 只能被置为真、不会被另一方清掉。模型原文不在这里存第二份，
+在 `ca_llm_call.output_text` 和消息表里，按 `turn_id` 关联。
+
+被用户打断的回合同样记录；被内容检查拒绝或排队的输入没有回合，不记。
 
 ### 11.4 同意与留存（已实现）
 
@@ -223,20 +227,60 @@ PYTHONPATH=src .venv/bin/python -m companion.worker dev
 新表与 `qa_retention` 列已写进 `0001_baseline`（PG 与 MySQL 两份）。`tests/test_baseline_matches_schema.py`
 每次测试都比对 baseline 与 `schema.py` 的表、列、索引，防止再次出现"baseline 悄悄漏表 / 漏列"。
 
-### 11.6 没做的，以及为什么
+### 11.6 TTS 准确性：怎么采集、怎么判断（已实现，已用真实凭据验证过一遍）
 
-- **音频留档**：`audio_in_key` / `audio_out_key` 列在，但没有任何代码往里写。LiveKit 默认不保存 STT/TTS 的音频，
-  要在音轨上采集帧并上传对象存储，**只能在真实房间里验证**，这次没有做。没有它，TTS 准确性（输出音频回灌
-  ASR 与 `tts_text` 比对）还判断不了；目前能做的是对照"送进 TTS 的句子"检查文本本身。
-- **`stt_confidence`**：LiveKit 的转写事件里有置信度，但 `llm_node` 拿到的只有文本，没接这条线。列在，值为空。
-- **`llm_text`（语音行）**：留空。模型原文已在 `ca_llm_call.output_text` 和消息表里，按 `turn_id` 关联即可，不存两份。
-- **`tts_text` 是送进 TTS 之前的文本**：LiveKit 在合成前可能还会做文本变换（如过滤标点），无法保证与实际念出的
-  逐字相同。
-- **时延**：`first_sentence_ms` 是从收到识别文本到第一句可朗读文本，不是"首字到首音"；STT 耗时、TTS 首包耗时没有。
-- **流式用量的真实性**：流式响应里是否带 `usage_metadata` 取决于供应商和网关配置（如 OpenAI 兼容接口需要
-  `stream_usage`）。测试里验证了"带用量的流"能被采集，**没有对真实模型验证用量确实会返回**。
-- `ca_chat_turn` 表至今没有任何代码写入（含它的 `usage` 列），本次也没补。模型调用已在 `ca_llm_call`，
-  回合级汇总需要时可由它聚合。
+**采集点在 `tts_node`**。框架在文本进入 `tts_node` 之前已经做过文本变换（默认过滤 markdown 和 emoji，
+见 `agent_session.py` 的 `DEFAULT_TTS_TEXT_TRANSFORMS`），所以这里拿到的就是**真正送进合成引擎的文本**，
+以及引擎返回的原始音频帧。`llm_node` 产出的句子是变换之前的，和实际念的可能不同，所以 `tts_text` 取自这里。
+
+- `TtsCapture` 包住输入文本流和输出音频流，不改变放出去的内容；记录文本、PCM、采样率、首包耗时；
+  音频上限 60 秒（超过只截断记录、不影响播放），中途采样率变了就停止记录（一个 WAV 只能有一种格式）。
+- 被打断（生成器被关闭）或引擎报错时，已合成的部分照样上报，标记 `completed=false`。
+- 一个回复可能分成多次 `tts_node` 调用（`FlushSentinel` 会分段合成），`TtsArchiver` 按 `turn_id` 累积：
+  文本拼接、音频拼成同一个 WAV，每次覆盖上传到同一个键 `{prefix}qa/tts/{owner}/{session}/{turn}.wav`。
+- 回合归属在**第一段文本到达时**确定，不等结束再取（那时可能已经是下一个回合）；没有回合的合成不记，
+  避免挂到上一个回合上。
+- 同意之前不上传音频，也不写文本和音频键；上传失败时文本照记、音频键留空，不假装有音频。
+
+**判断方式**：把存下的音频送回识别，和 `tts_text` 比，算字错率（`app/voice/tts_accuracy.py`）。
+用真实的火山凭据跑过 3 句往返（`scripts/qa_tts_roundtrip.py`）：合成、封 WAV、识别、算 CER 整条链路是通的，
+平均 CER 0.056，其中两句完全一致，一句"我在这儿陪着你"被识别成"我在这陪着你"。
+
+**这个数怎么读（重要）**：它测的是"合成 → 识别"一个来回的失真，不是纯粹的 TTS 错误率。上面丢掉的"儿"，
+无法区分是 TTS 没念出来还是识别器没听出来。识别器会靠上下文把念错的字猜对（多音字），数字日期的读法
+又不唯一，会被算成错误。所以只适合比较同一批数据下不同音色或供应商的**相对好坏**，和盯着数值有没有突然
+变差，不能当绝对指标，更不能用来证明"念得完全正确"。要绝对判断需要人工抽听。
+
+**踩到的坑（都已修）**：
+1. 插件的 TTS 只实现了流式 `stream()`，没有 `synthesize()`；在 worker 之外用要自己开 HTTP 会话。
+2. 火山识别出结果后会**主动断开连接**，插件把它当可重试错误一直重连，迭代器不会自己结束。
+   收尾只看"音频推完、已有结果、之后安静了 2 秒"，并带总超时；**不能以 `end_of_speech` 为结束信号**
+   （一句话中间的停顿就会提前发一个，它之后还可能补出结果）。
+3. 流式识别器按说话速度设计，**一次性灌入会丢字**（同一句话少了"儿"），所以按 100 毫秒一帧实时推送。
+4. `.env` 只被 `Settings` 读取，语音适配器和 LiveKit CLI 读的是 `os.environ`。worker 启动时现在显式
+   `load_env()`（已存在的环境变量优先）；之前靠调用者 shell 恰好导出，否则音色和供应商会悄悄退回默认值。
+5. `tts_node` 默认实现是异步生成器，我第一版写成了 `await`，真实运行会 `TypeError`；没有测试覆盖到那一行，
+   补了用假默认实现驱动的测试后才暴露并修复。
+
+**STT 置信度**：SDK 的 `ChatMessage.transcript_confidence` 能拿到，已写入 `stt_confidence`。火山插件在接口
+没返回置信度时填 `0.0`，那是"未知"不是"完全不确定"，所以 0 和缺失都存空。**没验证火山的接口是否真的会返回置信度**，
+可能这一列大多是空的。
+
+### 11.7 工具调用与 skill（回答"ca_llm_call 会不会存下 tool 和 skill"）
+
+之前**不会**：采集器只取文本正文，一次只请求工具、没有正文的调用会存成一行空输出，看不出调了什么工具；
+`ca_tool_call` 只有工具名、参数指纹、耗时，没有参数和结果（这是为隐私刻意的）；`ca_chat_turn` 有 `skills` 列
+但没有任何代码写入。现在：
+
+- `ca_llm_call.tool_calls`：这次调用请求的工具 `[{id, name, args}]`。**工具名总是记，参数只在同意后记**
+  （参数里会有用户说的事，如"周五面试"）。工具返回的结果出现在下一次调用的 `input_messages` 里
+  （`role=tool`，带 `tool_call_id` 和工具名，能对上是哪次调用的结果）。
+- skill：`PromptPlan.skills` 记录本轮提示词实际用到的 skill，**包括常驻的**（如 `companion-core`）。
+  `SkillLibrary.selected_ids()` 是 `compose` 用的同一份选择逻辑，不会出现"记的和用的不一致"。
+- `ca_chat_turn`（回合一行的汇总）：`model` `prompt_version` `skills` `usage`（调用次数、输入/输出/缓存 token、
+  模型耗时合计、工具调用次数）`state`（done/failed/cancelled/lost）`error_code` `started_at` `finished_at`。
+  由两处写入：`produce` 收尾时带来模型与用量，`TurnRunner` 的 `after_turn` 带来最终状态，谁先到都行。
+  它与 `ca_llm_call` 的关系：前者一个回合一行，后者一次模型调用一行。
 
 ## 12. 重复实现盘点与待定事项
 
@@ -258,7 +302,8 @@ PYTHONPATH=src .venv/bin/python -m companion.worker dev
 1. **回合在哪个进程跑**：保持现在的 worker 内运行（§9.3），还是回到 A 并补服务间鉴权。
 2. **质检数据保留天数**：默认 90 天是否合适（已做成配置项，改值不用改代码）。
 3. **`kind=voice` 的消息不开放编辑**：编辑接口尚未拦截，是否现在补上。
-3. **音频留档**要不要做、以及用户同意文案怎么写：涉及用户声音，需要产品和法务先定，再在真实房间里做。
+3. **音频留档的用户同意文案**：代码已实现（默认关、同意后才传），但涉及用户相关的声音，文案需要产品和法务确认后再开。
+5. **远程库建表权限**：见 §14，需要你或 DBA 操作。
 4. DeerFlow `subagent` 保持关闭：对话是一问一答，没有可拆分的任务，开了只增加延迟与成本；以后接入需要并行查询的外部工具时再评估。
 
 ---
@@ -274,3 +319,66 @@ Alembic 是 SQLAlchemy 配套的**数据库结构版本管理工具**。它把"�
 - 现在只有一个迁移 `0001_baseline`，一次建出全部 `ca_*` 表。产品没上线，没有旧数据要保留，所以新增表直接改这一个文件，不另写。
 - 上线之后每次改表结构就新增一个迁移文件，不再改 baseline。
 - 它**不管** LangGraph 的 checkpoint 表，那几张表由 `AsyncPostgresSaver.setup()` 在服务启动时自己创建。
+
+
+---
+
+## 13. LiveKit 能导出什么（回答"分析 livekit 文档，TTS 准确性能不能导出"）
+
+结论：**能，而且文本和音频都能在我们自己的进程里拿到，不需要依赖 LiveKit Cloud。** 依据（LiveKit 文档，
+2026-11-12 查阅）：
+
+| 要拿的数据 | 方式 | 出处 |
+|---|---|---|
+| 送进 TTS 的文本 + 合成音频帧 | 覆写 `Agent.tts_node(text, model_settings)`，包住输入文本流与输出音频流 | Pipeline nodes and hooks → TTS node |
+| 每回合延迟（`tts_node_ttfb`、`llm_node_ttft`、`e2e_latency`） | `ChatMessage.metrics`，经 `conversation_item_added` 事件 | Data hooks → Per-turn latency |
+| 模型/TTS/STT 用量（token、字符数、音频时长） | `session.usage`、`session_usage_updated` 事件 | Data hooks → Session usage |
+| 转写、事件、录音元数据的整份快照 | `ctx.make_session_report()`（在 `on_session_end` 里），纯进程内、不请求 LiveKit Cloud | Data hooks → Session reports |
+| 整个会话的混合录音 | LiveKit Egress 写到自己的对象存储 | Record audio and video |
+| 云端回放（转写、trace、录音） | Agent insights，数据存在 LiveKit Cloud | Agent insights / Session recording options |
+
+我们选了 `tts_node` 采集，原因：只有这里是"文本和音频成对、按合成调用切分"的；Egress 是整个房间的混合音，
+没法按回合切；Agent insights 的数据存在 LiveKit Cloud，**用户的声音和转写会离开我们的存储，可能涉及数据出境**，
+上线前需要法务确认，而且 `record` 一旦 `session.start()` 就固定、不能中途按用户同意开关
+（文档原话：要在 Agent 加入前收集同意，据此设置 `record`）。我们的方案不依赖它，同意可以按回合实时判断。
+
+**不在这次范围、且要说清楚的**：
+- **用户这一侧的音频（STT 输入）没有采集。** `stt_node` 拿到的是连续音频帧，要按语音端点切成一句一段，
+  需要和 `user_input_transcribed` 的时间对齐，只能在真实房间里调。目前 `audio_in_key` 列在，没有代码写入。
+  所以 STT 准确性现在只能靠置信度（如果火山返回）和人工，不能像 TTS 这样自动回灌比对。
+- `make_session_report()`、`session.usage`、`ChatMessage.metrics` 我们没有接入。其中延迟类指标
+  （`tts_node_ttfb`、`e2e_latency`）和我们自己算的 `tts_ttfb_ms` / `first_sentence_ms` 口径不同，
+  接入时需要决定以哪个为准，不要两套并存。
+- **全部基于文档和 1.8.11 源码核对，没有在真实 LiveKit 房间里跑过。** 单测用假默认实现驱动 `tts_node`；
+  真实环境里 `Agent.default.tts_node` 需要活跃的 AgentActivity，行为是否一致只能联调确认。
+
+## 14. 远程 Postgres 的状态（2026-11-12）
+
+连接信息（主机 `newdb.sspacee.com`、库 `uher`、账号 `vpn@server`）已写入 `.env`（权限 600，不入库）。
+**实测这个账号不能建表**：
+
+- 对 `public` schema 只有 `USAGE`，没有 `CREATE`（`CREATE TABLE` 报 `permission denied for schema public`）；
+- 对数据库没有 `CREATE`（建不了新 schema），只有 `TEMP`；
+- 库里只有一张别人的 `zz_perm_test`，没有 `ca_*` 表，也没有 LangGraph 的 checkpoint 表；
+- 服务器 PostgreSQL 17.11，`max_connections=100`（探测时已有 6 条连接在用）；
+- **`pgvector` 不可用**（`pg_available_extensions` 里没有 `vector`），向量记忆召回在这个库上做不了。
+
+我没有换用别的账号或绕过限制。已做的验证：把 baseline 的 50 条 DDL 作为 **TEMP 表**在这台真实服务器上
+执行（临时表随连接消失，库里不留任何东西），全部通过，并验证了 JSONB、`timestamptz`、自增主键、
+`turn_id` 唯一约束；断开重连后确认没有任何 `ca_` 表残留。
+
+**让服务能跑起来需要有 CREATE 权限的人执行一次**（任选其一）：
+
+```sql
+-- 方案 A：让 vpn@server 能在 public 建表（它会成为这些表的所有者，应用运行时也用它，不需要再授权）
+GRANT CREATE ON SCHEMA public TO "vpn@server";
+```
+
+之后在 `companion-agent` 目录执行 `alembic upgrade head` 建 `ca_*` 表；LangGraph 的 checkpoint 表
+由服务启动时 `AsyncPostgresSaver.setup()` 自建，同样需要这个权限。
+
+不推荐用库所有者账号（`sspacee`）建表后再授权：应用运行时账号拿不到表的读写权限，还要补一串 `GRANT`。
+
+**连接数预算**：库上限 100，已有约 6 条在用（可能是 Java 服务）。我们的池上限：API 30、后台任务 12、
+每个语音房间进程 6。例如 2 个 API + 1 个后台 + 10 个同时在线的语音房间 = 132，**超过上限**。
+需要定语音房间的并发上限，或把池再调小；`bootstrap/database.py` 的 `check_budget()` 可以算。

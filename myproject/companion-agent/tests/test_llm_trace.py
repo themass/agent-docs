@@ -119,3 +119,26 @@ async def test_streamed_usage_and_finish_reason_reach_the_collector():
     assert call.output_text == "先歇一会儿"
     assert (call.input_tokens, call.output_tokens, call.finish_reason, call.model) == (50, 6, "stop", "stream-1")
     assert call.first_token_ms is not None
+
+
+async def test_requested_tool_calls_are_recorded_with_name_and_arguments():
+    reply = AIMessage(content="", tool_calls=[{"id": "call_1", "name": "add_event", "args": {"title": "面试"}}])
+    collector = LlmCallCollector()
+    await _model(reply).ainvoke([HumanMessage(content="周五面试")], config={"callbacks": [collector]})
+    (call,) = collector.drain()
+    assert call.tool_calls == [{"id": "call_1", "name": "add_event", "args": {"title": "面试"}}]
+    assert call.output_text == ""            # 只请求了工具、没有正文：这一行是“调用了工具”的唯一证据
+
+
+async def test_tool_results_in_the_next_input_keep_which_call_they_answer():
+    from langchain_core.messages import ToolMessage
+
+    asked = AIMessage(content="", tool_calls=[{"id": "call_1", "name": "add_event", "args": {}}])
+    collector = LlmCallCollector()
+    await _model(AIMessage(content="好的")).ainvoke(
+        [HumanMessage(content="周五面试"), asked, ToolMessage(content="已添加", tool_call_id="call_1", name="add_event")],
+        config={"callbacks": [collector]})
+    items = collector.drain()[0].input_messages
+    assert items[1]["tool_calls"] == [{"id": "call_1", "name": "add_event"}]
+    assert (items[2]["role"], items[2]["tool_call_id"], items[2]["name"], items[2]["content"]) == (
+        "tool", "call_1", "add_event", "已添加")
