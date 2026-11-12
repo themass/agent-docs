@@ -128,5 +128,10 @@ def test_event_endpoints_respect_ownership_and_update_status(memory_client):
     assert memory_client.delete(f"/api/agent/v1/memory/events/{eid}", headers=ME).status_code == 204
 
 
-def test_profile_is_explicitly_empty_until_p4(memory_client):
-    assert memory_client.get("/api/agent/v1/memory/profile", headers=ME).json() == {"markdown": None, "version": None}
+def test_profile_is_explicitly_empty_without_a_store(memory_client):
+    """没有画像存储（未配置）或没有指定角色：明确返回空，不编造。"""
+    empty = {"items": [], "markdown": None, "version": None}
+    assert memory_client.get("/api/agent/v1/memory/profile", headers=ME).json() == empty
+    assert memory_client.get("/api/agent/v1/memory/profile?role_id=linche", headers=ME).json() == empty
+    assert memory_client.post("/api/agent/v1/memory/profile/1/suppress", headers=ME).status_code == 404
+    assert memory_client.delete("/api/agent/v1/memory/profile/1", headers=ME).status_code == 404
