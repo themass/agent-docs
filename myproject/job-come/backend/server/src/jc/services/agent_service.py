@@ -71,6 +71,7 @@ _PERSIST_EVENT_TYPES = frozenset(
         "subagent_done",
         "confirm",
         "usage",
+        "skill",
         "error",
     }
 )
