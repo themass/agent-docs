@@ -45,6 +45,7 @@ from companion.api.http.routers.memory_v1 import build_router as build_memory_v1
 from companion.api.http.routers.reminders import build_router as build_reminders_router
 from companion.api.http.routers.chat import build_health_router
 from companion.adapters.timeline.legacy_adapter import LegacyTimelineAdapter
+from companion.app.tools.legacy_actions import LegacyActionsAdapter
 from companion.bootstrap.platform import Platform
 from companion.app.roles.service import RoleService
 from companion.api.http.routers.chat import ChatApi, build_router as build_chat_router
@@ -260,9 +261,15 @@ def create_app(
             current_user,
         )
     )
+    # 旧 /companion 的确认动作：有平台时走 Postgres 的 ConfirmationService，
+    # 和 /api/agent/v1/actions 用同一份实现；没有平台（离线/测试）才用旧执行器。
+    _legacy_actions = (
+        LegacyActionsAdapter(platform.confirmations) if platform is not None
+        else control_router.ActionsApi(executor=resolved.executor)
+    )
     app.include_router(
         control_router.build_router(
-            actions=control_router.ActionsApi(executor=resolved.executor),
+            actions=_legacy_actions,
             preferences=control_router.PreferencesApi(store=preferences_store),
             current_user=current_user,
         )
