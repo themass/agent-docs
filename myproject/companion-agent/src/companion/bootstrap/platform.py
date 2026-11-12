@@ -30,6 +30,9 @@ from companion.adapters.store.sql.account import SqlAccountStore
 from companion.adapters.store.sql.avatar import SqlAvatarReleaseStore
 from companion.adapters.store.sql.jobs import SqlJobStore
 from companion.adapters.store.sql.persona import SqlPersonaStore
+from companion.adapters.store.sql.proactive_store import (
+    SqlDelivery, SqlPreferencesStore, SqlSendLedger,
+)
 from companion.adapters.store.sql.timeline import SqlTimelineStore
 from companion.adapters.store.sql.memory import SqlMemoryPort
 from companion.adapters.store.sql.reminders import SqlReminderStore
@@ -108,6 +111,10 @@ class Platform:
     avatars: AvatarCatalog | None = None
     admin_token: str = ""
     sessions: Any = None
+    # 主动消息的三块持久化（原来是进程内，重启即丢）
+    preferences: Any = None
+    delivery: Any = None
+    ledger: Any = None
     _pool: Any = None
     _checkpointer: Any = None
     _started: bool = field(default=False, repr=False)
@@ -360,7 +367,12 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
                                   memory=memory, timeline=timeline, objects=objects,
                                   system_roles=lambda: system_role_ids)
 
+    preferences = SqlPreferencesStore(engine)
+    delivery = SqlDelivery(engine)
+    ledger = SqlSendLedger(engine)
+
     return Platform(chat=api, roles=roles, uploads=uploads, confirmations=confirmations,
+                    preferences=preferences, delivery=delivery, ledger=ledger,
                     memory=memory, timeline=timeline, drain=drain, engine=engine, redis=redis,
                     reminders=reminders, history=history, dispatcher=dispatcher, resummarize=resummarize,
                     pipeline=pipeline, jobs=jobs, timeline_recorder=timeline_recorder, persona_updater=persona_updater,

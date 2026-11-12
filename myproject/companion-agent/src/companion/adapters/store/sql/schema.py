@@ -347,3 +347,48 @@ usage_span = Table(
     Column("reminded_at", DateTime, nullable=True),
     Column("updated_at", DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP")),
 )
+
+
+# 「她主动找你」的用户偏好。原来在进程内（InMemoryPreferencesStore），重启就恢复默认：
+# 用户以为自己关掉了主动消息，重启后又开始收到。
+proactive_preferences = Table(
+    TABLE_PREFIX + "proactive_prefs", metadata,
+    Column("owner_id", BigInteger, primary_key=True, autoincrement=False),
+    Column("events_enabled", Boolean, nullable=False, server_default="1"),
+    Column("greetings_enabled", Boolean, nullable=False, server_default="0"),
+    Column("call_enabled", Boolean, nullable=False, server_default="0"),
+    Column("quiet_start", String(5), nullable=False, server_default="23:00"),
+    Column("quiet_end", String(5), nullable=False, server_default="08:00"),
+    Column("max_per_day", Integer, nullable=False, server_default="2"),
+    Column("max_per_week", Integer, nullable=False, server_default="6"),
+    Column("paused_until", DateTime, nullable=True),
+    Column("updated_at", DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP")),
+)
+
+# 应用内收件箱。原来在进程内且有 200 条上限、重启即丢：主动消息发出去、用户还没看到就没了。
+# drained_at 非空 = 客户端已取走；未取走的按时间正序返回。
+delivery_receipt = Table(
+    TABLE_PREFIX + "delivery_receipt", metadata,
+    Column("id", String(48), primary_key=True),
+    Column("owner_id", BigInteger, nullable=False),
+    Column("role_id", String(128), nullable=False),
+    Column("text", LongText, nullable=False),
+    Column("channel", String(16), nullable=False, server_default="in_app"),
+    Column("meta", JsonText, nullable=True),
+    Column("at", DateTime, nullable=False),
+    Column("drained_at", DateTime, nullable=True),
+    Column("created_at", DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP")),
+    Index("ca_ix_receipt_owner_drained_at", "owner_id", "drained_at", "at"),
+)
+
+# 投递账本：频控（每天/每周几次）要跨重启、跨进程看「已经发过几次」。
+# 原来在进程内，多 worker 各自计数，用户可能一天收到两倍的消息。
+send_record = Table(
+    TABLE_PREFIX + "send_record", metadata,
+    Column("id", BigInteger, primary_key=True, autoincrement=True),
+    Column("owner_id", BigInteger, nullable=False),
+    Column("at", DateTime, nullable=False),
+    Column("channel", String(16), nullable=False),
+    Column("trigger", String(64), nullable=False, server_default=""),
+    Index("ca_ix_send_owner_at", "owner_id", "at"),
+)

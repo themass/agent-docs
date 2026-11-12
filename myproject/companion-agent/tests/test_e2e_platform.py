@@ -1,7 +1,8 @@
 """端到端：HTTP → 会话 → 回合 → 历史 → 角色 → 记忆 → 上传 → 确认，全部走真实存储与控制面。
 
 需要：COMPANION_TEST_MYSQL_URL（vpn，表前缀 ca_）、COMPANION_TEST_REDIS_URL（共用，键前缀 ca:）。
-上传部分还需要 TOS 配置（TOS_ENDPOINT、TOS_BUCKET、TOS_ACCESS_KEY、TOS_SECRET_KEY），
+上传部分需要**测试专用**的 TOS 配置（COMPANION_TEST_TOS_ENDPOINT / _BUCKET /
+_ACCESS_KEY / _SECRET_KEY）；不配就跳过上传，绝不往共享桶写。
 且只写入 companion-test/ 前缀。大脑用 FakeBrain（不调用真实模型）。
 """
 
@@ -49,11 +50,13 @@ def _platform():
     settings = Settings(
         companion_mysql_url=MYSQL,
         companion_redis_url=REDIS,
-        tos_endpoint=os.environ.get("TOS_ENDPOINT", ""),
-        tos_bucket=os.environ.get("TOS_BUCKET", ""),
-        tos_access_key=os.environ.get("TOS_ACCESS_KEY", ""),
-        tos_secret_key=os.environ.get("TOS_SECRET_KEY", ""),
-        tos_region=os.environ.get("TOS_REGION", "cn-beijing"),
+        # 必须用测试专用的桶与凭据：共享桶（生产在用）里写入测试文件不可接受，
+        # 而且生产凭据可能带前缀限制，写进去就 403，把测试变成环境问题。
+        tos_endpoint=os.environ.get("COMPANION_TEST_TOS_ENDPOINT", ""),
+        tos_bucket=os.environ.get("COMPANION_TEST_TOS_BUCKET", ""),
+        tos_access_key=os.environ.get("COMPANION_TEST_TOS_ACCESS_KEY", ""),
+        tos_secret_key=os.environ.get("COMPANION_TEST_TOS_SECRET_KEY", ""),
+        tos_region=os.environ.get("COMPANION_TEST_TOS_REGION", "cn-beijing"),
         tos_key_prefix="companion-test/",
     )
     container = create_container()
@@ -109,7 +112,7 @@ def test_end_to_end_over_http(migrated):
                            headers=ME).status_code == 404
 
         # 上传到 TOS（companion-test/ 前缀），再用签名地址读回
-        if platform.uploads is not None and os.environ.get("TOS_BUCKET"):
+        if platform.uploads is not None and os.environ.get("COMPANION_TEST_TOS_BUCKET"):
             up = client.post("/api/agent/v1/uploads", content=_png(), headers=ME)
             assert up.status_code == 201, up.text
             url = client.get(f"/api/agent/v1/uploads/{up.json()['upload_id']}", headers=ME).json()["url"]

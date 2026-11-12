@@ -135,7 +135,11 @@ def create_app(
     )
 
     # 偏好是用户维度的：路由写、主动性循环读，必须是同一个存储。
-    preferences_store = control_router.InMemoryPreferencesStore(InitiativePreferences())
+    # 有平台（配了 Postgres）就用 SQL：内存版重启后会把用户关掉的主动消息重新打开。
+    preferences_store = (
+        platform.preferences if platform is not None and platform.preferences is not None
+        else control_router.InMemoryPreferencesStore(InitiativePreferences())
+    )
 
     async def preferences_loader(user_id: str) -> InitiativePreferences:
         return await preferences_store.load(user_id)
@@ -144,8 +148,9 @@ def create_app(
     # 大脑检查放在容器建好之后：默认容器用的是 FakeBrain，生产必须显式配置真实大脑（A §5.5）
     assert_startup_safe(env=settings.companion_env, auth_verifier=settings.companion_auth_verifier,
                         brain_name=type(resolved.brain).__name__)
-    delivery = InAppDelivery()
-    ledger = InMemorySendLedger()
+    # 同理：内存版重启就丢消息，且多 worker 各自计数会让频控翻倍。
+    delivery = platform.delivery if platform is not None and platform.delivery is not None else InAppDelivery()
+    ledger = platform.ledger if platform is not None and platform.ledger is not None else InMemorySendLedger()
     initiative_loop = InitiativeLoop(
         scheduler=InitiativeScheduler(
             timeline=resolved.timeline,
