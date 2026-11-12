@@ -69,6 +69,7 @@ from companion.app.tools.runtime import ToolRuntime
 from companion.app.uploads.service import UploadService
 from companion.bootstrap.chat_stack import build_chat_api
 from companion.adapters.brain.llm_trace import LlmCallCollector
+from companion.app.trace.writer import BackgroundWriter
 from companion.config import PROJECT_ROOT, Settings
 from companion.domain.prompt.templates import PROMPT_VERSION
 from companion.domain.history.summary import TIMELINE_RECORD_JOB
@@ -118,6 +119,8 @@ class Platform:
     objects: Any = None
     qa_retention_days: int = 90
     tos_key_prefix: str = ""
+    trace_writer: Any = None
+    qa_enabled: bool = True
     # 主动消息的三块持久化（原来是进程内，重启即丢）
     preferences: Any = None
     delivery: Any = None
@@ -136,6 +139,9 @@ class Platform:
         self._started = True
 
     async def aclose(self) -> None:
+        # 旁路写入器要先排空：它的 worker 用的就是下面要关掉的数据库连接
+        if self.trace_writer is not None:
+            await self.trace_writer.close()
         if self._pool is not None:
             await self._pool.close()
         await self.redis.aclose()
@@ -263,26 +269,31 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     resummarize = (ResummarizeService(messages=messages, conversation=conversation, control=control, llm=llm)
                    if conversation is not None and llm is not None else None)
 
-    async def record_trace(collector: LlmCallCollector, request: TurnRequest, *, owner_id: int, role_id: str,
-                           started_at: datetime) -> None:
-        """回合收尾时把这一回合的完整执行链路写成一条追踪。正文只在用户同意质检留存时才写；任何失败只记日志，
-        不能影响回答本身（回答已经交付，记录是旁路）。"""
-        try:
-            calls = collector.drain()
-            if not calls:
-                return
-            turn_id = str(request.metadata.get("turn_id") or "")
+    trace_writer = BackgroundWriter()
+    qa_enabled = settings.companion_qa_enabled
+
+    def record_trace(collector: LlmCallCollector, request: TurnRequest, *, owner_id: int, role_id: str,
+                     started_at: datetime) -> None:
+        """回合收尾时登记这一回合的追踪。**这里只把任务放进队列**，同意判断和写库都在后台：
+        记录是旁路，不能让回复多等一次数据库往返，也不能让会话锁多占。"""
+        calls = collector.drain()
+        if not calls:
+            return
+        turn_id = str(request.metadata.get("turn_id") or "")
+        session_id = request.session_id or 0
+        plan = request.prompt
+        prompt_version = getattr(plan, "version", "") or PROMPT_VERSION
+        skills = tuple(getattr(plan, "skills", ()) or ())
+
+        async def job() -> None:
+            # 同意在写入时读：比回合稍晚几秒，用户在这几秒内改了设置按最新的算（撤回同意立即生效）
             keep = await compliance.qa_content_allowed(owner_id=owner_id)
-            steps = await qa.record_trace(turn_id=turn_id, session_id=request.session_id or 0, owner_id=owner_id,
+            steps = await qa.record_trace(turn_id=turn_id, session_id=session_id, owner_id=owner_id,
                                           role_id=role_id, calls=calls, keep_content=keep)
-            # 回合汇总：模型、提示词版本、用了哪些 skill、用量合计。skill 名不含用户原话，总是记。
-            plan = request.prompt
-            await qa.note_turn_models(
-                turn_id=turn_id, session_id=request.session_id or 0, owner_id=owner_id, role_id=role_id,
-                prompt_version=getattr(plan, "version", "") or PROMPT_VERSION,
-                skills=tuple(getattr(plan, "skills", ()) or ()), steps=steps, started_at=started_at)
-        except Exception:  # noqa: BLE001
-            log.warning("turn trace record failed", extra={"turn_id": request.metadata.get("turn_id")})
+            await qa.note_turn_models(turn_id=turn_id, session_id=session_id, owner_id=owner_id, role_id=role_id,
+                                      prompt_version=prompt_version, skills=skills, steps=steps, started_at=started_at)
+
+        trace_writer.submit(job)
 
     async def produce(request: TurnRequest, inbox: Any) -> AsyncIterator[Any]:
         owner_id = int(request.user_id)
@@ -292,15 +303,17 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
         request.prompt = plan
         request.system_prompt = plan.system
         if hasattr(brain, "run"):
-            collector = LlmCallCollector()
-            request.metadata["llm_collector"] = collector
+            collector = LlmCallCollector() if qa_enabled else None
+            if collector is not None:
+                request.metadata["llm_collector"] = collector
             started_at = datetime.now(UTC)
             try:
                 async for event in brain.run(request, inbox):
                     yield event
             finally:
-                await record_trace(collector, request, owner_id=owner_id, role_id=request.character_id,
-                                   started_at=started_at)
+                if collector is not None:
+                    record_trace(collector, request, owner_id=owner_id, role_id=request.character_id,
+                                 started_at=started_at)
             return
         turn = await brain.start_turn(request)   # 测试用的假大脑只实现了 start_turn
         async for chunk in turn.tokens:
@@ -309,15 +322,13 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     timeline_recorder = TimelineRecorder(timeline, llm) if llm is not None else None
 
     async def after_turn(outcome: TurnOutcome) -> None:
-        # 回合最终状态写进 ca_chat_turn。放在最前面且自己兜住异常：后面的记忆、画像入队失败不该让它丢。
-        try:
+        # 回合最终状态写进 ca_chat_turn：同样只入队，不占会话锁。总开关关了就不写。
+        if qa_enabled:
             state = "lost" if outcome.lock_lost else "failed" if outcome.failed else \
                 "cancelled" if outcome.cancelled else "done"
-            await qa.finish_turn(turn_id=outcome.turn_id, session_id=outcome.session_id, owner_id=outcome.owner_id,
-                                 role_id=outcome.character_id, state=state,
-                                 error_code="turn_failed" if outcome.failed else "")
-        except Exception:  # noqa: BLE001
-            log.warning("turn summary write failed", extra={"turn_id": outcome.turn_id})
+            trace_writer.submit(lambda: qa.finish_turn(
+                turn_id=outcome.turn_id, session_id=outcome.session_id, owner_id=outcome.owner_id,
+                role_id=outcome.character_id, state=state, error_code="turn_failed" if outcome.failed else ""))
         # 拿着会话锁：补记中断的回复，让模型知道上一句说到哪里。
         if outcome.interrupted and outcome.assistant_message_id and outcome.assistant_text and not outcome.lock_lost:
             await history.note_interrupted(session_id=outcome.session_id,
@@ -426,5 +437,5 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
                     pipeline=pipeline, jobs=jobs, timeline_recorder=timeline_recorder, persona_updater=persona_updater,
                     persona=persona, compliance=compliance, account=account, avatars=avatars,
                     admin_token=settings.companion_admin_token, sessions=sessions, brain=brain, qa=qa, objects=objects,
-                    qa_retention_days=settings.companion_qa_retention_days,
+                    qa_retention_days=settings.companion_qa_retention_days, trace_writer=trace_writer, qa_enabled=qa_enabled,
                     tos_key_prefix=settings.tos_key_prefix, _pool=pool, _checkpointer=checkpointer)

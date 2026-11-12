@@ -190,12 +190,17 @@ def read_trace(steps: list[dict[str, Any]], blobs: dict[str, str]) -> list[dict[
     out: list[dict[str, Any]] = []
     running: list[dict[str, Any]] = []
     for s in steps:
+        has_input = True
         if "base" in s:
             running = list(s["base"])
+        elif "append" in s:
+            running = running + list(s["append"])
         else:
-            running = running + list(s.get("append") or [])
+            # 没有正文的步骤（没同意留存、或另一次尝试没带正文）：输入就是空的，
+            # 不能沿用上一步攒下的 running，否则会把别的步骤的输入当成它的
+            has_input = False
         step = {k: v for k, v in s.items() if k not in ("base", "append", "o", "ox", "th")}
-        step["input"] = [_expand(r, blobs) for r in running]
+        step["input"] = [_expand(r, blobs) for r in running] if has_input else []
         if "o" in s:
             step["output"] = _join(s["o"], blobs)
             if "ox" in s:

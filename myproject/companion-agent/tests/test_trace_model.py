@@ -146,3 +146,12 @@ def test_referenced_hashes_cover_inputs_outputs_and_reasoning():
 def test_the_attempt_number_is_recorded_so_a_restarted_turn_can_be_told_apart():
     steps, _ = build_trace([call(0, [msg("human", "a")])], keep_content=False, attempt=1)
     assert steps[0]["a"] == 1
+
+
+def test_a_step_without_content_never_shows_the_previous_steps_input():
+    """读取的坑：没有正文的步骤沿用了上一步攒下的输入，会把别的步骤的输入当成它的。"""
+    with_text, blobs = build_trace([call(0, [msg("system", "S"), msg("human", "第一次尝试的话")])], keep_content=True)
+    without, _ = build_trace([call(0, [msg("human", "不该出现")])], keep_content=False, attempt=1)
+    got = read_trace(with_text + without, blobs)
+    assert [m["content"] for m in got[0]["input"]] == ["S", "第一次尝试的话"]
+    assert got[1]["input"] == []

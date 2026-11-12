@@ -52,6 +52,9 @@ class Settings(BaseSettings):
     companion_checkpoint_url: str = ""
     # 质检数据（模型调用、语音回合）保留多少天，到期由后台任务删除（含音频对象）。
     companion_qa_retention_days: int = 90
+    # 质检记录总开关。关闭后所有写入点（模型调用追踪、回合汇总、语音识别与 TTS 记录）都不再写；
+    # 已有的数据仍按保留期限清理、账号注销仍会删除。打开后，正文是否保存仍取决于用户自己的同意。
+    companion_qa_enabled: bool = True
     # 会话内压缩：未摘要的历史超过这么多 token 时，把较早的消息压成摘要，保留最近这么多条原文。
     companion_summary_trigger_tokens: int = 9000
     companion_summary_keep_messages: int = 20

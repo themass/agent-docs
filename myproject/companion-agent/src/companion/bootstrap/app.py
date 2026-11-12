@@ -7,10 +7,9 @@ fastapi 只在本模块顶层导入——服务端依赖它，测试环境不装
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager, suppress
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any
 
@@ -21,10 +20,9 @@ from companion.adapters.roles.files import CharacterSource
 from companion.api.http.routers import characters as characters_router
 from companion.api.http.routers import control as control_router
 from companion.api.http.routers import inbox as inbox_router
-from companion.api.http.routers import memory as memory_router
 from companion.api.http.routers.characters import CharacterCatalog
 from companion.api.http.deps import AllowAllVerifier, CredentialVerifier, build_current_user
-from companion.products.roleplay.sessions import InMemorySessionStore, SessionService, SessionStore
+from companion.products.roleplay.sessions import SessionService, SessionStore
 from companion.api.livekit.sessions_router import build_router
 from companion.adapters.livekit.tokens import TokenMinter
 from companion.app.chat.lifecycle import DrainState

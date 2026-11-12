@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from typing import Any
 
 from companion.app.chat.ids import new_ulid
 from companion.domain.middleware.safety import check_input

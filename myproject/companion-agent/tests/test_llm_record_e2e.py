@@ -57,7 +57,8 @@ class _ModelBrain:
                                                                     "total_tokens": 2})
 
     async def run(self, request, inbox=None):
-        callbacks = [request.metadata["llm_collector"]]
+        collector = request.metadata.get("llm_collector")       # 总开关关着时没有采集器，真实的大脑也是这样处理
+        callbacks = [collector] if collector is not None else []
         async for chunk in self._model.astream([HumanMessage(content=request.message)],
                                                config={"callbacks": callbacks}):
             yield TextDelta(str(chunk.content))
@@ -69,11 +70,11 @@ class _ModelBrain:
 pytestmark_e2e = pytest.mark.skipif(not (DB and REDIS), reason="needs COMPANION_TEST_DATABASE_URL and _REDIS_URL")
 
 
-def _platform(brain):
+def _platform(brain, **settings):
     from companion.bootstrap.platform import build_platform, default_prompts
     from companion.config import Settings
 
-    return build_platform(Settings(_env_file=None, companion_database_url=DB, companion_redis_url=REDIS),
+    return build_platform(Settings(_env_file=None, companion_database_url=DB, companion_redis_url=REDIS, **settings),
                           brain=brain, prompts=default_prompts())
 
 
@@ -98,6 +99,17 @@ async def _traces(platform, user):
         return (await conn.execute(select(turn_trace).where(turn_trace.c.owner_id == user))).mappings().all()
 
 
+async def _blob_count(platform, user):
+    """只数这个用户的文本块。整张表的数会带上别的测试、上一次运行留下的块。"""
+    from sqlalchemy import func
+
+    from companion.adapters.store.sql.schema import text_blob
+
+    async with platform.engine.connect() as conn:
+        return (await conn.execute(select(func.count()).select_from(text_blob)
+                                   .where(text_blob.c.owner_id == user))).scalar_one()
+
+
 async def _read(platform, user):
     (row,) = await _traces(platform, user)
     return await platform.qa.read_trace(turn_id=row["turn_id"], owner_id=user)
@@ -120,7 +132,7 @@ async def test_a_turn_records_metrics_but_not_content_without_consent():
     assert "output" not in step and "reasoning" not in step
     assert (step["in"], step["out"], step["fr"]) == (50, 6, "stop")
     assert t["role_id"] == "linche"
-    assert (await platform.qa.count())["text_blob"] == 0
+    assert await _blob_count(platform, user) == 0
 
 
 @pytestmark_e2e
@@ -174,3 +186,60 @@ async def test_the_turn_summary_records_model_skills_usage_and_final_state():
     assert turn["usage"]["calls"] == 1 and turn["usage"]["output_tokens"] == 6
     (trace,) = await _traces(platform, user)
     assert trace["turn_id"] == turn["id"]                # 汇总行与追踪行能对上
+
+
+@pytestmark_e2e
+async def test_a_slow_trace_store_does_not_delay_the_reply():
+    """记录是旁路。追踪库慢（远程库往返几百毫秒很常见）不能让用户多等，更不能让会话锁多占。"""
+    import time
+
+    from companion.bootstrap.app import create_app
+
+    DELAY = 1.5
+    user = random.randint(10**6, 10**7)
+    platform = _platform(_ModelBrain(AIMessage(content="先歇一会儿")))
+    qa = platform.qa
+    for name in ("record_trace", "note_turn_models", "finish_turn"):
+        original = getattr(qa, name, None)
+        if original is None:
+            continue
+
+        def slow(original=original):
+            async def wrapped(*a, **kw):
+                await __import__("asyncio").sleep(DELAY)
+                return await original(*a, **kw)
+            return wrapped
+        setattr(qa, name, slow())
+
+    with TestClient(create_app(livekit_url="", platform=platform)) as client:
+        t0 = time.monotonic()
+        _turn(client, user)
+        waited = time.monotonic() - t0
+    assert waited < DELAY * 0.6, f"reply took {waited:.2f}s: the trace write is on the reply path"
+
+
+@pytestmark_e2e
+async def test_with_the_switch_off_nothing_is_recorded_but_the_chat_still_works():
+    from companion.adapters.store.sql.schema import chat_turn
+    from companion.bootstrap.app import create_app
+
+    user = random.randint(10**6, 10**7)
+    platform = _platform(_ModelBrain(AIMessage(content="先歇一会儿")), companion_qa_enabled=False)
+    with TestClient(create_app(livekit_url="", platform=platform)) as client:
+        h = {"Authorization": f"Bearer {user}"}
+        client.patch("/v1/consent", json={"qa_retention": True}, headers=h)       # 用户同意了，开关关着也不能存
+        sid = _turn(client, user)
+        msgs = client.get(f"/v1/sessions/{sid}/messages", headers=h).json()
+        items = msgs.get("items", msgs) if isinstance(msgs, dict) else msgs
+        assert any(m["role"] == "assistant" for m in items)                        # 对话本身不受影响（列表是最新在前，不看顺序）
+    assert await _traces(platform, user) == []
+    async with platform.engine.connect() as conn:
+        assert (await conn.execute(select(chat_turn).where(chat_turn.c.owner_id == user))).all() == []
+    assert await _blob_count(platform, user) == 0
+    assert platform.qa_enabled is False
+
+
+@pytestmark_e2e
+async def test_the_switch_is_on_by_default():
+    platform = _platform(_ModelBrain(AIMessage(content="x")))
+    assert platform.qa_enabled is True

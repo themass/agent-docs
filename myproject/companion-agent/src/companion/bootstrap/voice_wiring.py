@@ -18,7 +18,7 @@ def build_voice_recorder(platform: Any, voice_info: dict[str, str] | None = None
     供应商与音色这类不含用户原话的信息总是写。"""
     info = voice_info or {}
     qa, compliance = getattr(platform, "qa", None), getattr(platform, "compliance", None)
-    if qa is None:
+    if qa is None or not getattr(platform, "qa_enabled", True):
         return None
 
     async def record(rec: Any) -> None:
@@ -32,7 +32,7 @@ def build_voice_recorder(platform: Any, voice_info: dict[str, str] | None = None
 
 def build_tts_archiver(platform: Any, voice_info: dict[str, str] | None = None):
     """TTS 采集的归档器：文本与耗时写库，音频（用户同意后）传对象存储。没有质检存储就不采集。"""
-    if getattr(platform, "qa", None) is None:
+    if getattr(platform, "qa", None) is None or not getattr(platform, "qa_enabled", True):
         return None
     info = voice_info or {}
     return TtsArchiver(qa=platform.qa, compliance=getattr(platform, "compliance", None),
