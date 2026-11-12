@@ -8,13 +8,14 @@ ROUTING = Path(__file__).resolve().parents[1] / "config" / "llm" / "routing.yaml
 
 
 def test_companion_chat_chain_is_ordered_and_uses_env_names_only():
+    """断言的是配置的**结构**，不是具体模型名：换供应商（2026-11-12 换到豆包方舟）不该让测试失败，
+    但「有序的两级故障转移」「只引用环境变量、不写死密钥」必须一直成立。"""
     router = LLMRouter(ROUTING)
     chain = router.chain("companion_chat")
-    assert [e.model for e in chain] == [
-        "openai/deepseek-v4-pro",
-        "openai/deepseek-v4-flash",
-    ]
+    assert len(chain) >= 2
+    assert len({e.model for e in chain}) == len(chain)      # 两级不能是同一个模型
     for endpoint in chain:
+        assert endpoint.model and endpoint.provider
         assert endpoint.api_base_env == "COMPANION_LLM_API_BASE"
         assert endpoint.api_key_env == "COMPANION_LLM_API_KEY"
 
