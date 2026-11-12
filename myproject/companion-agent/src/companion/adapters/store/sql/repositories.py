@@ -66,6 +66,14 @@ class SqlSessionStore:
                 .limit(limit).offset(offset))).mappings().all()
         return [_session(r) for r in rows]
 
+    async def latest_for_role(self, *, owner_id: int, role_id: str) -> SessionRecord | None:
+        async with self._engine.connect() as conn:
+            row = (await conn.execute(select(chat_session).where(and_(
+                chat_session.c.owner_id == owner_id, chat_session.c.role_id == role_id,
+                chat_session.c.deleted == False))  # noqa: E712
+                .order_by(chat_session.c.updated_at.desc(), chat_session.c.id.desc()).limit(1))).mappings().first()
+        return _session(row) if row else None
+
     async def rename(self, *, owner_id: int, session_id: int, name: str) -> bool:
         async with self._engine.begin() as conn:
             res = await conn.execute(update(chat_session).where(and_(

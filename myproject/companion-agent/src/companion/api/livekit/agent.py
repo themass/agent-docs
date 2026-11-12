@@ -15,6 +15,7 @@ import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
+from companion.adapters.brain.platform_brain import TurnRefused
 from companion.domain.turn.pipeline import EventSink, TurnPipeline
 from companion.ports.brain import TurnRequest
 from companion.api.livekit.bridge import require
@@ -24,17 +25,17 @@ logger = logging.getLogger(__name__)
 __all__ = ["build_agent_class", "build_event_sink", "build_request", "last_user_message"]
 
 
-def build_request(*, user_id: str, character_id: str, message: str, instructions: str) -> TurnRequest:
-    """组一回合的请求。
+REFUSED_LINE = "这个我不太方便聊，我们说点别的吧。"
+UNAVAILABLE_LINE = "我这边出了点状况，你再说一次好吗？"
 
-    线程由主脑实现按 ``user_id`` + ``character_id`` 管；这里不生成 thread_id，
-    免得每次说话都开新线程、丢掉上文。
-    """
+
+def build_request(*, user_id: str, character_id: str, message: str, chat_session_id: int) -> TurnRequest:
+    """组一回合的请求。对话线程由 ``session_id`` 决定，与文字共用同一个。"""
     return TurnRequest(
-        user_id=user_id or "anonymous",
-        character_id=character_id or "default",
+        user_id=user_id,
+        character_id=character_id,
         message=message,
-        system_prompt=instructions,
+        session_id=chat_session_id,
     )
 
 
@@ -105,13 +106,14 @@ def build_agent_class() -> type:
             pipeline: TurnPipeline,
             user_id: str,
             character_id: str,
-            instructions: str,
+            chat_session_id: int,
         ) -> None:
-            super().__init__(instructions=instructions)
+            # 提示词由回合引擎按会话组装；llm_node 被重写后框架不会用到这里的 instructions
+            super().__init__(instructions="")
             self._pipeline = pipeline
             self._user_id = user_id
             self._character_id = character_id
-            self._instructions = instructions
+            self._chat_session_id = chat_session_id
 
         async def llm_node(
             self,
@@ -131,11 +133,18 @@ def build_agent_class() -> type:
                 user_id=self._user_id,
                 character_id=self._character_id,
                 message=message,
-                instructions=self._instructions,
+                chat_session_id=self._chat_session_id,
             )
-            async for output in self._pipeline.run(request):
-                if output.text:
-                    yield output.text
+            try:
+                async for output in self._pipeline.run(request):
+                    if output.text:
+                        yield output.text
+            except TurnRefused:
+                # 输入没过内容检查：用户该听到一句话，而不是房间突然安静
+                yield REFUSED_LINE
+            except ValueError as exc:
+                logger.error("voice turn not startable: %s", exc)
+                yield UNAVAILABLE_LINE
 
         async def cancel_turn(self) -> None:
             """用户打断。由框架或上层调用；幂等。"""

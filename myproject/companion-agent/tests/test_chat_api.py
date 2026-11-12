@@ -28,6 +28,10 @@ class Sessions:
     async def list_for_owner(self, *, owner_id, limit, offset):
         return [r for r in self.rows.values() if r.owner_id == owner_id][offset:offset + limit]
 
+    async def latest_for_role(self, *, owner_id, role_id):
+        mine = [r for r in self.rows.values() if r.owner_id == owner_id and r.role_id == role_id]
+        return mine[-1] if mine else None
+
     async def create(self, *, owner_id, role_id, name, locale):
         sid = len(self.rows) + 1
         r = SimpleNamespace(id=sid, owner_id=owner_id, role_id=role_id, name=name, locale=locale,

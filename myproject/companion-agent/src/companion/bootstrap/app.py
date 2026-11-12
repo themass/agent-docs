@@ -220,7 +220,8 @@ def create_app(
         return {"status": "ok"}
 
     current_user = build_current_user(app.state.companion.verifier)
-    app.include_router(build_router(service, current_user))
+    app.include_router(build_router(service, current_user,
+                                    chat_sessions=platform.sessions if platform is not None else None))
 
     # 回合接口需要主脑与管线；没注入 container 时用离线链路，
     # 这样健康检查与会话接口之外的部分不会因为缺依赖而起不来。

@@ -30,27 +30,18 @@ def _export_livekit_env() -> None:
             os.environ[name] = value
 
 
-def _container():
-    """语音 worker 用的容器：有模型网关配置就用 DeerFlow，否则退回 FakeBrain。
+async def _platform():
+    """语音 worker 用的 platform：与 HTTP 服务同一套（同库、同 Redis、同回合引擎）。
 
-    以前这里固定 ``create_container()``，默认 ``FakeBrain``——worker 连上了、能听能说，
-    但回答是写死的假话。这类「看起来能跑」的降级比直接失败更难查，所以这里显式选，
-    并在用假大脑时打一条警告。
+    以前这里单独造一个大脑并在配置不全时退回 FakeBrain：房间能进、能听能说，回答却是
+    写死的假话，而且说过的话不落库。现在没有数据库 / Redis 就直接拒绝启动，不降级。
     """
-    import logging
+    from companion.bootstrap.platform import build_platform, default_prompts
+    from companion.config import settings
 
-    from companion.bootstrap.container import create_container
-
-    log = logging.getLogger("companion.worker")
-    try:
-        from companion.bootstrap.voice_brain import build_voice_brain
-
-        brain = build_voice_brain()
-        log.info("voice brain: DeerFlow")
-        return create_container(brain=brain)
-    except Exception as exc:  # noqa: BLE001 —— 配置不全时明确降级，并让人看得见
-        log.warning("DeerFlow 不可用，语音回合使用 FakeBrain（回答是假的）：%s", exc)
-        return create_container()
+    if not (settings.database_url and settings.companion_redis_url):
+        raise RuntimeError("语音 worker 需要 COMPANION_DATABASE_URL 与 COMPANION_REDIS_URL（与 HTTP 服务相同）")
+    return build_platform(settings, prompts=default_prompts())
 
 
 def main() -> None:
@@ -69,10 +60,9 @@ def main() -> None:
     from livekit.agents import WorkerOptions, cli
 
     from companion.api.livekit.entrypoint import make_entrypoint
-    from companion.bootstrap.container import create_container
     from companion.bootstrap.voice_stack import build_voice_stack
 
-    entry = make_entrypoint(_container(), voice_factory=build_voice_stack)
+    entry = make_entrypoint(_platform, voice_factory=build_voice_stack)
     cli.run_app(WorkerOptions(entrypoint_fnc=entry))
 
 

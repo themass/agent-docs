@@ -145,8 +145,13 @@ def build_session_options(*, mode: str = "text", voice_factory: Any = None) -> d
     return options
 
 
-def make_entrypoint(container: Any, voice_factory: Any = None):
-    """装配好的 worker 入口。容器与语音栈由组合根传入，本模块不自己装配。"""
+def make_entrypoint(platform_factory: Any, voice_factory: Any = None):
+    """装配好的 worker 入口。
+
+    ``platform_factory`` 是协程函数，返回和 HTTP 服务同一套 platform（同库、同 Redis、同回合引擎）。
+    语音回合因此与文字共用会话、历史、对话线程和回合后处理，而不是另一条直连大脑的管线。
+    它必须在事件循环里调用（checkpoint 连接池要用运行中的循环），所以放在入口里而不是启动时。
+    """
 
     async def entrypoint(ctx: Any) -> None:
         """worker 的入口。由 LiveKit 的 job context 调用。"""
@@ -154,10 +159,9 @@ def make_entrypoint(container: Any, voice_factory: Any = None):
 
         from livekit.agents import AgentSession
 
+        from companion.adapters.brain.platform_brain import PlatformBrain
         from companion.api.livekit.agent import build_agent_class
         from companion.domain.turn.pipeline import TurnPipeline
-
-        """worker 的入口。由 LiveKit 的 job context 调用。"""
 
         try:
             identity = RoomIdentity.from_room_metadata(getattr(ctx.room, "metadata", None))
@@ -166,18 +170,29 @@ def make_entrypoint(container: Any, voice_factory: Any = None):
             await ctx.room.disconnect()
             return
 
+        if identity.chat_session_id is None:
+            # 没有会话就没有可共享的历史。不退回独立的语音会话：那正是“文字一份、语音一份”的成因。
+            logger.error("refusing room without chat_session_id user=%s", identity.user_id)
+            await ctx.room.disconnect()
+            return
+
+        platform = await platform_factory()
+        await platform.astart()
+        ctx.add_shutdown_callback(platform.aclose)
+
         publisher = AvatarPublisher(ctx.room)
         publisher.set_local_participant(ctx.room.local_participant)
 
-        pipeline = TurnPipeline(container.brain, event_sink=publisher)
+        brain = PlatformBrain(submit=platform.chat.submit, control=platform.chat.control)
+        pipeline = TurnPipeline(brain, event_sink=publisher)
         agent_class = build_agent_class()
 
-        instructions = container.prompts.build(identity.character_id)
+        # 提示词由回合引擎按会话组装（角色卡、技能、记忆、画像），这里不再自己拼一份。
         agent = agent_class(
             pipeline=pipeline,
             character_id=identity.character_id,
             user_id=identity.user_id,
-            instructions=instructions,
+            chat_session_id=identity.chat_session_id,
         )
 
         # 语音栈必须显式按 voice 模式装配：不传 mode 时默认是 text，STT/TTS/VAD 都不会挂上，
