@@ -58,6 +58,10 @@ def _message_json(m, alt_ids: list[int] | None = None) -> dict[str, Any]:
     ``alt_index`` 是这条消息在组里的位置（从 0 起）。"""
     out = {"id": m.id, "role": m.role, "kind": m.kind, "content": m.content, "turn_id": m.turn_id,
            "interrupted": m.interrupted, "created_at": _iso(m.created_at)}
+    # 附件挂在消息的 meta 上：刷新历史后要能重新渲染图片/文件卡片
+    attachments = (m.meta or {}).get("attachments")
+    if attachments:
+        out["attachments"] = attachments
     if alt_ids and len(alt_ids) > 1 and m.id in alt_ids:
         out.update({"alt_group": m.alt_group, "alt_index": alt_ids.index(m.id), "alt_count": len(alt_ids),
                     "alt_ids": alt_ids})
@@ -69,10 +73,20 @@ def build_router(api: ChatApi, current_user):
     from fastapi.responses import StreamingResponse
     from pydantic import BaseModel, Field
 
+    class Attachment(BaseModel):
+        """一个已上传的文件。``upload_id`` 来自 POST /uploads，内容已经落在对象存储，
+        这里只带引用，不重复传正文。"""
+
+        upload_id: str = Field(min_length=1, max_length=64)
+        kind: str = Field(default="image", max_length=16)
+        name: str = Field(default="", max_length=255)
+
     class SendBody(BaseModel):
-        text: str = Field(min_length=1, max_length=4000)
+        # 允许只发附件不带文字（发一张图不说话）：text 与 attachments 至少要有一个
+        text: str = Field(default="", max_length=4000)
         client_message_id: str | None = Field(default=None, max_length=64)
         steerable: bool = True
+        attachments: list[Attachment] = Field(default_factory=list)
 
     class CreateSession(BaseModel):
         role_id: str = Field(min_length=1, max_length=128)
@@ -132,7 +146,8 @@ def build_router(api: ChatApi, current_user):
         owner, record = await owned_session(user_id, session_id)
         result = await api.submit.submit(
             owner_id=owner, session_id=session_id, character_id=record.role_id, text=body.text,
-            client_message_id=body.client_message_id, steerable=body.steerable)
+            client_message_id=body.client_message_id, steerable=body.steerable,
+            attachments=[a.model_dump() for a in body.attachments])
         if result.status == "denied":
             raise HTTPException(status_code=422, detail={"code": "content_policy", "reason": result.reason})
         return {"status": result.status, "message_id": result.message_id, "turn_id": result.turn_id,
@@ -242,6 +257,21 @@ def build_router(api: ChatApi, current_user):
         if match is None or not await api.queue.withdraw(owner_id=owner, item_id=match.id):
             raise HTTPException(status_code=409, detail={"code": "conflict"})
         await api.messages.soft_delete(owner_id=owner, message_id=message_id)  # D §7.1：对应用户消息一并软删
+        return Response(status_code=204)
+
+    @router.delete("/sessions/{session_id}/messages", status_code=204)
+    async def clear_history(session_id: int, user_id: str = Depends(current_user)) -> Response:
+        """清空这个会话的历史。只影响这一个会话；别的会话、记忆、画像都不动。
+
+        记忆/画像是跨会话沉淀下来的「她记得的事」，不属于某一段对话，所以这里不清。
+        要遗忘某条记忆走 /memory 的删除接口。
+        """
+        owner, _ = await owned_session(user_id, session_id)
+        if api.history is not None:
+            await api.history.clear(owner_id=owner, session_id=session_id)
+        else:
+            # 没有大脑线程时只清消息表（无状态部署）
+            await api.messages.clear(owner_id=owner, session_id=session_id)
         return Response(status_code=204)
 
     @router.post("/sessions/{session_id}/queue/clear", status_code=202)

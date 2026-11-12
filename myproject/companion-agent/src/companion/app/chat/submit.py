@@ -60,7 +60,7 @@ class SubmitService:
 
     async def submit(self, *, owner_id: int, session_id: int, character_id: str, text: str,
                      client_message_id: str | None, steerable: bool = True, role: str = "user",
-                     kind: str = "chat") -> SubmitResult:
+                     kind: str = "chat", attachments: list[dict[str, Any]] | None = None) -> SubmitResult:
         """``role`` / ``kind``：用户消息是 user/chat；服务端发起的主动回合（到点提醒）是 system/proactive，
         走同一条判定路径（会话忙时排队），模型看到的是一条带标记的指令。"""
         if client_message_id:
@@ -73,9 +73,12 @@ class SubmitService:
         if denied is not None:
             return SubmitResult("denied", None, 0, None, reason=denied)
 
+        # 附件（图片/文件）跟着这条用户消息一起存进 meta：一个上传只属于一条消息，
+        # 单独建表反而要额外维护「哪条消息引用哪个上传」的关系。
+        meta: dict[str, Any] = {"attachments": list(attachments)} if attachments else {}
         message = await self._messages.append(
             owner_id=owner_id, session_id=session_id, role=role, content=text, kind=kind,
-            client_message_id=client_message_id, turn_id=None, meta={})
+            client_message_id=client_message_id, turn_id=None, meta=meta)
         await self._control.publish(
             session_id=session_id, event="message.created",
             data={"message_id": message.id, "client_message_id": client_message_id, "role": role,

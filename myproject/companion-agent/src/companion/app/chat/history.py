@@ -11,11 +11,16 @@
 from __future__ import annotations
 
 import logging
+import asyncio
 import uuid
 from datetime import UTC, datetime
 from typing import Any
 
 from companion.domain.history.summary import RESUMMARIZE_JOB
+
+# 清空历史时等回合结束：约 2 秒内每 200ms 试一次，抢不到再报 409。
+CLEAR_LOCK_ATTEMPTS = 10
+CLEAR_LOCK_DELAY = 0.2
 from companion.ports.conversation import ConversationStatePort, lc_assistant_id, lc_user_id
 from companion.ports.jobs import JobStore
 from companion.ports.store import MessageRecord, MessageStore
@@ -84,6 +89,17 @@ class HistoryService:
         if not await self._control.acquire_lock(session_id=session_id, owner=owner):
             raise HistoryBusy(session_id)
         return owner
+
+    async def _acquire_with_retry(self, session_id: int, *, attempts: int = CLEAR_LOCK_ATTEMPTS,
+                                 delay: float = CLEAR_LOCK_DELAY) -> str:
+        """抢会话锁；正在生成的回合结束后再清。抢不到才抛 HistoryBusy。"""
+        for i in range(attempts):
+            owner = f"history:{uuid.uuid4().hex}"
+            if await self._control.acquire_lock(session_id=session_id, owner=owner):
+                return owner
+            if i < attempts - 1:
+                await asyncio.sleep(delay)
+        raise HistoryBusy(session_id)
 
     async def _resummarize_later(self, *, owner_id: int, session_id: int, reason: str) -> None:
         if self._jobs is None:
@@ -223,6 +239,23 @@ class HistoryService:
                                                     after_id=user_message_id, limit=200)
             ids = [i for m in later if m.role == "assistant" for i in lc_ids_of(m)]
             return await self._conversation.remove(session_id=session_id, ids=ids) if ids else 0
+        finally:
+            await self._control.release_lock(session_id=session_id, owner=owner)
+
+    async def clear(self, *, owner_id: int, session_id: int) -> int:
+        """清空一个会话的历史：消息表软删 + 大脑线程里的对话一起清掉。
+
+        两处都要清，否则界面空了、模型还记得——下一次回复会引用「你们之前说过」的内容，
+        用户会认为是 bug。中途拿到会话锁才清：正在生成的回合不能被抽掉底部。
+        """
+        # 用户刚发完消息就点「清空」是很常见的操作，而回合结束前锁还在。
+        # 直接失败会让用户看到「操作失败」，所以先等一会儿再放弃。
+        owner = await self._acquire_with_retry(session_id)
+        try:
+            if self._conversation is not None:
+                await self._conversation.reset(session_id=session_id)
+                await self._resummarize_later(owner_id=owner_id, session_id=session_id, reason="cleared")
+            return await self._messages.clear(owner_id=owner_id, session_id=session_id)
         finally:
             await self._control.release_lock(session_id=session_id, owner=owner)
 

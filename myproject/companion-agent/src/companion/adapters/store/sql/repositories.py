@@ -246,6 +246,20 @@ class SqlMessageStore:
                 .values(deleted=True))
         return res.rowcount == 1
 
+    async def clear(self, *, owner_id: int, session_id: int) -> int:
+        """清空一个会话的全部消息（软删）。只影响这一个会话，别的会话不受影响。
+
+        为什么软删而不物理删除：编辑、删除消息的既有语义都是软删，
+        画像/记忆抽取按 message_id 回溯来源，物理删会让来源指向不存在的行。
+        """
+        async with self._engine.begin() as conn:
+            res = await conn.execute(update(chat_message).where(and_(
+                chat_message.c.session_id == session_id,
+                chat_message.c.owner_id == owner_id,
+                chat_message.c.deleted == False))  # noqa: E712
+                .values(deleted=True))
+        return res.rowcount or 0
+
 
 class SqlQueueStore:
     """排队输入。状态转移只允许 D §3.3 列出的那几条，其余拒绝。"""

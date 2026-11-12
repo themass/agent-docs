@@ -51,6 +51,14 @@ class DeerFlowConversationState:
     async def append_assistant(self, *, session_id: int, lc_id: str, text: str) -> None:
         await self._update(session_id, {"messages": [AIMessage(id=lc_id, content=text)]})
 
+    async def reset(self, *, session_id: int) -> int:
+        present = await self.present_ids(session_id=session_id)
+        if present:
+            await self._update(session_id, {"messages": [RemoveMessage(id=i) for i in present]})
+        # 摘要也要清：留着它等于把旧对话的梗概继续喂给模型
+        await self._update(session_id, {"summary_text": ""})
+        return len(present)
+
     async def summary(self, *, session_id: int) -> str:
         return str((await self._values(session_id)).get("summary_text") or "")
 
