@@ -90,9 +90,17 @@ def build_gateway(
     except VoiceUnavailable as exc:
         logger.warning("volcengine voice provider unavailable: %s", exc)
 
+    # 阿里云 NLS：短文本 REST。与火山并存，由 voice_ref.provider 或 COMPANION_VOICE_PROVIDER 选择。
+    try:
+        from companion.adapters.voice.aliyun import AliyunConfig, AliyunProvider
+
+        registered["aliyun"] = AliyunProvider(config=AliyunConfig.from_env())
+    except VoiceUnavailable as exc:
+        logger.warning("aliyun voice provider unavailable: %s", exc)
+
     if not registered:
         raise VoiceUnavailable(
-            "没有可用的语音供应商：设置 VOLC_TTS_APP_ID / VOLC_TTS_ACCESS_TOKEN / VOLC_TTS_ENDPOINT"
+            "没有可用的语音供应商：设置 VOLC_TTS_* 或 ALI_TTS_APP_ID / ALI_TTS_ACCESS_KEY / ALI_TTS_ACCESS_KEY_SECRET"
         )
 
     kwargs.setdefault("secondary", _env_or_none("COMPANION_VOICE_SECONDARY"))

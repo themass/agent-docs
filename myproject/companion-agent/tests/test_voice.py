@@ -582,7 +582,9 @@ def test_build_gateway_uses_explicit_providers():
 
 
 def test_build_gateway_fails_loudly_without_config(monkeypatch):
-    for name in ("VOLC_TTS_APP_ID", "VOLC_TTS_ACCESS_TOKEN", "VOLC_TTS_ENDPOINT"):
+    # 两个供应商的凭据都要清：否则本地 .env 里的那份会让「没有配置」这个前提不成立
+    for name in ("VOLC_TTS_APP_ID", "VOLC_TTS_ACCESS_TOKEN", "VOLC_TTS_ENDPOINT",
+                 "ALI_TTS_APP_ID", "ALI_TTS_ACCESS_KEY", "ALI_TTS_ACCESS_KEY_SECRET"):
         monkeypatch.delenv(name, raising=False)
     with pytest.raises(VoiceUnavailable):
         build_gateway()
@@ -593,6 +595,9 @@ def test_build_gateway_from_env(monkeypatch):
     monkeypatch.setenv("VOLC_TTS_ACCESS_TOKEN", "tok")
     monkeypatch.setenv("VOLC_TTS_ENDPOINT", "wss://example.invalid/tts")
     monkeypatch.setenv("COMPANION_VOICE_SECONDARY", "  ")
+    # 阿里凭据也要清：本机 .env 有，不清就会被一起注册，断言「只有火山」就会失败
+    for name in ("ALI_TTS_APP_ID", "ALI_TTS_ACCESS_KEY", "ALI_TTS_ACCESS_KEY_SECRET"):
+        monkeypatch.delenv(name, raising=False)
     gw = build_gateway()
     assert gw.registered == ["volcengine"]
     # 空白值按未配置处理，不能变成一个空字符串供应商名
