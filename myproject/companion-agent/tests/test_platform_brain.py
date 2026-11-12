@@ -93,6 +93,8 @@ async def test_spoken_text_is_submitted_like_a_typed_message():
         1002, SESSION, "linche", "今天好累")
     # 语音一次说一句：不插话、不合并，会话忙就等，和文字输入框里“不可插话”的行为一致
     assert call["steerable"] is False
+    # 转写文字要能和打字区分开
+    assert call["kind"] == "voice"
 
 
 async def test_tokens_are_the_deltas_of_this_turn():

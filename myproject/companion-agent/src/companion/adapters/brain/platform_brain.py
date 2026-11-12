@@ -60,7 +60,9 @@ class PlatformBrain:
             owner_id=owner_id, session_id=request.session_id, character_id=request.character_id,
             text=request.message, client_message_id=None,
             # 语音一次一句，用户说完才提交；不做“插话进正在跑的回合”
-            steerable=False)
+            steerable=False,
+            # 来源标记（已确认的决定）：转写文字和打字的区别在这里，质检与记忆降置信度都靠它
+            kind="voice")
 
         if result.status == "denied":
             raise TurnRefused(getattr(result, "reason", None))
