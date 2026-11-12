@@ -49,7 +49,7 @@ class RememberEventParams(BaseModel):
 class CreateReminderParams(BaseModel):
     title: str = Field(min_length=1, max_length=200, description="到点时要提醒用户的事，用用户的原话概括")
     at: AwareDatetime = Field(description="带时区偏移的绝对时间；先调用 get_current_time 再换算「明天下午 3 点」这类说法")
-    timezone: str | None = Field(default=None, max_length=64, description="用户所在时区（IANA 名称，如 Asia/Shanghai）")
+    timezone: str | None = Field(default=None, max_length=64, description="用户所在时区（IANA 名称，如 Asia/Shanghai）。用户没说过、记忆里也没有时，先问一句，不要默认 UTC")
 
 
 class CancelReminderParams(BaseModel):
@@ -121,7 +121,7 @@ def register_builtin_tools(registry: ToolRegistry, *, memory: Any, timeline: Any
         return {"cancelled": "true" if ok else "false"}
 
     registry.register(ToolSpec(
-        name="get_current_time", description="返回当前时间（UTC）。需要判断今天、明天、星期几时调用，不要猜日期。",
+        name="get_current_time", description="返回当前时间（UTC，不是用户本地时间）。需要判断今天、明天、星期几时调用，不要猜日期；换算成用户本地时间要先知道他的时区。",
         params=NoParams, permission=Permission.READ, side_effect=SideEffect.NONE, result_budget_chars=200,
     ), get_current_time)
     registry.register(ToolSpec(
