@@ -75,7 +75,8 @@ class PlatformBrain:
             # 重复，或会话正忙已排队：这句话已经落库，由当前回合结束后的 drain 接着处理。
             # 语音端不挂等一个还没开始的回合，否则用户会听到别的回合的内容。
             logger.info("voice turn not started status=%s disposition=%s", result.status, result.disposition)
-            return BrainTurn(tokens=_empty(), cancel=_noop, turn_id=result.turn_id or "")
+            return BrainTurn(tokens=_empty(), cancel=_noop, turn_id=result.turn_id or "",
+                             user_message_id=getattr(result, "message_id", None))
 
         turn_id = result.turn_id
         control, session_id, timeout = self._control, request.session_id, self._timeout
@@ -100,7 +101,8 @@ class PlatformBrain:
         async def cancel() -> None:
             await control.send_cancel(turn_id=turn_id)
 
-        return BrainTurn(tokens=tokens(), cancel=cancel, turn_id=turn_id)
+        return BrainTurn(tokens=tokens(), cancel=cancel, turn_id=turn_id,
+                         user_message_id=getattr(result, "message_id", None))
 
     async def aclose(self) -> None:
         # 提交服务与控制面由 platform 持有并关闭

@@ -22,6 +22,8 @@ class BrainTurn:
     tokens: AsyncIterator[str]
     cancel: "CancelFn"
     turn_id: str = ""
+    # 这个回合对应的用户消息（落库后的主键）。语音质检记录用它把识别文本和消息表对上；没有时为 None。
+    user_message_id: int | None = None
 
     async def cancel_turn(self) -> None:
         await self.cancel()

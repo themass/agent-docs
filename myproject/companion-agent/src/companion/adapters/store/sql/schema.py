@@ -8,7 +8,7 @@
 from datetime import UTC
 
 from sqlalchemy import (
-    BigInteger, Boolean, DateTime, Index, Integer, MetaData, String, Table, Text,
+    BigInteger, Boolean, DateTime, Float, Index, Integer, MetaData, String, Table, Text,
     UniqueConstraint, Column, func, text, types,
 )
 import json
@@ -373,6 +373,9 @@ user_consent = Table(
     # 主动联系总开关。关闭后调度器不再发起主动回合（用户明确要求的提醒仍会发，那是对请求的兑现）。
     Column("proactive_enabled", Boolean, nullable=False, server_default="1"),
     Column("age_verified_adult", Boolean, nullable=False, server_default="0"),
+    # 质检留存：同意后才保存对话与语音的原文（模型输入输出、识别文本、送去合成的文本）。
+    # 默认关；不同意时 ca_llm_call / ca_voice_turn 仍记 token、耗时等不含内容的指标。
+    Column("qa_retention", Boolean, nullable=False, server_default="0"),
     Column("updated_at", UTCDateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP")),
 )
 
@@ -429,4 +432,65 @@ send_record = Table(
     Column("channel", String(16), nullable=False),
     Column("trigger", String(64), nullable=False, server_default=""),
     Index("ca_ix_send_owner_at", "owner_id", "at"),
+)
+
+
+# 每次模型调用一行。一个回合可能调用多次（工具往返、摘要），所以挂在 turn_id 下。
+# 指标列（token、耗时、结束原因）永远写；内容列（输入输出、思考）只在用户同意质检留存时写，
+# content_kept 记录这一行当时是否带了内容，清理与导出时据此区分。
+llm_call = Table(
+    TABLE_PREFIX + "llm_call", metadata,
+    _pk(),
+    Column("turn_id", String(26), nullable=False),
+    Column("session_id", BigInteger, nullable=False),
+    Column("owner_id", BigInteger, nullable=False),
+    Column("role_id", String(128), nullable=True),
+    Column("seq", Integer, nullable=False, server_default="0"),          # 回合内第几次调用
+    Column("provider", String(64), nullable=True),
+    Column("model", String(128), nullable=True),
+    Column("prompt_version", String(32), nullable=True),
+    Column("content_kept", Boolean, nullable=False, server_default="0"),
+    Column("input_messages", JsonText, nullable=True),
+    Column("output_text", LongText, nullable=True),
+    Column("reasoning_text", LongText, nullable=True),
+    Column("input_tokens", Integer, nullable=True),
+    Column("output_tokens", Integer, nullable=True),
+    Column("cached_tokens", Integer, nullable=True),
+    Column("first_token_ms", Integer, nullable=True),
+    Column("total_ms", Integer, nullable=True),
+    Column("finish_reason", String(32), nullable=True),
+    Column("error_code", String(64), nullable=True),
+    Column("created_at", UTCDateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP")),
+    Index("ca_ix_llmcall_turn", "turn_id"),
+    Index("ca_ix_llmcall_owner_created", "owner_id", "created_at"),
+    Index("ca_ix_llmcall_created", "created_at"),
+)
+
+# 每个语音回合一行：用户说的被识别成了什么、模型回了什么、送去合成的每一句、用的哪个声音。
+# 判断 TTS 准不准需要“送进去的文本”和“出来的音频”两样；音频在对象存储里，这里只存键（可空）。
+voice_turn = Table(
+    TABLE_PREFIX + "voice_turn", metadata,
+    _pk(),
+    Column("turn_id", String(26), nullable=False),
+    Column("session_id", BigInteger, nullable=False),
+    Column("owner_id", BigInteger, nullable=False),
+    Column("role_id", String(128), nullable=True),
+    Column("user_message_id", BigInteger, nullable=True),                # 指向 kind=voice 的用户消息
+    Column("content_kept", Boolean, nullable=False, server_default="0"),
+    Column("stt_provider", String(64), nullable=True),
+    Column("stt_text", LongText, nullable=True),
+    Column("stt_confidence", Float, nullable=True),
+    Column("llm_text", LongText, nullable=True),
+    Column("tts_provider", String(64), nullable=True),
+    Column("tts_voice", String(128), nullable=True),
+    Column("tts_text", JsonText, nullable=True),                         # 送去合成的句子，JSON 数组
+    Column("audio_in_key", String(255), nullable=True),
+    Column("audio_out_key", String(255), nullable=True),
+    Column("first_sentence_ms", Integer, nullable=True),                 # 从收到识别文本到第一句可朗读文本
+    Column("total_ms", Integer, nullable=True),
+    Column("interrupted", Boolean, nullable=False, server_default="0"),
+    Column("created_at", UTCDateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP")),
+    Index("ca_ix_voiceturn_turn", "turn_id"),
+    Index("ca_ix_voiceturn_owner_created", "owner_id", "created_at"),
+    Index("ca_ix_voiceturn_created", "created_at"),
 )

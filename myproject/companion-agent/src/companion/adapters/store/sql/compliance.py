@@ -30,11 +30,13 @@ class SqlComplianceStore:
             return Consent()          # 没有记录 = 默认值（训练用途不同意、主动联系开启）
         return Consent(training_consent=bool(row.training_consent),
                        proactive_enabled=bool(row.proactive_enabled),
-                       age_verified_adult=bool(row.age_verified_adult))
+                       age_verified_adult=bool(row.age_verified_adult),
+                       qa_retention=bool(row.qa_retention))
 
     async def update_consent(self, *, owner_id: int, training_consent: bool | None = None,
                              proactive_enabled: bool | None = None,
-                             age_verified_adult: bool | None = None) -> Consent:
+                             age_verified_adult: bool | None = None,
+                             qa_retention: bool | None = None) -> Consent:
         now = _now()
         async with self._engine.begin() as conn:
             current = (await conn.execute(select(user_consent).where(
@@ -45,6 +47,7 @@ class SqlComplianceStore:
                     training_consent=bool(training_consent) if training_consent is not None else False,
                     proactive_enabled=bool(proactive_enabled) if proactive_enabled is not None else True,
                     age_verified_adult=bool(age_verified_adult) if age_verified_adult is not None else False,
+                    qa_retention=bool(qa_retention) if qa_retention is not None else False,
                     updated_at=now))
             else:
                 values = {"updated_at": now}
@@ -54,6 +57,8 @@ class SqlComplianceStore:
                     values["proactive_enabled"] = proactive_enabled
                 if age_verified_adult is not None:
                     values["age_verified_adult"] = age_verified_adult
+                if qa_retention is not None:
+                    values["qa_retention"] = qa_retention
                 await conn.execute(update(user_consent).where(user_consent.c.owner_id == owner_id).values(**values))
         return await self.consent(owner_id=owner_id)
 

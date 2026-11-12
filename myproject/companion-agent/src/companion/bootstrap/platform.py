@@ -68,7 +68,9 @@ from companion.app.tools.confirmation import ConfirmationService
 from companion.app.tools.runtime import ToolRuntime
 from companion.app.uploads.service import UploadService
 from companion.bootstrap.chat_stack import build_chat_api
+from companion.adapters.brain.llm_trace import LlmCallCollector
 from companion.config import PROJECT_ROOT, Settings
+from companion.domain.prompt.templates import PROMPT_VERSION
 from companion.domain.history.summary import TIMELINE_RECORD_JOB
 from companion.domain.memory.pipeline import MemoryPipeline
 from companion.domain.tools.registry import ToolRegistry
@@ -112,6 +114,9 @@ class Platform:
     admin_token: str = ""
     sessions: Any = None
     brain: Any = None
+    qa: Any = None
+    objects: Any = None
+    qa_retention_days: int = 90
     # 主动消息的三块持久化（原来是进程内，重启即丢）
     preferences: Any = None
     delivery: Any = None
@@ -199,6 +204,9 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     engine = make_engine(settings.database_url, pool_profile)
     redis = redis_async.from_url(settings.companion_redis_url, decode_responses=False)
 
+    from companion.adapters.store.sql.qa import SqlQaStore
+
+    qa = SqlQaStore(engine)
     sessions = SqlSessionStore(engine)
     messages = SqlMessageStore(engine)
     queue = SqlQueueStore(engine)
@@ -254,6 +262,22 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     resummarize = (ResummarizeService(messages=messages, conversation=conversation, control=control, llm=llm)
                    if conversation is not None and llm is not None else None)
 
+    async def record_llm_calls(collector: LlmCallCollector, request: TurnRequest, *, owner_id: int, role_id: str) -> None:
+        """回合收尾时把这一回合的模型调用写库。内容只在用户同意质检留存时才写；任何失败只记日志，
+        不能影响回答本身（回答已经交付，记录是旁路）。"""
+        try:
+            records = collector.drain()
+            if not records:
+                return
+            turn_id = str(request.metadata.get("turn_id") or "")
+            for r in records:
+                r.turn_id, r.session_id, r.owner_id, r.role_id = turn_id, request.session_id or 0, owner_id, role_id
+                r.prompt_version = PROMPT_VERSION
+            keep = await compliance.qa_content_allowed(owner_id=owner_id)
+            await qa.record_llm_calls(records, keep_content=keep)
+        except Exception:  # noqa: BLE001
+            log.warning("llm call record failed", extra={"turn_id": request.metadata.get("turn_id")})
+
     async def produce(request: TurnRequest, inbox: Any) -> AsyncIterator[Any]:
         owner_id = int(request.user_id)
         texts = tuple(i.text for i in request.inputs) or (request.message,)
@@ -262,8 +286,13 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
         request.prompt = plan
         request.system_prompt = plan.system
         if hasattr(brain, "run"):
-            async for event in brain.run(request, inbox):
-                yield event
+            collector = LlmCallCollector()
+            request.metadata["llm_collector"] = collector
+            try:
+                async for event in brain.run(request, inbox):
+                    yield event
+            finally:
+                await record_llm_calls(collector, request, owner_id=owner_id, role_id=request.character_id)
             return
         turn = await brain.start_turn(request)   # 测试用的假大脑只实现了 start_turn
         async for chunk in turn.tokens:
@@ -379,4 +408,5 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
                     reminders=reminders, history=history, dispatcher=dispatcher, resummarize=resummarize,
                     pipeline=pipeline, jobs=jobs, timeline_recorder=timeline_recorder, persona_updater=persona_updater,
                     persona=persona, compliance=compliance, account=account, avatars=avatars,
-                    admin_token=settings.companion_admin_token, sessions=sessions, brain=brain, _pool=pool, _checkpointer=checkpointer)
+                    admin_token=settings.companion_admin_token, sessions=sessions, brain=brain, qa=qa, objects=objects,
+                    qa_retention_days=settings.companion_qa_retention_days, _pool=pool, _checkpointer=checkpointer)

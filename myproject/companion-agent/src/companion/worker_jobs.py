@@ -26,10 +26,12 @@ from companion.app.jobs.handlers import (
     confirmation_expire,
     memory_record,
     persona_update,
+    qa_purge,
     session_resummarize,
     timeline_record,
     timeline_sweep,
 )
+from companion.app.jobs.handlers import QA_PURGE_JOB
 from companion.app.jobs.worker import JobWorker
 from companion.app.persona.updater import PERSONA_JOB
 from companion.app.timeline.sweep import TIMELINE_SWEEP_JOB
@@ -100,11 +102,13 @@ DAILY_CHECK_SEC = 3600.0
 
 async def _schedule_daily(platform) -> None:
     """入队今天的整理任务：按日期去重，多个 worker 同时入队也只有一条。"""
+    from companion.app.jobs.handlers import QA_PURGE_JOB
     from companion.app.timeline.sweep import TIMELINE_SWEEP_JOB
 
     today = datetime.now(UTC).date().isoformat()
-    await platform.jobs.enqueue(kind=TIMELINE_SWEEP_JOB, payload={}, run_after=datetime.now(UTC).replace(tzinfo=None),
-                                dedupe_key=f"{TIMELINE_SWEEP_JOB}:{today}")
+    now = datetime.now(UTC).replace(tzinfo=None)
+    for kind in (TIMELINE_SWEEP_JOB, QA_PURGE_JOB):
+        await platform.jobs.enqueue(kind=kind, payload={}, run_after=now, dedupe_key=f"{kind}:{today}")
 
 
 async def _daily_loop(platform, stop: asyncio.Event) -> None:
@@ -145,6 +149,9 @@ async def main() -> None:
         handlers[PERSONA_JOB] = persona_update(platform.persona_updater, sessions=platform.sessions)
     if platform.account is not None:
         handlers[PURGE_JOB] = account_purge(platform.account)
+    if platform.qa is not None:
+        handlers[QA_PURGE_JOB] = qa_purge(platform.qa, retention_days=platform.qa_retention_days,
+                                          objects=platform.objects)
 
     owner = f"{socket.gethostname()}:{os.getpid()}"
     worker = JobWorker(store=platform.jobs, handlers=handlers, owner=owner)

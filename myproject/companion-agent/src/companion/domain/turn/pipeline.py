@@ -45,6 +45,7 @@ class TurnPipeline:
         # 保留当前回合的句柄：用户打断时要真的 call 到 cancel_turn()，
         # 只记一条日志等于没取消，DeerFlow 那边会继续烧 token。
         self._turn: BrainTurn | None = None
+        self._last: BrainTurn | None = None
         self._cancelled = False
 
     async def run(self, request: TurnRequest) -> AsyncIterator[PipelineOutput]:
@@ -56,6 +57,7 @@ class TurnPipeline:
         """
         turn = await self._brain.start_turn(request)
         self._turn = turn
+        self._last = turn
         self._cancelled = False
         completed = False
         try:
@@ -87,6 +89,11 @@ class TurnPipeline:
             await self._turn.cancel_turn()
         except Exception as exc:  # noqa: BLE001 - 取消失败不该把打断变成报错
             logger.warning("cancel failed: %s", exc)
+
+    @property
+    def last_turn(self) -> BrainTurn | None:
+        """最近一次回合的句柄。回合结束后 ``turn_id`` 会清空，质检记录要在结束后读，所以单独留。"""
+        return self._last
 
     @property
     def turn_id(self) -> str:

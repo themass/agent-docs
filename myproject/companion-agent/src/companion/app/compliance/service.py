@@ -32,10 +32,20 @@ class ComplianceService:
         return await self._store.consent(owner_id=owner_id)
 
     async def update(self, *, owner_id: int, training_consent: bool | None = None,
-                     proactive_enabled: bool | None = None, age_verified_adult: bool | None = None) -> Consent:
+                     proactive_enabled: bool | None = None, age_verified_adult: bool | None = None,
+                     qa_retention: bool | None = None) -> Consent:
         return await self._store.update_consent(
             owner_id=owner_id, training_consent=training_consent,
-            proactive_enabled=proactive_enabled, age_verified_adult=age_verified_adult)
+            proactive_enabled=proactive_enabled, age_verified_adult=age_verified_adult,
+            qa_retention=qa_retention)
+
+    async def qa_content_allowed(self, *, owner_id: int) -> bool:
+        """能否保存对话与语音的原文。读取失败按不允许处理（fail-closed）：宁可少存，不可多存。"""
+        try:
+            return (await self._store.consent(owner_id=owner_id)).qa_retention
+        except Exception:  # noqa: BLE001
+            log.warning("consent read failed, not keeping qa content", extra={"owner_id": owner_id})
+            return False
 
     async def proactive_allowed(self, *, owner_id: int) -> bool:
         """主动联系是否允许。查询失败时按不允许处理（fail-closed）。"""

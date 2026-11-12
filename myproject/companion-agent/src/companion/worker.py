@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import logging
+import os
 
 from companion.config import settings
 
@@ -63,7 +64,13 @@ def main() -> None:
     from companion.api.livekit.entrypoint import make_entrypoint
     from companion.bootstrap.voice_stack import build_voice_stack
 
-    entry = make_entrypoint(_platform, voice_factory=build_voice_stack)
+    from companion.bootstrap.voice_stack import config_from_env
+
+    cfg = config_from_env()
+    # 质检记录里的供应商与音色：取自实际装配的配置，不靠事后猜
+    voice_info = {"stt_provider": cfg.provider, "tts_provider": cfg.provider,
+                  "tts_voice": cfg.voice_id or os.environ.get("VOLC_TTS_VOICE", "saturn_zh_female_keainvsheng_tob")}
+    entry = make_entrypoint(_platform, voice_factory=build_voice_stack, voice_info=voice_info)
     cli.run_app(WorkerOptions(entrypoint_fnc=entry))
 
 

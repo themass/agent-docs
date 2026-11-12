@@ -1,7 +1,7 @@
 # 语音迁到新服务：让语音和文字共享一个会话
 
 日期：2026-11-12
-状态：第一步（语音共用会话）已实现，见 §9。第二步（模型调用与语音质检留档）为设计，见 §11。§1 的"现状"是改动前的描述，保留作对照。
+状态：第一步（语音共用会话）已实现，见 §9。第二步（模型调用与语音质检留档）已实现文本部分，见 §11；音频留档、STT 置信度未做，见 §11.6。§1 的"现状"是改动前的描述，保留作对照。
 
 ## 1. 现状
 
@@ -182,54 +182,61 @@ PYTHONPATH=src .venv/bin/python -m companion.worker dev
 
 两个数据源要保持一致：`ca_chat_message` 与 checkpoint。`clear` 已同步重置线程；**逐条编辑、删除消息时 checkpoint 是否同步，没有验证**。
 
-## 11. 第二步：模型调用与语音质检留档（设计，未实现）
+## 11. 第二步：模型调用与语音质检留档（2026-11-12，文本部分已实现）
 
 ### 11.1 为什么要做
 
-现在没有任何地方记录"模型这一次到底收到了什么、回了什么、花了多少"，也没有语音链路的任何留档。做质检、算成本、排查"为什么这句话这么回"都没有数据。语音还有一个额外需求：除了看模型的输出，还要判断 **TTS 念得对不对**。
+做质检、算成本、排查"为什么这句话这么回"都需要知道模型每次收到了什么、回了什么、花了多少。
+语音还需要判断 **TTS 念得对不对**：要同时有"送进 TTS 的文本"和"出来的音频"。
 
-### 11.2 `ca_llm_call`（每次模型调用一行）
+### 11.2 `ca_llm_call`（每次模型调用一行，已实现）
 
-| 列 | 说明 |
-|---|---|
-| `id`, `turn_id`, `session_id`, `owner_id`, `role_id` | 关联键 |
-| `provider`, `model`, `prompt_version` | 调的是谁 |
-| `input_messages` | 送进模型的完整消息（JSON） |
-| `output_text`, `reasoning_text` | 输出与思考内容 |
-| `input_tokens`, `output_tokens`, `cached_tokens` | 取自供应商返回的 usage |
-| `first_token_ms`, `total_ms` | 延迟 |
-| `finish_reason`, `error_code` | 结束原因与错误 |
-| `created_at` | 时间 |
+字段：`turn_id` `session_id` `owner_id` `role_id` `seq`（回合内第几次调用）`provider` `model` `prompt_version`
+`content_kept` `input_messages` `output_text` `reasoning_text` `input_tokens` `output_tokens` `cached_tokens`
+`first_token_ms` `total_ms` `finish_reason` `error_code` `created_at`。
 
-同时把 `ca_chat_turn.usage` 真正填上（汇总值），并让 `message.done` 事件带上它。
+采集方式：`LlmCallCollector` 是 LangChain 回调处理器，挂在 DeerFlow 图的 `config.callbacks` 上，工具往返、
+摘要等每一次模型调用各记一行（流里看不到这些）。回合收尾时 `platform.produce` 按用户同意写库，失败只记日志。
+单条消息超过 16000 字符截断（系统提示词带角色卡、记忆、技能，一轮可达数万字）。
 
-### 11.3 `ca_voice_turn`（每个语音回合一行）
+### 11.3 `ca_voice_turn`（每个语音回合一行，已实现）
 
-| 列 | 说明 |
-|---|---|
-| `id`, `session_id`, `turn_id`, `owner_id`, `role_id`, `user_message_id` | 关联键，`user_message_id` 指向 `kind=voice` 的消息 |
-| `stt_provider`, `stt_text`, `stt_confidence` | 用户说的被识别成了什么 |
-| `llm_text` | 模型产出的原文（含情绪标签） |
-| `tts_text` | **实际送进 TTS 的每一句**（已剥标签、已分句），JSON 数组 |
-| `tts_provider`, `tts_voice` | 用的哪个合成服务和音色 |
-| `audio_in_key`, `audio_out_key` | 音频在对象存储里的键，可空 |
-| `stt_ms`, `tts_first_audio_ms` | 各段耗时 |
-| `created_at` | 时间 |
+字段：`turn_id` `session_id` `owner_id` `role_id` `user_message_id`（指向 `kind=voice` 的消息）`content_kept`
+`stt_provider` `stt_text` `stt_confidence` `llm_text` `tts_provider` `tts_voice` `tts_text`（句子 JSON 数组）
+`audio_in_key` `audio_out_key` `first_sentence_ms` `total_ms` `interrupted` `created_at`。
 
-**TTS 准确性的判断方式**：把 `audio_out_key` 的音频回灌 ASR，识别结果与 `tts_text` 比对（字错率）。这要求同时有"送进去的文本"和"出来的音频"，所以两者都要留。`stt_text` 与用户原音频比对同理，用来评估识别本身。
+被用户打断的回合同样记录（`interrupted=true`，`tts_text` 是打断前已送出的句子）。被内容检查拒绝或排队的输入
+没有回合，不记。
 
-### 11.4 合规与留存
+### 11.4 同意与留存（已实现）
 
-这两张表存的是用户原话与语音，属于敏感数据：
-
-- `ca_user_consent` 增加"语音与对话质检留存"一项，**默认关**；未同意的用户不写 `audio_*_key` 和 `input_messages`（只写 token、耗时等不含内容的指标）。
-- 保留期限做成配置项 `COMPANION_QA_RETENTION_DAYS`，默认 90 天（待你确认），到期由后台任务清理，音频对象同步删除。
-- 账号注销（`AccountPurgeService`）要覆盖这两张表和对应音频对象。
-- 查询入口走管理员 token，不对普通用户开放。
+- `ca_user_consent.qa_retention`，**默认关**，`PATCH /v1/consent {"qa_retention": true}` 打开。
+- **指标永远写，内容看同意**：token、耗时、结束原因、供应商、音色不含用户原话，总是记；输入输出、思考、识别文本、
+  送去合成的句子、音频键只在同意后写（`content_kept` 标记这一行当时是否带了内容）。
+- 读取同意失败按"不同意"处理（fail-closed）：宁可少存，不可多存。
+- 保留期限 `COMPANION_QA_RETENTION_DAYS`，默认 **90 天**（待确认）。后台进程每天入队 `qa.purge`，删除到期记录，
+  音频对象同步删除；对象删除失败只记日志，不让任务失败重试（表里的记录已删，重试找不到键）。
+- 账号注销覆盖两张表，音频键并入注销时要删除的对象清单。
 
 ### 11.5 表怎么建
 
-产品未上线，新表直接加进单一的 `0001_baseline` 迁移，不另写迁移文件。**迁移文件顺序**：改完 `schema.py` 后重新生成 baseline，并确认 `memory.py` 已被导入（否则 `ca_memory_item` 会被漏掉，这个坑踩过一次）。上线后才开始写增量迁移。
+新表与 `qa_retention` 列已写进 `0001_baseline`（PG 与 MySQL 两份）。`tests/test_baseline_matches_schema.py`
+每次测试都比对 baseline 与 `schema.py` 的表、列、索引，防止再次出现"baseline 悄悄漏表 / 漏列"。
+
+### 11.6 没做的，以及为什么
+
+- **音频留档**：`audio_in_key` / `audio_out_key` 列在，但没有任何代码往里写。LiveKit 默认不保存 STT/TTS 的音频，
+  要在音轨上采集帧并上传对象存储，**只能在真实房间里验证**，这次没有做。没有它，TTS 准确性（输出音频回灌
+  ASR 与 `tts_text` 比对）还判断不了；目前能做的是对照"送进 TTS 的句子"检查文本本身。
+- **`stt_confidence`**：LiveKit 的转写事件里有置信度，但 `llm_node` 拿到的只有文本，没接这条线。列在，值为空。
+- **`llm_text`（语音行）**：留空。模型原文已在 `ca_llm_call.output_text` 和消息表里，按 `turn_id` 关联即可，不存两份。
+- **`tts_text` 是送进 TTS 之前的文本**：LiveKit 在合成前可能还会做文本变换（如过滤标点），无法保证与实际念出的
+  逐字相同。
+- **时延**：`first_sentence_ms` 是从收到识别文本到第一句可朗读文本，不是"首字到首音"；STT 耗时、TTS 首包耗时没有。
+- **流式用量的真实性**：流式响应里是否带 `usage_metadata` 取决于供应商和网关配置（如 OpenAI 兼容接口需要
+  `stream_usage`）。测试里验证了"带用量的流"能被采集，**没有对真实模型验证用量确实会返回**。
+- `ca_chat_turn` 表至今没有任何代码写入（含它的 `usage` 列），本次也没补。模型调用已在 `ca_llm_call`，
+  回合级汇总需要时可由它聚合。
 
 ## 12. 重复实现盘点与待定事项
 
@@ -237,10 +244,10 @@ PYTHONPATH=src .venv/bin/python -m companion.worker dev
 
 | 项 | 路径 A（新） | 路径 B（旧） | 状态 |
 |---|---|---|---|
-| 回合执行 | `TurnRunner` | 旧 `TurnPipeline` 直连大脑 | **语音已并入 A**；`/v1/voice/turns`（`bootstrap/app.py`）仍用旧容器 |
+| 回合执行 | `TurnRunner` | 旧 `TurnPipeline` 直连大脑 | **语音已并入 A**；`/v1/voice/turns` 已删除 |
 | 大脑构建 | `platform._build_brain` | `voice_brain.build_voice_brain` | **已删除 B** |
-| 装配 | `build_platform` | `create_container`（FakeBrain、内存时间线、`InitiativeLoop`） | 并存，待清理 |
-| 主动消息 | 新栈提醒与派发 | 旧 `InitiativeLoop` 在内存时间线上 | 并存，待清理 |
+| 装配 | `build_platform` | `create_container`（FakeBrain、内存时间线） | **已删除** |
+| 主动消息 | 新栈提醒（用户要求的） | `InitiativeLoop`（按时间线事件主动开口） | **不是重复，是另一个功能**：已接到 Postgres 时间线，经回合引擎说话，挪到后台进程 |
 | 主聊天页后端 | agent `/v1` | testserverV `/api/chat/*` | 客户端未切换 |
 | 角色目录 | 服务端 md 目录 | 客户端内置 14 个 `agency-*` | 客户端未改 |
 | 角色接口 | agent `/v1/roles` | Java `/api/roles/v1`（线上 400，缺 `-parameters`） | 待下线 |
@@ -249,8 +256,9 @@ PYTHONPATH=src .venv/bin/python -m companion.worker dev
 ### 12.2 待你确认
 
 1. **回合在哪个进程跑**：保持现在的 worker 内运行（§9.3），还是回到 A 并补服务间鉴权。
-2. **质检数据保留天数**：默认 90 天是否合适。
+2. **质检数据保留天数**：默认 90 天是否合适（已做成配置项，改值不用改代码）。
 3. **`kind=voice` 的消息不开放编辑**：编辑接口尚未拦截，是否现在补上。
+3. **音频留档**要不要做、以及用户同意文案怎么写：涉及用户声音，需要产品和法务先定，再在真实房间里做。
 4. DeerFlow `subagent` 保持关闭：对话是一问一答，没有可拆分的任务，开了只增加延迟与成本；以后接入需要并行查询的外部工具时再评估。
 
 ---

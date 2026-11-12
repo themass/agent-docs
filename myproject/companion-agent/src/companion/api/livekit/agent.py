@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -107,6 +108,7 @@ def build_agent_class() -> type:
             user_id: str,
             character_id: str,
             chat_session_id: int,
+            recorder: Any = None,
         ) -> None:
             # 提示词由回合引擎按会话组装；llm_node 被重写后框架不会用到这里的 instructions
             super().__init__(instructions="")
@@ -114,6 +116,9 @@ def build_agent_class() -> type:
             self._user_id = user_id
             self._character_id = character_id
             self._chat_session_id = chat_session_id
+            # 语音质检记录的写入口：async (VoiceTurnRecord) -> None。不给就不记（离线测试）。
+            self._recorder = recorder
+            self._background: set[asyncio.Task[Any]] = set()
 
         async def llm_node(
             self,
@@ -135,16 +140,51 @@ def build_agent_class() -> type:
                 message=message,
                 chat_session_id=self._chat_session_id,
             )
+            started = time.monotonic()
+            first_ms: int | None = None
+            sentences: list[str] = []
+            finished = False
             try:
                 async for output in self._pipeline.run(request):
                     if output.text:
+                        if first_ms is None:
+                            first_ms = int((time.monotonic() - started) * 1000)
+                        sentences.append(output.text)
                         yield output.text
+                finished = True
             except TurnRefused:
                 # 输入没过内容检查：用户该听到一句话，而不是房间突然安静
+                finished = True
                 yield REFUSED_LINE
             except ValueError as exc:
                 logger.error("voice turn not startable: %s", exc)
+                finished = True
                 yield UNAVAILABLE_LINE
+            finally:
+                # 被打断时生成器会在这里被关闭：记录要放到后台任务里，不能在关闭路径上 await
+                self._record(message, sentences, first_ms, int((time.monotonic() - started) * 1000),
+                             interrupted=not finished)
+
+        def _record(self, message: str, sentences: list[str], first_ms: int | None, total_ms: int, *,
+                    interrupted: bool) -> None:
+            turn = self._pipeline.last_turn
+            if self._recorder is None or turn is None or not turn.turn_id:
+                return    # 没有回合（被拒绝、排队）就没有可对账的记录
+            from companion.adapters.store.sql.qa import VoiceTurnRecord
+
+            record = VoiceTurnRecord(
+                turn_id=turn.turn_id, session_id=self._chat_session_id, owner_id=int(self._user_id),
+                role_id=self._character_id, user_message_id=turn.user_message_id, stt_text=message,
+                tts_text=list(sentences), first_sentence_ms=first_ms, total_ms=total_ms, interrupted=interrupted)
+            task = asyncio.ensure_future(self._safe_record(record))
+            self._background.add(task)
+            task.add_done_callback(self._background.discard)
+
+        async def _safe_record(self, record: Any) -> None:
+            try:
+                await self._recorder(record)
+            except Exception:  # noqa: BLE001 —— 记录是旁路，失败不能影响通话
+                logger.warning("voice turn record failed turn=%s", record.turn_id)
 
         async def cancel_turn(self) -> None:
             """用户打断。由框架或上层调用；幂等。"""

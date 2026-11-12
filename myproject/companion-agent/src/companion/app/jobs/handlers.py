@@ -109,3 +109,29 @@ def timeline_record(service: Any, *, sessions: Any = None):
                                   assistant_text=str(payload.get("assistant_text", "")))
 
     return handle
+
+
+QA_PURGE_JOB = "qa.purge"
+
+
+def qa_purge(store: Any, *, retention_days: int, objects: Any = None, clock: Callable[[], datetime] = utc_now):
+    """质检数据超过保留期限删除；语音音频对象一并删除。
+
+    对象删除失败只记日志、不让任务失败重试：表里的记录已经删了，再重试也找不到键，
+    孤儿对象由对象存储自己的生命周期规则兜底。
+    """
+    import logging
+
+    log = logging.getLogger("companion.qa")
+
+    async def handle(payload: dict[str, Any]) -> None:
+        purged = await store.purge_before(cutoff=clock() - timedelta(days=retention_days))
+        if objects is not None:
+            for key in purged.object_keys:
+                try:
+                    await objects.delete(key=key)
+                except Exception:  # noqa: BLE001
+                    log.warning("qa audio delete failed", extra={"key": key})
+        log.info("qa purge finished", extra={"rows": purged.rows, "objects": len(purged.object_keys)})
+
+    return handle

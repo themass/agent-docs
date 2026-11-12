@@ -201,9 +201,14 @@ class DeerFlowBrain:
     async def run(self, request: TurnRequest, steer_inbox: Any = None) -> AsyncIterator[BrainEvent]:
         """回合层用的入口：产出全部事件（文本、工具、写入线程的消息 id）。"""
         turn_id = str(request.metadata.get("turn_id") or uuid.uuid4().hex)
+        config = self._config(request)
+        collector = request.metadata.get("llm_collector")
+        if collector is not None:
+            # 无状态图（没有 checkpoint）也要挂回调，所以不能只在有 config 时才传
+            config = {**(config or {}), "callbacks": [collector]}
         async for event in self.stream(messages=_input_messages(request),
                                        context=self._context(request, turn_id, steer_inbox),
-                                       config=self._config(request)):
+                                       config=config):
             yield event
 
     async def start_turn(self, request: TurnRequest) -> BrainTurn:

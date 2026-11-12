@@ -20,6 +20,7 @@ from companion.adapters.store.sql.schema import (
     chat_queue,
     chat_session,
     chat_turn,
+    llm_call,
     persona_cursor,
     persona_entry,
     usage_span,
@@ -30,12 +31,14 @@ from companion.adapters.store.sql.schema import (
     tool_call,
     upload,
     user_role,
+    voice_turn,
 )
 from companion.ports.account import AccountFootprint
 
 # 删除顺序：先子表后会话。没有外键约束，顺序只为了中途失败时不留下「有消息没会话」的孤儿。
 _OWNED = (chat_message, chat_turn, chat_queue, action_confirmation, tool_call, reminder, timeline_event,
-          upload, persona_profile, persona_entry, persona_cursor, user_consent, usage_span, user_role, chat_session)
+          upload, persona_profile, persona_entry, persona_cursor, user_consent, usage_span, user_role,
+          llm_call, voice_turn, chat_session)
 
 # 载荷里带用户数据、还没执行的后台任务：注销后不能再跑（否则会把记忆写回来）。
 USER_JOB_KINDS = ("memory.record", "session.resummarize", "timeline.record", "persona.update")
@@ -66,8 +69,11 @@ class SqlAccountStore:
                                                  .where(reminder.c.owner_id == owner_id))).scalars().all()
             own_roles = (await conn.execute(select(user_role.c.public_id)
                                             .where(user_role.c.owner_id == owner_id))).scalars().all()
-            keys = (await conn.execute(select(upload.c.object_key)
-                                       .where(upload.c.owner_id == owner_id))).scalars().all()
+            keys = list((await conn.execute(select(upload.c.object_key)
+                                            .where(upload.c.owner_id == owner_id))).scalars().all())
+            audio = (await conn.execute(select(voice_turn.c.audio_in_key, voice_turn.c.audio_out_key)
+                                        .where(voice_turn.c.owner_id == owner_id))).all()
+            keys += sorted({k for pair in audio for k in pair if k})
         roles = sorted({r for _, r in sessions if r} | {r for r in reminder_roles if r} | {r for r in own_roles if r})
         return AccountFootprint(session_ids=tuple(sorted(s for s, _ in sessions)), role_ids=tuple(roles),
                                 object_keys=tuple(keys))

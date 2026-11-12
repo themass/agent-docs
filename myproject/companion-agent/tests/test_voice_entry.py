@@ -51,6 +51,8 @@ def test_last_user_message_picks_the_latest_user_turn():
 
 
 class _Pipeline:
+    last_turn = None     # 真管线在回合开始后才有；这里没有回合，记录端据此跳过
+
     def __init__(self, outputs=(), error=None):
         self.outputs, self.error, self.requests = outputs, error, []
 

@@ -145,7 +145,24 @@ def build_session_options(*, mode: str = "text", voice_factory: Any = None) -> d
     return options
 
 
-def make_entrypoint(platform_factory: Any, voice_factory: Any = None):
+def build_voice_recorder(platform: Any, voice_info: dict[str, str] | None = None):
+    """语音回合的质检记录写入口。内容（识别文本、送去合成的句子）只在用户同意质检留存时才写；
+    供应商与音色这类不含用户原话的信息总是写。"""
+    info = voice_info or {}
+    qa, compliance = getattr(platform, "qa", None), getattr(platform, "compliance", None)
+    if qa is None:
+        return None
+
+    async def record(rec: Any) -> None:
+        rec.stt_provider = info.get("stt_provider", "")
+        rec.tts_provider, rec.tts_voice = info.get("tts_provider", ""), info.get("tts_voice", "")
+        keep = await compliance.qa_content_allowed(owner_id=rec.owner_id) if compliance is not None else False
+        await qa.record_voice_turn(rec, keep_content=keep)
+
+    return record
+
+
+def make_entrypoint(platform_factory: Any, voice_factory: Any = None, voice_info: dict[str, str] | None = None):
     """装配好的 worker 入口。
 
     ``platform_factory`` 是协程函数，返回和 HTTP 服务同一套 platform（同库、同 Redis、同回合引擎）。
@@ -193,6 +210,7 @@ def make_entrypoint(platform_factory: Any, voice_factory: Any = None):
             character_id=identity.character_id,
             user_id=identity.user_id,
             chat_session_id=identity.chat_session_id,
+            recorder=build_voice_recorder(platform, voice_info),
         )
 
         # 语音栈必须显式按 voice 模式装配：不传 mode 时默认是 text，STT/TTS/VAD 都不会挂上，

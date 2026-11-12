@@ -50,6 +50,8 @@ class Settings(BaseSettings):
     # 大脑对话线程的 checkpoint（LangGraph AsyncPostgresSaver，psycopg 连接串）。
     # 留空时从 companion_database_url 推导；两者都没有则大脑无状态（每轮只看本轮输入，仅用于测试）。
     companion_checkpoint_url: str = ""
+    # 质检数据（模型调用、语音回合）保留多少天，到期由后台任务删除（含音频对象）。
+    companion_qa_retention_days: int = 90
     # 会话内压缩：未摘要的历史超过这么多 token 时，把较早的消息压成摘要，保留最近这么多条原文。
     companion_summary_trigger_tokens: int = 9000
     companion_summary_keep_messages: int = 20

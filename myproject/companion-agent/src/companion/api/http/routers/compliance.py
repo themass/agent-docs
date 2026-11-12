@@ -15,7 +15,7 @@ PREFIX = "/v1"
 
 def _consent_json(c) -> dict[str, Any]:
     return {"training_consent": c.training_consent, "proactive_enabled": c.proactive_enabled,
-            "age_verified_adult": c.age_verified_adult}
+            "age_verified_adult": c.age_verified_adult, "qa_retention": c.qa_retention}
 
 
 def _jsonable(value: Any) -> Any:
@@ -38,6 +38,7 @@ def build_router(service, current_user, *, sessions, messages, persona, timeline
         training_consent: bool | None = None
         proactive_enabled: bool | None = None
         age_verified_adult: bool | None = None
+        qa_retention: bool | None = None
 
     router = APIRouter(prefix=PREFIX, tags=["compliance"])
 
@@ -56,7 +57,8 @@ def build_router(service, current_user, *, sessions, messages, persona, timeline
     async def patch_consent(body: ConsentIn, user_id: str = Depends(current_user)) -> dict[str, Any]:
         return _consent_json(await service.update(
             owner_id=uid(user_id), training_consent=body.training_consent,
-            proactive_enabled=body.proactive_enabled, age_verified_adult=body.age_verified_adult))
+            proactive_enabled=body.proactive_enabled, age_verified_adult=body.age_verified_adult,
+            qa_retention=body.qa_retention))
 
     @router.get("/export")
     async def export(user_id: str = Depends(current_user)) -> Response:

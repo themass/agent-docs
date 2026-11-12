@@ -360,6 +360,7 @@ CREATE TABLE ca_user_consent (
 	training_consent BOOLEAN DEFAULT '0' NOT NULL, 
 	proactive_enabled BOOLEAN DEFAULT '1' NOT NULL, 
 	age_verified_adult BOOLEAN DEFAULT '0' NOT NULL, 
+	qa_retention BOOLEAN DEFAULT '0' NOT NULL, 
 	updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL, 
 	PRIMARY KEY (owner_id)
 );
@@ -382,6 +383,66 @@ CREATE TABLE ca_user_role (
 
 CREATE INDEX ca_ix_role_owner_deleted ON ca_user_role (owner_id, deleted);
 
+CREATE TABLE ca_llm_call (
+	id BIGSERIAL NOT NULL, 
+	turn_id VARCHAR(26) NOT NULL, 
+	session_id BIGINT NOT NULL, 
+	owner_id BIGINT NOT NULL, 
+	role_id VARCHAR(128), 
+	seq INTEGER DEFAULT '0' NOT NULL, 
+	provider VARCHAR(64), 
+	model VARCHAR(128), 
+	prompt_version VARCHAR(32), 
+	content_kept BOOLEAN DEFAULT '0' NOT NULL, 
+	input_messages JSONB, 
+	output_text TEXT, 
+	reasoning_text TEXT, 
+	input_tokens INTEGER, 
+	output_tokens INTEGER, 
+	cached_tokens INTEGER, 
+	first_token_ms INTEGER, 
+	total_ms INTEGER, 
+	finish_reason VARCHAR(32), 
+	error_code VARCHAR(64), 
+	created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL, 
+	PRIMARY KEY (id)
+);
+
+CREATE INDEX ca_ix_llmcall_created ON ca_llm_call (created_at);
+
+CREATE INDEX ca_ix_llmcall_owner_created ON ca_llm_call (owner_id, created_at);
+
+CREATE INDEX ca_ix_llmcall_turn ON ca_llm_call (turn_id);
+
+CREATE TABLE ca_voice_turn (
+	id BIGSERIAL NOT NULL, 
+	turn_id VARCHAR(26) NOT NULL, 
+	session_id BIGINT NOT NULL, 
+	owner_id BIGINT NOT NULL, 
+	role_id VARCHAR(128), 
+	user_message_id BIGINT, 
+	content_kept BOOLEAN DEFAULT '0' NOT NULL, 
+	stt_provider VARCHAR(64), 
+	stt_text TEXT, 
+	stt_confidence FLOAT, 
+	llm_text TEXT, 
+	tts_provider VARCHAR(64), 
+	tts_voice VARCHAR(128), 
+	tts_text JSONB, 
+	audio_in_key VARCHAR(255), 
+	audio_out_key VARCHAR(255), 
+	first_sentence_ms INTEGER, 
+	total_ms INTEGER, 
+	interrupted BOOLEAN DEFAULT '0' NOT NULL, 
+	created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL, 
+	PRIMARY KEY (id)
+);
+
+CREATE INDEX ca_ix_voiceturn_created ON ca_voice_turn (created_at);
+
+CREATE INDEX ca_ix_voiceturn_owner_created ON ca_voice_turn (owner_id, created_at);
+
+CREATE INDEX ca_ix_voiceturn_turn ON ca_voice_turn (turn_id);
 """
 
 MYSQL = """
@@ -726,6 +787,7 @@ CREATE TABLE ca_user_consent (
 	training_consent BOOL NOT NULL DEFAULT '0', 
 	proactive_enabled BOOL NOT NULL DEFAULT '1', 
 	age_verified_adult BOOL NOT NULL DEFAULT '0', 
+	qa_retention BOOL NOT NULL DEFAULT '0', 
 	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, 
 	PRIMARY KEY (owner_id)
 );
@@ -748,6 +810,66 @@ CREATE TABLE ca_user_role (
 
 CREATE INDEX ca_ix_role_owner_deleted ON ca_user_role (owner_id, deleted);
 
+CREATE TABLE ca_llm_call (
+	id BIGINT NOT NULL AUTO_INCREMENT, 
+	turn_id VARCHAR(26) NOT NULL, 
+	session_id BIGINT NOT NULL, 
+	owner_id BIGINT NOT NULL, 
+	role_id VARCHAR(128), 
+	seq INTEGER NOT NULL DEFAULT '0', 
+	provider VARCHAR(64), 
+	model VARCHAR(128), 
+	prompt_version VARCHAR(32), 
+	content_kept BOOL NOT NULL DEFAULT '0', 
+	input_messages MEDIUMTEXT, 
+	output_text MEDIUMTEXT, 
+	reasoning_text MEDIUMTEXT, 
+	input_tokens INTEGER, 
+	output_tokens INTEGER, 
+	cached_tokens INTEGER, 
+	first_token_ms INTEGER, 
+	total_ms INTEGER, 
+	finish_reason VARCHAR(32), 
+	error_code VARCHAR(64), 
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, 
+	PRIMARY KEY (id)
+);
+
+CREATE INDEX ca_ix_llmcall_created ON ca_llm_call (created_at);
+
+CREATE INDEX ca_ix_llmcall_owner_created ON ca_llm_call (owner_id, created_at);
+
+CREATE INDEX ca_ix_llmcall_turn ON ca_llm_call (turn_id);
+
+CREATE TABLE ca_voice_turn (
+	id BIGINT NOT NULL AUTO_INCREMENT, 
+	turn_id VARCHAR(26) NOT NULL, 
+	session_id BIGINT NOT NULL, 
+	owner_id BIGINT NOT NULL, 
+	role_id VARCHAR(128), 
+	user_message_id BIGINT, 
+	content_kept BOOL NOT NULL DEFAULT '0', 
+	stt_provider VARCHAR(64), 
+	stt_text MEDIUMTEXT, 
+	stt_confidence FLOAT, 
+	llm_text MEDIUMTEXT, 
+	tts_provider VARCHAR(64), 
+	tts_voice VARCHAR(128), 
+	tts_text MEDIUMTEXT, 
+	audio_in_key VARCHAR(255), 
+	audio_out_key VARCHAR(255), 
+	first_sentence_ms INTEGER, 
+	total_ms INTEGER, 
+	interrupted BOOL NOT NULL DEFAULT '0', 
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, 
+	PRIMARY KEY (id)
+);
+
+CREATE INDEX ca_ix_voiceturn_created ON ca_voice_turn (created_at);
+
+CREATE INDEX ca_ix_voiceturn_owner_created ON ca_voice_turn (owner_id, created_at);
+
+CREATE INDEX ca_ix_voiceturn_turn ON ca_voice_turn (turn_id);
 """
 
 

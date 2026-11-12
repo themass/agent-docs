@@ -19,6 +19,7 @@ class Consent:
     training_consent: bool = False
     proactive_enabled: bool = True
     age_verified_adult: bool = False
+    qa_retention: bool = False
 
 
 @dataclass(frozen=True)
@@ -34,7 +35,8 @@ class ComplianceStore(Protocol):
 
     async def update_consent(self, *, owner_id: int, training_consent: bool | None = None,
                              proactive_enabled: bool | None = None,
-                             age_verified_adult: bool | None = None) -> Consent: ...
+                             age_verified_adult: bool | None = None,
+                             qa_retention: bool | None = None) -> Consent: ...
 
     async def touch_usage(self, *, owner_id: int, now: datetime) -> UsageState:
         """记一次活跃；同一段里到 2 小时且还没提醒过 → should_remind=True（只提醒一次）。"""
