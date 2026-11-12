@@ -35,6 +35,8 @@ class SessionRecord:
     identity: str
     created_at: datetime
     expires_at: datetime
+    # 新服务的会话 id（chat_session.id）。语音和文字共用同一段对话：agent 用它读写同一个线程与记忆。
+    chat_session_id: int | None = None
 
 
 class SessionStore(Protocol):
@@ -112,7 +114,8 @@ class SessionService:
     provision_room: RoomProvisioner | None = None
 
     async def create(
-        self, *, user_id: str, character_id: str, now: float | None = None
+        self, *, user_id: str, character_id: str, now: float | None = None,
+        chat_session_id: int | None = None,
     ) -> SessionGrant:
         """``user_id`` 必须来自已验证的凭据，不能取自请求体。
 
@@ -132,9 +135,11 @@ class SessionService:
         if self.provision_room is not None:
             # 先建房再发 token：房间 metadata 必须在 agent 入场前就位，否则它会拒绝入场。
             try:
-                await self.provision_room(
-                    room, {"user_id": user_id, "character_id": character_id}
-                )
+                # chat_session_id 让 agent 知道这是同一段对话；没有时（旧客户端）退回旧行为。
+                metadata: dict[str, object] = {"user_id": user_id, "character_id": character_id}
+                if chat_session_id is not None:
+                    metadata["chat_session_id"] = chat_session_id
+                await self.provision_room(room, metadata)
             except Exception as exc:  # noqa: BLE001 — 任何建房失败都是会话失败
                 raise SessionError(f"无法创建房间：{exc}") from exc
         minted: LiveKitToken = self.minter.user_token(user_id, room, now=issued_at)
@@ -148,6 +153,7 @@ class SessionService:
                 identity=minted.identity,
                 created_at=datetime.fromtimestamp(issued_at, UTC),
                 expires_at=minted.expires_at,
+                chat_session_id=chat_session_id,
             )
         )
         return SessionGrant(

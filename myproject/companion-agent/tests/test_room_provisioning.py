@@ -30,6 +30,30 @@ async def test_room_is_provisioned_with_identity_before_the_token_is_issued():
     assert calls == [(grant.room_name, {"user_id": "u1", "character_id": "linche"})]
 
 
+async def test_the_room_carries_the_chat_session_id_when_given():
+    """语音要和新服务的会话绑定，agent 才知道读写哪段对话线程。"""
+    calls: list[tuple[str, dict[str, object]]] = []
+
+    async def provision(room: str, metadata: dict[str, object]) -> None:
+        calls.append((room, metadata))
+
+    store = InMemorySessionStore()
+    grant = await _service(provision, store).create(user_id="u1", character_id="linche", chat_session_id=42)
+
+    assert calls[0][1] == {"user_id": "u1", "character_id": "linche", "chat_session_id": 42}
+    assert (await store.get(grant.session_id)).chat_session_id == 42
+
+
+async def test_without_a_chat_session_the_metadata_stays_as_before():
+    calls: list[tuple[str, dict[str, object]]] = []
+
+    async def provision(room: str, metadata: dict[str, object]) -> None:
+        calls.append((room, metadata))
+
+    await _service(provision).create(user_id="u1", character_id="linche")
+    assert "chat_session_id" not in calls[0][1]
+
+
 async def test_failed_room_creation_fails_the_session_and_stores_nothing():
     async def provision(room: str, metadata: dict[str, str]) -> None:
         raise RuntimeError("livekit unreachable")

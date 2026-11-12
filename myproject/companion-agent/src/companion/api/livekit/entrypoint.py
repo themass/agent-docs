@@ -35,6 +35,8 @@ TOPIC_CONFIRM = "companion.confirm"
 class RoomIdentity:
     user_id: str
     character_id: str
+    # 新服务的会话 id：有它时语音回合走新服务的会话（共享对话线程、记忆与画像），没有就走旧的进程内管线。
+    chat_session_id: int | None = None
 
     @classmethod
     def from_room_metadata(cls, metadata: str | None) -> "RoomIdentity":
@@ -53,7 +55,17 @@ class RoomIdentity:
         character_id = str(payload.get("character_id") or "").strip()
         if not user_id or not character_id:
             raise ValueError("room metadata missing user_id or character_id")
-        return cls(user_id=user_id, character_id=character_id)
+        raw_session = payload.get("chat_session_id")
+        chat_session_id: int | None = None
+        if raw_session is not None:
+            try:
+                chat_session_id = int(raw_session)
+            except (TypeError, ValueError) as exc:
+                # 写坏了就拒绝入场：用错会话聊一轮，会写进别人的对话线程。
+                raise ValueError("room metadata has an invalid chat_session_id") from exc
+            if chat_session_id <= 0:
+                raise ValueError("room metadata has an invalid chat_session_id")
+        return cls(user_id=user_id, character_id=character_id, chat_session_id=chat_session_id)
 
 
 class AvatarPublisher:

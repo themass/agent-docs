@@ -53,6 +53,12 @@ LiveKit 房间 → worker（livekit agents）→ entrypoint 用旧 container.bra
 3. **STT + TTS：火山引擎**，配置由产品提供（账号与密钥到手后接插件）。
 4. **LiveKit**：需要 `LIVEKIT_URL`、`LIVEKIT_API_KEY`、`LIVEKIT_API_SECRET` 三个值（LiveKit Cloud 项目控制台里取，或自建服务）。拿到后先跑一个最小房间验证连接与 token。
 
+## 6.1 LiveKit 已就绪（2026-11-12）
+
+凭据已写入本地 `.env`（不入库），实测可用：能签发入场 token，管理 API 能列出房间。
+第一步（房间携带新服务会话 id）已实现：`POST /companion/sessions` 接受可选的 `chat_session_id`，写进房间 metadata；
+entrypoint 解析它，写坏了拒绝入场（用错会话会写进别人的对话线程）。
+
 ## 7. 仍然待定
 
 - 火山 STT / TTS 的具体接入方式（实时流式 STT、还是分段识别；音色选择）。

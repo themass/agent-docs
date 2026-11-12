@@ -27,6 +27,9 @@ def build_router(service: SessionService, current_user):
         """
 
         character_id: str = Field(min_length=1)
+        # 新服务的会话 id：客户端先在 /api/agent/v1/sessions 建会话，再带着它开语音。
+        # 不给就退回旧的独立语音会话（历史和记忆不与文字共享）。
+        chat_session_id: int | None = Field(default=None, ge=1)
 
     class SessionResponse(BaseModel):
         session_id: str
@@ -45,7 +48,7 @@ def build_router(service: SessionService, current_user):
     ) -> SessionResponse:
         try:
             grant = await service.create(
-                user_id=user_id, character_id=body.character_id
+                user_id=user_id, character_id=body.character_id, chat_session_id=body.chat_session_id
             )
         except MissingCredentials as exc:
             # 服务端配置问题，不是调用方的错。
