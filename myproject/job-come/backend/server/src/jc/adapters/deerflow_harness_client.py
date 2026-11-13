@@ -24,10 +24,18 @@ from agentkit.adapters.deerflow.client import (
 from agentkit.common.ids import new_id
 
 from jc.agent import system_prompt_capture
-from jc.agent.roles import default_role, role_of
+from jc.agent.roles import UnknownRoleError, default_role, entry_roles, role, role_of
 from jc.config import settings
 from jc.paths import SERVER_ROOT
 from jc.skills.loader import require_skill
+
+try:  # LangGraph's own constant; the key name is theirs to change.
+    from langgraph._internal._constants import CONFIG_KEY_DURABILITY
+except ImportError:  # pragma: no cover - only if langgraph drops the constant
+    # The literal it has held since 1.0. Falls back rather than crashing at
+    # import time: a missing write-cadence override costs latency, not
+    # correctness, so it must not take the service down.
+    CONFIG_KEY_DURABILITY = "__pregel_durability"
 
 logger = logging.getLogger(__name__)
 
@@ -247,6 +255,26 @@ def _configure_deerflow_paths(config: DeerFlowClientConfig) -> None:
         os.environ.setdefault("LANGFUSE_TRACING", "true")
 
 
+def jc_configurable_overrides() -> dict[str, Any]:
+    """Keys JC adds to every run's configurable block.
+
+    A named function rather than inline literals because each key here is a
+    deliberate override of an upstream default that costs something when it is
+    wrong, and a test pins each one:
+
+    - ``non_interactive``: JC never blocks a run on user input; the confirm flow
+      is a product event, not a LangGraph interrupt.
+    - ``CONFIG_KEY_DURABILITY``: LangGraph reads its checkpoint write cadence
+      from here, not from a ``stream()`` argument, and setting it on the runnable
+      config is what covers subgraphs too (they inherit it). See
+      ``JC_DEERFLOW_CHECKPOINT_DURABILITY`` for the measured cost of the default.
+    """
+    return {
+        "non_interactive": True,
+        CONFIG_KEY_DURABILITY: settings.jc_deerflow_checkpoint_durability,
+    }
+
+
 def _jc_deerflow_client_class() -> type:
     from deerflow.client import DeerFlowClient
     from langchain_core.runnables import RunnableConfig
@@ -269,7 +297,7 @@ def _jc_deerflow_client_class() -> type:
         def _get_runnable_config(self, thread_id: str, **overrides) -> RunnableConfig:
             base = super()._get_runnable_config(thread_id, **overrides)
             configurable = dict(base.get("configurable") or {})
-            configurable["non_interactive"] = True
+            configurable.update(jc_configurable_overrides())
             return RunnableConfig(
                 configurable=configurable,
                 recursion_limit=base.get("recursion_limit", 100),
@@ -302,6 +330,40 @@ def _get_embedded_client(config: DeerFlowClientConfig, skill_id: str) -> Any:
             **extra,
         )
     return _CLIENT_CACHE[key]
+
+
+def prewarm_entry_clients() -> list[str]:
+    """Build the embedded agent graphs a user's first turn will need.
+
+    A cold graph build measured 4.3 s locally and 6-8 s on production — paid by
+    whoever sends the first message after a deploy or a restart, on top of the
+    model's own first token. Building here moves that cost into startup, where
+    nobody is waiting on it.
+
+    Only the graph is built. No session is created, no model is called, no row
+    is written: this warms the process, it does not fabricate a conversation.
+    A failure is logged and skipped — a warm cache is a latency optimization,
+    and must never be the reason a process refuses to start.
+    """
+    warmed: list[str] = []
+    for role_id in entry_roles():
+        try:
+            skill = role(role_id).default_skill
+        except UnknownRoleError:  # pragma: no cover - roles are validated at import
+            continue
+        if skill in warmed:
+            continue
+        try:
+            from jc.adapters.deerflow_client import _client_config
+
+            client = _get_embedded_client(_client_config(), skill)
+            config = client._get_runnable_config(f"prewarm-{skill}")
+            client._ensure_agent(config, context={"thread_id": f"prewarm-{skill}",
+                                                  "run_id": "prewarm", "user_id": "prewarm"})
+            warmed.append(skill)
+        except Exception:  # noqa: BLE001
+            logger.warning("agent prewarm failed for skill %s", skill, exc_info=True)
+    return warmed
 
 
 def _extract_text(content: Any) -> str:

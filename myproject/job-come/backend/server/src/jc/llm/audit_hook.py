@@ -46,6 +46,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import Any
 
+from agentkit.observability import record_llm_metrics
 from litellm.integrations.custom_logger import CustomLogger
 
 from jc.llm.call_context import llm_context
@@ -141,8 +142,10 @@ async def llm_call_scope(
         raise
     finally:
         _scope_var.reset(token)
+        finished = record_from_scope(scope)
+        _observe_call(scope, finished)
         try:
-            await record_call(record_from_scope(scope))
+            await record_call(finished)
         except Exception as exc:  # noqa: BLE001
             logger.warning("LLM audit flush failed: %s", exc)
 
@@ -163,8 +166,39 @@ def audit_sink(sink: Any) -> Iterator[None]:
         _sink_var.reset(token)
 
 
+def _sum_attempt(record: CallRecord, field: str) -> int | None:
+    """Token totals live on the attempt rows, not the call record."""
+    values = [getattr(a, field, None) for a in record.attempts]
+    present = [v for v in values if v is not None]
+    return sum(present) if present else None
+
+
+def _observe_call(scope: _CallScope, record: CallRecord) -> None:
+    """Emit the Prometheus view of a finished call.
+
+    Deliberately fed from the same finished record as the audit row, so the two
+    can never disagree about whether a call succeeded: the audit table answers
+    "what happened to this one call", the histogram answers "how slow is this
+    scenario right now", and both come from one place.
+    """
+    try:
+        record_llm_metrics(
+            scenario=scope.scenario,
+            model=record.final_model,
+            duration=record.latency_ms / 1000 if record.latency_ms is not None else None,
+            status=record.status,
+            error_type=record.error_code,
+            prompt_tokens=_sum_attempt(record, "prompt_tokens"),
+            completion_tokens=_sum_attempt(record, "completion_tokens"),
+            attempts=len(record.attempts) or None,
+        )
+    except Exception:  # pragma: no cover - metrics must never break a call
+        logger.debug("metric emission failed", exc_info=True)
+
+
 def _flush_sync(scope: _CallScope) -> None:
     record = record_from_scope(scope)
+    _observe_call(scope, record)
     sink = _sink_var.get()
     if sink is None:
         # No consumer on this thread. Dropping beats raising: auditing must

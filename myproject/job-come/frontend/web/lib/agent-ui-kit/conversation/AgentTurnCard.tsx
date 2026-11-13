@@ -392,7 +392,14 @@ export function AgentTurnCard({
 
   const hasActivity = turn.activities.length > 0;
   const runningTools = turn.activities.filter((a) => a.kind === "tool" && a.tool.state === "running").length;
-  const awaitingFirstSignal = turn.streaming && !hasActivity && !turn.assistant?.content;
+  // The agent is working but has not produced answer text yet. This is NOT
+  // `!hasActivity`: the harness emits `skill` and reasoning events within the
+  // first second, so an activity-based test showed the waiting row for ~0.6 s
+  // and then went silent for the whole pre-token gap (measured 10-16 s on a warm
+  // session, longer on the first turn after a deploy). The visible step card
+  // offers no progress of its own during that gap — it is a collapsible trail,
+  // not a status — so the waiting row has to stay up alongside it.
+  const awaitingFirstSignal = turn.streaming && !turn.assistant?.content;
   // A turn whose steps ran but which still ended without a usable reply (the
   // `deerflow_harness_client` stream-producer path dies after tools succeed, so this is
   // not a hypothetical) must not read as "已完成" right above the "舟卡没能完成这次回复"

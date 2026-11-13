@@ -167,13 +167,19 @@ export function buildAgentTurns(items: AgentUiDisplayItem[], busy: boolean): Age
   const last = turns[turns.length - 1];
   if (last) {
     // `turn.streaming` so far only reflects the assistant item's own flag, which does
-    // not exist yet during the gap between "user sent" and "first token/tool landed".
-    // Without this, that gap renders as a silent turn with no thinking indicator at
-    // all — the harness is working but the UI looks stalled. `busy` (supplied by the
-    // host app from the session's own request-in-flight state) is the only signal
-    // that still covers this gap, so the last turn inherits it as long as nothing
-    // visible has arrived yet.
-    if (busy && !last.assistant?.content && last.activities.length === 0) {
+    // not exist yet during the gap between "user sent" and "first token". That gap is
+    // long — measured 10-16 s on a warm session, because the harness assembles its
+    // prompt and makes a first model call before any token arrives. Without a streaming
+    // turn the thread renders as a finished turn with no indicator: the user sees their
+    // own message and then nothing, which reads as "it broke".
+    //
+    // `busy` (the session's own request-in-flight flag) is the only signal covering
+    // this gap. The earlier form of this rule also required `activities.length === 0`,
+    // and that made the indicator vanish about 0.6 s in: the harness emits a `skill`
+    // event almost immediately, which is an activity but not progress the user waits
+    // on. So the test is "no answer text yet", not "nothing has arrived yet". An
+    // `error` activity ends the wait honestly — that turn did produce an outcome.
+    if (busy && !last.assistant?.content && !last.activities.some((a) => a.kind === "error")) {
       last.streaming = true;
     }
     if (!last.streaming) {

@@ -7,8 +7,14 @@ import logging
 from contextlib import asynccontextmanager
 
 from agentkit.common.logging import configure_logging
+from agentkit.observability import (
+    CONTENT_TYPE,
+    configure as configure_metrics,
+    render_metrics,
+)
 from agentkit.web import TraceMiddleware
 from fastapi import FastAPI
+from fastapi import Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -24,6 +30,13 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     configure_logging(json_logs=settings.jc_log_json, level=settings.jc_log_level)
+    # One call names this deployment on every series. Without it, two JC
+    # environments scraped by one Prometheus are indistinguishable.
+    configure_metrics(
+        application="job-come",
+        environment=settings.jc_env,
+        enabled=settings.jc_metrics_enabled,
+    )
     from jc.observability.logging_setup import configure_application_logging
 
     configure_application_logging(json_logs=settings.jc_log_json, level=settings.jc_log_level)
@@ -50,6 +63,22 @@ async def lifespan(_app: FastAPI):
         asyncio.create_task(run_profile_parse_dispatcher()),
         asyncio.create_task(run_mock_report_dispatcher()),
     ]
+
+    # Build the agent graphs now, not on the first user turn: a cold build costs
+    # 4-8 s and would land on whoever messages first after a deploy. Runs in a
+    # worker thread so startup is not blocked, and never raises into the app.
+    if settings.jc_deerflow_prewarm:
+        async def _prewarm() -> None:
+            from jc.adapters.deerflow_harness_client import prewarm_entry_clients
+
+            try:
+                warmed = await asyncio.to_thread(prewarm_entry_clients)
+                logger.info("agent prewarm: %s", ", ".join(warmed) or "nothing")
+            except Exception:  # noqa: BLE001
+                logger.warning("agent prewarm failed", exc_info=True)
+
+        prewarm_task = asyncio.create_task(_prewarm())
+        dispatchers.append(prewarm_task)
     try:
         yield
     finally:
@@ -103,6 +132,19 @@ async def database_error_handler(_request, exc: SQLAlchemyError):
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/metrics", include_in_schema=False)
+async def metrics() -> Response:
+    """Prometheus scrape endpoint.
+
+    Unauthenticated by design, matching every other /metrics in the ecosystem:
+    Prometheus cannot send a session cookie. It therefore carries no user data —
+    only counts and durations by scenario/model/phase. If the deployment exposes
+    this beyond the private network, restrict it at the proxy rather than adding
+    auth the scraper cannot satisfy.
+    """
+    return Response(content=render_metrics(), media_type=CONTENT_TYPE)
 
 
 @app.get("/health/llm")

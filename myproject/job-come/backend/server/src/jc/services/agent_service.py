@@ -55,6 +55,7 @@ from jc.services.patch_confirm_service import hydrate_confirmation_event, load_c
 from jc.services.profile_patch_service import apply_confirmed_patch
 from jc.services.profile_service import ProfileService
 from jc.stores.agent_store import AgentStore
+from agentkit.observability import inflight_turn, record_agent_phase, record_agent_turn
 from jc.stores.agent_trace_store import AgentTraceStore
 from jc.stores.interview_store import InterviewStore
 
@@ -445,6 +446,16 @@ class AgentService:
         await self._db.commit()
         # An interview turn is decided by the server (ADR-008): the flow's reply is the event
         # stream, and the model is not asked to run the interview. Any other turn is a model turn.
+        # Phase timing is what turns "the agent was slow" into a number an
+        # operator can act on: build (graph + skills), ttft (send → first
+        # token), generate (first token → done). Recorded even on failure, so a
+        # timeout is visible as a slow phase rather than an absent sample.
+        turn_started = asyncio.get_running_loop().time()
+        first_token_at: float | None = None
+        turn_role = session.role_id or "unknown"
+        _turn_span = inflight_turn()
+        _turn_span.__enter__()
+
         if interview_turn:
             flow_reply = await run_mock_turn(
                 self._db,
@@ -463,6 +474,9 @@ class AgentService:
             )
         async for event in events:
             event_type = event.get("type")
+            if first_token_at is None and event_type in {"token", "system_prompt_rendered"}:
+                first_token_at = asyncio.get_running_loop().time()
+                record_agent_phase(phase="ttft", duration=first_token_at - turn_started)
             if event_type == "done":
                 # The UI may drain its follow-up queue immediately on done. Hold
                 # that signal until the final assistant/history transaction commits.
@@ -575,6 +589,16 @@ class AgentService:
                 trace_id=session.trace_id,
             )
         await self._db.commit()
+        turn_ended = asyncio.get_running_loop().time()
+        if first_token_at is not None:
+            record_agent_phase(phase="generate", duration=turn_ended - first_token_at)
+        record_agent_phase(
+            phase="turn",
+            duration=turn_ended - turn_started,
+            outcome="error" if had_error else "ok",
+        )
+        record_agent_turn(role=turn_role, status="error" if had_error else "success")
+        _turn_span.__exit__(None, None, None)
         if terminal_done is not None:
             yield terminal_done
 

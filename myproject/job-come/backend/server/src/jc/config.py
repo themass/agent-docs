@@ -120,6 +120,9 @@ class Settings(BaseSettings):
 
     jc_log_json: bool = Field(True, alias="JC_LOG_JSON")
     jc_log_level: str = Field("INFO", alias="JC_LOG_LEVEL")
+    #: Prometheus /metrics. Off only when a deployment has no scraper; the
+    #: endpoint costs a few microseconds per call and carries no user data.
+    jc_metrics_enabled: bool = Field(True, alias="JC_METRICS_ENABLED")
     jc_llm_enabled: bool = Field(False, alias="JC_LLM_ENABLED")
     jc_llm_routing_path: str = Field(
         "../agent/llm/routing.yaml",
@@ -255,6 +258,27 @@ class Settings(BaseSettings):
         "",
         alias="JC_DEERFLOW_CHECKPOINT_POSTGRES_URL",
     )
+    # How often LangGraph persists graph state during one run. The default,
+    # "async", writes a checkpoint plus a per-channel write set after *every*
+    # graph step. Measured on production: 85 round-trips for a single turn, 55
+    # of them writes at 360-550 ms each against a database 169 ms away — about
+    # 25 s of pure database latency per turn, more than the model call itself.
+    # "exit" writes once, when the graph exits.
+    #
+    # Safe here because JC's graph never calls LangGraph's `interrupt()`: the
+    # HITL approval middleware is not installed, so no paused state needs
+    # step-level durability. Verified against a real thread — a completed turn
+    # and a turn abandoned mid-stream the way the stop button does it both
+    # persist, and the following turn recalls the earlier codeword.
+    jc_deerflow_checkpoint_durability: str = Field(
+        "exit",
+        alias="JC_DEERFLOW_CHECKPOINT_DURABILITY",
+    )
+    # Build the agent graphs at startup instead of on the first user turn. A cold
+    # build costs 4-8 s and lands on whoever messages first after a deploy or a
+    # restart. Off by default in tests (which build their own graphs) and on by
+    # default everywhere else; see `prewarm_entry_clients`.
+    jc_deerflow_prewarm: bool = Field(True, alias="JC_DEERFLOW_PREWARM")
     # All DeerFlow-generated state (skill projections, sessions, user views) lives
     # below .data, never in the legacy project-root .deer-flow directory.
     jc_deerflow_runtime_home: str = Field(
