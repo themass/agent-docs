@@ -11,8 +11,8 @@ import json
 from collections.abc import Iterable
 from pathlib import Path
 
-from companion.adapters.roles.catalog_md import ROLES_DIR, load_catalog_from_files
-from companion.domain.roles.catalog import RoleIndex, parse_catalog
+from companion.roles.catalog_md import ROLES_DIR, load_catalog_from_files
+from companion.roles.catalog import RoleIndex, parse_catalog
 
 
 def load_system_catalog(root: Path, *, reserved_ids: Iterable[str] = ()) -> RoleIndex:

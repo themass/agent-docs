@@ -11,7 +11,7 @@ from companion.domain.prompt.roleplay import (
     PromptBudgetExceeded,
     build_prompt_plan,
 )
-from companion.domain.roles.profile import RoleProfile
+from companion.roles.profile import RoleProfile
 
 
 def _make(role, text):

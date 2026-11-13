@@ -6,11 +6,11 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from companion.adapters.roles.catalog_files import load_system_catalog
+from companion.roles.catalog_files import load_system_catalog
 from companion.api.http.deps import AllowAllVerifier, build_current_user
 from companion.api.http.routers.roles import build_router
-from companion.app.roles.service import RoleForbidden, RoleService
-from companion.domain.roles.catalog import CatalogError, negotiate_locale, parse_catalog
+from companion.roles.service import RoleForbidden, RoleService
+from companion.roles.catalog import CatalogError, negotiate_locale, parse_catalog
 from companion.paths import ROLES_CATALOG_DIR
 
 ROOT = ROLES_CATALOG_DIR

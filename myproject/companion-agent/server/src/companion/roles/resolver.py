@@ -13,8 +13,8 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
-from companion.domain.roles.profile import RoleProfile, from_card, from_system_role, from_user_prompt
-from companion.ports.roles import CharacterSourcePort
+from companion.roles.profile import RoleProfile, from_card, from_system_role, from_user_prompt
+from companion.roles.port import CharacterSourcePort
 from companion.ports.skills import SkillCatalog
 from companion.ports.store import RoleStore
 

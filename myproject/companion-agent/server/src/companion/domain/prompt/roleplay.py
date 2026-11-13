@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from companion.domain.lorebook import activate
 from companion.domain.prompt import templates as T
 from companion.domain.prompt.plan import DepthInjection, PromptPlan
-from companion.domain.roles.profile import RoleProfile
+from companion.roles.profile import RoleProfile
 
 EXAMPLE_SPLIT = "<START>"
 

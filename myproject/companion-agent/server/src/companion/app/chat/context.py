@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
-from companion.app.roles.resolver import RoleProfileResolver
+from companion.roles.resolver import RoleProfileResolver
 from companion.memory.hooks import RecallQuery
 from companion.memory.pipeline import MemoryPipeline, render_memory_block
 from companion.domain.persona.model import render_profile

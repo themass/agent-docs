@@ -18,7 +18,7 @@ from typing import Any
 
 import yaml
 
-from companion.domain.roles.catalog import CatalogError, RoleIndex, parse_catalog
+from companion.roles.catalog import CatalogError, RoleIndex, parse_catalog
 
 ROLES_DIR = "roles"
 DIVISIONS_FILE = "divisions.json"

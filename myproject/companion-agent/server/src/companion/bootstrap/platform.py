@@ -24,7 +24,7 @@ from typing import Any
 from companion.adapters.cache.redis.control import RedisTurnControl
 from companion.memory.recallers import MemoryPortRecaller, TimelineRecaller
 from companion.adapters.push.log import LogPush
-from companion.adapters.roles.catalog_files import load_system_catalog
+from companion.roles.catalog_files import load_system_catalog
 from companion.adapters.storage.images import normalize_image
 from companion.adapters.store.sql.account import SqlAccountStore
 from companion.adapters.store.sql.avatar import SqlAvatarReleaseStore
@@ -61,8 +61,8 @@ from companion.memory.recorder import ExtractionRecorder
 from companion.app.persona.updater import PERSONA_JOB, PersonaUpdater
 from companion.timeline.recorder import TimelineRecorder
 from companion.app.proactive.reminders import ReminderDispatcher, ReminderService, SessionGone
-from companion.app.roles.resolver import RoleProfileResolver
-from companion.app.roles.service import RoleService
+from companion.roles.resolver import RoleProfileResolver
+from companion.roles.service import RoleService
 from companion.app.tools.builtin import register_builtin_tools
 from companion.app.tools.confirmation import ConfirmationService
 from companion.app.tools.runtime import ToolRuntime
@@ -186,7 +186,7 @@ def _build_brain(settings: Settings, *, registry: ToolRegistry, runtime: ToolRun
 
 def default_prompts() -> PromptAssembler:
     """入口进程用的角色卡与 skill 来源（仓库里的 characters/ 与 skills/public/）。"""
-    from companion.adapters.roles.files import CharacterSource
+    from companion.roles.files import CharacterSource
     from companion.adapters.skills.library import SkillLibrary
 
     return PromptAssembler(characters=CharacterSource(CHARACTERS_DIR),

@@ -17,7 +17,7 @@ from fastapi import FastAPI
 
 from companion.config import settings
 from companion.paths import CHARACTERS_DIR
-from companion.adapters.roles.files import CharacterSource
+from companion.roles.files import CharacterSource
 from companion.api.http.routers import characters as characters_router
 from companion.api.http.routers import control as control_router
 from companion.api.http.routers import inbox as inbox_router
@@ -37,7 +37,7 @@ from companion.api.http.routers.memory_v1 import build_router as build_memory_v1
 from companion.api.http.routers.reminders import build_router as build_reminders_router
 from companion.api.http.routers.chat import build_health_router
 from companion.bootstrap.platform import Platform
-from companion.app.roles.service import RoleService
+from companion.roles.service import RoleService
 from companion.api.http.routers.chat import ChatApi, build_router as build_chat_router
 
 logger = logging.getLogger(__name__)

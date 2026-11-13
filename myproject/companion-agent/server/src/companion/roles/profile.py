@@ -11,8 +11,8 @@ from typing import Any
 
 from companion.domain.lorebook import Lorebook, from_character_book
 from companion.domain.prompt.plan import ROLES, DepthInjection
-from companion.domain.roles.card import CharacterCard
-from companion.domain.roles.catalog import SystemRole
+from companion.roles.card import CharacterCard
+from companion.roles.catalog import SystemRole
 
 
 @dataclass(frozen=True)

@@ -6,7 +6,7 @@
 
 import pytest
 
-from companion.adapters.roles.files import CharacterSource
+from companion.roles.files import CharacterSource
 from companion.api.http.routers.characters import summarize
 from companion.paths import CHARACTERS_DIR
 
