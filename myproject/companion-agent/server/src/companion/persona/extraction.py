@@ -14,7 +14,7 @@ import re
 from collections.abc import Sequence
 from datetime import datetime
 
-from companion.domain.persona.model import DYNAMIC, STATIC, ProfileDraft, ProfileEntry, clean_draft
+from companion.persona.model import DYNAMIC, STATIC, ProfileDraft, ProfileEntry, clean_draft
 
 MAX_FACTS = 40
 MAX_UTTERANCES = 12

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from companion.domain.persona.model import MergeAction, ProfileEntry
+from companion.persona.model import MergeAction, ProfileEntry
 
 
 class PersonaStore(Protocol):

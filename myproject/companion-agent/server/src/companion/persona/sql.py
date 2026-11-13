@@ -12,7 +12,7 @@ from sqlalchemy import and_, delete, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from companion.adapters.store.sql.schema import persona_cursor, persona_entry
-from companion.domain.persona.model import APPEND, UPDATE, MergeAction, ProfileEntry
+from companion.persona.model import APPEND, UPDATE, MergeAction, ProfileEntry
 
 
 def _now() -> datetime:

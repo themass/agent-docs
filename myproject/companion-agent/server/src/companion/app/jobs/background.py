@@ -38,7 +38,7 @@ def build_handlers(platform) -> dict:
     from companion.app.jobs.handlers import (
         QA_PURGE_JOB, account_purge, audit_trim, confirmation_expire, memory_record, persona_update, qa_purge,
         session_resummarize, timeline_record, timeline_sweep)
-    from companion.app.persona.updater import PERSONA_JOB
+    from companion.persona.updater import PERSONA_JOB
     from companion.timeline.sweep import TIMELINE_SWEEP_JOB
     from companion.bootstrap.platform import MEMORY_RECORD_JOB
 

@@ -11,8 +11,8 @@ import hashlib
 import logging
 from typing import Any
 
-from companion.domain.avatar.package import InvalidPackage, parse_package, valid_avatar_key
-from companion.ports.avatar import DRAFT, OFFLINE, ONLINE, AvatarRelease, AvatarReleaseStore
+from companion.avatar.package import InvalidPackage, parse_package, valid_avatar_key
+from companion.avatar.port import DRAFT, OFFLINE, ONLINE, AvatarRelease, AvatarReleaseStore
 from companion.ports.objects import ObjectStore
 
 log = logging.getLogger("companion.avatar")

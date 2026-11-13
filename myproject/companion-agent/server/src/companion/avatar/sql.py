@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from companion.adapters.store.sql.schema import avatar_release
-from companion.ports.avatar import ONLINE, AvatarRelease
+from companion.avatar.port import ONLINE, AvatarRelease
 
 
 def _now() -> datetime:

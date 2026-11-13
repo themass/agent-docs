@@ -27,9 +27,9 @@ from companion.adapters.push.log import LogPush
 from companion.roles.catalog_files import load_system_catalog
 from companion.adapters.storage.images import normalize_image
 from companion.adapters.store.sql.account import SqlAccountStore
-from companion.adapters.store.sql.avatar import SqlAvatarReleaseStore
+from companion.avatar.sql import SqlAvatarReleaseStore
 from companion.adapters.store.sql.jobs import SqlJobStore
-from companion.adapters.store.sql.persona import SqlPersonaStore
+from companion.persona.sql import SqlPersonaStore
 from companion.adapters.store.sql.proactive_store import (
     SqlDelivery, SqlPreferencesStore, SqlSendLedger,
 )
@@ -49,7 +49,7 @@ from companion.api.http.routers.chat import ChatApi
 from companion.adapters.store.sql.compliance import SqlComplianceStore
 from companion.app.account.purge import AccountPurgeService
 from companion.app.compliance.service import ComplianceService
-from companion.app.avatar.catalog import AvatarCatalog
+from companion.avatar.catalog import AvatarCatalog
 from companion.app.chat.assembler import PromptAssembler, skill_ids_of
 from companion.app.chat.context import ContextBuilder
 from companion.app.chat.history import HistoryService
@@ -58,7 +58,7 @@ from companion.app.chat.resummarize import ResummarizeService
 from companion.app.chat.turn_runner import TurnOutcome
 from companion.memory.extraction import MemoryExtractor
 from companion.memory.recorder import ExtractionRecorder
-from companion.app.persona.updater import PERSONA_JOB, PersonaUpdater
+from companion.persona.updater import PERSONA_JOB, PersonaUpdater
 from companion.timeline.recorder import TimelineRecorder
 from companion.app.proactive.reminders import ReminderDispatcher, ReminderService, SessionGone
 from companion.roles.resolver import RoleProfileResolver
