@@ -90,23 +90,31 @@ fi
 [[ -f "${ROOT}/uv.lock" ]] || die "缺 uv.lock。在源码目录跑 uv lock 并提交；没有锁文件就装不出确定的依赖版本"
 
 # 5. 依赖。--frozen：严格按 uv.lock 装，lock 和 pyproject 不一致就报错而不是悄悄重新解析。
-#    --no-editable：把本项目也装成普通包，服务代码从 site-packages 读，
-#    这样部署目录里改一个 .py 不会改掉正在跑的进程（改代码要走发布流程）。
+#    本项目装成**可编辑**（默认）：src/companion 就是运行时代码，和 `PROJECT_ROOT`
+#    （角色卡、技能、角色目录都按它找）指向同一个地方。装成不可编辑会让
+#    `companion.__file__` 落在 site-packages 里，PROJECT_ROOT 跟着指到 .venv 下面，
+#    结果是进程能起、但一个角色卡都找不到。
 extra_args=()
 if [[ "$DO_VOICE" == true ]]; then
   extra_args+=(--extra livekit)
 fi
-log "安装 Python 依赖到 ${VENV}${DO_VOICE:+（含语音）}"
-beat "uv sync" env UV_PROJECT_ENVIRONMENT="$VENV" uv sync --frozen --no-dev --no-editable "${extra_args[@]}"
+log "安装 Python 依赖到 ${VENV}$([[ "$DO_VOICE" == true ]] && echo '（含语音）')"
+beat "uv sync" env UV_PROJECT_ENVIRONMENT="$VENV" uv sync --frozen --no-dev "${extra_args[@]}"
 
 log "核对关键包与导入"
-"${VENV}/bin/python" - <<'PY' || die "关键包导入失败，见上面的报错"
+(cd "$ROOT" && PYTHONPATH=src "$VENV/bin/python" - <<'PY'
 import importlib.metadata as m
 for name in ("deerflow-harness", "deerflow-extension-api", "langgraph", "fastapi", "psycopg"):
     print(f"  {name:24} {m.version(name)}")
 import deerflow, companion  # noqa: F401
-print("  imports OK")
+from companion.config import PROJECT_ROOT
+print(f"  companion   {PROJECT_ROOT}")
+for sub in ("characters", "skills/public", "roles/catalog", "config/llm"):
+    if not (PROJECT_ROOT / sub).is_dir():
+        raise SystemExit(f"  缺目录 {PROJECT_ROOT / sub}：部署不完整")
+print("  imports OK, 资源目录齐全")
 PY
+) || die "关键包导入失败，见上面的报错"
 
 # 6. 数据库迁移。alembic 读的是项目根目录的 alembic.ini 和 .env。
 if [[ "$DO_MIGRATE" == true ]]; then
