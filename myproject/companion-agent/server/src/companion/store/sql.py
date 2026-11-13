@@ -383,8 +383,6 @@ class SqlUploadStore:
                 created_at=record.created_at))
 
     async def get_owned(self, *, owner_id: int, upload_id: str):
-        from companion.uploads.service import UploadRecord
-
         async with self._engine.connect() as conn:
             row = (await conn.execute(select(upload).where(and_(
                 upload.c.id == upload_id, upload.c.owner_id == owner_id)))).mappings().first()

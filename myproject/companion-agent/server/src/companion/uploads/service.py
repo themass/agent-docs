@@ -5,27 +5,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from companion.util.ids import new_ulid
 from companion.uploads.policy import UploadRejected, check_size, detect_type
 from companion.uploads.objects_port import ObjectStore
+from companion.store.port import UploadRecord
 
 SIGNED_URL_TTL = 300  # 5 分钟（O §5）
-
-
-@dataclass(frozen=True)
-class UploadRecord:
-    id: str
-    owner_id: int
-    object_key: str
-    mime: str
-    size: int
-    width: int
-    height: int
-    referenced: bool
-    created_at: datetime
 
 
 class UploadService:

@@ -14,7 +14,7 @@ from uuid import uuid4
 from pydantic import AwareDatetime, BaseModel, Field
 
 from companion.memory.subject import role_subject
-from companion.proactive.reminders_domain import local_time_text
+from companion.proactive.model import local_time_text
 from companion.timeline.models import EventKind, EventOrigin, TimelineEvent
 from companion.tools.registry import ToolRegistry
 from companion.tools.spec import Permission, SideEffect, ToolContext, ToolSpec

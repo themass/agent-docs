@@ -11,7 +11,7 @@ import logging
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 
-from companion.proactive.reminders_domain import (
+from companion.proactive.model import (
     MAX_ATTEMPTS,
     RETRY_DELAY,
     normalize_content,
@@ -19,7 +19,7 @@ from companion.proactive.reminders_domain import (
     proactive_instruction,
 )
 from companion.proactive.push_port import PushMessage, PushPort
-from companion.proactive.reminders_port import ReminderRecord, ReminderStore
+from companion.proactive.port import ReminderRecord, ReminderStore
 from companion.store.port import SessionStore
 
 log = logging.getLogger("companion.reminders")

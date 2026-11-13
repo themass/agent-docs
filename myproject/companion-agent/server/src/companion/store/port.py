@@ -140,9 +140,25 @@ class RoleStore(Protocol):
     async def soft_delete(self, *, owner_id: int, public_id: str) -> bool: ...
 
 
+@dataclass(frozen=True)
+class UploadRecord:
+    """一次上传的记录。定义在这里而不是 uploads 模块：持久化层要按它还原行，
+    反过来让它 import 业务模块会把底座变成依赖于调用方。"""
+
+    id: str
+    owner_id: int
+    object_key: str
+    mime: str
+    size: int
+    width: int
+    height: int
+    referenced: bool
+    created_at: datetime
+
+
 class UploadStore(Protocol):
-    async def create(self, record: Any) -> None: ...
-    async def get_owned(self, *, owner_id: int, upload_id: str) -> Any | None: ...
+    async def create(self, record: UploadRecord) -> None: ...
+    async def get_owned(self, *, owner_id: int, upload_id: str) -> UploadRecord | None: ...
 
 
 class ConfirmationStore(Protocol):

@@ -5,8 +5,8 @@ from datetime import UTC, datetime, timedelta, timezone
 import pytest
 
 from companion.proactive.reminders import ReminderDispatcher
-from companion.proactive.reminders_domain import ReminderInvalid, normalize_content, normalize_due, proactive_instruction
-from companion.proactive.reminders_port import ReminderRecord
+from companion.proactive.model import ReminderInvalid, normalize_content, normalize_due, proactive_instruction
+from companion.proactive.port import ReminderRecord
 
 NOW = datetime(2026, 11, 11, 8, 0, tzinfo=UTC)
 CST = timezone(timedelta(hours=8))
