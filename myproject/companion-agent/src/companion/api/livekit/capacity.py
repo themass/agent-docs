@@ -28,8 +28,16 @@ def room_load(max_rooms: int) -> Callable[[Any], float]:
     return load
 
 
-def worker_options_kwargs(max_rooms: int) -> dict[str, Any]:
-    """给 ``WorkerOptions`` 的限流参数。``max_rooms <= 0`` 表示不限（沿用 SDK 默认的 CPU 判断）。"""
-    if max_rooms <= 0:
-        return {}
-    return {"load_fnc": room_load(max_rooms), "load_threshold": FULL_AT}
+def worker_options_kwargs(max_rooms: int, *, port: int | None = None) -> dict[str, Any]:
+    """给 ``WorkerOptions`` 的限流参数。``max_rooms <= 0`` 表示不限（沿用 SDK 默认的 CPU 判断）。
+
+    ``port`` 是 worker 自己的健康检查 HTTP 端口（不是我们的业务端口）。SDK 在生产模式下默认 8081，
+    和 ``companion.serve`` 的默认端口撞车——两个进程在同一台机器上部署时，后起的那个绑不上
+    ``[Errno 98] address already in use`` 然后退出。部署时给它一个单独的端口。
+    """
+    kwargs: dict[str, Any] = {}
+    if max_rooms > 0:
+        kwargs.update(load_fnc=room_load(max_rooms), load_threshold=FULL_AT)
+    if port:
+        kwargs["port"] = port
+    return kwargs

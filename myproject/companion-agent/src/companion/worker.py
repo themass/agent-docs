@@ -101,8 +101,12 @@ def main() -> None:
     if len(sys.argv) == 1:
         sys.argv.append("start")
 
-    # 按房间数限流：默认按 CPU 判断的话语音 agent 永远“不满”，房间会把数据库连接占满
-    cli.run_app(WorkerOptions(entrypoint_fnc=entry, **worker_options_kwargs(settings.companion_voice_max_rooms)))
+    # 按房间数限流：默认按 CPU 判断的话语音 agent 永远“不满”，房间会把数据库连接占满。
+    # port 是 worker 自己的健康检查端口：SDK 生产模式默认 8081，和 api 撞车（两个进程都在本机时
+    # 后起的那个绑不上就退出），所以由配置单独给一个。
+    cli.run_app(WorkerOptions(
+        entrypoint_fnc=entry,
+        **worker_options_kwargs(settings.companion_voice_max_rooms, port=settings.companion_voice_worker_port)))
 
 
 if __name__ == "__main__":
