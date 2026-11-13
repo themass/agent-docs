@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 
 from companion.config import PROJECT_ROOT, settings
 
@@ -93,6 +94,12 @@ def main() -> None:
 
     entry = make_entrypoint(_platform, voice_factory=build_voice_stack, wire_voice=voice_wiring(voice_info))
     from companion.api.livekit.capacity import worker_options_kwargs
+
+    # LiveKit 的 CLI 是子命令式的（start / dev / console / download-files），
+    # 不带子命令时它只打印帮助然后退出——进程"启动成功"却什么都没做，日志里只有一段 usage。
+    # 部署脚本和 `./run.sh voice` 都是不带参数的，所以这里补上 start；本地调试仍可显式传 dev。
+    if len(sys.argv) == 1:
+        sys.argv.append("start")
 
     # 按房间数限流：默认按 CPU 判断的话语音 agent 永远“不满”，房间会把数据库连接占满
     cli.run_app(WorkerOptions(entrypoint_fnc=entry, **worker_options_kwargs(settings.companion_voice_max_rooms)))

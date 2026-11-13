@@ -84,8 +84,11 @@ fi
 
 # 4. 先做不联网的检查：缺 .env 时不该先下载几百兆依赖再失败。
 [[ -f "${ROOT}/.env" ]] || die "缺 ${ROOT}/.env。从 .env.example 复制一份再填值（权限 600；不要入库）"
-[[ "$(stat -c '%a' "${ROOT}/.env" 2>/dev/null || echo 600)" =~ ^[0-7]?[04]00$ ]] \
-  || log "提示：${ROOT}/.env 权限不是 600，里面有密钥，建议 chmod 600 .env"
+# 只看"别人和同组能不能读"：600 合格，640/644 不合格。用位运算，别用字符串比大小。
+env_mode="$(stat -c '%a' "${ROOT}/.env" 2>/dev/null || echo 600)"
+if (( (8#${env_mode} & 077) != 0 )); then
+  log "提示：${ROOT}/.env 权限是 ${env_mode}，里面有密钥，建议 chmod 600 .env"
+fi
 
 [[ -f "${ROOT}/uv.lock" ]] || die "缺 uv.lock。在源码目录跑 uv lock 并提交；没有锁文件就装不出确定的依赖版本"
 
