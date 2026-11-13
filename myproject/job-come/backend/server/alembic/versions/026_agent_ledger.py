@@ -30,23 +30,52 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
-def upgrade() -> None:
-    op.drop_table("jc_agent_message")
+def _columns(bind, table: str) -> set[str]:
+    return {c["name"] for c in sa.inspect(bind).get_columns(table)}
 
-    op.add_column("jc_agent_trace", sa.Column("ui_event", sa.String(32), nullable=True))
-    op.add_column("jc_agent_trace", sa.Column("content", sa.Text(), nullable=True))
+
+def _indexes(bind, table: str) -> set[str]:
+    return {i["name"] for i in sa.inspect(bind).get_indexes(table)}
+
+
+def upgrade() -> None:
+    """Idempotent on purpose.
+
+    A deploy runs this against whatever state the database happens to be in, and
+    a migration that assumes a clean starting point turns a half-applied release
+    into a stuck one. The live incident that made this a rule: the schema had
+    already been brought to this revision by hand while the deploy host still had
+    the previous code, so `add_column` failed on a column that was already there
+    and every later step was skipped. Every step below therefore checks first.
+    """
+    bind = op.get_bind()
+
+    # 1. Drop the duplicate projection table, if this database still has it.
+    if sa.inspect(bind).has_table("jc_agent_message"):
+        op.drop_table("jc_agent_message")
+
+    # 2. The two columns that turn a ledger row into a chat row.
+    columns = _columns(bind, "jc_agent_trace")
+    if "ui_event" not in columns:
+        op.add_column("jc_agent_trace", sa.Column("ui_event", sa.String(32), nullable=True))
+    if "content" not in columns:
+        op.add_column("jc_agent_trace", sa.Column("content", sa.Text(), nullable=True))
     # Declared on the model, never written by any code path: attachment pointers
     # have always lived in the user turn's payload, next to the message.
-    op.drop_column("jc_agent_trace", "attachments")
+    if "attachments" in columns:
+        op.drop_column("jc_agent_trace", "attachments")
 
-    # The chat reads one session's UI rows in order; the retention sweep walks
-    # created_at. Both are ordinary index work at this table's size.
-    op.create_index(
-        "ix_jc_agent_trace_session_ui",
-        "jc_agent_trace",
-        ["session_id", "ui_event"],
-    )
-    op.create_index("ix_jc_agent_trace_created", "jc_agent_trace", ["created_at"])
+    # 3. The chat reads one session's UI rows in order; the retention sweep walks
+    #    created_at. Both are ordinary index work at this table's size.
+    indexes = _indexes(bind, "jc_agent_trace")
+    if "ix_jc_agent_trace_session_ui" not in indexes:
+        op.create_index(
+            "ix_jc_agent_trace_session_ui",
+            "jc_agent_trace",
+            ["session_id", "ui_event"],
+        )
+    if "ix_jc_agent_trace_created" not in indexes:
+        op.create_index("ix_jc_agent_trace_created", "jc_agent_trace", ["created_at"])
 
 
 def downgrade() -> None:
