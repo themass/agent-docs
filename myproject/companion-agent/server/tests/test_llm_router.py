@@ -1,10 +1,9 @@
-from pathlib import Path
-
 import pytest
 
 from companion.adapters.llm.router import LLMRouter
+from companion.paths import LLM_ROUTING_PATH
 
-ROUTING = Path(__file__).resolve().parents[1] / "config" / "llm" / "routing.yaml"
+ROUTING = LLM_ROUTING_PATH
 
 
 def test_companion_chat_chain_is_ordered_and_uses_env_names_only():

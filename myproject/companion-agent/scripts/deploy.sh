@@ -15,8 +15,9 @@
 #   CA_DEPLOY_HEARTBEAT_SEC=30   长步骤每隔一段时间打印一行（防 SSH 断开）
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VENV="${CA_VENV:-${ROOT}/.venv}"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"      # 项目根：scripts/ agent/ .data/ 都在这里
+SERVER="${ROOT}/server"                       # Python 工程：.env .venv uv.lock migrations/ 在这里
+VENV="${CA_VENV:-${SERVER}/.venv}"
 HEARTBEAT="${CA_DEPLOY_HEARTBEAT_SEC:-30}"
 
 DO_VOICE=true
@@ -83,14 +84,14 @@ if [[ "$ENV_ONLY" == true ]]; then
 fi
 
 # 4. 先做不联网的检查：缺 .env 时不该先下载几百兆依赖再失败。
-[[ -f "${ROOT}/.env" ]] || die "缺 ${ROOT}/.env。从 .env.example 复制一份再填值（权限 600；不要入库）"
+[[ -f "${SERVER}/.env" ]] || die "缺 ${SERVER}/.env。从 .env.example 复制一份再填值（权限 600；不要入库）"
 # 只看"别人和同组能不能读"：600 合格，640/644 不合格。用位运算，别用字符串比大小。
-env_mode="$(stat -c '%a' "${ROOT}/.env" 2>/dev/null || echo 600)"
+env_mode="$(stat -c '%a' "${SERVER}/.env" 2>/dev/null || echo 600)"
 if (( (8#${env_mode} & 077) != 0 )); then
-  log "提示：${ROOT}/.env 权限是 ${env_mode}，里面有密钥，建议 chmod 600 .env"
+  log "提示：${SERVER}/.env 权限是 ${env_mode}，里面有密钥，建议 chmod 600 .env"
 fi
 
-[[ -f "${ROOT}/uv.lock" ]] || die "缺 uv.lock。在源码目录跑 uv lock 并提交；没有锁文件就装不出确定的依赖版本"
+[[ -f "${SERVER}/uv.lock" ]] || die "缺 uv.lock。在源码目录跑 uv lock 并提交；没有锁文件就装不出确定的依赖版本"
 
 # 5. 依赖。--frozen：严格按 uv.lock 装，lock 和 pyproject 不一致就报错而不是悄悄重新解析。
 #    本项目装成**可编辑**（默认）：src/companion 就是运行时代码，和 `PROJECT_ROOT`
@@ -102,19 +103,22 @@ if [[ "$DO_VOICE" == true ]]; then
   extra_args+=(--extra livekit)
 fi
 log "安装 Python 依赖到 ${VENV}$([[ "$DO_VOICE" == true ]] && echo '（含语音）')"
-beat "uv sync" env UV_PROJECT_ENVIRONMENT="$VENV" uv sync --frozen --no-dev "${extra_args[@]}"
+beat "uv sync" env UV_PROJECT_ENVIRONMENT="$VENV" uv sync --frozen --no-dev --project "$SERVER" "${extra_args[@]}"
 
 log "核对关键包与导入"
-(cd "$ROOT" && PYTHONPATH=src "$VENV/bin/python" - <<'PY'
+(cd "$SERVER" && PYTHONPATH=src "$VENV/bin/python" - <<'PY'
 import importlib.metadata as m
 for name in ("deerflow-harness", "deerflow-extension-api", "langgraph", "fastapi", "psycopg"):
     print(f"  {name:24} {m.version(name)}")
 import deerflow, companion  # noqa: F401
-from companion.config import PROJECT_ROOT
-print(f"  companion   {PROJECT_ROOT}")
-for sub in ("characters", "skills/public", "roles/catalog", "config/llm"):
-    if not (PROJECT_ROOT / sub).is_dir():
-        raise SystemExit(f"  缺目录 {PROJECT_ROOT / sub}：部署不完整")
+from companion import paths
+print(f"  server  {paths.SERVER_ROOT}")
+print(f"  agent   {paths.AGENT_ROOT}")
+for name in ("CHARACTERS_DIR", "SKILLS_PUBLIC_DIR", "ROLES_CATALOG_DIR"):
+    if not getattr(paths, name).is_dir():
+        raise SystemExit(f"  缺目录 {getattr(paths, name)}：部署不完整")
+if not paths.LLM_ROUTING_PATH.is_file():
+    raise SystemExit(f"  缺文件 {paths.LLM_ROUTING_PATH}：部署不完整")
 print("  imports OK, 资源目录齐全")
 PY
 ) || die "关键包导入失败，见上面的报错"
@@ -122,7 +126,7 @@ PY
 # 6. 数据库迁移。alembic 读的是项目根目录的 alembic.ini 和 .env。
 if [[ "$DO_MIGRATE" == true ]]; then
   log "执行数据库迁移（alembic upgrade head）"
-  (cd "$ROOT" && PYTHONPATH=src beat "alembic" "$VENV/bin/python" -m alembic upgrade head) \
+  (cd "$SERVER" && PYTHONPATH=src beat "alembic" "$VENV/bin/python" -m alembic upgrade head) \
     || die "迁移失败。库连不上，或 schema 与 baseline 不一致，见上面的报错"
 fi
 

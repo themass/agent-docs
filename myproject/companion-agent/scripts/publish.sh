@@ -144,7 +144,7 @@ cp "${WORK}/manifest.new" "$OLD_MANIFEST"
 } >"${TARGET}/.deploy-version"
 log "已发布到 ${TARGET}"
 
-[[ -f "${TARGET}/.env" ]] || log "注意：${TARGET}/.env 还不存在——从 .env.example 复制一份再填值"
+[[ -f "${TARGET}/server/.env" ]] || log "注意：${TARGET}/server/.env 还不存在——从 server/.env.example 复制一份再填值"
 
 if [[ "$DO_DEPLOY" == true ]]; then
   log "在 ${TARGET} 里跑 deploy.sh"

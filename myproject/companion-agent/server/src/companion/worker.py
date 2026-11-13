@@ -10,7 +10,8 @@ import logging
 import os
 import sys
 
-from companion.config import PROJECT_ROOT, settings
+from companion.config import settings
+from companion.paths import ENV_FILE
 
 
 def load_env(path=None) -> int:
@@ -22,7 +23,7 @@ def load_env(path=None) -> int:
     """
     from dotenv import dotenv_values
 
-    values = dotenv_values(path or (PROJECT_ROOT / ".env"))
+    values = dotenv_values(path or ENV_FILE)
     loaded = 0
     for name, value in values.items():
         if value is not None and name not in os.environ:

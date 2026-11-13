@@ -15,7 +15,8 @@ from typing import Any
 
 from fastapi import FastAPI
 
-from companion.config import PROJECT_ROOT, settings
+from companion.config import settings
+from companion.paths import CHARACTERS_DIR
 from companion.adapters.roles.files import CharacterSource
 from companion.api.http.routers import characters as characters_router
 from companion.api.http.routers import control as control_router
@@ -198,7 +199,7 @@ def create_app(
         app.include_router(build_health_router(platform.drain))
 
     # 角色卡目录（陪伴角色的展示信息）不依赖数据库
-    catalog = CharacterCatalog(CharacterSource(PROJECT_ROOT / "characters"))
+    catalog = CharacterCatalog(CharacterSource(CHARACTERS_DIR))
     app.include_router(characters_router.build_router(catalog, current_user))
 
     if platform is not None:

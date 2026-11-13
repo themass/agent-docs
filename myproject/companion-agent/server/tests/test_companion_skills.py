@@ -10,11 +10,11 @@ from companion.adapters.roles.files import CharacterSource
 from companion.adapters.skills.library import DEFAULT_SKILLS_ROOT, SkillLibrary
 from companion.app.chat.assembler import skill_id_of, skill_ids_of
 from companion.app.roles.resolver import RoleProfileResolver
-from companion.config import PROJECT_ROOT
+from companion.paths import CHARACTERS_DIR
 from companion.domain.prompt.roleplay import PromptBudget, build_prompt_plan
 from companion.domain.roles.card import CharacterCard
 
-CHARACTERS = CharacterSource(PROJECT_ROOT / "characters")
+CHARACTERS = CharacterSource(CHARACTERS_DIR)
 LIBRARY = SkillLibrary(DEFAULT_SKILLS_ROOT)
 COMPANION_CARDS = ("linche", "sudai")
 OPTIONAL_COMPANION_SKILLS = ("active-listening", "memory-callback", "proactive-checkin", "shared-activity")

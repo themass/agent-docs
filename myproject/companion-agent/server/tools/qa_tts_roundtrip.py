@@ -1,7 +1,7 @@
 """用真实的火山 TTS/ASR 做一次“合成 → 识别 → 字错率”往返，验证 TTS 准确性检查这条链路能跑通。
 
-用法（在 companion-agent 目录，.env 里已配 VOLC_* 凭据）：
-    PYTHONPATH=src .venv/bin/python scripts/qa_tts_roundtrip.py ["要念的句子" ...]
+用法（在 server/ 目录，.env 里已配 VOLC_* 凭据）：
+    PYTHONPATH=src .venv/bin/python tools/qa_tts_roundtrip.py ["要念的句子" ...]
 
 它不碰数据库和对象存储，只花几次合成与识别的调用费。结果解读见 app/voice/tts_accuracy.py 的文档：
 这是相对指标，不能当作“念得完全正确”的证明。

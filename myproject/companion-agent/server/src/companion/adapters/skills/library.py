@@ -21,11 +21,11 @@ from typing import Any
 
 import yaml
 
-from companion.config import PROJECT_ROOT
+from companion.paths import SKILLS_PUBLIC_DIR
 
 SKILL_FILENAME = "SKILL.md"
 REFERENCES_DIR = "references"
-DEFAULT_SKILLS_ROOT = PROJECT_ROOT / "skills" / "public"
+DEFAULT_SKILLS_ROOT = SKILLS_PUBLIC_DIR
 
 # frontmatter 只认文件最开头、被单独一行 --- 包住的那一段。
 _FRONTMATTER_RE = re.compile(r"\A---[ \t]*\r?\n(.*?)\r?\n---[ \t]*(?:\r?\n|\Z)", re.DOTALL)

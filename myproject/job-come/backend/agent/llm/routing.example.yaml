@@ -1,7 +1,27 @@
 # JC LLM routing — copy to routing.yaml
 #
-# providers: named credential profiles → env var names in backend/server/.env
-# scenarios: failover chains; each entry picks model + provider (or inline api_*_env)
+# This file holds per-position TUNING only. Model names live in `.env`:
+#
+#   JC_LLM_MODEL_<SCENARIO>=openai/first-choice,openai/backup
+#
+# Comma-separated, in failover order. The n-th model in that list takes the n-th
+# entry under the matching scenario here. Why split: these numbers were measured
+# against the gateway and rarely change, while the model changes often. Naming a
+# model in both places is what makes "which one is in effect" unclear.
+#
+# `providers:` maps a provider name used by an entry to the env vars holding its
+# base URL and key. Secrets never appear in this file.
+#
+# Supported per-entry keys:
+#   provider           a name from `providers:` (else `defaults.provider`)
+#   api_base_env       inline override of the base-URL env var
+#   api_key_env        inline override of the key env var
+#   timeout_sec        budget for one attempt on this position
+#   temperature        overrides defaults.temperature
+#   reasoning_effort   none | low | medium | high — `none` is meaningful
+#   max_tokens         output ceiling for this position
+#   extra_body         raw body fields, for flags the gateway expects that
+#                      litellm does not model (e.g. thinking: {type: disabled})
 
 providers:
   gateway:
@@ -10,7 +30,7 @@ providers:
   vision:
     api_base_env: JC_LLM_VISION_API_BASE
     api_key_env: JC_LLM_VISION_API_KEY
-  # Per-vendor example (add matching vars to .env, then set provider on models):
+  # Per-vendor example (add matching vars to .env, then set provider on entries):
   # anthropic:
   #   api_base_env: JC_LLM_ANTHROPIC_API_BASE
   #   api_key_env: JC_LLM_ANTHROPIC_API_KEY
@@ -19,8 +39,7 @@ scenarios:
   ingest_fast:
     # Structured extraction should not spend its budget on hidden reasoning.
     # Keep this policy scoped to ingestion; agent turns can still think.
-    - model: openai/deepseek-v4-flash
-      provider: gateway
+    - provider: gateway
       timeout_sec: 120
       reasoning_effort: none
       # DeepSeek-compatible gateways may ignore reasoning_effort; this explicit
@@ -28,35 +47,41 @@ scenarios:
       extra_body:
         thinking:
           type: disabled
-    - model: openai/deepseek-v4-pro
-      provider: gateway
-      # provider: anthropic   # when Claude uses a different host/key
+    - provider: gateway
       timeout_sec: 120
       reasoning_effort: none
-      # DeepSeek-compatible gateways may ignore reasoning_effort; this explicit
-      # body flag disables their thinking mode without changing agent turns.
-      extra_body:
-        thinking:
-          type: disabled
 
   writer:
-    - model: openai/deepseek-v4-pro
-      provider: gateway
+    - provider: gateway
+      timeout_sec: 180
+    - provider: gateway
       timeout_sec: 180
 
   coach:
-    - model: openai/deepseek-v4-pro
-      provider: gateway
+    - provider: gateway
+      timeout_sec: 180
+    - provider: gateway
+      timeout_sec: 180
+
+  reviewer:
+    - provider: gateway
+      timeout_sec: 180
+    - provider: gateway
       timeout_sec: 180
 
   vision:
-    - model: openai/qwen-vl-max
-      provider: vision
+    - provider: vision
+      timeout_sec: 180
+      # Measured: this endpoint rejects anything above 32768 with
+      # `InvalidParameter`, before reading the image.
+      max_tokens: 32768
+    - provider: vision
       timeout_sec: 180
 
   flash:
-    - model: openai/deepseek-v4-flash
-      provider: gateway
+    - provider: gateway
+      timeout_sec: 60
+    - provider: gateway
       timeout_sec: 60
 
 defaults:
@@ -64,24 +89,4 @@ defaults:
   api_base_env: JC_LLM_API_BASE
   api_key_env: JC_LLM_API_KEY
   temperature: 0.1
-  # Requested output ceiling, not context capacity or per-run usage budget.
-  # Override on a deployment only when its actual gateway limit is verified.
   max_tokens: 100000
-
-# Gateway prices, USD per 1M tokens. Only needed for models litellm's bundled price
-# map does not know -- which is all of the vendor-neutral names below, so without
-# this block the admin LLM list's 花费 column stays empty. Public model names that
-# litellm already prices can be left out. A model with no entry here and none in
-# litellm reports an empty cost rather than 0.
-#
-# These are placeholders: replace with your gateway's actual rate card.
-pricing:
-  openai/deepseek-v4-pro:
-    prompt_usd_per_1m: 2.5
-    completion_usd_per_1m: 10.0
-  openai/deepseek-v4-flash:
-    prompt_usd_per_1m: 0.3
-    completion_usd_per_1m: 1.2
-  openai/qwen-vl-max:
-    prompt_usd_per_1m: 0.5
-    completion_usd_per_1m: 1.5

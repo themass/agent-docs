@@ -16,8 +16,8 @@
 ## 0. 一次性准备（companion-agent）
 
 ```bash
-cd myproject/companion-agent
-python -m venv .venv && .venv/bin/pip install -e '.[dev]'
+cd myproject/companion-agent/server       # Python 工程在 server/，角色卡/skill/模型路由在 ../agent/
+uv sync --frozen --extra livekit --extra dev
 cp .env.example .env        # 填数据库、Redis、模型网关、LiveKit；密钥只放这里，不入库
 ```
 
@@ -129,10 +129,10 @@ COMPANION_REDIS_URL=redis://127.0.0.1:56390/0 ./run.sh test
 kill $(cat "$T/r.pid")
 ```
 
-分级检查（分层契约）在 `companion-agent` 目录：
+分级检查（分层契约）在 `companion-agent/server` 目录：
 
 ```bash
-.venv/bin/lint-imports
+PYTHONPATH=src .venv/bin/lint-imports
 ```
 
 ---

@@ -8,10 +8,10 @@ import pytest
 
 from companion.adapters.roles.files import CharacterSource
 from companion.api.http.routers.characters import summarize
-from companion.config import PROJECT_ROOT
+from companion.paths import CHARACTERS_DIR
 
-SOURCE = CharacterSource(PROJECT_ROOT / "characters")
-CARD_IDS = sorted(p.name.removesuffix(".v2.json") for p in (PROJECT_ROOT / "characters").glob("*.v2.json"))
+SOURCE = CharacterSource(CHARACTERS_DIR)
+CARD_IDS = sorted(p.name.removesuffix(".v2.json") for p in CHARACTERS_DIR.glob("*.v2.json"))
 
 
 def test_there_are_cards_to_check():

@@ -54,43 +54,63 @@ def _model_override_env(scenario: str) -> str:
     return f"{MODEL_OVERRIDE_ENV_PREFIX}{scenario.upper()}"
 
 
-def _reject_unknown_model_overrides(declared: dict[str, Any]) -> None:
+def _require_model_env(scenario: str) -> str:
+    """The `.env` variable naming this scenario's chain. Missing is an error."""
+    name = _model_override_env(scenario)
+    value = os.environ.get(name, "").strip()
+    if not value:
+        raise ValueError(
+            f"{name} is required: it names the model chain for scenario {scenario!r}. "
+            "routing.yaml carries the per-position tuning only, so a scenario with no "
+            "models in .env has nothing to call."
+        )
+    return value
+
+
+def _models_from_env(scenario: str) -> list[str]:
+    raw = _require_model_env(scenario)
+    names = [part.strip() for part in raw.split(",") if part.strip()]
+    if not names:
+        raise ValueError(f"{_model_override_env(scenario)} is set but names no model")
+    return names
+
+
+def _reject_unknown_scenarios(declared: dict[str, Any]) -> None:
     """Fail on `JC_LLM_MODEL_*` naming a scenario the routing file does not have.
 
     A typo here would otherwise be invisible: the variable is set, the operator
-    believes the model changed, and the committed name keeps running. Settings are
+    believes the model changed, and some other value keeps running. Settings are
     `extra="ignore"`, so nothing else in the stack would catch it either.
     """
     known = {_model_override_env(name) for name in declared}
-    prefix = MODEL_OVERRIDE_ENV_PREFIX
     for key in os.environ:
-        if key.startswith(prefix) and key not in known:
+        if key.startswith(MODEL_OVERRIDE_ENV_PREFIX) and key not in known:
             raise ValueError(
                 f"{key} does not match any scenario in the routing config "
                 f"(known: {sorted(known)}). Fix the name or remove the variable."
             )
 
 
-def _apply_model_override(
+def _build_chain(
     scenario: str, entries: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
-    """Replace the models in a scenario's chain, keeping each position's policy.
+    """Pair each model from `.env` with the tuning for that position.
 
-    Position i takes its tuning from `entries[i]`. A chain longer than the config
-    repeats the last entry's policy, which is the right default: the extra hops are
-    more of the same kind of work, and rejecting them would force the operator to
-    invent tuning for a model they just added to `.env`.
+    `.env` decides *which* models and *how many*; `routing.yaml` decides how each
+    position is called. Position i takes `entries[i]`. A chain longer than the
+    tuning repeats the last entry's policy, which is the right default: extra hops
+    are more of the same kind of work, and forcing the operator to invent tuning
+    for a model they just added would be friction with no benefit.
     """
-    raw = os.environ.get(_model_override_env(scenario), "").strip()
-    if not raw:
-        return entries
-    names = [part.strip() for part in raw.split(",") if part.strip()]
-    if not names:
-        return entries
+    if not entries:
+        raise ValueError(
+            f"Scenario {scenario!r} in routing config has no entries. "
+            "A scenario needs at least one entry to describe how to call it."
+        )
     out: list[dict[str, Any]] = []
-    for index, name in enumerate(names):
+    for index, model in enumerate(_models_from_env(scenario)):
         policy = entries[index] if index < len(entries) else entries[-1]
-        out.append({**policy, "model": name})
+        out.append({**policy, "model": model})
     return out
 
 
@@ -123,18 +143,13 @@ class LLMRouter:
         self._pricing = parse_pricing(raw.get("pricing"))
 
         declared = raw.get("scenarios") or {}
-        _reject_unknown_model_overrides(declared)
+        _reject_unknown_scenarios(declared)
 
         self._scenarios: dict[str, list[ModelEndpoint]] = {}
         for name, entries in declared.items():
-            if not entries:
-                raise ValueError(
-                    f"Scenario {name!r} in routing config has no endpoints. "
-                    "Give it at least one, or remove the scenario."
-                )
-            entries = _apply_model_override(name, entries)
             self._scenarios[name] = [
-                self._endpoint_from_entry(entry) for entry in entries
+                self._endpoint_from_entry(entry)
+                for entry in _build_chain(name, entries)
             ]
 
     def _endpoint_from_entry(self, entry: dict[str, Any]) -> ModelEndpoint:

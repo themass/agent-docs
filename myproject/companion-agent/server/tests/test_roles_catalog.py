@@ -1,6 +1,5 @@
 """系统角色目录（D §5、T7）：解析校验、语言回退、用户角色的归属与接口。"""
 
-from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -12,8 +11,9 @@ from companion.api.http.deps import AllowAllVerifier, build_current_user
 from companion.api.http.routers.roles import build_router
 from companion.app.roles.service import RoleForbidden, RoleService
 from companion.domain.roles.catalog import CatalogError, negotiate_locale, parse_catalog
+from companion.paths import ROLES_CATALOG_DIR
 
-ROOT = Path(__file__).resolve().parents[1] / "roles" / "catalog"
+ROOT = ROLES_CATALOG_DIR
 
 
 def minimal(**role_overrides):

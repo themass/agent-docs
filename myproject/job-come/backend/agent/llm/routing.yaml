@@ -1,33 +1,24 @@
-# JC LLM routing — per-model provider (base/key) via named profiles in .env
-# Each provider maps to api_base_env + api_key_env (never put secrets in this file).
+# JC LLM routing — per-position tuning only. MODEL NAMES ARE NOT HERE.
 #
-# Model names are NOT authoritative here — `.env`'s JC_LLM_MODEL_<SCENARIO>
-# replaces them when set (see jc.llm.router). This file is the fallback used when
-# that variable is unset, and it owns the per-position tuning, because those
-# numbers were measured against the gateway rather than guessed:
-#   qwen3-vl-plus               max_tokens ceiling 32768 — anything higher is
-#                               rejected outright, before an image is read
-# Each `timeout_sec` is sized for a full long-JSON generation on the slowest
-# model that chain may reach. Budgets also live in config.py with the
-# measurements behind them.
+# Where a model is named:
+#   .env  JC_LLM_MODEL_<SCENARIO>=openai/first,openai/second
+#         Comma-separated, in failover order. This file, per scenario, says only
+#         how each *position* is called; the n-th model in that list takes the
+#         n-th entry below. A chain longer than the list here repeats the last
+#         entry's tuning.
 #
-# This is a NewAPI relay, so each hop adds its own latency on top of the upstream
-# model.
+# Why the split: the values below were measured against the gateway and should
+# not be retyped every time a model is swapped, while the model itself changes
+# far more often. Naming models in both places is what makes "which one is in
+# effect" unclear, so there is exactly one source for names and one for tuning.
 #
-# Plain http, not https: the host answers 443 with a self-signed certificate,
-# which litellm (correctly) refuses, and that refusal is a connection error at
-# TLS handshake — every chain fails identically before a request is sent. http
-# is the stopgap; the fix is a real certificate on the gateway.
+# Before pointing `.env` at a new gateway, list what it actually serves:
+#   curl "$JC_LLM_API_BASE/models" -H "Authorization: Bearer $JC_LLM_API_KEY"
+# A model the gateway does not have fails every call with 503 "无可用渠道", and
+# when the whole chain is unavailable the fallback cannot save it either.
 #
-# The text chains are two deep. With one gateway, a third hop could only repeat
-# a model already tried, which costs a second timeout without adding a chance
-# of success.
-#
-# Note on names: the gateway may echo a different spelling than the one requested,
-# and that echoed name is what gets logged as `final_model`. Anything keyed on the
-# served name — the `pricing` block below — needs the echoed spelling, not the
-# requested one. `jc.llm.pricing` also tries the bare name without the `openai/`
-# prefix, so both spellings resolve to the same entry.
+# `providers:` maps a name used by an entry to the env vars holding its base URL
+# and key. Secrets never appear in this file.
 
 providers:
   gateway:
@@ -36,107 +27,78 @@ providers:
   vision:
     api_base_env: JC_LLM_VISION_API_BASE
     api_key_env: JC_LLM_VISION_API_KEY
-  # Example second gateway (uncomment + set env vars when models use another host):
-  # alt:
-  #   api_base_env: JC_LLM_ALT_API_BASE
-  #   api_key_env: JC_LLM_ALT_API_KEY
 
 scenarios:
+  # Structured extraction, not an agent turn: hidden reasoning is disabled here
+  # and only here, so conversational turns can still think. An earlier default
+  # spent 60s emitting reasoning and returned no JSON at all.
   ingest_fast:
-    # Ingestion is a structured extraction task, not an agent turn. Explicitly
-    # disable hidden reasoning here; the previous default spent 60 seconds
-    # emitting reasoning with zero JSON content and timed out. This policy is
-    # scoped to ingest_fast, so conversational agent thinking remains enabled.
-    - model: openai/glm-5.3-flash
-      provider: gateway
+    - provider: gateway
       timeout_sec: 120
       reasoning_effort: none
-      # DeepSeek-compatible gateways may ignore reasoning_effort; this explicit
-      # body flag disables their thinking mode without changing agent turns.
+      # Some gateways ignore `reasoning_effort`; this body flag disables their
+      # thinking mode without touching agent turns.
       extra_body:
         thinking:
           type: disabled
-    - model: openai/gpt-6-luna
-      provider: gateway
+    - provider: gateway
       timeout_sec: 120
       reasoning_effort: none
       extra_body:
         thinking:
           type: disabled
 
+  # Produces the document the user reads and exports; the repair pass reuses it.
+  # A weak first draft is what the evaluate-repair loop exists to avoid paying
+  # for twice, so the strong model leads and the fast one is the understudy.
   writer:
-    # `pro` leads: this chain produces the document the user reads and exports,
-    # and it is also the chain the repair pass reuses. `flash` is the fallback
-    # rather than the lead because a weak first draft is what the whole
-    # evaluate-repair loop exists to avoid paying for twice.
-    - model: openai/gpt-6-luna
-      provider: gateway
+    - provider: gateway
       timeout_sec: 180
-    - model: openai/glm-5.3-flash
-      provider: gateway
+    - provider: gateway
       timeout_sec: 180
 
   coach:
-    - model: openai/gpt-6-luna
-      provider: gateway
+    - provider: gateway
       timeout_sec: 180
-    - model: openai/glm-5.3-flash
-      provider: gateway
+    - provider: gateway
       timeout_sec: 180
 
-  # Interview reviewer (AGENTS-DESIGN §4.2): an independent judge of a finished mock session.
-  # It is its own scenario so the model can differ from the interviewer's. Until a different
-  # model is chosen here, it uses the same chain as `coach`.
+  # Independent judge of a finished mock session (AGENTS-DESIGN §4.2). Its own
+  # scenario so the reviewer's model can differ from the interviewer's.
   reviewer:
-    - model: openai/gpt-6-luna
-      provider: gateway
+    - provider: gateway
       timeout_sec: 180
-    - model: openai/glm-5.3-flash
-      provider: gateway
+    - provider: gateway
       timeout_sec: 180
 
   vision:
-    - model: openai/qwen3-vl-plus
-      provider: vision
+    - provider: vision
       timeout_sec: 180
       # Must be set explicitly, and must not be lowered casually.
       #
-      # Measured 2026-10-23, not guessed: this endpoint accepts 32768 and rejects
-      # 65536 with `InvalidParameter: Range of max_tokens should be [1, 32768]`.
-      # The `defaults.max_tokens` of 100000 therefore draws that same rejection —
+      # Measured, not guessed: this endpoint accepts 32768 and rejects 65536 with
+      # `InvalidParameter: Range of max_tokens should be [1, 32768]`. The
+      # `defaults.max_tokens` of 100000 therefore draws that same rejection —
       # before any image is read, and instantly rather than as a timeout. That is
-      # exactly how every screenshot silently became "unreadable" once before.
+      # how every screenshot once silently became "unreadable".
       #
-      # 32768 rather than something smaller: `profile_vision` sends every page in
+      # 32768 rather than something smaller: profile_vision sends every page in
       # one call and expects a whole structured resume JSON back, so a low
       # ceiling truncates mid-JSON and fails parsing instead of failing the
-      # request — the quieter of the two failures. Sitting at the measured
-      # maximum is safe because the hop below catches a 400 if it ever drops.
+      # request — the quieter of the two failures.
       max_tokens: 32768
-    # Second vision endpoint, which this chain has never had before. The earlier
-    # outage was total precisely because `Fallbacks=None`: one rejected request
-    # and the model was told the attachment was unreadable. Probed 2026-10-23 to
-    # read a test image back verbatim and to accept max_tokens=100000 without
-    # complaint, so it needs no ceiling override — and it is the only reason
-    # vision works at all right now.
-    #
-    # Kept second, not first: a Qwen-VL model is the intended OCR engine and a
-    # general model is the understudy. Fixing the channel above reverts this hop
-    # to unused without another edit.
-    #
-    # The two text chains are the wrong OCR engine: a text-tuned model reads an
-    # image poorly even when it accepts one. A third vision hop should be another
-    # VL model, not whatever the writer chain uses.
-    - model: openai/gpt-6-luna
-      provider: vision
+    # The understudy. Keep the second hop vision-capable: a text-tuned model reads
+    # an image poorly even when it accepts one, so a text chain cannot double as
+    # an OCR path.
+    - provider: vision
       timeout_sec: 180
 
+  # Light single calls: fit scoring, localisation, follow-up judgement, resume
+  # review. Short budget because none of them produce a long document.
   flash:
-    - model: openai/glm-5.3-flash
-      provider: gateway
+    - provider: gateway
       timeout_sec: 60
-    - model: openai/gpt-6-luna
-      provider: gateway
+    - provider: gateway
       timeout_sec: 60
 
 defaults:
@@ -144,26 +106,6 @@ defaults:
   api_base_env: JC_LLM_API_BASE
   api_key_env: JC_LLM_API_KEY
   temperature: 0.1
-  # Requested output ceiling, not context capacity or per-run usage budget.
+  # Requested output ceiling, not context capacity or a per-run usage budget.
   # Override on a deployment only when its actual gateway limit is verified.
   max_tokens: 100000
-
-# Gateway prices, USD per 1M tokens. Only needed for models litellm's bundled price
-# map does not know -- which is all of the vendor-neutral names below, so without
-# this block the admin LLM list's 花费 column stays empty. Public model names that
-# litellm already prices can be left out. A model with no entry here and none in
-# litellm reports an empty cost rather than 0.
-#
-# Left commented out on purpose: a placeholder rate card would make the 花费 column
-# show confident numbers that are wrong, which is worse than showing nothing.
-# Uncomment and fill in your gateway's real rates to turn the column on.
-# pricing:
-#   openai/deepseek-v4-pro:
-#     prompt_usd_per_1m: 2.5
-#     completion_usd_per_1m: 10.0
-#   openai/deepseek-v4-flash:
-#     prompt_usd_per_1m: 0.3
-#     completion_usd_per_1m: 1.2
-#   openai/qwen-vl-max:
-#     prompt_usd_per_1m: 0.5
-#     completion_usd_per_1m: 1.5

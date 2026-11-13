@@ -5,10 +5,10 @@
 
 ## 1. LLM 路由
 
-- **模型名的唯一入口是 `.env`**：每个场景一行 `JC_LLM_MODEL_<SCENARIO>`，逗号分隔、按顺序 failover，第一个是主力。留空则用 `routing.yaml` 里提交的默认值，所以没有 `.env` 的 checkout 也能跑。拼错场景名会直接报错，不会静默忽略。
+- **模型名的唯一入口是 `.env`**：每个场景一行 `JC_LLM_MODEL_<SCENARIO>`，逗号分隔、按顺序 failover，第一个是主力。`routing.yaml` 里**不再有模型名**——两处都写会让「到底哪个生效」说不清。缺变量会在加载时直接报错，不会去猜一个默认值；场景名拼错同样报错，不静默忽略。
 - 路由配置：`backend/agent/llm/routing.yaml`；模板：`routing.example.yaml`。现在它只保留**每个位置的调优**（`timeout_sec` / `reasoning_effort` / `max_tokens` / `extra_body`）——这些值是对网关实测出来的（`vision` 的输出上限超过 32768 会被直接拒），不该每次换模型都重填一遍。
 - 服务端通过 `backend/server/src/jc/llm/` 调用模型，业务代码不得散落直连供应商 HTTP 请求。
-- **凭证分层**：`routing.yaml` 只写模型 slug 与 **provider 名**；`providers.*` 把每个 profile 映射到 `.env` 里的 `api_base_env` / `api_key_env` 变量名（密钥不进 Git）。同一 scenario 内可按条目指定不同 `provider`，或内联 `api_base_env` / `api_key_env`。
+- **凭证分层**：`routing.yaml` 只写 **provider 名**（不写模型 slug）；`providers.*` 把每个 profile 映射到 `.env` 里的 `api_base_env` / `api_key_env` 变量名（密钥不进 Git）。同一 scenario 内可按条目指定不同 `provider`，或内联 `api_base_env` / `api_key_env`。
 - 逻辑开关：`JC_LLM_ENABLED`、`JC_LLM_ROUTING_PATH`。默认文本网关 `JC_LLM_API_*`，视觉 `JC_LLM_VISION_*`；多供应商时在 `.env` 增加如 `JC_LLM_ANTHROPIC_API_BASE` 并在 `providers` 注册。
 - **故障转移交给进程内的 `litellm.Router`**：构建点只有一个，`backend/server/src/jc/llm/transport.py`。没有 litellm Proxy，不起独立进程。换模型等价于改 `.env` 的 `JC_LLM_MODEL_*`；低风险试法是把新模型放在链的第二位，第一个失败才会用到它。
 - scenario 的 endpoint 链翻译成 litellm 的 `fallbacks`，按 pinned SDK 的行为测试维护，改动前先读 `transport.py` 的模块注释：

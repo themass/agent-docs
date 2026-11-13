@@ -7,12 +7,12 @@ from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+from companion.paths import ENV_FILE, LLM_ROUTING_PATH
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=PROJECT_ROOT / ".env",
+        env_file=ENV_FILE,
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -20,9 +20,7 @@ class Settings(BaseSettings):
     companion_env: str = "dev"
     companion_log_level: str = "INFO"
 
-    companion_llm_routing_path: Path = Field(
-        default=PROJECT_ROOT / "config" / "llm" / "routing.yaml"
-    )
+    companion_llm_routing_path: Path = Field(default=LLM_ROUTING_PATH)
     companion_llm_api_base: str = ""
     companion_llm_api_key: str = ""
 

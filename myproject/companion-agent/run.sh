@@ -12,10 +12,11 @@
 # 环境和配置从 .env 读（不入库）。真实环境变量优先于 .env。
 
 set -euo pipefail
-cd "$(dirname "$0")"
+# Python 工程在 server/（代码、测试、迁移、.env、.venv 都在那里）；角色卡、skill、模型路由在 agent/。
+cd "$(dirname "$0")/server"
 
 PY=.venv/bin/python
-[ -x "$PY" ] || { echo "缺少虚拟环境：先执行 python -m venv .venv && .venv/bin/pip install -e '.[dev]'"; exit 1; }
+[ -x "$PY" ] || { echo "缺少虚拟环境：在 server/ 里执行 uv sync --frozen --extra livekit --extra dev"; exit 1; }
 export PYTHONPATH=src
 
 # 把 .env 载入进程环境。适配器和 LiveKit CLI 读的是 os.environ，不读 .env；

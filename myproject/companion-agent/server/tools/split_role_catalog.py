@@ -7,19 +7,19 @@ diff 看不出改了什么，review 和回滚都难。拆成 md 之后：
 - 提示词就是正文，可以直接读、直接 review，不用从 JSON 字符串里解转义；
 - 中文覆盖和英文原文在同一个文件里，不会出现两边 id 漂移。
 
-布局：roles/catalog/roles/<division>/<id>.md
+布局：agent/roles/catalog/roles/<division>/<id>.md
 frontmatter 存结构化字段，正文是英文提示词，中文覆盖放 frontmatter 的 zh 块。
 
 用法:
-    python3 scripts/split_role_catalog.py          # 写文件
-    python3 scripts/split_role_catalog.py --check  # 只校验现有 md 与原 JSON 是否等价
+    python3 server/tools/split_role_catalog.py          # 写文件（在项目根）
+    python3 server/tools/split_role_catalog.py --check  # 只校验现有 md 与原 JSON 是否等价
 """
 import json
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-CATALOG = ROOT / "roles" / "catalog"
+ROOT = Path(__file__).resolve().parents[2]       # 项目根：companion-agent/
+CATALOG = ROOT / "agent" / "roles" / "catalog"
 OUT = CATALOG / "roles"
 
 

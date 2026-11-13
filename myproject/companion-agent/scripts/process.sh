@@ -13,7 +13,8 @@
 # 端口从 <部署目录>/.data/deploy.env 读（CA_API_PORT 等），nginx 必须指同一个值。
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"      # 项目根：scripts/ agent/ .data/
+SERVER="${ROOT}/server"                       # Python 工程：.env .venv
 RUN_DIR="${ROOT}/.data/run"
 LOG_DIR="${ROOT}/.data/logs"
 DEPLOY_ENV="${ROOT}/.data/deploy.env"
@@ -42,7 +43,7 @@ CA_API_HOST="${CA_API_HOST:-127.0.0.1}"
 CA_API_PORT="${CA_API_PORT:-8081}"
 CA_START_TIMEOUT="${CA_START_TIMEOUT:-30}"
 
-VENV="${CA_VENV:-${ROOT}/.venv}"
+VENV="${CA_VENV:-${SERVER}/.venv}"
 PY="${VENV}/bin/python"
 API_LOG="${LOG_DIR}/api.log"
 VOICE_LOG="${LOG_DIR}/voice.log"
@@ -82,7 +83,7 @@ start_one() {
     return 0
   fi
   [[ -x "$PY" ]] || die "没有虚拟环境 ${VENV} — 先跑 ./scripts/deploy.sh"
-  [[ -f "${ROOT}/.env" ]] || die "缺 ${ROOT}/.env"
+  [[ -f "${SERVER}/.env" ]] || die "缺 ${SERVER}/.env"
 
   if [[ "$name" == api ]]; then
     # 端口被别的部署占着时，健康检查会对着**别人**的进程返回 200，看起来像启动成功。
@@ -99,7 +100,7 @@ start_one() {
   local logfile; logfile=$([[ "$name" == api ]] && echo "$API_LOG" || echo "$VOICE_LOG")
   log "启动 ${name}（日志 ${logfile}）"
   (
-    cd "$ROOT"
+    cd "$SERVER"
     export PYTHONPATH=src
     # 适配器和 LiveKit CLI 读 os.environ，不读 .env；这里统一导出，避免音色/供应商悄悄退回默认值
     if [[ -f .env ]]; then set -a; . ./.env; set +a; fi

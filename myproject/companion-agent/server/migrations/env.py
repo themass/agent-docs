@@ -6,11 +6,11 @@
 """
 
 import os
-from pathlib import Path
 
 from alembic import context
 
 from companion.adapters.store.sql.schema import metadata
+from companion.paths import ENV_FILE
 import companion.adapters.store.sql.memory  # noqa: F401 — 注册 ca_memory_item 到同一个 metadata
 
 config = context.config
@@ -18,18 +18,15 @@ target_metadata = metadata
 # vpn 库里已有别的应用的 alembic_version，版本表必须带前缀。
 VERSION_TABLE = "ca_alembic_version"
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-
 
 def _env(name: str) -> str:
     """环境变量优先；没有就读 .env。只取值，不把整个 .env 灌进环境（迁移不需要别的配置）。"""
     value = os.environ.get(name)
     if value:
         return value
-    env_file = PROJECT_ROOT / ".env"
-    if not env_file.is_file():
+    if not ENV_FILE.is_file():
         return ""
-    for line in env_file.read_text(encoding="utf-8").splitlines():
+    for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if line.startswith("#") or "=" not in line:
             continue

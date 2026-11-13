@@ -70,7 +70,8 @@ from companion.app.uploads.service import UploadService
 from companion.bootstrap.chat_stack import build_chat_api
 from companion.adapters.brain.llm_trace import LlmCallCollector
 from companion.app.trace.writer import BackgroundWriter
-from companion.config import PROJECT_ROOT, Settings
+from companion.config import Settings
+from companion.paths import CHARACTERS_DIR, ROLES_CATALOG_DIR, SKILLS_PUBLIC_DIR
 from companion.domain.prompt.templates import PROMPT_VERSION
 from companion.domain.history.summary import TIMELINE_RECORD_JOB
 from companion.domain.memory.pipeline import MemoryPipeline
@@ -188,8 +189,8 @@ def default_prompts() -> PromptAssembler:
     from companion.adapters.roles.files import CharacterSource
     from companion.adapters.skills.library import SkillLibrary
 
-    return PromptAssembler(characters=CharacterSource(PROJECT_ROOT / "characters"),
-                           skills=SkillLibrary(PROJECT_ROOT / "skills" / "public"))
+    return PromptAssembler(characters=CharacterSource(CHARACTERS_DIR),
+                           skills=SkillLibrary(SKILLS_PUBLIC_DIR))
 
 
 def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None, memory_port: Any = None,
@@ -225,7 +226,7 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     reminder_store = SqlReminderStore(engine)
     control = RedisTurnControl(redis)
 
-    catalog = load_system_catalog(PROJECT_ROOT / "roles" / "catalog", reserved_ids=BUILTIN_PERSONA_IDS)
+    catalog = load_system_catalog(ROLES_CATALOG_DIR, reserved_ids=BUILTIN_PERSONA_IDS)
     roles = RoleService(catalog, roles_store)
 
     timeline = SqlTimelineStore(engine)
