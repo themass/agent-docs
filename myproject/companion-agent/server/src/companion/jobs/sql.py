@@ -14,7 +14,7 @@ from typing import Any
 from sqlalchemy import and_, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from companion.adapters.store.sql.schema import agent_job
+from companion.store.schema import agent_job
 from companion.jobs.port import JobRecord
 
 

@@ -17,7 +17,7 @@ from companion.roles.catalog import (
     RoleIndex,
     SystemRole,
 )
-from companion.ports.store import RoleRecord, RoleStore
+from companion.store.port import RoleRecord, RoleStore
 
 MAX_USER_ROLES_LISTED = 1000
 MAX_NAME_CHARS = 40

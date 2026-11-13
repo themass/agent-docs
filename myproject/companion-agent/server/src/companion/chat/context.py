@@ -17,9 +17,9 @@ from companion.roles.resolver import RoleProfileResolver
 from companion.memory.hooks import RecallQuery
 from companion.memory.pipeline import MemoryPipeline, render_memory_block
 from companion.persona.model import render_profile
-from companion.domain.prompt.plan import PromptPlan
-from companion.domain.prompt.roleplay import PromptBudget, build_prompt_plan
-from companion.ports.store import MessageStore, SessionStore
+from companion.prompt.plan import PromptPlan
+from companion.prompt.roleplay import PromptBudget, build_prompt_plan
+from companion.store.port import MessageStore, SessionStore
 
 log = logging.getLogger("companion.context")
 

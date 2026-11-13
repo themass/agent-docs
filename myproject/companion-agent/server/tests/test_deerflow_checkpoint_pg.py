@@ -14,7 +14,7 @@ from langchain_core.outputs import ChatGeneration, ChatResult
 
 from companion.brain.conversation_state import DeerFlowConversationState
 from companion.brain.deerflow import DeerFlowBrain, build_summarization, build_turn_graph
-from companion.domain.prompt.plan import DepthInjection, PromptPlan
+from companion.prompt.plan import DepthInjection, PromptPlan
 from companion.brain.port import TextDelta, TurnInputMessage, TurnRequest
 
 PG_URL = os.environ.get("COMPANION_TEST_PG_URL", "")

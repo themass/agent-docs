@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from companion.chat.ids import new_ulid
 from companion.chat.submit import SubmitService
 from companion.turn.queue import DRAIN_BATCH_SIZE, DRAIN_MAX_ATTEMPTS
-from companion.ports.store import QueueItem, QueueStore
+from companion.store.port import QueueItem, QueueStore
 
 
 @dataclass(frozen=True)

@@ -21,7 +21,7 @@ from companion.chat.ids import new_ulid
 from companion.tools.policy import Verdict, authorize, fingerprint, truncate
 from companion.tools.registry import ToolRegistry
 from companion.tools.spec import Permission, ToolContext, ToolSpec
-from companion.ports.store import ConfirmationRecord, ConfirmationStore
+from companion.store.port import ConfirmationRecord, ConfirmationStore
 from companion.tools.port import ToolCallRecord, ToolCallStore
 
 log = logging.getLogger("companion.tools")

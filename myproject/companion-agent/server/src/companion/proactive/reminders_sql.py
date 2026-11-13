@@ -9,7 +9,7 @@ from sqlalchemy import and_, insert, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from companion.adapters.store.sql.schema import reminder
+from companion.store.schema import reminder
 from companion.proactive.reminders_port import CANCELLED, CLAIMED, FAILED, PENDING, SENT, ReminderRecord
 
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from companion.domain.prompt.instructions import build_memory_block
+from companion.prompt.instructions import build_memory_block
 
 
 def _format_at(value: Any) -> str:

@@ -10,7 +10,7 @@ JWT / session token，由 ``CredentialVerifier`` 的实现验签后给出 user_i
 from typing import Annotated, Protocol
 
 
-from companion.ports.auth import AuthUnavailable, CredentialVerifier, IdentityError, parse_bearer
+from companion.auth.port import AuthUnavailable, CredentialVerifier, IdentityError, parse_bearer
 
 
 class AllowAllVerifier:

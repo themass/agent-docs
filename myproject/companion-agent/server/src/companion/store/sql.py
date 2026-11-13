@@ -15,7 +15,7 @@ from typing import Any
 from sqlalchemy import and_, delete, insert, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from companion.adapters.store.sql.schema import (
+from companion.store.schema import (
     action_confirmation,
     chat_message,
     chat_queue,
@@ -25,7 +25,7 @@ from companion.adapters.store.sql.schema import (
     user_role,
 )
 from companion.turn.queue import QUEUE_TRANSITIONS
-from companion.ports.store import (
+from companion.store.port import (
     ConfirmationRecord,
     MessageRecord,
     QueueItem,

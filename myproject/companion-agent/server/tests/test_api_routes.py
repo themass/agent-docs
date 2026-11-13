@@ -67,8 +67,8 @@ def _pending_create(platform, user: str) -> str:
     """
     from datetime import UTC, datetime, timedelta
 
-    from companion.adapters.store.sql.repositories import SqlConfirmationStore
-    from companion.ports.store import ConfirmationRecord
+    from companion.store.sql import SqlConfirmationStore
+    from companion.store.port import ConfirmationRecord
 
     # id 不能固定：同一个库上重复运行时主键会冲突（UniqueViolation）
     import uuid

@@ -16,7 +16,7 @@ import json
 from datetime import UTC, datetime
 from typing import Any
 
-from companion.products.roleplay.sessions import SessionRecord
+from companion.room.sessions import SessionRecord
 
 KEY_PREFIX = "ca:rp:"
 

@@ -20,7 +20,7 @@ from companion.proactive.reminders_domain import (
 )
 from companion.proactive.push_port import PushMessage, PushPort
 from companion.proactive.reminders_port import ReminderRecord, ReminderStore
-from companion.ports.store import SessionStore
+from companion.store.port import SessionStore
 
 log = logging.getLogger("companion.reminders")
 

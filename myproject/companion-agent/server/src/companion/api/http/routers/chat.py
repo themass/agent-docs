@@ -14,7 +14,7 @@ from companion.chat.drain import DrainService
 from companion.chat.history import HistoryBusy, HistoryService, NotEditable, NotLatest, find_reply
 from companion.chat.submit import SubmitService
 from companion.turn.queue import DRAIN_MAX_ATTEMPTS
-from companion.ports.store import MessageStore, QueueStore, SessionStore
+from companion.store.port import MessageStore, QueueStore, SessionStore
 from companion.turn.control import TurnControlPort
 
 PREFIX = "/v1"

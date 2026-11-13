@@ -44,7 +44,7 @@ from companion.brain.port import (
     TurnInputMessage,
     TurnRequest,
 )
-from companion.ports.store import MessageStore, QueueStore
+from companion.store.port import MessageStore, QueueStore
 from companion.turn.control import TurnControlPort
 
 log = logging.getLogger("companion.turn")

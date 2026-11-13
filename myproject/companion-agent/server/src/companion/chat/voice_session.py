@@ -10,7 +10,7 @@
 
 from __future__ import annotations
 
-from companion.ports.store import SessionStore
+from companion.store.port import SessionStore
 
 DEFAULT_NAME = "新对话"
 DEFAULT_LOCALE = "zh-CN"

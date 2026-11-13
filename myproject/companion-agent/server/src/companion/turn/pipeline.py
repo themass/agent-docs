@@ -15,8 +15,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from companion.brain.port import BrainPort, BrainTurn, TurnRequest
-from companion.domain.text.events import strip_emotion_tags, to_avatar_events
-from companion.domain.text.splitter import SentenceSplitter
+from companion.text.events import strip_emotion_tags, to_avatar_events
+from companion.text.splitter import SentenceSplitter
 
 logger = logging.getLogger(__name__)
 

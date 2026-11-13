@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import and_, delete, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from companion.adapters.store.sql.schema import usage_span, user_consent
+from companion.store.schema import usage_span, user_consent
 from companion.compliance.port import REMIND_AFTER_MINUTES, SPAN_GAP_MINUTES, Consent, UsageState
 
 

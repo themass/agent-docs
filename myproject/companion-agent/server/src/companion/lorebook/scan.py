@@ -13,8 +13,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from companion.domain.lorebook.model import LoreEntry, Lorebook
-from companion.domain.lorebook.text import matches, normalize
+from companion.lorebook.model import LoreEntry, Lorebook
+from companion.lorebook.text import matches, normalize
 
 
 @dataclass(frozen=True)

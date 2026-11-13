@@ -13,7 +13,7 @@ from langchain.agents.middleware import AgentMiddleware
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langgraph.types import Command
 
-from companion.domain.prompt.plan import splice_injections
+from companion.prompt.plan import splice_injections
 from companion.turn.steer import render_steer_block
 from companion.turn.conversation import lc_user_id
 

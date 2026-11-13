@@ -9,7 +9,7 @@ from sqlalchemy import and_, func, insert, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from companion.adapters.store.sql.schema import avatar_release
+from companion.store.schema import avatar_release
 from companion.avatar.port import ONLINE, AvatarRelease
 
 

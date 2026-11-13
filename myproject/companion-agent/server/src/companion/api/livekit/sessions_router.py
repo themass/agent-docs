@@ -7,8 +7,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Protocol
 from companion.chat.voice_session import ChatSessionError, resolve_chat_session
-from companion.ports.livekit import LiveKitToken, TokenIssuer
-from companion.products.roleplay.sessions import SessionError, SessionService
+from companion.room.livekit_port import LiveKitToken, TokenIssuer
+from companion.room.sessions import SessionError, SessionService
 
 
 def build_router(service: SessionService, current_user, chat_sessions=None):
@@ -22,7 +22,7 @@ def build_router(service: SessionService, current_user, chat_sessions=None):
     from fastapi import APIRouter, Depends, HTTPException
     from pydantic import BaseModel, Field
 
-    from companion.ports.livekit import MissingCredentials
+    from companion.room.livekit_port import MissingCredentials
 
     class CreateSessionBody(BaseModel):
         """请求体。

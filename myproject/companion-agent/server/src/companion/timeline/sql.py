@@ -9,7 +9,7 @@ from sqlalchemy import and_, delete, insert, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from companion.adapters.store.sql.schema import timeline_event
+from companion.store.schema import timeline_event
 from companion.timeline.models import (
     EventKind,
     EventOrigin,

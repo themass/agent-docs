@@ -9,8 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from companion.domain.lorebook import Lorebook, from_character_book
-from companion.domain.prompt.plan import ROLES, DepthInjection
+from companion.lorebook import Lorebook, from_character_book
+from companion.prompt.plan import ROLES, DepthInjection
 from companion.roles.card import CharacterCard
 from companion.roles.catalog import SystemRole
 

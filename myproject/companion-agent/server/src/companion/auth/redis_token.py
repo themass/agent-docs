@@ -12,7 +12,7 @@ import logging
 import re
 from typing import Any
 
-from companion.ports.auth import AuthUnavailable, IdentityError, parse_bearer
+from companion.auth.port import AuthUnavailable, IdentityError, parse_bearer
 
 logger = logging.getLogger(__name__)
 

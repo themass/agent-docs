@@ -7,11 +7,11 @@
 import pytest
 
 from companion.roles.files import CharacterSource
-from companion.adapters.skills.library import DEFAULT_SKILLS_ROOT, SkillLibrary
+from companion.skills.library import DEFAULT_SKILLS_ROOT, SkillLibrary
 from companion.chat.assembler import skill_id_of, skill_ids_of
 from companion.roles.resolver import RoleProfileResolver
 from companion.paths import CHARACTERS_DIR
-from companion.domain.prompt.roleplay import PromptBudget, build_prompt_plan
+from companion.prompt.roleplay import PromptBudget, build_prompt_plan
 from companion.roles.card import CharacterCard
 
 CHARACTERS = CharacterSource(CHARACTERS_DIR)

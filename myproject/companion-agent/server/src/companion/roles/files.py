@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from companion.roles.card import CharacterCard, from_v2_json, render_persona
-from companion.domain.prompt.instructions import build_instructions
-from companion.adapters.skills.library import SkillLibrary
+from companion.prompt.instructions import build_instructions
+from companion.skills.library import SkillLibrary
 
 
 @dataclass

@@ -7,7 +7,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Protocol
-from companion.ports.livekit import LiveKitToken, TokenIssuer
+from companion.room.livekit_port import LiveKitToken, TokenIssuer
 
 
 ROOM_PREFIX = "companion-"

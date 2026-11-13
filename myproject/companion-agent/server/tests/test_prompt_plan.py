@@ -2,10 +2,10 @@
 
 import pytest
 
-from companion.domain.lorebook import LoreEntry, Lorebook
-from companion.domain.prompt import templates as T
-from companion.domain.prompt.plan import DepthInjection, splice_injections
-from companion.domain.prompt.roleplay import (
+from companion.lorebook import LoreEntry, Lorebook
+from companion.prompt import templates as T
+from companion.prompt.plan import DepthInjection, splice_injections
+from companion.prompt.roleplay import (
     AuthorNote,
     PromptBudget,
     PromptBudgetExceeded,

@@ -18,7 +18,7 @@ from typing import Any
 from sqlalchemy import delete, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from companion.adapters.store.sql.schema import (
+from companion.store.schema import (
     delivery_receipt,
     proactive_preferences,
     send_record,

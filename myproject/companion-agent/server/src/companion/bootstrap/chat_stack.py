@@ -14,7 +14,7 @@ from companion.api.http.routers.chat import ChatApi
 from companion.chat.drain import DrainService
 from companion.chat.submit import SubmitService
 from companion.chat.turn_runner import AfterTurn, Produce, TurnInput, TurnRunner
-from companion.ports.store import MessageStore, QueueStore, SessionStore
+from companion.store.port import MessageStore, QueueStore, SessionStore
 from companion.turn.control import TurnControlPort
 
 log = logging.getLogger("companion.chat")

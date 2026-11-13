@@ -1,6 +1,6 @@
 import pytest
 
-from companion.adapters.llm.router import LLMRouter
+from companion.llm.router import LLMRouter
 from companion.paths import LLM_ROUTING_PATH
 
 ROUTING = LLM_ROUTING_PATH

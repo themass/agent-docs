@@ -36,7 +36,7 @@ from companion.proactive.store import (
 from companion.timeline.sql import SqlTimelineStore
 from companion.memory.sql import SqlMemoryPort
 from companion.proactive.reminders_sql import SqlReminderStore
-from companion.adapters.store.sql.repositories import (
+from companion.store.sql import (
     SqlConfirmationStore,
     SqlMessageStore,
     SqlQueueStore,
@@ -72,7 +72,7 @@ from companion.brain.llm_trace import LlmCallCollector
 from companion.trace.writer import BackgroundWriter
 from companion.config import Settings
 from companion.paths import CHARACTERS_DIR, ROLES_CATALOG_DIR, SKILLS_PUBLIC_DIR
-from companion.domain.prompt.templates import PROMPT_VERSION
+from companion.prompt.templates import PROMPT_VERSION
 from companion.history.summary import TIMELINE_RECORD_JOB
 from companion.memory.pipeline import MemoryPipeline
 from companion.tools.registry import ToolRegistry
@@ -164,7 +164,7 @@ def _build_brain(settings: Settings, *, registry: ToolRegistry, runtime: ToolRun
     """真实大脑：路由表里的 companion_chat 模型 + DeerFlow 图。返回 (brain, graph, llm_call)。"""
     from companion.brain.deerflow import DeerFlowBrain, build_summarization, build_turn_graph
     from companion.brain.tools import to_langchain_tools
-    from companion.adapters.llm.router import LLMRouter
+    from companion.llm.router import LLMRouter
     from companion.bootstrap.models import brain_models, chat_model, scenario_call
 
     router = LLMRouter(settings.companion_llm_routing_path)
@@ -187,7 +187,7 @@ def _build_brain(settings: Settings, *, registry: ToolRegistry, runtime: ToolRun
 def default_prompts() -> PromptAssembler:
     """入口进程用的角色卡与 skill 来源（仓库里的 characters/ 与 skills/public/）。"""
     from companion.roles.files import CharacterSource
-    from companion.adapters.skills.library import SkillLibrary
+    from companion.skills.library import SkillLibrary
 
     return PromptAssembler(characters=CharacterSource(CHARACTERS_DIR),
                            skills=SkillLibrary(SKILLS_PUBLIC_DIR))

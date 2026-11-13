@@ -14,7 +14,7 @@ from companion.account.sql import SqlAccountStore
 from companion.jobs.sql import SqlJobStore
 from companion.memory.sql import SqlMemoryPort
 from companion.proactive.reminders_sql import SqlReminderStore
-from companion.adapters.store.sql.repositories import SqlMessageStore, SqlRoleStore, SqlSessionStore
+from companion.store.sql import SqlMessageStore, SqlRoleStore, SqlSessionStore
 from companion.timeline.memory import InMemoryTimeline
 from companion.account.purge import PURGE_JOB, AccountPurgeService
 from companion.jobs.handlers import memory_record
@@ -106,7 +106,7 @@ async def test_purge_removes_everything_and_is_repeatable(engine):
 
     from sqlalchemy import func, select
 
-    from companion.adapters.store.sql.schema import account_purge_log, agent_job
+    from companion.store.schema import account_purge_log, agent_job
 
     async with engine.connect() as conn:
         pending = (await conn.execute(select(agent_job.c.payload).where(

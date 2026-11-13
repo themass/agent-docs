@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from companion.domain.prompt import templates as T
+from companion.prompt import templates as T
 
 LAYER_BUDGET_CHARS = {
     "role": 1500,      # 角色层 ≤ 1500 token（P §6.1，修订后）

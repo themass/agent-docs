@@ -14,7 +14,7 @@ from sqlalchemy import Boolean, Column, DateTime, String, Table, Text, and_, del
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from companion.adapters.store.sql.schema import TABLE_PREFIX, metadata as schema_metadata
+from companion.store.schema import TABLE_PREFIX, metadata as schema_metadata
 from companion.memory.recall import rank_scored
 from companion.memory.port import (
     MAX_BATCH,

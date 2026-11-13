@@ -12,7 +12,7 @@ from collections.abc import Awaitable, Callable
 
 from companion.history.summary import TranscriptLine, render_transcript, summary_prompt
 from companion.turn.conversation import ConversationStatePort, message_id_of
-from companion.ports.store import MessageStore
+from companion.store.port import MessageStore
 from companion.turn.control import TurnControlPort
 
 log = logging.getLogger("companion.summary")

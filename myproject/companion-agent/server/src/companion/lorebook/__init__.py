@@ -5,7 +5,7 @@
 不做：递归、包含组、粘滞 / 冷却 / 延迟、概率。
 """
 
-from companion.domain.lorebook.model import LoreEntry, Lorebook, from_character_book
-from companion.domain.lorebook.scan import Activation, activate
+from companion.lorebook.model import LoreEntry, Lorebook, from_character_book
+from companion.lorebook.scan import Activation, activate
 
 __all__ = ["Activation", "LoreEntry", "Lorebook", "activate", "from_character_book"]

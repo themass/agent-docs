@@ -9,7 +9,7 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import Protocol
 
-from companion.domain.prompt.plan import PromptPlan
+from companion.prompt.plan import PromptPlan
 
 
 @dataclass

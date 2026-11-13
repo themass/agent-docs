@@ -12,7 +12,7 @@ from typing import Any
 from sqlalchemy import delete, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from companion.adapters.store.sql.schema import (
+from companion.store.schema import (
     account_purge_log,
     action_confirmation,
     agent_job,

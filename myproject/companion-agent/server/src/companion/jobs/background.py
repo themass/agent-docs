@@ -33,7 +33,7 @@ HEARTBEAT_SEC = 30.0
 
 def build_handlers(platform) -> dict:
     """任务队列的处理函数表。缺哪块能力就不注册对应的 kind（未知 kind 会被置 dead）。"""
-    from companion.adapters.store.sql.repositories import SqlConfirmationStore, SqlToolCallStore
+    from companion.store.sql import SqlConfirmationStore, SqlToolCallStore
     from companion.account.purge import PURGE_JOB
     from companion.jobs.handlers import (
         QA_PURGE_JOB, account_purge, audit_trim, confirmation_expire, memory_record, persona_update, qa_purge,

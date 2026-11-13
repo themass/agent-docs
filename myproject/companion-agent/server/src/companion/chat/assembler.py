@@ -6,8 +6,8 @@ from pathlib import Path
 from typing import Any
 from companion.roles.port import CharacterSourcePort
 from companion.roles.card import CharacterCard, from_v2_json, render_persona
-from companion.domain.prompt.instructions import build_instructions
-from companion.ports.skills import SkillCatalog
+from companion.prompt.instructions import build_instructions
+from companion.skills.port import SkillCatalog
 
 
 def skill_ids_of(card: CharacterCard) -> list[str]:

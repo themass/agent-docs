@@ -23,9 +23,9 @@ from companion.api.http.routers import control as control_router
 from companion.api.http.routers import inbox as inbox_router
 from companion.api.http.routers.characters import CharacterCatalog
 from companion.api.http.deps import AllowAllVerifier, CredentialVerifier, build_current_user
-from companion.products.roleplay.sessions import SessionService, SessionStore
+from companion.room.sessions import SessionService, SessionStore
 from companion.api.livekit.sessions_router import build_router
-from companion.adapters.livekit.tokens import TokenMinter
+from companion.room.livekit_tokens import TokenMinter
 from companion.chat.lifecycle import DrainState
 from companion.api.http.routers.roles import build_router as build_roles_router
 from companion.api.http.routers.uploads import build_router as build_uploads_router
@@ -52,7 +52,7 @@ def _room_provisioner_from_settings():
     """有 LiveKit 密钥才真正建房；没有则返回 None，会话层保持原样（离线/测试）。"""
     if not (settings.livekit_api_key and settings.livekit_api_secret and settings.livekit_url):
         return None
-    from companion.adapters.livekit.rooms import livekit_room_provisioner
+    from companion.room.livekit_rooms import livekit_room_provisioner
 
     return livekit_room_provisioner(
         url=settings.livekit_url,
@@ -80,12 +80,12 @@ def _default_room_store(settings: Any) -> Any:
         try:
             from redis import asyncio as redis_async
 
-            from companion.adapters.store.redis.sessions import RedisSessionStore
+            from companion.room.redis_store import RedisSessionStore
 
             return RedisSessionStore(redis_async.from_url(url, decode_responses=True))
         except Exception:  # noqa: BLE001 —— Redis 不可用时不能让整个服务起不来
             pass
-    from companion.products.roleplay.sessions import InMemorySessionStore
+    from companion.room.sessions import InMemorySessionStore
 
     return InMemorySessionStore()
 
@@ -114,7 +114,7 @@ def create_app(
     if verifier is None and settings.companion_auth_verifier == "redis_token":
         import redis.asyncio as redis_async
 
-        from companion.adapters.auth.redis_token import RedisTokenVerifier
+        from companion.auth.redis_token import RedisTokenVerifier
 
         verifier = RedisTokenVerifier(redis_async.from_url(settings.auth_redis_url, decode_responses=True))
 

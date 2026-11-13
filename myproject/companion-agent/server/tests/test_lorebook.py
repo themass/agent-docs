@@ -1,7 +1,7 @@
 """世界书：从角色卡转换、关键词匹配（中英阿）、激活与预算。"""
 
-from companion.domain.lorebook import LoreEntry, Lorebook, activate, from_character_book
-from companion.domain.lorebook.text import matches, normalize
+from companion.lorebook import LoreEntry, Lorebook, activate, from_character_book
+from companion.lorebook.text import matches, normalize
 
 
 def _book(*entries: LoreEntry, scan_depth: int = 2) -> Lorebook:

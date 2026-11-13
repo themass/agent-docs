@@ -13,9 +13,9 @@ from dataclasses import dataclass
 from typing import Any
 
 from companion.chat.ids import new_ulid
-from companion.domain.middleware.safety import check_input
+from companion.middleware.safety import check_input
 from companion.turn.queue import Disposition
-from companion.ports.store import MessageStore, QueueStore, SessionStore
+from companion.store.port import MessageStore, QueueStore, SessionStore
 from companion.turn.control import TurnControlPort
 
 # 启动一个回合的回调（由 bootstrap 注入，内部把 TurnRunner 放到后台任务里跑）。

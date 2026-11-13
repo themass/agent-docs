@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from companion.ports.livekit import InvalidSignature, InvalidToken, LiveKitToken, MissingCredentials, TokenError, TokenExpired
+from companion.room.livekit_port import InvalidSignature, InvalidToken, LiveKitToken, MissingCredentials, TokenError, TokenExpired
 
 USER_IDENTITY_PREFIX = "user:"
 AGENT_IDENTITY_PREFIX = "agent:"

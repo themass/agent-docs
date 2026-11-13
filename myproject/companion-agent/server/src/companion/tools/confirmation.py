@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from companion.tools.runtime import ToolRuntime
-from companion.ports.store import ConfirmationRecord, ConfirmationStore, MessageStore
+from companion.store.port import ConfirmationRecord, ConfirmationStore, MessageStore
 
 
 @dataclass(frozen=True)

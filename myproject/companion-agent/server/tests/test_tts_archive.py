@@ -6,7 +6,7 @@ import wave
 from sqlalchemy import select
 
 from companion.trace.qa import SqlQaStore
-from companion.adapters.store.sql.schema import voice_turn
+from companion.store.schema import voice_turn
 from companion.voice.tts_archive import MAX_OPEN_TURNS, TtsArchiver
 from companion.voice.tts_capture import TtsSegment
 

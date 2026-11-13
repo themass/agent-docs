@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select, update
 
 from companion.trace.qa import SqlQaStore
-from companion.adapters.store.sql.schema import text_blob, turn_trace
+from companion.store.schema import text_blob, turn_trace
 from companion.trace.model import LlmCall
 
 SYSTEM = "你是林澈。\n\n说话简短。\n\n" + "\n\n".join(f"规则{i}：" + "x" * 60 for i in range(20))

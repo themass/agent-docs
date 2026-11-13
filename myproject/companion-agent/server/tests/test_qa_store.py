@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select, update
 
 from companion.trace.qa import SqlQaStore, VoiceTurnRecord
-from companion.adapters.store.sql.schema import text_blob, turn_trace, voice_turn
+from companion.store.schema import text_blob, turn_trace, voice_turn
 from companion.trace.model import LlmCall, build_trace
 
 
@@ -135,7 +135,7 @@ async def test_account_footprint_includes_voice_audio_and_purge_removes_the_rows
 # ---- 回合汇总 ca_chat_turn ----
 
 def _turn_row(engine):
-    from companion.adapters.store.sql.schema import chat_turn
+    from companion.store.schema import chat_turn
 
     async def go():
         async with engine.connect() as conn:

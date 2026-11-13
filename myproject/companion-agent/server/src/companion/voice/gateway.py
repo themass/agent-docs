@@ -20,7 +20,7 @@ from collections.abc import AsyncIterator, Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from companion.domain.text.splitter import SentenceSplitter
+from companion.text.splitter import SentenceSplitter
 from companion.voice.port import AudioChunk, Transcript, UnknownVoiceProvider, VoiceProvider, VoiceProviderError, VoiceRef, VoiceUnavailable
 
 log = logging.getLogger("companion.voice")

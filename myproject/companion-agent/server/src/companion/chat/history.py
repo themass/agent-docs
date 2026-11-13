@@ -23,7 +23,7 @@ CLEAR_LOCK_ATTEMPTS = 10
 CLEAR_LOCK_DELAY = 0.2
 from companion.turn.conversation import ConversationStatePort, lc_assistant_id, lc_user_id
 from companion.jobs.port import JobStore
-from companion.ports.store import MessageRecord, MessageStore
+from companion.store.port import MessageRecord, MessageStore
 from companion.turn.control import TurnControlPort
 
 log = logging.getLogger("companion.history")
