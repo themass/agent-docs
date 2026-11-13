@@ -20,49 +20,53 @@ companion-agent 的 Python 服务：FastAPI + SQLAlchemy(async) + PostgreSQL，�
 Prompt、角色卡、skill、模型路由不在这里，在 [`../agent/`](../agent/)。文件位置由
 `src/companion/paths.py` 统一计算，其它模块不要自己数 `parents[n]`。
 
-## 按业务模块分包
+## 两层：agent 与 service
 
-一个概念的全部代码在**同一个目录**里：领域规则、端口、用例、存储实现放在一起。
-改一个功能只进一个目录，不再横跨四层。
+**`agent/` 是可复用的能力，`service/` 是这个产品的业务流程。依赖只允许 `service → agent`。**
 
 ```
 src/companion/
-├── api/          HTTP / SSE / LiveKit 入口（路由，不含业务规则）
-├── bootstrap/    组合根：把各模块的实现接起来。只有它和进程入口可以 import 它
+├── agent/                    可复用能力（不认识"角色扮演"这个产品）
+│   ├── brain/                主脑端口 port.py + DeerFlow 实现 + 图内中间件 + 模型调用采集
+│   ├── memory/               记忆：召回、抽取、写入、SQL 与内存实现
+│   ├── tools/                工具框架：注册表、授权、确认、执行
+│   ├── roles/                角色卡与角色目录的解析（纯逻辑）
+│   ├── prompt/               提示词组装、RoleProfile（纯函数）
+│   ├── lorebook/             世界书：条目、匹配、按深度注入
+│   ├── text/                 断句、渲染、事件协议（纯逻辑）
+│   ├── middleware/           输入侧安全检测（纯逻辑）
+│   ├── skills/               Skill 包加载
+│   ├── llm/                  模型路由（场景 → 模型链）
+│   └── util/                 ULID
 │
-├── chat/         回合引擎：提交、执行、排队、历史、摘要、停机排空
-├── turn/         回合状态机、管线（token 流 → 可朗读整句）、控制面（Redis）
-├── brain/        主脑：端口 + DeerFlow 实现、图内中间件、模型调用追踪
-├── memory/       记忆：召回、抽取、写入、SQL 与内存实现
-├── voice/        语音：TTS/STT 端口、火山与阿里实现、TTS 采集与质检
-├── room/         语音房间：建房、入场 token、会话绑定
+├── service/                  本产品的业务流程
+│   ├── chat/                 回合引擎：提交、执行、排队排空、历史、摘要
+│   ├── turn/                 回合状态机、控制面（Redis）、触发器
+│   ├── turns/                把输入接到提交路径（语音、主动开口）
+│   ├── voice/                语音：TTS/STT、火山与阿里、TTS 采集与质检
+│   ├── room/                 语音房间：建房、入场 token、会话解析
+│   ├── proactive/            主动性：调度、开口、提醒、投递
+│   ├── timeline/  jobs/  trace/  uploads/  account/  compliance/
+│   ├── tools_impl/           产品工具（recall_facts / create_reminder …）
+│   ├── roles/  persona/  avatar/  auth/  history/
 │
-├── prompt/       提示词组装（纯函数）
-├── roles/        角色卡与系统目录
-├── persona/      用户画像
-├── avatar/       形象包
-├── lorebook/     世界书
-├── text/         断句、渲染、事件协议（纯逻辑）
-├── middleware/   输入侧安全检测（纯逻辑）
-│
-├── timeline/     事件时间线：抽取、存储、每日整理
-├── proactive/    主动性：调度、开口、提醒、投递
-├── jobs/         后台任务队列
-├── tools/        工具：注册表、授权、确认、执行
-├── trace/        质检留档：回合追踪与旁路写入
-├── uploads/      上传：校验、处理、对象存储
-├── account/      账号注销
-├── compliance/   合规：同意、导出、总开关
-│
-├── store/        共享持久化：会话/消息/队列/角色/上传/确认的 SQL 实现与表结构
-├── auth/         登录态校验（读 Java 的 Redis token）
-├── llm/          模型路由（场景 → 模型链，模型名只在 .env）
-├── skills/       Skill 包加载
-├── history/      历史窗口与摘要的纯函数
-└── util/         ULID 等无依赖工具
+├── db/                       共享持久化：表结构、记录类型、端口、SQL 实现
+├── api/                      HTTP / SSE / LiveKit 路由
+├── bootstrap/                组合根
+└── serve.py  worker.py  worker_jobs.py     进程入口
 ```
 
-进程入口：`companion.serve`（API）、`companion.worker`（语音）、`companion.worker_jobs`（可选的独立后台循环）。
+边界上的几个判断：
+
+| 东西 | 归属 | 理由 |
+|---|---|---|
+| `BrainPort` / `TurnRequest` | `agent/brain/` | 描述"一次模型回合"，任何 agent 产品都有 |
+| `Disposition` / 回合状态机 | `service/turn/` | "合并、插话、排队"是本产品的对话策略 |
+| `PlatformBrain` | `service/turns/` | 它做的是把语音接到本产品的 SubmitService |
+| `RoleProfile` | `agent/prompt/` | 提示词用的角色视图 |
+| 角色卡解析 | `agent/roles/` | 纯解析；从哪读由 service 决定 |
+| 产品工具 | `service/tools_impl/` | 用到时间线、提醒这些产品概念 |
+| 工具框架 | `agent/tools/` | 与产品无关 |
 
 ## 契约（import-linter 守着，见 `.importlinter`）
 
@@ -71,28 +75,19 @@ PYTHONPATH=src .venv/bin/python -m pytest -q   # 测试
 PYTHONPATH=src .venv/bin/lint-imports          # 契约
 ```
 
-4 条，守的是**模块之间的方向**，不是模块内部的形状：
+6 条，守的是**层之间的方向**：
 
 | 契约 | 含义 |
 |---|---|
-| 只有组合根与入口可以 import bootstrap | 依赖注入只在一处发生 |
-| 业务模块不得依赖 `api` | 路由层在模块之外，不能反过来被业务依赖 |
-| 纯逻辑模块（`prompt`/`text`/`lorebook`/`middleware`/`util`）不得碰 I/O 与框架 | 这几块要能在没有数据库和网络的测试里跑 |
-| `store` 是底座，不依赖任何业务模块 | 持久化不反向依赖调用方 |
+| `agent` 不得依赖 `service` | agent 要能被别的产品直接拿走 |
+| `agent` 不得依赖 `api` 与 `bootstrap` | 组合与协议不属于能力 |
+| `agent` 纯逻辑部分（prompt/text/lorebook/middleware/util）不得碰 I/O 与框架 | 这些要能在无库无网的测试里跑 |
+| `db` 不依赖任何业务层 | 持久化不反向依赖调用方 |
+| `service` 不得依赖 `api` | 路由在业务之外 |
+| 只有组合根与入口可以 import `bootstrap` | 依赖注入只在一处发生 |
 
-模块内部（同一个目录里的 `model.py` / `port.py` / `service.py` / `sql.py`）**允许互相依赖**，
-这是分包的意义；跨模块仍然要有方向。
-
-### 已知的双向依赖（未拆）
-
-这 4 处是真的双向，没有靠放宽契约掩盖。拆它们要改接口，属于下一轮的事：
-
-```
-brain <-> turn                  pipeline 用 BrainPort；deerflow 用 lc_user_id / steer 渲染
-prompt <-> roles                roleplay 提示词用 RoleProfile；profile 用 prompt 的 plan 常量
-chat <-> jobs <-> proactive     chat 用 JobStore；jobs 装配 proactive；proactive 用 chat 提交回合
-brain -> tools -> proactive -> brain
-```
+这些契约有效：写完它们时立刻抓到 10 条真实越界（`brain → turn`、`prompt → roles`、
+`tools/builtin → proactive/timeline` 等），逐条修掉的。
 
 ## 运行与检查
 
