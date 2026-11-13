@@ -57,9 +57,19 @@ class ModelEndpoint:
     extra_body: dict[str, Any] | None = field(default=None)
 
 
-def _override_chain(raw: str) -> list[str]:
-    """``a,b`` → ``["a", "b"]``。去掉空白与空项；未设置或全空返回 []。"""
-    return [name.strip() for name in raw.split(",") if name.strip()]
+def _require_model_chain(scenario: str, environ: dict[str, str]) -> list[str]:
+    """从 .env 取这个场景的模型链。没给就是错误：routing.yaml 只写调优，没有模型可跑。"""
+    name = _model_override_env(scenario)
+    raw = (environ.get(name) or "").strip()
+    if not raw:
+        raise ValueError(
+            f"{name} 未设置：它决定场景 {scenario!r} 用哪些模型。"
+            "routing.yaml 只写每个位置的调优，所以 .env 里没有模型名就没有东西可调用"
+        )
+    names = [part.strip() for part in raw.split(",") if part.strip()]
+    if not names:
+        raise ValueError(f"{name} 设置了但没有给出任何模型名")
+    return names
 
 
 def _apply_override(chain: list[ModelEndpoint], names: list[str]) -> list[ModelEndpoint]:
@@ -103,22 +113,26 @@ class LLMRouter:
         self._scenarios: dict[str, list[ModelEndpoint]] = {}
         for scenario, entries in (raw.get("scenarios") or {}).items():
             if not entries:
-                raise ValueError(f"scenario {scenario!r} has no models")
+                raise ValueError(f"scenario {scenario!r} has no tuning entries")
+            for entry in entries:
+                if "model" in entry:
+                    raise ValueError(
+                        f"routing.yaml 的场景 {scenario!r} 里还有 model 字段。"
+                        f"模型名只在 .env 的 {_model_override_env(scenario)} 里给，"
+                        "本文件只写每个位置的调优"
+                    )
             chain = [self._endpoint(e, scenario) for e in entries]
-            override = _override_chain(env.get(_model_override_env(scenario), ""))
-            if override:
-                chain = _apply_override(chain, override)
-            self._scenarios[scenario] = chain
+            self._scenarios[scenario] = _apply_override(
+                chain, _require_model_chain(scenario, env))
 
     def _endpoint(self, entry: dict[str, Any], scenario: str) -> ModelEndpoint:
-        if "model" not in entry:
-            raise ValueError(f"scenario {scenario!r}: entry without model")
+        """只解析调优。模型名不在这里：它由 .env 提供，之后按位置贴上来。"""
         provider = str(entry.get("provider") or self._default_provider)
         prov_base, prov_key = self._providers.get(
             provider, (self._default_base_env, self._default_key_env)
         )
         return ModelEndpoint(
-            model=str(entry["model"]),
+            model="",        # 占位：_apply_override 按位置填上 .env 里的名字
             provider=provider,
             api_base_env=str(entry.get("api_base_env") or prov_base),
             api_key_env=str(entry.get("api_key_env") or prov_key),

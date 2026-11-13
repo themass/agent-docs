@@ -1,13 +1,19 @@
-# companion-agent 模型路由。
+# companion-agent 模型路由 —— 只写每个位置的调优，**不写模型名**。
 #
-# 场景 → 模型链，按顺序故障转移。密钥与网关地址只通过环境变量引用，不写入本文件。
-# 模型名以网关实际返回的名字为准（网关可能回显为别名）。
+# 模型名在哪里：.env 的 COMPANION_LLM_MODEL_<场景名大写>=模型A,模型B
+#   逗号分隔，按顺序故障转移。本文件按顺序描述每个位置「怎么调」：
+#   列表第 n 个模型套用本文件第 n 条；链比这里长时沿用最后一条的调优。
 #
-# 换模型不用改这里：每个场景可由 .env 的 COMPANION_LLM_MODEL_<场景名大写> 整体覆盖，
-# 逗号分隔、按顺序故障转移，例如
-#     COMPANION_LLM_MODEL_COMPANION_CHAT=openai/gpt-6-luna,openai/glm-5.3-flash
-# 每个位置的 timeout / reasoning_effort / extra_body 等调优沿用本文件对应位置，
-# 那些值是对网关实测出来的，换模型不该重填。变量未设置则用下面写的模型名。
+# 为什么分开：下面的值是照网关实测出来的（超时、关推理、extra_body），换模型不该重填；
+# 而模型本身换得频繁得多。两处都写模型名就会变成「改了哪个生效说不清」——
+# 所以模型名只有一个来源（.env），调优只有一个来源（本文件）。
+# .env 里缺某个场景的变量会直接报错，不会退回到这里的什么默认值。
+#
+# 换网关之前，先看它到底提供哪些模型：
+#   curl "$COMPANION_LLM_API_BASE/models" -H "Authorization: Bearer $COMPANION_LLM_API_KEY"
+# 网关没有的模型每次调用都会失败，整条链都不可用时故障转移也救不了。
+#
+# providers: 把条目里的 provider 名字映射到存放 base URL 与 key 的环境变量名。密钥不写在这里。
 
 providers:
   gateway:
@@ -15,29 +21,27 @@ providers:
     api_key_env: COMPANION_LLM_API_KEY
 
 scenarios:
-  # 对话主脑：DeerFlow 内部经此场景选择模型，流式输出，文字与语音共用
+  # 对话主脑：DeerFlow 内部经此场景选择模型，流式输出，文字与语音共用。
+  # 第 1 位是主模型，第 2 位是故障转移目标。
   companion_chat:
-    - model: doubao-seed-2-1-pro-260915
-      provider: gateway
+    - provider: gateway
       timeout_sec: 60
-    - model: doubao-seed-2-1-lite-260915
-      provider: gateway
+    - provider: gateway
       timeout_sec: 60
 
-  # 记忆提取：结构化 JSON 输出，用便宜模型，关闭隐式推理
+  # 记忆提取：结构化 JSON 输出，用便宜模型，关闭隐式推理。
+  # 只在抽取值思维链会在返回 JSON 之前耗尽预算（早期默认值实测 60 秒无 JSON）。
   memory_extract:
-    - model: doubao-seed-2-1-lite-260915
-      provider: gateway
+    - provider: gateway
       timeout_sec: 60
       reasoning_effort: none
       extra_body:
         thinking:
           type: disabled
 
-  # 会话摘要：长对话超过阈值时压缩较早的消息；删除已压缩的消息后重建摘要。便宜模型，关闭推理
+  # 会话摘要：长对话超过阈值时压缩较早的消息；删除已压缩的消息后重建摘要。
   session_summarize:
-    - model: doubao-seed-2-1-lite-260915
-      provider: gateway
+    - provider: gateway
       timeout_sec: 60
       reasoning_effort: none
       extra_body:
@@ -46,8 +50,7 @@ scenarios:
 
   # 长任务/内容生成之后的角色化转述（DeerFlow 子任务结果 → 角色口吻）
   companion_rewrite:
-    - model: doubao-seed-2-1-lite-260915
-      provider: gateway
+    - provider: gateway
       timeout_sec: 60
 
 defaults:
