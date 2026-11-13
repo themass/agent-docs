@@ -40,12 +40,23 @@ def build_tts_archiver(platform: Any, voice_info: dict[str, str] | None = None):
                        provider=info.get("tts_provider", ""), voice=info.get("tts_voice", ""))
 
 
-def voice_wiring(voice_info: dict[str, str] | None = None):
-    """返回 ``wire_voice(platform) -> VoiceParts``，供 ``make_entrypoint`` 使用。"""
+class VoiceWiring:
+    """``wire_voice(platform) -> VoiceParts``。
 
-    def wire(platform: Any) -> VoiceParts:
+    **为什么是类而不是闭包**：LiveKit 在 Linux 上用 forkserver 起房间子进程，入口对象要能
+    pickle 过去，它带着的 ``wire_voice`` 也必须能。实例可以按"模块 + 类名 + __dict__"重建，
+    闭包不能（``Can't get local object ...``）。所以这里存的是普通字典，不是外层变量。
+    """
+
+    def __init__(self, voice_info: dict[str, str] | None = None) -> None:
+        self.voice_info = dict(voice_info or {})
+
+    def __call__(self, platform: Any) -> VoiceParts:
         return VoiceParts(brain=PlatformBrain(submit=platform.chat.submit, control=platform.chat.control),
-                          recorder=build_voice_recorder(platform, voice_info),
-                          tts_sink=build_tts_archiver(platform, voice_info))
+                          recorder=build_voice_recorder(platform, self.voice_info),
+                          tts_sink=build_tts_archiver(platform, self.voice_info))
 
-    return wire
+
+def voice_wiring(voice_info: dict[str, str] | None = None) -> VoiceWiring:
+    """返回 ``wire_voice(platform) -> VoiceParts``，供 ``make_entrypoint`` 使用。"""
+    return VoiceWiring(voice_info)

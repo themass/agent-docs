@@ -154,8 +154,8 @@ class VoiceParts:
     tts_sink: Any = None       # async (**turn 信息, segment=TtsSegment) -> None
 
 
-def make_entrypoint(platform_factory: Any, voice_factory: Any = None, wire_voice: Any = None):
-    """装配好的 worker 入口。
+class RoomEntrypoint:
+    """worker 入口。
 
     ``platform_factory`` 是协程函数，返回和 HTTP 服务同一套 platform（同库、同 Redis、同回合引擎）。
     语音回合因此与文字共用会话、历史、对话线程和回合后处理，而不是另一条直连大脑的管线。
@@ -163,9 +163,22 @@ def make_entrypoint(platform_factory: Any, voice_factory: Any = None, wire_voice
 
     ``wire_voice(platform) -> VoiceParts`` 由组合根提供：大脑、质检记录、TTS 采集的具体实现都在那里构造，
     本模块（接口层）不依赖适配器。
+
+    **为什么是类而不是闭包**：LiveKit 在 Linux 上用 ``forkserver`` 给每个房间起子进程，
+    ``entrypoint_fnc`` 要能被 pickle 序列化后传给子进程（默认 ``PROCESS`` 执行器）。
+    闭包序列化不了，子进程起不来，上报的是
+    ``AttributeError: Can't get local object 'make_entrypoint.<locals>.entrypoint'``——
+    每来一个房间就失败一次，而 worker 本身看着是健康的。
+    类的实例可以由 pickle 按"模块 + 类名 + __dict__"重建，所以这里顶层的三个依赖也要能 pickle：
+    模块级的函数（``build_voice_stack``、``voice_wiring`` 返回的闭包不行，见 ``worker.py`` 的说明）。
     """
 
-    async def entrypoint(ctx: Any) -> None:
+    def __init__(self, platform_factory: Any, voice_factory: Any = None, wire_voice: Any = None) -> None:
+        self._platform_factory = platform_factory
+        self._voice_factory = voice_factory
+        self._wire_voice = wire_voice
+
+    async def __call__(self, ctx: Any) -> None:
         """worker 的入口。由 LiveKit 的 job context 调用。"""
         require()
 
@@ -187,14 +200,14 @@ def make_entrypoint(platform_factory: Any, voice_factory: Any = None, wire_voice
             await ctx.room.disconnect()
             return
 
-        platform = await platform_factory()
+        platform = await self._platform_factory()
         await platform.astart()
         ctx.add_shutdown_callback(platform.aclose)
 
         publisher = AvatarPublisher(ctx.room)
         publisher.set_local_participant(ctx.room.local_participant)
 
-        parts: VoiceParts = wire_voice(platform)
+        parts: VoiceParts = self._wire_voice(platform)
         pipeline = TurnPipeline(parts.brain, event_sink=publisher)
         agent_class = build_agent_class()
 
@@ -210,7 +223,7 @@ def make_entrypoint(platform_factory: Any, voice_factory: Any = None, wire_voice
 
         # 语音栈必须显式按 voice 模式装配：不传 mode 时默认是 text，STT/TTS/VAD 都不会挂上，
         # 表现是「agent 进房间了但一句话不说」。
-        session = AgentSession(**build_session_options(mode="voice", voice_factory=voice_factory))
+        session = AgentSession(**build_session_options(mode="voice", voice_factory=self._voice_factory))
         await session.start(agent, room=ctx.room)
         logger.info(
             "companion joined room user=%s character=%s",
@@ -218,4 +231,7 @@ def make_entrypoint(platform_factory: Any, voice_factory: Any = None, wire_voice
             identity.character_id,
         )
 
-    return entrypoint
+
+def make_entrypoint(platform_factory: Any, voice_factory: Any = None, wire_voice: Any = None) -> RoomEntrypoint:
+    """装配好的 worker 入口。返回的是可 pickle 的对象（见 ``RoomEntrypoint`` 的说明）。"""
+    return RoomEntrypoint(platform_factory, voice_factory, wire_voice)
