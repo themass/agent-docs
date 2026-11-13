@@ -17,6 +17,9 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    # 部署环境标签。**只影响以 prod 为条件的启动检查**，不决定连哪个库、哪个 Redis——
+    # 本地开发同样连线上的库与 Redis（同一份数据、同一份会话锁），所以这个值在本地也是 dev
+    # 并不意味着"用的是本地基础设施"。基础设施是哪个，看 COMPANION_DB_* 与 COMPANION_REDIS_URL。
     companion_env: str = "dev"
     companion_log_level: str = "INFO"
 
