@@ -2,10 +2,10 @@ import json
 
 import pytest
 
-from companion.memory.fake import InMemoryMemoryPort
-from companion.memory.extraction import MemoryExtractor
-from companion.memory.port import MemoryKind
-from companion.memory.extraction import MAX_ITEMS_PER_TURN, build_extraction_prompt, is_forbidden_content, parse_candidates
+from companion.agent.memory.fake import InMemoryMemoryPort
+from companion.agent.memory.extraction import MemoryExtractor
+from companion.agent.memory.port import MemoryKind
+from companion.agent.memory.extraction import MAX_ITEMS_PER_TURN, build_extraction_prompt, is_forbidden_content, parse_candidates
 
 
 class RecordingLLM:

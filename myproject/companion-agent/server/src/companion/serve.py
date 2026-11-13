@@ -12,7 +12,7 @@ import signal
 
 import uvicorn
 
-from companion.chat.lifecycle import DrainState
+from companion.service.chat.lifecycle import DrainState
 
 GRACE_SECONDS = 45.0
 

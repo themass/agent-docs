@@ -2,16 +2,16 @@
 
 import pytest
 
-from companion.lorebook import LoreEntry, Lorebook
-from companion.prompt import templates as T
-from companion.prompt.plan import DepthInjection, splice_injections
-from companion.prompt.roleplay import (
+from companion.agent.lorebook import LoreEntry, Lorebook
+from companion.agent.prompt import templates as T
+from companion.agent.prompt.plan import DepthInjection, splice_injections
+from companion.agent.prompt.roleplay import (
     AuthorNote,
     PromptBudget,
     PromptBudgetExceeded,
     build_prompt_plan,
 )
-from companion.roles.profile import RoleProfile
+from companion.agent.prompt.role_profile import RoleProfile
 
 
 def _make(role, text):

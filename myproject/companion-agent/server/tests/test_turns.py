@@ -8,9 +8,9 @@ import asyncio
 
 import pytest
 
-from companion.brain.fake import FakeBrain
-from companion.turn.brain_port import BrainTurn, TurnRequest
-from companion.turn.pipeline import TurnPipeline
+from companion.agent.brain.fake import FakeBrain
+from companion.agent.brain.port import BrainTurn, TurnRequest
+from companion.service.turn.pipeline import TurnPipeline
 
 
 async def drain(pipeline, request):

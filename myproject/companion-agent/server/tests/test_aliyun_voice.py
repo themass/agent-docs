@@ -5,7 +5,7 @@ from collections.abc import AsyncIterator
 
 import pytest
 
-from companion.voice.aliyun import (
+from companion.service.voice.aliyun import (
     AliyunConfig,
     AliyunProvider,
     AliyunProtocolError,
@@ -17,7 +17,7 @@ from companion.voice.aliyun import (
     signed_token_params,
     tts_query,
 )
-from companion.voice.port import VoiceProviderError, VoiceRef, VoiceUnavailable
+from companion.service.voice.port import VoiceProviderError, VoiceRef, VoiceUnavailable
 
 
 def config(**kw) -> AliyunConfig:

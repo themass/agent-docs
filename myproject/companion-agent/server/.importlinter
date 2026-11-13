@@ -2,96 +2,39 @@
 #
 # 提交前跑：PYTHONPATH=src .venv/bin/lint-imports
 #
-# 历史：原来按技术层切（api → app → domain，adapters 在旁），7 条契约守那个形状。
-# 现在业务概念各自成模块（memory/ voice/ chat/ timeline/ …），所以契约改成守
-# **模块之间的方向**：模块内部随便依赖，模块之间只允许下依赖，不许上依赖。
-#
-# 有 4 处真实的双向依赖（见文件末尾），是历史耦合，不是设计目标。它们被明确列出来，
-# 而不是靠放宽规则掩盖——哪天拆掉了，删掉对应的 allowlist 条目即可。
+# 两层：agent（可复用的能力）与 service（这个产品的业务流程）。
+# 依赖只允许 service -> agent，反过来一律禁止——agent 要能被别的产品直接用。
 
 [importlinter]
 root_package = companion
 include_external_packages = True
 
-# ---- 只有组合根与进程入口可以 import bootstrap ----
-[importlinter:contract:only-bootstrap-wires]
-name = 只有组合根与入口可以 import bootstrap
+# ---- agent 不得依赖 service ----
+[importlinter:contract:agent-independent-of-service]
+name = agent 不得依赖 service（agent 要能独立复用）
 type = forbidden
-source_modules =
-    companion.account
+source_modules = companion.agent
+forbidden_modules = companion.service
+
+# ---- agent 不得依赖接口层与组合根 ----
+[importlinter:contract:agent-no-api]
+name = agent 不得依赖 api 与 bootstrap
+type = forbidden
+source_modules = companion.agent
+forbidden_modules =
     companion.api
-    companion.auth
-    companion.avatar
-    companion.brain
-    companion.chat
-    companion.compliance
-    companion.history
-    companion.jobs
-    companion.llm
-    companion.lorebook
-    companion.memory
-    companion.middleware
-    companion.persona
-    companion.proactive
-    companion.prompt
-    companion.roles
-    companion.room
-    companion.skills
-    companion.store
-    companion.text
-    companion.timeline
-    companion.tools
-    companion.trace
-    companion.turn
-    companion.uploads
-    companion.util
-    companion.voice
-forbidden_modules = companion.bootstrap
+    companion.bootstrap
 
-# ---- 业务模块不得依赖接口层 ----
-[importlinter:contract:modules-no-api]
-name = 业务模块不得依赖接口层（api）
+# ---- agent 里只有 memory/sql 碰数据库 ----
+[importlinter:contract:agent-parts-are-pure]
+name = agent 的纯逻辑部分不得碰 I/O 与框架
 type = forbidden
 source_modules =
-    companion.account
-    companion.auth
-    companion.avatar
-    companion.brain
-    companion.chat
-    companion.compliance
-    companion.history
-    companion.jobs
-    companion.llm
-    companion.lorebook
-    companion.memory
-    companion.middleware
-    companion.persona
-    companion.proactive
-    companion.prompt
-    companion.roles
-    companion.room
-    companion.skills
-    companion.store
-    companion.text
-    companion.timeline
-    companion.tools
-    companion.trace
-    companion.turn
-    companion.uploads
-    companion.util
-    companion.voice
-forbidden_modules = companion.api
-
-# ---- 纯逻辑模块不得碰 I/O ----
-[importlinter:contract:pure-modules]
-name = 纯逻辑模块不得依赖 I/O 与框架（prompt/text/lorebook/middleware/util）
-type = forbidden
-source_modules =
-    companion.prompt
-    companion.text
-    companion.lorebook
-    companion.middleware
-    companion.util
+    companion.agent.prompt
+    companion.agent.text
+    companion.agent.lorebook
+    companion.agent.middleware
+    companion.agent.util
 forbidden_modules =
     fastapi
     sqlalchemy
@@ -100,42 +43,36 @@ forbidden_modules =
     aiomysql
     pymysql
     livekit
-    companion.store
-    companion.room
-    companion.auth
-    companion.llm
-    companion.brain
-    companion.voice
-    companion.uploads
+    companion.db
+    companion.service
 
-# ---- 依赖倒置：底层模块不依赖上层业务模块 ----
-[importlinter:contract:store-is-foundational]
-name = store 是底座，不依赖任何业务模块
+# ---- db 是底座 ----
+[importlinter:contract:db-is-foundational]
+name = db 不依赖任何业务层
 type = forbidden
-source_modules = companion.store
+source_modules = companion.db
+forbidden_modules =
+    companion.agent
+    companion.service
+    companion.api
+    companion.bootstrap
+
+# ---- service 不得依赖接口层 ----
+[importlinter:contract:service-no-api]
+name = service 不得依赖 api
+type = forbidden
+source_modules = companion.service
 forbidden_modules =
     companion.api
     companion.bootstrap
-    companion.chat
-    companion.jobs
-    companion.proactive
-    companion.roles
-    companion.tools
-    companion.trace
-    companion.voice
-    companion.memory
-    companion.persona
-    companion.timeline
-    companion.avatar
-    companion.compliance
-    companion.account
-    companion.room
-    companion.turn
-    companion.uploads
-    companion.brain
-    companion.prompt
-    companion.text
-    companion.lorebook
-    companion.middleware
-    companion.skills
-    companion.history
+
+# ---- 只有组合根与入口可以 import bootstrap ----
+[importlinter:contract:only-bootstrap-wires]
+name = 只有组合根与入口可以 import bootstrap
+type = forbidden
+source_modules =
+    companion.agent
+    companion.service
+    companion.api
+    companion.db
+forbidden_modules = companion.bootstrap

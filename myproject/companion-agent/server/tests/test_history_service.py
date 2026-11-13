@@ -5,13 +5,13 @@ from types import SimpleNamespace
 
 import pytest
 
-from companion.chat.history import (
+from companion.service.chat.history import (
     HistoryBusy,
     HistoryService,
     NotEditable,
     lc_ids_of,
 )
-from companion.history.summary import RESUMMARIZE_JOB
+from companion.service.history.summary import RESUMMARIZE_JOB
 
 
 def _msg(mid, role="user", meta=None, kind="chat", session_id=5, alt_group=None, alt_selected=True):
@@ -235,7 +235,7 @@ async def test_selecting_the_current_alternative_is_a_noop():
 
 
 async def test_only_the_latest_turn_can_swap_alternatives():
-    from companion.chat.history import NotLatest
+    from companion.service.chat.history import NotLatest
 
     rows = _swipe_rows() + [_msg(4)]   # 之后又来了一条用户消息
     svc, msgs, conv, ctl, jobs = _service(rows, ["m1", "run-b", "m4"])

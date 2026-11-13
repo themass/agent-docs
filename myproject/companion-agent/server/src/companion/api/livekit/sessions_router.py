@@ -6,9 +6,9 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Protocol
-from companion.room.resolve import ChatSessionError, resolve_chat_session
-from companion.room.livekit_port import LiveKitToken, TokenIssuer
-from companion.room.sessions import SessionError, SessionService
+from companion.service.room.resolve import ChatSessionError, resolve_chat_session
+from companion.service.room.livekit_port import LiveKitToken, TokenIssuer
+from companion.service.room.sessions import SessionError, SessionService
 
 
 def build_router(service: SessionService, current_user, chat_sessions=None):
@@ -22,7 +22,7 @@ def build_router(service: SessionService, current_user, chat_sessions=None):
     from fastapi import APIRouter, Depends, HTTPException
     from pydantic import BaseModel, Field
 
-    from companion.room.livekit_port import MissingCredentials
+    from companion.service.room.livekit_port import MissingCredentials
 
     class CreateSessionBody(BaseModel):
         """请求体。

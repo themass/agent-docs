@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from companion.room.resolve import ChatSessionError, resolve_chat_session
+from companion.service.room.resolve import ChatSessionError, resolve_chat_session
 
 
 class Sessions:

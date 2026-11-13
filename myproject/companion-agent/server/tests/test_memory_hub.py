@@ -6,7 +6,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from companion.timeline.memory import InMemoryTimeline
+from companion.service.timeline.memory import InMemoryTimeline
 from companion.api.http.deps import AllowAllVerifier, build_current_user
 from companion.api.http.routers.memory_v1 import build_router
 from memory_hub import AppConfig, MemoryHub, UnknownApp, compose_user_id, validate_configs

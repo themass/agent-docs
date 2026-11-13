@@ -4,9 +4,9 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select, update
 
-from companion.trace.qa import SqlQaStore, VoiceTurnRecord
-from companion.store.schema import text_blob, turn_trace, voice_turn
-from companion.trace.model import LlmCall, build_trace
+from companion.service.trace.qa import SqlQaStore, VoiceTurnRecord
+from companion.db.schema import text_blob, turn_trace, voice_turn
+from companion.agent.brain.trace_model import LlmCall, build_trace
 
 
 def _llm(seq=0, **kw) -> LlmCall:
@@ -94,7 +94,7 @@ class _Objects:
 
 
 async def test_the_retention_job_deletes_rows_and_their_audio_objects(sqlite_engine):
-    from companion.jobs.handlers import qa_purge
+    from companion.service.jobs.handlers import qa_purge
 
     store, objects = SqlQaStore(sqlite_engine), _Objects()
     await store.record_voice_turn(_voice("old", audio_in_key="a.wav", audio_out_key="b.wav"), keep_content=True)
@@ -108,7 +108,7 @@ async def test_the_retention_job_deletes_rows_and_their_audio_objects(sqlite_eng
 
 
 async def test_one_failing_object_delete_does_not_fail_the_job_or_skip_the_rest(sqlite_engine):
-    from companion.jobs.handlers import qa_purge
+    from companion.service.jobs.handlers import qa_purge
 
     store, objects = SqlQaStore(sqlite_engine), _Objects(fail_on={"a.wav"})
     await store.record_voice_turn(_voice("old", audio_in_key="a.wav", audio_out_key="b.wav"), keep_content=True)
@@ -121,7 +121,7 @@ async def test_one_failing_object_delete_does_not_fail_the_job_or_skip_the_rest(
 
 
 async def test_account_footprint_includes_voice_audio_and_purge_removes_the_rows(sqlite_engine):
-    from companion.account.sql import _OWNED, SqlAccountStore
+    from companion.service.account.sql import _OWNED, SqlAccountStore
 
     store = SqlQaStore(sqlite_engine)
     await _trace(store, "T1", 1002)
@@ -135,7 +135,7 @@ async def test_account_footprint_includes_voice_audio_and_purge_removes_the_rows
 # ---- 回合汇总 ca_chat_turn ----
 
 def _turn_row(engine):
-    from companion.store.schema import chat_turn
+    from companion.db.schema import chat_turn
 
     async def go():
         async with engine.connect() as conn:

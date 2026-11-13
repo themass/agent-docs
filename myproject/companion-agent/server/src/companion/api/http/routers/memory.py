@@ -8,7 +8,7 @@
 import logging
 from typing import Any
 
-from companion.timeline.models import EventKind, EventStatus, TimelineEvent
+from companion.service.timeline.models import EventKind, EventStatus, TimelineEvent
 
 logger = logging.getLogger(__name__)
 

@@ -15,8 +15,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from companion.voice.gateway import VoiceGateway
-from companion.voice.port import VoiceProvider, VoiceUnavailable
+from companion.service.voice.gateway import VoiceGateway
+from companion.service.voice.port import VoiceProvider, VoiceUnavailable
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ def build_voice_stack(
     if resolved.provider != "volcengine":
         raise RuntimeError(f"暂只接了火山（volcengine），当前配置是 {resolved.provider!r}")
 
-    from companion.voice.volcengine_livekit import NewConsoleSTT, NewConsoleTTS
+    from companion.service.voice.volcengine_livekit import NewConsoleSTT, NewConsoleTTS
 
     voice = resolved.voice_id or os.getenv("VOLC_TTS_VOICE", "saturn_zh_female_keainvsheng_tob")
     tts = NewConsoleTTS(voice=voice, sample_rate=16000)
@@ -94,7 +94,7 @@ def build_gateway(
     if providers:
         return VoiceGateway(providers, **kwargs)
 
-    from companion.voice.volcengine import VolcengineConfig, VolcengineProvider
+    from companion.service.voice.volcengine import VolcengineConfig, VolcengineProvider
 
     registered: dict[str, VoiceProvider] = {}
     try:
@@ -104,7 +104,7 @@ def build_gateway(
 
     # 阿里云 NLS：短文本 REST。与火山并存，由 voice_ref.provider 或 COMPANION_VOICE_PROVIDER 选择。
     try:
-        from companion.voice.aliyun import AliyunConfig, AliyunProvider
+        from companion.service.voice.aliyun import AliyunConfig, AliyunProvider
 
         registered["aliyun"] = AliyunProvider(config=AliyunConfig.from_env())
     except VoiceUnavailable as exc:

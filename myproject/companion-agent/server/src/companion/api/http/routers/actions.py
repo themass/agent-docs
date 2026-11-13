@@ -3,7 +3,7 @@
 from typing import Any
 
 from companion.api.http.routers.chat import _owner_id
-from companion.tools.confirmation import ConfirmationService
+from companion.agent.tools.confirmation import ConfirmationService
 
 PREFIX = "/v1"
 

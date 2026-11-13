@@ -10,17 +10,17 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from companion.account.sql import SqlAccountStore
-from companion.jobs.sql import SqlJobStore
-from companion.memory.sql import SqlMemoryPort
-from companion.proactive.reminders_sql import SqlReminderStore
-from companion.store.sql import SqlMessageStore, SqlRoleStore, SqlSessionStore
-from companion.timeline.memory import InMemoryTimeline
-from companion.account.purge import PURGE_JOB, AccountPurgeService
-from companion.jobs.handlers import memory_record
-from companion.memory.subject import role_subject
-from companion.timeline.models import EventKind, TimelineEvent
-from companion.memory.port import MemoryItem
+from companion.service.account.sql import SqlAccountStore
+from companion.service.jobs.sql import SqlJobStore
+from companion.agent.memory.sql import SqlMemoryPort
+from companion.service.proactive.reminders_sql import SqlReminderStore
+from companion.db.sql import SqlMessageStore, SqlRoleStore, SqlSessionStore
+from companion.service.timeline.memory import InMemoryTimeline
+from companion.service.account.purge import PURGE_JOB, AccountPurgeService
+from companion.service.jobs.handlers import memory_record
+from companion.agent.memory.subject import role_subject
+from companion.service.timeline.models import EventKind, TimelineEvent
+from companion.agent.memory.port import MemoryItem
 from memory_hub import AppConfig, MemoryHub
 
 URL = os.environ.get("COMPANION_TEST_DATABASE_URL", "")
@@ -106,7 +106,7 @@ async def test_purge_removes_everything_and_is_repeatable(engine):
 
     from sqlalchemy import func, select
 
-    from companion.store.schema import account_purge_log, agent_job
+    from companion.db.schema import account_purge_log, agent_job
 
     async with engine.connect() as conn:
         pending = (await conn.execute(select(agent_job.c.payload).where(
@@ -117,7 +117,7 @@ async def test_purge_removes_everything_and_is_repeatable(engine):
     again = await service.run(owner_id=owner)   # 重试无副作用
     assert again.rows == 0 and again.memories == 0
 
-    from companion.account.purge import user_hash
+    from companion.service.account.purge import user_hash
 
     async with engine.begin() as conn:
         await conn.execute(agent_job.delete().where(
@@ -144,7 +144,7 @@ async def test_memory_job_for_closed_session_is_skipped(engine):
 async def test_redis_purge_session_cancels_and_clears():
     from redis import asyncio as redis_async
 
-    from companion.turn.redis_control import (
+    from companion.service.turn.redis_control import (
         RedisTurnControl,
         ctl_key,
         events_key,

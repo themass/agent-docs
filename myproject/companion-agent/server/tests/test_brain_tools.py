@@ -11,12 +11,12 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
 
-from companion.brain.deerflow import DeerFlowBrain, build_turn_graph
-from companion.brain.tools import to_langchain_tools
-from companion.tools.builtin import register_builtin_tools
-from companion.tools.runtime import ToolRuntime
-from companion.tools.registry import ToolRegistry
-from companion.turn.brain_port import TurnRequest
+from companion.agent.brain.deerflow import DeerFlowBrain, build_turn_graph
+from companion.agent.brain.tools import to_langchain_tools
+from companion.service.tools_impl.builtin import register_builtin_tools
+from companion.agent.tools.runtime import ToolRuntime
+from companion.agent.tools.registry import ToolRegistry
+from companion.agent.brain.port import TurnRequest
 
 
 class ScriptedToolModel(BaseChatModel):

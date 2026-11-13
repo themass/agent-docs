@@ -16,8 +16,8 @@ import time
 from collections.abc import AsyncIterator
 from typing import Any
 
-from companion.turn.pipeline import EventSink, TurnPipeline
-from companion.turn.brain_port import TurnRefused, TurnRequest
+from companion.service.turn.pipeline import EventSink, TurnPipeline
+from companion.agent.brain.port import TurnRefused, TurnRequest
 from companion.api.livekit.bridge import require
 
 logger = logging.getLogger(__name__)
@@ -184,7 +184,7 @@ def build_agent_class() -> type:
             turn = self._pipeline.last_turn
             if self._recorder is None or turn is None or not turn.turn_id:
                 return    # 没有回合（被拒绝、排队）就没有可对账的记录
-            from companion.trace.qa import VoiceTurnRecord
+            from companion.service.trace.qa import VoiceTurnRecord
 
             record = VoiceTurnRecord(
                 turn_id=turn.turn_id, session_id=self._chat_session_id, owner_id=int(self._user_id),
@@ -212,7 +212,7 @@ def build_agent_class() -> type:
             return self._captured_tts(text, model_settings)
 
         async def _captured_tts(self, text: Any, model_settings: Any):
-            from companion.voice.tts_capture import TtsCapture
+            from companion.service.voice.tts_capture import TtsCapture
 
             capture = TtsCapture()
             turn_ref: dict[str, Any] = {}

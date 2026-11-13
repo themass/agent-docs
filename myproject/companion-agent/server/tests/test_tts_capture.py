@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from companion.voice.tts_capture import BYTES_PER_SAMPLE, TtsCapture, pcm_to_wav
+from companion.service.voice.tts_capture import BYTES_PER_SAMPLE, TtsCapture, pcm_to_wav
 
 
 def frame(n_samples=1600, rate=16000, channels=1, byte=1):

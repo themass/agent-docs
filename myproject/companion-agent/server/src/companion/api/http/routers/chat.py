@@ -8,14 +8,14 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from companion.chat.lifecycle import DrainState
+from companion.service.chat.lifecycle import DrainState
 from companion.api.sse.stream import event_stream
-from companion.chat.drain import DrainService
-from companion.chat.history import HistoryBusy, HistoryService, NotEditable, NotLatest, find_reply
-from companion.chat.submit import SubmitService
-from companion.turn.queue import DRAIN_MAX_ATTEMPTS
-from companion.store.port import MessageStore, QueueStore, SessionStore
-from companion.turn.control import TurnControlPort
+from companion.service.chat.drain import DrainService
+from companion.service.chat.history import HistoryBusy, HistoryService, NotEditable, NotLatest, find_reply
+from companion.service.chat.submit import SubmitService
+from companion.service.turn.queue import DRAIN_MAX_ATTEMPTS
+from companion.db.port import MessageStore, QueueStore, SessionStore
+from companion.service.turn.control import TurnControlPort
 
 PREFIX = "/v1"
 REGENERATE_NOTE = "请基于上面的对话重新回答最后一条消息。"

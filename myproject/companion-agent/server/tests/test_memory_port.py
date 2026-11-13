@@ -1,8 +1,8 @@
 import pytest
 
-from companion.memory.fake import InMemoryMemoryPort
-from companion.memory.port import MemoryItem, MemoryKind
-from companion.memory.port import coerce_kind
+from companion.agent.memory.fake import InMemoryMemoryPort
+from companion.agent.memory.port import MemoryItem, MemoryKind
+from companion.agent.memory.port import coerce_kind
 
 
 def item(content, *, kind=MemoryKind.FACT, character="xiaowu", message="m1", **kw):

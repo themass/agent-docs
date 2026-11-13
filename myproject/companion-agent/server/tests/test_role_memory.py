@@ -7,16 +7,16 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from companion.memory.fake import InMemoryMemoryPort
-from companion.memory.recallers import MemoryPortRecaller, TimelineRecaller
-from companion.timeline.memory import InMemoryTimeline
+from companion.agent.memory.fake import InMemoryMemoryPort
+from companion.agent.memory.recallers import MemoryPortRecaller, TimelineRecaller
+from companion.service.timeline.memory import InMemoryTimeline
 from companion.api.http.deps import AllowAllVerifier, build_current_user
 from companion.api.http.routers.memory_v1 import build_router
-from companion.memory.recorder import ExtractionRecorder
-from companion.memory.hooks import RecallQuery, TurnRecord
-from companion.memory.subject import role_subject
-from companion.timeline.models import EventKind, TimelineEvent
-from companion.memory.port import MemoryItem
+from companion.agent.memory.recorder import ExtractionRecorder
+from companion.agent.memory.hooks import RecallQuery, TurnRecord
+from companion.agent.memory.subject import role_subject
+from companion.service.timeline.models import EventKind, TimelineEvent
+from companion.agent.memory.port import MemoryItem
 from memory_hub import AppConfig, MemoryHub
 
 
@@ -70,8 +70,8 @@ async def test_recorder_writes_into_role_space():
 
 
 async def test_tools_use_role_space():
-    from companion.tools.builtin import register_builtin_tools
-    from companion.tools.registry import ToolRegistry
+    from companion.service.tools_impl.builtin import register_builtin_tools
+    from companion.agent.tools.registry import ToolRegistry
 
     memory = _scoped()
     registry = ToolRegistry()
@@ -79,7 +79,7 @@ async def test_tools_use_role_space():
     ctx = lambda role: SimpleNamespace(owner_id=7, character_id=role, session_id=1, confirmation_id=None)  # noqa: E731
     remember = registry.get("remember_fact").handler
     recall = registry.get("recall_facts").handler
-    from companion.tools.builtin import RecallFactsParams, RememberFactParams
+    from companion.service.tools_impl.builtin import RecallFactsParams, RememberFactParams
 
     await remember(ctx("linche"), RememberFactParams(content="下周去杭州"))
     assert [i["content"] for i in await recall(ctx("linche"), RecallFactsParams(query="杭州"))] == ["下周去杭州"]

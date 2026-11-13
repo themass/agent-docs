@@ -9,8 +9,8 @@
 import hmac
 from typing import Any
 
-from companion.avatar.catalog import AvatarCatalog, ReleaseNotFound, ReleaseStateError
-from companion.avatar.package import MAX_PACKAGE_BYTES, InvalidPackage
+from companion.service.avatar.catalog import AvatarCatalog, ReleaseNotFound, ReleaseStateError
+from companion.service.avatar.package import MAX_PACKAGE_BYTES, InvalidPackage
 
 PREFIX = "/v1"
 

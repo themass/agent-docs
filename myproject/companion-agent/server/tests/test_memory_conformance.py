@@ -9,13 +9,13 @@ from tests.memory_conformance import check_port
 
 
 def test_in_memory_backend_conforms():
-    from companion.memory.fake import InMemoryMemoryPort
+    from companion.agent.memory.fake import InMemoryMemoryPort
 
     asyncio.run(check_port(InMemoryMemoryPort()))
 
 
 def test_hub_scoped_client_over_in_memory_conforms():
-    from companion.memory.fake import InMemoryMemoryPort
+    from companion.agent.memory.fake import InMemoryMemoryPort
     from memory_hub import AppConfig, MemoryHub
 
     hub = MemoryHub.from_config([AppConfig("companion")], lambda cfg: InMemoryMemoryPort())
@@ -29,7 +29,7 @@ DB_URL = os.environ.get("COMPANION_TEST_DATABASE_URL") or os.environ.get("COMPAN
 def test_sql_backend_conforms(memory_schema):
     from sqlalchemy.ext.asyncio import create_async_engine
 
-    from companion.memory.sql import SqlMemoryPort
+    from companion.agent.memory.sql import SqlMemoryPort
 
     async def go():
         engine = create_async_engine(DB_URL, pool_pre_ping=True)

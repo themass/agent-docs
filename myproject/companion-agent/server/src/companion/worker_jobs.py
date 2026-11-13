@@ -15,7 +15,7 @@ import os
 
 
 async def main() -> None:
-    from companion.jobs.background import run_forever
+    from companion.service.jobs.background import run_forever
     from companion.bootstrap.platform import build_platform, default_prompts
     from companion.config import settings
 

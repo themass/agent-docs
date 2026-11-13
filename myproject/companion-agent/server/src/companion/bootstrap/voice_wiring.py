@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from companion.brain.platform_brain import PlatformBrain
-from companion.voice.tts_archive import TtsArchiver
+from companion.service.turns.platform_brain import PlatformBrain
+from companion.service.voice.tts_archive import TtsArchiver
 from companion.api.livekit.entrypoint import VoiceParts
 
 

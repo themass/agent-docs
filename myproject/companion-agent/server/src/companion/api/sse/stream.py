@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Callable
 
 from companion.api.sse.encoder import KEEPALIVE_FRAME, encode_event
-from companion.turn.control import TurnControlPort
+from companion.service.turn.control import TurnControlPort
 
 RECONNECT_AFTER_MS = 1000
 

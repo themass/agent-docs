@@ -9,7 +9,7 @@ import asyncio
 from fastapi.testclient import TestClient
 
 from companion.bootstrap.platform import default_prompts
-from companion.memory.port import MemoryItem
+from companion.agent.memory.port import MemoryItem
 from companion.bootstrap.app import create_app
 from companion.api.http.routers.memory import DEFAULT_PAGE, MAX_PAGE
 
@@ -18,8 +18,8 @@ def _platform():
     """有平台时 /v1 的路由才存在，且读的是 Postgres。测试数据必须经由它落库。"""
     import os
 
-    from companion.brain.fake import FakeBrain
-    from companion.memory.fake import InMemoryMemoryPort
+    from companion.agent.brain.fake import FakeBrain
+    from companion.agent.memory.fake import InMemoryMemoryPort
     from companion.bootstrap.platform import build_platform
     from companion.config import Settings
 
@@ -50,7 +50,7 @@ def _as(user: str) -> dict:
 
 def _seed_facts(platform, user: str, count: int) -> None:
     """写进平台用的那个记忆后端（/v1/memory/facts 读的就是它）。"""
-    from companion.memory.subject import role_subject
+    from companion.agent.memory.subject import role_subject
 
     items = [
         MemoryItem(id=f"m{i}", content=f"事实{i}", source_character_id="linche")
@@ -67,8 +67,8 @@ def _pending_create(platform, user: str) -> str:
     """
     from datetime import UTC, datetime, timedelta
 
-    from companion.store.sql import SqlConfirmationStore
-    from companion.store.port import ConfirmationRecord
+    from companion.db.sql import SqlConfirmationStore
+    from companion.db.port import ConfirmationRecord
 
     # id 不能固定：同一个库上重复运行时主键会冲突（UniqueViolation）
     import uuid

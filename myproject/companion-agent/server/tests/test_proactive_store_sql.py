@@ -45,7 +45,7 @@ async def _with(store_factory, fn):
 
 
 def test_preferences_survive_a_restart():
-    from companion.proactive.store import SqlPreferencesStore
+    from companion.service.proactive.store import SqlPreferencesStore
 
     async def go():
         # 第一个进程：关掉主动消息并暂停到明天
@@ -71,7 +71,7 @@ def test_preferences_survive_a_restart():
 
 
 def test_preferences_without_a_row_return_defaults_and_do_not_create_one():
-    from companion.proactive.store import SqlPreferencesStore
+    from companion.service.proactive.store import SqlPreferencesStore
 
     async def go():
         engine = await _fresh()
@@ -87,7 +87,7 @@ def test_preferences_without_a_row_return_defaults_and_do_not_create_one():
 
 
 def test_quiet_hours_accept_hh_mm_strings_and_round_trip():
-    from companion.proactive.store import SqlPreferencesStore
+    from companion.service.proactive.store import SqlPreferencesStore
 
     async def go():
         engine = await _fresh()
@@ -108,8 +108,8 @@ def test_quiet_hours_accept_hh_mm_strings_and_round_trip():
 
 
 def test_inbox_message_is_still_there_after_a_restart():
-    from companion.proactive.store import SqlDelivery
-    from companion.proactive.delivery_port import Channel
+    from companion.service.proactive.store import SqlDelivery
+    from companion.service.proactive.delivery_port import Channel
 
     message = "你昨天说的面试，今天怎么样？"
 
@@ -131,8 +131,8 @@ def test_inbox_message_is_still_there_after_a_restart():
 
 def test_drain_marks_read_and_does_not_delete():
     """取走后不再出现在收件箱，但记录保留，事后能对账「她到底发过什么」。"""
-    from companion.proactive.store import SqlDelivery
-    from companion.proactive.delivery_port import Channel
+    from companion.service.proactive.store import SqlDelivery
+    from companion.service.proactive.delivery_port import Channel
 
     async def go():
         engine = await _fresh()
@@ -152,8 +152,8 @@ def test_drain_marks_read_and_does_not_delete():
 
 
 def test_one_users_inbox_never_leaks_into_anothers():
-    from companion.proactive.store import SqlDelivery
-    from companion.proactive.delivery_port import Channel
+    from companion.service.proactive.store import SqlDelivery
+    from companion.service.proactive.delivery_port import Channel
 
     async def go():
         engine = await _fresh()
@@ -170,9 +170,9 @@ def test_one_users_inbox_never_leaks_into_anothers():
 
 def test_send_ledger_counts_across_restarts_so_frequency_limits_hold():
     """频控是「每天 2 次」。两个进程各发一次，第三个进程必须看到已经 2 次。"""
-    from companion.proactive.store import SqlSendLedger
-    from companion.proactive.models import SendRecord
-    from companion.proactive.delivery_port import Channel
+    from companion.service.proactive.store import SqlSendLedger
+    from companion.service.proactive.models import SendRecord
+    from companion.service.proactive.delivery_port import Channel
 
     now = datetime.now(UTC)
 
@@ -190,9 +190,9 @@ def test_send_ledger_counts_across_restarts_so_frequency_limits_hold():
 
 
 def test_send_ledger_ignores_records_outside_the_window():
-    from companion.proactive.store import SqlSendLedger
-    from companion.proactive.models import SendRecord
-    from companion.proactive.delivery_port import Channel
+    from companion.service.proactive.store import SqlSendLedger
+    from companion.service.proactive.models import SendRecord
+    from companion.service.proactive.delivery_port import Channel
 
     now = datetime.now(UTC)
 

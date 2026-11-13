@@ -10,7 +10,7 @@ import os
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from companion.llm.router import LLMRouter, ModelEndpoint
+from companion.agent.llm.router import LLMRouter, ModelEndpoint
 
 LLMCall = Callable[[str], Awaitable[str]]
 

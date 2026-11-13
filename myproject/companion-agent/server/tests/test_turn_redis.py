@@ -12,7 +12,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from companion.turn.redis_control import lock_key, turn_key
+from companion.service.turn.redis_control import lock_key, turn_key
 
 REDIS_URL = os.environ.get("COMPANION_TEST_REDIS_URL", "")
 pytestmark = pytest.mark.skipif(not REDIS_URL, reason="COMPANION_TEST_REDIS_URL not set")
@@ -33,7 +33,7 @@ async def redis_client():
 
 @pytest.fixture
 async def control(redis_client):
-    from companion.turn.redis_control import RedisTurnControl
+    from companion.service.turn.redis_control import RedisTurnControl
 
     return RedisTurnControl(redis_client)
 
@@ -85,7 +85,7 @@ class Queue:
 
 
 async def _cleanup(redis_client, sid):
-    from companion.turn.redis_control import events_key, lock_key, turn_key
+    from companion.service.turn.redis_control import events_key, lock_key, turn_key
 
     await redis_client.delete(events_key(sid), turn_key(sid), lock_key(sid))
 
@@ -98,7 +98,7 @@ async def _cleanup(redis_client, sid):
     ("tool", True, 0, "queued"),
 ])
 async def test_lua_decision_matches_the_domain_table(control, redis_client, phase, steerable, used, expected):
-    from companion.turn.queue import TurnPhase
+    from companion.service.turn.queue import TurnPhase
 
     sid = _session_id()
     try:
@@ -116,7 +116,7 @@ async def test_lua_decision_matches_the_domain_table(control, redis_client, phas
 
 
 async def test_phase_only_moves_forward(control, redis_client):
-    from companion.turn.queue import TurnPhase
+    from companion.service.turn.queue import TurnPhase
 
     sid = _session_id()
     try:
@@ -142,10 +142,10 @@ async def test_lock_release_only_by_owner(control, redis_client):
 
 
 async def test_merge_during_pre_output_restarts_and_attaches_the_merged_message(control, redis_client):
-    from companion.chat.submit import SubmitService
-    from companion.chat.turn_runner import TurnInput, TurnRunner
-    from companion.chat.lifecycle import DrainState
-    from companion.turn.brain_port import TextDelta
+    from companion.service.chat.submit import SubmitService
+    from companion.service.chat.turn_runner import TurnInput, TurnRunner
+    from companion.service.chat.lifecycle import DrainState
+    from companion.agent.brain.port import TextDelta
 
     sid = _session_id()
     messages, queue = Messages(), Queue()
@@ -189,9 +189,9 @@ async def test_merge_during_pre_output_restarts_and_attaches_the_merged_message(
 
 
 async def test_steer_during_output_is_injected_and_attached(control, redis_client):
-    from companion.chat.submit import SubmitService
-    from companion.chat.turn_runner import TurnInput, TurnRunner
-    from companion.turn.brain_port import TextDelta
+    from companion.service.chat.submit import SubmitService
+    from companion.service.chat.turn_runner import TurnInput, TurnRunner
+    from companion.agent.brain.port import TextDelta
 
     sid = _session_id()
     messages, queue = Messages(), Queue()
@@ -226,9 +226,9 @@ async def test_steer_during_output_is_injected_and_attached(control, redis_clien
 
 
 async def test_uninjected_steer_goes_back_to_the_queue(control, redis_client):
-    from companion.chat.turn_runner import TurnInput, TurnRunner
-    from companion.turn.queue import TurnPhase
-    from companion.turn.brain_port import TextDelta
+    from companion.service.chat.turn_runner import TurnInput, TurnRunner
+    from companion.service.turn.queue import TurnPhase
+    from companion.agent.brain.port import TextDelta
 
     sid = _session_id()
     messages, queue = Messages(), Queue()
@@ -242,12 +242,12 @@ async def test_uninjected_steer_goes_back_to_the_queue(control, redis_client):
         await control.init_turn(session_id=sid, turn_id="T")
         await control.send_cancel(turn_id="T")  # 无关的控制消息不应影响收尾
         await control.publish(session_id=sid, event="noop", data={})
-        from companion.chat.turn_runner import _RunState
+        from companion.service.chat.turn_runner import _RunState
         inp = TurnInput(owner_id=7, session_id=sid, character_id="linche", turn_id="T", owner="p:T",
                         text="x", message_ids=[1])
         state = _RunState()
         state.steer_pushed.append(55)
-        from companion.turn.steer import SteerInbox
+        from companion.agent.brain.steer import SteerInbox
         inbox = SteerInbox(budget=3)
         inbox.push("55", "没来得及注入")
         await runner._finish(inp, state, inbox)
@@ -305,9 +305,9 @@ async def test_merge_that_lands_before_the_first_token_is_never_lost(control, re
 
     Lua 判定为合并后、运行器读到之前，首 token 就到了。修复前这条合并会被丢掉。
     """
-    from companion.chat.turn_runner import TurnInput, TurnRunner
-    from companion.turn.brain_port import TextDelta
-    from companion.turn.redis_control import ctl_key
+    from companion.service.chat.turn_runner import TurnInput, TurnRunner
+    from companion.agent.brain.port import TextDelta
+    from companion.service.turn.redis_control import ctl_key
 
     sid = _session_id()
     messages, queue = Messages(), Queue()

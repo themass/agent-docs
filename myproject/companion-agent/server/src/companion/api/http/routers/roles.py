@@ -2,8 +2,8 @@
 
 from typing import Any
 
-from companion.roles.service import RoleForbidden, RoleService
-from companion.roles.catalog import negotiate_locale
+from companion.service.roles.service import RoleForbidden, RoleService
+from companion.agent.roles.catalog import negotiate_locale
 
 PREFIX = "/v1"
 

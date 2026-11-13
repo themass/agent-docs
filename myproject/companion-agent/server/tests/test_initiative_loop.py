@@ -11,15 +11,15 @@ from datetime import UTC, datetime, time, timedelta
 
 import pytest
 
-from companion.timeline.memory import InMemoryTimeline
-from companion.proactive.models import Channel, InitiativePreferences
-from companion.proactive.router import ChannelRouter
-from companion.proactive.delivery_memory import InAppDelivery, InMemorySendLedger, RecordingDelivery
-from companion.proactive.loop import InitiativeLoop, SpeakDenied
-from companion.proactive.scheduler import InitiativeScheduler
-from companion.proactive.loop import _channel_of, occurrence_key
-from companion.timeline.models import EventKind, TimelineEvent
-from companion.turn.trigger import Trigger, TriggerKind
+from companion.service.timeline.memory import InMemoryTimeline
+from companion.service.proactive.models import Channel, InitiativePreferences
+from companion.service.proactive.router import ChannelRouter
+from companion.service.proactive.delivery_memory import InAppDelivery, InMemorySendLedger, RecordingDelivery
+from companion.service.proactive.loop import InitiativeLoop, SpeakDenied
+from companion.service.proactive.scheduler import InitiativeScheduler
+from companion.service.proactive.loop import _channel_of, occurrence_key
+from companion.service.timeline.models import EventKind, TimelineEvent
+from companion.service.turn.trigger import Trigger, TriggerKind
 
 
 def at(hour=10, minute=0, day=7):

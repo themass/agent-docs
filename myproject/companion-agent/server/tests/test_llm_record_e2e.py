@@ -13,8 +13,8 @@ from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage, HumanMessage
 from sqlalchemy import select
 
-from companion.brain.deerflow import DeerFlowBrain
-from companion.turn.brain_port import TextDelta, TurnRequest
+from companion.agent.brain.deerflow import DeerFlowBrain
+from companion.agent.brain.port import TextDelta, TurnRequest
 
 DB = os.environ.get("COMPANION_TEST_DATABASE_URL", "")
 REDIS = os.environ.get("COMPANION_TEST_REDIS_URL", "")
@@ -93,7 +93,7 @@ def _turn(client, user: int, text="今天好累"):
 
 
 async def _traces(platform, user):
-    from companion.store.schema import turn_trace
+    from companion.db.schema import turn_trace
 
     async with platform.engine.connect() as conn:
         return (await conn.execute(select(turn_trace).where(turn_trace.c.owner_id == user))).mappings().all()
@@ -103,7 +103,7 @@ async def _blob_count(platform, user):
     """只数这个用户的文本块。整张表的数会带上别的测试、上一次运行留下的块。"""
     from sqlalchemy import func
 
-    from companion.store.schema import text_blob
+    from companion.db.schema import text_blob
 
     async with platform.engine.connect() as conn:
         return (await conn.execute(select(func.count()).select_from(text_blob)
@@ -162,7 +162,7 @@ async def test_consent_defaults_to_off():
 
 
 async def _turns(platform, user):
-    from companion.store.schema import chat_turn
+    from companion.db.schema import chat_turn
 
     async with platform.engine.connect() as conn:
         return (await conn.execute(select(chat_turn).where(chat_turn.c.owner_id == user))).mappings().all()
@@ -220,7 +220,7 @@ async def test_a_slow_trace_store_does_not_delay_the_reply():
 
 @pytestmark_e2e
 async def test_with_the_switch_off_nothing_is_recorded_but_the_chat_still_works():
-    from companion.store.schema import chat_turn
+    from companion.db.schema import chat_turn
     from companion.bootstrap.app import create_app
 
     user = random.randint(10**6, 10**7)

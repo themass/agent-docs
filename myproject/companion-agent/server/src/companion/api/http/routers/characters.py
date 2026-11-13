@@ -14,8 +14,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from companion.roles.port import CharacterSourcePort
-from companion.roles.card import CharacterCard, CharacterFormatError
+from companion.service.roles.port import CharacterSourcePort
+from companion.agent.roles.card import CharacterCard, CharacterFormatError
 
 _CARD_SUFFIX = ".v2.json"
 

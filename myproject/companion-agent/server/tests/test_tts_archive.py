@@ -5,10 +5,10 @@ import wave
 
 from sqlalchemy import select
 
-from companion.trace.qa import SqlQaStore
-from companion.store.schema import voice_turn
-from companion.voice.tts_archive import MAX_OPEN_TURNS, TtsArchiver
-from companion.voice.tts_capture import TtsSegment
+from companion.service.trace.qa import SqlQaStore
+from companion.db.schema import voice_turn
+from companion.service.voice.tts_archive import MAX_OPEN_TURNS, TtsArchiver
+from companion.service.voice.tts_capture import TtsSegment
 
 
 def seg(text="先歇一会儿。", pcm=b"\x01\x00" * 16000, rate=16000, completed=True, ttfb=300, truncated=False):

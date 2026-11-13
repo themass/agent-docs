@@ -6,8 +6,8 @@ import pytest
 from livekit import rtc
 from livekit.agents import stt as lk_stt
 
-from companion.voice.stt_transcribe import FRAME_MS, transcribe_wav, wav_frames
-from companion.voice.tts_capture import pcm_to_wav
+from companion.service.voice.stt_transcribe import FRAME_MS, transcribe_wav, wav_frames
+from companion.service.voice.tts_capture import pcm_to_wav
 
 
 class FakeStream:

@@ -21,22 +21,22 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-from companion.turn.redis_control import RedisTurnControl
-from companion.memory.recallers import MemoryPortRecaller, TimelineRecaller
-from companion.proactive.push_log import LogPush
-from companion.roles.catalog_files import load_system_catalog
-from companion.uploads.images import normalize_image
-from companion.account.sql import SqlAccountStore
-from companion.avatar.sql import SqlAvatarReleaseStore
-from companion.jobs.sql import SqlJobStore
-from companion.persona.sql import SqlPersonaStore
-from companion.proactive.store import (
+from companion.service.turn.redis_control import RedisTurnControl
+from companion.agent.memory.recallers import MemoryPortRecaller, TimelineRecaller
+from companion.service.proactive.push_log import LogPush
+from companion.service.roles.catalog_files import load_system_catalog
+from companion.service.uploads.images import normalize_image
+from companion.service.account.sql import SqlAccountStore
+from companion.service.avatar.sql import SqlAvatarReleaseStore
+from companion.service.jobs.sql import SqlJobStore
+from companion.service.persona.sql import SqlPersonaStore
+from companion.service.proactive.store import (
     SqlDelivery, SqlPreferencesStore, SqlSendLedger,
 )
-from companion.timeline.sql import SqlTimelineStore
-from companion.memory.sql import SqlMemoryPort
-from companion.proactive.reminders_sql import SqlReminderStore
-from companion.store.sql import (
+from companion.service.timeline.sql import SqlTimelineStore
+from companion.agent.memory.sql import SqlMemoryPort
+from companion.service.proactive.reminders_sql import SqlReminderStore
+from companion.db.sql import (
     SqlConfirmationStore,
     SqlMessageStore,
     SqlQueueStore,
@@ -46,37 +46,37 @@ from companion.store.sql import (
     SqlUploadStore,
 )
 from companion.api.http.routers.chat import ChatApi
-from companion.compliance.sql import SqlComplianceStore
-from companion.account.purge import AccountPurgeService
-from companion.compliance.service import ComplianceService
-from companion.avatar.catalog import AvatarCatalog
-from companion.chat.assembler import PromptAssembler, skill_ids_of
-from companion.chat.context import ContextBuilder
-from companion.chat.history import HistoryService
-from companion.chat.lifecycle import DrainState
-from companion.chat.resummarize import ResummarizeService
-from companion.chat.turn_runner import TurnOutcome
-from companion.memory.extraction import MemoryExtractor
-from companion.memory.recorder import ExtractionRecorder
-from companion.persona.updater import PERSONA_JOB, PersonaUpdater
-from companion.timeline.recorder import TimelineRecorder
-from companion.proactive.reminders import ReminderDispatcher, ReminderService, SessionGone
-from companion.roles.resolver import RoleProfileResolver
-from companion.roles.service import RoleService
-from companion.tools.builtin import register_builtin_tools
-from companion.tools.confirmation import ConfirmationService
-from companion.tools.runtime import ToolRuntime
-from companion.uploads.service import UploadService
+from companion.service.compliance.sql import SqlComplianceStore
+from companion.service.account.purge import AccountPurgeService
+from companion.service.compliance.service import ComplianceService
+from companion.service.avatar.catalog import AvatarCatalog
+from companion.service.chat.assembler import PromptAssembler, skill_ids_of
+from companion.service.chat.context import ContextBuilder
+from companion.service.chat.history import HistoryService
+from companion.service.chat.lifecycle import DrainState
+from companion.service.chat.resummarize import ResummarizeService
+from companion.service.chat.turn_runner import TurnOutcome
+from companion.agent.memory.extraction import MemoryExtractor
+from companion.agent.memory.recorder import ExtractionRecorder
+from companion.service.persona.updater import PERSONA_JOB, PersonaUpdater
+from companion.service.timeline.recorder import TimelineRecorder
+from companion.service.proactive.reminders import ReminderDispatcher, ReminderService, SessionGone
+from companion.service.roles.resolver import RoleProfileResolver
+from companion.service.roles.service import RoleService
+from companion.service.tools_impl.builtin import register_builtin_tools
+from companion.agent.tools.confirmation import ConfirmationService
+from companion.agent.tools.runtime import ToolRuntime
+from companion.service.uploads.service import UploadService
 from companion.bootstrap.chat_stack import build_chat_api
-from companion.brain.llm_trace import LlmCallCollector
-from companion.trace.writer import BackgroundWriter
+from companion.agent.brain.llm_trace import LlmCallCollector
+from companion.service.trace.writer import BackgroundWriter
 from companion.config import Settings
 from companion.paths import CHARACTERS_DIR, ROLES_CATALOG_DIR, SKILLS_PUBLIC_DIR
-from companion.prompt.templates import PROMPT_VERSION
-from companion.history.summary import TIMELINE_RECORD_JOB
-from companion.memory.pipeline import MEMORY_RECORD_JOB, MemoryPipeline
-from companion.tools.registry import ToolRegistry
-from companion.turn.brain_port import TextDelta, TurnRequest
+from companion.agent.prompt.templates import PROMPT_VERSION
+from companion.service.history.summary import TIMELINE_RECORD_JOB
+from companion.agent.memory.pipeline import MEMORY_RECORD_JOB, MemoryPipeline
+from companion.agent.tools.registry import ToolRegistry
+from companion.agent.brain.port import TextDelta, TurnRequest
 from memory_hub import AppConfig, MemoryHub
 from memory_hub.hub import ScopedMemory
 
@@ -161,9 +161,9 @@ def _checkpointer(url: str, profile: Any, tag: str = "") -> tuple[Any, Any]:
 def _build_brain(settings: Settings, *, registry: ToolRegistry, runtime: ToolRuntime, checkpointer: Any,
                  product: str = "chat") -> tuple[Any, Any, Any]:
     """真实大脑：路由表里的 companion_chat 模型 + DeerFlow 图。返回 (brain, graph, llm_call)。"""
-    from companion.brain.deerflow import DeerFlowBrain, build_summarization, build_turn_graph
-    from companion.brain.tools import to_langchain_tools
-    from companion.llm.router import LLMRouter
+    from companion.agent.brain.deerflow import DeerFlowBrain, build_summarization, build_turn_graph
+    from companion.agent.brain.tools import to_langchain_tools
+    from companion.agent.llm.router import LLMRouter
     from companion.bootstrap.models import brain_models, chat_model, scenario_call
 
     router = LLMRouter(settings.companion_llm_routing_path)
@@ -185,8 +185,8 @@ def _build_brain(settings: Settings, *, registry: ToolRegistry, runtime: ToolRun
 
 def default_prompts() -> PromptAssembler:
     """入口进程用的角色卡与 skill 来源（仓库里的 characters/ 与 skills/public/）。"""
-    from companion.roles.files import CharacterSource
-    from companion.skills.library import SkillLibrary
+    from companion.service.roles.files import CharacterSource
+    from companion.agent.skills.library import SkillLibrary
 
     return PromptAssembler(characters=CharacterSource(CHARACTERS_DIR),
                            skills=SkillLibrary(SKILLS_PUBLIC_DIR))
@@ -211,7 +211,7 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     engine = make_engine(settings.database_url, pool_profile)
     redis = redis_async.from_url(settings.companion_redis_url, decode_responses=False)
 
-    from companion.trace.qa import SqlQaStore
+    from companion.service.trace.qa import SqlQaStore
 
     qa = SqlQaStore(engine)
     sessions = SqlSessionStore(engine)
@@ -249,7 +249,7 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
 
     conversation = None
     if graph is not None and checkpointer is not None:
-        from companion.brain.conversation_state import DeerFlowConversationState
+        from companion.agent.brain.conversation_state import DeerFlowConversationState
 
         conversation = DeerFlowConversationState(graph)
 
@@ -404,7 +404,7 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
 
     uploads = objects = None
     if settings.tos_endpoint:
-        from companion.uploads.tos import TosObjectStore
+        from companion.service.uploads.tos import TosObjectStore
 
         objects = TosObjectStore(endpoint=settings.tos_endpoint, bucket=settings.tos_bucket,
                                  access_key=settings.tos_access_key, secret_key=settings.tos_secret_key,
@@ -418,7 +418,7 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
 
     threads = None
     if checkpointer is not None:
-        from companion.brain.conversation_state import CheckpointThreadEraser
+        from companion.agent.brain.conversation_state import CheckpointThreadEraser
 
         threads = CheckpointThreadEraser(checkpointer)
     system_role_ids = tuple(r.id for r in catalog.roles) + tuple(sorted(BUILTIN_PERSONA_IDS))

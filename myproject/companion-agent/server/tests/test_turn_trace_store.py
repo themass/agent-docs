@@ -5,9 +5,9 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select, update
 
-from companion.trace.qa import SqlQaStore
-from companion.store.schema import text_blob, turn_trace
-from companion.trace.model import LlmCall
+from companion.service.trace.qa import SqlQaStore
+from companion.db.schema import text_blob, turn_trace
+from companion.agent.brain.trace_model import LlmCall
 
 SYSTEM = "你是林澈。\n\n说话简短。\n\n" + "\n\n".join(f"规则{i}：" + "x" * 60 for i in range(20))
 
@@ -145,7 +145,7 @@ async def test_purge_removes_blocks_nothing_references_any_more(sqlite_engine):
 
 
 async def test_more_blocks_than_one_insert_batch_are_all_written(sqlite_engine):
-    from companion.trace.qa import BLOB_BATCH
+    from companion.service.trace.qa import BLOB_BATCH
 
     store = SqlQaStore(sqlite_engine)
     n = BLOB_BATCH * 2 + 37

@@ -2,8 +2,8 @@
 
 from datetime import UTC, datetime, timedelta
 
-from companion.timeline.sql import SqlTimelineStore
-from companion.timeline.models import EventKind, EventStatus, TimelineEvent
+from companion.service.timeline.sql import SqlTimelineStore
+from companion.service.timeline.models import EventKind, EventStatus, TimelineEvent
 
 # 相对当前时间：事件已过去时 next_at_utc 为空，固定的历史日期会让用例悄悄失效
 NOW = datetime.now(UTC).replace(second=0, microsecond=0) + timedelta(hours=1)

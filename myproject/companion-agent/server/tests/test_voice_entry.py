@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from companion.turn.brain_port import TurnRefused
+from companion.agent.brain.port import TurnRefused
 from companion.api.livekit.agent import (
     REFUSED_LINE,
     UNAVAILABLE_LINE,

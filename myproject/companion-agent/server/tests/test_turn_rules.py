@@ -2,8 +2,8 @@
 
 import pytest
 
-from companion.store.port import QUEUE_TRANSITIONS
-from companion.turn.queue import (
+from companion.db.port import QUEUE_TRANSITIONS
+from companion.service.turn.queue import (
     DRAIN_BATCH_SIZE,
     DRAIN_MAX_ATTEMPTS,
     Disposition,

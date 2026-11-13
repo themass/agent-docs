@@ -2,7 +2,7 @@
 
 import asyncio
 
-from companion.trace.writer import BackgroundWriter
+from companion.service.trace.writer import BackgroundWriter
 
 
 def job(log, tag, delay=0.0, fail=False):

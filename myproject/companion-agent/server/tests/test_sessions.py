@@ -10,8 +10,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from companion.room.sessions import ROOM_PREFIX, InMemorySessionStore, SessionError, SessionRecord, SessionService, room_name_for
-from companion.room.livekit_tokens import TokenMinter, decode_jwt, user_identity
+from companion.service.room.sessions import ROOM_PREFIX, InMemorySessionStore, SessionError, SessionRecord, SessionService, room_name_for
+from companion.service.room.livekit_tokens import TokenMinter, decode_jwt, user_identity
 
 SECRET = "test-only-secret"
 API_KEY = "test-api-key"
@@ -75,7 +75,7 @@ async def test_missing_livekit_url_is_a_session_error(service):
 
 
 async def test_missing_credentials_surface_as_token_error(service):
-    from companion.room.livekit_tokens import MissingCredentials
+    from companion.service.room.livekit_tokens import MissingCredentials
 
     broken = SessionService(
         store=service.store,

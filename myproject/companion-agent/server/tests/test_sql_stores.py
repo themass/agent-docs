@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def _guard_database_name() -> None:
     """测试会删除并重建表。vpn 库与 Java 后端共用，所以只允许碰带 ca_ 前缀的表。"""
-    from companion.store.schema import TABLE_PREFIX, metadata
+    from companion.db.schema import TABLE_PREFIX, metadata
 
     foreign = [t for t in metadata.tables if not t.startswith(TABLE_PREFIX)]
     if foreign:
@@ -41,7 +41,7 @@ def migrated():
 def test_migration_is_reversible_and_creates_all_tables(migrated):
     from sqlalchemy import create_engine, inspect
 
-    from companion.store.schema import metadata
+    from companion.db.schema import metadata
 
     sync_url = migrated.replace("+aiomysql", "+pymysql")
     engine = create_engine(sync_url)
@@ -64,7 +64,7 @@ def run(coro):
 
 
 def test_message_store_attach_edit_and_soft_delete(migrated):
-    from companion.store.sql import SqlMessageStore, SqlSessionStore
+    from companion.db.sql import SqlMessageStore, SqlSessionStore
 
     async def go():
         engine = await _engine(migrated)
@@ -91,7 +91,7 @@ def test_message_store_attach_edit_and_soft_delete(migrated):
 
 
 def test_queue_transitions_follow_the_table_and_refuse_illegal_ones(migrated):
-    from companion.store.sql import SqlMessageStore, SqlQueueStore, SqlSessionStore
+    from companion.db.sql import SqlMessageStore, SqlQueueStore, SqlSessionStore
 
     async def go():
         engine = await _engine(migrated)
@@ -115,8 +115,8 @@ def test_queue_transitions_follow_the_table_and_refuse_illegal_ones(migrated):
 
 
 def test_confirmation_claim_finish_and_expiry(migrated):
-    from companion.store.sql import SqlConfirmationStore
-    from companion.store.port import ConfirmationRecord
+    from companion.db.sql import SqlConfirmationStore
+    from companion.db.port import ConfirmationRecord
 
     async def go():
         engine = await _engine(migrated)
@@ -140,7 +140,7 @@ def test_confirmation_claim_finish_and_expiry(migrated):
 
 
 def test_job_claim_is_exclusive_and_dedupe_holds(migrated):
-    from companion.jobs.sql import SqlJobStore
+    from companion.service.jobs.sql import SqlJobStore
 
     async def go():
         engine = await _engine(migrated)
@@ -165,8 +165,8 @@ def test_job_claim_is_exclusive_and_dedupe_holds(migrated):
 
 
 def test_tool_call_audit_trim_removes_only_old_rows(migrated):
-    from companion.store.sql import SqlToolCallStore
-    from companion.tools.port import ToolCallRecord
+    from companion.db.sql import SqlToolCallStore
+    from companion.agent.tools.port import ToolCallRecord
 
     async def go():
         engine = await _engine(migrated)

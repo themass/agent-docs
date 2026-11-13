@@ -6,13 +6,13 @@
 
 import pytest
 
-from companion.roles.files import CharacterSource
-from companion.skills.library import DEFAULT_SKILLS_ROOT, SkillLibrary
-from companion.chat.assembler import skill_id_of, skill_ids_of
-from companion.roles.resolver import RoleProfileResolver
+from companion.service.roles.files import CharacterSource
+from companion.agent.skills.library import DEFAULT_SKILLS_ROOT, SkillLibrary
+from companion.service.chat.assembler import skill_id_of, skill_ids_of
+from companion.service.roles.resolver import RoleProfileResolver
 from companion.paths import CHARACTERS_DIR
-from companion.prompt.roleplay import PromptBudget, build_prompt_plan
-from companion.roles.card import CharacterCard
+from companion.agent.prompt.roleplay import PromptBudget, build_prompt_plan
+from companion.agent.roles.card import CharacterCard
 
 CHARACTERS = CharacterSource(CHARACTERS_DIR)
 LIBRARY = SkillLibrary(DEFAULT_SKILLS_ROOT)
@@ -113,7 +113,7 @@ def test_real_cards_fit_the_budget_with_every_optional_skill_stacked(card_id):
     ids = skill_ids_of(card) + [s for s in OPTIONAL_COMPANION_SKILLS if s not in skill_ids_of(card)]
     method = LIBRARY.compose(ids)
 
-    from companion.roles.profile import from_card
+    from companion.agent.prompt.role_profile import from_card
     from dataclasses import replace
     profile = replace(from_card(card), method=method)
     plan = build_prompt_plan(profile, memory_block="x" * 800, persona_block="y" * 600)

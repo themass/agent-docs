@@ -12,10 +12,10 @@ PATCH 事实记忆采用「删除旧条目 + 写入新条目」：后端没有�
 import uuid
 from typing import Any
 
-from companion.util.ids import new_ulid
-from companion.memory.subject import role_subject
-from companion.timeline.models import EventKind, EventOrigin, EventStatus, TimelineEvent
-from companion.memory.port import MemoryItem, MemoryKind
+from companion.agent.util.ids import new_ulid
+from companion.agent.memory.subject import role_subject
+from companion.service.timeline.models import EventKind, EventOrigin, EventStatus, TimelineEvent
+from companion.agent.memory.port import MemoryItem, MemoryKind
 
 PREFIX = "/v1"
 

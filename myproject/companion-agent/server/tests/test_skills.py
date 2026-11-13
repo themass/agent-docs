@@ -1,6 +1,6 @@
 import pytest
 
-from companion.skills.library import SkillFormatError, SkillLibrary, SkillNotFound, SkillPathError, split_frontmatter
+from companion.agent.skills.library import SkillFormatError, SkillLibrary, SkillNotFound, SkillPathError, split_frontmatter
 
 SKILL_MD = """\
 ---

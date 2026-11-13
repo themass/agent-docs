@@ -8,9 +8,9 @@ from datetime import UTC, datetime, time, timedelta
 
 import pytest
 
-from companion.proactive.policy import InitiativePolicy
-from companion.proactive.models import InitiativePreferences, InitiativeState, SendRecord, Channel
-from companion.turn.trigger import TriggerKind
+from companion.service.proactive.policy import InitiativePolicy
+from companion.service.proactive.models import InitiativePreferences, InitiativeState, SendRecord, Channel
+from companion.service.turn.trigger import TriggerKind
 
 
 def at(year=2026, month=11, day=7, hour=10, minute=0):

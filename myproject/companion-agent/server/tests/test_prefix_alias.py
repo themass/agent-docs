@@ -18,8 +18,8 @@ ME = {"Authorization": "Bearer 12345"}
 
 @pytest.fixture(scope="module")
 def client():
-    from companion.brain.fake import FakeBrain
-    from companion.memory.fake import InMemoryMemoryPort
+    from companion.agent.brain.fake import FakeBrain
+    from companion.agent.memory.fake import InMemoryMemoryPort
     from companion.bootstrap.app import create_app
     from companion.bootstrap.platform import default_prompts
     from companion.bootstrap.platform import build_platform

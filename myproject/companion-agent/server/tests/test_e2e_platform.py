@@ -41,10 +41,10 @@ def _png() -> bytes:
 
 
 def _platform():
-    from companion.memory.fake import InMemoryMemoryPort
+    from companion.agent.memory.fake import InMemoryMemoryPort
     from companion.bootstrap.platform import default_prompts
     from companion.bootstrap.platform import build_platform
-    from companion.brain.fake import FakeBrain
+    from companion.agent.brain.fake import FakeBrain
     from companion.config import Settings
 
     settings = Settings(
