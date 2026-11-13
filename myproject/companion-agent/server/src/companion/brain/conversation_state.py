@@ -10,7 +10,7 @@ from typing import Any
 
 from langchain_core.messages import AIMessage, HumanMessage, RemoveMessage
 
-from companion.adapters.brain.deerflow import thread_id_for
+from companion.brain.deerflow import thread_id_for
 
 # 更新状态时以哪个节点的名义写入。消息通道的合并规则（按 id 追加、替换、删除）与节点无关；
 # 指定节点只是为了让 LangGraph 不报「无法判断由谁写入」。

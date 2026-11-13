@@ -10,7 +10,7 @@ import pytest
 
 from companion.domain.proactive.policy import InitiativePolicy
 from companion.domain.proactive.models import InitiativePreferences, InitiativeState, SendRecord, Channel
-from companion.domain.turn.trigger import TriggerKind
+from companion.turn.trigger import TriggerKind
 
 
 def at(year=2026, month=11, day=7, hour=10, minute=0):

@@ -12,10 +12,10 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
 
-from companion.adapters.brain.conversation_state import DeerFlowConversationState
-from companion.adapters.brain.deerflow import DeerFlowBrain, build_summarization, build_turn_graph
+from companion.brain.conversation_state import DeerFlowConversationState
+from companion.brain.deerflow import DeerFlowBrain, build_summarization, build_turn_graph
 from companion.domain.prompt.plan import DepthInjection, PromptPlan
-from companion.ports.brain import TextDelta, TurnInputMessage, TurnRequest
+from companion.brain.port import TextDelta, TurnInputMessage, TurnRequest
 
 PG_URL = os.environ.get("COMPANION_TEST_PG_URL", "")
 pytestmark = pytest.mark.skipif(not PG_URL, reason="COMPANION_TEST_PG_URL not set")

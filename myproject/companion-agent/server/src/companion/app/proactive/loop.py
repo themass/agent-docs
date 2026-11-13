@@ -29,7 +29,7 @@ from companion.ports.delivery import DeliveryError, DeliveryReceipt
 from companion.domain.proactive.models import Channel, InitiativePreferences, InitiativeState
 from companion.app.proactive.scheduler import InitiativeScheduler
 from companion.domain.text.events import strip_emotion_tags
-from companion.domain.turn.trigger import Trigger
+from companion.turn.trigger import Trigger
 
 logger = logging.getLogger(__name__)
 

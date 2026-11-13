@@ -11,8 +11,8 @@ from typing import Any
 
 from companion.app.chat.voice_session import ChatSessionError, resolve_chat_session
 from companion.app.proactive.loop import SpeakDenied
-from companion.domain.turn.trigger import Trigger
-from companion.ports.brain import TurnRefused, TurnRequest
+from companion.turn.trigger import Trigger
+from companion.brain.port import TurnRefused, TurnRequest
 
 
 class PlatformSpeaker:

@@ -33,9 +33,9 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
 
 from companion.app.chat.lifecycle import DrainState
-from companion.domain.turn.queue import TurnPhase
-from companion.domain.turn.steer import SteerInbox
-from companion.ports.brain import (
+from companion.turn.queue import TurnPhase
+from companion.turn.steer import SteerInbox
+from companion.brain.port import (
     BrainEvent,
     GraphMessageIds,
     TextDelta,
@@ -45,7 +45,7 @@ from companion.ports.brain import (
     TurnRequest,
 )
 from companion.ports.store import MessageStore, QueueStore
-from companion.ports.turn_control import TurnControlPort
+from companion.turn.control import TurnControlPort
 
 log = logging.getLogger("companion.turn")
 

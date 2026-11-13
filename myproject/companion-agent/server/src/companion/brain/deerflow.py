@@ -18,14 +18,14 @@ from typing import Any
 
 from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage, HumanMessage, ToolMessage
 
-from companion.adapters.brain.graph_middleware import (
+from companion.brain.graph_middleware import (
     PromptMiddleware,
     SteerMiddleware,
     ToolAuditMiddleware,
     ToolAuthorizationMiddleware,
     ToolVisibilityMiddleware,
 )
-from companion.ports.brain import (
+from companion.brain.port import (
     BrainEvent,
     BrainTurn,
     GraphMessageIds,
@@ -34,7 +34,7 @@ from companion.ports.brain import (
     ToolStarted,
     TurnRequest,
 )
-from companion.ports.conversation import lc_user_id
+from companion.turn.conversation import lc_user_id
 from deerflow.agents.factory import create_deerflow_agent
 from deerflow.agents.features import RuntimeFeatures
 

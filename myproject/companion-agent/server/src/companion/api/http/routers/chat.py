@@ -13,9 +13,9 @@ from companion.api.sse.stream import event_stream
 from companion.app.chat.drain import DrainService
 from companion.app.chat.history import HistoryBusy, HistoryService, NotEditable, NotLatest, find_reply
 from companion.app.chat.submit import SubmitService
-from companion.domain.turn.queue import DRAIN_MAX_ATTEMPTS
+from companion.turn.queue import DRAIN_MAX_ATTEMPTS
 from companion.ports.store import MessageStore, QueueStore, SessionStore
-from companion.ports.turn_control import TurnControlPort
+from companion.turn.control import TurnControlPort
 
 PREFIX = "/v1"
 REGENERATE_NOTE = "请基于上面的对话重新回答最后一条消息。"

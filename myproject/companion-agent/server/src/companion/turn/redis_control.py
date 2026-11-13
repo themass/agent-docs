@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from companion.domain.turn.queue import Disposition, TurnPhase
+from companion.turn.queue import Disposition, TurnPhase
 
 # 共用的 Redis：所有键带 ca: 前缀，与 job-come 的 jc:… 区分（不清库、不占用别的 db）。
 KEY_PREFIX = "ca:"

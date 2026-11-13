@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
-from companion.domain.turn.queue import Disposition, TurnPhase
+from companion.turn.queue import Disposition, TurnPhase
 
 
 class TurnControlPort(Protocol):

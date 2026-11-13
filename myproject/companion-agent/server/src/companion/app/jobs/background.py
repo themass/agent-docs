@@ -19,7 +19,7 @@ import os
 import socket
 from datetime import UTC, datetime
 
-from companion.domain.history.summary import RESUMMARIZE_JOB, TIMELINE_RECORD_JOB
+from companion.history.summary import RESUMMARIZE_JOB, TIMELINE_RECORD_JOB
 
 log = logging.getLogger("companion.background")
 
@@ -66,7 +66,7 @@ def build_handlers(platform) -> dict:
 
 def build_initiative_loop(platform):
     """主动开口：扫时间线里快到的事 → 让她说一句 → 投递到收件箱。"""
-    from companion.adapters.brain.platform_brain import PlatformBrain
+    from companion.brain.platform_brain import PlatformBrain
     from companion.app.proactive.loop import InitiativeLoop
     from companion.app.proactive.router import ChannelRouter
     from companion.app.proactive.scheduler import InitiativeScheduler

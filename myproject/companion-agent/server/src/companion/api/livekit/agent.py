@@ -16,8 +16,8 @@ import time
 from collections.abc import AsyncIterator
 from typing import Any
 
-from companion.domain.turn.pipeline import EventSink, TurnPipeline
-from companion.ports.brain import TurnRefused, TurnRequest
+from companion.turn.pipeline import EventSink, TurnPipeline
+from companion.brain.port import TurnRefused, TurnRequest
 from companion.api.livekit.bridge import require
 
 logger = logging.getLogger(__name__)

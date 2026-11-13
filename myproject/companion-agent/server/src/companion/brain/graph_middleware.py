@@ -14,8 +14,8 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, Tool
 from langgraph.types import Command
 
 from companion.domain.prompt.plan import splice_injections
-from companion.domain.turn.steer import render_steer_block
-from companion.ports.conversation import lc_user_id
+from companion.turn.steer import render_steer_block
+from companion.turn.conversation import lc_user_id
 
 # DeerFlow 的锚点装饰器（deerflow/agents/features.py）。锚点名必须与 factory 中的类一致。
 from deerflow.agents.features import Next, Prev

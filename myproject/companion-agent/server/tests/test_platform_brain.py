@@ -13,8 +13,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from companion.domain.turn.queue import Disposition
-from companion.ports.brain import TurnRequest
+from companion.turn.queue import Disposition
+from companion.brain.port import TurnRequest
 
 SESSION = 7
 TURN = "01TURNAAAAAAAAAAAAAAAAAAAA"
@@ -62,7 +62,7 @@ class FakeSubmit:
 
 
 def _brain(control, submit):
-    from companion.adapters.brain.platform_brain import PlatformBrain
+    from companion.brain.platform_brain import PlatformBrain
 
     return PlatformBrain(submit=submit, control=control)
 
@@ -153,7 +153,7 @@ async def test_interrupting_cancels_this_turn_on_the_control_plane():
 
 
 async def test_denied_input_is_not_spoken_and_not_silent():
-    from companion.ports.brain import TurnRefused
+    from companion.brain.port import TurnRefused
 
     control = FakeControl()
     with pytest.raises(TurnRefused) as info:

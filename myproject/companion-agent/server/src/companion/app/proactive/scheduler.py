@@ -14,7 +14,7 @@ from typing import Any
 
 from companion.domain.proactive.models import InitiativeDecision, InitiativePreferences, InitiativeState
 from companion.domain.proactive.policy import InitiativePolicy
-from companion.domain.turn.trigger import Trigger, TriggerKind
+from companion.turn.trigger import Trigger, TriggerKind
 
 logger = logging.getLogger(__name__)
 

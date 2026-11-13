@@ -144,7 +144,7 @@ async def test_memory_job_for_closed_session_is_skipped(engine):
 async def test_redis_purge_session_cancels_and_clears():
     from redis import asyncio as redis_async
 
-    from companion.adapters.cache.redis.control import (
+    from companion.turn.redis_control import (
         RedisTurnControl,
         ctl_key,
         events_key,

@@ -6,8 +6,8 @@ import pytest
 
 from companion.app.proactive.loop import SpeakDenied
 from companion.app.proactive.speaker import PlatformSpeaker
-from companion.domain.turn.queue import Disposition
-from companion.domain.turn.trigger import Trigger, TriggerKind
+from companion.turn.queue import Disposition
+from companion.turn.trigger import Trigger, TriggerKind
 from test_platform_brain import FakeControl, FakeSubmit, TURN, _happy
 from test_voice_session import Sessions
 
@@ -27,7 +27,7 @@ class Compliance:
 
 
 def _speaker(submit, control, sessions=None, compliance=None):
-    from companion.adapters.brain.platform_brain import PlatformBrain
+    from companion.brain.platform_brain import PlatformBrain
 
     brain = PlatformBrain(submit=submit, control=control, role="system", kind="proactive")
     return PlatformSpeaker(sessions=sessions or Sessions(), brain=brain, compliance=compliance)

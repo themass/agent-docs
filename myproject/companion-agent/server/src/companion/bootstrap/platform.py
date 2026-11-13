@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-from companion.adapters.cache.redis.control import RedisTurnControl
+from companion.turn.redis_control import RedisTurnControl
 from companion.memory.recallers import MemoryPortRecaller, TimelineRecaller
 from companion.adapters.push.log import LogPush
 from companion.roles.catalog_files import load_system_catalog
@@ -68,15 +68,15 @@ from companion.app.tools.confirmation import ConfirmationService
 from companion.app.tools.runtime import ToolRuntime
 from companion.app.uploads.service import UploadService
 from companion.bootstrap.chat_stack import build_chat_api
-from companion.adapters.brain.llm_trace import LlmCallCollector
+from companion.brain.llm_trace import LlmCallCollector
 from companion.app.trace.writer import BackgroundWriter
 from companion.config import Settings
 from companion.paths import CHARACTERS_DIR, ROLES_CATALOG_DIR, SKILLS_PUBLIC_DIR
 from companion.domain.prompt.templates import PROMPT_VERSION
-from companion.domain.history.summary import TIMELINE_RECORD_JOB
+from companion.history.summary import TIMELINE_RECORD_JOB
 from companion.memory.pipeline import MemoryPipeline
 from companion.domain.tools.registry import ToolRegistry
-from companion.ports.brain import TextDelta, TurnRequest
+from companion.brain.port import TextDelta, TurnRequest
 from memory_hub import AppConfig, MemoryHub
 from memory_hub.hub import ScopedMemory
 
@@ -162,8 +162,8 @@ def _checkpointer(url: str, profile: Any, tag: str = "") -> tuple[Any, Any]:
 def _build_brain(settings: Settings, *, registry: ToolRegistry, runtime: ToolRuntime, checkpointer: Any,
                  product: str = "chat") -> tuple[Any, Any, Any]:
     """真实大脑：路由表里的 companion_chat 模型 + DeerFlow 图。返回 (brain, graph, llm_call)。"""
-    from companion.adapters.brain.deerflow import DeerFlowBrain, build_summarization, build_turn_graph
-    from companion.adapters.brain.tools import to_langchain_tools
+    from companion.brain.deerflow import DeerFlowBrain, build_summarization, build_turn_graph
+    from companion.brain.tools import to_langchain_tools
     from companion.adapters.llm.router import LLMRouter
     from companion.bootstrap.models import brain_models, chat_model, scenario_call
 
@@ -250,7 +250,7 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
 
     conversation = None
     if graph is not None and checkpointer is not None:
-        from companion.adapters.brain.conversation_state import DeerFlowConversationState
+        from companion.brain.conversation_state import DeerFlowConversationState
 
         conversation = DeerFlowConversationState(graph)
 
@@ -419,7 +419,7 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
 
     threads = None
     if checkpointer is not None:
-        from companion.adapters.brain.conversation_state import CheckpointThreadEraser
+        from companion.brain.conversation_state import CheckpointThreadEraser
 
         threads = CheckpointThreadEraser(checkpointer)
     system_role_ids = tuple(r.id for r in catalog.roles) + tuple(sorted(BUILTIN_PERSONA_IDS))

@@ -18,7 +18,7 @@ def _platform():
     """有平台时 /v1 的路由才存在，且读的是 Postgres。测试数据必须经由它落库。"""
     import os
 
-    from companion.adapters.brain.fake import FakeBrain
+    from companion.brain.fake import FakeBrain
     from companion.memory.fake import InMemoryMemoryPort
     from companion.bootstrap.platform import build_platform
     from companion.config import Settings

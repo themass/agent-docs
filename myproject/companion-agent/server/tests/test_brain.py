@@ -7,9 +7,9 @@
 import pytest
 from langchain_core.messages import AIMessageChunk, ToolMessage
 
-from companion.adapters.brain.deerflow import DeerFlowBrain
-from companion.adapters.brain.fake import FakeBrain
-from companion.ports.brain import TextDelta, ToolFinished, ToolStarted, TurnRequest
+from companion.brain.deerflow import DeerFlowBrain
+from companion.brain.fake import FakeBrain
+from companion.brain.port import TextDelta, ToolFinished, ToolStarted, TurnRequest
 
 
 def request(**kw):

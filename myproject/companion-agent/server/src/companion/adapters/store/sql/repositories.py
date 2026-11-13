@@ -24,7 +24,7 @@ from companion.adapters.store.sql.schema import (
     upload,
     user_role,
 )
-from companion.domain.turn.queue import QUEUE_TRANSITIONS
+from companion.turn.queue import QUEUE_TRANSITIONS
 from companion.ports.store import (
     ConfirmationRecord,
     MessageRecord,

@@ -19,7 +19,7 @@ from companion.app.proactive.loop import InitiativeLoop, SpeakDenied
 from companion.app.proactive.scheduler import InitiativeScheduler
 from companion.app.proactive.loop import _channel_of, occurrence_key
 from companion.timeline.models import EventKind, TimelineEvent
-from companion.domain.turn.trigger import Trigger, TriggerKind
+from companion.turn.trigger import Trigger, TriggerKind
 
 
 def at(hour=10, minute=0, day=7):

@@ -14,9 +14,9 @@ from typing import Any
 
 from companion.app.chat.ids import new_ulid
 from companion.domain.middleware.safety import check_input
-from companion.domain.turn.queue import Disposition
+from companion.turn.queue import Disposition
 from companion.ports.store import MessageStore, QueueStore, SessionStore
-from companion.ports.turn_control import TurnControlPort
+from companion.turn.control import TurnControlPort
 
 # 启动一个回合的回调（由 bootstrap 注入，内部把 TurnRunner 放到后台任务里跑）。
 StartTurn = Callable[..., Awaitable[None]]

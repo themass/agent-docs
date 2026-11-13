@@ -16,15 +16,15 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from companion.domain.history.summary import RESUMMARIZE_JOB
+from companion.history.summary import RESUMMARIZE_JOB
 
 # 清空历史时等回合结束：约 2 秒内每 200ms 试一次，抢不到再报 409。
 CLEAR_LOCK_ATTEMPTS = 10
 CLEAR_LOCK_DELAY = 0.2
-from companion.ports.conversation import ConversationStatePort, lc_assistant_id, lc_user_id
+from companion.turn.conversation import ConversationStatePort, lc_assistant_id, lc_user_id
 from companion.ports.jobs import JobStore
 from companion.ports.store import MessageRecord, MessageStore
-from companion.ports.turn_control import TurnControlPort
+from companion.turn.control import TurnControlPort
 
 log = logging.getLogger("companion.history")
 

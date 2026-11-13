@@ -185,7 +185,7 @@ class RoomEntrypoint:
         from livekit.agents import AgentSession
 
         from companion.api.livekit.agent import build_agent_class
-        from companion.domain.turn.pipeline import TurnPipeline
+        from companion.turn.pipeline import TurnPipeline
 
         try:
             identity = RoomIdentity.from_room_metadata(getattr(ctx.room, "metadata", None))

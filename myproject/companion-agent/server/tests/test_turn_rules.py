@@ -2,7 +2,7 @@
 
 import pytest
 
-from companion.domain.turn.queue import (
+from companion.turn.queue import (
     DRAIN_BATCH_SIZE,
     DRAIN_MAX_ATTEMPTS,
     QUEUE_TRANSITIONS,

@@ -11,7 +11,7 @@ from companion.app.chat.history import (
     NotEditable,
     lc_ids_of,
 )
-from companion.domain.history.summary import RESUMMARIZE_JOB
+from companion.history.summary import RESUMMARIZE_JOB
 
 
 def _msg(mid, role="user", meta=None, kind="chat", session_id=5, alt_group=None, alt_selected=True):

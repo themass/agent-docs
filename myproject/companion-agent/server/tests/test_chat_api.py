@@ -127,12 +127,12 @@ class Queue:
 def env():
     import redis.asyncio as redis
 
-    from companion.adapters.cache.redis.control import RedisTurnControl
+    from companion.turn.redis_control import RedisTurnControl
     from companion.api.http.routers.chat import build_router
     from companion.app.chat.lifecycle import DrainState
     from companion.bootstrap.chat_stack import build_chat_api
     from companion.api.http.deps import AllowAllVerifier, build_current_user
-    from companion.ports.brain import TextDelta
+    from companion.brain.port import TextDelta
 
     client = redis.from_url(REDIS_URL, decode_responses=False)
 
