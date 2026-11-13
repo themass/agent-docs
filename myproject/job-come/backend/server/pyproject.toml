@@ -57,7 +57,7 @@ dependencies = [
 [tool.uv.sources]
 agentkit = { path = "wheels/agentkit-0.1.0-py3-none-any.whl" }
 deerflow-harness = { path = "wheels/deerflow_harness-2.3.0.dev0-py3-none-any.whl" }
-deerflow-extension-api = { path = "wheels/deerflow_extension_api-0.2.9-py3-none-any.whl" }
+deerflow-extension-api = { path = "wheels/deerflow_extension_api-0.2.11-py3-none-any.whl" }
 
 [project.optional-dependencies]
 dev = [

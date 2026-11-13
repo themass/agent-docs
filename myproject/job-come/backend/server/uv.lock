@@ -47,7 +47,7 @@ dependencies = [
     { name = "structlog" },
 ]
 wheels = [
-    { filename = "agentkit-0.1.0-py3-none-any.whl", hash = "sha256:5fb56352a7ca74709d9f75f3caf41c0d0296db3f632cddb499df7e2e89571b7b" },
+    { filename = "agentkit-0.1.0-py3-none-any.whl", hash = "sha256:da6d66efb36d72d921223aeb1601f0f9bd3e85d0aefd9be10f2ce2501dd13e59" },
 ]
 
 [package.metadata]
@@ -601,10 +601,10 @@ wheels = [
 
 [[package]]
 name = "deerflow-extension-api"
-version = "0.2.9"
-source = { path = "wheels/deerflow_extension_api-0.2.9-py3-none-any.whl" }
+version = "0.2.11"
+source = { path = "wheels/deerflow_extension_api-0.2.11-py3-none-any.whl" }
 wheels = [
-    { filename = "deerflow_extension_api-0.2.9-py3-none-any.whl", hash = "sha256:bb3febe961a428c968149ab4ba45d201b88c0e969022e8b1b0fbef5dba3227bc" },
+    { filename = "deerflow_extension_api-0.2.11-py3-none-any.whl", hash = "sha256:e0cd4242cdaaec438dfd461e28194f2055c1fc0c953125238fe8ea82799e80c4" },
 ]
 
 [[package]]
@@ -658,7 +658,7 @@ dependencies = [
     { name = "tzdata" },
 ]
 wheels = [
-    { filename = "deerflow_harness-2.3.0.dev0-py3-none-any.whl", hash = "sha256:4e0d20283541fe2f707004b0ebba104163397ba3201cab7997f045ad983244f6" },
+    { filename = "deerflow_harness-2.3.0.dev0-py3-none-any.whl", hash = "sha256:a36768339691d4e10be873660834354561bea00b1b8aebdc332aa7e4bfae334f" },
 ]
 
 [package.metadata]
@@ -673,7 +673,7 @@ requires-dist = [
     { name = "croniter", specifier = ">=6.0.0" },
     { name = "cryptography", specifier = ">=50.0.0" },
     { name = "ddgs", specifier = ">=9.10.0" },
-    { name = "deerflow-extension-api", specifier = "==0.2.9" },
+    { name = "deerflow-extension-api", specifier = "==0.2.11" },
     { name = "dotenv", specifier = ">=0.9.9" },
     { name = "duckdb", specifier = ">=1.4.4" },
     { name = "e2b-code-interpreter", specifier = ">=2.8.0" },
@@ -1413,7 +1413,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.14.0" },
     { name = "anyio", specifier = ">=4.0,<5" },
     { name = "bcrypt", specifier = ">=4.2.0" },
-    { name = "deerflow-extension-api", path = "wheels/deerflow_extension_api-0.2.9-py3-none-any.whl" },
+    { name = "deerflow-extension-api", path = "wheels/deerflow_extension_api-0.2.11-py3-none-any.whl" },
     { name = "deerflow-harness", path = "wheels/deerflow_harness-2.3.0.dev0-py3-none-any.whl" },
     { name = "email-validator", specifier = ">=2.2.0" },
     { name = "httpcore", specifier = "==1.0.9" },
