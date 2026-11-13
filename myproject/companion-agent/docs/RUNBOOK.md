@@ -3,11 +3,11 @@
 整理于 2026-11-13。仓库里原来的情况：**没有任何启动脚本**，启动方式只零散写在文档里。现在
 `companion-agent/run.sh` 是统一入口。
 
-三个项目、四个要跑的东西：
+三个项目、三个要跑的东西：
 
 | # | 项目 | 是什么 | 入口 |
 |---|---|---|---|
-| 1 | `companion-agent` | Python：agent 主脑、聊天/记忆/角色/语音接口 | `run.sh api` / `jobs` / `voice` |
+| 1 | `companion-agent` | Python：agent 主脑、聊天/记忆/角色/语音接口 | `run.sh api` / `voice` |
 | 2 | `testserverV` | Java Spring Boot：登录、拍照解题等 | `maven` |
 | 3 | `myandroidTest` | Android App | `gradle` |
 
@@ -37,9 +37,10 @@ cd myproject/companion-agent && ./run.sh migrate
 
 ---
 
-## 2. companion-agent 的三个进程
+## 2. companion-agent 的两个进程
 
-三者**各自独立启动**，用同一个 `.env`。
+**只有两个**：接用户请求的 HTTP 进程，和接 LiveKit 派单的语音 worker。后台循环（记忆、提醒、主动消息、
+清理）默认跑在 HTTP 进程里，不再单独部署。
 
 ```bash
 cd myproject/companion-agent && ./run.sh api
@@ -47,13 +48,19 @@ cd myproject/companion-agent && ./run.sh api
 HTTP / SSE，默认监听 `127.0.0.1:8081`（`COMPANION_HOST` / `COMPANION_PORT` 可改）。手机 App 请求的是它。
 **可多副本**，回合在接到请求的进程里跑。
 
+后台循环默认跟着 `api` 一起跑（`COMPANION_JOBS_IN_API=true`，默认开），在 API 进程内做：回合后写记忆/画像/时间线、
+会话摘要重建、到期清理（含质检数据）、账号注销、用户设的提醒到点发送、按时间线事件主动找用户。
+
+**多副本时只在一个副本上打开这个开关**，其余设 `COMPANION_JOBS_IN_API=false`。打开时 API 日志里会有
+`background jobs started (owner=..., tasks=4)`。
+
+也可以完全分开跑（可选）：
+
 ```bash
-cd myproject/companion-agent && ./run.sh jobs
+cd myproject/companion-agent && ./run.sh jobs     # 同时把 API 的 COMPANION_JOBS_IN_API 设为 false
 ```
-后台任务进程。**必须单独跑一个**，它不接 HTTP，循环做：回合后写记忆/画像/时间线、会话摘要重建、
-到期清理（含质检数据）、账号注销、用户设定的提醒到点发送、按时间线事件主动找用户。
-**不跑它的后果是静默的**：聊天照常，但记忆不更新、提醒不响、主动消息不发、注销不执行，
-任务只会堆在 `ca_agent_job` 表里。可多副本（靠数据库行锁 + Redis 抢占保证同一件事只做一次）。
+两种方式并存不会重复发（任务队列用数据库行锁认领、主动开口用 Redis 抢占、每日整理按日期去重），
+但两边都开着只是白费扫描。
 
 ```bash
 cd myproject/companion-agent && ./run.sh voice

@@ -59,6 +59,10 @@ class Settings(BaseSettings):
     # 每个房间是独立进程、各占一份数据库连接池（峰值 6 条），所以这个数要和库的连接数预算一起算。
     # 总容量 = 这个数 × worker 进程数。
     companion_voice_max_rooms: int = 5
+    # 后台循环（记忆写入、提醒、主动开口、清理）跟着 API 进程一起跑。
+    # 多副本时**只在一个副本上打开**；其余关掉，否则同一条提醒会被每个副本扫到（有去重，但白费扫描）。
+    # 也可以继续用 `python -m companion.worker_jobs` 单独跑，两者并存不会重复发。
+    companion_jobs_in_api: bool = True
     # 会话内压缩：未摘要的历史超过这么多 token 时，把较早的消息压成摘要，保留最近这么多条原文。
     companion_summary_trigger_tokens: int = 9000
     companion_summary_keep_messages: int = 20

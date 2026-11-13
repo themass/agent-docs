@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # companion-agent 的启动入口。三种进程、数据库迁移、语音连通性检查。
 #
-#   ./run.sh api        HTTP/SSE 服务（手机 App 请求的那一端）
-#   ./run.sh jobs       后台任务进程（记忆、画像、提醒、主动消息、清理）——不部署它，这些功能会静默失效
+#   ./run.sh api        HTTP/SSE 服务；后台循环默认跟着它一起跑（记忆、提醒、主动消息、清理）
+#   ./run.sh jobs       后台循环单独跑。只有想把它们和 API 分开时才用，API 那边记得设
+#                       COMPANION_JOBS_IN_API=false，否则两边都在扫（不会重复发，但白费扫描）
 #   ./run.sh voice      语音 worker（连 LiveKit，用户开语音时被派进房间）
 #   ./run.sh migrate    建表/升级数据库结构
 #   ./run.sh check      启动前检查：配置是否齐、库和 Redis 是否连得上
@@ -64,6 +65,10 @@ results = [
 print(f"  质检记录: {'开' if s.companion_qa_enabled else '关'}（COMPANION_QA_ENABLED）"
       f"  保留 {s.companion_qa_retention_days} 天")
 print(f"  语音 worker 单进程房间上限: {s.companion_voice_max_rooms or '不限'}（COMPANION_VOICE_MAX_ROOMS）")
+if s.companion_jobs_in_api:
+    print("  后台循环: 跟着 API 进程跑（COMPANION_JOBS_IN_API=true）——多副本时只在一个副本上开")
+else:
+    print("  后台循环: 不跟 API 跑，需要单独运行 ./run.sh jobs，否则记忆/提醒/主动消息会静默失效")
 
 async def ping():
     print("连通性：")

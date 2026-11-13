@@ -69,6 +69,7 @@ class AppState:
     verifier: CredentialVerifier
     preferences: Any = None
     drain: Any = None
+    background: Any = None
 
 
 def _default_room_store(settings: Any) -> Any:
@@ -132,11 +133,21 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        background = None
         if platform is not None:
             await platform.astart()   # checkpoint 连接池必须在服务的事件循环里打开
+            if settings.companion_jobs_in_api:
+                # 后台循环跟 API 一起跑：少一个必须记得部署的进程。多副本时只在一个副本上开。
+                from companion.app.jobs.background import BackgroundJobs
+
+                background = BackgroundJobs(platform)
+                await background.start()
+                app.state.companion.background = background
         try:
             yield
         finally:
+            if background is not None:
+                await background.stop()     # 先停循环，否则它会在连接关掉之后继续用
             await app.state.companion.store.aclose()
             if platform is not None:
                 await platform.aclose()
