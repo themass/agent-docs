@@ -36,6 +36,64 @@ class ModelEndpoint:
     extra_body: dict[str, Any] | None = None
 
 
+#: `.env` prefix that names a scenario's model chain. `JC_LLM_MODEL_COACH` is a
+#: comma-separated failover chain, in order: `openai/gpt-6-luna,openai/glm-5.3-flash`.
+#:
+#: Why this exists on top of `routing.yaml`: the routing file carries the *policy*
+#: per position (timeout, reasoning effort, output ceiling, extra body) and those
+#: values were measured, not guessed — the vision ceiling rejects 100000 outright.
+#: What changes far more often is which model sits in that position, and before
+#: this every scenario repeated the same name, so switching the workhorse meant
+#: editing five chains. `.env` now holds the names in one block; the yaml keeps
+#: the tuning. An unset variable changes nothing, so a checkout without `.env`
+#: still runs on the names committed in the yaml.
+MODEL_OVERRIDE_ENV_PREFIX = "JC_LLM_MODEL_"
+
+
+def _model_override_env(scenario: str) -> str:
+    return f"{MODEL_OVERRIDE_ENV_PREFIX}{scenario.upper()}"
+
+
+def _reject_unknown_model_overrides(declared: dict[str, Any]) -> None:
+    """Fail on `JC_LLM_MODEL_*` naming a scenario the routing file does not have.
+
+    A typo here would otherwise be invisible: the variable is set, the operator
+    believes the model changed, and the committed name keeps running. Settings are
+    `extra="ignore"`, so nothing else in the stack would catch it either.
+    """
+    known = {_model_override_env(name) for name in declared}
+    prefix = MODEL_OVERRIDE_ENV_PREFIX
+    for key in os.environ:
+        if key.startswith(prefix) and key not in known:
+            raise ValueError(
+                f"{key} does not match any scenario in the routing config "
+                f"(known: {sorted(known)}). Fix the name or remove the variable."
+            )
+
+
+def _apply_model_override(
+    scenario: str, entries: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Replace the models in a scenario's chain, keeping each position's policy.
+
+    Position i takes its tuning from `entries[i]`. A chain longer than the config
+    repeats the last entry's policy, which is the right default: the extra hops are
+    more of the same kind of work, and rejecting them would force the operator to
+    invent tuning for a model they just added to `.env`.
+    """
+    raw = os.environ.get(_model_override_env(scenario), "").strip()
+    if not raw:
+        return entries
+    names = [part.strip() for part in raw.split(",") if part.strip()]
+    if not names:
+        return entries
+    out: list[dict[str, Any]] = []
+    for index, name in enumerate(names):
+        policy = entries[index] if index < len(entries) else entries[-1]
+        out.append({**policy, "model": name})
+    return out
+
+
 class LLMRouter:
     def __init__(self, routing_path: Path) -> None:
         raw = yaml.safe_load(routing_path.read_text(encoding="utf-8"))
@@ -64,8 +122,17 @@ class LLMRouter:
 
         self._pricing = parse_pricing(raw.get("pricing"))
 
+        declared = raw.get("scenarios") or {}
+        _reject_unknown_model_overrides(declared)
+
         self._scenarios: dict[str, list[ModelEndpoint]] = {}
-        for name, entries in raw.get("scenarios", {}).items():
+        for name, entries in declared.items():
+            if not entries:
+                raise ValueError(
+                    f"Scenario {name!r} in routing config has no endpoints. "
+                    "Give it at least one, or remove the scenario."
+                )
+            entries = _apply_model_override(name, entries)
             self._scenarios[name] = [
                 self._endpoint_from_entry(entry) for entry in entries
             ]

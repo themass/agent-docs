@@ -30,10 +30,10 @@ Agent 资产在 `backend/agent/`。
 backend/agent/
 ├── deerflow/       # config.yaml、product_rules.md、extensions config
 ├── skills/         # public/ 自研能力；custom/ 审核后引入的外部能力
-└── llm/            # routing.yaml（全项目唯一命名模型的地方）
+└── llm/            # routing.yaml（每个位置的调优；模型名在 .env 的 JC_LLM_MODEL_*）
 ```
 
-`deerflow/config.yaml` 里 `models[].model:` 写的是 **scenario 名**（`coach` / `writer`），不是模型 slug；`use:` 绑定 `jc.llm.chat_litellm:ChatLiteLLMRouter`，链在调用时从 `routing.yaml` 读。该文件里**没有** `base_url` / `api_key` / 模型名——改模型请改 `routing.yaml`，否则就又会出现两份互相漂移的模型清单（曾经 `jc-writer` 指向 deepseek，而 `writer` 链头是 gpt，同名不同模型）。细节见 [`TECH-LLM.md`](TECH-LLM.md) 第 1 节。
+`deerflow/config.yaml` 里 `models[].model:` 写的是 **scenario 名**（`coach` / `writer`），不是模型 slug；`use:` 绑定 `jc.llm.chat_litellm:ChatLiteLLMRouter`，链在调用时从 `routing.yaml` 读。该文件里**没有** `base_url` / `api_key` / 模型名——改模型请改 `.env` 的 `JC_LLM_MODEL_*`，`routing.yaml` 只保留超时等调优；否则就又会出现两份互相漂移的模型清单（曾经 `jc-writer` 指向 deepseek，而 `writer` 链头是 gpt，同名不同模型）。细节见 [`TECH-LLM.md`](TECH-LLM.md) 第 1 节。
 
 原 `backend/agent/litellm/`（LiteLLM Proxy 配置）已删除：不起独立进程，failover 由进程内的 `litellm.Router` 承担。
 

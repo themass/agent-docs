@@ -5,18 +5,19 @@
 
 ## 1. LLM 路由
 
-- 路由配置：`backend/agent/llm/routing.yaml`；模板：`routing.example.yaml`。
+- **模型名的唯一入口是 `.env`**：每个场景一行 `JC_LLM_MODEL_<SCENARIO>`，逗号分隔、按顺序 failover，第一个是主力。留空则用 `routing.yaml` 里提交的默认值，所以没有 `.env` 的 checkout 也能跑。拼错场景名会直接报错，不会静默忽略。
+- 路由配置：`backend/agent/llm/routing.yaml`；模板：`routing.example.yaml`。现在它只保留**每个位置的调优**（`timeout_sec` / `reasoning_effort` / `max_tokens` / `extra_body`）——这些值是对网关实测出来的（`vision` 的输出上限超过 32768 会被直接拒），不该每次换模型都重填一遍。
 - 服务端通过 `backend/server/src/jc/llm/` 调用模型，业务代码不得散落直连供应商 HTTP 请求。
 - **凭证分层**：`routing.yaml` 只写模型 slug 与 **provider 名**；`providers.*` 把每个 profile 映射到 `.env` 里的 `api_base_env` / `api_key_env` 变量名（密钥不进 Git）。同一 scenario 内可按条目指定不同 `provider`，或内联 `api_base_env` / `api_key_env`。
 - 逻辑开关：`JC_LLM_ENABLED`、`JC_LLM_ROUTING_PATH`。默认文本网关 `JC_LLM_API_*`，视觉 `JC_LLM_VISION_*`；多供应商时在 `.env` 增加如 `JC_LLM_ANTHROPIC_API_BASE` 并在 `providers` 注册。
-- **故障转移交给进程内的 `litellm.Router`**：构建点只有一个，`backend/server/src/jc/llm/transport.py`。没有 litellm Proxy，不起独立进程。换模型等价于改 `routing.yaml`；低风险试法是把新模型放在链的第二位。
+- **故障转移交给进程内的 `litellm.Router`**：构建点只有一个，`backend/server/src/jc/llm/transport.py`。没有 litellm Proxy，不起独立进程。换模型等价于改 `.env` 的 `JC_LLM_MODEL_*`；低风险试法是把新模型放在链的第二位，第一个失败才会用到它。
 - scenario 的 endpoint 链翻译成 litellm 的 `fallbacks`，按 pinned SDK 的行为测试维护，改动前先读 `transport.py` 的模块注释：
   - **每个 endpoint 一个 `model_name`**（`{scenario}-{index}`）。共用一个名字会变成在链内**负载均衡**，而不是按顺序 failover——后面的模型是备胎，不是对等节点。
   - **fallback 映射按位置逐跳声明**（`[{s-0:[s-1,s-2]}, {s-1:[s-2]}]`），单条扁平映射只能覆盖第一跳，第二个模型失败可能使后续模型不可达。回归测试验证所有 endpoint 都被尝试且只调用一次，避免重复请求与重复计费。
   - `num_retries=0`：链本身就是重试策略，让 litellm 再重试同一个 endpoint 会成倍放大延迟。
 - **缺 API key 的 endpoint 不进 Router**，但会以 `skipped` 写进审计表。没发起过的尝试不是失败的端点，不该进故障率；可是链头静默失配会让每个请求都由第二个模型应答，成本和模型都变了，审计必须看得见。
 - 场景 `scenario` 即 `routing.yaml` 里的键（`ingest_fast` / `writer` / `coach` / `vision` / `flash`），也是审计日志的"分类"维度。
-- **舟卡对话走同一条链**：DeerFlow 的 `backend/agent/deerflow/config.yaml` 绑定 `jc.llm.chat_litellm:ChatLiteLLMRouter`，其 `model:` 写的是 **scenario 名**（`coach` / `writer`），不是模型 slug。模型只在 `routing.yaml` 命名一次，harness 不再持有第二份会偷偷漂移的副本。
+- **舟卡对话走同一条链**：DeerFlow 的 `backend/agent/deerflow/config.yaml` 绑定 `jc.llm.chat_litellm:ChatLiteLLMRouter`，其 `model:` 写的是 **scenario 名**（`coach` / `writer`），不是模型 slug。模型链只有 `.env`（运行时）和 `routing.yaml`（默认值）两处，harness 不再持有第二份会偷偷漂移的副本。
 - `JC_LLM_ENABLED=true` 才执行真实解析/优化；无有效模型配置时应明确失败或降级，不得伪造成功结果。
 - LiteLLM 使用本地 model cost map（`LITELLM_LOCAL_MODEL_COST_MAP=true`），启动时不应为了加载成本表访问通用互联网。
 
