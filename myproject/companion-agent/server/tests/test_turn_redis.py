@@ -142,9 +142,9 @@ async def test_lock_release_only_by_owner(control, redis_client):
 
 
 async def test_merge_during_pre_output_restarts_and_attaches_the_merged_message(control, redis_client):
-    from companion.app.chat.submit import SubmitService
-    from companion.app.chat.turn_runner import TurnInput, TurnRunner
-    from companion.app.chat.lifecycle import DrainState
+    from companion.chat.submit import SubmitService
+    from companion.chat.turn_runner import TurnInput, TurnRunner
+    from companion.chat.lifecycle import DrainState
     from companion.brain.port import TextDelta
 
     sid = _session_id()
@@ -189,8 +189,8 @@ async def test_merge_during_pre_output_restarts_and_attaches_the_merged_message(
 
 
 async def test_steer_during_output_is_injected_and_attached(control, redis_client):
-    from companion.app.chat.submit import SubmitService
-    from companion.app.chat.turn_runner import TurnInput, TurnRunner
+    from companion.chat.submit import SubmitService
+    from companion.chat.turn_runner import TurnInput, TurnRunner
     from companion.brain.port import TextDelta
 
     sid = _session_id()
@@ -226,7 +226,7 @@ async def test_steer_during_output_is_injected_and_attached(control, redis_clien
 
 
 async def test_uninjected_steer_goes_back_to_the_queue(control, redis_client):
-    from companion.app.chat.turn_runner import TurnInput, TurnRunner
+    from companion.chat.turn_runner import TurnInput, TurnRunner
     from companion.turn.queue import TurnPhase
     from companion.brain.port import TextDelta
 
@@ -242,7 +242,7 @@ async def test_uninjected_steer_goes_back_to_the_queue(control, redis_client):
         await control.init_turn(session_id=sid, turn_id="T")
         await control.send_cancel(turn_id="T")  # 无关的控制消息不应影响收尾
         await control.publish(session_id=sid, event="noop", data={})
-        from companion.app.chat.turn_runner import _RunState
+        from companion.chat.turn_runner import _RunState
         inp = TurnInput(owner_id=7, session_id=sid, character_id="linche", turn_id="T", owner="p:T",
                         text="x", message_ids=[1])
         state = _RunState()
@@ -305,7 +305,7 @@ async def test_merge_that_lands_before_the_first_token_is_never_lost(control, re
 
     Lua 判定为合并后、运行器读到之前，首 token 就到了。修复前这条合并会被丢掉。
     """
-    from companion.app.chat.turn_runner import TurnInput, TurnRunner
+    from companion.chat.turn_runner import TurnInput, TurnRunner
     from companion.brain.port import TextDelta
     from companion.turn.redis_control import ctl_key
 

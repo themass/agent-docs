@@ -32,7 +32,7 @@ import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
 
-from companion.app.chat.lifecycle import DrainState
+from companion.chat.lifecycle import DrainState
 from companion.turn.queue import TurnPhase
 from companion.turn.steer import SteerInbox
 from companion.brain.port import (

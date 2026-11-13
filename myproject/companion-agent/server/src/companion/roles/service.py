@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from companion.app.chat.ids import new_ulid
+from companion.chat.ids import new_ulid
 from companion.roles.catalog import (
     MAX_PROMPT_CHARS,
     USER_ROLE_PREFIX,

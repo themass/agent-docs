@@ -50,12 +50,12 @@ from companion.adapters.store.sql.compliance import SqlComplianceStore
 from companion.app.account.purge import AccountPurgeService
 from companion.app.compliance.service import ComplianceService
 from companion.avatar.catalog import AvatarCatalog
-from companion.app.chat.assembler import PromptAssembler, skill_ids_of
-from companion.app.chat.context import ContextBuilder
-from companion.app.chat.history import HistoryService
-from companion.app.chat.lifecycle import DrainState
-from companion.app.chat.resummarize import ResummarizeService
-from companion.app.chat.turn_runner import TurnOutcome
+from companion.chat.assembler import PromptAssembler, skill_ids_of
+from companion.chat.context import ContextBuilder
+from companion.chat.history import HistoryService
+from companion.chat.lifecycle import DrainState
+from companion.chat.resummarize import ResummarizeService
+from companion.chat.turn_runner import TurnOutcome
 from companion.memory.extraction import MemoryExtractor
 from companion.memory.recorder import ExtractionRecorder
 from companion.persona.updater import PERSONA_JOB, PersonaUpdater

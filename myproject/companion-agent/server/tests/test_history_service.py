@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from companion.app.chat.history import (
+from companion.chat.history import (
     HistoryBusy,
     HistoryService,
     NotEditable,
@@ -235,7 +235,7 @@ async def test_selecting_the_current_alternative_is_a_noop():
 
 
 async def test_only_the_latest_turn_can_swap_alternatives():
-    from companion.app.chat.history import NotLatest
+    from companion.chat.history import NotLatest
 
     rows = _swipe_rows() + [_msg(4)]   # 之后又来了一条用户消息
     svc, msgs, conv, ctl, jobs = _service(rows, ["m1", "run-b", "m4"])

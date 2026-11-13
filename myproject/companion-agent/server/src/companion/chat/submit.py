@@ -12,7 +12,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
-from companion.app.chat.ids import new_ulid
+from companion.chat.ids import new_ulid
 from companion.domain.middleware.safety import check_input
 from companion.turn.queue import Disposition
 from companion.ports.store import MessageStore, QueueStore, SessionStore

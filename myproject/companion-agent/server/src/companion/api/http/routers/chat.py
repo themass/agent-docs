@@ -8,11 +8,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from companion.app.chat.lifecycle import DrainState
+from companion.chat.lifecycle import DrainState
 from companion.api.sse.stream import event_stream
-from companion.app.chat.drain import DrainService
-from companion.app.chat.history import HistoryBusy, HistoryService, NotEditable, NotLatest, find_reply
-from companion.app.chat.submit import SubmitService
+from companion.chat.drain import DrainService
+from companion.chat.history import HistoryBusy, HistoryService, NotEditable, NotLatest, find_reply
+from companion.chat.submit import SubmitService
 from companion.turn.queue import DRAIN_MAX_ATTEMPTS
 from companion.ports.store import MessageStore, QueueStore, SessionStore
 from companion.turn.control import TurnControlPort

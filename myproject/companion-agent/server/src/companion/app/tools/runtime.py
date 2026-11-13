@@ -17,7 +17,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from companion.app.chat.ids import new_ulid
+from companion.chat.ids import new_ulid
 from companion.domain.tools.policy import Verdict, authorize, fingerprint, truncate
 from companion.domain.tools.registry import ToolRegistry
 from companion.domain.tools.spec import Permission, ToolContext, ToolSpec

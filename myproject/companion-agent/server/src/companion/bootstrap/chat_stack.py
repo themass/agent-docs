@@ -9,11 +9,11 @@ import asyncio
 import logging
 from collections.abc import Callable
 
-from companion.app.chat.lifecycle import DrainState
+from companion.chat.lifecycle import DrainState
 from companion.api.http.routers.chat import ChatApi
-from companion.app.chat.drain import DrainService
-from companion.app.chat.submit import SubmitService
-from companion.app.chat.turn_runner import AfterTurn, Produce, TurnInput, TurnRunner
+from companion.chat.drain import DrainService
+from companion.chat.submit import SubmitService
+from companion.chat.turn_runner import AfterTurn, Produce, TurnInput, TurnRunner
 from companion.ports.store import MessageStore, QueueStore, SessionStore
 from companion.turn.control import TurnControlPort
 

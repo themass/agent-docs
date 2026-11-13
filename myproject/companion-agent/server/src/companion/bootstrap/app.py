@@ -26,7 +26,7 @@ from companion.api.http.deps import AllowAllVerifier, CredentialVerifier, build_
 from companion.products.roleplay.sessions import SessionService, SessionStore
 from companion.api.livekit.sessions_router import build_router
 from companion.adapters.livekit.tokens import TokenMinter
-from companion.app.chat.lifecycle import DrainState
+from companion.chat.lifecycle import DrainState
 from companion.api.http.routers.roles import build_router as build_roles_router
 from companion.api.http.routers.uploads import build_router as build_uploads_router
 from companion.api.http.routers.actions import build_router as build_actions_router

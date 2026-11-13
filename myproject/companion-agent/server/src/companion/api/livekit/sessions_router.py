@@ -6,7 +6,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Protocol
-from companion.app.chat.voice_session import ChatSessionError, resolve_chat_session
+from companion.chat.voice_session import ChatSessionError, resolve_chat_session
 from companion.ports.livekit import LiveKitToken, TokenIssuer
 from companion.products.roleplay.sessions import SessionError, SessionService
 

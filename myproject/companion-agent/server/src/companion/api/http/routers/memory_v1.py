@@ -12,7 +12,7 @@ PATCH 事实记忆采用「删除旧条目 + 写入新条目」：后端没有�
 import uuid
 from typing import Any
 
-from companion.app.chat.ids import new_ulid
+from companion.chat.ids import new_ulid
 from companion.memory.subject import role_subject
 from companion.timeline.models import EventKind, EventOrigin, EventStatus, TimelineEvent
 from companion.memory.port import MemoryItem, MemoryKind

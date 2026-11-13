@@ -129,7 +129,7 @@ def env():
 
     from companion.turn.redis_control import RedisTurnControl
     from companion.api.http.routers.chat import build_router
-    from companion.app.chat.lifecycle import DrainState
+    from companion.chat.lifecycle import DrainState
     from companion.bootstrap.chat_stack import build_chat_api
     from companion.api.http.deps import AllowAllVerifier, build_current_user
     from companion.brain.port import TextDelta
