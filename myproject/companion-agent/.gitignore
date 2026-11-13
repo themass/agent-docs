@@ -4,3 +4,5 @@ __pycache__/
 .env
 .pytest_cache/
 *.egg-info/
+# 部署目录自己生成的东西：PID 文件、日志、deploy.env（端口等，每台机器可以不同）
+.data/

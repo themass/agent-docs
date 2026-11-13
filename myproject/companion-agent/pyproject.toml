@@ -12,7 +12,10 @@ dependencies = [
     "aiomysql>=0.2",
     "pymysql>=1.1",
     # 大脑：DeerFlow 工厂（docs/implementation/spike-results.md T0）
+    # deerflow-harness 与它的 extension-api 都是本地 wheel，`[tool.uv.sources]` 只对**直接**
+    # 依赖生效，所以 extension-api 在这里显式列一行，否则 lock 会去索引里找它并失败。
     "deerflow-harness==2.3.0.dev0",
+    "deerflow-extension-api==0.2.9",
     "langgraph==1.2.20",
     "langchain-openai>=1.7.4",
     # 与 DeerFlow 自己的 uv.lock 对齐；mcp 2.x 会导致 deerflow 导入失败（T0-2）
@@ -45,6 +48,13 @@ dev = [
     "pytest-asyncio>=0.24.0",
     "import-linter>=2.16",
 ]
+
+# deerflow-harness 2.3.0-dev 没有发布到任何索引（是本地构建的开发版），所以从 wheels/ 里的
+# wheel 装。wheel 文件本身入库：uv.lock 会固定这个路径，只检出本项目、没有 DeerFlow 源码树的
+# 机器（部署机）才能装得出来。换版本要同时换文件并重新 `uv lock`。
+[tool.uv.sources]
+deerflow-harness = { path = "wheels/deerflow_harness-2.3.0.dev0-py3-none-any.whl" }
+deerflow-extension-api = { path = "wheels/deerflow_extension_api-0.2.9-py3-none-any.whl" }
 
 [build-system]
 requires = ["hatchling"]

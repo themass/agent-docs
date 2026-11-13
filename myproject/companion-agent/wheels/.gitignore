@@ -1,0 +1,6 @@
+# These wheels ARE tracked. `deerflow-harness` 2.3.0-dev 只以本地 wheel 形式存在，
+# 没有发布到任何索引，所以 `uv lock` / `uv sync` 在只检出本项目的机器上仍然能解析它。
+# 版本变了就要换文件并重新 `uv lock`（旧 wheel 会静默装回旧代码）。
+*
+!*.whl
+!.gitignore
