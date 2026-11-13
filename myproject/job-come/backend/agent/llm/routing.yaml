@@ -1,19 +1,18 @@
 # JC LLM routing — per-model provider (base/key) via named profiles in .env
 # Each provider maps to api_base_env + api_key_env (never put secrets in this file).
 #
-# Gateway: http://gpt.sspacee.com/v1 (set in .env, not here). Every model it
-# lists was probed on 2026-10-23 with both a text and an image request, and
-# timed on a long-JSON workload like the one these chains actually run:
-#   deepseek-v4-flash           152 tok/s, reads images — leads extraction
-#   gpt-5.6-luna                125 tok/s, reads images — the vision second hop
-#   deepseek-v4-pro             117 tok/s, refuses images — leads writer/coach
-#   qwen3-vl-plus               reads images, max_tokens ceiling 32768 — leads vision
-#   doubao-seed-2-0-pro-260215   46 tok/s — in no chain, and keep it that way:
-#                               it is 3.3x slower than flash for the same output
-#                               and would blow any per-attempt budget on its own
+# Model names are NOT authoritative here — `.env`'s JC_LLM_MODEL_<SCENARIO>
+# replaces them when set (see jc.llm.router). This file is the fallback used when
+# that variable is unset, and it owns the per-position tuning, because those
+# numbers were measured against the gateway rather than guessed:
+#   qwen3-vl-plus               max_tokens ceiling 32768 — anything higher is
+#                               rejected outright, before an image is read
+# Each `timeout_sec` is sized for a full long-JSON generation on the slowest
+# model that chain may reach. Budgets also live in config.py with the
+# measurements behind them.
 #
 # This is a NewAPI relay, so each hop adds its own latency on top of the upstream
-# model. Budgets live in config.py, which carries the measurements behind them.
+# model.
 #
 # Plain http, not https: the host answers 443 with a self-signed certificate,
 # which litellm (correctly) refuses, and that refusal is a connection error at
@@ -24,10 +23,11 @@
 # a model already tried, which costs a second timeout without adding a chance
 # of success.
 #
-# Note on names: the gateway echoes `deepseek-v4-flash` back as `deepseek-flash`
-# in the response, and that echoed name is what gets logged as `final_model`.
-# Anything keyed on the served name — the `pricing` block below — needs the
-# echoed spelling, not the requested one.
+# Note on names: the gateway may echo a different spelling than the one requested,
+# and that echoed name is what gets logged as `final_model`. Anything keyed on the
+# served name — the `pricing` block below — needs the echoed spelling, not the
+# requested one. `jc.llm.pricing` also tries the bare name without the `openai/`
+# prefix, so both spellings resolve to the same entry.
 
 providers:
   gateway:
@@ -47,7 +47,7 @@ scenarios:
     # disable hidden reasoning here; the previous default spent 60 seconds
     # emitting reasoning with zero JSON content and timed out. This policy is
     # scoped to ingest_fast, so conversational agent thinking remains enabled.
-    - model: openai/deepseek-v4-flash
+    - model: openai/glm-5.3-flash
       provider: gateway
       timeout_sec: 120
       reasoning_effort: none
@@ -56,7 +56,7 @@ scenarios:
       extra_body:
         thinking:
           type: disabled
-    - model: openai/deepseek-v4-pro
+    - model: openai/gpt-6-luna
       provider: gateway
       timeout_sec: 120
       reasoning_effort: none
@@ -69,18 +69,18 @@ scenarios:
     # and it is also the chain the repair pass reuses. `flash` is the fallback
     # rather than the lead because a weak first draft is what the whole
     # evaluate-repair loop exists to avoid paying for twice.
-    - model: openai/deepseek-v4-pro
+    - model: openai/gpt-6-luna
       provider: gateway
       timeout_sec: 180
-    - model: openai/deepseek-v4-flash
+    - model: openai/glm-5.3-flash
       provider: gateway
       timeout_sec: 180
 
   coach:
-    - model: openai/deepseek-v4-pro
+    - model: openai/gpt-6-luna
       provider: gateway
       timeout_sec: 180
-    - model: openai/deepseek-v4-flash
+    - model: openai/glm-5.3-flash
       provider: gateway
       timeout_sec: 180
 
@@ -88,10 +88,10 @@ scenarios:
   # It is its own scenario so the model can differ from the interviewer's. Until a different
   # model is chosen here, it uses the same chain as `coach`.
   reviewer:
-    - model: openai/deepseek-v4-pro
+    - model: openai/gpt-6-luna
       provider: gateway
       timeout_sec: 180
-    - model: openai/deepseek-v4-flash
+    - model: openai/glm-5.3-flash
       provider: gateway
       timeout_sec: 180
 
@@ -124,18 +124,18 @@ scenarios:
     # general model is the understudy. Fixing the channel above reverts this hop
     # to unused without another edit.
     #
-    # `deepseek-v4-flash` also read the test image, so it is a third candidate if
-    # this one ever fails. Not added: `deepseek-v4-pro` refuses images outright
-    # ("无法查看图片"), so the two text chains cannot double as a vision path.
-    - model: openai/gpt-5.6-luna
+    # The two text chains are the wrong OCR engine: a text-tuned model reads an
+    # image poorly even when it accepts one. A third vision hop should be another
+    # VL model, not whatever the writer chain uses.
+    - model: openai/gpt-6-luna
       provider: vision
       timeout_sec: 180
 
   flash:
-    - model: openai/deepseek-v4-flash
+    - model: openai/glm-5.3-flash
       provider: gateway
       timeout_sec: 60
-    - model: openai/deepseek-v4-pro
+    - model: openai/gpt-6-luna
       provider: gateway
       timeout_sec: 60
 
