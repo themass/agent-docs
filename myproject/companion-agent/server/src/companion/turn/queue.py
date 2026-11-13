@@ -34,13 +34,5 @@ def decide(*, lock_held: bool, phase: TurnPhase, restarts: int, max_restarts: in
     return Disposition.QUEUED
 
 
-# 队列状态转移（D §3.3）。其余一律非法。
-QUEUE_TRANSITIONS: frozenset[tuple[str, str]] = frozenset({
-    ("queued", "draining"), ("draining", "drained"),
-    ("queued", "merged"), ("queued", "steered"), ("queued", "withdrawn"), ("queued", "dropped"),
-    ("steered", "queued"),
-    ("draining", "queued"), ("draining", "failed"), ("failed", "queued"),
-})
-
 DRAIN_BATCH_SIZE = 10
 DRAIN_MAX_ATTEMPTS = 3

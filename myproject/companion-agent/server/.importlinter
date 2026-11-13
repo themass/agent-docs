@@ -110,7 +110,7 @@ forbidden_modules =
 
 # ---- 依赖倒置：底层模块不依赖上层业务模块 ----
 [importlinter:contract:store-is-foundational]
-name = store 是底座，不依赖任何业务模块（turn/uploads 的协议除外）
+name = store 是底座，不依赖任何业务模块
 type = forbidden
 source_modules = companion.store
 forbidden_modules =
@@ -129,3 +129,13 @@ forbidden_modules =
     companion.avatar
     companion.compliance
     companion.account
+    companion.room
+    companion.turn
+    companion.uploads
+    companion.brain
+    companion.prompt
+    companion.text
+    companion.lorebook
+    companion.middleware
+    companion.skills
+    companion.history

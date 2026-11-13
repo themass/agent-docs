@@ -24,8 +24,8 @@ from companion.store.schema import (
     upload,
     user_role,
 )
-from companion.turn.queue import QUEUE_TRANSITIONS
 from companion.store.port import (
+    QUEUE_TRANSITIONS,
     ConfirmationRecord,
     MessageRecord,
     QueueItem,
@@ -272,7 +272,7 @@ class SqlMessageStore:
 class SqlQueueStore:
     """排队输入。状态转移只允许 D §3.3 列出的那几条，其余拒绝。"""
 
-    ALLOWED = QUEUE_TRANSITIONS  # 单一来源：domain/turn/queue.py
+    ALLOWED = QUEUE_TRANSITIONS  # 单一来源：store/port.py
 
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine

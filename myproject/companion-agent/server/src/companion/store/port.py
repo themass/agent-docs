@@ -39,6 +39,16 @@ class MessageRecord:
     alt_selected: bool = True        # 组内当前被选中的那一条（普通消息恒为 True）
 
 
+#: 队列状态转移（D §3.3）。其余一律非法，SQL 层据此拒绝写入。
+#: 放在这里而不是 turn 模块：它是持久化层要执行的约束，与 QueueItem 属于同一份契约。
+QUEUE_TRANSITIONS: frozenset[tuple[str, str]] = frozenset({
+    ("queued", "draining"), ("draining", "drained"),
+    ("queued", "merged"), ("queued", "steered"), ("queued", "withdrawn"), ("queued", "dropped"),
+    ("steered", "queued"),
+    ("draining", "queued"), ("draining", "failed"), ("failed", "queued"),
+})
+
+
 @dataclass(frozen=True)
 class QueueItem:
     id: int
