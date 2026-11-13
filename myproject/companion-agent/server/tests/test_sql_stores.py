@@ -166,7 +166,7 @@ def test_job_claim_is_exclusive_and_dedupe_holds(migrated):
 
 def test_tool_call_audit_trim_removes_only_old_rows(migrated):
     from companion.adapters.store.sql.repositories import SqlToolCallStore
-    from companion.ports.tools import ToolCallRecord
+    from companion.tools.port import ToolCallRecord
 
     async def go():
         engine = await _engine(migrated)

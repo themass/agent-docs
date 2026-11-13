@@ -13,7 +13,7 @@ from typing import Any
 
 from companion.avatar.package import InvalidPackage, parse_package, valid_avatar_key
 from companion.avatar.port import DRAFT, OFFLINE, ONLINE, AvatarRelease, AvatarReleaseStore
-from companion.ports.objects import ObjectStore
+from companion.uploads.objects_port import ObjectStore
 
 log = logging.getLogger("companion.avatar")
 

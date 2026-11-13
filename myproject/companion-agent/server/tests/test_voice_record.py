@@ -3,7 +3,7 @@
 import asyncio
 from types import SimpleNamespace
 
-from companion.adapters.store.sql.qa import SqlQaStore, VoiceTurnRecord
+from companion.trace.qa import SqlQaStore, VoiceTurnRecord
 from companion.adapters.store.sql.schema import voice_turn
 from companion.api.livekit.agent import build_agent_class
 from companion.bootstrap.voice_wiring import build_voice_recorder

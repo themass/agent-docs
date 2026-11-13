@@ -26,7 +26,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from companion.memory.subject import role_subject
-from companion.ports.account import AccountDataStore, SessionEventsEraser, ThreadEraser
+from companion.account.port import AccountDataStore, SessionEventsEraser, ThreadEraser
 
 log = logging.getLogger("companion.account")
 

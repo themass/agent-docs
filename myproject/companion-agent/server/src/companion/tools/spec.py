@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
-from companion.domain.tools.mcp_policy import is_forbidden_tool
+from companion.tools.mcp_policy import is_forbidden_tool
 
 PRODUCTS = frozenset({"chat", "roleplay"})
 IDENTITY_FIELDS = frozenset({"user_id", "owner_id", "role_id", "character_id", "session_id", "turn_id"})

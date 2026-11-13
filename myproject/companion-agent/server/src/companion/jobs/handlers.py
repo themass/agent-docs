@@ -8,7 +8,7 @@ from typing import Any
 
 from companion.jobs.worker import utc_now
 from companion.ports.store import ConfirmationStore
-from companion.ports.tools import ToolCallStore
+from companion.tools.port import ToolCallStore
 
 AUDIT_RETENTION = timedelta(days=90)
 

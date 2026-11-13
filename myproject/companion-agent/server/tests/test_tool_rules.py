@@ -8,12 +8,12 @@ from unittest.mock import AsyncMock
 import pytest
 from pydantic import BaseModel
 
-from companion.app.tools.builtin import register_builtin_tools
-from companion.app.tools.confirmation import ConfirmationService
-from companion.app.tools.runtime import ToolRuntime, ToolTurn
-from companion.domain.tools.policy import Verdict, authorize, fingerprint, truncate
-from companion.domain.tools.registry import ToolRegistry
-from companion.domain.tools.spec import Permission, SideEffect, ToolSpec, ToolSpecError
+from companion.tools.builtin import register_builtin_tools
+from companion.tools.confirmation import ConfirmationService
+from companion.tools.runtime import ToolRuntime, ToolTurn
+from companion.tools.policy import Verdict, authorize, fingerprint, truncate
+from companion.tools.registry import ToolRegistry
+from companion.tools.spec import Permission, SideEffect, ToolSpec, ToolSpecError
 
 
 class P(BaseModel):

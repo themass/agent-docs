@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 from PIL import Image, ImageOps
 
-from companion.domain.uploads.policy import JPEG_QUALITY, UploadRejected, check_pixels, scaled_size
+from companion.uploads.policy import JPEG_QUALITY, UploadRejected, check_pixels, scaled_size
 
 
 @dataclass(frozen=True)

@@ -15,7 +15,7 @@ from uuid import UUID
 
 from langchain_core.callbacks import BaseCallbackHandler
 
-from companion.domain.trace.model import LlmCall
+from companion.trace.model import LlmCall
 
 def _text(content: Any) -> str:
     if isinstance(content, str):

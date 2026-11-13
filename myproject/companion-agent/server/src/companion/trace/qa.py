@@ -19,7 +19,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from companion.adapters.store.sql.schema import chat_turn, text_blob, turn_trace, voice_turn
-from companion.domain.trace.model import LlmCall, build_trace, read_trace, referenced_hashes, usage_of
+from companion.trace.model import LlmCall, build_trace, read_trace, referenced_hashes, usage_of
 
 
 def _now() -> datetime:

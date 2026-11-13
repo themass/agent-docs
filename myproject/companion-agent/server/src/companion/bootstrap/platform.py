@@ -25,8 +25,8 @@ from companion.turn.redis_control import RedisTurnControl
 from companion.memory.recallers import MemoryPortRecaller, TimelineRecaller
 from companion.proactive.push_log import LogPush
 from companion.roles.catalog_files import load_system_catalog
-from companion.adapters.storage.images import normalize_image
-from companion.adapters.store.sql.account import SqlAccountStore
+from companion.uploads.images import normalize_image
+from companion.account.sql import SqlAccountStore
 from companion.avatar.sql import SqlAvatarReleaseStore
 from companion.jobs.sql import SqlJobStore
 from companion.persona.sql import SqlPersonaStore
@@ -46,9 +46,9 @@ from companion.adapters.store.sql.repositories import (
     SqlUploadStore,
 )
 from companion.api.http.routers.chat import ChatApi
-from companion.adapters.store.sql.compliance import SqlComplianceStore
-from companion.app.account.purge import AccountPurgeService
-from companion.app.compliance.service import ComplianceService
+from companion.compliance.sql import SqlComplianceStore
+from companion.account.purge import AccountPurgeService
+from companion.compliance.service import ComplianceService
 from companion.avatar.catalog import AvatarCatalog
 from companion.chat.assembler import PromptAssembler, skill_ids_of
 from companion.chat.context import ContextBuilder
@@ -63,19 +63,19 @@ from companion.timeline.recorder import TimelineRecorder
 from companion.proactive.reminders import ReminderDispatcher, ReminderService, SessionGone
 from companion.roles.resolver import RoleProfileResolver
 from companion.roles.service import RoleService
-from companion.app.tools.builtin import register_builtin_tools
-from companion.app.tools.confirmation import ConfirmationService
-from companion.app.tools.runtime import ToolRuntime
-from companion.app.uploads.service import UploadService
+from companion.tools.builtin import register_builtin_tools
+from companion.tools.confirmation import ConfirmationService
+from companion.tools.runtime import ToolRuntime
+from companion.uploads.service import UploadService
 from companion.bootstrap.chat_stack import build_chat_api
 from companion.brain.llm_trace import LlmCallCollector
-from companion.app.trace.writer import BackgroundWriter
+from companion.trace.writer import BackgroundWriter
 from companion.config import Settings
 from companion.paths import CHARACTERS_DIR, ROLES_CATALOG_DIR, SKILLS_PUBLIC_DIR
 from companion.domain.prompt.templates import PROMPT_VERSION
 from companion.history.summary import TIMELINE_RECORD_JOB
 from companion.memory.pipeline import MemoryPipeline
-from companion.domain.tools.registry import ToolRegistry
+from companion.tools.registry import ToolRegistry
 from companion.brain.port import TextDelta, TurnRequest
 from memory_hub import AppConfig, MemoryHub
 from memory_hub.hub import ScopedMemory
@@ -212,7 +212,7 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     engine = make_engine(settings.database_url, pool_profile)
     redis = redis_async.from_url(settings.companion_redis_url, decode_responses=False)
 
-    from companion.adapters.store.sql.qa import SqlQaStore
+    from companion.trace.qa import SqlQaStore
 
     qa = SqlQaStore(engine)
     sessions = SqlSessionStore(engine)
@@ -405,7 +405,7 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
 
     uploads = objects = None
     if settings.tos_endpoint:
-        from companion.adapters.storage.tos import TosObjectStore
+        from companion.uploads.tos import TosObjectStore
 
         objects = TosObjectStore(endpoint=settings.tos_endpoint, bucket=settings.tos_bucket,
                                  access_key=settings.tos_access_key, secret_key=settings.tos_secret_key,

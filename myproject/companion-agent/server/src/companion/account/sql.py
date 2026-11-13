@@ -34,7 +34,7 @@ from companion.adapters.store.sql.schema import (
     turn_trace,
     voice_turn,
 )
-from companion.ports.account import AccountFootprint
+from companion.account.port import AccountFootprint
 
 # 删除顺序：先子表后会话。没有外键约束，顺序只为了中途失败时不留下「有消息没会话」的孤儿。
 _OWNED = (chat_message, chat_turn, chat_queue, action_confirmation, tool_call, reminder, timeline_event,

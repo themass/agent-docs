@@ -178,7 +178,7 @@ class DeerFlowBrain:
         if steer_inbox is not None:
             context["steer_inbox"] = steer_inbox
         if self._tool_runtime is not None:
-            from companion.app.tools.runtime import ToolTurn
+            from companion.tools.runtime import ToolTurn
 
             session_id = request.session_id or int(request.metadata.get("session_id", 0) or 0)
             context["tool_runtime"] = self._tool_runtime

@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from companion.domain.trace.model import (
+from companion.trace.model import (
     CUT_MARK, HEAD_CHARS, MAX_MESSAGE_CHARS, TAIL_CHARS, LlmCall, build_trace, chunks, clip, read_trace,
     referenced_hashes, usage_of,
 )

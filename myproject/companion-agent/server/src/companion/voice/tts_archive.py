@@ -11,7 +11,7 @@ import logging
 from collections import OrderedDict
 from typing import Any
 
-from companion.adapters.store.sql.qa import VoiceTurnRecord
+from companion.trace.qa import VoiceTurnRecord
 from companion.voice.tts_capture import TtsSegment, pcm_to_wav
 
 log = logging.getLogger("companion.voice.archive")

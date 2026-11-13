@@ -8,7 +8,7 @@ from sqlalchemy import and_, delete, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from companion.adapters.store.sql.schema import usage_span, user_consent
-from companion.ports.compliance import REMIND_AFTER_MINUTES, SPAN_GAP_MINUTES, Consent, UsageState
+from companion.compliance.port import REMIND_AFTER_MINUTES, SPAN_GAP_MINUTES, Consent, UsageState
 
 
 def _now() -> datetime:

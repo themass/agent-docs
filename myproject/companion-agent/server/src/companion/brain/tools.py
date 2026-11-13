@@ -12,7 +12,7 @@ from typing import Any
 
 from langchain_core.tools import StructuredTool
 
-from companion.domain.tools.spec import ToolSpec
+from companion.tools.spec import ToolSpec
 
 
 def to_langchain_tools(specs: Iterable[ToolSpec]) -> list[Any]:

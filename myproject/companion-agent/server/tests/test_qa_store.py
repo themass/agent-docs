@@ -4,9 +4,9 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select, update
 
-from companion.adapters.store.sql.qa import SqlQaStore, VoiceTurnRecord
+from companion.trace.qa import SqlQaStore, VoiceTurnRecord
 from companion.adapters.store.sql.schema import text_blob, turn_trace, voice_turn
-from companion.domain.trace.model import LlmCall, build_trace
+from companion.trace.model import LlmCall, build_trace
 
 
 def _llm(seq=0, **kw) -> LlmCall:
@@ -121,7 +121,7 @@ async def test_one_failing_object_delete_does_not_fail_the_job_or_skip_the_rest(
 
 
 async def test_account_footprint_includes_voice_audio_and_purge_removes_the_rows(sqlite_engine):
-    from companion.adapters.store.sql.account import _OWNED, SqlAccountStore
+    from companion.account.sql import _OWNED, SqlAccountStore
 
     store = SqlQaStore(sqlite_engine)
     await _trace(store, "T1", 1002)

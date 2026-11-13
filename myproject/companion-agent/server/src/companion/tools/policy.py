@@ -7,7 +7,7 @@ import json
 from collections.abc import Iterable
 from enum import Enum
 
-from companion.domain.tools.spec import Permission, ToolSpec
+from companion.tools.spec import Permission, ToolSpec
 
 
 class Verdict(str, Enum):

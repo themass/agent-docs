@@ -2,8 +2,8 @@
 
 from typing import Any
 
-from companion.app.uploads.service import UploadService
-from companion.domain.uploads.policy import UploadRejected
+from companion.uploads.service import UploadService
+from companion.uploads.policy import UploadRejected
 
 PREFIX = "/v1"
 

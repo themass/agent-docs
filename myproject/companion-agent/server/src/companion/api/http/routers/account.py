@@ -7,7 +7,7 @@ App 的注销流程先调这里、再调 Java 的注销接口：反过来的话 
 from typing import Any
 
 from companion.api.http.routers.chat import _owner_id
-from companion.app.account.purge import AccountPurgeService
+from companion.account.purge import AccountPurgeService
 
 PREFIX = "/v1"
 

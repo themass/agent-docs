@@ -8,7 +8,7 @@
 from datetime import datetime
 from typing import Any
 
-from companion.app.compliance.service import export_user_data
+from companion.compliance.service import export_user_data
 
 PREFIX = "/v1"
 

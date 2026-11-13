@@ -13,9 +13,9 @@ from langchain_core.outputs import ChatGeneration, ChatResult
 
 from companion.brain.deerflow import DeerFlowBrain, build_turn_graph
 from companion.brain.tools import to_langchain_tools
-from companion.app.tools.builtin import register_builtin_tools
-from companion.app.tools.runtime import ToolRuntime
-from companion.domain.tools.registry import ToolRegistry
+from companion.tools.builtin import register_builtin_tools
+from companion.tools.runtime import ToolRuntime
+from companion.tools.registry import ToolRegistry
 from companion.brain.port import TurnRequest
 
 

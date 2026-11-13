@@ -18,11 +18,11 @@ from typing import Any
 from pydantic import ValidationError
 
 from companion.chat.ids import new_ulid
-from companion.domain.tools.policy import Verdict, authorize, fingerprint, truncate
-from companion.domain.tools.registry import ToolRegistry
-from companion.domain.tools.spec import Permission, ToolContext, ToolSpec
+from companion.tools.policy import Verdict, authorize, fingerprint, truncate
+from companion.tools.registry import ToolRegistry
+from companion.tools.spec import Permission, ToolContext, ToolSpec
 from companion.ports.store import ConfirmationRecord, ConfirmationStore
-from companion.ports.tools import ToolCallRecord, ToolCallStore
+from companion.tools.port import ToolCallRecord, ToolCallStore
 
 log = logging.getLogger("companion.tools")
 

@@ -17,7 +17,7 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
-from companion.ports.compliance import Consent
+from companion.compliance.port import Consent
 
 log = logging.getLogger("companion.compliance")
 

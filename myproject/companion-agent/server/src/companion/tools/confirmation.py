@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from companion.app.tools.runtime import ToolRuntime
+from companion.tools.runtime import ToolRuntime
 from companion.ports.store import ConfirmationRecord, ConfirmationStore, MessageStore
 
 

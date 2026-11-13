@@ -10,13 +10,13 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from companion.adapters.store.sql.account import SqlAccountStore
+from companion.account.sql import SqlAccountStore
 from companion.jobs.sql import SqlJobStore
 from companion.memory.sql import SqlMemoryPort
 from companion.proactive.reminders_sql import SqlReminderStore
 from companion.adapters.store.sql.repositories import SqlMessageStore, SqlRoleStore, SqlSessionStore
 from companion.timeline.memory import InMemoryTimeline
-from companion.app.account.purge import PURGE_JOB, AccountPurgeService
+from companion.account.purge import PURGE_JOB, AccountPurgeService
 from companion.jobs.handlers import memory_record
 from companion.memory.subject import role_subject
 from companion.timeline.models import EventKind, TimelineEvent
@@ -117,7 +117,7 @@ async def test_purge_removes_everything_and_is_repeatable(engine):
     again = await service.run(owner_id=owner)   # 重试无副作用
     assert again.rows == 0 and again.memories == 0
 
-    from companion.app.account.purge import user_hash
+    from companion.account.purge import user_hash
 
     async with engine.begin() as conn:
         await conn.execute(agent_job.delete().where(

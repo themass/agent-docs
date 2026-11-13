@@ -8,14 +8,14 @@ from types import SimpleNamespace
 import pytest
 from PIL import Image
 
-from companion.adapters.storage.images import normalize_image
-from companion.adapters.storage.memory import InMemoryObjectStore
-from companion.adapters.storage.tos import TosNotConfigured, TosObjectStore
+from companion.uploads.images import normalize_image
+from companion.uploads.memory_storage import InMemoryObjectStore
+from companion.uploads.tos import TosNotConfigured, TosObjectStore
 from companion.jobs.handlers import audit_trim, confirmation_expire
 from companion.jobs.worker import JobWorker
-from companion.app.uploads.service import UploadService
+from companion.uploads.service import UploadService
 from companion.jobs.policy import after_failure, retry_delay
-from companion.domain.uploads.policy import UploadRejected, detect_type
+from companion.uploads.policy import UploadRejected, detect_type
 from companion.jobs.port import JobRecord
 
 NOW = datetime(2026, 11, 9, 10, 0)

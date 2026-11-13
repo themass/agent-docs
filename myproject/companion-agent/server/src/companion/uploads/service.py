@@ -9,8 +9,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from companion.chat.ids import new_ulid
-from companion.domain.uploads.policy import UploadRejected, check_size, detect_type
-from companion.ports.objects import ObjectStore
+from companion.uploads.policy import UploadRejected, check_size, detect_type
+from companion.uploads.objects_port import ObjectStore
 
 SIGNED_URL_TTL = 300  # 5 分钟（O §5）
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 
-from companion.domain.tools.mcp_policy import McpRegistry
+from companion.tools.mcp_policy import McpRegistry
 
 
 def build_toolsets(registry: McpRegistry) -> list:

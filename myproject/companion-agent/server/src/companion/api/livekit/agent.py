@@ -184,7 +184,7 @@ def build_agent_class() -> type:
             turn = self._pipeline.last_turn
             if self._recorder is None or turn is None or not turn.turn_id:
                 return    # 没有回合（被拒绝、排队）就没有可对账的记录
-            from companion.adapters.store.sql.qa import VoiceTurnRecord
+            from companion.trace.qa import VoiceTurnRecord
 
             record = VoiceTurnRecord(
                 turn_id=turn.turn_id, session_id=self._chat_session_id, owner_id=int(self._user_id),

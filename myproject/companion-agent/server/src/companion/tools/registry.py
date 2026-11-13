@@ -6,7 +6,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
-from companion.domain.tools.spec import ToolSpec
+from companion.tools.spec import ToolSpec
 
 Handler = Callable[..., Awaitable[Any]]
 
