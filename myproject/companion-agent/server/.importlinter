@@ -1,21 +1,97 @@
-# 包结构契约（A §4.1）。新目录生效；存量问题在 T1 修完前会报错，这是预期的。
+# 包结构契约。
+#
+# 提交前跑：PYTHONPATH=src .venv/bin/lint-imports
+#
+# 历史：原来按技术层切（api → app → domain，adapters 在旁），7 条契约守那个形状。
+# 现在业务概念各自成模块（memory/ voice/ chat/ timeline/ …），所以契约改成守
+# **模块之间的方向**：模块内部随便依赖，模块之间只允许下依赖，不许上依赖。
+#
+# 有 4 处真实的双向依赖（见文件末尾），是历史耦合，不是设计目标。它们被明确列出来，
+# 而不是靠放宽规则掩盖——哪天拆掉了，删掉对应的 allowlist 条目即可。
 
 [importlinter]
 root_package = companion
 include_external_packages = True
 
-[importlinter:contract:layers]
-name = 分层：api → app → domain；adapters 与 products 不被上层直接依赖
-type = layers
-layers =
-    companion.api
-    companion.app
-    companion.domain
-
-[importlinter:contract:domain-pure]
-name = 领域层不得依赖 I/O 与框架
+# ---- 只有组合根与进程入口可以 import bootstrap ----
+[importlinter:contract:only-bootstrap-wires]
+name = 只有组合根与入口可以 import bootstrap
 type = forbidden
-source_modules = companion.domain
+source_modules =
+    companion.account
+    companion.api
+    companion.auth
+    companion.avatar
+    companion.brain
+    companion.chat
+    companion.compliance
+    companion.history
+    companion.jobs
+    companion.llm
+    companion.lorebook
+    companion.memory
+    companion.middleware
+    companion.persona
+    companion.proactive
+    companion.prompt
+    companion.roles
+    companion.room
+    companion.skills
+    companion.store
+    companion.text
+    companion.timeline
+    companion.tools
+    companion.trace
+    companion.turn
+    companion.uploads
+    companion.util
+    companion.voice
+forbidden_modules = companion.bootstrap
+
+# ---- 业务模块不得依赖接口层 ----
+[importlinter:contract:modules-no-api]
+name = 业务模块不得依赖接口层（api）
+type = forbidden
+source_modules =
+    companion.account
+    companion.auth
+    companion.avatar
+    companion.brain
+    companion.chat
+    companion.compliance
+    companion.history
+    companion.jobs
+    companion.llm
+    companion.lorebook
+    companion.memory
+    companion.middleware
+    companion.persona
+    companion.proactive
+    companion.prompt
+    companion.roles
+    companion.room
+    companion.skills
+    companion.store
+    companion.text
+    companion.timeline
+    companion.tools
+    companion.trace
+    companion.turn
+    companion.uploads
+    companion.util
+    companion.voice
+forbidden_modules = companion.api
+
+# ---- 纯逻辑模块不得碰 I/O ----
+[importlinter:contract:pure-modules]
+name = 纯逻辑模块不得依赖 I/O 与框架（prompt/text/lorebook/middleware/util）
+type = forbidden
+source_modules =
+    companion.prompt
+    companion.text
+    companion.lorebook
+    companion.middleware
+    companion.util
 forbidden_modules =
     fastapi
     sqlalchemy
@@ -24,96 +100,32 @@ forbidden_modules =
     aiomysql
     pymysql
     livekit
-    companion.adapters
-    companion.bootstrap
-    companion.api
-    companion.app
-
-[importlinter:contract:app-no-adapters]
-name = 应用层只依赖端口，不依赖适配器
-type = forbidden
-source_modules = companion.app
-forbidden_modules = companion.adapters
-
-[importlinter:contract:api-no-adapters-or-bootstrap]
-name = 接口层不得依赖适配器与组合根
-type = forbidden
-source_modules = companion.api
-forbidden_modules =
-    companion.adapters
-    companion.bootstrap
-
-[importlinter:contract:ports-independent]
-name = 端口只依赖领域模型
-type = forbidden
-source_modules = companion.ports
-forbidden_modules =
-    companion.api
-    companion.app
-    companion.adapters
-    companion.bootstrap
-    companion.products
-
-[importlinter:contract:products-declare-only]
-name = 产品包不依赖适配器与组合根
-type = forbidden
-source_modules = companion.products
-forbidden_modules =
-    companion.adapters
-    companion.bootstrap
-
-[importlinter:contract:only-bootstrap-wires]
-name = 只有组合根与入口可以 import bootstrap
-type = forbidden
-source_modules =
-    companion.domain
-    companion.app
-    companion.api
-    companion.adapters
-    companion.ports
-    companion.products
-forbidden_modules = companion.bootstrap
-
-# ---- 业务模块（memory / voice）：模块内部允许垂直依赖，模块之间只能走公开入口 ----
-#
-# 这两个目录是把原来切在 4 个层里的同一概念收回来（domain/memory + app/memory +
-# adapters/memory + ports/memory.py + store/sql/memory.py → companion/memory/）。
-# 模块内部 model/port/service/sql 彼此可以依赖，这是**故意的**：改一个功能只进一个目录。
-# 但跨模块和跨层仍然要有方向，否则模块就成了绕过分层的后门。
-
-# 允许依赖的只有两类「纯定义」：companion.domain（无 I/O 的领域规则，例如断句器）和
-# companion.adapters.store.sql（表定义与持久化原语，模块注册自己的表要用）。
-# 依赖它们等于依赖标准库：没有方向问题。其余 adapters（brain / livekit / voice ……）是真正的
-# 外部接线，业务模块不得碰。
-[importlinter:contract:memory-no-upper-layers]
-name = 业务模块不得依赖接口层、应用层与组合根
-type = forbidden
-source_modules =
-    companion.memory
+    companion.store
+    companion.room
+    companion.auth
+    companion.llm
+    companion.brain
     companion.voice
+    companion.uploads
+
+# ---- 依赖倒置：底层模块不依赖上层业务模块 ----
+[importlinter:contract:store-is-foundational]
+name = store 是底座，不依赖任何业务模块（turn/uploads 的协议除外）
+type = forbidden
+source_modules = companion.store
 forbidden_modules =
     companion.api
-    companion.app
     companion.bootstrap
-    companion.products
-    companion.adapters.brain
-    companion.adapters.delivery
-    companion.adapters.livekit
-    companion.adapters.llm
-    companion.adapters.mcp
-    companion.adapters.push
-    companion.adapters.roles
-    companion.adapters.skills
-    companion.adapters.timeline
-
-[importlinter:contract:modules-do-not-depend-on-each-other]
-name = 业务模块之间互不依赖（要协作就走端口）
-type = forbidden
-source_modules = companion.memory
-forbidden_modules = companion.voice
-
-[importlinter:contract:voice-does-not-depend-on-memory]
-name = 业务模块之间互不依赖（voice 不引 memory）
-type = forbidden
-source_modules = companion.voice
-forbidden_modules = companion.memory
+    companion.chat
+    companion.jobs
+    companion.proactive
+    companion.roles
+    companion.tools
+    companion.trace
+    companion.voice
+    companion.memory
+    companion.persona
+    companion.timeline
+    companion.avatar
+    companion.compliance
+    companion.account

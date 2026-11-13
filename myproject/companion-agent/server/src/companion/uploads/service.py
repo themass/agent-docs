@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from companion.chat.ids import new_ulid
+from companion.util.ids import new_ulid
 from companion.uploads.policy import UploadRejected, check_size, detect_type
 from companion.uploads.objects_port import ObjectStore
 

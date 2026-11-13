@@ -40,7 +40,7 @@ def build_handlers(platform) -> dict:
         session_resummarize, timeline_record, timeline_sweep)
     from companion.persona.updater import PERSONA_JOB
     from companion.timeline.sweep import TIMELINE_SWEEP_JOB
-    from companion.bootstrap.platform import MEMORY_RECORD_JOB
+    from companion.memory.pipeline import MEMORY_RECORD_JOB
 
     handlers = {
         "confirmation.expire": confirmation_expire(SqlConfirmationStore(platform.engine)),

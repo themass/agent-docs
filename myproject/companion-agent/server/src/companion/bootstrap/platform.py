@@ -74,7 +74,7 @@ from companion.config import Settings
 from companion.paths import CHARACTERS_DIR, ROLES_CATALOG_DIR, SKILLS_PUBLIC_DIR
 from companion.prompt.templates import PROMPT_VERSION
 from companion.history.summary import TIMELINE_RECORD_JOB
-from companion.memory.pipeline import MemoryPipeline
+from companion.memory.pipeline import MEMORY_RECORD_JOB, MemoryPipeline
 from companion.tools.registry import ToolRegistry
 from companion.brain.port import TextDelta, TurnRequest
 from memory_hub import AppConfig, MemoryHub
@@ -83,7 +83,6 @@ from memory_hub.hub import ScopedMemory
 log = logging.getLogger("companion.platform")
 
 BUILTIN_PERSONA_IDS = frozenset({"linche", "sudai"})
-MEMORY_RECORD_JOB = "memory.record"
 
 
 def _utcnow() -> datetime:

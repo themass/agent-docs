@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from companion.chat.ids import new_ulid
+from companion.util.ids import new_ulid
 from companion.chat.submit import SubmitService
 from companion.turn.queue import DRAIN_BATCH_SIZE, DRAIN_MAX_ATTEMPTS
 from companion.store.port import QueueItem, QueueStore

@@ -14,6 +14,9 @@ import asyncio
 from collections.abc import Sequence
 from datetime import datetime
 
+#: 记忆写入的后台任务名。回合把写入排进队列，不等它完成。
+MEMORY_RECORD_JOB = "memory.record"
+
 from companion.memory.hooks import (
     RecallQuery,
     RecallResult,
