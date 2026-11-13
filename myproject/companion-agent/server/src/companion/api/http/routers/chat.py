@@ -11,7 +11,7 @@ from typing import Any
 from companion.app.chat.lifecycle import DrainState
 from companion.api.sse.stream import event_stream
 from companion.app.chat.drain import DrainService
-from companion.app.chat.history import HistoryBusy, HistoryService, NotLatest, find_reply
+from companion.app.chat.history import HistoryBusy, HistoryService, NotEditable, NotLatest, find_reply
 from companion.app.chat.submit import SubmitService
 from companion.domain.turn.queue import DRAIN_MAX_ATTEMPTS
 from companion.ports.store import MessageStore, QueueStore, SessionStore
@@ -193,6 +193,9 @@ def build_router(api: ChatApi, current_user):
         if api.history is not None:
             try:
                 message = await api.history.edit(owner_id=owner, message_id=message_id, content=body.content)
+            except NotEditable:
+                # 语音转写不开放编辑：它是识别结果，改了就与实际进了记忆和线程的内容不一致。
+                raise HTTPException(status_code=409, detail={"code": "not_editable", "reason": "voice"})
             except HistoryBusy:
                 raise _busy()
             if message is None:

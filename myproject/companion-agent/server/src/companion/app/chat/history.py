@@ -39,6 +39,14 @@ class NotLatest(RuntimeError):
     """候选回复只能在「最新一轮」切换：线程是顺序的，往中间插入会让模型看到错乱的对话。"""
 
 
+class NotEditable(RuntimeError):
+    """这条消息不允许编辑。
+
+    语音转写（``kind=voice``）是识别器的输出，不是用户打的字：改它等于把「用户说过什么」
+    记成没发生过的事，而它已经进了记忆抽取和对话线程。识别错了就重新说一句，不提供编辑。
+    """
+
+
 def lc_ids_of(message: MessageRecord) -> list[str]:
     if message.role == "user" or message.kind == "proactive":
         return [lc_user_id(message.id)]
@@ -210,6 +218,9 @@ class HistoryService:
         message = await self._messages.get(owner_id=owner_id, message_id=message_id)
         if message is None or message.role != "user":
             return None
+        # 语音转写不开放编辑：它是识别结果，改了就与已经抽取进记忆和线程的内容不一致。
+        if message.kind == "voice":
+            raise NotEditable(message.kind)
         if self._conversation is None:
             ok = await self._messages.edit(owner_id=owner_id, message_id=message_id, content=content)
             return await self._messages.get(owner_id=owner_id, message_id=message_id) if ok else None

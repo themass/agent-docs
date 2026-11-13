@@ -5,7 +5,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from companion.app.chat.history import HistoryBusy, HistoryService, lc_ids_of
+from companion.app.chat.history import (
+    HistoryBusy,
+    HistoryService,
+    NotEditable,
+    lc_ids_of,
+)
 from companion.domain.history.summary import RESUMMARIZE_JOB
 
 
@@ -122,6 +127,25 @@ async def test_edit_replaces_text_in_thread_or_falls_back_to_resummarize():
     assert conv.texts == {"m2": "新内容"} and jobs.items == []
     await svc.edit(owner_id=1, message_id=1, content="改旧的")
     assert jobs.items and jobs.items[0][0] == RESUMMARIZE_JOB
+
+
+async def test_voice_transcripts_are_not_editable():
+    """语音转写是识别结果，不是用户打的字：改它会把「用户说过什么」记错，
+    而它已经进了记忆抽取和对话线程。识别错了就重新说，不提供编辑。"""
+    msgs, conv, ctl, jobs = Messages([_msg(50, kind="voice")]), Conversation(["m50"]), Control(), Jobs()
+    svc = HistoryService(messages=msgs, control=ctl, conversation=conv, jobs=jobs)
+
+    with pytest.raises(NotEditable):
+        await svc.edit(owner_id=1, message_id=50, content="改一下")
+    assert msgs.rows[50].content == "c50"      # 一个字都没改
+    assert conv.texts == {}                    # 线程也没动
+
+
+async def test_one_shot_voice_reply_is_not_editable_either():
+    """assistant 侧的语音回合（proactive 之类）本来就不是 user 消息，同样编辑不了。"""
+    msgs, conv, ctl, jobs = Messages([_msg(51, role="assistant", kind="voice")]), Conversation([]), Control(), Jobs()
+    svc = HistoryService(messages=msgs, control=ctl, conversation=conv, jobs=jobs)
+    assert await svc.edit(owner_id=1, message_id=51, content="x") is None
 
 
 async def test_busy_session_refuses_history_changes():
