@@ -14,7 +14,7 @@ from typing import Any
 
 from companion.app.chat.ids import new_ulid
 from companion.memory.subject import role_subject
-from companion.domain.timeline.models import EventKind, EventOrigin, EventStatus, TimelineEvent
+from companion.timeline.models import EventKind, EventOrigin, EventStatus, TimelineEvent
 from companion.memory.port import MemoryItem, MemoryKind
 
 PREFIX = "/v1"

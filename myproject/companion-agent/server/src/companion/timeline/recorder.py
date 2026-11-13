@@ -13,8 +13,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from companion.domain.timeline.extraction import extract_events
-from companion.domain.timeline.models import EventOrigin, TimelineEvent
+from companion.timeline.extraction import extract_events
+from companion.timeline.models import EventOrigin, TimelineEvent
 
 log = logging.getLogger("companion.timeline")
 

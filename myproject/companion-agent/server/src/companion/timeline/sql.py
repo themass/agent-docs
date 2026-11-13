@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from companion.adapters.store.sql.schema import timeline_event
-from companion.domain.timeline.models import (
+from companion.timeline.models import (
     EventKind,
     EventOrigin,
     EventStatus,

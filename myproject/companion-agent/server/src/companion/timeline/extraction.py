@@ -12,7 +12,7 @@ import re
 from collections.abc import Awaitable, Callable
 from datetime import datetime
 
-from companion.domain.timeline.models import EventKind, Recurrence, TimelineEvent
+from companion.timeline.models import EventKind, Recurrence, TimelineEvent
 
 LLMCall = Callable[[str], Awaitable[str]]
 

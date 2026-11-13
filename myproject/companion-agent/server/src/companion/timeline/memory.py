@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, datetime, timedelta
 
-from companion.domain.timeline.models import EventOrigin, EventStatus, TimelineEvent
+from companion.timeline.models import EventOrigin, EventStatus, TimelineEvent
 
 # 「现在」的判断统一用它，避免 naive / aware 混用
 def _aware(value: datetime) -> datetime:

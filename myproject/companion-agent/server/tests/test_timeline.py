@@ -9,9 +9,9 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from companion.domain.timeline.models import EventKind, EventStatus, Recurrence, TimelineEvent
-from companion.adapters.timeline.memory import InMemoryTimeline
-from companion.domain.timeline.extraction import parse_events
+from companion.timeline.models import EventKind, EventStatus, Recurrence, TimelineEvent
+from companion.timeline.memory import InMemoryTimeline
+from companion.timeline.extraction import parse_events
 
 
 def event(**kw):

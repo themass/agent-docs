@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Protocol
 
-from companion.domain.timeline.models import EventStatus, TimelineEvent
+from companion.timeline.models import EventStatus, TimelineEvent
 
 
 class TimelineStore(Protocol):

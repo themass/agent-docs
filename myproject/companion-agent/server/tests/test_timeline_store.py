@@ -9,8 +9,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from companion.adapters.timeline.memory import InMemoryTimeline
-from companion.domain.timeline.models import (
+from companion.timeline.memory import InMemoryTimeline
+from companion.timeline.models import (
     EventKind,
     EventOrigin,
     EventStatus,
@@ -31,7 +31,7 @@ async def store(request, memory_schema):
         pytest.skip("COMPANION_TEST_DATABASE_URL not set")
     from sqlalchemy.ext.asyncio import create_async_engine
 
-    from companion.adapters.store.sql.timeline import SqlTimelineStore
+    from companion.timeline.sql import SqlTimelineStore
 
     engine = create_async_engine(URL, pool_pre_ping=True)
     try:

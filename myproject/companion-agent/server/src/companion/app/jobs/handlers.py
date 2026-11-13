@@ -62,7 +62,7 @@ def session_resummarize(service: Any):
 
 def timeline_sweep(store: Any):
     """每日整理时间线（过期的一次性事件置 missed）。任务本身与用户无关，没有载荷。"""
-    from companion.app.timeline.sweep import sweep_overdue
+    from companion.timeline.sweep import sweep_overdue
 
     async def handle(payload: dict[str, Any]) -> None:
         await sweep_overdue(store)

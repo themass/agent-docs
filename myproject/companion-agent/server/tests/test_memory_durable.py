@@ -6,7 +6,7 @@ import uuid
 
 import pytest
 
-from companion.domain.timeline.models import TimelineEvent  # noqa: F401 — 保证模块加载
+from companion.timeline.models import TimelineEvent  # noqa: F401 — 保证模块加载
 from companion.memory.port import MemoryItem, MemoryKind
 
 MYSQL = (os.environ.get("COMPANION_TEST_DATABASE_URL") or os.environ.get("COMPANION_TEST_MYSQL_URL", ""))

@@ -33,7 +33,7 @@ from companion.adapters.store.sql.persona import SqlPersonaStore
 from companion.adapters.store.sql.proactive_store import (
     SqlDelivery, SqlPreferencesStore, SqlSendLedger,
 )
-from companion.adapters.store.sql.timeline import SqlTimelineStore
+from companion.timeline.sql import SqlTimelineStore
 from companion.memory.sql import SqlMemoryPort
 from companion.adapters.store.sql.reminders import SqlReminderStore
 from companion.adapters.store.sql.repositories import (
@@ -59,7 +59,7 @@ from companion.app.chat.turn_runner import TurnOutcome
 from companion.memory.extraction import MemoryExtractor
 from companion.memory.recorder import ExtractionRecorder
 from companion.app.persona.updater import PERSONA_JOB, PersonaUpdater
-from companion.app.timeline.recorder import TimelineRecorder
+from companion.timeline.recorder import TimelineRecorder
 from companion.app.proactive.reminders import ReminderDispatcher, ReminderService, SessionGone
 from companion.app.roles.resolver import RoleProfileResolver
 from companion.app.roles.service import RoleService

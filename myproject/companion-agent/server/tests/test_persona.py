@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 from companion.api.http.deps import AllowAllVerifier, build_current_user
 from companion.api.http.routers.memory_v1 import build_router
 from companion.app.persona.updater import PERSONA_JOB, PersonaUpdater
-from companion.adapters.timeline.memory import InMemoryTimeline
+from companion.timeline.memory import InMemoryTimeline
 from companion.domain.persona.extraction import parse_drafts, render_prompt
 from companion.domain.persona.model import (
     ABORT, APPEND, DYNAMIC, STATIC, UPDATE, MergeAction, ProfileDraft, ProfileEntry, clean_draft, plan_merge,

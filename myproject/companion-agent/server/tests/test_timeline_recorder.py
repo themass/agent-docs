@@ -5,10 +5,10 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from companion.adapters.timeline.memory import InMemoryTimeline
+from companion.timeline.memory import InMemoryTimeline
 from companion.app.jobs.handlers import timeline_record
-from companion.app.timeline.recorder import TimelineRecorder
-from companion.domain.timeline.models import EventKind, EventOrigin, TimelineEvent
+from companion.timeline.recorder import TimelineRecorder
+from companion.timeline.models import EventKind, EventOrigin, TimelineEvent
 
 
 def _llm(payload):

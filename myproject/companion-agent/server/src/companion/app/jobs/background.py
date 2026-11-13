@@ -39,7 +39,7 @@ def build_handlers(platform) -> dict:
         QA_PURGE_JOB, account_purge, audit_trim, confirmation_expire, memory_record, persona_update, qa_purge,
         session_resummarize, timeline_record, timeline_sweep)
     from companion.app.persona.updater import PERSONA_JOB
-    from companion.app.timeline.sweep import TIMELINE_SWEEP_JOB
+    from companion.timeline.sweep import TIMELINE_SWEEP_JOB
     from companion.bootstrap.platform import MEMORY_RECORD_JOB
 
     handlers = {
@@ -157,7 +157,7 @@ class BackgroundJobs:
     async def _schedule_daily(self) -> None:
         """入队今天的整理任务。按日期去重，多个进程同时入队也只有一条。"""
         from companion.app.jobs.handlers import QA_PURGE_JOB
-        from companion.app.timeline.sweep import TIMELINE_SWEEP_JOB
+        from companion.timeline.sweep import TIMELINE_SWEEP_JOB
 
         today = datetime.now(UTC).date().isoformat()
         now = datetime.now(UTC).replace(tzinfo=None)
