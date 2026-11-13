@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
 from typing import Any, Protocol
 from urllib.parse import quote
 
-from companion.ports.voice import AudioChunk, Transcript, VoiceProviderError, VoiceRef, VoiceUnavailable
+from companion.voice.port import AudioChunk, Transcript, VoiceProviderError, VoiceRef, VoiceUnavailable
 
 DEFAULT_ENDPOINT = "https://nls-gateway.cn-shanghai.aliyuncs.com/stream/v1/tts"
 DEFAULT_TOKEN_ENDPOINT = "https://nls-meta.cn-shanghai.aliyuncs.com"

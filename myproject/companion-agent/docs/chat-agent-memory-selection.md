@@ -20,7 +20,7 @@
 
 ### A. MySQL 词法检索（当前）
 
-- 现状：`domain/memory/recall.py` 的 CJK 单字与双字、其他语言按词；`adapters/store/mysql/memory.py` 只在最近 500 条里排序。规范一致性检查已通过（内存、MySQL）。
+- 现状：`memory/recall.py` 的 CJK 单字与双字、其他语言按词；`memory/sql.py` 只在最近 500 条里排序。规范一致性检查已通过（内存、MySQL）。
 - 优点：零新依赖，行为确定，可离线测试。
 - 缺点：没有语义，同义词、换说法召回不到；只看最近 500 条，老记忆召回不到。
 - 成本：无额外成本。

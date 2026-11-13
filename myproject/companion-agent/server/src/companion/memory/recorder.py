@@ -5,9 +5,9 @@
 
 from __future__ import annotations
 
-from companion.app.memory.extraction import MemoryExtractor
-from companion.domain.memory.hooks import RecordOutcome, TurnRecord
-from companion.domain.memory.subject import role_subject
+from companion.memory.extraction import MemoryExtractor
+from companion.memory.hooks import RecordOutcome, TurnRecord
+from companion.memory.subject import role_subject
 
 
 class ExtractionRecorder:

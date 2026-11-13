@@ -23,7 +23,7 @@ import uuid
 from collections.abc import Awaitable, Callable, Sequence
 from typing import Any
 
-from companion.ports.memory import MemoryItem, MemoryKind, coerce_kind
+from companion.memory.port import MemoryItem, MemoryKind, coerce_kind
 
 logger = logging.getLogger(__name__)
 

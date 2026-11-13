@@ -11,8 +11,8 @@ import uuid
 from collections.abc import Iterable, Sequence
 from dataclasses import replace
 
-from companion.domain.memory.recall import rank_scored
-from companion.ports.memory import (
+from companion.memory.recall import rank_scored
+from companion.memory.port import (
     MAX_BATCH,
     MAX_LIST_LIMIT,
     MAX_SEARCH_LIMIT,

@@ -34,7 +34,7 @@ DeerFlow 把数据分成三份，各管一件事：
 | 上下文压缩 | **没有**。唯一的 summary 字样是工具确认卡片标题 | `app/tools/runtime.py:30, 168` |
 | 删除消息 | 软删（`deleted=1`），只影响界面列表 | `adapters/store/mysql/repositories.py:159` |
 | 重试 / 继续 | 从回合里取用户输入重跑，不读历史 | `chat.py:245` |
-| 记忆 | MySQL `ca_memory_item`；召回中间件只在旧组合根 `container.py:73` 接入，新平台链路未接入 | `adapters/store/mysql/memory.py` |
+| 记忆 | MySQL `ca_memory_item`；召回中间件只在旧组合根 `container.py:73` 接入，新平台链路未接入 | `memory/sql.py` |
 | 会话摘要 | 设计已写（`chat-agent-context-design.md`），未实现 | — |
 
 ---

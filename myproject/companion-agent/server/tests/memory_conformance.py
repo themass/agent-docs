@@ -9,7 +9,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from companion.ports.memory import (
+from companion.memory.port import (
     MAX_BATCH,
     MAX_CONTENT_CHARS,
     MAX_LIST_LIMIT,

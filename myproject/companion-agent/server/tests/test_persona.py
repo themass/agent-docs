@@ -217,7 +217,7 @@ class ApiStore(Store):
 
 @pytest.fixture
 def profile_client():
-    from companion.adapters.memory.fake import InMemoryMemoryPort
+    from companion.memory.fake import InMemoryMemoryPort
     from memory_hub import AppConfig, MemoryHub
 
     store = ApiStore([entry(), entry(2, "性格", "比较内向", is_inference=True, confidence=0.5)])

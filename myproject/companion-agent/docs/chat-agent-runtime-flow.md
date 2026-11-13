@@ -36,7 +36,7 @@ bootstrap（组合根：只有它知道具体实现）
 | 大脑 | — | （经 `Produce` 注入） | `adapters/brain/deerflow.py`、`graph_middleware.py` |
 | 对话线程（模型上下文） | — | `app/chat/history.py`、`resummarize.py` | `adapters/brain/conversation_state.py` |
 | 角色扮演提示词 | `domain/prompt/roleplay.py`、`plan.py`、`domain/lorebook/`、`domain/roles/profile.py` | `app/chat/context.py`、`app/roles/resolver.py` | `adapters/roles/` |
-| 记忆 | `domain/memory/hooks.py`、`pipeline.py` | `app/memory/recorder.py`、`extraction.py` | `adapters/memory/recallers.py`、`adapters/store/sql/memory.py` |
+| 记忆 | `memory/hooks.py`、`pipeline.py` | `memory/recorder.py`、`extraction.py` | `memory/recallers.py`、`memory/sql.py` |
 | 工具与确认 | `domain/tools/` | `app/tools/` | `adapters/brain/tools.py` |
 | 定时提醒（主动消息） | `domain/reminders.py` | `app/proactive/reminders.py` | `adapters/store/sql/reminders.py`、`adapters/push/` |
 | 账号注销 | — | `app/account/purge.py` | `adapters/store/sql/account.py`、Redis `purge_session`、`CheckpointThreadEraser` |
@@ -176,7 +176,7 @@ worker 每小时检查一次今天的 `timeline.sweep` 任务是否已入队（�
 
 ## 6.1 记忆按角色隔离
 
-记忆主体 id = `{owner}.{role}`（`domain/memory/subject.py`），memory_hub 再加上 `companion:` 前缀。
+记忆主体 id = `{owner}.{role}`（`memory/subject.py`），memory_hub 再加上 `companion:` 前缀。
 召回（`MemoryPortRecaller`）、回合后写入（`ExtractionRecorder`）、工具（`recall_facts` / `remember_fact`）都用当前角色的主体，
 所以任何满足记忆接口的后端都自动隔离。时间线事件按 `source_character_id` 过滤。
 记忆接口 `/api/agent/v1/memory/facts|events` 带可选的 `role_id`；不带是用户级空间（手动添加的记忆）。

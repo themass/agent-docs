@@ -12,15 +12,15 @@ import pytest
 
 from companion.adapters.store.sql.account import SqlAccountStore
 from companion.adapters.store.sql.jobs import SqlJobStore
-from companion.adapters.store.sql.memory import SqlMemoryPort
+from companion.memory.sql import SqlMemoryPort
 from companion.adapters.store.sql.reminders import SqlReminderStore
 from companion.adapters.store.sql.repositories import SqlMessageStore, SqlRoleStore, SqlSessionStore
 from companion.adapters.timeline.memory import InMemoryTimeline
 from companion.app.account.purge import PURGE_JOB, AccountPurgeService
 from companion.app.jobs.handlers import memory_record
-from companion.domain.memory.subject import role_subject
+from companion.memory.subject import role_subject
 from companion.domain.timeline.models import EventKind, TimelineEvent
-from companion.ports.memory import MemoryItem
+from companion.memory.port import MemoryItem
 from memory_hub import AppConfig, MemoryHub
 
 URL = os.environ.get("COMPANION_TEST_DATABASE_URL", "")

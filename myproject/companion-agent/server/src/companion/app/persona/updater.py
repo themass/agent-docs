@@ -16,7 +16,7 @@ from typing import Any
 
 from companion.domain.persona.extraction import MAX_FACTS, MAX_UTTERANCES, parse_drafts, render_prompt
 from companion.domain.persona.model import ABORT, plan_merge
-from companion.domain.memory.subject import role_subject
+from companion.memory.subject import role_subject
 
 log = logging.getLogger("companion.persona")
 

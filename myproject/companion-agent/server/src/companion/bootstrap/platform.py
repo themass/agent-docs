@@ -22,7 +22,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from companion.adapters.cache.redis.control import RedisTurnControl
-from companion.adapters.memory.recallers import MemoryPortRecaller, TimelineRecaller
+from companion.memory.recallers import MemoryPortRecaller, TimelineRecaller
 from companion.adapters.push.log import LogPush
 from companion.adapters.roles.catalog_files import load_system_catalog
 from companion.adapters.storage.images import normalize_image
@@ -34,7 +34,7 @@ from companion.adapters.store.sql.proactive_store import (
     SqlDelivery, SqlPreferencesStore, SqlSendLedger,
 )
 from companion.adapters.store.sql.timeline import SqlTimelineStore
-from companion.adapters.store.sql.memory import SqlMemoryPort
+from companion.memory.sql import SqlMemoryPort
 from companion.adapters.store.sql.reminders import SqlReminderStore
 from companion.adapters.store.sql.repositories import (
     SqlConfirmationStore,
@@ -56,8 +56,8 @@ from companion.app.chat.history import HistoryService
 from companion.app.chat.lifecycle import DrainState
 from companion.app.chat.resummarize import ResummarizeService
 from companion.app.chat.turn_runner import TurnOutcome
-from companion.app.memory.extraction import MemoryExtractor
-from companion.app.memory.recorder import ExtractionRecorder
+from companion.memory.extraction import MemoryExtractor
+from companion.memory.recorder import ExtractionRecorder
 from companion.app.persona.updater import PERSONA_JOB, PersonaUpdater
 from companion.app.timeline.recorder import TimelineRecorder
 from companion.app.proactive.reminders import ReminderDispatcher, ReminderService, SessionGone
@@ -74,7 +74,7 @@ from companion.config import Settings
 from companion.paths import CHARACTERS_DIR, ROLES_CATALOG_DIR, SKILLS_PUBLIC_DIR
 from companion.domain.prompt.templates import PROMPT_VERSION
 from companion.domain.history.summary import TIMELINE_RECORD_JOB
-from companion.domain.memory.pipeline import MemoryPipeline
+from companion.memory.pipeline import MemoryPipeline
 from companion.domain.tools.registry import ToolRegistry
 from companion.ports.brain import TextDelta, TurnRequest
 from memory_hub import AppConfig, MemoryHub

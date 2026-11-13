@@ -140,7 +140,7 @@ class TimelineStore(Protocol):
 | 协议 | `ports/timeline.py` |
 | 回合后抽取 | `app/timeline/recorder.py` + `timeline.record` 任务（按用户消息 id 去重） |
 | 联动 | `app/chat/history.py` 的删除 / 编辑 |
-| 工具 / 召回 / 接口 | `app/tools/builtin.py`、`adapters/memory/recallers.py`、`api/http/routers/memory_v1.py` |
+| 工具 / 召回 / 接口 | `app/tools/builtin.py`、`memory/recallers.py`、`api/http/routers/memory_v1.py` |
 
 与本文设计的差异：
 

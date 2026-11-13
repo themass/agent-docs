@@ -4,13 +4,13 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from companion.ports.voice import AudioChunk, UnknownVoiceProvider, VoiceProviderError, VoiceRef, VoiceUnavailable
-from companion.adapters.voice.fake import FakeVoiceProvider
-from companion.app.voice.gateway import VoiceGateway
+from companion.voice.port import AudioChunk, UnknownVoiceProvider, VoiceProviderError, VoiceRef, VoiceUnavailable
+from companion.voice.fake import FakeVoiceProvider
+from companion.voice.gateway import VoiceGateway
 from companion.bootstrap.voice_stack import build_gateway
-from companion.adapters.voice.volcengine import VolcengineConfig, VolcengineProvider
-from companion.ports.voice import VoiceProvider, Transcript
-from companion.adapters.voice.volcengine import FLAG_LAST_NO_SEQUENCE, FLAG_POSITIVE_SEQUENCE, MSG_AUDIO_SERVER_RESPONSE, MSG_ERROR, MSG_FULL_CLIENT_REQUEST, MSG_FULL_SERVER_RESPONSE, ServerFrame, VolcengineProtocolError, build_auth_headers, build_frame, build_header, build_tts_frame, build_tts_payload, frame_format, parse_asr_response, parse_frame, parse_tts_response
+from companion.voice.volcengine import VolcengineConfig, VolcengineProvider
+from companion.voice.port import VoiceProvider, Transcript
+from companion.voice.volcengine import FLAG_LAST_NO_SEQUENCE, FLAG_POSITIVE_SEQUENCE, MSG_AUDIO_SERVER_RESPONSE, MSG_ERROR, MSG_FULL_CLIENT_REQUEST, MSG_FULL_SERVER_RESPONSE, ServerFrame, VolcengineProtocolError, build_auth_headers, build_frame, build_header, build_tts_frame, build_tts_payload, frame_format, parse_asr_response, parse_frame, parse_tts_response
 
 
 # ---- 构造 VoiceRef ----

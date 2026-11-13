@@ -2,7 +2,7 @@
 
 import pytest
 
-from companion.app.voice.tts_accuracy import cer, check_rows, edit_distance, normalize, summarize, TurnCheck
+from companion.voice.tts_accuracy import cer, check_rows, edit_distance, normalize, summarize, TurnCheck
 
 
 def test_punctuation_width_case_and_emoji_do_not_count_as_errors():

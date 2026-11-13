@@ -15,8 +15,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from companion.adapters.store.sql.schema import TABLE_PREFIX, metadata as schema_metadata
-from companion.domain.memory.recall import rank_scored
-from companion.ports.memory import (
+from companion.memory.recall import rank_scored
+from companion.memory.port import (
     MAX_BATCH,
     MAX_LIST_LIMIT,
     MAX_SEARCH_LIMIT,

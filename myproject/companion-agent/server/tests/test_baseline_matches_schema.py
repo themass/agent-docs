@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-import companion.adapters.store.sql.memory  # noqa: F401 —— 注册 ca_memory_item
+import companion.memory.sql  # noqa: F401 —— 注册 ca_memory_item
 from companion.adapters.store.sql.schema import metadata
 
 BASELINE = Path(__file__).resolve().parents[1] / "migrations" / "versions" / "0001_baseline.py"

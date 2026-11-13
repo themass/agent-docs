@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 
-from companion.ports.voice import AudioChunk, Transcript, VoiceProviderError, VoiceRef
+from companion.voice.port import AudioChunk, Transcript, VoiceProviderError, VoiceRef
 
 DEFAULT_CHUNK_BYTES = 8
 

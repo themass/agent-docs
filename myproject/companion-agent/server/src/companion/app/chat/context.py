@@ -14,8 +14,8 @@ import logging
 from dataclasses import dataclass
 
 from companion.app.roles.resolver import RoleProfileResolver
-from companion.domain.memory.hooks import RecallQuery
-from companion.domain.memory.pipeline import MemoryPipeline, render_memory_block
+from companion.memory.hooks import RecallQuery
+from companion.memory.pipeline import MemoryPipeline, render_memory_block
 from companion.domain.persona.model import render_profile
 from companion.domain.prompt.plan import PromptPlan
 from companion.domain.prompt.roleplay import PromptBudget, build_prompt_plan

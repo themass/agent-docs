@@ -212,7 +212,7 @@ def build_agent_class() -> type:
             return self._captured_tts(text, model_settings)
 
         async def _captured_tts(self, text: Any, model_settings: Any):
-            from companion.domain.voice.tts_capture import TtsCapture
+            from companion.voice.tts_capture import TtsCapture
 
             capture = TtsCapture()
             turn_ref: dict[str, Any] = {}

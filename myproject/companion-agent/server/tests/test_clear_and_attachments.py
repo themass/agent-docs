@@ -17,7 +17,7 @@ def _client():
     from fastapi.testclient import TestClient
 
     from companion.adapters.brain.fake import FakeBrain
-    from companion.adapters.memory.fake import InMemoryMemoryPort
+    from companion.memory.fake import InMemoryMemoryPort
     from companion.bootstrap.app import create_app
     from companion.bootstrap.platform import default_prompts
     from companion.bootstrap.platform import build_platform

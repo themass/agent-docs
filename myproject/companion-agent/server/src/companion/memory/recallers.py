@@ -10,8 +10,8 @@ from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from companion.domain.memory.hooks import RecallQuery, RecallResult, RecalledItem
-from companion.domain.memory.subject import role_subject
+from companion.memory.hooks import RecallQuery, RecallResult, RecalledItem
+from companion.memory.subject import role_subject
 
 def _naive_utc(value: datetime | None) -> datetime | None:
     if value is None:

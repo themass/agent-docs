@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from companion.domain.text.splitter import SentenceSplitter
-from companion.ports.voice import AudioChunk, Transcript, UnknownVoiceProvider, VoiceProvider, VoiceProviderError, VoiceRef, VoiceUnavailable
+from companion.voice.port import AudioChunk, Transcript, UnknownVoiceProvider, VoiceProvider, VoiceProviderError, VoiceRef, VoiceUnavailable
 
 log = logging.getLogger("companion.voice")
 

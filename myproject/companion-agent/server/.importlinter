@@ -73,3 +73,47 @@ source_modules =
     companion.ports
     companion.products
 forbidden_modules = companion.bootstrap
+
+# ---- 业务模块（memory / voice）：模块内部允许垂直依赖，模块之间只能走公开入口 ----
+#
+# 这两个目录是把原来切在 4 个层里的同一概念收回来（domain/memory + app/memory +
+# adapters/memory + ports/memory.py + store/sql/memory.py → companion/memory/）。
+# 模块内部 model/port/service/sql 彼此可以依赖，这是**故意的**：改一个功能只进一个目录。
+# 但跨模块和跨层仍然要有方向，否则模块就成了绕过分层的后门。
+
+# 允许依赖的只有两类「纯定义」：companion.domain（无 I/O 的领域规则，例如断句器）和
+# companion.adapters.store.sql（表定义与持久化原语，模块注册自己的表要用）。
+# 依赖它们等于依赖标准库：没有方向问题。其余 adapters（brain / livekit / voice ……）是真正的
+# 外部接线，业务模块不得碰。
+[importlinter:contract:memory-no-upper-layers]
+name = 业务模块不得依赖接口层、应用层与组合根
+type = forbidden
+source_modules =
+    companion.memory
+    companion.voice
+forbidden_modules =
+    companion.api
+    companion.app
+    companion.bootstrap
+    companion.products
+    companion.adapters.brain
+    companion.adapters.delivery
+    companion.adapters.livekit
+    companion.adapters.llm
+    companion.adapters.mcp
+    companion.adapters.push
+    companion.adapters.roles
+    companion.adapters.skills
+    companion.adapters.timeline
+
+[importlinter:contract:modules-do-not-depend-on-each-other]
+name = 业务模块之间互不依赖（要协作就走端口）
+type = forbidden
+source_modules = companion.memory
+forbidden_modules = companion.voice
+
+[importlinter:contract:voice-does-not-depend-on-memory]
+name = 业务模块之间互不依赖（voice 不引 memory）
+type = forbidden
+source_modules = companion.voice
+forbidden_modules = companion.memory

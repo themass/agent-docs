@@ -13,7 +13,7 @@ from typing import Any
 
 from livekit.agents import tts
 
-from companion.ports.voice import VoiceProvider, VoiceRef
+from companion.voice.port import VoiceProvider, VoiceRef
 
 log = logging.getLogger("companion.voice")
 

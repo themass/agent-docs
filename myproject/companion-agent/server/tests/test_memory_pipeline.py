@@ -3,8 +3,8 @@
 import asyncio
 from datetime import datetime
 
-from companion.domain.memory.hooks import RecallQuery, RecallResult, RecalledItem, RecordOutcome, TurnRecord
-from companion.domain.memory.pipeline import MemoryPipeline, render_memory_block
+from companion.memory.hooks import RecallQuery, RecallResult, RecalledItem, RecordOutcome, TurnRecord
+from companion.memory.pipeline import MemoryPipeline, render_memory_block
 
 
 class Static:

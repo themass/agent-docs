@@ -17,10 +17,10 @@
 ## 2. 分层
 
 ```
-domain/memory/hooks.py     协议与数据类（纯，无 IO）
-domain/memory/pipeline.py  编排：扇出召回、合并、预算裁剪、超时隔离（纯逻辑）
-app/memory/...             具体的抽取服务（需要 LLM 调用时在这里）
-adapters/memory/...        把存储端口适配成召回源 / 写入汇
+memory/hooks.py     协议与数据类（纯，无 IO）
+memory/pipeline.py  编排：扇出召回、合并、预算裁剪、超时隔离（纯逻辑）
+memory/...             具体的抽取服务（需要 LLM 调用时在这里）
+memory/...        把存储端口适配成召回源 / 写入汇
 bootstrap/...              按配置组装 hook 列表（唯一的组合根）
 ```
 
@@ -115,7 +115,7 @@ class Forgetter(Protocol):
 
 ## 5. 编排规则
 
-这些规则放在 `domain/memory/pipeline.py`，与具体组件无关，所有组件都遵守。
+这些规则放在 `memory/pipeline.py`，与具体组件无关，所有组件都遵守。
 
 1. **扇出**：`recall` 插槽里的所有 `Recaller` 并发执行，互不等待。
 2. **超时隔离**：每个 `Recaller` 有独立超时（默认 800 ms，可按来源配置）。超时视为该来源失败，`error="timeout"`。整个回合的召回阶段有总上限，超过则直接用已到达的结果。
@@ -162,7 +162,7 @@ adapter = "memory_port"
 | 现状 | 问题 | 本设计的归宿 |
 |---|---|---|
 | `MemoryRecallMiddleware` 直接调 `memory.search` 与 `timeline.list_for_user` | 来源写死；两者的返回结构不同，各自渲染 | 两者都变成 `Recaller` 适配器；渲染进各自的适配器 |
-| `EventExtractionMiddleware` 写时间线；`app/memory/extraction.py` 写记忆端口 | 两条写入路径，重复的提取逻辑 | 两者都变成 `Recorder`；是否合并为一次提取由 §9 问题 2 决定 |
+| `EventExtractionMiddleware` 写时间线；`memory/extraction.py` 写记忆端口 | 两条写入路径，重复的提取逻辑 | 两者都变成 `Recorder`；是否合并为一次提取由 §9 问题 2 决定 |
 | `_render` 在 `domain/text/render.py` | 渲染与来源耦合 | 渲染由 `RecalledItem.tags` 驱动，来源不再关心段落结构 |
 | 删除只针对记忆端口 | 时间线里的事件删不掉 | `Forgetter` 插槽统一传播删除 |
 

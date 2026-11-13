@@ -30,7 +30,7 @@ async def sqlite_engine():
     """
     from sqlalchemy.ext.asyncio import create_async_engine
 
-    import companion.adapters.store.sql.memory  # noqa: F401 —— 注册 ca_memory_item
+    import companion.memory.sql  # noqa: F401 —— 注册 ca_memory_item
     import companion.adapters.store.sql.schema as schema
 
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")

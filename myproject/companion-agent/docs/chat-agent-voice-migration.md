@@ -84,7 +84,7 @@ entrypoint 解析它，写坏了拒绝入场（用错会话会写进别人的对
 社区插件 `livekit-plugins-volcengine` 已经实现了 URL、请求体、分包、响应解析、重连。它唯一的
 问题是鉴权头写死成旧版控制台格式，而我们的凭据是新版控制台签发的。所以只覆盖
 `get_ws_header`（STT）和 `get_http_header`（TTS），其余全部沿用插件。见
-`adapters/voice/volcengine_livekit.py`。
+`voice/volcengine_livekit.py`。
 
 **踩到并修掉的坑**
 
@@ -270,7 +270,7 @@ PYTHONPATH=src .venv/bin/python -m companion.worker dev
   避免挂到上一个回合上。
 - 同意之前不上传音频，也不写文本和音频键；上传失败时文本照记、音频键留空，不假装有音频。
 
-**判断方式**：把存下的音频送回识别，和 `tts_text` 比，算字错率（`app/voice/tts_accuracy.py`）。
+**判断方式**：把存下的音频送回识别，和 `tts_text` 比，算字错率（`voice/tts_accuracy.py`）。
 用真实的火山凭据跑过 3 句往返（`scripts/qa_tts_roundtrip.py`）：合成、封 WAV、识别、算 CER 整条链路是通的，
 平均 CER 0.056，其中两句完全一致，一句"我在这儿陪着你"被识别成"我在这陪着你"。
 
@@ -337,7 +337,7 @@ TTS 采集都不装配、不入队。对话本身不受影响。三点说明：
 - `TurnRefused` 是大脑端口约定的异常，移到 `ports/brain.py`；
 - `PlatformBrain`、`TtsArchiver`、质检记录写入口由组合根构造，`bootstrap/voice_wiring.py` 返回 `VoiceParts` 交给
   `make_entrypoint`；`PlatformSpeaker` 改为注入大脑；
-- `TtsCapture` 是纯标准库逻辑，放进 `domain/voice/`；
+- `TtsCapture` 是纯标准库逻辑，放进 `voice/`；
 - 连接串的纯函数拆到 `companion/dburl.py`，`config` 不再依赖 `bootstrap`。
 
 **先前我对比"基线"时用错了环境**：可编辑安装让在 worktree 里跑的 lint 读到的还是当前代码，两次输出一模一样，

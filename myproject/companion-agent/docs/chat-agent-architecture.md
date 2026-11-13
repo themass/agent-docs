@@ -71,7 +71,7 @@
 | 端口 | 方法（要点） | 实现 |
 |---|---|---|
 | `BrainPort` | `start_turn(request) -> BrainTurn`，`BrainTurn.tokens/cancel` | `adapters/brain/deerflow.py`、`fake.py` |
-| `MemoryPort` | `add / search / list_for_user / delete_one / delete_user` | `adapters/memory/mem0/`、`fake.py` |
+| `MemoryPort` | `add / search / list_for_user / delete_one / delete_user` | `memory/mem0/`、`fake.py` |
 | `SessionStore` | `create / get / list_for_owner / rename / soft_delete` | `adapters/store/mysql/` |
 | `MessageStore` | `append / list_before / get / edit / soft_delete` | 同上 |
 | `TurnStore` | `create / mark_running / finish(state, usage)` | 同上 |
@@ -96,7 +96,7 @@
 | `domain/turn/control.py` | 回合控制消息（merge / steer / cancel）的形状 | `ControlMessage` |
 | `domain/middleware/` | 中间件链（顺序固定） | `MiddlewareChain`、各 `*Middleware` |
 | `domain/roles/` | 角色模型、id 命名空间、多语言回退 | `Role`、`RoleId`、`LocaleResolver` |
-| `domain/memory/` | 召回策略、记忆分类 | `RecallPolicy`、`MemoryKind` |
+| `memory/` | 召回策略、记忆分类 | `RecallPolicy`、`MemoryKind` |
 | `domain/tools/` | 动作授权模型 | `Permission`、`ActionSpec`、`ToolRegistry` |
 | `domain/text/` | 断句、事件渲染、流式分块 | `SentenceSplitter`、`render_*` |
 | `domain/session/` | 会话与消息的领域规则 | `Message`, `QueueLimits` |
@@ -129,7 +129,7 @@ GRAPH_CHAIN（图内，DeerFlow/LangChain AgentMiddleware，只实现异步钩�
 | `app/chat/roles.py` | 角色列表/详情/自建 CRUD |
 | `app/chat/solve.py` | 解题用例：选 skill、选模型场景、发 `step` 事件 |
 | `app/chat/uploads.py` | 附件上传与校验 |
-| `app/memory/service.py` | 记忆 CRUD（复用现有 `MemoryApi` 的逻辑） |
+| `memory/service.py` | 记忆 CRUD（复用现有 `MemoryApi` 的逻辑） |
 | `app/proactive/` | 主动性（角色扮演启用，浅聊不装配） |
 
 用例函数的形状统一：`async def execute(ctx: AppContext, cmd: Command) -> Result`。
@@ -327,7 +327,7 @@ forbidden_modules =
 |---|---|
 | `conversation.py` + `turn_pipeline.py` | `domain/turn/pipeline.py` |
 | `middleware/*` | `domain/middleware/*`（`render` 拆到 `domain/text`） |
-| `memory/{port,fake,mem0,extraction}.py` | `ports/memory.py` + `adapters/memory/*` + `domain/memory/policy.py` |
+| `memory/{port,fake,mem0,extraction}.py` | `memory/port.py` + `memory/*` + `memory/policy.py` |
 | `prompt/*` | `domain/roles/*`（角色） + `domain/text/render.py` |
 | `actions/*` | `domain/tools/*`（模型） + `adapters/tools/*`（执行） |
 | `timeline/*` | `domain/timeline/*` + `adapters/store/*` |

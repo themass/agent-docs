@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from companion.domain.memory.recall import features, rank
+from companion.memory.recall import features, rank
 
 NOW = datetime(2026, 1, 1)
 

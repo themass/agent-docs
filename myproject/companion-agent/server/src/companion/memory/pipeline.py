@@ -14,7 +14,7 @@ import asyncio
 from collections.abc import Sequence
 from datetime import datetime
 
-from companion.domain.memory.hooks import (
+from companion.memory.hooks import (
     RecallQuery,
     RecallResult,
     RecallStats,

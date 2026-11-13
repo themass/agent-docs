@@ -37,7 +37,7 @@ def memory_record(pipeline: Any, *, scope: str = "companion", clock: Callable[[]
 
     ``sessions``：给了就先确认会话还在。会话被删除或账号已注销时跳过，不把记忆写回来。
     """
-    from companion.domain.memory.hooks import TurnRecord
+    from companion.memory.hooks import TurnRecord
 
     async def handle(payload: dict[str, Any]) -> None:
         if sessions is not None and payload.get("session_id") is not None:

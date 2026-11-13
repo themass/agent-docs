@@ -28,7 +28,7 @@ from collections.abc import AsyncIterator, Mapping
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
-from companion.ports.voice import DEFAULT_FORMAT, DEFAULT_SAMPLE_RATE, AudioChunk, Transcript, VoiceProviderError, VoiceRef, VoiceUnavailable
+from companion.voice.port import DEFAULT_FORMAT, DEFAULT_SAMPLE_RATE, AudioChunk, Transcript, VoiceProviderError, VoiceRef, VoiceUnavailable
 
 # 协议版本占高 4 位。火山 v1 二进制协议是 1；头长按 4 字节为单位计。
 PROTOCOL_VERSION_V1 = 0b0001

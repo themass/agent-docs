@@ -9,7 +9,7 @@ import asyncio
 from fastapi.testclient import TestClient
 
 from companion.bootstrap.platform import default_prompts
-from companion.ports.memory import MemoryItem
+from companion.memory.port import MemoryItem
 from companion.bootstrap.app import create_app
 from companion.api.http.routers.memory import DEFAULT_PAGE, MAX_PAGE
 
@@ -19,7 +19,7 @@ def _platform():
     import os
 
     from companion.adapters.brain.fake import FakeBrain
-    from companion.adapters.memory.fake import InMemoryMemoryPort
+    from companion.memory.fake import InMemoryMemoryPort
     from companion.bootstrap.platform import build_platform
     from companion.config import Settings
 
@@ -50,7 +50,7 @@ def _as(user: str) -> dict:
 
 def _seed_facts(platform, user: str, count: int) -> None:
     """写进平台用的那个记忆后端（/v1/memory/facts 读的就是它）。"""
-    from companion.domain.memory.subject import role_subject
+    from companion.memory.subject import role_subject
 
     items = [
         MemoryItem(id=f"m{i}", content=f"事实{i}", source_character_id="linche")

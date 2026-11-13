@@ -7,7 +7,7 @@ import uuid
 import pytest
 
 from companion.domain.timeline.models import TimelineEvent  # noqa: F401 — 保证模块加载
-from companion.ports.memory import MemoryItem, MemoryKind
+from companion.memory.port import MemoryItem, MemoryKind
 
 MYSQL = (os.environ.get("COMPANION_TEST_DATABASE_URL") or os.environ.get("COMPANION_TEST_MYSQL_URL", ""))
 pytestmark = pytest.mark.skipif(not MYSQL, reason="COMPANION_TEST_DATABASE_URL not set")
@@ -20,7 +20,7 @@ def _engine():
 
 
 def test_memory_survives_a_fresh_instance(memory_schema):
-    from companion.adapters.store.sql.memory import SqlMemoryPort
+    from companion.memory.sql import SqlMemoryPort
 
     user = f"test-durable-{uuid.uuid4().hex[:8]}"
     item = MemoryItem(id=uuid.uuid4().hex, content="喜欢喝茶", kind=MemoryKind.FACT, source_character_id="linche")
@@ -45,7 +45,7 @@ def test_memory_survives_a_fresh_instance(memory_schema):
 
 
 def test_durable_search_ranks_by_words_not_substring(memory_schema):
-    from companion.adapters.store.sql.memory import SqlMemoryPort
+    from companion.memory.sql import SqlMemoryPort
 
     user = f"test-rank-{uuid.uuid4().hex[:8]}"
     items = [MemoryItem(id=uuid.uuid4().hex, content=c, kind=MemoryKind.FACT, source_character_id="linche")

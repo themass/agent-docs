@@ -19,7 +19,7 @@ class UnknownApp(KeyError):
 
 
 class ScopedMemory:
-    """作用域客户端：方法签名与 companion.ports.memory.MemoryPort 完全一致（规范 §3）。
+    """作用域客户端：方法签名与 companion.memory.port.MemoryPort 完全一致（规范 §3）。
 
     外部传入的 user_id 永远是应用内用户 id；这里统一加上 ``app:`` 前缀后交给后端。
     kinds 原样透传给后端（不在这里做事后过滤），保证每个后端的结果一致。

@@ -28,7 +28,15 @@ domain    领域规则，无 I/O
 ports     接口（Protocol）
 adapters  端口的具体实现（数据库、Redis、DeerFlow、火山、LiveKit ……）
 bootstrap 组合根：只有它和进程入口可以把上面的东西接起来
+memory    记忆模块：model / port / service / sql / recall 同在一处（见下）
+voice     语音模块：同样五件套
 ```
+
+**业务模块与分层的区别。** `memory/` 和 `voice/` 不按层切：同一个概念原来分散在
+`domain/memory`、`app/memory`、`adapters/memory`、`ports/memory.py`、`store/sql/memory.py`
+五处，改一个功能要进五个目录。现在它们各是一个目录，内部可以垂直依赖；跨模块和跨层
+仍受契约约束（模块不得引 `api`/`app`/`bootstrap`/`products`，两个模块之间互不依赖）。
+其余概念（时间线、角色、主动性、质检……）还在按层切，尚未收进模块。
 
 进程入口：`companion.serve`（API）、`companion.worker`（语音）、`companion.worker_jobs`（可选的独立后台循环）。
 

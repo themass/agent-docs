@@ -7,16 +7,16 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from companion.adapters.memory.fake import InMemoryMemoryPort
-from companion.adapters.memory.recallers import MemoryPortRecaller, TimelineRecaller
+from companion.memory.fake import InMemoryMemoryPort
+from companion.memory.recallers import MemoryPortRecaller, TimelineRecaller
 from companion.adapters.timeline.memory import InMemoryTimeline
 from companion.api.http.deps import AllowAllVerifier, build_current_user
 from companion.api.http.routers.memory_v1 import build_router
-from companion.app.memory.recorder import ExtractionRecorder
-from companion.domain.memory.hooks import RecallQuery, TurnRecord
-from companion.domain.memory.subject import role_subject
+from companion.memory.recorder import ExtractionRecorder
+from companion.memory.hooks import RecallQuery, TurnRecord
+from companion.memory.subject import role_subject
 from companion.domain.timeline.models import EventKind, TimelineEvent
-from companion.ports.memory import MemoryItem
+from companion.memory.port import MemoryItem
 from memory_hub import AppConfig, MemoryHub
 
 
