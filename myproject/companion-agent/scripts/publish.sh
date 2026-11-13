@@ -107,7 +107,10 @@ log "目标:    ${TARGET}"
 log "提交:    $(git -C "$SRC" rev-parse --short HEAD) ($(git -C "$SRC" rev-parse --abbrev-ref HEAD))"
 log "文件:    $(wc -l <"${WORK}/manifest.new" | tr -d ' ') 个被跟踪，新增 ${added}，改动 ${changed}，删除 ${removed}"
 if [[ "$removed" -gt 0 ]]; then
-  sed 's/^/           删除: /' "${WORK}/removed" | head -20
+  # 用 awk 而不是 `sed | head -20`：head 读够行数就关闭管道，sed 收到 SIGPIPE 退出 141，
+  # 在 `set -o pipefail` + `set -e` 下会让整个脚本**静默中止**——删了一行都没删、一个文件都没复制。
+  # 删除项少于 20 时不会触发，所以这个问题在小改动上一直看不出来。
+  awk 'NR <= 20 { printf "           删除: %s\n", $0 }' "${WORK}/removed"
   [[ "$removed" -gt 20 ]] && log "           ... 另有 $((removed - 20)) 个"
 fi
 
