@@ -22,7 +22,7 @@ run.sh       本地统一入口：api / voice / jobs / migrate / check / test
 
 ```text
 server/
-  src/companion/    服务代码（分层见 server/README.md）
+  src/companion/    服务代码，按业务模块分（chat/ memory/ voice/ brain/ … 见 server/README.md）
   tests/            不依赖真实外部服务的单测与契约测试
   migrations/       Alembic（单基线 0001_baseline）
   tools/            一次性/开发期工具：gen_ddl、角色目录拆分、TTS 往返质检
