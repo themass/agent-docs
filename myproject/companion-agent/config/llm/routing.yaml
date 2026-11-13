@@ -2,6 +2,12 @@
 #
 # 场景 → 模型链，按顺序故障转移。密钥与网关地址只通过环境变量引用，不写入本文件。
 # 模型名以网关实际返回的名字为准（网关可能回显为别名）。
+#
+# 换模型不用改这里：每个场景可由 .env 的 COMPANION_LLM_MODEL_<场景名大写> 整体覆盖，
+# 逗号分隔、按顺序故障转移，例如
+#     COMPANION_LLM_MODEL_COMPANION_CHAT=openai/gpt-6-luna,openai/glm-5.3-flash
+# 每个位置的 timeout / reasoning_effort / extra_body 等调优沿用本文件对应位置，
+# 那些值是对网关实测出来的，换模型不该重填。变量未设置则用下面写的模型名。
 
 providers:
   gateway:
