@@ -140,7 +140,7 @@ def test_confirmation_claim_finish_and_expiry(migrated):
 
 
 def test_job_claim_is_exclusive_and_dedupe_holds(migrated):
-    from companion.adapters.store.sql.jobs import SqlJobStore
+    from companion.jobs.sql import SqlJobStore
 
     async def go():
         engine = await _engine(migrated)

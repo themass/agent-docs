@@ -23,19 +23,19 @@ from typing import Any
 
 from companion.turn.redis_control import RedisTurnControl
 from companion.memory.recallers import MemoryPortRecaller, TimelineRecaller
-from companion.adapters.push.log import LogPush
+from companion.proactive.push_log import LogPush
 from companion.roles.catalog_files import load_system_catalog
 from companion.adapters.storage.images import normalize_image
 from companion.adapters.store.sql.account import SqlAccountStore
 from companion.avatar.sql import SqlAvatarReleaseStore
-from companion.adapters.store.sql.jobs import SqlJobStore
+from companion.jobs.sql import SqlJobStore
 from companion.persona.sql import SqlPersonaStore
-from companion.adapters.store.sql.proactive_store import (
+from companion.proactive.store import (
     SqlDelivery, SqlPreferencesStore, SqlSendLedger,
 )
 from companion.timeline.sql import SqlTimelineStore
 from companion.memory.sql import SqlMemoryPort
-from companion.adapters.store.sql.reminders import SqlReminderStore
+from companion.proactive.reminders_sql import SqlReminderStore
 from companion.adapters.store.sql.repositories import (
     SqlConfirmationStore,
     SqlMessageStore,
@@ -60,7 +60,7 @@ from companion.memory.extraction import MemoryExtractor
 from companion.memory.recorder import ExtractionRecorder
 from companion.persona.updater import PERSONA_JOB, PersonaUpdater
 from companion.timeline.recorder import TimelineRecorder
-from companion.app.proactive.reminders import ReminderDispatcher, ReminderService, SessionGone
+from companion.proactive.reminders import ReminderDispatcher, ReminderService, SessionGone
 from companion.roles.resolver import RoleProfileResolver
 from companion.roles.service import RoleService
 from companion.app.tools.builtin import register_builtin_tools

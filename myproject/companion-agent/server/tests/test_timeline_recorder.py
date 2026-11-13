@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from companion.timeline.memory import InMemoryTimeline
-from companion.app.jobs.handlers import timeline_record
+from companion.jobs.handlers import timeline_record
 from companion.timeline.recorder import TimelineRecorder
 from companion.timeline.models import EventKind, EventOrigin, TimelineEvent
 

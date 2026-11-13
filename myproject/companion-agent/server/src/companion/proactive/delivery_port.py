@@ -7,7 +7,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Protocol
-from companion.domain.proactive.models import Channel, InitiativeState, SendRecord
+from companion.proactive.models import Channel, InitiativeState, SendRecord
 
 
 class DeliveryError(Exception):

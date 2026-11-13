@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime, time
 
-from companion.domain.proactive.models import Channel, InitiativeDecision, InitiativePreferences, InitiativeState
+from companion.proactive.models import Channel, InitiativeDecision, InitiativePreferences, InitiativeState
 from companion.turn.trigger import TriggerKind
 
 # 事件的重要度基线。面试和生日值得打扰，一个模糊的「旅行」不值得。

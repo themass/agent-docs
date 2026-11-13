@@ -4,8 +4,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from companion.app.proactive.loop import SpeakDenied
-from companion.app.proactive.speaker import PlatformSpeaker
+from companion.proactive.loop import SpeakDenied
+from companion.proactive.speaker import PlatformSpeaker
 from companion.turn.queue import Disposition
 from companion.turn.trigger import Trigger, TriggerKind
 from test_platform_brain import FakeControl, FakeSubmit, TURN, _happy

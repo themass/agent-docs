@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from companion.ports.push import PushMessage
+from companion.proactive.push_port import PushMessage
 
 log = logging.getLogger("companion.push")
 

@@ -6,7 +6,7 @@ from collections.abc import Callable
 from datetime import datetime, timedelta
 from typing import Any
 
-from companion.app.jobs.worker import utc_now
+from companion.jobs.worker import utc_now
 from companion.ports.store import ConfirmationStore
 from companion.ports.tools import ToolCallStore
 

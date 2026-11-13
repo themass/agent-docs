@@ -12,8 +12,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
 
-from companion.domain.proactive.models import InitiativeDecision, InitiativePreferences, InitiativeState
-from companion.domain.proactive.policy import InitiativePolicy
+from companion.proactive.models import InitiativeDecision, InitiativePreferences, InitiativeState
+from companion.proactive.policy import InitiativePolicy
 from companion.turn.trigger import Trigger, TriggerKind
 
 logger = logging.getLogger(__name__)

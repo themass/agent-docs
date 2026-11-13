@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from companion.adapters.store.sql.schema import reminder
-from companion.ports.reminders import CANCELLED, CLAIMED, FAILED, PENDING, SENT, ReminderRecord
+from companion.proactive.reminders_port import CANCELLED, CLAIMED, FAILED, PENDING, SENT, ReminderRecord
 
 
 def _now() -> datetime:

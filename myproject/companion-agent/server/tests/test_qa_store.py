@@ -94,7 +94,7 @@ class _Objects:
 
 
 async def test_the_retention_job_deletes_rows_and_their_audio_objects(sqlite_engine):
-    from companion.app.jobs.handlers import qa_purge
+    from companion.jobs.handlers import qa_purge
 
     store, objects = SqlQaStore(sqlite_engine), _Objects()
     await store.record_voice_turn(_voice("old", audio_in_key="a.wav", audio_out_key="b.wav"), keep_content=True)
@@ -108,7 +108,7 @@ async def test_the_retention_job_deletes_rows_and_their_audio_objects(sqlite_eng
 
 
 async def test_one_failing_object_delete_does_not_fail_the_job_or_skip_the_rest(sqlite_engine):
-    from companion.app.jobs.handlers import qa_purge
+    from companion.jobs.handlers import qa_purge
 
     store, objects = SqlQaStore(sqlite_engine), _Objects(fail_on={"a.wav"})
     await store.record_voice_turn(_voice("old", audio_in_key="a.wav", audio_out_key="b.wav"), keep_content=True)

@@ -12,12 +12,12 @@ from datetime import UTC, datetime, time, timedelta
 import pytest
 
 from companion.timeline.memory import InMemoryTimeline
-from companion.domain.proactive.models import Channel, InitiativePreferences
-from companion.app.proactive.router import ChannelRouter
-from companion.adapters.delivery.memory import InAppDelivery, InMemorySendLedger, RecordingDelivery
-from companion.app.proactive.loop import InitiativeLoop, SpeakDenied
-from companion.app.proactive.scheduler import InitiativeScheduler
-from companion.app.proactive.loop import _channel_of, occurrence_key
+from companion.proactive.models import Channel, InitiativePreferences
+from companion.proactive.router import ChannelRouter
+from companion.proactive.delivery_memory import InAppDelivery, InMemorySendLedger, RecordingDelivery
+from companion.proactive.loop import InitiativeLoop, SpeakDenied
+from companion.proactive.scheduler import InitiativeScheduler
+from companion.proactive.loop import _channel_of, occurrence_key
 from companion.timeline.models import EventKind, TimelineEvent
 from companion.turn.trigger import Trigger, TriggerKind
 

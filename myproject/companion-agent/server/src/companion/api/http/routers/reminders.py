@@ -3,8 +3,8 @@
 from typing import Any
 
 from companion.api.http.routers.chat import _owner_id
-from companion.app.proactive.reminders import ReminderService
-from companion.domain.reminders import local_time_text
+from companion.proactive.reminders import ReminderService
+from companion.proactive.reminders_domain import local_time_text
 
 PREFIX = "/v1"
 

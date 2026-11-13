@@ -13,8 +13,8 @@ from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from companion.domain.jobs.policy import LEASE, LEASE_RENEW_EVERY_SECONDS, after_failure
-from companion.ports.jobs import JobRecord, JobStore
+from companion.jobs.policy import LEASE, LEASE_RENEW_EVERY_SECONDS, after_failure
+from companion.jobs.port import JobRecord, JobStore
 
 log = logging.getLogger("companion.jobs")
 

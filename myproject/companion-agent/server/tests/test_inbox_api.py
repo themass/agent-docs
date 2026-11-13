@@ -10,14 +10,14 @@ from datetime import UTC, datetime, timedelta
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from companion.adapters.store.sql.proactive_store import SqlDelivery, SqlPreferencesStore, SqlSendLedger
+from companion.proactive.store import SqlDelivery, SqlPreferencesStore, SqlSendLedger
 from companion.timeline.sql import SqlTimelineStore
 from companion.api.http.deps import AllowAllVerifier, build_current_user
 from companion.api.http.routers import inbox as inbox_router
-from companion.app.proactive.loop import InitiativeLoop
-from companion.app.proactive.router import ChannelRouter
-from companion.app.proactive.scheduler import InitiativeScheduler
-from companion.domain.proactive.models import Channel
+from companion.proactive.loop import InitiativeLoop
+from companion.proactive.router import ChannelRouter
+from companion.proactive.scheduler import InitiativeScheduler
+from companion.proactive.models import Channel
 from companion.timeline.models import EventKind, TimelineEvent
 
 ALICE, BOB = 1002, 1003

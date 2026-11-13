@@ -15,7 +15,7 @@ from sqlalchemy import and_, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from companion.adapters.store.sql.schema import agent_job
-from companion.ports.jobs import JobRecord
+from companion.jobs.port import JobRecord
 
 
 def _sec(value: datetime) -> datetime:

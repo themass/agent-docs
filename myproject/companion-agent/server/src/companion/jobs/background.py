@@ -35,7 +35,7 @@ def build_handlers(platform) -> dict:
     """任务队列的处理函数表。缺哪块能力就不注册对应的 kind（未知 kind 会被置 dead）。"""
     from companion.adapters.store.sql.repositories import SqlConfirmationStore, SqlToolCallStore
     from companion.app.account.purge import PURGE_JOB
-    from companion.app.jobs.handlers import (
+    from companion.jobs.handlers import (
         QA_PURGE_JOB, account_purge, audit_trim, confirmation_expire, memory_record, persona_update, qa_purge,
         session_resummarize, timeline_record, timeline_sweep)
     from companion.persona.updater import PERSONA_JOB
@@ -67,11 +67,11 @@ def build_handlers(platform) -> dict:
 def build_initiative_loop(platform):
     """主动开口：扫时间线里快到的事 → 让她说一句 → 投递到收件箱。"""
     from companion.brain.platform_brain import PlatformBrain
-    from companion.app.proactive.loop import InitiativeLoop
-    from companion.app.proactive.router import ChannelRouter
-    from companion.app.proactive.scheduler import InitiativeScheduler
-    from companion.app.proactive.speaker import PlatformSpeaker
-    from companion.domain.proactive.models import Channel
+    from companion.proactive.loop import InitiativeLoop
+    from companion.proactive.router import ChannelRouter
+    from companion.proactive.scheduler import InitiativeScheduler
+    from companion.proactive.speaker import PlatformSpeaker
+    from companion.proactive.models import Channel
 
     async def claim(key: str) -> bool:
         return bool(await platform.redis.set(f"ca:initiative:{key}", b"1", nx=True, ex=CLAIM_TTL_SEC))
@@ -128,7 +128,7 @@ class BackgroundJobs:
             log.warning("heartbeat write failed", extra={"path": self._heartbeat_path})
 
     async def start(self) -> None:
-        from companion.app.jobs.worker import JobWorker
+        from companion.jobs.worker import JobWorker
 
         platform = self._platform
         owner = f"{socket.gethostname()}:{os.getpid()}"
@@ -156,7 +156,7 @@ class BackgroundJobs:
 
     async def _schedule_daily(self) -> None:
         """入队今天的整理任务。按日期去重，多个进程同时入队也只有一条。"""
-        from companion.app.jobs.handlers import QA_PURGE_JOB
+        from companion.jobs.handlers import QA_PURGE_JOB
         from companion.timeline.sweep import TIMELINE_SWEEP_JOB
 
         today = datetime.now(UTC).date().isoformat()

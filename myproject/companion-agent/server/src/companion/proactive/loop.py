@@ -24,10 +24,10 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, time, timedelta
 from typing import Any
 
-from companion.app.proactive.router import ChannelRouter
-from companion.ports.delivery import DeliveryError, DeliveryReceipt
-from companion.domain.proactive.models import Channel, InitiativePreferences, InitiativeState
-from companion.app.proactive.scheduler import InitiativeScheduler
+from companion.proactive.router import ChannelRouter
+from companion.proactive.delivery_port import DeliveryError, DeliveryReceipt
+from companion.proactive.models import Channel, InitiativePreferences, InitiativeState
+from companion.proactive.scheduler import InitiativeScheduler
 from companion.domain.text.events import strip_emotion_tags
 from companion.turn.trigger import Trigger
 

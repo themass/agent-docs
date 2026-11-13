@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from companion.app.jobs.background import HEARTBEAT_SEC, BackgroundJobs
+from companion.jobs.background import HEARTBEAT_SEC, BackgroundJobs
 from companion.config import Settings
 
 
@@ -48,7 +48,7 @@ def platform(monkeypatch, tmp_path):
     for name in ("pipeline", "resummarize", "timeline_recorder", "timeline", "persona_updater",
                  "account", "qa", "preferences", "ledger", "delivery", "compliance", "sessions", "chat"):
         setattr(p, name, None)
-    monkeypatch.setattr("companion.app.jobs.background.build_initiative_loop", lambda p: _NoopLoop())
+    monkeypatch.setattr("companion.jobs.background.build_initiative_loop", lambda p: _NoopLoop())
     return p
 
 

@@ -23,8 +23,8 @@ from companion.adapters.store.sql.schema import (
     proactive_preferences,
     send_record,
 )
-from companion.domain.proactive.models import InitiativePreferences, InitiativeState, SendRecord
-from companion.ports.delivery import DeliveryReceipt, Channel
+from companion.proactive.models import InitiativePreferences, InitiativeState, SendRecord
+from companion.proactive.delivery_port import DeliveryReceipt, Channel
 
 
 def _now() -> datetime:

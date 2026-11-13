@@ -8,8 +8,8 @@ from datetime import UTC, datetime, time, timedelta
 
 import pytest
 
-from companion.domain.proactive.policy import InitiativePolicy
-from companion.domain.proactive.models import InitiativePreferences, InitiativeState, SendRecord, Channel
+from companion.proactive.policy import InitiativePolicy
+from companion.proactive.models import InitiativePreferences, InitiativeState, SendRecord, Channel
 from companion.turn.trigger import TriggerKind
 
 

@@ -139,7 +139,7 @@ def create_app(
             await platform.astart()   # checkpoint 连接池必须在服务的事件循环里打开
             if settings.companion_jobs_in_api:
                 # 后台循环跟 API 一起跑：少一个必须记得部署的进程。多副本时只在一个副本上开。
-                from companion.app.jobs.background import BackgroundJobs
+                from companion.jobs.background import BackgroundJobs
 
                 background = BackgroundJobs(platform)
                 await background.start()
