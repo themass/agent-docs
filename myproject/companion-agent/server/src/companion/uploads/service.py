@@ -7,10 +7,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from companion.util.ids import new_ulid
-from companion.uploads.policy import UploadRejected, check_size, detect_type
-from companion.uploads.objects_port import ObjectStore
 from companion.store.port import UploadRecord
+from companion.uploads.objects_port import ObjectStore
+from companion.uploads.policy import UploadRejected, check_size, detect_type
+from companion.util.ids import new_ulid
 
 SIGNED_URL_TTL = 300  # 5 分钟（O §5）
 

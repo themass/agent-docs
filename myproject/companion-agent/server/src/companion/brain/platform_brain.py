@@ -19,7 +19,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from companion.turn.queue import Disposition
-from companion.brain.port import BrainTurn, TurnRefused, TurnRequest
+from companion.turn.brain_port import BrainTurn, TurnRefused, TurnRequest
 
 logger = logging.getLogger(__name__)
 

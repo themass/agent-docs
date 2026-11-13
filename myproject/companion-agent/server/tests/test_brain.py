@@ -9,7 +9,7 @@ from langchain_core.messages import AIMessageChunk, ToolMessage
 
 from companion.brain.deerflow import DeerFlowBrain
 from companion.brain.fake import FakeBrain
-from companion.brain.port import TextDelta, ToolFinished, ToolStarted, TurnRequest
+from companion.turn.brain_port import TextDelta, ToolFinished, ToolStarted, TurnRequest
 
 
 def request(**kw):

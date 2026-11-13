@@ -16,7 +16,7 @@ from companion.brain.tools import to_langchain_tools
 from companion.tools.builtin import register_builtin_tools
 from companion.tools.runtime import ToolRuntime
 from companion.tools.registry import ToolRegistry
-from companion.brain.port import TurnRequest
+from companion.turn.brain_port import TurnRequest
 
 
 class ScriptedToolModel(BaseChatModel):

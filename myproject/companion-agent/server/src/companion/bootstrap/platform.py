@@ -76,7 +76,7 @@ from companion.prompt.templates import PROMPT_VERSION
 from companion.history.summary import TIMELINE_RECORD_JOB
 from companion.memory.pipeline import MEMORY_RECORD_JOB, MemoryPipeline
 from companion.tools.registry import ToolRegistry
-from companion.brain.port import TextDelta, TurnRequest
+from companion.turn.brain_port import TextDelta, TurnRequest
 from memory_hub import AppConfig, MemoryHub
 from memory_hub.hub import ScopedMemory
 

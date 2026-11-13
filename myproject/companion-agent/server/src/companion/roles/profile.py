@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from companion.lorebook import Lorebook, from_character_book
-from companion.prompt.plan import ROLES, DepthInjection
+from companion.lorebook.model import ROLES, DepthInjection
 from companion.roles.card import CharacterCard
 from companion.roles.catalog import SystemRole
 

@@ -14,7 +14,7 @@ from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 from typing import Any
 
-from companion.brain.port import BrainPort, BrainTurn, TurnRequest
+from companion.turn.brain_port import BrainPort, BrainTurn, TurnRequest
 from companion.text.events import strip_emotion_tags, to_avatar_events
 from companion.text.splitter import SentenceSplitter
 

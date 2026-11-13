@@ -14,7 +14,7 @@ from types import SimpleNamespace
 import pytest
 
 from companion.turn.queue import Disposition
-from companion.brain.port import TurnRequest
+from companion.turn.brain_port import TurnRequest
 
 SESSION = 7
 TURN = "01TURNAAAAAAAAAAAAAAAAAAAA"
@@ -153,7 +153,7 @@ async def test_interrupting_cancels_this_turn_on_the_control_plane():
 
 
 async def test_denied_input_is_not_spoken_and_not_silent():
-    from companion.brain.port import TurnRefused
+    from companion.turn.brain_port import TurnRefused
 
     control = FakeControl()
     with pytest.raises(TurnRefused) as info:

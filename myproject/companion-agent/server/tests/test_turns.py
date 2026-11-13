@@ -9,7 +9,7 @@ import asyncio
 import pytest
 
 from companion.brain.fake import FakeBrain
-from companion.brain.port import BrainTurn, TurnRequest
+from companion.turn.brain_port import BrainTurn, TurnRequest
 from companion.turn.pipeline import TurnPipeline
 
 

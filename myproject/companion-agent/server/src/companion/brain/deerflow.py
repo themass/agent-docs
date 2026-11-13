@@ -25,7 +25,7 @@ from companion.brain.graph_middleware import (
     ToolAuthorizationMiddleware,
     ToolVisibilityMiddleware,
 )
-from companion.brain.port import (
+from companion.turn.brain_port import (
     BrainEvent,
     BrainTurn,
     GraphMessageIds,

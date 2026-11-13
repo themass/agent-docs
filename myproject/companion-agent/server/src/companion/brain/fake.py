@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Sequence
 
-from companion.brain.port import BrainTurn, TurnRequest
+from companion.turn.brain_port import BrainTurn, TurnRequest
 
 
 class FakeBrain:

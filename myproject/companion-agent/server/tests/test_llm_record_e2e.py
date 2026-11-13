@@ -14,7 +14,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from sqlalchemy import select
 
 from companion.brain.deerflow import DeerFlowBrain
-from companion.brain.port import TextDelta, TurnRequest
+from companion.turn.brain_port import TextDelta, TurnRequest
 
 DB = os.environ.get("COMPANION_TEST_DATABASE_URL", "")
 REDIS = os.environ.get("COMPANION_TEST_REDIS_URL", "")

@@ -145,7 +145,7 @@ async def test_merge_during_pre_output_restarts_and_attaches_the_merged_message(
     from companion.chat.submit import SubmitService
     from companion.chat.turn_runner import TurnInput, TurnRunner
     from companion.chat.lifecycle import DrainState
-    from companion.brain.port import TextDelta
+    from companion.turn.brain_port import TextDelta
 
     sid = _session_id()
     messages, queue = Messages(), Queue()
@@ -191,7 +191,7 @@ async def test_merge_during_pre_output_restarts_and_attaches_the_merged_message(
 async def test_steer_during_output_is_injected_and_attached(control, redis_client):
     from companion.chat.submit import SubmitService
     from companion.chat.turn_runner import TurnInput, TurnRunner
-    from companion.brain.port import TextDelta
+    from companion.turn.brain_port import TextDelta
 
     sid = _session_id()
     messages, queue = Messages(), Queue()
@@ -228,7 +228,7 @@ async def test_steer_during_output_is_injected_and_attached(control, redis_clien
 async def test_uninjected_steer_goes_back_to_the_queue(control, redis_client):
     from companion.chat.turn_runner import TurnInput, TurnRunner
     from companion.turn.queue import TurnPhase
-    from companion.brain.port import TextDelta
+    from companion.turn.brain_port import TextDelta
 
     sid = _session_id()
     messages, queue = Messages(), Queue()
@@ -306,7 +306,7 @@ async def test_merge_that_lands_before_the_first_token_is_never_lost(control, re
     Lua 判定为合并后、运行器读到之前，首 token 就到了。修复前这条合并会被丢掉。
     """
     from companion.chat.turn_runner import TurnInput, TurnRunner
-    from companion.brain.port import TextDelta
+    from companion.turn.brain_port import TextDelta
     from companion.turn.redis_control import ctl_key
 
     sid = _session_id()

@@ -14,23 +14,9 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import TypeVar
 
-ROLES = ("system", "user", "assistant")
+from companion.lorebook.model import ROLES, DepthInjection
 
 T = TypeVar("T")
-
-
-@dataclass(frozen=True)
-class DepthInjection:
-    depth: int
-    role: str
-    text: str
-    order: int = 100
-
-    def __post_init__(self) -> None:
-        if self.depth < 0:
-            raise ValueError("depth must be >= 0")
-        if self.role not in ROLES:
-            raise ValueError(f"role must be one of {ROLES}")
 
 
 @dataclass(frozen=True)

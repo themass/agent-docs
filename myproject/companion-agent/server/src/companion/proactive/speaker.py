@@ -9,10 +9,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from companion.chat.voice_session import ChatSessionError, resolve_chat_session
+from companion.room.resolve import ChatSessionError, resolve_chat_session
 from companion.proactive.loop import SpeakDenied
 from companion.turn.trigger import Trigger
-from companion.brain.port import TurnRefused, TurnRequest
+from companion.turn.brain_port import TurnRefused, TurnRequest
 
 
 class PlatformSpeaker:

@@ -35,7 +35,7 @@ from dataclasses import dataclass, field
 from companion.chat.lifecycle import DrainState
 from companion.turn.queue import TurnPhase
 from companion.turn.steer import SteerInbox
-from companion.brain.port import (
+from companion.turn.brain_port import (
     BrainEvent,
     GraphMessageIds,
     TextDelta,

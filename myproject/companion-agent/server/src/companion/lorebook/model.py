@@ -119,3 +119,28 @@ def from_character_book(book: Mapping[str, Any] | None) -> Lorebook | None:
         budget_chars=_int(book.get("token_budget"), 0) or None,
         unsupported=tuple(unsupported),
     )
+
+#: 消息角色。与 SillyTavern 的 depth prompt role 一致。
+ROLES = ("system", "user", "assistant")
+
+
+@dataclass(frozen=True)
+class DepthInjection:
+    """按「倒数第 N 条消息之前」插入历史的一段文本。
+
+    深度的含义与 SillyTavern 一致：0 = 最后一条消息之后；N = 倒数第 N 条消息之前。
+    定义在这里而不是 prompt 模块：它描述的是世界书/角色卡的注入语义，
+    roles 与 prompt 都要用它，放在 leaf 模块才能避免两者互相依赖。
+    """
+
+    depth: int
+    role: str
+    text: str
+    order: int = 100
+
+    def __post_init__(self) -> None:
+        if self.depth < 0:
+            raise ValueError("depth must be >= 0")
+        if self.role not in ROLES:
+            raise ValueError(f"role must be one of {ROLES}")
+

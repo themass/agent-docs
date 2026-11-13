@@ -132,7 +132,7 @@ def env():
     from companion.chat.lifecycle import DrainState
     from companion.bootstrap.chat_stack import build_chat_api
     from companion.api.http.deps import AllowAllVerifier, build_current_user
-    from companion.brain.port import TextDelta
+    from companion.turn.brain_port import TextDelta
 
     client = redis.from_url(REDIS_URL, decode_responses=False)
 
