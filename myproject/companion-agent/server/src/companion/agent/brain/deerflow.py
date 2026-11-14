@@ -41,6 +41,9 @@ from deerflow.agents.features import RuntimeFeatures
 # 图编译时的占位提示词：真正的提示词由 PromptMiddleware 每轮写入（P §2.4）。
 _PLACEHOLDER_SYSTEM = "You are a helpful assistant."
 
+#: LangGraph 的 checkpoint 落盘策略。见 ``stream`` 里的说明。
+DURABILITY = "exit"
+
 
 def thread_id_for(session_id: int) -> str:
     return f"session-{session_id}"
@@ -133,6 +136,11 @@ class DeerFlowBrain:
         kwargs: dict[str, Any] = {"context": context, "stream_mode": "messages"}
         if config is not None:   # 只有带 checkpoint 的图才按会话传线程
             kwargs["config"] = config
+            # 每个图步骤都写一次 checkpoint 的默认策略（async）在这里代价极大：
+            # LangGraph 默认按步骤写，一回合 25 次写，库往返几百毫秒时单是落盘就十秒起。
+            # exit = 整个 run 结束时才写一次。前提是图里没有 interrupt()（我们没有：
+            # 工具确认是回合之外的确认表，不靠图暂停），取消回合时状态仍会保留。
+            kwargs["durability"] = DURABILITY
         async for msg, _meta in self._graph.astream({"messages": messages}, **kwargs):
             mid = getattr(msg, "id", None)
             if mid and mid not in seen_ids and mid not in input_ids and isinstance(msg, (AIMessage, ToolMessage)):

@@ -30,12 +30,35 @@ class StubGraph:
         self._raise_after = raise_after
         self.calls = []
 
-    async def astream(self, inputs, *, context, stream_mode):
-        self.calls.append((inputs, context, stream_mode))
+    async def astream(self, inputs, *, context, stream_mode, **extra):
+        self.calls.append((inputs, context, stream_mode, extra))
         for index, item in enumerate(self._items):
             if self._raise_after is not None and index >= self._raise_after:
                 raise RuntimeError("model stream broke")
             yield item
+
+
+async def test_every_graph_run_asks_for_exit_durability():
+    """checkpoint 落盘策略必须是 exit。
+
+    LangGraph 默认 ``async`` 每个图步骤写一次 checkpoint。生产库是跨地域的（实测往返 362ms），
+    一个回合 25 次写 → 单是落盘就 10 秒（实测 9977ms → 714ms）。这条测试防的是有人
+    把它改回默认值：那种改动不会让任何测试失败，只会让线上慢十几倍。
+    """
+    graph = StubGraph([text("在")])
+    brain = DeerFlowBrain(graph, stateful=True)
+    async for _ in brain.stream(messages=[], context={}, config={"configurable": {"thread_id": "s1"}}):
+        pass
+    assert graph.calls[0][3]["durability"] == "exit"
+
+
+async def test_a_stateless_graph_gets_no_durability_hint():
+    """没有 checkpointer 的图连 config 都没有，不该传 durability（参数对它是多余的）。"""
+    graph = StubGraph([text("在")])
+    brain = DeerFlowBrain(graph)
+    async for _ in brain.stream(messages=[], context={}, config=None):
+        pass
+    assert graph.calls[0][3] == {}
 
 
 def text(content):
@@ -85,7 +108,7 @@ async def test_tool_result_becomes_tool_finished():
 async def test_start_turn_passes_identity_and_prompt_in_context():
     graph = StubGraph([text("x")])
     await collect(await DeerFlowBrain(graph).start_turn(request(system_prompt="SYS")))
-    _inputs, context, mode = graph.calls[0]
+    _inputs, context, mode, _extra = graph.calls[0]
     assert mode == "messages"
     assert context["user_id"] == "u1"
     assert context["system_prompt"] == "SYS"
