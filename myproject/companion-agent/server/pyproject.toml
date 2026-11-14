@@ -32,6 +32,8 @@ dependencies = [
     "pydantic-settings>=2.6.0",
     "pyyaml>=6.0.0",
     "litellm>=1.55.0",
+    # /metrics：进程内指标登记簿（companion/metrics.py）。只是别的包的传递依赖，直接用了就要显式声明。
+    "prometheus-client>=0.20",
 ]
 
 [project.optional-dependencies]

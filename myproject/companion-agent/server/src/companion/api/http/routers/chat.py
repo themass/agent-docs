@@ -347,8 +347,15 @@ def build_router(api: ChatApi, current_user):
 
 
 def build_health_router(drain: DrainState):
-    """探针（P §3.6）。不带前缀，不需要登录。readyz 在停机时返回 503，让负载均衡先切走流量（P §3.5）。"""
+    """探针（P §3.6）。不带前缀，不需要登录。readyz 在停机时返回 503，让负载均衡先切走流量（P §3.5）。
+
+    ``/metrics`` 也在这里：同样是"不带前缀、不验登录态"的机器接口。**必须在 nginx 上限制来源**，
+    否则任何人拿走 token 用量和各会话的调用量。
+    """
     from fastapi import APIRouter, HTTPException
+    from fastapi.responses import Response
+
+    from companion import metrics
 
     router = APIRouter(tags=["health"])
 
@@ -361,5 +368,10 @@ def build_health_router(drain: DrainState):
         if drain.draining:
             raise HTTPException(status_code=503, detail={"status": "draining"})
         return {"status": "ready"}
+
+    @router.get("/metrics")
+    async def prometheus() -> Response:
+        # 用 bytes 而不是 str：generate_latest 返回 UTF-8 字节，按 str 传会被再编码一次。
+        return Response(content=metrics.render(), media_type="text/plain; version=0.0.4; charset=utf-8")
 
     return router

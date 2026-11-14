@@ -45,6 +45,7 @@ from companion.agent.brain.port import (
     TurnRequest,
 )
 from companion.db.port import MessageStore, QueueStore
+from companion import metrics
 from companion.service.turn.control import TurnControlPort
 
 log = logging.getLogger("companion.turn")
@@ -106,6 +107,8 @@ class _RunState:
     ctl_last: str = "0-0"      # 已处理的最后一条控制消息 id（去重用）
     lost: bool = False         # 续租失败：这把锁已经不是我们的
     lc_ids: list[str] = field(default_factory=list)   # 大脑写进对话线程的消息 id（跨重跑累计）
+    started: float = field(default_factory=time.monotonic)   # 回合开始，用来算用户等了多久
+    first_output_at: float | None = None                     # 第一个可见 token 的时刻
 
     def restart(self) -> None:
         self.merge_requested = False
@@ -149,13 +152,16 @@ class TurnRunner:
     async def run(self, inp: TurnInput) -> None:
         if self._tracker is not None:
             self._tracker.turn_started()
+        metrics.ACTIVE_TURNS.inc()
+        started = time.monotonic()
         try:
-            await self._run(inp)
+            await self._run(inp, started=started)
         finally:
+            metrics.ACTIVE_TURNS.dec()
             if self._tracker is not None:
                 self._tracker.turn_finished()
 
-    async def _run(self, inp: TurnInput) -> None:
+    async def _run(self, inp: TurnInput, *, started: float) -> None:
         state = _RunState()
         inbox = SteerInbox(budget=self._steer_budget)
         inputs = await self._load_inputs(inp)
@@ -179,6 +185,7 @@ class TurnRunner:
                         await self._requeue(inp, message_id, text)
                     break
                 restarts += 1
+                metrics.TURN_RESTARTS.inc()
                 await self._attach_merged(inp, state)
                 inputs = inputs + [TurnInputMessage(message_id=mid, text=text) for mid, text in state.merged]
                 state.restart()  # 原地重置：控制协程持有的是同一个对象

@@ -15,6 +15,7 @@ from uuid import UUID
 
 from langchain_core.callbacks import BaseCallbackHandler
 
+from companion import metrics
 from companion.agent.brain.trace_model import LlmCall
 
 def _text(content: Any) -> str:
@@ -94,7 +95,7 @@ class LlmCallCollector(BaseCallbackHandler):
         details = usage.get("input_token_details") or {}
         meta = (getattr(message, "response_metadata", None) or {}) if message is not None else {}
         now = time.monotonic()
-        self._done.append(LlmCall(
+        record = LlmCall(
             seq=call["seq"], provider=call["provider"], model=str(meta.get("model_name") or call["model"]),
             input_messages=call["input"], output_text=_text(getattr(message, "content", "")) if message else "",
             reasoning_text=_reasoning(message) if message is not None else "",
@@ -103,16 +104,27 @@ class LlmCallCollector(BaseCallbackHandler):
             cached_tokens=details.get("cache_read"),
             first_token_ms=int((call["first"] - call["t0"]) * 1000) if call["first"] else None,
             total_ms=int((now - call["t0"]) * 1000),
-            finish_reason=str(meta.get("finish_reason") or "")))
+            finish_reason=str(meta.get("finish_reason") or ""))
+        self._done.append(record)
+        # 指标在这里就写掉，不等 drain：drain 的调用方只在 QA 打开时才存在，
+        # 而延迟和用量是线上随时要看的，不能跟着 QA 开关一起消失。
+        metrics.observe_llm_call(
+            model=record.model, ttft_ms=record.first_token_ms, total_ms=record.total_ms,
+            input_tokens=record.input_tokens, output_tokens=record.output_tokens,
+            cached_tokens=record.cached_tokens)
 
     def on_llm_error(self, error: BaseException, *, run_id: UUID, **kwargs: Any) -> None:
         call = self._open.pop(run_id, None)
         if call is None:
             return
+        total_ms = int((time.monotonic() - call["t0"]) * 1000)
+        error_code = type(error).__name__[:64]
         self._done.append(LlmCall(
             seq=call["seq"], provider=call["provider"], model=call["model"],
-            input_messages=call["input"], total_ms=int((time.monotonic() - call["t0"]) * 1000),
-            error_code=type(error).__name__[:64]))
+            input_messages=call["input"], total_ms=total_ms, error_code=error_code))
+        metrics.observe_llm_call(model=call["model"], ttft_ms=None, total_ms=total_ms,
+                                 input_tokens=None, output_tokens=None, cached_tokens=None,
+                                 error=error_code)
 
     # ---- 取用 ----
 

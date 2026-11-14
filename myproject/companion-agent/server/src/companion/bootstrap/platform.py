@@ -16,11 +16,13 @@ from __future__ import annotations
 import logging
 import os
 import socket
+import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+from companion import metrics
 from companion.service.turn.redis_control import RedisTurnControl
 from companion.agent.memory.recallers import MemoryPortRecaller, TimelineRecaller
 from companion.service.proactive.push_log import LogPush
@@ -298,14 +300,19 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     async def produce(request: TurnRequest, inbox: Any) -> AsyncIterator[Any]:
         owner_id = int(request.user_id)
         texts = tuple(i.text for i in request.inputs) or (request.message,)
+        prepare_started = time.monotonic()
         plan = await context.build(owner_id=owner_id, session_id=request.session_id or 0,
                                    role_id=request.character_id, current_texts=texts)
+        # 用户的等待里有一部分是我们自己造提示词（召回、世界书、角色卡），和模型无关。
+        # 单独量出来，别都算到"模型慢"头上。
+        metrics.PREPARE_DURATION.observe(time.monotonic() - prepare_started)
         request.prompt = plan
         request.system_prompt = plan.system
         if hasattr(brain, "run"):
-            collector = LlmCallCollector() if qa_enabled else None
-            if collector is not None:
-                request.metadata["llm_collector"] = collector
+            # 采集器一直挂着，不再跟 QA 开关走：它同时承担写指标（延迟、用量）的职责，
+            # 追踪落不落库才看开关（见 record_trace 与 metrics 模块文档）。
+            collector = LlmCallCollector()
+            request.metadata["llm_collector"] = collector
             started_at = datetime.now(UTC)
             try:
                 async for event in brain.run(request, inbox):
