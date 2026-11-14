@@ -186,6 +186,60 @@ def mark_worker_exit() -> None:
         logger.debug("mark_process_dead failed", exc_info=True)
 
 
+def prune_dead_workers() -> int:
+    """Remove mmap files left by workers that no longer exist. Returns the count.
+
+    Why this cannot be the dying worker's job: a worker killed with SIGKILL, or one
+    that segfaults, executes no Python at all — `mark_worker_exit` never runs. Even
+    a graceful exit only helps if the caller wired it up, and the first version of
+    this kit exported it without ever calling it. The observed result: the
+    `agent_turns_in_flight` gauge sat at 3.0 on production and never came down,
+    because three dead pids' files kept being summed.
+
+    A live gauge is the only family where a stale file is worse than a missing one:
+    it reports a turn in progress that will never finish. So this prunes *live*
+    gauge files whose pid is gone, and leaves counters and histograms alone — their
+    values are real work that happened.
+
+    Cheap enough to run on every scrape: one listdir plus a `kill(pid, 0)` per
+    candidate file.
+    """
+    if not MULTIPROCESS_MODE:
+        return 0
+    import glob
+    import os
+    import signal
+
+    directory = os.environ.get("PROMETHEUS_MULTIPROC_DIR")
+    if not directory:
+        return 0
+    removed = 0
+    for path in glob.glob(os.path.join(directory, "gauge_live*_*.db")):
+        # gauge_livesum_<pid>.db
+        stem = os.path.basename(path).rsplit(".", 1)[0]
+        try:
+            pid = int(stem.rsplit("_", 1)[1])
+        except (IndexError, ValueError):
+            continue
+        if pid == os.getpid():
+            continue
+        try:
+            os.kill(pid, 0)
+            continue  # still alive
+        except ProcessLookupError:
+            pass
+        except PermissionError:
+            continue  # exists, owned by someone else
+        try:
+            os.remove(path)
+            removed += 1
+        except OSError:  # pragma: no cover - racing with another pruner
+            continue
+    if removed:
+        logger.info("pruned %d stale live-gauge file(s) from exited workers", removed)
+    return removed
+
+
 def registry() -> Any:
     """The registry NEW metrics should be created in.
 
@@ -472,6 +526,7 @@ def render_metrics() -> bytes:
     if not PROMETHEUS_AVAILABLE:
         return b"# prometheus_client not installed\n"
     try:
+        prune_dead_workers()
         return generate_latest(collector_registry())
     except Exception:  # pragma: no cover
         logger.warning("render_metrics failed", exc_info=True)

@@ -492,3 +492,33 @@ export function getAdminMetrics(params?: { include_peers?: boolean }): Promise<A
   const qs = q.toString();
   return apiJson(`/admin/metrics${qs ? `?${qs}` : ""}`, { headers: adminHeaders() });
 }
+
+/** One time bucket of the LLM traffic/latency chart. */
+export type AdminLlmTimeBucket = {
+  bucket: string | null;
+  calls: number;
+  failed: number;
+  avg_latency_ms: number;
+  p50_latency_ms: number;
+  p95_latency_ms: number;
+  max_latency_ms: number;
+  total_tokens: number;
+};
+
+/**
+ * Traffic and latency over time, from the durable audit table.
+ *
+ * Not from `/metrics`: those counters are per-worker and reset on restart, so a
+ * chart built on them goes blank after every deploy — precisely when someone
+ * opens it to ask whether the deploy is why the numbers moved.
+ */
+export function getAdminLlmTimeseries(params?: {
+  hours?: number;
+  bucket_minutes?: number;
+}): Promise<{ hours: number; bucket_minutes: number; buckets: AdminLlmTimeBucket[] }> {
+  const q = new URLSearchParams();
+  if (params?.hours) q.set("hours", String(params.hours));
+  if (params?.bucket_minutes) q.set("bucket_minutes", String(params.bucket_minutes));
+  const qs = q.toString();
+  return apiJson(`/admin/llm/timeseries${qs ? `?${qs}` : ""}`, { headers: adminHeaders() });
+}

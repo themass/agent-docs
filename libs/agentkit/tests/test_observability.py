@@ -366,52 +366,65 @@ def test_mark_worker_exit_does_not_drop_histogram_samples(tmp_path):
     assert float(out.strip()) == 9.0, out
 
 
-def test_mark_worker_exit_does_clear_the_inflight_gauge(tmp_path):
-    """The one metric that MUST reset when a worker dies.
+def test_a_dead_workers_inflight_is_pruned_but_a_live_one_survives(tmp_path):
+    """`agent_turns_in_flight` answers "is a turn stuck right now".
 
-    `agent_turns_in_flight` answers "is a turn stuck right now". If a worker exits
-    while turns are in flight, its value must stop contributing — otherwise the
-    gauge reports a phantom stuck turn forever, which is the exact alarm it exists
-    to raise.
+    A worker that dies mid-turn executes no Python, so it cannot clean up after
+    itself — SIGKILL, a segfault, or simply never calling `mark_worker_exit` (which
+    the first version of this kit exported but nothing ever invoked). Its
+    `gauge_livesum_<pid>.db` then keeps contributing, and the gauge reports a
+    phantom stuck turn forever. Observed on production: pinned at 3.0.
 
-    That only happens with `multiprocess_mode="livesum"`: prometheus_client's
-    `mark_process_dead` deletes `gauge_live*_{pid}.db` and nothing else, so the
-    default `all` mode leaves the dead worker's file in every future scrape.
-
-    The witness of that difference is the second process below calling
-    `mark_worker_exit()` before it exits: with `all` the total stays 3, with
-    `livesum` it drops to 1.
+    So pruning is done by the *reader*, not the dying worker: any live-gauge file
+    whose pid no longer exists is removed before summing. A live worker's value must
+    survive, which is what makes this a prune rather than a reset.
     """
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
     d = str(tmp_path)
 
-    # Worker A: three turns in flight, then it exits without decrementing (the
-    # crash case) but does call mark_worker_exit on its way out.
-    _run(
-        "from agentkit.observability import configure, inflight_turn, mark_worker_exit\n"
-        "configure(application='exit', environment='test')\n"
-        "for _ in range(3):\n"
-        "    s = inflight_turn(); s.__enter__()\n"
-        "mark_worker_exit()\n"
-        "print('A done')\n",
-        multiproc_dir=d,
-    )
-    # Worker B: one turn in flight, still alive.
+    # A dead worker: raises the gauge and exits without decrementing.
     _run(
         "from agentkit.observability import configure, inflight_turn\n"
-        "configure(application='exit', environment='test')\n"
-        "s = inflight_turn(); s.__enter__()\n"
-        "print('B done')\n",
+        "configure(application='prune', environment='test')\n"
+        "for _ in range(3):\n"
+        "    s = inflight_turn(); s.__enter__()\n"
+        "print('dead done')\n",
         multiproc_dir=d,
     )
-    out = _run(
-        "from agentkit.observability import configure, snapshot\n"
-        "configure(application='exit', environment='test')\n"
-        "fam = snapshot()['families']['agent_turns_in_flight']\n"
-        "print(sum(float(s['value'] or 0) for s in fam['series']))\n",
-        multiproc_dir=d,
+
+    # A live worker: holds two turns in flight while the reader runs.
+    src = Path(__file__).resolve().parents[1] / "src"
+    env = {**os.environ, "PROMETHEUS_MULTIPROC_DIR": d, "PYTHONPATH": str(src)}
+    holder = subprocess.Popen(
+        [sys.executable, "-c",
+         "import time\n"
+         "from agentkit.observability import configure, inflight_turn\n"
+         "configure(application='prune', environment='test')\n"
+         "a = inflight_turn(); a.__enter__()\n"
+         "b = inflight_turn(); b.__enter__()\n"
+         "print('ready', flush=True)\n"
+         "time.sleep(30)\n"],
+        stdout=subprocess.PIPE, text=True, env=env,
     )
-    # 1, not 4: A's file was removed because the gauge is livesum.
-    assert float(out.strip()) == 1.0, out
+    try:
+        assert holder.stdout is not None
+        assert holder.stdout.readline().strip() == "ready"
+        out = _run(
+            "from agentkit.observability import configure, snapshot\n"
+            "configure(application='prune', environment='test')\n"
+            "fam = snapshot()['families']['agent_turns_in_flight']\n"
+            "print(sum(float(s['value'] or 0) for s in fam['series']))\n",
+            multiproc_dir=d,
+        )
+        # 2, not 5: the dead worker's 3 was pruned, the live worker's 2 stands.
+        assert float(out.strip()) == 2.0, out
+    finally:
+        holder.kill()
+        holder.wait(timeout=10)
 
 
 def test_stale_mmap_files_from_sigkill_still_contribute(tmp_path):

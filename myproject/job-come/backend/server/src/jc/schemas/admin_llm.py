@@ -91,3 +91,27 @@ class AdminLlmUsageResponse(BaseModel):
     group_by: str
     days: int
     rows: list[AdminLlmUsageRow]
+
+
+class AdminLlmTimeBucket(BaseModel):
+    """One time bucket: traffic and latency over a window.
+
+    Sourced from the audit table rather than the in-process Prometheus counters,
+    because a counter resets on restart — the moment an operator most wants to
+    compare "before and after the deploy".
+    """
+
+    bucket: str | None = None
+    calls: int
+    failed: int
+    avg_latency_ms: int
+    p50_latency_ms: int
+    p95_latency_ms: int
+    max_latency_ms: int
+    total_tokens: int
+
+
+class AdminLlmTimeSeriesResponse(BaseModel):
+    hours: int
+    bucket_minutes: int
+    buckets: list[AdminLlmTimeBucket]

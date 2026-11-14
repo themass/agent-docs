@@ -55,7 +55,12 @@ from jc.services.patch_confirm_service import hydrate_confirmation_event, load_c
 from jc.services.profile_patch_service import apply_confirmed_patch
 from jc.services.profile_service import ProfileService
 from jc.stores.agent_store import AgentStore
-from agentkit.observability import inflight_turn, record_agent_phase, record_agent_turn
+from agentkit.observability import (
+    inflight_turn,
+    method_metrics,
+    record_agent_phase,
+    record_agent_turn,
+)
 from jc.stores.agent_trace_store import AgentTraceStore
 from jc.stores.interview_store import InterviewStore
 
@@ -155,6 +160,7 @@ class AgentService:
         self._profiles = ProfileService(db)
         self._trace = AgentTraceStore(db)
 
+    @method_metrics()
     async def create_session(
         self,
         *,
@@ -264,6 +270,7 @@ class AgentService:
             return None
         return mock_id
 
+    @method_metrics()
     async def stream_message(
         self,
         session_id: str,
@@ -658,6 +665,7 @@ class AgentService:
         await self._db.commit()
         return {"cancelled": cancelled, "requested": True}
 
+    @method_metrics()
     async def confirm_patch(
         self,
         session_id: str,

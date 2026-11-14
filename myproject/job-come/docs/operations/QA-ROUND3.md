@@ -1,6 +1,6 @@
 # QA 第三轮：全面验证 —— 监控面板 + 生产可用性
 
-- **状态**：待执行
+- **状态**：已执行 → 见 [QA-ROUND3-RESULT.md](QA-ROUND3-RESULT.md)
 - **目标读者**：Cursor（执行）、项目负责人（验收结论）
 - **前序**：[`QA-PERF-PATHS.md`](QA-PERF-PATHS.md)、[`QA-ROUND2.md`](QA-ROUND2.md)
 - **生产**：`http://127.0.0.1:8000`（API）、`:3001`（Web），当前 `API=200 WEB=200`

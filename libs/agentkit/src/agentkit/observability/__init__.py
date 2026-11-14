@@ -26,6 +26,7 @@ from .metrics import (
     configure,
     counter,
     mark_worker_exit,
+    prune_dead_workers,
     registry as active_registry,
     sharing_across_processes,
     gauge,
@@ -61,4 +62,5 @@ __all__ = [
     "MULTIPROCESS_MODE",
     "collector_registry",
     "mark_worker_exit",
+    "prune_dead_workers",
 ]

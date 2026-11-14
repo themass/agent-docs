@@ -400,6 +400,12 @@ export function AgentTurnCard({
   // offers no progress of its own during that gap — it is a collapsible trail,
   // not a status — so the waiting row has to stay up alongside it.
   const awaitingFirstSignal = turn.streaming && !turn.assistant?.content;
+  // When the step card below is also rendering (a tool/plan row exists), it already
+  // shows the same "thinking" chip in its header. Rendering this row too produced two
+  // stacked "舟卡思考中" pills for one turn — the duplicate reported on screenshot 2.
+  // The card is the better of the two: it carries the step trail, so keep it and drop
+  // this row whenever the card is on screen.
+  const showBareThinkingRow = awaitingFirstSignal && !(hasActivity && turn.streaming);
   // A turn whose steps ran but which still ended without a usable reply (the
   // `deerflow_harness_client` stream-producer path dies after tools succeed, so this is
   // not a hypothetical) must not read as "已完成" right above the "舟卡没能完成这次回复"
@@ -475,7 +481,7 @@ export function AgentTurnCard({
         />
       ) : null}
 
-      {awaitingFirstSignal ? (
+      {showBareThinkingRow ? (
         // The avatar is the row's `mark`, drawn *outside* the bubble, exactly as the
         // reply bubble does it. Previously this row passed no `mark` -- so
         // `AssistantRow` inserted a 2rem spacer in the avatar's place -- and then drew

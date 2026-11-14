@@ -55,7 +55,21 @@ SOURCE_RECORD="$(jc_deerflow_source_record "$JC_ROOT")"
 # for it, and what gets built is still exactly the committed revision.
 ensure_deerflow_source() {
   local url sha current
-  [[ -d "${DEERFLOW_DIR}/backend/packages/harness" ]] && return 0
+  # An existing checkout is reused, but its revision is still verified against the
+  # record. Returning early on "directory exists" made a wrong SHA in
+  # DEERFLOW_SOURCE.txt invisible: `--check` reported ok for a tree built from a
+  # different commit than the file claims. The file is the claim; it has to match.
+  if [[ -d "${DEERFLOW_DIR}/backend/packages/harness" ]]; then
+    [[ -f "$SOURCE_RECORD" ]] || die "missing ${SOURCE_RECORD}"
+    read -r url sha < <(grep -vE '^\s*(#|$)' "$SOURCE_RECORD" | tail -1)
+    [[ -n "$sha" ]] || die "malformed ${SOURCE_RECORD}"
+    current="$(git -C "$DEERFLOW_DIR" rev-parse HEAD 2>/dev/null || echo none)"
+    if [[ "$current" == "$sha" ]]; then
+      return 0
+    fi
+    log "DeerFlow checkout is ${current:0:8} but the record says ${sha:0:8}; re-fetching"
+    rm -rf "$DEERFLOW_DIR"
+  fi
 
   [[ -f "$SOURCE_RECORD" ]] || die "missing ${SOURCE_RECORD} (records which revision to build)"
   read -r url sha < <(grep -vE '^\s*(#|$)' "$SOURCE_RECORD" | tail -1)

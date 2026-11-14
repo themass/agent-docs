@@ -35,8 +35,8 @@ wheels = [
 
 [[package]]
 name = "agentkit"
-version = "0.1.0+20261114.4cbf2ec2"
-source = { path = "wheels/agentkit-0.1.0+20261114.4cbf2ec2-py3-none-any.whl" }
+version = "0.1.0+20261114.d60040a2"
+source = { path = "wheels/agentkit-0.1.0+20261114.d60040a2-py3-none-any.whl" }
 dependencies = [
     { name = "bcrypt" },
     { name = "boto3" },
@@ -48,7 +48,7 @@ dependencies = [
     { name = "structlog" },
 ]
 wheels = [
-    { filename = "agentkit-0.1.0+20261114.4cbf2ec2-py3-none-any.whl", hash = "sha256:e25e4ecf2082bc4510443403b76bcb380a87dfa6c7aba804f1782232caf298dc" },
+    { filename = "agentkit-0.1.0+20261114.d60040a2-py3-none-any.whl", hash = "sha256:447972a5545bb26df98d0b8a93bd85159f0e451fadcd376b86260266a33bdfa2" },
 ]
 
 [package.metadata]
@@ -570,7 +570,7 @@ livekit = [
 
 [package.metadata]
 requires-dist = [
-    { name = "agentkit", path = "wheels/agentkit-0.1.0+20261114.4cbf2ec2-py3-none-any.whl" },
+    { name = "agentkit", path = "wheels/agentkit-0.1.0+20261114.d60040a2-py3-none-any.whl" },
     { name = "aiomysql", specifier = ">=0.2" },
     { name = "alembic", specifier = ">=1.14" },
     { name = "boto3", specifier = ">=1.34" },

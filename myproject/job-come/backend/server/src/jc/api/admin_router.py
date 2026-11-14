@@ -17,6 +17,7 @@ from jc.api.deps import (
     get_session_audit_service,
     require_admin,
 )
+from jc.config import settings
 from jc.diagnostics.harness_inventory import build_harness_inventory
 from jc.exceptions import NotFoundError
 from jc.schemas.admin_feedback import (
@@ -31,6 +32,8 @@ from jc.schemas.admin_llm import (
     AdminLlmCallDetailResponse,
     AdminLlmCallItem,
     AdminLlmCallListResponse,
+    AdminLlmTimeBucket,
+    AdminLlmTimeSeriesResponse,
     AdminLlmUsageResponse,
     AdminLlmUsageRow,
 )
@@ -300,6 +303,31 @@ async def admin_llm_usage(
         group_by=group_by,
         days=days,
         rows=[AdminLlmUsageRow.model_validate(row) for row in rows],
+    )
+
+
+@router.get(
+    "/llm/timeseries",
+    response_model=AdminLlmTimeSeriesResponse,
+    summary="LLM 调用时间序列（QPS / 耗时 / 失败）",
+)
+async def admin_llm_timeseries(
+    hours: int = Query(default=24, ge=1, le=720),
+    bucket_minutes: int = Query(default=60, ge=1, le=1440),
+    _: UserActor = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+) -> AdminLlmTimeSeriesResponse:
+    """Traffic and latency over time, from the durable audit table.
+
+    Deliberately not derived from `/metrics`: those counters are per-process and
+    reset on restart, so a chart built on them goes blank exactly when someone
+    opens it after a deploy to ask whether the deploy is the reason numbers moved.
+    """
+    rows = await LlmCallStore(db).time_series(hours=hours, bucket_minutes=bucket_minutes)
+    return AdminLlmTimeSeriesResponse(
+        hours=hours,
+        bucket_minutes=bucket_minutes,
+        buckets=[AdminLlmTimeBucket(**row) for row in rows],
     )
 
 

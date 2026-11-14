@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { BarList, HistogramBars, StatTile, formatCompact } from "@/components/admin/metrics/MetricsCharts";
+import { BarList, HistogramBars, Sparkline, StatTile, formatCompact } from "@/components/admin/metrics/MetricsCharts";
 import {
+  getAdminLlmTimeseries,
   getAdminMetrics,
   type AdminMetricsFamily,
   type AdminMetricsPeer,
   type AdminMetricsSnapshot,
+  type AdminLlmTimeBucket,
 } from "@/lib/api/admin";
 import { userFacingApiError } from "@/lib/api/user-error";
 
@@ -116,10 +118,18 @@ export default function AdminMetricsPage() {
   const [loading, setLoading] = useState(true);
   const [includePeers, setIncludePeers] = useState(true);
   const [activePeer, setActivePeer] = useState<string | null>(null);
+  // Time series come from the audit table, not /metrics: the counters are
+  // per-worker and reset on restart, so a chart of them is blank right after a
+  // deploy — the one moment someone opens this page to compare before/after.
+  const [timeline, setTimeline] = useState<AdminLlmTimeBucket[]>([]);
 
   const load = useCallback(async (withPeers: boolean) => {
     try {
-      const data = await getAdminMetrics({ include_peers: withPeers });
+      const [data, series] = await Promise.all([
+        getAdminMetrics({ include_peers: withPeers }),
+        getAdminLlmTimeseries({ hours: 24, bucket_minutes: 60 }).catch(() => ({ buckets: [] })),
+      ]);
+      setTimeline(series.buckets ?? []);
       setSnapshot(data);
       setError(null);
       // Keep the selection only while that peer still exists; otherwise fall back
@@ -216,7 +226,11 @@ export default function AdminMetricsPage() {
                 />
                 <StatTile
                   label="模型失败"
-                  value={llmFailures ? llmFailures.value.toLocaleString("zh-CN") : "0"}
+                  // A missing series means "no call has been recorded yet", which is
+                  // not the same as "zero failures". A hard `0` here reads as a clean
+                  // bill of health on a process that has served nothing — the exact
+                  // empty-vs-zero confusion the rest of this page avoids.
+                  value={llmFailures ? llmFailures.value.toLocaleString("zh-CN") : "—"}
                   tone={llmFailures && llmFailures.value > 0 ? "danger" : "default"}
                   hint="含重试后仍失败"
                 />
@@ -233,6 +247,23 @@ export default function AdminMetricsPage() {
               </div>
 
               <div className="grid gap-3 lg:grid-cols-2">
+                <Panel
+                  title="24 小时调用量 / 耗时"
+                  hint="来自审计表，重启不清零；虚线是 p95"
+                >
+                  <Sparkline
+                    points={timeline.map((b) => ({
+                      bucket: b.bucket,
+                      calls: b.calls,
+                      failed: b.failed,
+                      avg_latency_ms: b.avg_latency_ms,
+                      p95_latency_ms: b.p95_latency_ms,
+                    }))}
+                    primary={{ pick: (p) => p.calls, label: "调用次数" }}
+                    secondary={{ pick: (p) => p.p95_latency_ms, label: "p95 耗时(ms)" }}
+                  />
+                </Panel>
+
                 <Panel title="模型调用耗时分布" hint="一次逻辑调用，含网关排队">
                   <HistogramBars buckets={histogramBuckets(familyOf(peer, "llm_call_duration_seconds"))} />
                 </Panel>

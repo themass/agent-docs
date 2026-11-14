@@ -105,6 +105,72 @@ class LlmCallStore:
         ).scalars()
         return list(rows)
 
+    async def time_series(
+        self,
+        *,
+        hours: int = 24,
+        bucket_minutes: int = 60,
+    ) -> list[dict[str, Any]]:
+        """Calls per time bucket, with latency percentiles — the QPS/latency chart.
+
+        Why this reads the table instead of the in-process counters: a Prometheus
+        counter lives in one worker's memory and resets on every restart, so a
+        dashboard built only on `/metrics` shows nothing after a deploy — exactly
+        when someone opens it to ask "did the deploy break something". The audit
+        table is durable and already carries latency per call, so both the traffic
+        shape and the slowness survive a restart.
+
+        Buckets are aligned to the hour (or the given multiple) rather than to
+        `now`, so two loads of the chart put the same calls in the same bucket.
+
+        Percentiles use `percentile_cont` on the whole window's rows per bucket;
+        with small buckets that is exact for p50 and honest for p95 — a bucket with
+        three calls reports its own maximum rather than interpolating a fiction.
+        """
+        since = datetime.now(UTC) - timedelta(hours=hours)
+        bucket = func.date_trunc(
+            "hour",
+            func.to_timestamp(
+                func.floor(
+                    func.extract("epoch", LlmCall.created_at)
+                    / (bucket_minutes * 60)
+                )
+                * (bucket_minutes * 60)
+            ),
+        ).label("bucket")
+
+        rows = (
+            await self._db.execute(
+                select(
+                    bucket,
+                    func.count().label("calls"),
+                    func.sum(case((LlmCall.status == "failed", 1), else_=0)).label("failed"),
+                    func.avg(LlmCall.latency_ms).label("avg_latency_ms"),
+                    func.percentile_cont(0.5).within_group(LlmCall.latency_ms).label("p50"),
+                    func.percentile_cont(0.95).within_group(LlmCall.latency_ms).label("p95"),
+                    func.max(LlmCall.latency_ms).label("max_latency_ms"),
+                    func.sum(LlmCall.total_tokens).label("total_tokens"),
+                )
+                .where(LlmCall.created_at >= since, LlmCall.latency_ms.isnot(None))
+                .group_by(bucket)
+                .order_by(bucket)
+            )
+        ).all()
+
+        return [
+            {
+                "bucket": row.bucket.isoformat() if row.bucket else None,
+                "calls": int(row.calls or 0),
+                "failed": int(row.failed or 0),
+                "avg_latency_ms": int(row.avg_latency_ms or 0),
+                "p50_latency_ms": int(row.p50 or 0),
+                "p95_latency_ms": int(row.p95 or 0),
+                "max_latency_ms": int(row.max_latency_ms or 0),
+                "total_tokens": int(row.total_tokens or 0),
+            }
+            for row in rows
+        ]
+
     async def usage_rollup(
         self,
         *,

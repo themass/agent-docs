@@ -51,6 +51,7 @@ from litellm.integrations.custom_logger import CustomLogger
 
 from jc.llm.call_context import llm_context
 from jc.llm.call_log import (
+    submit_call,
     AttemptRecord,
     CallRecord,
     cost_micro_usd,
@@ -144,10 +145,12 @@ async def llm_call_scope(
         _scope_var.reset(token)
         finished = record_from_scope(scope)
         _observe_call(scope, finished)
-        try:
-            await record_call(finished)
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("LLM audit flush failed: %s", exc)
+        # Queued, not awaited. This runs in the caller's `finally`, so awaiting an
+        # INSERT here puts a database round-trip on the path of the code that is
+        # finishing a model call — for a row nothing reads live. The harness path
+        # was moved to the same queue; leaving this one awaited meant the
+        # deterministic services still paid it.
+        submit_call(finished)
 
 
 #: Where `sync_call_scope` sends finished rows. The harness installs a sink that

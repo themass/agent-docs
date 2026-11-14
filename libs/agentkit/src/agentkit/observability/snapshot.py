@@ -31,6 +31,7 @@ from typing import Any, Final
 
 from .metrics import (
     MULTIPROCESS_MODE,
+    prune_dead_workers,
     PROMETHEUS_AVAILABLE,
     REGISTRY,
     _state,
@@ -135,6 +136,9 @@ def snapshot(*, service: str | None = None) -> dict[str, Any]:
     # ever holds that worker's values.
 
     try:
+        # A dead worker cannot clean up after itself; do it before summing, or a
+        # killed worker's last "turn in flight" is reported forever.
+        prune_dead_workers()
         families = list(collector_registry().collect())
     except Exception:  # pragma: no cover - a broken collector must not 500
         logger.warning("metric registry collect failed", exc_info=True)
