@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass
 
@@ -47,37 +48,54 @@ class ContextBuilder:
 
     async def build(self, *, owner_id: int, session_id: int, role_id: str, current_texts: tuple[str, ...],
                     channel: str = "text") -> PromptPlan:
+        # 会话要先读：locale 决定角色卡的语言，其余几项又都依赖 locale 之外的信息。
+        # 之后那几项互不依赖，所以并发——它们是四次独立的往返，库在 167ms 外，
+        # 串行做就是 670ms 的纯等待，而这只是"造提示词"里的第一段。
         session = await self._sessions.get(owner_id=owner_id, session_id=session_id)
         locale = session.locale if session is not None else "zh-CN"
-        profile = await self._roles.resolve(role_id=role_id, owner_id=owner_id, locale=locale)
 
-        recent = await self._messages.list_before(owner_id=owner_id, session_id=session_id, before_id=None,
-                                                  limit=SCAN_MESSAGES)
+        async def profile_task():
+            return await self._roles.resolve(role_id=role_id, owner_id=owner_id, locale=locale)
+
+        async def recent_task():
+            return await self._messages.list_before(owner_id=owner_id, session_id=session_id,
+                                                    before_id=None, limit=SCAN_MESSAGES)
+
+        async def memory_task():
+            if self._memory is None or not current_texts:
+                return None
+            return await self._memory.recall(RecallQuery(
+                user_id=str(owner_id), scope=self._settings.scope, text="\n".join(current_texts),
+                limit=self._settings.memory_limit, budget_chars=self._settings.budget.memory_chars,
+                role_id=role_id))
+
+        async def persona_task():
+            if self._persona is None:
+                return None
+            try:
+                entries = await self._persona.list_entries(owner_id=owner_id, role_id=role_id)
+                return render_profile(entries, budget_chars=self._settings.budget.persona_chars)
+            except Exception:  # noqa: BLE001 —— 画像读不到只是这一轮少一段，不能让回合失败
+                log.warning("persona read failed", extra={"session_id": session_id})
+                return None
+
+        profile, recent, recalled, persona_block = await asyncio.gather(
+            profile_task(), recent_task(), memory_task(), persona_task())
+
         # 最新在前；本轮输入已经落库，所以通常已在 recent 里，去重后放在最前。
         texts: list[str] = [t for t in reversed(current_texts) if t]
         texts += [m.content for m in recent if m.content and m.content not in texts]
 
         memory_block = ""
-        if self._memory is not None and current_texts:
-            items, stats = await self._memory.recall(RecallQuery(
-                user_id=str(owner_id), scope=self._settings.scope, text="\n".join(current_texts),
-                limit=self._settings.memory_limit, budget_chars=self._settings.budget.memory_chars,
-                role_id=role_id))
+        if recalled is not None:
+            items, stats = recalled
             memory_block = render_memory_block(items)
             log.info("recall", extra={"session_id": session_id, "items": len(items),
                                       "sources": stats.per_source, "truncated": stats.truncated})
 
-        persona_block = ""
-        if self._persona is not None:
-            try:
-                entries = await self._persona.list_entries(owner_id=owner_id, role_id=role_id)
-                persona_block = render_profile(entries, budget_chars=self._settings.budget.persona_chars)
-            except Exception:  # noqa: BLE001 —— 画像读不到只是这一轮少一段，不能让回合失败
-                log.warning("persona read failed", extra={"session_id": session_id})
-
         plan = build_prompt_plan(profile, user_name=self._settings.user_name, locale=locale, channel=channel,
                                  recent_texts=tuple(texts), memory_block=memory_block,
-                                 persona_block=persona_block, budget=self._settings.budget)
+                                 persona_block=persona_block or "", budget=self._settings.budget)
         if plan.dropped:
             log.info("prompt budget dropped", extra={"session_id": session_id, "dropped": plan.dropped})
         return plan
