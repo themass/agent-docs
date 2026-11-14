@@ -117,7 +117,7 @@ NaviForge 扩展**不是从零手写每一行代码**，里面打包了别人写
 | `debugger`                                       | Network Plane（过滤后的网络事件） | 隐私开关；关闭网络能力时不使用       |
 | `declarativeNetRequest`                          | 修改请求头（Modify Header）    | **默认关闭**；设置 → 隐私      |
 | `contextMenus`、`downloads`、`alarms`              | 工具箱、下载、Host 轮询等         | —                     |
-| `**optional_host_permissions**`（`http(s)://*/*`） | 在用户运行 Agent 的站点上读写/操作   | **首次 Run 时申请**，安装时不授予 |
+| `**host_permissions**`（`http(s)://*/*`） | 截图、内容脚本、Agent DOM/工具     | **安装时授予**（Chrome 安装/更新权限提示） |
 | ~~`nativeMessaging`~~                            | 已移除，未使用                 | —                     |
 
 

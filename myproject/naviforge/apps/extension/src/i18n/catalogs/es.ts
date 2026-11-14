@@ -3,7 +3,7 @@ import { optionsEs } from './options-es'
 
 export const es = {
   popup: {
-    shortcuts: '⌥N lista en página · icono = este menú · ⌘⇧S · ⌥A · ⌥S · ⌥T',
+    shortcuts: '(ver popupShortcutsLine)',
     sectionQuick: 'Rápido',
     sectionCapture: 'Captura',
     sectionPage: 'Página',
@@ -11,7 +11,7 @@ export const es = {
     sectionNav: 'Ajustes',
     scrollHint: 'Desplázate para ver todas las herramientas',
     pageToollist: 'Lista rápida de herramientas',
-    pageToollistHint: '⌥N · capa en la página · buscar',
+    pageToollistHint: '⌥⇧N · capa en la página · buscar',
     workspace: 'Abrir espacio de trabajo',
     workspaceHint: 'Agente amplio',
     sidepanel: 'Modo agente',
@@ -22,17 +22,17 @@ export const es = {
     studioHint: '⌘⇧S · región · anotar · OCR',
     studioWait: 'Selecciona una región…',
     visible: 'Captura visible',
-    visibleHint: '⌥A · área actual',
+    visibleHint: '⌥⇧A · área actual',
     visibleWait: 'Capturando…',
     fullpage: 'Captura de página completa',
-    fullpageHint: '⌥S · unir captura larga',
+    fullpageHint: '⌥⇧S · unir captura larga',
     fullpageWait: 'Uniendo la página…',
     extract: 'Extraer lista',
     extractHint: 'Abre el cajón de resultados en Herramientas',
     mark: 'Marcar top N',
     markHint: 'Resaltar las primeras N',
     translate: 'Traducir página',
-    translateHint: '⌥T · otra vez para restaurar',
+    translateHint: '⌥⇧T (enlazar en atajos de extensiones) · otra vez para restaurar',
     subs: 'Subtítulos de video',
     subsHint: 'Superponer subtítulos traducidos',
     ocr: 'Reconocer texto',
@@ -73,7 +73,7 @@ export const es = {
   palette: {
     search: 'Buscar herramientas…',
     footerKeys: '↑↓ elegir · Enter ejecutar · Esc cerrar',
-    footerHint: '⌥N abrir · icono extensión = menú',
+    footerHint: '⌥⇧N abrir · icono extensión = menú',
   },
   recordingHud: {
     title: 'REPRODUCCIÓN',

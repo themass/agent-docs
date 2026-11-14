@@ -5,7 +5,7 @@ NaviForge Host。设计见 `../docs/CHROME_EXT_BROWSER_AGENT_DESIGN.md`。
 
 ## 安装 / 构建
 
-**前置：** 仓库根目录需有 [`page-agent`](../../../page-agent)（与 `docs/myproject/naviforge` 相对为 `../../../../page-agent`）。扩展通过 `file:` 依赖 `@page-agent/page-controller`。
+**前置：** Node ≥ 22。DOM 自动化依赖 npm 包 `@page-agent/page-controller@1.12.4`（无需本地 clone page-agent）。
 
 ```bash
 cd docs/myproject/naviforge   # 或你的 naviforge 根目录

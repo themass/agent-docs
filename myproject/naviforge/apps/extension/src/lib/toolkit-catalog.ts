@@ -1,3 +1,5 @@
+import { shortcutDisplayForCatalog } from './toolkit-shortcuts.js'
+
 /** Shared toolkit entries for popup · in-page palette · options panel. */
 export type ToolkitCatalogId =
   | 'page-toollist'
@@ -31,7 +33,7 @@ export type ToolkitCatalogItem = {
   primary?: boolean
 }
 
-export const TOOLKIT_CATALOG: ToolkitCatalogItem[] = [
+const TOOLKIT_CATALOG_BASE = [
   {
     id: 'sidepanel',
     label: 'Agent 模式',
@@ -49,7 +51,6 @@ export const TOOLKIT_CATALOG: ToolkitCatalogItem[] = [
     id: 'page-toollist',
     label: '快捷工具列表',
     hint: '网页浮层 · 可搜索全部工具',
-    shortcut: '⌥N',
     section: 'quick',
   },
   {
@@ -74,7 +75,6 @@ export const TOOLKIT_CATALOG: ToolkitCatalogItem[] = [
     id: 'studio',
     label: '截图工作室',
     hint: '框选 · 标注 · OCR（钉钉式）',
-    shortcut: '⌘⇧S',
     section: 'capture',
     wait: true,
   },
@@ -82,7 +82,6 @@ export const TOOLKIT_CATALOG: ToolkitCatalogItem[] = [
     id: 'screenshot',
     label: '可见截图',
     hint: '当前屏幕可见区域',
-    shortcut: '⌥A',
     section: 'capture',
     wait: true,
   },
@@ -90,7 +89,6 @@ export const TOOLKIT_CATALOG: ToolkitCatalogItem[] = [
     id: 'fullpage',
     label: '全页截图',
     hint: '滚动拼接长图',
-    shortcut: '⌥S',
     section: 'capture',
     wait: true,
   },
@@ -110,7 +108,6 @@ export const TOOLKIT_CATALOG: ToolkitCatalogItem[] = [
     id: 'translate',
     label: '翻译页面',
     hint: '再运行一次还原原文',
-    shortcut: '⌥T',
     section: 'page',
   },
   {
@@ -150,7 +147,18 @@ export const TOOLKIT_CATALOG: ToolkitCatalogItem[] = [
     hint: '模型 · 自动化 · Sniff',
     section: 'nav',
   },
-]
+] satisfies Omit<ToolkitCatalogItem, 'shortcut'>[]
+
+function withCatalogShortcuts(
+  items: Omit<ToolkitCatalogItem, 'shortcut'>[]
+): ToolkitCatalogItem[] {
+  return items.map((item) => {
+    const shortcut = shortcutDisplayForCatalog(item.id)
+    return shortcut ? { ...item, shortcut } : item
+  })
+}
+
+export const TOOLKIT_CATALOG: ToolkitCatalogItem[] = withCatalogShortcuts(TOOLKIT_CATALOG_BASE)
 
 /** Tool list popup order (matches catalog — all tools). */
 export const POPUP_TOOL_ORDER: ToolkitCatalogId[] = TOOLKIT_CATALOG.map((item) => item.id)

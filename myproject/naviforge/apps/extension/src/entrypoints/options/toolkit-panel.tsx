@@ -18,6 +18,12 @@ import {
   toolkitScreenshot,
 } from '../../lib/toolkit-actions'
 import {
+  openExtensionShortcutsPage,
+  optionsShortcutsBody,
+  shortcutDisplayForCatalog,
+} from '../../lib/toolkit-shortcuts'
+import type { ToolkitCatalogId } from '../../lib/toolkit-catalog'
+import {
   formatPublicIp,
   formatTraceroute,
   lookupPublicIp,
@@ -65,22 +71,22 @@ function PageTitle({
 }
 
 const TOOL_ITEMS = [
-  { id: 'studio', shortcut: '⌘⇧S' },
-  { id: 'screenshot', shortcut: '⌥A' },
-  { id: 'fullpage', shortcut: '⌥S' },
-  { id: 'extract', shortcut: '—', usesTopN: true },
-  { id: 'mark', shortcut: '—', usesTopN: true },
-  { id: 'translate', shortcut: '⌥T' },
-  { id: 'subs', shortcut: '—' },
-  { id: 'ocr', shortcut: '—' },
-  { id: 'json', shortcut: '—', noTab: true },
-  { id: 'myip', shortcut: '—', noTab: true },
+  { id: 'studio' },
+  { id: 'screenshot' },
+  { id: 'fullpage' },
+  { id: 'extract', usesTopN: true },
+  { id: 'mark', usesTopN: true },
+  { id: 'translate' },
+  { id: 'subs' },
+  { id: 'ocr' },
+  { id: 'json', noTab: true },
+  { id: 'myip', noTab: true },
 ] as const
 
 type ToolId = (typeof TOOL_ITEMS)[number]['id']
 
 export function ToolkitPanel() {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const [tab, setTab] = useState<chrome.tabs.Tab | null>(null)
   const [allTabs, setAllTabs] = useState<ToolkitTabRef[]>([])
   const [tabPickerOpen, setTabPickerOpen] = useState(false)
@@ -543,7 +549,9 @@ export function ToolkitPanel() {
                     ) : null}
                   </div>
                   <span className="data-list-meta">{t(`options.toolkit.tools.${tool.id}.hint`)}</span>
-                  <span className="data-list-badge">{tool.shortcut}</span>
+                  <span className="data-list-badge">
+                    {shortcutDisplayForCatalog(tool.id as ToolkitCatalogId) ?? '—'}
+                  </span>
                   <div className="data-list-actions">
                     <button
                       className="button primary"
@@ -585,7 +593,12 @@ export function ToolkitPanel() {
 
       <details className="toolkit-shortcut-box">
         <summary>{t('options.toolkit.shortcutsSummary')}</summary>
-        <p>{t('options.toolkit.shortcutsBody')}</p>
+        <p>{optionsShortcutsBody(locale)}</p>
+        <p className="toolkit-step-lead">
+          <button type="button" className="linkish" onClick={() => void openExtensionShortcutsPage()}>
+            {t('options.toolkit.openShortcutsPage')}
+          </button>
+        </p>
       </details>
 
       {tabPickerOpen ? (

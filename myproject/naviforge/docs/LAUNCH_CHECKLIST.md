@@ -38,7 +38,7 @@
 ### 包体
 
 - [ ] 上传最新 **zip**
-- [ ] 权限说明与 [`STORE_COMPLIANCE.md`](STORE_COMPLIANCE.md) 权限表一致（尤其 `debugger`、`optional_host_permissions`）
+- [ ] 权限说明与 [`STORE_COMPLIANCE.md`](STORE_COMPLIANCE.md) 权限表一致（尤其 `debugger`、`host_permissions`）
 
 ### 商品详情（文案见 LISTING_COPY.md）
 
@@ -54,6 +54,7 @@
 - [ ] Listing 图标：`store-assets/icon-128-store.png`（128×128）
 - [ ] 可选：`store-assets/icon-512-store.png`（512×512）
 - [ ] **截图** ≥1 张，推荐 1280×800：上传 `store-assets/screenshots/store-1280x800/*.jpg`（见下）
+- [ ] 可选 **Promo tile**：440×280、1400×560 JPEG → `store-assets/promo/`（`python3 scripts/prepare-store-promo-tiles.py`）
 
 ### 数据安全
 

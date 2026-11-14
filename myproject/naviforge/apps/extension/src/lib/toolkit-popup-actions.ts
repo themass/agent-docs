@@ -1,8 +1,23 @@
+import { hasBroadHostAccess, requestBroadHostAccess } from './host-permissions'
 import { openOptionsPage, openPageToolList, openSidePanelFromPopupClick } from './surface-launch'
 import { pinCurrentWebTab } from './toolkit-actions'
 import { openGeniusFallHudOnTab, resolveGeniusFallHudTab } from '../modules/genius-fall/hud-controller'
 import { toggleBehaviorRecording } from './behavior-recording-actions'
 import type { ToolkitCatalogId } from './toolkit-catalog'
+
+const HOST_GESTURE_TOOLS: ReadonlySet<ToolkitCatalogId> = new Set([
+  'screenshot',
+  'fullpage',
+  'studio',
+  'page-toollist',
+  'extract',
+  'mark',
+  'translate',
+  'subs',
+  'ocr',
+  'genius-fall',
+  'behavior-forge',
+])
 import {
   runToolkitPaletteAction,
   TAB_OPTIONAL_TOOLS,
@@ -58,6 +73,10 @@ export async function runPopupTool(
       }
     }
     return { ok: true }
+  }
+
+  if (HOST_GESTURE_TOOLS.has(toolId) && !(await hasBroadHostAccess())) {
+    await requestBroadHostAccess()
   }
 
   const tab = await pinCurrentWebTab()

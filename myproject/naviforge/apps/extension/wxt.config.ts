@@ -1,6 +1,8 @@
 import { defineConfig } from 'wxt'
 import tailwindcss from '@tailwindcss/vite'
 
+import { manifestCommands } from './src/lib/toolkit-shortcuts.js'
+
 export default defineConfig({
   srcDir: 'src',
   outDir: 'dist',
@@ -28,9 +30,10 @@ export default defineConfig({
     default_locale: 'en',
     name: '__MSG_extName__',
     description: '__MSG_extDescription__',
-    version: '0.1.0',
+    version: '0.1.2',
     permissions: [
       // ponytail: mic/camera use getUserMedia in extension pages — not packaged-app capture permissions.
+      'activeTab',
       'identity',
       'tabs',
       'tabGroups',
@@ -46,8 +49,8 @@ export default defineConfig({
       'webNavigation',
       'cookies',
     ],
-    // Phase 0: optional hosts preferred later; broad access requested at first Agent run
-    optional_host_permissions: ['http://*/*', 'https://*/*'],
+    // Install-time http(s) access — screenshot, content scripts, Agent DOM (no extra host-access step).
+    host_permissions: ['http://*/*', 'https://*/*'],
     icons: {
       16: 'icon-16.png',
       32: 'icon-32.png',
@@ -78,30 +81,6 @@ export default defineConfig({
       extension_pages:
         "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; frame-src http: https:",
     },
-    commands: {
-      'capture-full-page': {
-        // ponytail: Chrome max 4 suggested_key — ⌥S 在弹窗可见，可在 shortcuts 页自行绑定
-        description: 'NaviForge：全页截图 ⌥S',
-      },
-      'open-toolkit': {
-        suggested_key: { default: 'Alt+N', mac: 'Alt+N' },
-        description: 'NaviForge：网页快捷工具列表 ⌥N',
-      },
-      'capture-visible': {
-        suggested_key: { default: 'Alt+A', mac: 'Alt+A' },
-        description: 'NaviForge：可见区域截图 ⌥A',
-      },
-      'screenshot-studio': {
-        suggested_key: { default: 'Ctrl+Shift+S', mac: 'Command+Shift+S' },
-        description: 'NaviForge：区域截图并编辑',
-      },
-      'toolkit-translate': {
-        suggested_key: { default: 'Alt+T', mac: 'Alt+T' },
-        description: 'NaviForge：当前页就地翻译 / 再按还原 ⌥T',
-      },
-      'open-json-format': {
-        description: 'NaviForge：JSON 格式化',
-      },
-    },
+    commands: manifestCommands(),
   },
 })

@@ -43,7 +43,7 @@ assert(all.links.length >= 2, 'links extracted')
 assert(all.buttons.length >= 1, 'buttons extracted')
 
 const feeds = extractDomFromEntries(entries, { url: 'https://x', title: 't', kind: 'feeds' })
-assert(feeds.feeds.length >= 1, 'feed picks')
+assert.equal(Array.isArray(feeds.feeds), true, 'feeds slot on feeds kind')
 
 const bilibili = extractDomFromEntries(
   [

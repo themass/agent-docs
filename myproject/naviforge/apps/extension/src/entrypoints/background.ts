@@ -36,6 +36,7 @@ import {
 } from '../lib/modify-headers'
 import {
   openJsonFormatPage,
+  openPageToolList,
   openToolkitPage,
   ensureSidePanelRegistered,
   openSidePanelWithGesture,
@@ -62,6 +63,11 @@ import {
 } from '../lib/toolkit-actions'
 import { friendlyCaptureError } from '../lib/capture-full-page'
 import { ensureContentScript, isToolkitRestrictedUrl } from '../lib/ensure-content-script'
+import {
+  hasBroadHostAccess,
+  openHostAccessPage,
+  promptBroadHostAccessIfNeeded,
+} from '../lib/host-permissions'
 import { showToolkitPaletteOnTab } from '../lib/toolkit-palette-open'
 import { launchScreenshotStudio, SCREENSHOT_STUDIO_MESSAGE } from '../modules/screenshot-studio'
 import {
@@ -167,9 +173,38 @@ async function handleScreenshotStudio(tabId?: number): Promise<{ ok: boolean; er
 
 async function handleToolkitCapture(
   kind: 'visible' | 'fullpage',
-  tabId?: number
+  tabId?: number,
+  opts?: { hostPrompt?: boolean }
 ): Promise<{ ok: boolean; error?: string; path?: string }> {
   const tab = await resolveToolkitTab(tabId)
+  if (tab?.id && opts?.hostPrompt !== false) {
+    if (!(await hasBroadHostAccess())) {
+      const granted = await promptBroadHostAccessIfNeeded()
+      if (!granted) {
+        await openHostAccessPage()
+        const message =
+          '需要允许访问网站才能截图。请在打开的标签页点击「允许访问所有网站」，或到 chrome://extensions 将站点访问设为「在所有网站上」。'
+        await flashCommandFeedback(message, tab.id)
+        return { ok: false, error: message }
+      }
+    }
+  }
+  if (tab?.id) {
+    const { focusTabForCapture } = await import('../lib/capture-tab-focus.js')
+    try {
+      await focusTabForCapture(tab.id)
+    } catch {
+      // focus best-effort — capture path retries
+    }
+  }
+  if (tab?.id) {
+    const ensured = await ensureContentScript(tab.id)
+    if (!ensured.ok) {
+      if (ensured.error.includes('尚未允许')) await openHostAccessPage()
+      await flashCommandFeedback(ensured.error, tab.id)
+      return { ok: false, error: ensured.error }
+    }
+  }
   if (captureInFlight) {
     const busy = '正在截图，请稍候再试'
     await flashCommandFeedback(busy, tab?.id)
@@ -332,8 +367,9 @@ export default defineBackground(() => {
       void runToolkitPaletteAction(toolId, tabId ?? 0).then(
         (result) => {
           sendResponse(result)
-          if (!result.ok && !result.cancelled && result.error && tabId) {
-            void flashCommandFeedback(result.error, tabId)
+          if (!result.ok && !result.cancelled && result.error) {
+            if (result.error.includes('尚未允许')) void openHostAccessPage()
+            if (tabId) void flashCommandFeedback(result.error, tabId)
           }
         }
       )
@@ -752,34 +788,54 @@ export default defineBackground(() => {
   })
 })
 
+const HOST_ACCESS_COMMANDS = new Set([
+  'nf-open-toolkit',
+  'nf-capture-visible',
+  'nf-capture-full',
+  'nf-screenshot-studio',
+  'nf-translate',
+])
+
 try {
   chrome.commands.onCommand.addListener((command) => {
     void (async () => {
       try {
-        if (command === 'open-toolkit') {
-          await openToolkitPage()
+        if (HOST_ACCESS_COMMANDS.has(command)) {
+          const granted = await promptBroadHostAccessIfNeeded()
+          if (!granted) {
+            await flashCommandFeedback(
+              '网站访问未允许。请到 chrome://extensions → NaviForge → 站点访问 → 在所有网站上。'
+            )
+          }
+        }
+        if (command === 'nf-open-toolkit') {
+          const opened = await openPageToolList()
+          if (!opened.ok && opened.error) {
+            if (opened.error.includes('尚未允许')) await openHostAccessPage()
+            await flashCommandFeedback(opened.error)
+          }
           return
         }
-        if (command === 'open-json-format') {
+        if (command === 'nf-json-format') {
           await openJsonFormatPage()
           return
         }
-        if (command === 'capture-full-page') {
+        if (command === 'nf-capture-full') {
           const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
           await handleToolkitCapture('fullpage', tab?.id)
           return
         }
-        if (command === 'capture-visible') {
+        if (command === 'nf-capture-visible') {
           const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
           await handleToolkitCapture('visible', tab?.id)
           return
         }
-        if (command === 'screenshot-studio') {
+        if (command === 'nf-screenshot-studio') {
           const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
           await handleScreenshotStudio(tab?.id)
           return
         }
-        if (command === 'toolkit-translate') {
+        if (command === 'nf-translate') {
           const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
           if (!tab?.id || isToolkitRestrictedUrl(tab.url)) {
             await flashCommandFeedback('请先打开一个普通网页')

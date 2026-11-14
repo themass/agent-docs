@@ -19,7 +19,7 @@ assert.equal(
   friendlyCaptureError('This request exceeds the MAX_CAPTURE_VISIBLE_TAB_CALLS_PER_SECOND quota.'),
   '截图太快被浏览器拦住了，请等一秒再试'
 )
-assert.match(friendlyCaptureError('The activeTab permission is not in effect'), /前台/)
+assert.match(friendlyCaptureError('The activeTab permission is not in effect'), /前台|在所有网站上/)
 assert.match(friendlyCaptureError('The tab is not visible'), /前台/)
 assert.match(friendlyCaptureError('No tab with id: 9'), /关掉/)
 assert.equal(friendlyCaptureError('tab not found'), 'tab not found')

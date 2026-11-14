@@ -31,6 +31,7 @@ function run(label, cmd, args, cwd = root) {
 
 function prepWorkspaceBuilds() {
   run('shared', 'npm', ['run', 'build', '-w', '@naviforge/shared'])
+  run('session', 'npm', ['run', 'build', '-w', '@naviforge/session'])
 }
 
 function wxtBuild(wxtArgs) {

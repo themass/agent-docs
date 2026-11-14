@@ -104,7 +104,7 @@ Web toolkit
 • Screenshot studio with OCR, visible/full-page capture
 • List extract, translate, subtitles, JSON tools, and more
 
-BYOK by default — your OpenAI-compatible API. Sensitive features off until you enable them in Settings. Site access requested on first Agent run, not at install.
+BYOK by default — your OpenAI-compatible API. Sensitive features off until you enable them in Settings. Broad http(s) access is declared at install for screenshots, in-page tools, and the Agent on user-opened sites.
 
 Works standalone. Optional NaviForge Host is not included in this package.
 
@@ -129,6 +129,108 @@ Open source: http://file.ok123find.top/file/third_party_navi.html
 
 ```text
 Provide a side-panel AI agent and web toolkit that understands the active tab and assists with user-directed reading, chat, and automation.
+```
+
+---
+
+## Privacy 页 · Permission justification（粘贴到 Chrome 开发者后台）
+
+表单为英文；每项控制在约 2–4 句。向下滚动可能还有 `scripting`、`debugger`、`host` 等字段，一并列出。
+
+### Single purpose description
+
+```text
+NaviForge provides a Chrome side-panel AI assistant and in-page web toolkit. It helps users read, chat about, and automate tasks on websites they choose to open—such as summarizing a page, capturing screenshots, extracting lists, or running user-initiated agent workflows. It does not operate outside the user’s browser session or replace unrelated browser features.
+```
+
+### activeTab
+
+```text
+Used when the user invokes NaviForge on the currently focused tab (extension icon, keyboard shortcut, or context menu) so the extension can capture a visible screenshot or run a one-shot tool before broader host access applies. No background access to inactive tabs via activeTab alone.
+```
+
+### identity
+
+```text
+Optional OAuth sign-in for users who enable managed API login in Settings (Advanced). chrome.identity.launchWebAuthFlow opens the provider login page and returns tokens only to the extension; BYOK without login is the default and does not use this permission.
+```
+
+### tabs
+
+```text
+Read and switch tab metadata (URL, title, id) to attach the side-panel Agent, pin the toolkit target tab, open the in-page tool palette, and run screenshots or automation on the tab the user selected. Required for all user-initiated page tools.
+```
+
+### tabGroups
+
+```text
+Organize multiple tabs opened by agent workflows (e.g., research or parallel subtasks) into Chrome tab groups so users can see related pages together. Only used when the agent or user opens additional tabs as part of a task.
+```
+
+### sidePanel
+
+```text
+Display the NaviForge Agent chat UI in Chrome’s side panel on the active window so users can converse with the agent while viewing the page.
+```
+
+### storage / unlimitedStorage
+
+```text
+Store user settings, API profiles (BYOK), session history, and workspace paths locally on the device. unlimitedStorage prevents quota errors for long agent traces and cached tool results; data stays in the user’s browser profile unless they export it.
+```
+
+### scripting
+
+```text
+Inject content scripts into http(s) pages the user interacts with so the Agent and toolkit can read page structure, click elements, show the ⌥N tool overlay, hide UI chrome during screenshots, and run user-approved automation. Requires host permission on those sites.
+```
+
+### debugger
+
+```text
+Attach Chrome DevTools Protocol to the active tab only when the user enables Network-related capabilities in Settings → Privacy, to list filtered network events (e.g., media URLs) for user-initiated extraction. Not used when network features are off.
+```
+
+### alarms
+
+```text
+Schedule lightweight background timers (e.g., Host bridge health checks and session housekeeping) without keeping a persistent busy service worker.
+```
+
+### downloads
+
+```text
+Save screenshot PNGs and exported files to the user’s Downloads folder when local workspace helper is unavailable or the user chooses browser download fallback.
+```
+
+### declarativeNetRequest
+
+```text
+Apply optional request-header rewrite rules when the user explicitly enables “Modify headers” in Settings → Privacy. Default is off; rules are user-defined and scoped to debugging/tooling workflows.
+```
+
+### contextMenus
+
+```text
+Add NaviForge entries to the page right-click menu (open Agent, tool list, workspace) so users can start tools from the page they are viewing.
+```
+
+### webNavigation
+
+```text
+Detect when the user navigates or reloads a tab so the Agent refreshes page state and can wait for load completion before reading or acting on the page.
+```
+
+### cookies
+
+```text
+Read cookies only when needed for user-initiated site tooling or session diagnostics on pages the user is working on (e.g., verifying login state described in the privacy policy). Not used for cross-site tracking.
+```
+
+### Host permission (`http://*/*`, `https://*/*`)
+
+```text
+NaviForge is a general-purpose assistant and screenshot toolkit for arbitrary websites the user opens. Host access is required to inject scripts, capture screenshots, run the in-page tool palette (⌥N), and execute user-directed agent actions on those pages. The extension does not browse sites in the background without user action; all tools are triggered from the side panel, popup, shortcuts, or context menu.
 ```
 
 ---

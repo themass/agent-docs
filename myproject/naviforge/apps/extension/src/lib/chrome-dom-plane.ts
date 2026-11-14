@@ -14,6 +14,8 @@ import {
   type FullPageCaptureResult,
 } from './capture-full-page-runner'
 import { friendlyCaptureError } from './capture-full-page'
+import { focusTabForCapture } from './capture-tab-focus'
+import { checkHostAccessForTab } from './host-permissions'
 import { isPageCspEvalError } from './isolated-script'
 import { printTabToPdf } from './print-tab-pdf'
 
@@ -35,16 +37,32 @@ async function captureVisibleTabPng(windowId: number): Promise<string> {
     const wait = MIN_CAPTURE_GAP_MS - (Date.now() - lastCaptureAt)
     if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait))
     lastCaptureAt = Date.now()
+    const shoot = () => chrome.tabs.captureVisibleTab(windowId, { format: 'png' })
     try {
-      return await chrome.tabs.captureVisibleTab(windowId, { format: 'png' })
+      return await shoot()
     } catch (error) {
-      if (!/MAX_CAPTURE_VISIBLE_TAB|quota/i.test((error as Error).message)) throw error
-      await new Promise((resolve) => setTimeout(resolve, MIN_CAPTURE_GAP_MS))
-      lastCaptureAt = Date.now()
-      return await chrome.tabs.captureVisibleTab(windowId, { format: 'png' })
+      const message = (error as Error).message
+      if (/MAX_CAPTURE_VISIBLE_TAB|quota/i.test(message)) {
+        await new Promise((resolve) => setTimeout(resolve, MIN_CAPTURE_GAP_MS))
+        lastCaptureAt = Date.now()
+        return await shoot()
+      }
+      throw error
     }
   } finally {
     release()
+  }
+}
+
+async function captureVisibleTabPngForTab(tabId: number): Promise<string> {
+  let tab = await focusTabForCapture(tabId)
+  try {
+    return await captureVisibleTabPng(tab.windowId!)
+  } catch (error) {
+    const message = (error as Error).message
+    if (!/activeTab|not visible|not in the foreground|cannot be captured/i.test(message)) throw error
+    tab = await focusTabForCapture(tabId)
+    return await captureVisibleTabPng(tab.windowId!)
   }
 }
 
@@ -78,6 +96,8 @@ async function send<T>(
       try {
         return (await chrome.tabs.sendMessage(targetTabId, message)) as T
       } catch {
+        const access = await checkHostAccessForTab(targetTabId)
+        if (!access.ok) throw new Error(access.error)
         await chrome.scripting.executeScript({
           target: { tabId: targetTabId },
           files: ['content-scripts/content.js'],
@@ -717,9 +737,7 @@ export function createChromeDomPlane(getTabId: () => number): DomPlane {
           send<{ success: boolean }>(tabId, 'hide_capture_chrome').catch(() => {}),
           new Promise((resolve) => setTimeout(resolve, 800)),
         ])
-        const tab = await chrome.tabs.update(tabId, { active: true })
-        if (!tab?.windowId) throw new Error('截图目标标签没有窗口')
-        const dataUrl = await captureVisibleTabPng(tab.windowId)
+        const dataUrl = await captureVisibleTabPngForTab(tabId)
         return { ok: true, data: { dataUrl } }
       } catch (error) {
         const raw = (error as Error).message
@@ -743,9 +761,13 @@ export function createChromeDomPlane(getTabId: () => number): DomPlane {
           send<{ success: boolean }>(tabId, 'hide_capture_chrome').catch(() => {}),
           new Promise((resolve) => setTimeout(resolve, 800)),
         ])
-        const tab = await chrome.tabs.get(tabId)
-        await chrome.tabs.update(tabId, { active: true })
-        const data = await captureFullPageTab(tabId, tab.windowId, send, captureVisibleTabPng)
+        const tab = await focusTabForCapture(tabId)
+        const data = await captureFullPageTab(
+          tabId,
+          tab.windowId!,
+          send,
+          () => captureVisibleTabPngForTab(tabId)
+        )
         return { ok: true, data }
       } catch (error) {
         return {

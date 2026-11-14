@@ -42,6 +42,7 @@ def main() -> None:
         icon.save(PUBLIC / f"icon-{size}.png", "PNG")
         icon.save(STORE / f"icon-{size}-store.png", "PNG")
 
+    master = draw_icon(512)
     master.save(STORE / "icon-512-store.png", "PNG")
 
     print("icons ok:", PUBLIC, STORE)

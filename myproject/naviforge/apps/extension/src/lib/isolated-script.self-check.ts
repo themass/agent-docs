@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 
 import { isPageCspEvalError, runIsolatedScript, serializeScriptResult } from './isolated-script.js'
 
-const ok = await runIsolatedScript('return [1,2,3].map((n) => n * 2)')
+const ok = await runIsolatedScript('[1,2,3].map((n) => n * 2)')
 assert(ok.ok && Array.isArray(ok.result) && (ok.result as number[])[2] === 6, 'async return')
 
 const denied = await runIsolatedScript('')

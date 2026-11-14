@@ -1,13 +1,13 @@
+import { promptBroadHostAccessIfNeeded, openHostAccessPage } from './host-permissions'
 import { STORAGE } from './settings'
 import { flashCommandFeedback, setPinnedToolkitTabId } from './toolkit-actions'
 import { openPageToolList, openSidePanelWithGesture, openWorkspaceTab } from './surface-launch'
 
 export const CONTEXT_MENU = {
+  tools: 'naviforge-tools',
   openAgent: 'naviforge-open-agent',
   askSelection: 'naviforge-ask-selection',
-  more: 'naviforge-more',
   workspace: 'naviforge-workspace',
-  tools: 'naviforge-tools',
 } as const
 
 export type ContextMenuActionId = (typeof CONTEXT_MENU)[keyof typeof CONTEXT_MENU]
@@ -24,6 +24,13 @@ export async function installContextMenus(): Promise<void> {
     await chrome.contextMenus.removeAll()
     const title = (key: string, fallback: string) => chrome.i18n.getMessage(key) || fallback
 
+  // Flat list under Chrome’s single “NaviForge” extension submenu — no nested “NaviForge → NaviForge”.
+  chrome.contextMenus.create({
+    id: CONTEXT_MENU.tools,
+    title: title('contextOpenTools', 'Tool list (⌥⇧N)'),
+    contexts: ['page', 'frame', 'selection', 'editable'],
+  })
+
   chrome.contextMenus.create({
     id: CONTEXT_MENU.openAgent,
     title: title('contextOpenAgent', 'Open NaviForge Agent'),
@@ -37,22 +44,14 @@ export async function installContextMenus(): Promise<void> {
   })
 
   chrome.contextMenus.create({
-    id: CONTEXT_MENU.more,
-    title: title('contextMore', 'NaviForge'),
+    id: 'naviforge-context-sep',
+    type: 'separator',
     contexts: ['page', 'frame', 'selection', 'editable'],
   })
 
   chrome.contextMenus.create({
     id: CONTEXT_MENU.workspace,
-    parentId: CONTEXT_MENU.more,
     title: title('contextOpenWorkspace', 'Open workspace'),
-    contexts: ['page', 'frame', 'selection', 'editable'],
-  })
-
-  chrome.contextMenus.create({
-    id: CONTEXT_MENU.tools,
-    parentId: CONTEXT_MENU.more,
-    title: title('contextOpenTools', 'Tool list'),
     contexts: ['page', 'frame', 'selection', 'editable'],
   })
   })
@@ -135,6 +134,16 @@ export function registerContextMenuListeners(): void {
   chrome.contextMenus.onClicked.addListener((info, tab) => {
     if (!isContextMenuAction(info.menuItemId)) return
 
+    void (async () => {
+      const granted = await promptBroadHostAccessIfNeeded()
+      if (!granted) {
+        await openHostAccessPage()
+        if (tab?.id) {
+          await flashCommandFeedback('请在授权页点击「允许访问所有网站」', tab.id)
+        }
+        return
+      }
+
     const opensAgent =
       info.menuItemId === CONTEXT_MENU.openAgent ||
       info.menuItemId === CONTEXT_MENU.askSelection
@@ -148,6 +157,7 @@ export function registerContextMenuListeners(): void {
       }
     }
 
-    void handleContextMenuClick(info, tab, { sidePanelOpened })
+    await handleContextMenuClick(info, tab, { sidePanelOpened })
+    })()
   })
 }

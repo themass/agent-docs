@@ -1,3 +1,5 @@
+import { checkHostAccessForTab } from './host-permissions.js'
+
 function isRestrictedUrl(url: string | undefined): boolean {
   if (!url) return true
   return (
@@ -34,6 +36,9 @@ export async function ensureContentScript(
       error: `无法注入此页面（${tab.url ?? 'unknown'}）。请打开普通 http(s) 页面（如 http://localhost:4177）后重试。`,
     }
   }
+
+  const access = await checkHostAccessForTab(tabId)
+  if (!access.ok) return access
 
   try {
     await chrome.scripting.executeScript({

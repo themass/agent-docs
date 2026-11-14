@@ -650,7 +650,7 @@ export const optionsEs = {
     eyebrow: 'KIT DE HERRAMIENTAS',
     title: 'Herramientas del navegador',
     description:
-      'Elija una página, luego Ejecutar. Los resultados se abren a la derecha. Atajos: ⌘⇧S estudio · ⌥A visible · ⌥S página completa · ⌥T traducir.',
+      'Elija una página, luego Ejecutar. Los resultados se abren a la derecha. Atajos: ⌘⇧S estudio · ⌥⇧A visible · ⌥⇧S página completa · ⌥⇧T traducir.',
     step1Title: 'Elija la página a operar',
     step1Lead:
       'Las herramientas actúan en una pestaña web normal (p. ej. Bilibili), no en esta página de «Herramientas del navegador».',
@@ -668,8 +668,8 @@ export const optionsEs = {
     step3Lead:
       'El estudio de captura abre una pestaña nueva tras seleccionar región; otras capturas, extracción e IP abren el cajón de resultados; traducir y OCR avisan en la página objetivo.',
     shortcutsSummary: 'Atajos',
-    shortcutsBody:
-      '⌘⇧S estudio · ⌥A visible · ⌥S página completa · ⌥T traducir. Pulse en una página web normal.',
+    shortcutsBody: '(generado desde toolkit-shortcuts.ts)',
+    openShortcutsPage: 'Abrir atajos de extensiones de Chrome',
     tabPickerTitle: 'Paso 1: clic en la página a operar',
     tabPickerEmpty: 'No hay páginas web normales (se excluyen chrome://)',
     tabPickerClose: 'Cerrar',

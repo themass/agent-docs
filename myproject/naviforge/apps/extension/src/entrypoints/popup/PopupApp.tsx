@@ -40,6 +40,7 @@ import {
 } from '../../lib/toolkit-catalog'
 import { runPopupTool } from '../../lib/toolkit-popup-actions'
 import { snapshotCurrentWebTab } from '../../lib/toolkit-actions'
+import { popupShortcutsLine } from '../../lib/toolkit-shortcuts'
 import { openOptionsPageFromPopup } from '../../lib/surface-launch'
 
 const TOOL_ICONS: Record<ToolkitCatalogId, LucideIcon> = {
@@ -95,7 +96,7 @@ function pageHost(url: string | undefined): string {
 }
 
 export function PopupApp() {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const [busy, setBusy] = useState('')
   const [host, setHost] = useState('')
   const [recording, setRecording] = useState(false)
@@ -244,7 +245,9 @@ export function PopupApp() {
               <BrandMark size={26} />
               <p className="text-[10px] font-semibold leading-snug">{t('popup.title')}</p>
             </div>
-            <p className="mt-1 text-[9px] leading-snug text-[var(--nf-muted)]">{t('popup.shortcuts')}</p>
+            <p className="mt-1 text-[9px] leading-snug text-[var(--nf-muted)]">
+              {popupShortcutsLine(locale)}
+            </p>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
             <AuthStatusBar variant="popup" chip />

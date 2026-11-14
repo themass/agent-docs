@@ -201,12 +201,28 @@ function domForTab(tabId: number) {
 }
 
 export async function toolkitScreenshot(tabId: number): Promise<ToolResult<{ dataUrl: string }>> {
+  const { ensureContentScript } = await import('./ensure-content-script.js')
+  const ensured = await ensureContentScript(tabId)
+  if (!ensured.ok) {
+    return {
+      ok: false,
+      error: { code: 'no_content', message: ensured.error, recoverable: true },
+    }
+  }
   return domForTab(tabId).screenshot?.() ?? { ok: false, error: { code: 'unsupported', message: 'screenshot unavailable', recoverable: false } }
 }
 
 export async function toolkitFullPageScreenshot(
   tabId: number
 ): Promise<ToolResult<{ dataUrl: string; width: number; height: number; slices: number }>> {
+  const { ensureContentScript } = await import('./ensure-content-script.js')
+  const ensured = await ensureContentScript(tabId)
+  if (!ensured.ok) {
+    return {
+      ok: false,
+      error: { code: 'no_content', message: ensured.error, recoverable: true },
+    }
+  }
   return (
     domForTab(tabId).screenshotFullPage?.() ?? {
       ok: false,

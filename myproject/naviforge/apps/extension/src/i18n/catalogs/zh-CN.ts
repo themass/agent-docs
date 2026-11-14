@@ -3,7 +3,7 @@ import { optionsZhCN } from './options-zh-CN'
 
 export const zhCN = {
   popup: {
-    shortcuts: '⌥N 网页工具列表 · 点图标=本菜单 · ⌘⇧S · ⌥A · ⌥S · ⌥T',
+    shortcuts: '(见 popupShortcutsLine)',
     sectionQuick: '快捷',
     sectionCapture: '截图',
     sectionPage: '页面',
@@ -11,7 +11,7 @@ export const zhCN = {
     sectionNav: '设置',
     scrollHint: '向下滚动查看全部工具',
     pageToollist: '快捷工具列表',
-    pageToollistHint: '⌥N · 网页浮层 · 可搜索',
+    pageToollistHint: '⌥⇧N · 网页浮层 · 可搜索',
     workspace: '打开工作台',
     workspaceHint: '宽屏 Agent 工作台',
     sidepanel: 'Agent 模式',
@@ -22,17 +22,17 @@ export const zhCN = {
     studioHint: '⌘⇧S · 框选 · 标注 · OCR',
     studioWait: '请在页面上框选区域…',
     visible: '可见截图',
-    visibleHint: '⌥A · 当前屏幕区域',
+    visibleHint: '⌥⇧A · 当前屏幕区域',
     visibleWait: '正在截图…',
     fullpage: '全页截图',
-    fullpageHint: '⌥S · 滚动拼长图',
+    fullpageHint: '⌥⇧S · 滚动拼长图',
     fullpageWait: '正在拼全页…',
     extract: '提取列表',
     extractHint: '自动打开工具页右侧抽屉',
     mark: '标记 Top N',
     markHint: '在页面上高亮前 N 条',
     translate: '翻译页面',
-    translateHint: '⌥T · 再运行一次还原原文',
+    translateHint: '⌥⇧T（需在扩展快捷键页绑定）· 再运行还原原文',
     subs: '视频字幕',
     subsHint: '读取字幕轨并贴在画面上',
     ocr: '识别文字',
@@ -73,7 +73,7 @@ export const zhCN = {
   palette: {
     search: '搜索工具…',
     footerKeys: '↑↓ 选择 · Enter 运行 · Esc 关闭',
-    footerHint: '⌥N 打开本列表 · 点扩展图标=小菜单',
+    footerHint: '⌥⇧N 打开本列表 · 点扩展图标=小菜单',
   },
   recordingHud: {
     title: '行为回放',

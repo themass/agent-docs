@@ -647,7 +647,7 @@ export const optionsEn = {
     eyebrow: 'BROWSER TOOLKIT',
     title: 'Browser tools',
     description:
-      'Pick a page, then Run. Results open on the right. Shortcuts: ⌘⇧S studio · ⌥A visible · ⌥S full-page · ⌥T translate.',
+      'Pick a page, then Run. Results open on the right. Shortcuts: ⌘⇧S studio · ⌥⇧A visible · ⌥⇧S full-page · ⌥⇧T translate.',
     step1Title: 'Pick the page to operate on',
     step1Lead:
       'Tools apply to a normal web tab (e.g. Bilibili), not this “Browser tools” page.',
@@ -665,8 +665,8 @@ export const optionsEn = {
     step3Lead:
       'Screenshot studio opens in a new tab after region select; other screenshots, extract, and IP open the result drawer; translate and OCR mainly toast on the target page.',
     shortcutsSummary: 'Shortcuts',
-    shortcutsBody:
-      '⌘⇧S studio · ⌥A visible · ⌥S full-page · ⌥T translate. Press on a normal web page.',
+    shortcutsBody: '(generated from toolkit-shortcuts.ts)',
+    openShortcutsPage: 'Open Chrome extension shortcut settings',
     tabPickerTitle: 'Step 1: click the page to operate on',
     tabPickerEmpty: 'No eligible normal web pages (chrome:// pages excluded)',
     tabPickerClose: 'Close',

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 
 import { DEFAULT_COLLAPSE_CHARS, shouldCollapseText } from '../components/chat/collapsible-text.js'
 import { extractWorkspacePaths, workspacePathFromBody } from '../components/chat/workspace-path-link.js'
+import { manifestCommands, manifestSuggestedShortcutRows } from './toolkit-shortcuts.js'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -37,10 +38,8 @@ assert.match(app, /options\.common\.buttons\.refresh/, 'automation page uses ref
 const plane = readFileSync(resolve(root, 'lib/chrome-dom-plane.ts'), 'utf8')
 assert.ok(plane.includes("send<{ success: boolean }>(tabId, 'hide_capture_chrome')"), 'screenshot hides chrome')
 assert.ok(plane.includes("send(tabId, 'restore_capture_chrome')"), 'screenshot restores chrome')
-assert.ok(
-  /async screenshot\([\s\S]*tabs\.update\(tabId, \{ active: true \}\)[\s\S]*captureVisibleTabPng/.test(plane),
-  'visible capture focuses the target tab before captureVisibleTab'
-)
+assert.ok(plane.includes('focusTabForCapture'), 'visible capture focuses the browser window before captureVisibleTab')
+assert.ok(plane.includes('captureVisibleTabPngForTab'), 'visible capture retries after focus')
 assert.ok(plane.includes('MIN_CAPTURE_GAP_MS'), 'visible captures are spaced to stay under Chrome quota')
 assert.ok(plane.includes('friendlyCaptureError'), 'quota errors are rewritten for humans')
 assert.ok(plane.includes('screenshotFullPage'), 'full-page uses the same plane')
@@ -120,10 +119,10 @@ assert.doesNotMatch(
   /chrome\.tabs\.onActivated/,
   'toolkit bound tab must not follow every tab you click'
 )
-assert.match(background, /command === 'open-toolkit'[\s\S]{0,120}openToolkitPage/, 'open-toolkit opens options toolkit tab')
+assert.match(background, /command === 'nf-open-toolkit'[\s\S]{0,120}openPageToolList/, 'open-toolkit opens in-page palette')
 assert.match(
   background,
-  /command === 'toolkit-translate'[\s\S]{0,120}lastFocusedWindow/,
+  /command === 'nf-translate'[\s\S]{0,120}lastFocusedWindow/,
   '⌥T translates the last focused page, not a service-worker window'
 )
 
@@ -179,7 +178,8 @@ assert.doesNotMatch(composer, /Enter 换行 · Alt\+Enter/, 'old Alt+Enter send 
 const wxtConfig = readFileSync(resolve(root, '../wxt.config.ts'), 'utf8')
 const permissionBlock = wxtConfig.match(/permissions:\s*\[([\s\S]*?)\],/)?.[1] ?? ''
 assert.doesNotMatch(permissionBlock, /['"]audioCapture['"]|['"]videoCapture['"]/, 'manifest permissions must not declare packaged-app-only capture')
-const shortcutCount = (wxtConfig.match(/suggested_key:/g) ?? []).length
-assert.ok(shortcutCount <= 4, `manifest commands allow at most 4 suggested_key (got ${shortcutCount})`)
+assert.match(wxtConfig, /manifestCommands\(\)/, 'wxt manifest commands come from toolkit-shortcuts')
+assert.ok(manifestSuggestedShortcutRows().length <= 4, 'Chrome suggested_key cap')
+assert.ok(manifestCommands()['nf-capture-full']?.suggested_key?.mac === 'Alt+Shift+S')
 
 console.log('regression self-check ok')

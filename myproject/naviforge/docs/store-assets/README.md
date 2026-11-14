@@ -14,6 +14,8 @@
 | `icon-128-store.png` | 128×128 | 商店列表图标（必填） |
 | `icon-512-store.png` | 512×512 | 高清商店图标 / 营销（建议） |
 | `screenshots/store-1280x800/*.jpg` | 1280×800 | 商品截图（见 `screenshots/README.md`） |
+| `promo/small-promo-tile-440x280.jpg` | 440×280 | Small promo tile（可选，JPEG 无 alpha） |
+| `promo/marquee-promo-tile-1400x560.jpg` | 1400×560 | Marquee promo tile（可选，JPEG 无 alpha） |
 
 **文案与清单：**
 
@@ -30,6 +32,7 @@ python3 naviforge/scripts/generate-extension-icons.py
 
 ```bash
 python3 scripts/prepare-store-screenshots.py
+python3 scripts/prepare-store-promo-tiles.py
 ```
 
 从 BrandMark 重新生成（**必须正方形**，勿用非 1:1 的 AI 图直接缩放）：

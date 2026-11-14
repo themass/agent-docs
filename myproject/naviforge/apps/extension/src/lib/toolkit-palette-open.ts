@@ -1,4 +1,5 @@
 import { ensureContentScript, isToolkitRestrictedUrl } from './ensure-content-script.js'
+import { openHostAccessPage } from './host-permissions.js'
 
 /** Open the searchable toolkit overlay on a web tab (not via runtime.sendMessage to self). */
 export async function showToolkitPaletteOnTab(
@@ -9,7 +10,10 @@ export async function showToolkitPaletteOnTab(
     return { ok: false, error: '请先打开普通网页' }
   }
   const ensured = await ensureContentScript(tabId)
-  if (!ensured.ok) return { ok: false, error: ensured.error }
+  if (!ensured.ok) {
+    if (ensured.error.includes('尚未允许')) await openHostAccessPage()
+    return { ok: false, error: ensured.error }
+  }
 
   try {
     await chrome.tabs.sendMessage(tabId, {

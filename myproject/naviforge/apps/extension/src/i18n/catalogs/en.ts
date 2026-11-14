@@ -3,7 +3,7 @@ import { optionsEn, type OptionsMessages } from './options-en'
 /** Source catalog. Other locales must `satisfies Messages`. */
 export const en = {
   popup: {
-    shortcuts: '⌥N page tool list overlay · icon = this menu · ⌘⇧S · ⌥A · ⌥S · ⌥T',
+    shortcuts: '(see popupShortcutsLine)',
     sectionQuick: 'Quick',
     sectionCapture: 'Capture',
     sectionPage: 'Page',
@@ -11,7 +11,7 @@ export const en = {
     sectionNav: 'Settings',
     scrollHint: 'Scroll for all tools',
     pageToollist: 'Quick tool list',
-    pageToollistHint: '⌥N · searchable overlay on page',
+    pageToollistHint: '⌥⇧N · searchable overlay on page',
     workspace: 'Open workspace',
     workspaceHint: 'Wide Agent workspace',
     sidepanel: 'Agent mode',
@@ -22,17 +22,17 @@ export const en = {
     studioHint: '⌘⇧S · region · annotate · OCR',
     studioWait: 'Select a region…',
     visible: 'Visible screenshot',
-    visibleHint: '⌥A · current viewport',
+    visibleHint: '⌥⇧A · current viewport',
     visibleWait: 'Capturing…',
     fullpage: 'Full-page screenshot',
-    fullpageHint: '⌥S · stitch a long shot',
+    fullpageHint: '⌥⇧S · stitch a long shot',
     fullpageWait: 'Stitching full page…',
     extract: 'Extract list',
     extractHint: 'Opens results drawer in Tools',
     mark: 'Mark top N',
     markHint: 'Highlight first N on page',
     translate: 'Translate page',
-    translateHint: '⌥T · run again to restore',
+    translateHint: '⌥⇧T (bind in extension shortcuts) · run again to restore',
     subs: 'Video subtitles',
     subsHint: 'Overlay translated captions',
     ocr: 'Recognize text',
@@ -73,7 +73,7 @@ export const en = {
   palette: {
     search: 'Search tools…',
     footerKeys: '↑↓ select · Enter run · Esc close',
-    footerHint: '⌥N open · extension icon = menu',
+    footerHint: '⌥⇧N open · extension icon = menu',
   },
   recordingHud: {
     title: 'BEHAVIOR REPLAY',

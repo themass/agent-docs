@@ -3,7 +3,6 @@
   "extDescription": { "message": "Enseña la web. Forja el flujo." },
   "contextOpenAgent": { "message": "Abrir NaviForge Agent" },
   "contextAskSelection": { "message": "Preguntar a NaviForge sobre la selección" },
-  "contextMore": { "message": "NaviForge" },
   "contextOpenWorkspace": { "message": "Abrir espacio de trabajo" },
-  "contextOpenTools": { "message": "Lista de herramientas" }
+  "contextOpenTools": { "message": "Lista de herramientas (⌥⇧N)" }
 }

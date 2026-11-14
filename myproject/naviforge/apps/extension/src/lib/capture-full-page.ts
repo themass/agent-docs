@@ -70,7 +70,7 @@ export function friendlyCaptureError(raw: string): string {
     return '截图太快被浏览器拦住了，请等一秒再试'
   }
   if (/activeTab/i.test(raw)) {
-    return '截图需要目标网页在前台。请先打开普通网页再截。'
+    return '截图需要浏览器窗口在前台。请点一下要截的网页标签，再按快捷键或从菜单重试；若刚升级扩展，请在 chrome://extensions 确认已允许「在所有网站上」访问。'
   }
   if (/not visible|not in the foreground|cannot be captured/i.test(raw)) {
     return '当前标签不在前台，请点回网页再截。'

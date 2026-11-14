@@ -622,7 +622,7 @@ export const optionsZhCN = {
     eyebrow: 'BROWSER TOOLKIT',
     title: '浏览器工具',
     description:
-      '先选网页，再点运行。结果从右侧弹出。快捷键：⌘⇧S 截图工作室 · ⌥A 可见截图 · ⌥S 全页截图 · ⌥T 翻译。',
+      '先选网页，再点运行。结果从右侧弹出。快捷键：⌘⇧S 截图工作室 · ⌥⇧A 可见截图 · ⌥⇧S 全页截图 · ⌥⇧T 翻译。',
     step1Title: '选要操作的网页',
     step1Lead: '工具作用在普通网页标签（如 B 站），不是本「浏览器工具」这个页面。',
     step1Selected: '已选中',
@@ -638,7 +638,8 @@ export const optionsZhCN = {
     step3Lead:
       '截图工作室框选后会打开新标签编辑；其余截图、提取、IP 会打开结果抽屉；翻译和 OCR 以目标页提示为主。',
     shortcutsSummary: '快捷键',
-    shortcutsBody: '⌘⇧S 截图工作室 · ⌥A 可见截图 · ⌥S 全页截图 · ⌥T 翻译。在普通网页上按。',
+    shortcutsBody: '(由 toolkit-shortcuts.ts 动态生成)',
+    openShortcutsPage: '打开 Chrome 扩展快捷键设置',
     tabPickerTitle: '步骤 1：点选要操作的网页',
     tabPickerEmpty: '没有可操作的普通网页（chrome:// 页面不可选）',
     tabPickerClose: '关闭',
