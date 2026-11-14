@@ -1,6 +1,6 @@
 [project]
 name = "agentkit"
-version = "0.1.0+20261114.a14f107e"
+version = "0.1.0+20261114.18215bbc"
 description = "Shared platform kit: trace, web, OSS, Redis session, DeerFlow adapter, MCP scaffold"
 readme = "README.md"
 requires-python = ">=3.11,<3.13"

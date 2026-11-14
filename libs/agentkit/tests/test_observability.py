@@ -88,6 +88,58 @@ def test_method_metrics_times_sync_and_async_calls():
     assert 'method_duration_seconds_count{' in out
 
 
+def test_method_metrics_times_the_whole_async_generator():
+    """An `async def ... yield` is not a coroutine function.
+
+    Production caught this: `AgentService.stream_message` is an async generator,
+    so it fell through to the sync branch and recorded the cost of *constructing*
+    the generator — 0.00003 s for a turn that really takes ~30 s. The measurement
+    looked plausible enough to trust, which is what made it dangerous.
+
+    The assertion is on the duration, not on the series existing: the broken
+    version emitted a perfectly well-formed 0.00003 s sample.
+    """
+    import asyncio
+
+    @method_metrics(target="probe.asyncgen")
+    async def stream():
+        await asyncio.sleep(0.05)
+        yield "a"
+        await asyncio.sleep(0.05)
+        yield "b"
+
+    async def drain():
+        return [chunk async for chunk in stream()]
+
+    assert asyncio.run(drain()) == ["a", "b"]
+    out = _scrape()
+    match = [ln for ln in out.splitlines()
+             if ln.startswith("method_duration_seconds_sum{")
+             and 'target="probe.asyncgen"' in ln]
+    assert match, out
+    recorded = float(match[0].rsplit(" ", 1)[1])
+    assert recorded >= 0.1, f"generator body was not timed: {recorded}s"
+
+
+def test_method_metrics_sees_an_async_generator_failure():
+    """A mid-stream exception has to reach the metric, not vanish into the generator."""
+    import asyncio
+
+    @method_metrics(target="probe.asyncgen-fail")
+    async def stream():
+        yield "a"
+        raise ValueError("mid-stream")
+
+    async def drain():
+        return [chunk async for chunk in stream()]
+
+    with pytest.raises(ValueError, match="mid-stream"):
+        asyncio.run(drain())
+    out = _scrape()
+    assert 'target="probe.asyncgen-fail"' in out
+    assert 'error_type="ValueError"' in out
+
+
 def test_method_metrics_re_raises_unchanged():
     @method_metrics()
     def boom():

@@ -88,6 +88,36 @@ def method_metrics(
             if phase:
                 record_agent_phase(phase=phase, duration=elapsed, outcome=status)
 
+        # Async generators need their own branch, and this is not a detail: an
+        # `async def` containing `yield` is NOT a coroutine function — calling it
+        # returns a generator object immediately, without running a single line
+        # of the body. Falling through to `sync_wrapper` therefore recorded the
+        # cost of *constructing* the generator: `stream_message` measured
+        # 0.00003 s against a real turn of ~30 s, and any exception raised
+        # mid-stream was never seen. The wrapper has to hold the clock across
+        # iteration, and close the book on early `break` too, which is why the
+        # `finally` sits inside the generator rather than around it.
+        if inspect.isasyncgenfunction(func):
+
+            @functools.wraps(func)
+            async def asyncgen_wrapper(*args: Any, **kwargs: Any) -> Any:
+                resolved = target or _target_name(func, args)
+                started = time.perf_counter()
+                exc: BaseException | None = None
+                try:
+                    async for item in func(*args, **kwargs):
+                        yield item
+                except BaseException as caught:
+                    exc = caught
+                    raise
+                finally:
+                    # A consumer that stops early (`break`) closes the generator;
+                    # that still ends the measured interval, which is what the
+                    # duration should describe.
+                    _finish(resolved, started, exc)
+
+            return asyncgen_wrapper  # type: ignore[return-value]
+
         if inspect.iscoroutinefunction(func):
 
             @functools.wraps(func)
