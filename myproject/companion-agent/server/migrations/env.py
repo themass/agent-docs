@@ -9,9 +9,11 @@ import os
 
 from alembic import context
 
-from companion.adapters.store.sql.schema import metadata
+from companion.db.schema import metadata
 from companion.paths import ENV_FILE
-import companion.adapters.store.sql.memory  # noqa: F401 — 注册 ca_memory_item 到同一个 metadata
+# 导入一次，把 ca_memory_item 注册到同一个 metadata（记忆表定义在 agent/memory/sql.py，
+# 但用的是 db/schema.py 的 metadata，所以这里 import 这个模块就够了）。
+import companion.agent.memory.sql  # noqa: F401
 
 config = context.config
 target_metadata = metadata

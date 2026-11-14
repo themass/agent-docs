@@ -876,7 +876,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    from companion.adapters.store.sql.schema import metadata
+    from companion.db.schema import metadata
 
     for table in reversed(metadata.sorted_tables):
         op.execute(f"DROP TABLE IF EXISTS {table.name}")
