@@ -47,7 +47,7 @@ dependencies = [
     { name = "structlog" },
 ]
 wheels = [
-    { filename = "agentkit-0.1.0-py3-none-any.whl", hash = "sha256:da6d66efb36d72d921223aeb1601f0f9bd3e85d0aefd9be10f2ce2501dd13e59" },
+    { filename = "agentkit-0.1.0-py3-none-any.whl", hash = "sha256:faa3af7fefbddd0dcbfd7a79057862565c299861a9f009fe9df7095fda5ab3bb" },
 ]
 
 [package.metadata]
@@ -57,6 +57,12 @@ requires-dist = [
     { name = "deerflow", marker = "extra == 'deerflow'", specifier = ">=0.1.0" },
     { name = "fastapi", specifier = ">=0.115.0" },
     { name = "httpx", specifier = ">=0.28.0" },
+    { name = "langchain-core", marker = "extra == 'dev'", specifier = ">=0.3.0" },
+    { name = "langchain-core", marker = "extra == 'llm'", specifier = ">=0.3.0" },
+    { name = "litellm", marker = "extra == 'dev'", specifier = ">=1.55.0" },
+    { name = "litellm", marker = "extra == 'llm'", specifier = ">=1.55.0" },
+    { name = "prometheus-client", marker = "extra == 'dev'", specifier = ">=0.20.0" },
+    { name = "prometheus-client", marker = "extra == 'metrics'", specifier = ">=0.20.0" },
     { name = "pydantic", specifier = ">=2.9.0" },
     { name = "pydantic-settings", specifier = ">=2.6.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.0" },
@@ -65,7 +71,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8.0" },
     { name = "structlog", specifier = ">=24.4.0" },
 ]
-provides-extras = ["deerflow", "dev"]
+provides-extras = ["deerflow", "dev", "llm", "metrics"]
 
 [[package]]
 name = "aiohappyeyeballs"
