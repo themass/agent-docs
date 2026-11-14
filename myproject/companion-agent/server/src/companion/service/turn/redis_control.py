@@ -168,6 +168,12 @@ class RedisTurnControl:
         3. 最后才释放锁。
         pipeline 按注册顺序执行，三条命令之间没有其它连接能插进来，所以顺序不变；
         而释放锁的判定仍在 Lua 里做（只删属于自己的那把），不会误删别人的锁。
+
+        **``await`` 不能省。** ``AsyncScript.__call__`` 是 ``async def``；不 await 时它
+        只造出一个协程对象，pipeline 里一条命令都没排上，锁也从来没被释放过——
+        线上日志里那句 ``coroutine 'AsyncScript.__call__' was never awaited`` 就是这个。
+        await 它并不会立即执行：传 ``client=pipe`` 时它把 ``EVALSHA`` 排进 pipeline
+        并登记到 ``pipe.scripts``，真正的执行仍然只在下面这一次 ``execute()``。
         """
         pipe = self._r.pipeline(transaction=False)
         pipe.xadd(events_key(session_id),
@@ -175,7 +181,7 @@ class RedisTurnControl:
                   maxlen=EVENTS_MAXLEN, approximate=True)
         pipe.expire(events_key(session_id), 30 * 60)
         pipe.delete(turn_key(session_id))
-        self._release(client=pipe, keys=[lock_key(session_id)], args=[owner])
+        await self._release(client=pipe, keys=[lock_key(session_id)], args=[owner])
         await pipe.execute()
 
     # ---- 控制流（回合所在进程读取）----

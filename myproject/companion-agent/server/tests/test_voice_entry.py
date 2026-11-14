@@ -17,7 +17,7 @@ from companion.api.livekit.agent import (
     build_request,
     last_user_message,
 )
-from companion.api.livekit.entrypoint import RoomIdentity, make_entrypoint
+from companion.api.livekit.entrypoint import RoomIdentity, build_session_options, make_entrypoint
 
 
 def _meta(**kw) -> str:
@@ -136,3 +136,29 @@ async def test_a_room_without_metadata_is_refused():
     room, built, ctx = await _enter(None)
     assert ctx.connected
     assert room.disconnected and built == []
+
+
+def test_session_options_always_carry_an_llm():
+    """房间会话必须挂一个 LLM，即使出字的是我们自己的 llm_node。
+
+    livekit-agents 1.8 的 ``AgentActivity._generate_reply`` 在进入 llm_node 之前就
+    检查 ``self.llm is None``，为 None 时抛 ``RuntimeError: trying to generate reply
+    without an LLM model``。线上表现是：进房间、发一句话、agent 一句话都不回，
+    日志里只有这一条 RuntimeError——因为路径根本走不到我们写的 llm_node。
+    """
+    from livekit.agents import llm as lk_llm
+
+    for mode in ("text", "voice"):
+        options = build_session_options(mode=mode, voice_factory=None)
+        assert isinstance(options.get("llm"), lk_llm.LLM)
+
+
+def test_the_placeholder_llm_refuses_to_be_the_one_generating():
+    """真被调用就报错，而不是返回空串。
+
+    返回空串会让上层以为「模型无话可说」，比直接失败更难查：界面同样是空白，
+    但日志里什么线索都没有。
+    """
+    options = build_session_options(mode="voice", voice_factory=None)
+    with pytest.raises(RuntimeError, match="llm_node"):
+        options["llm"].chat(chat_ctx=SimpleNamespace())

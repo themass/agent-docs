@@ -128,13 +128,49 @@ async def _publish_json(room: Any, topic: str, payload: dict) -> None:
         logger.warning("publish to %s failed: %s", topic, exc)
 
 
+def _pipeline_llm() -> Any:
+    """房间会话必须挂的一个 LLM 占位对象。
+
+    出字的是被重写的 ``llm_node``（回合管线），LiveKit 自己从不调用这个对象。
+    但 livekit-agents 1.8 的 ``AgentActivity._generate_reply`` 在**进入 llm_node 之前**
+    就检查 ``self.llm is None``，为 None 时直接抛
+    ``RuntimeError: trying to generate reply without an LLM model``。
+    于是房间里说一句话就静默失败，一个字都不回——线上日志里攒的就是这条。
+
+    真被调用时报错而不是返回空串：空串会让上层以为「模型无话可说」，
+    比直接失败更难查。
+    """
+
+    from livekit.agents import llm as _llm
+
+    class _PipelineLLM(_llm.LLM):
+        @property
+        def model(self) -> str:
+            return "companion-pipeline"
+
+        @property
+        def provider(self) -> str:
+            return "companion"
+
+        def chat(self, *, chat_ctx: Any, tools: Any = None, conn_options: Any = None,
+                 **kwargs: Any) -> Any:
+            raise RuntimeError(
+                "CompanionAgent.llm_node 已经接管出字，不应有人调用 LLM.chat()；"
+                "如果看到这条，说明 llm_node 没有被调用到")
+
+    return _PipelineLLM()
+
+
 def build_session_options(*, mode: str = "text", voice_factory: Any = None) -> dict:
     """AgentSession 的构造参数。
 
     文字模式不挂 STT/TTS，语音模式才需要；两者都挂会让文字模式也去合成语音，
     白白烧钱。语音栈由调用方（组合根）注入，接口层不认识具体供应商。
+
+    ``llm`` 两种模式都要给（原因见 ``_pipeline_llm``）：不给的话房间里的文字输入
+    与被识别的语音都走不到 ``llm_node``。
     """
-    options: dict[str, Any] = {}
+    options: dict[str, Any] = {"llm": _pipeline_llm()}
     if mode == "voice" and voice_factory is not None:
         tts, stt, *rest = voice_factory()
         options["tts"] = tts
