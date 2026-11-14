@@ -161,11 +161,9 @@ def build_router(api: ChatApi, current_user):
             client_message_id=body.client_message_id, steerable=body.steerable,
             attachments=[a.model_dump() for a in body.attachments])
         _chat_mod.log.info(
-            "send_message timing",
-            extra={"session_id": session_id,
-                   "read_session_ms": int((t_read - t0) * 1000),
-                   "submit_ms": int((_time.perf_counter() - t_read) * 1000),
-                   "disposition": result.disposition.value if result.disposition else None})
+            "send_message timing session=%s read_session_ms=%d submit_ms=%d disposition=%s",
+            session_id, int((t_read - t0) * 1000), int((_time.perf_counter() - t_read) * 1000),
+            result.disposition.value if result.disposition else None)
         if result.status == "denied":
             raise HTTPException(status_code=422, detail={"code": "content_policy", "reason": result.reason})
         return {"status": result.status, "message_id": result.message_id, "turn_id": result.turn_id,
