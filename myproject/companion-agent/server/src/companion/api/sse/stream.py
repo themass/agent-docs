@@ -8,12 +8,22 @@
 
 from __future__ import annotations
 
+import logging
+import time
 from collections.abc import AsyncIterator, Callable
 
 from companion.api.sse.encoder import KEEPALIVE_FRAME, encode_event
 from companion.service.turn.control import TurnControlPort
 
+log = logging.getLogger("companion.sse")
+
 RECONNECT_AFTER_MS = 1000
+
+# 一次阻塞读最多等多久。**不能超过 Redis 服务端掐断空闲连接的阈值**：线上那个托管
+# Redis 大约 5 秒就断开没有数据流动的连接，客户端设 block=15 秒的 XREAD 每次都以
+# TimeoutError 结束，异常一路穿透到这里，整个事件流跟着断——表现就是 App 的回复
+# 收到一半就没了。4 秒留了一秒余量（实测 4.5 秒仍稳定，5 秒必断）。
+BLOCK_MS = 4000
 
 
 def _id_key(stream_id: str) -> tuple[int, int]:
@@ -44,15 +54,29 @@ async def event_stream(
             return
         cursor = last_event_id
 
-    block_ms = int(keepalive_sec * 1000)
+    last_keepalive = time.monotonic()
     while True:
         if draining():
             yield encode_event(cursor, "reconnect", {"after_ms": RECONNECT_AFTER_MS})
             return
-        events = await control.wait_events(session_id=session_id, after_id=cursor, block_ms=block_ms)
+        try:
+            events = await control.wait_events(session_id=session_id, after_id=cursor, block_ms=BLOCK_MS)
+        except Exception as exc:  # noqa: BLE001
+            # 读超时不算故障：托管 Redis 会掐断空闲连接，客户端看到的就是读超时。
+            # 当成"这段时间没有事件"继续等，否则一次网络抖动就把整个流打断，
+            # 用户那边表现为回复说到一半没了，而且不会自己恢复。
+            # 其它异常（连接被拒、认证失败）也不在这里终止：断开会让客户端重连，
+            # 重连比在这里抛栈更接近用户想要的结果。
+            log.warning("event wait failed, keep streaming: %s", type(exc).__name__)
+            events = []
         if not events:
-            yield KEEPALIVE_FRAME
+            # 心跳按 keepalive_sec 发，不是每次空读都发：阻塞读现在 4 秒一次，
+            # 每次都发心跳会在客户端积一堆无用的注释帧。
+            if time.monotonic() - last_keepalive >= keepalive_sec:
+                last_keepalive = time.monotonic()
+                yield KEEPALIVE_FRAME
             continue
+        last_keepalive = time.monotonic()
         for entry_id, name, data in events:
             yield encode_event(entry_id, name, data)
             cursor = entry_id
