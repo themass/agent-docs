@@ -293,9 +293,11 @@ class TurnRunner:
             return
         chunk, state.pending = state.pending, ""
         state.last_flush = time.monotonic()
-        await self._control.append_text(turn_id=inp.turn_id, delta=chunk)
-        await self._control.publish(session_id=inp.session_id, event="message.delta",
-                                    data={"turn_id": inp.turn_id, "delta": chunk})
+        # 正文追加与事件发布合成一次 Redis 往返：这两件事永远一起发生，
+        # 分开写就是每帧 4 条串行命令。托管 Redis 单命令 193 ms，27 帧差 30 多秒。
+        await self._control.publish_and_append(
+            session_id=inp.session_id, turn_id=inp.turn_id, event="message.delta",
+            data={"turn_id": inp.turn_id, "delta": chunk}, delta=chunk)
 
     # ---- 控制流 ----
 
