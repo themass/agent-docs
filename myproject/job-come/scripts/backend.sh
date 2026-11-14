@@ -72,6 +72,38 @@ cmd_start() {
     die "JC_COOKIE_SECURE=true but JC_PUBLIC_URL is plain http — the browser will drop every cookie."
   fi
 
+  # --- metrics counter sharing across workers ---------------------------------
+  # prometheus_client decides how to store every counter at IMPORT time
+  # (`values.py`: `ValueClass = get_value_class()`), reading
+  # PROMETHEUS_MULTIPROC_DIR from the environment. Setting it later — inside the
+  # app, from .env, after the import — has no effect at all, and the failure is
+  # silent: metrics appear to work while each worker counts alone, so a scrape
+  # reports one worker's traffic as if it were the service's.
+  #
+  # So it is exported here, before python starts. The directory is wiped on every
+  # start because each worker writes `<type>_<pid>.db` and a worker killed with
+  # SIGKILL never calls mark_process_dead: leftovers from a previous run would be
+  # summed into this run's totals forever, and the number would only ever grow.
+  local mp_dir
+  mp_dir="$(grep -hE '^JC_METRICS_MULTIPROCESS_DIR=' "${SERVER_ROOT}/.env" 2>/dev/null \
+    | tail -1 | cut -d= -f2- | tr -d '"'"'"' ' || true)"
+  if [[ -n "$mp_dir" ]]; then
+    # A relative path would resolve against uvicorn's cwd, which is not the
+    # directory this script thinks it is.
+    [[ "$mp_dir" == /* ]] || mp_dir="${JC_ROOT}/${mp_dir}"
+    rm -rf "$mp_dir"
+    mkdir -p "$mp_dir"
+    export PROMETHEUS_MULTIPROC_DIR="$mp_dir"
+    log "metrics: counters shared across workers in ${mp_dir}"
+  else
+    # An inherited value from the calling shell would silently change behaviour
+    # between an interactive `restart` and a cron one.
+    unset PROMETHEUS_MULTIPROC_DIR
+    if [[ "$API_WORKERS" != "1" ]]; then
+      log "metrics: per-worker counters (${API_WORKERS} workers) — set JC_METRICS_MULTIPROCESS_DIR in .env to aggregate"
+    fi
+  fi
+
   DAEMON_PORT="${API_PORT}" daemon_start backend "$PIDFILE" "$LOGFILE" "$MARKER" check_health - \
     "${VENV}/bin/python" -m uvicorn jc.main:app \
     --app-dir "${SERVER_ROOT}/src" \

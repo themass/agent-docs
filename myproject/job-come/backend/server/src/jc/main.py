@@ -38,21 +38,20 @@ async def lifespan(_app: FastAPI):
         environment=settings.jc_env,
         enabled=settings.jc_metrics_enabled,
     )
-    # A multi-worker backend is several independent registries. Without a shared
-    # directory a scrape returns one worker's counters as if they were the
-    # service's — the dashboard renders, and it is wrong by a factor of the
-    # worker count. `main.py` exports the mode so /admin/metrics can say which
-    # one is in effect, rather than leaving an operator to guess.
-    metrics_multiprocess = False
-    if settings.jc_metrics_multiprocess_dir:
-        from agentkit.observability import enable_multiprocess
+    # Multi-worker counters are shared only if PROMETHEUS_MULTIPROC_DIR was in the
+    # environment BEFORE this process imported prometheus_client — the switch is
+    # read at import time and cannot be flipped afterwards. `scripts/backend.sh`
+    # exports it (from .data/deploy.env) and creates the directory; this block only
+    # reports which mode we actually ended up in, because "I turned on metrics
+    # sharing" being quietly untrue is the failure worth logging.
+    from agentkit.observability import MULTIPROCESS_MODE
 
-        metrics_multiprocess = enable_multiprocess(settings.jc_metrics_multiprocess_dir)
-        if not metrics_multiprocess:
-            logger.warning(
-                "JC_METRICS_MULTIPROCESS_DIR is set but sharing is not active; "
-                "counters are per-worker"
-            )
+    if settings.jc_metrics_multiprocess_dir and not MULTIPROCESS_MODE:
+        logger.warning(
+            "JC_METRICS_MULTIPROCESS_DIR is set but PROMETHEUS_MULTIPROC_DIR was "
+            "not in the environment at import time; counters are per-worker. "
+            "Start the service through scripts/backend.sh, which exports it."
+        )
     from jc.observability.logging_setup import configure_application_logging
 
     configure_application_logging(json_logs=settings.jc_log_json, level=settings.jc_log_level)
