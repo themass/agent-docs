@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -136,13 +137,20 @@ class SubmitService:
         # 围栏：拿到锁就取一个更大的号并记到会话上。之后这把锁哪怕过期被别人接手，
         # 旧回合写回复时围栏号已不是最新，写入会被拒绝（chat-agent-context-design.md §4.2）。
         fencing: dict[str, int] = {}
+        fence: int | None = None
         if self._sessions is not None:
             fence = await self._control.next_fence(session_id=session_id)
-            await self._sessions.advance_fence(session_id=session_id, fence=fence)
             fencing["fence"] = fence
         if alt_of is not None:
             fencing["alt_of"] = alt_of   # 只在有值时传：不关心候选的启动回调不用改
-        await self._control.init_turn(session_id=session_id, turn_id=turn_id, message_ids=message_ids)
+        # 这一步走库，init_turn 走 Redis，两者互不依赖——并发，省一次往返。
+        # 它们是接在前两行之后剩下的最后两次串行等待，各 180 ms 量级。
+        if fence is not None:
+            _, _ = await asyncio.gather(
+                self._sessions.advance_fence(session_id=session_id, fence=fence),
+                self._control.init_turn(session_id=session_id, turn_id=turn_id, message_ids=message_ids))
+        else:
+            await self._control.init_turn(session_id=session_id, turn_id=turn_id, message_ids=message_ids)
         await self._start_turn(owner_id=owner_id, session_id=session_id, character_id=character_id,
                                turn_id=turn_id, owner=owner, text=text, message_ids=message_ids, **fencing)
         return turn_id
