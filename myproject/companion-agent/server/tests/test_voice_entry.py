@@ -93,6 +93,26 @@ class _Room:
         self.disconnected = True
 
 
+class _Ctx:
+    """假的 JobContext。
+
+    ``connected`` 记的是入口有没有先连房间——这条很关键：metadata 在连接之前读到的是
+    空值，而原来的入口正是在连接前读的，于是每个房间都被拒。真实 SDK 的文档写着
+    "Certain properties of Room would not be available before calling JobContext.connect()"。
+    """
+
+    def __init__(self, room):
+        self.room = room
+        self.connected = False
+        self.shutdown_callbacks = []
+
+    async def connect(self):
+        self.connected = True
+
+    def add_shutdown_callback(self, cb):
+        self.shutdown_callbacks.append(cb)
+
+
 async def _enter(metadata):
     built = []
 
@@ -101,15 +121,18 @@ async def _enter(metadata):
         raise AssertionError("platform must not be built for a refused room")
 
     room = _Room(metadata)
-    await make_entrypoint(factory)(SimpleNamespace(room=room))
-    return room, built
+    ctx = _Ctx(room)
+    await make_entrypoint(factory)(ctx)
+    return room, built, ctx
 
 
 async def test_a_room_without_a_chat_session_is_refused_before_anything_is_built():
-    room, built = await _enter(_meta())
+    room, built, ctx = await _enter(_meta())
+    assert ctx.connected          # 必须先连上，metadata 才读得到
     assert room.disconnected and built == []
 
 
 async def test_a_room_without_metadata_is_refused():
-    room, built = await _enter(None)
+    room, built, ctx = await _enter(None)
+    assert ctx.connected
     assert room.disconnected and built == []

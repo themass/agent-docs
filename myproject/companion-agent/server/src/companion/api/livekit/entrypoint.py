@@ -187,25 +187,48 @@ class RoomEntrypoint:
         from companion.api.livekit.agent import build_agent_class
         from companion.service.turn.pipeline import TurnPipeline
 
-        try:
-            identity = RoomIdentity.from_room_metadata(getattr(ctx.room, "metadata", None))
-        except ValueError as exc:
-            logger.error("refusing room: %s", exc)
+        # **必须先 connect 再读 metadata。**
+        # LiveKit 的 JobContext.room 文档写得很清楚："When the entrypoint is called,
+        # the worker has not connected to the Room yet. Certain properties of Room would
+        # not be available before calling JobContext.connect()"——metadata 就是其中之一。
+        # 原来在这里直接读 ctx.room.metadata，拿到的永远是 None，于是每个房间都被
+        # "room metadata missing" 拒掉：语音从来没有成功进来过，而日志里攒了几千条
+        # 这个错误，看着像"偶尔失败"，其实是一次都没成。
+        await ctx.connect()
+        identity = self._identity_of(ctx)
+        if identity is None:
             await ctx.room.disconnect()
             return
+        await self._run(ctx, identity)
 
+    def _identity_of(self, ctx: Any) -> RoomIdentity | None:
+        """连接之后解析身份。解析不出来就拒绝——用一个错误的身份聊一轮，记忆就写错了。"""
+        try:
+            return RoomIdentity.from_room_metadata(getattr(ctx.room, "metadata", None))
+        except ValueError as exc:
+            logger.error("refusing room: %s", exc)
+            return None
+
+    async def _run(self, ctx: Any, identity: RoomIdentity) -> None:
+        from livekit.agents import AgentSession
+
+        from companion.api.livekit.agent import build_agent_class
+        from companion.service.turn.pipeline import TurnPipeline
+
+        room = ctx.room
         if identity.chat_session_id is None:
             # 没有会话就没有可共享的历史。不退回独立的语音会话：那正是“文字一份、语音一份”的成因。
+            # 断开而不是静默返回：留在房间里的 agent 不响应任何话，用户以为卡住了。
             logger.error("refusing room without chat_session_id user=%s", identity.user_id)
-            await ctx.room.disconnect()
+            await room.disconnect()
             return
 
         platform = await self._platform_factory()
         await platform.astart()
         ctx.add_shutdown_callback(platform.aclose)
 
-        publisher = AvatarPublisher(ctx.room)
-        publisher.set_local_participant(ctx.room.local_participant)
+        publisher = AvatarPublisher(room)
+        publisher.set_local_participant(room.local_participant)
 
         parts: VoiceParts = self._wire_voice(platform)
         pipeline = TurnPipeline(parts.brain, event_sink=publisher)
@@ -224,7 +247,7 @@ class RoomEntrypoint:
         # 语音栈必须显式按 voice 模式装配：不传 mode 时默认是 text，STT/TTS/VAD 都不会挂上，
         # 表现是「agent 进房间了但一句话不说」。
         session = AgentSession(**build_session_options(mode="voice", voice_factory=self._voice_factory))
-        await session.start(agent, room=ctx.room)
+        await session.start(agent, room=room)
         logger.info(
             "companion joined room user=%s character=%s",
             identity.user_id,
