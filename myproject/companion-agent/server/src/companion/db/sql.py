@@ -41,6 +41,20 @@ def _now() -> datetime:
 class SqlSessionStore:
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
+        self._auto_engine = None
+
+    @property
+    def _auto(self):
+        """单语句读/写用的 autocommit 视图，首次使用时才建。
+
+        默认连接会先发 BEGIN、结束时再 ROLLBACK，在这台异地库上是三次往返
+        （实测 527 ms vs autocommit 的 176 ms）。惰性而不是在 __init__ 里：
+        有些调用方（测试、只装配不读写的路径）传进来的只是一个占位对象，
+        构造期不该要求它具备 execution_options。
+        """
+        if self._auto_engine is None:
+            self._auto_engine = self._engine.execution_options(isolation_level="AUTOCOMMIT")
+        return self._auto_engine
 
     async def create(self, *, owner_id: int, role_id: str, name: str, locale: str) -> SessionRecord:
         now = _now()
@@ -52,14 +66,14 @@ class SqlSessionStore:
         return SessionRecord(new_id, owner_id, role_id, name, locale, now, now)
 
     async def get(self, *, owner_id: int, session_id: int) -> SessionRecord | None:
-        async with self._engine.connect() as conn:
+        async with self._auto.connect() as conn:
             row = (await conn.execute(select(chat_session).where(and_(
                 chat_session.c.id == session_id, chat_session.c.owner_id == owner_id,
                 chat_session.c.deleted == False)))).mappings().first()  # noqa: E712
         return _session(row) if row else None
 
     async def list_for_owner(self, *, owner_id: int, limit: int, offset: int) -> list[SessionRecord]:
-        async with self._engine.connect() as conn:
+        async with self._auto.connect() as conn:
             rows = (await conn.execute(select(chat_session).where(and_(
                 chat_session.c.owner_id == owner_id, chat_session.c.deleted == False))  # noqa: E712
                 .order_by(chat_session.c.updated_at.desc(), chat_session.c.id.desc())
@@ -67,7 +81,7 @@ class SqlSessionStore:
         return [_session(r) for r in rows]
 
     async def latest_for_role(self, *, owner_id: int, role_id: str) -> SessionRecord | None:
-        async with self._engine.connect() as conn:
+        async with self._auto.connect() as conn:
             row = (await conn.execute(select(chat_session).where(and_(
                 chat_session.c.owner_id == owner_id, chat_session.c.role_id == role_id,
                 chat_session.c.deleted == False))  # noqa: E712
@@ -100,6 +114,20 @@ class SqlSessionStore:
 class SqlMessageStore:
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
+        self._auto_engine = None
+
+    @property
+    def _auto(self):
+        """单语句读/写用的 autocommit 视图，首次使用时才建。
+
+        默认连接会先发 BEGIN、结束时再 ROLLBACK，在这台异地库上是三次往返
+        （实测 527 ms vs autocommit 的 176 ms）。惰性而不是在 __init__ 里：
+        有些调用方（测试、只装配不读写的路径）传进来的只是一个占位对象，
+        构造期不该要求它具备 execution_options。
+        """
+        if self._auto_engine is None:
+            self._auto_engine = self._engine.execution_options(isolation_level="AUTOCOMMIT")
+        return self._auto_engine
         # autocommit 视图：单条语句不需要 BEGIN/COMMIT，省两次往返。
         # 只在"一条语句就说完"的写路径上用；需要多条语句原子完成的地方仍走 _engine.begin()。
         self._auto = engine.execution_options(isolation_level="AUTOCOMMIT")
@@ -157,7 +185,7 @@ class SqlMessageStore:
                              turn_id, False, now, dict(meta or {}), alt_group=group, alt_selected=True)
 
     async def find_by_client_id(self, *, owner_id: int, session_id: int, client_message_id: str) -> MessageRecord | None:
-        async with self._engine.connect() as conn:
+        async with self._auto.connect() as conn:
             row = (await conn.execute(select(chat_message).where(and_(
                 chat_message.c.session_id == session_id, chat_message.c.owner_id == owner_id,
                 chat_message.c.client_message_id == client_message_id)))).mappings().first()
@@ -169,14 +197,14 @@ class SqlMessageStore:
                 chat_message.c.alt_selected == True]  # noqa: E712 —— 未选中的候选不进历史
         if before_id is not None:
             cond.append(chat_message.c.id < before_id)
-        async with self._engine.connect() as conn:
+        async with self._auto.connect() as conn:
             rows = (await conn.execute(select(chat_message).where(and_(*cond))
                     .order_by(chat_message.c.id.desc()).limit(limit))).mappings().all()
         return [_message(r) for r in rows]
 
     async def list_after(self, *, owner_id: int, session_id: int, after_id: int, limit: int) -> list[MessageRecord]:
         """``after_id`` 之后的消息，按 id 升序（不含已删除）。"""
-        async with self._engine.connect() as conn:
+        async with self._auto.connect() as conn:
             rows = (await conn.execute(select(chat_message).where(and_(
                 chat_message.c.session_id == session_id, chat_message.c.owner_id == owner_id,
                 chat_message.c.deleted == False, chat_message.c.alt_selected == True,  # noqa: E712
@@ -186,13 +214,13 @@ class SqlMessageStore:
 
     async def get_any(self, *, owner_id: int, message_id: int) -> MessageRecord | None:
         """包括已删除的消息（重建摘要时需要知道哪些被删）。"""
-        async with self._engine.connect() as conn:
+        async with self._auto.connect() as conn:
             row = (await conn.execute(select(chat_message).where(and_(
                 chat_message.c.id == message_id, chat_message.c.owner_id == owner_id)))).mappings().first()
         return _message(row) if row else None
 
     async def alternatives(self, *, owner_id: int, session_id: int, alt_group: int) -> list[MessageRecord]:
-        async with self._engine.connect() as conn:
+        async with self._auto.connect() as conn:
             rows = (await conn.execute(select(chat_message).where(and_(
                 chat_message.c.session_id == session_id, chat_message.c.owner_id == owner_id,
                 chat_message.c.alt_group == alt_group, chat_message.c.deleted == False))  # noqa: E712
@@ -202,7 +230,7 @@ class SqlMessageStore:
     async def alt_ids_for(self, *, owner_id: int, session_id: int, groups: list[int]) -> dict[int, list[int]]:
         if not groups:
             return {}
-        async with self._engine.connect() as conn:
+        async with self._auto.connect() as conn:
             rows = (await conn.execute(select(chat_message.c.id, chat_message.c.alt_group).where(and_(
                 chat_message.c.session_id == session_id, chat_message.c.owner_id == owner_id,
                 chat_message.c.alt_group.in_(groups), chat_message.c.deleted == False))  # noqa: E712
@@ -233,7 +261,7 @@ class SqlMessageStore:
         return res.rowcount == 1
 
     async def get(self, *, owner_id: int, message_id: int) -> MessageRecord | None:
-        async with self._engine.connect() as conn:
+        async with self._auto.connect() as conn:
             row = (await conn.execute(select(chat_message).where(and_(
                 chat_message.c.id == message_id, chat_message.c.owner_id == owner_id,
                 chat_message.c.deleted == False)))).mappings().first()  # noqa: E712
@@ -260,7 +288,7 @@ class SqlMessageStore:
         return res.rowcount == 1
 
     async def list_by_turn(self, *, owner_id: int, session_id: int, turn_id: str) -> list[MessageRecord]:
-        async with self._engine.connect() as conn:
+        async with self._auto.connect() as conn:
             rows = (await conn.execute(select(chat_message).where(and_(
                 chat_message.c.turn_id == turn_id, chat_message.c.owner_id == owner_id,
                 chat_message.c.session_id == session_id, chat_message.c.deleted == False))  # noqa: E712
@@ -297,6 +325,20 @@ class SqlQueueStore:
 
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
+        self._auto_engine = None
+
+    @property
+    def _auto(self):
+        """单语句读/写用的 autocommit 视图，首次使用时才建。
+
+        默认连接会先发 BEGIN、结束时再 ROLLBACK，在这台异地库上是三次往返
+        （实测 527 ms vs autocommit 的 176 ms）。惰性而不是在 __init__ 里：
+        有些调用方（测试、只装配不读写的路径）传进来的只是一个占位对象，
+        构造期不该要求它具备 execution_options。
+        """
+        if self._auto_engine is None:
+            self._auto_engine = self._engine.execution_options(isolation_level="AUTOCOMMIT")
+        return self._auto_engine
 
     async def enqueue(self, *, owner_id: int, session_id: int, message_id: int,
                       client_message_id: str | None, text: str) -> QueueItem:
@@ -310,7 +352,7 @@ class SqlQueueStore:
         return QueueItem(new_id, session_id, owner_id, message_id, client_message_id, text, "queued", 0, now)
 
     async def list_queued(self, *, owner_id: int, session_id: int) -> list[QueueItem]:
-        async with self._engine.connect() as conn:
+        async with self._auto.connect() as conn:
             rows = (await conn.execute(select(chat_queue).where(and_(
                 chat_queue.c.session_id == session_id, chat_queue.c.owner_id == owner_id,
                 chat_queue.c.status == "queued")).order_by(chat_queue.c.id))).mappings().all()
@@ -338,7 +380,7 @@ class SqlQueueStore:
         return res.rowcount == 1
 
     async def list_status(self, *, owner_id: int, session_id: int, status: str) -> list[QueueItem]:
-        async with self._engine.connect() as conn:
+        async with self._auto.connect() as conn:
             rows = (await conn.execute(select(chat_queue).where(and_(
                 chat_queue.c.session_id == session_id, chat_queue.c.owner_id == owner_id,
                 chat_queue.c.status == status)).order_by(chat_queue.c.id))).mappings().all()
@@ -348,6 +390,20 @@ class SqlQueueStore:
 class SqlRoleStore:
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
+        self._auto_engine = None
+
+    @property
+    def _auto(self):
+        """单语句读/写用的 autocommit 视图，首次使用时才建。
+
+        默认连接会先发 BEGIN、结束时再 ROLLBACK，在这台异地库上是三次往返
+        （实测 527 ms vs autocommit 的 176 ms）。惰性而不是在 __init__ 里：
+        有些调用方（测试、只装配不读写的路径）传进来的只是一个占位对象，
+        构造期不该要求它具备 execution_options。
+        """
+        if self._auto_engine is None:
+            self._auto_engine = self._engine.execution_options(isolation_level="AUTOCOMMIT")
+        return self._auto_engine
 
     async def create(self, *, owner_id: int, public_id: str, name: str, tagline: str, description: str,
                      prompt: str, locale: str) -> RoleRecord:
@@ -360,14 +416,14 @@ class SqlRoleStore:
         return RoleRecord(new_id, public_id, owner_id, name, tagline, description, prompt, locale, now, now)
 
     async def get_owned(self, *, owner_id: int, public_id: str) -> RoleRecord | None:
-        async with self._engine.connect() as conn:
+        async with self._auto.connect() as conn:
             row = (await conn.execute(select(user_role).where(and_(
                 user_role.c.public_id == public_id, user_role.c.owner_id == owner_id,
                 user_role.c.deleted == False)))).mappings().first()  # noqa: E712
         return _role(row) if row else None
 
     async def list_owned(self, *, owner_id: int, limit: int, offset: int) -> list[RoleRecord]:
-        async with self._engine.connect() as conn:
+        async with self._auto.connect() as conn:
             rows = (await conn.execute(select(user_role).where(and_(
                 user_role.c.owner_id == owner_id, user_role.c.deleted == False))  # noqa: E712
                 .order_by(user_role.c.id.desc()).limit(limit).offset(offset))).mappings().all()
@@ -395,6 +451,20 @@ class SqlRoleStore:
 class SqlUploadStore:
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
+        self._auto_engine = None
+
+    @property
+    def _auto(self):
+        """单语句读/写用的 autocommit 视图，首次使用时才建。
+
+        默认连接会先发 BEGIN、结束时再 ROLLBACK，在这台异地库上是三次往返
+        （实测 527 ms vs autocommit 的 176 ms）。惰性而不是在 __init__ 里：
+        有些调用方（测试、只装配不读写的路径）传进来的只是一个占位对象，
+        构造期不该要求它具备 execution_options。
+        """
+        if self._auto_engine is None:
+            self._auto_engine = self._engine.execution_options(isolation_level="AUTOCOMMIT")
+        return self._auto_engine
 
     async def create(self, record) -> None:
         async with self._engine.begin() as conn:
@@ -404,7 +474,7 @@ class SqlUploadStore:
                 created_at=record.created_at))
 
     async def get_owned(self, *, owner_id: int, upload_id: str):
-        async with self._engine.connect() as conn:
+        async with self._auto.connect() as conn:
             row = (await conn.execute(select(upload).where(and_(
                 upload.c.id == upload_id, upload.c.owner_id == owner_id)))).mappings().first()
         if row is None:
@@ -416,6 +486,20 @@ class SqlUploadStore:
 class SqlConfirmationStore:
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
+        self._auto_engine = None
+
+    @property
+    def _auto(self):
+        """单语句读/写用的 autocommit 视图，首次使用时才建。
+
+        默认连接会先发 BEGIN、结束时再 ROLLBACK，在这台异地库上是三次往返
+        （实测 527 ms vs autocommit 的 176 ms）。惰性而不是在 __init__ 里：
+        有些调用方（测试、只装配不读写的路径）传进来的只是一个占位对象，
+        构造期不该要求它具备 execution_options。
+        """
+        if self._auto_engine is None:
+            self._auto_engine = self._engine.execution_options(isolation_level="AUTOCOMMIT")
+        return self._auto_engine
 
     async def create(self, record: ConfirmationRecord) -> None:
         async with self._engine.begin() as conn:
@@ -426,14 +510,14 @@ class SqlConfirmationStore:
                 expires_at=record.expires_at, created_at=_now()))
 
     async def get_pending(self, *, owner_id: int, confirmation_id: str) -> ConfirmationRecord | None:
-        async with self._engine.connect() as conn:
+        async with self._auto.connect() as conn:
             row = (await conn.execute(select(action_confirmation).where(and_(
                 action_confirmation.c.id == confirmation_id, action_confirmation.c.owner_id == owner_id,
                 action_confirmation.c.status == "pending")))).mappings().first()
         return _confirmation(row) if row else None
 
     async def list_pending(self, *, owner_id: int) -> list[ConfirmationRecord]:
-        async with self._engine.connect() as conn:
+        async with self._auto.connect() as conn:
             rows = (await conn.execute(select(action_confirmation).where(and_(
                 action_confirmation.c.owner_id == owner_id, action_confirmation.c.status == "pending"))
                 .order_by(action_confirmation.c.created_at))).mappings().all()
@@ -467,6 +551,20 @@ class SqlConfirmationStore:
 class SqlToolCallStore:
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
+        self._auto_engine = None
+
+    @property
+    def _auto(self):
+        """单语句读/写用的 autocommit 视图，首次使用时才建。
+
+        默认连接会先发 BEGIN、结束时再 ROLLBACK，在这台异地库上是三次往返
+        （实测 527 ms vs autocommit 的 176 ms）。惰性而不是在 __init__ 里：
+        有些调用方（测试、只装配不读写的路径）传进来的只是一个占位对象，
+        构造期不该要求它具备 execution_options。
+        """
+        if self._auto_engine is None:
+            self._auto_engine = self._engine.execution_options(isolation_level="AUTOCOMMIT")
+        return self._auto_engine
 
     async def trim_before(self, *, cutoff) -> int:
         from sqlalchemy import delete as sa_delete
