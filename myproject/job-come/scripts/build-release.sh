@@ -36,19 +36,55 @@ esac
 
 REPO_ROOT="$(jc_repo_root "$JC_ROOT")" || die \
   "no repository root above ${JC_ROOT}.
-       Building needs libs/agentkit and the vendored DeerFlow tree; a deployment host
-       does not have them and does not need them — it installs the committed wheels."
-VENDOR="${REPO_ROOT}/libs/agentkit"
-[ -d "${VENDOR}/vendor/deer-flow/backend/packages/harness" ] || die \
-  "vendored DeerFlow missing at ${VENDOR}/vendor/deer-flow.
-       It is a git submodule — run: git submodule update --init --recursive"
+       Building needs agentkit's source; a deployment host does not — it installs the
+       committed wheels."
+AGENTKIT="${REPO_ROOT}/libs/agentkit"
+DEERFLOW_DIR="$(jc_vendor_deerflow "$JC_ROOT")"
+SOURCE_RECORD="$(jc_deerflow_source_record "$JC_ROOT")"
+
+# DeerFlow source is a BUILD input, not a dependency of the checkout.
+#
+# The wheels in `backend/server/wheels/` are the dependency — resolved by `uv sync`,
+# installed on the deploy host, no source involved. Upstream is not on PyPI, so
+# rebuilding those wheels means compiling from source; but that is something only a
+# release does, and requiring the tree to be present made every plain
+# `git clone && uv sync` fail for people who will never rebuild anything.
+#
+# So it is fetched on demand into a gitignored directory, pinned to the revision
+# recorded in `wheels/DEERFLOW_SOURCE.txt`. A checkout that never builds never pays
+# for it, and what gets built is still exactly the committed revision.
+ensure_deerflow_source() {
+  local url sha current
+  [[ -d "${DEERFLOW_DIR}/backend/packages/harness" ]] && return 0
+
+  [[ -f "$SOURCE_RECORD" ]] || die "missing ${SOURCE_RECORD} (records which revision to build)"
+  read -r url sha < <(grep -vE '^\s*(#|$)' "$SOURCE_RECORD" | tail -1)
+  [[ -n "$url" && -n "$sha" ]] || die "malformed ${SOURCE_RECORD}"
+
+  log "fetching DeerFlow ${sha:0:8} from ${url}"
+  mkdir -p "$(dirname "$DEERFLOW_DIR")"
+  if [[ ! -d "${DEERFLOW_DIR}/.git" ]]; then
+    rm -rf "$DEERFLOW_DIR"
+    git init -q "$DEERFLOW_DIR"
+    git -C "$DEERFLOW_DIR" remote add origin "$url"
+  fi
+  # Fetch by SHA: the pinned commit is what we build, and it need not be the tip of
+  # any branch (an upstream may rewrite or move on). Depth 1 keeps it ~30 MB
+  # instead of the full 200 MB history.
+  git -C "$DEERFLOW_DIR" fetch --depth 1 -q origin "$sha" \
+    || die "cannot fetch ${sha} from ${url} (network or the commit no longer exists)"
+  git -C "$DEERFLOW_DIR" checkout -q FETCH_HEAD
+  current="$(git -C "$DEERFLOW_DIR" rev-parse HEAD)"
+  [[ "$current" == "$sha" ]] || die "checked out ${current}, expected ${sha}"
+  log "DeerFlow source ready at ${DEERFLOW_DIR}"
+}
 
 # The three path-built packages and the import name each one actually ships. Kept
 # together so the version check and the pin rewrite cannot disagree about a name.
 PACKAGES=(
-  "${VENDOR}"
-  "${VENDOR}/vendor/deer-flow/backend/packages/harness"
-  "${VENDOR}/vendor/deer-flow/backend/packages/extension-api"
+  "${AGENTKIT}"
+  "${DEERFLOW_DIR}/backend/packages/harness"
+  "${DEERFLOW_DIR}/backend/packages/extension-api"
 )
 
 command -v uv >/dev/null 2>&1 || die "uv is required (https://docs.astral.sh/uv/)"
@@ -66,6 +102,9 @@ command -v uv >/dev/null 2>&1 || die "uv is required (https://docs.astral.sh/uv/
 # module, a deleted module and an edited module all show up. `__pycache__`/`.pyc` are
 # skipped: they are build output, not source.
 if [[ "$MODE" == "--check" ]]; then
+  # Comparing a wheel against source necessarily needs source. Fetching it here is
+  # not a compromise: a checkout that never verifies never pays for it either.
+  ensure_deerflow_source
   PYTHON_CHECK="$(command -v python3 || true)"
   [[ -n "$PYTHON_CHECK" ]] || die "python3 not found; it compares wheels against source"
   "$PYTHON_CHECK" - "$WHEELS" "${PACKAGES[@]}" <<'PY_CHECK_WHEELS'
@@ -157,6 +196,7 @@ PY_CHECK_WHEELS
 fi
 
 # --- --update ---
+ensure_deerflow_source
 mkdir -p "$WHEELS"
 rm -f "${WHEELS}"/*.whl
 

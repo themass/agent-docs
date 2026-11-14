@@ -4,7 +4,7 @@
 # Two questions, answered separately on purpose:
 #
 #   * WHERE IS THE REPO?  A stable, committed marker (`libs/agentkit`). This is what
-#     locates build inputs like the vendored DeerFlow submodule.
+#     locates build inputs such as agentkit's source.
 #   * WHICH INTERPRETER?  An environment concern. A virtualenv is never committed,
 #     so it is discovered independently and may live somewhere the repo does not.
 #
@@ -84,11 +84,20 @@ jc_python() {
   return 1
 }
 
-# The vendored DeerFlow checkout, resolved from the repo root rather than by counting
-# `../`. One definition, so the build, the upstream sync and the docs cannot drift.
+# Where a DeerFlow source checkout lives when a build needs one.
+#
+# Deliberately under `.data/` (gitignored) and NOT in the source tree: the wheels in
+# `backend/server/wheels/` are the dependency, and they are already committed. Source
+# is only needed to rebuild them, so it is fetched on demand and kept out of the way.
+# A checkout that never rebuilds anything never downloads it.
 jc_vendor_deerflow() {
   local project_root="$1"
-  local repo_root
-  repo_root="$(jc_repo_root "$project_root")" || return 1
-  printf '%s\n' "$repo_root/libs/agentkit/vendor/deer-flow"
+  printf '%s\n' "$project_root/.data/vendor/deer-flow"
+}
+
+# The upstream repository and pinned revision the committed wheels came from.
+# Read from the committed record so the build and the sync cannot disagree.
+jc_deerflow_source_record() {
+  local project_root="$1"
+  printf '%s\n' "$project_root/backend/server/wheels/DEERFLOW_SOURCE.txt"
 }

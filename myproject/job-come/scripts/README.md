@@ -37,7 +37,7 @@ Python 解释器依次找：`JC_PYTHON`、仓库根旁的 `venv`、上一层目�
 | `setup-venv.sh` | 把后端依赖装进仓库旁的 `venv`（`dev.sh` 首次启动也会自动调用） |
 | `dev.sh` | 启动本地 API、Web 和内嵌 Agent；输出同时写到 `.data/logs/dev/`。缺依赖时自动 `uv sync` |
 | `test-local.sh` | 提交前检查：Python 字节码编译、后端测试、所有 shell 脚本语法、前端生产构建。不碰任何真实服务 |
-| `build-release.sh --update` | 改了 vendored DeerFlow 或 `libs/agentkit` 源码后**必须**跑：重建 `backend/server/wheels/` 里的三个 wheel，同步 `pyproject.toml` 的版本并重新 lock。不跑的话服务器装上去的是旧代码，而且不报错。`--check` 只校验不重建。必须在仓库里、且 vendored DeerFlow submodule 已初始化时运行 |
+| `build-release.sh --update` | 改了 vendored DeerFlow 或 `libs/agentkit` 源码后**必须**跑：重建 `backend/server/wheels/` 里的三个 wheel，同步 `pyproject.toml` 的版本并重新 lock。不跑的话服务器装上去的是旧代码，而且不报错。`--check` 只校验不重建。首次运行会自动把 DeerFlow 源码拉取到 `.data/vendor/`（不入库）|
 | `sync-deerflow-upstream.sh` | 维护动作：同步 vendored DeerFlow。不是日常步骤 |
 
 ```bash

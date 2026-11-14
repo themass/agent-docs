@@ -15,7 +15,7 @@ cp backend/server/.env.example backend/server/.env
 
 测试：`./scripts/test-local.sh`。完整脚本说明：[`scripts/README.md`](scripts/README.md)。
 
-DeerFlow 上游在 **`libs/agentkit/vendor/deer-flow/`**（仓库内 git submodule，钉在 `.gitmodules` 指向的 commit；新 clone 需 `git submodule update --init --recursive`）。生产使用预编译 wheel（`backend/server/wheels/`，已入库）安装，部署机不需要 monorepo 源码，见 ADR-002。改动 vendored DeerFlow 后必须跑 `./scripts/build-release.sh --update`。
+DeerFlow 以 **wheel 依赖**接入（`backend/server/wheels/`，已入库）——和任何包依赖一样，`uv sync` 直接用，运行和部署都不需要源码。源码只在重建 wheel 时需要，由 `./scripts/build-release.sh` 按 `wheels/DEERFLOW_SOURCE.txt` 记录的 commit 按需拉取到 `.data/vendor/`（不入库）。生产使用预编译 wheel（`backend/server/wheels/`，已入库）安装，部署机不需要 monorepo 源码，见 ADR-002。改动 vendored DeerFlow 后必须跑 `./scripts/build-release.sh --update`。
 
 ## Architecture contracts
 

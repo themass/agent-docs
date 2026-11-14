@@ -17,3 +17,7 @@
 !*.whl
 !README.md
 !.gitignore
+# Which upstream revision the wheels were built from. Data, not source: it is what
+# lets a rebuild fetch exactly the right commit on demand instead of requiring a
+# checkout of the 203 MB upstream in every clone.
+!DEERFLOW_SOURCE.txt

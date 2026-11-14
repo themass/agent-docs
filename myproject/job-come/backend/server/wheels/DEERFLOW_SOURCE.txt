@@ -1,0 +1,24 @@
+# DeerFlow source revision the committed wheels were built from.
+#
+# Why this file exists and why the source is NOT in the tree:
+#
+# The wheels in this directory ARE how job-come depends on DeerFlow — the same way
+# any other package is depended on. `uv sync` resolves them, the deploy host installs
+# them, and no upstream source is involved at runtime. That is the normal shape of a
+# package dependency and it should stay that way.
+#
+# Source is needed only to REBUILD those wheels, and only when upgrading DeerFlow or
+# patching it. That is a build-time activity, not something a checkout should carry:
+# insisting on a checked-out 203 MB upstream made `git clone && uv sync` fail for
+# everyone who never rebuilds anything.
+#
+# So the revision lives here as data. `scripts/build-release.sh --update` fetches
+# exactly this commit into `.data/vendor/` (gitignored) on demand, builds, and leaves
+# it there for the next run. Nothing else needs it.
+#
+# Bump this file when upgrading, then rebuild:
+#   ./scripts/build-release.sh --update --upstream <new-sha>
+# or edit the line below and run ./scripts/build-release.sh --update
+#
+# Format: <repo-url> <commit-sha>
+https://github.com/bytedance/deer-flow.git 7bb92cea10bb45c63b97a2cb7ae9457a576dc75b
