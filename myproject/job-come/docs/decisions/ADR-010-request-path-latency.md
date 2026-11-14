@@ -68,9 +68,18 @@ pub/sub 广播延迟（毫秒级）；60 秒只是广播丢失时的兜底。
 
 ### 4. 指标：多 worker 合并
 
-`enable_multiprocess(dir)` 让所有 worker 写同一个磁盘目录，由
-`MultiProcessCollector` 汇总。为此指标定义从模块导入时创建改成首次使用时创建
-（`_get(name)`），否则它们会在 `configure()` 之前就绑死默认 registry。
+> **修正（同一决策的后续）**：本节最初写的 `enable_multiprocess(dir)` 是**失效的**。
+> prometheus_client 在 import 时就定死了计数器的存储类
+> （`values.py`: `ValueClass = get_value_class()`），import 之后调用的函数改不了它。
+> 实测：该函数返回 `True`，但一个 mmap 文件都没写——静默按 worker 各算各的。
+>
+> 现在改用环境变量 `PROMETHEUS_MULTIPROCESS_DIR`，由 `scripts/backend.sh` 在
+> python 启动前导出，并每次启动清空目录（SIGKILL 的 worker 不会调
+> `mark_process_dead`，残留文件会永远累加）。本文其余内容仍然成立。
+
+原始实现（已被上述方案取代，保留以便追溯）：`enable_multiprocess(dir)` 让所有
+worker 写同一个磁盘目录，由 `MultiProcessCollector` 汇总。为此指标定义从模块导入时
+创建改成首次使用时创建（`_get(name)`）。
 
 `/metrics/snapshot` 里带 `pid` 和 `host`：两个 worker 就是两个进程，面板隐藏这个
 事实就等于只报了一半流量。
