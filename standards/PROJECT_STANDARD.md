@@ -23,14 +23,34 @@
 
 ## 0. 公共组件包 AgentKit（P2 落地）
 
-跨项目复用代码 **优先进入** [`libs/agentkit/`](../../libs/agentkit/)，产品通过 **path 依赖** 引用：
+跨项目复用代码 **优先进入** [`libs/agentkit/`](../../libs/agentkit/)（源码唯一副本，入本仓库）。
+
+产品通过**入库的 wheel** 引用，**不用 path 依赖**：
 
 ```toml
+dependencies = ["agentkit==0.1.0+20261114.e7792e01"]
+
 [tool.uv.sources]
-agentkit = { path = "../libs/agentkit", editable = true }
+agentkit = { path = "wheels/agentkit-0.1.0+20261114.e7792e01-py3-none-any.whl" }
 ```
 
-含：`common`（trace/ids/logging）、`web`（FastAPI 基建）、`adapters/deerflow`、MCP 脚手架。  
+> **为什么不用 `path = "../libs/agentkit", editable = true`**：它把构建期输入当成了运行时
+> 依赖。部署机只有产品目录、没有 monorepo，`uv sync` 直接失败：
+> `Distribution not found at: file:///.../libs/agentkit`。两个产品都因此改成了 wheel。
+
+改 agentkit 之后**只跑一条命令**，它会构建、算内容摘要、改版本号、分发到每个产品的
+`wheels/` 并同步 pyproject：
+
+```bash
+libs/agentkit/scripts/build.sh            # 构建 + 分发
+libs/agentkit/scripts/build.sh --check    # 只校验源码与已提交 wheel 是否一致
+```
+
+版本号必须变，且校验比的是**内容摘要**不是版本号——理由见
+[`libs/agentkit/VERSION_SCHEME.md`](../../libs/agentkit/VERSION_SCHEME.md)。
+
+含：`common`（trace/ids/logging）、`web`（FastAPI 基建）、`observability`（指标/快照/联邦）、
+`llm`（格式转换/计价）、`redis`、`storage`、`adapters/deerflow`、MCP 脚手架。  
 产品仓库只保留 **业务 services / stores / 产品 MCP tools / skills**。
 
 详见 [公共组件包.md](公共组件包.md)。
@@ -230,7 +250,7 @@ Browser → apps/web（UI）
 
 | 项目 | 工程规范 | AgentKit |
 |------|----------|----------|
-| JobCome | [job-come/docs/工程规范.md](../job-come/docs/工程规范.md) | path 依赖 `libs/agentkit` |
+| JobCome | [job-come/docs/工程规范.md](../job-come/docs/工程规范.md) | 入库 wheel（`scripts/build.sh` 分发） |
 
 ---
 
