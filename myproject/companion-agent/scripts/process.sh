@@ -149,6 +149,17 @@ stop_one() {
     sleep 1
   fi
   rm -f "$pf"
+  # 语音 worker 由 LiveKit 的 supervisor 起了子进程，父进程退出不代表端口已经放开；
+  # 立刻 start 会撞上 "address already in use"（线上见过一次：新 worker 起来就死，
+  # 而 status 还显示"运行中"，因为旧进程仍活着）。等端口真的空出来再返回。
+  if [[ "$name" == voice ]]; then
+    local port="${COMPANION_VOICE_WORKER_PORT:-8082}" waited_port=0
+    while (( waited_port < 15 )); do
+      ss -lnt 2>/dev/null | grep -q ":${port} " || break
+      sleep 1; waited_port=$((waited_port + 1))
+    done
+    (( waited_port > 0 )) && log "等待 ${port} 释放用了 ${waited_port}s"
+  fi
   log "${name} 已停止"
 }
 
