@@ -30,7 +30,7 @@ export default defineConfig({
     default_locale: 'en',
     name: '__MSG_extName__',
     description: '__MSG_extDescription__',
-    version: '0.1.2',
+    version: '0.1.3',
     permissions: [
       // ponytail: mic/camera use getUserMedia in extension pages — not packaged-app capture permissions.
       'activeTab',

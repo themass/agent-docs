@@ -11,7 +11,7 @@
 - [ ] 在 `**docs/myproject/naviforge**` 目录执行：`npm run check`，再 `npm run zip`
 - [ ] 将 `apps/extension/dist/*.zip` 上传到 [开发者信息中心](https://chrome.google.com/webstore/devconsole)
 - [ ] 递增 `wxt.config.ts` 与 `apps/extension/package.json` 中的 **version**
-- [ ] 在**全新 Chrome 配置文件**中安装 zip 自测（安装 → 配置模型 → 侧栏 → 首次 Run 可能弹出站点权限）
+- [ ] 在**全新 Chrome 配置文件**中安装 zip 自测（安装 → 确认站点访问 → 配置模型 → 侧栏 Agent / ⌥⇧ 快捷键）
 - [ ] 解压构建产物，检索是否误打包 `sk-`、`apiKey`、密码、内网 URL 等
 
 **本地调试加载：** `npm run dev` → `apps/extension/dist/chrome-mv3-dev`  

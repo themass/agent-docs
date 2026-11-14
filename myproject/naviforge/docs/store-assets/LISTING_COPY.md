@@ -23,13 +23,13 @@ NaviForge — 网页 AI 助手
 **中文（推荐）**
 
 ```text
-侧栏 AI + 网页工具箱：读页、总结、截图 OCR、列表提取。自备 API Key，本地会话；⌥N 快捷工具，⌥B 开 Agent。
+侧栏 AI + 网页工具箱：读页、总结、截图 OCR、列表提取。自备 API Key，本地会话；⌥⇧N 工具浮层。
 ```
 
 **英文**
 
 ```text
-Side-panel AI + web toolkit: read, summarize, screenshot OCR, lists. BYOK, local sessions. Alt+N tools, Alt+B Agent.
+Side-panel AI + web toolkit: read, summarize, screenshot OCR, lists. BYOK, local sessions. Alt+Shift+N tool palette.
 ```
 
 ---
@@ -53,15 +53,15 @@ NaviForge — 把「当前打开的网页」变成可对话、可操作的工作
 • 支持语音、图片附件；会话与工作区本地保存，可续聊
 
 【网页工具箱 · 控制中心】
-• ⌥N：在当前页打开可搜索的快捷工具浮层
-• 截图工作室（区域标注 · OCR）、可见/全页截图
-• 列表提取、Top N 高亮、就地翻译、视频字幕、文字识别（OCR）
+• ⌥⇧N：在当前页打开可搜索的快捷工具浮层
+• 截图工作室（区域标注 · OCR）、可见/全页截图（⌥⇧A / ⌥⇧S）、就地翻译（⌥⇧T）
+• 列表提取、Top N 高亮、视频字幕、文字识别（OCR）
 • JSON 格式化、IP 查询等实用小工具
 
 【隐私与掌控】
 • 默认 BYOK：使用你自己的 OpenAI 兼容 API（官方 OpenAI、DeepSeek、豆包网关等均可）
 • 网络调试、改 Header 等敏感能力默认关闭，可在设置中逐项打开
-• 网站访问权限在首次运行 Agent 时按需申请，安装时不授予全站
+• 安装时授予 http(s) 全站访问（截图、工具浮层、Agent DOM）；敏感能力仍默认关闭
 
 ━━━━━━━━━━━━━━━━━━
 ✦ 适合谁
@@ -100,11 +100,11 @@ Side-panel Agent
 • Voice & image attachments; local sessions
 
 Web toolkit
-• Alt+N quick tool palette on the page
-• Screenshot studio with OCR, visible/full-page capture
-• List extract, translate, subtitles, JSON tools, and more
+• Alt+Shift+N quick tool palette on the page
+• Screenshot studio with OCR; Alt+Shift+A / Alt+Shift+S visible & full-page capture; Alt+Shift+T translate
+• List extract, subtitles, JSON tools, and more
 
-BYOK by default — your OpenAI-compatible API. Sensitive features off until you enable them in Settings. Broad http(s) access is declared at install for screenshots, in-page tools, and the Agent on user-opened sites.
+BYOK by default — your OpenAI-compatible API. Sensitive features off until you enable them in Settings. Broad http(s) host access is granted at install for screenshots, in-page tools, and the Agent on user-opened sites.
 
 Works standalone. Optional NaviForge Host is not included in this package.
 
@@ -182,7 +182,7 @@ Store user settings, API profiles (BYOK), session history, and workspace paths l
 ### scripting
 
 ```text
-Inject content scripts into http(s) pages the user interacts with so the Agent and toolkit can read page structure, click elements, show the ⌥N tool overlay, hide UI chrome during screenshots, and run user-approved automation. Requires host permission on those sites.
+Inject content scripts into http(s) pages the user interacts with so the Agent and toolkit can read page structure, click elements, show the ⌥⇧N tool overlay, hide UI chrome during screenshots, and run user-approved automation. Requires host permission on those sites.
 ```
 
 ### debugger
@@ -230,7 +230,7 @@ Read cookies only when needed for user-initiated site tooling or session diagnos
 ### Host permission (`http://*/*`, `https://*/*`)
 
 ```text
-NaviForge is a general-purpose assistant and screenshot toolkit for arbitrary websites the user opens. Host access is required to inject scripts, capture screenshots, run the in-page tool palette (⌥N), and execute user-directed agent actions on those pages. The extension does not browse sites in the background without user action; all tools are triggered from the side panel, popup, shortcuts, or context menu.
+NaviForge is a general-purpose assistant and screenshot toolkit for arbitrary websites the user opens. Host access is required to inject scripts, capture screenshots, run the in-page tool palette (⌥⇧N), and execute user-directed agent actions on those pages. The extension does not browse sites in the background without user action; all tools are triggered from the side panel, popup, shortcuts, or context menu.
 ```
 
 ---
@@ -239,7 +239,7 @@ NaviForge is a general-purpose assistant and screenshot toolkit for arbitrary we
 
 | 顺序 | 文件 | 展示内容 |
 |------|------|----------|
-| 1 | `screenshots/store-1280x800/01-toolkit-quick-menu.jpg` | ⌥N 快捷工具 |
+| 1 | `screenshots/store-1280x800/01-toolkit-quick-menu.jpg` | ⌥⇧N 快捷工具 |
 | 2 | `screenshots/store-1280x800/02-agent-sidepanel.jpg` | 侧栏 Agent |
 | 3 | `screenshots/store-1280x800/03-toolkit-and-agent.jpg` | ToolKit + Agent |
 | 4 | `screenshots/store-1280x800/04-plugins-skills.jpg` | Plugins / Skills |

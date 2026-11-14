@@ -647,7 +647,7 @@ export const optionsEn = {
     eyebrow: 'BROWSER TOOLKIT',
     title: 'Browser tools',
     description:
-      'Pick a page, then Run. Results open on the right. Shortcuts: ⌘⇧S studio · ⌥⇧A visible · ⌥⇧S full-page · ⌥⇧T translate.',
+      'Pick a page, then Run. Results open on the right. Shortcuts: ⌥⇧A visible · ⌥⇧S full-page · ⌘⇧S studio · ⌥⇧T translate (bind in shortcuts page).',
     step1Title: 'Pick the page to operate on',
     step1Lead:
       'Tools apply to a normal web tab (e.g. Bilibili), not this “Browser tools” page.',

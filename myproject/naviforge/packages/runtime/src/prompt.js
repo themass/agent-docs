@@ -2,8 +2,20 @@ import { compactSnapshotForPrompt, SNAPSHOT_PROMPT_BUDGET } from '@naviforge/obs
 import { resolveTaskScope } from '@naviforge/policy';
 import { resolveDeliverable } from './deliverable.js';
 import { formatReplyLanguageBlock, resolveReplyLanguage } from './reply-language.js';
+import { resolveTaskIntent } from './task-intent.js';
 import { READONLY_CHILD_KERNEL_SECTION, SUBTASK_KERNEL_SECTION } from './subtask-guidance.js';
 export { resolveReplyLanguage, formatReplyLanguageBlock } from './reply-language.js';
+/** When true, composeSystemPrompt appends the long spawn protocol section. */
+export function shouldIncludeSpawnSection(task) {
+    if (!task?.trim())
+        return false;
+    const intent = resolveTaskIntent(task);
+    if (intent === 'multi_hop_crawl' || intent === 'list_detail' || intent === 'research' || intent === 'media_extract') {
+        return true;
+    }
+    const deliverable = resolveDeliverable(task);
+    return deliverable === 'data' || deliverable === 'research' || deliverable === 'media';
+}
 export function formatListResult(items, marked, shortfall) {
     const heading = marked
         ? `已在当前页面标记 ${items.length} 个条目：`

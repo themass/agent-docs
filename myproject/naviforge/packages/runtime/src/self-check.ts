@@ -48,7 +48,7 @@ import {
   sameFailureQuestion,
 } from './run-limits.js'
 import { KERNEL_PROMPT, composeSystemPrompt, compileUserPrompt, formatListResult } from './prompt.js'
-import { isPageReadTask } from './loop-gates.js'
+import { isGreetingOrChitchat, isPageReadTask, resolveTaskMode as resolveTaskModeFromGates } from './loop-gates.js'
 import { runReadonlySubAgents } from './readonly-agent.js'
 import { projectTraceRecords } from './working-set.js'
 import {
@@ -593,6 +593,10 @@ assert(isPageReadTask('详细介绍一下这个项目'), 'intro project is read 
 assert(isPageReadTask('这个项目是做什么的'), 'what project does')
 assert(!isPageReadTask('找出当前页 top4'), 'top4 extract is not read')
 assert(!isPageReadTask('有没有同类型的项目'), 'similar-project ask is not a page-read')
+assert(isGreetingOrChitchat('hello'), 'hello is greeting')
+assert(isGreetingOrChitchat('你好'), '你好 is greeting')
+assert(resolveTaskModeFromGates('hello') === 'general', 'hello is general mode')
+assert(resolveTaskModeFromGates('你好') === 'general', '你好 is general mode')
 assert(resolveTaskMode('LongHorizon loopx 2个github项目什么区别') === 'research', 'github compare is research mode')
 assert(
   routeSkills('2个github项目什么区别', [

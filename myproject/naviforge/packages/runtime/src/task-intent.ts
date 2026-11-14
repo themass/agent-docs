@@ -42,6 +42,7 @@ export function resolveTaskIntent(task: string): TaskIntent {
   if (isPageReadTask(t)) return 'page_read'
   if (looksLikeWeakExtract(t) && !isPageReadTask(t)) return 'list_extract'
   if (resolveTaskMode(t) === 'general') return 'general'
+  // Short greetings already hit general via resolveTaskMode; keep default for real page work.
   return 'page_read'
 }
 
@@ -106,7 +107,8 @@ export function intentGuidanceNotes(intent: TaskIntent): string[] {
       ]
     case 'general':
       return [
-        'GUIDANCE: intent=general — THREAD/CONTEXT 优先；壳页勿 dom_snapshot 空转。',
+        'GUIDANCE: intent=general — THREAD/CONTEXT 优先；壳页勿 dom_snapshot / dom_read 空转。',
+        'GUIDANCE: 寒暄（hello/你好）直接简短回复 system_done；禁止 skill_load observe、禁止读当前页正文。',
       ]
     case 'page_read':
       return [

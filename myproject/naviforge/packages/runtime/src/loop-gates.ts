@@ -4,6 +4,7 @@ import { normalizeScrollArgs } from './exec-turn.js'
 export {
   bareSkillId,
   isGeneralTask,
+  isGreetingOrChitchat,
   isPageReadTask,
   isResearchTask,
   requestedList,

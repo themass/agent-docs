@@ -622,7 +622,7 @@ export const optionsZhCN = {
     eyebrow: 'BROWSER TOOLKIT',
     title: '浏览器工具',
     description:
-      '先选网页，再点运行。结果从右侧弹出。快捷键：⌘⇧S 截图工作室 · ⌥⇧A 可见截图 · ⌥⇧S 全页截图 · ⌥⇧T 翻译。',
+      '先选网页，再点运行。结果从右侧弹出。快捷键：⌥⇧A 可见截图 · ⌥⇧S 全页截图 · ⌘⇧S 截图工作室 · ⌥⇧T 翻译（需快捷键页绑定）。',
     step1Title: '选要操作的网页',
     step1Lead: '工具作用在普通网页标签（如 B 站），不是本「浏览器工具」这个页面。',
     step1Selected: '已选中',

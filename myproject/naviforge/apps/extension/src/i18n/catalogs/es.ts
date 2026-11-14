@@ -32,7 +32,7 @@ export const es = {
     mark: 'Marcar top N',
     markHint: 'Resaltar las primeras N',
     translate: 'Traducir página',
-    translateHint: '⌥⇧T (enlazar en atajos de extensiones) · otra vez para restaurar',
+    translateHint: '⌥⇧T (enlazar en atajos) · otra vez para restaurar',
     subs: 'Subtítulos de video',
     subsHint: 'Superponer subtítulos traducidos',
     ocr: 'Reconocer texto',

@@ -14,9 +14,23 @@ export function isResearchTask(task: string): boolean {
   return RESEARCH.test(task.trim())
 }
 
+/**
+ * Pure greeting / chitchat — must not fall through to in_page + observe.
+ * Keep short; longer messages with greetings still go through normal classifiers.
+ */
+export function isGreetingOrChitchat(task: string): boolean {
+  const t = task.trim()
+  if (!t || t.length > 48) return false
+  if (/当前页|本页|this page|总结|介绍|提取|抓取|截图|翻译/i.test(t)) return false
+  return /^(hi|hello|hey|yo|sup|你好|您好|嗨|哈喽|早啊?|早上好|下午好|晚上好|在吗|在不在|谢谢|thanks|thank you|ok|好的|嗯+|拜|再见|bye)\s*[!！.。?？~～]*$/i.test(
+    t
+  )
+}
+
 /** Knowledge-style ask without DOM ops on the current shell page. */
 export function isGeneralTask(task: string): boolean {
   const t = task.trim()
+  if (isGreetingOrChitchat(t)) return true
   if (isResearchTask(t) || isPageReadTask(t) || shouldHintListThenDetail(t) || requestedList(t)) return false
   if (/当前页|本页|this page|dom_|点击|提取|top\s*\d+|前\s*\d+|标记|高亮/i.test(t)) return false
   return /[?？]|什么是|为什么|怎么|如何|what|why|how/i.test(t) && t.length <= 240

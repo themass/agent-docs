@@ -69,7 +69,7 @@ export const TOOLKIT_SHORTCUT_ROWS: readonly ToolkitShortcutRow[] = [
     catalogId: 'translate',
     displayMac: '⌥⇧T',
     description: 'NaviForge: translate page',
-    // Chrome allows four suggested_key values. Bind this one in chrome://extensions/shortcuts.
+    // Chrome allows four suggested_key values — translate bind once in chrome://extensions/shortcuts.
   },
   {
     command: 'nf-json-format',
@@ -116,12 +116,12 @@ export function manifestCommands(): Record<
 /** One-line summary for popup footer (Mac glyphs). */
 export function popupShortcutsLine(locale: string): string {
   if (locale.startsWith('zh')) {
-    return '⌥⇧N 工具浮层 · ⌘⇧S · ⌥⇧A · ⌥⇧S · ⌥⇧T（翻译需在扩展快捷键页绑定）'
+    return '⌥⇧N 工具浮层 · ⌥⇧A · ⌥⇧S · ⌘⇧S · ⌥⇧T（翻译需在扩展快捷键页绑定）'
   }
   if (locale.startsWith('es')) {
-    return '⌥⇧N lista · ⌘⇧S · ⌥⇧A · ⌥⇧S · ⌥⇧T (traducir: enlazar en chrome://extensions/shortcuts)'
+    return '⌥⇧N lista · ⌥⇧A · ⌥⇧S · ⌘⇧S · ⌥⇧T (traducir: enlazar en chrome://extensions/shortcuts)'
   }
-  return '⌥⇧N tool list · ⌘⇧S · ⌥⇧A · ⌥⇧S · ⌥⇧T (bind translate in chrome://extensions/shortcuts)'
+  return '⌥⇧N tool list · ⌥⇧A · ⌥⇧S · ⌘⇧S · ⌥⇧T (bind translate in chrome://extensions/shortcuts)'
 }
 
 /** Options · toolkit panel shortcuts blurb. */
@@ -131,7 +131,7 @@ export function optionsShortcutsBody(locale: string): string {
       '在普通 https 页使用（先点一下页面）：',
       '⌥⇧N 网页工具浮层',
       '⌥⇧A 可见截图 · ⌥⇧S 全页截图 · ⌘⇧S 截图工作室',
-      '⌥⇧T 翻译 — 在扩展快捷键页为「translate」绑一次 ⌥⇧T',
+      '⌥⇧T 翻译 — 在扩展快捷键页为「translate」绑一次',
     ].join(' ')
   }
   if (locale.startsWith('es')) {
@@ -139,14 +139,14 @@ export function optionsShortcutsBody(locale: string): string {
       'En una página https normal (haga clic en la página antes):',
       '⌥⇧N lista de herramientas',
       '⌥⇧A visible · ⌥⇧S página completa · ⌘⇧S estudio',
-      '⌥⇧T traducir — enlazar ⌥⇧T en chrome://extensions/shortcuts',
+      '⌥⇧T traducir — enlazar en chrome://extensions/shortcuts',
     ].join(' ')
   }
   return [
     'On a normal https page (click the page first):',
     '⌥⇧N in-page tool list',
     '⌥⇧A visible · ⌥⇧S full page · ⌘⇧S studio',
-    '⌥⇧T translate — bind ⌥⇧T once in chrome://extensions/shortcuts',
+    '⌥⇧T translate — bind once in chrome://extensions/shortcuts',
   ].join(' ')
 }
 

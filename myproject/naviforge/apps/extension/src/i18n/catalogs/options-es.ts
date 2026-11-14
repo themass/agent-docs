@@ -650,7 +650,7 @@ export const optionsEs = {
     eyebrow: 'KIT DE HERRAMIENTAS',
     title: 'Herramientas del navegador',
     description:
-      'Elija una página, luego Ejecutar. Los resultados se abren a la derecha. Atajos: ⌘⇧S estudio · ⌥⇧A visible · ⌥⇧S página completa · ⌥⇧T traducir.',
+      'Elija una página, luego Ejecutar. Los resultados se abren a la derecha. Atajos: ⌥⇧A visible · ⌥⇧S página completa · ⌘⇧S estudio · ⌥⇧T traducir (enlazar en atajos).',
     step1Title: 'Elija la página a operar',
     step1Lead:
       'Las herramientas actúan en una pestaña web normal (p. ej. Bilibili), no en esta página de «Herramientas del navegador».',

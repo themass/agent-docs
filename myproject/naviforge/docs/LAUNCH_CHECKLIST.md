@@ -12,7 +12,7 @@
 - [ ] 线上已覆盖上传最新 `privacy_navi.html`（打开确认 Last updated ≥ 2026-11-06）
 - [x] 第三方声明：`http://file.ok123find.top/file/third_party_navi.html`
 - [x] `compliance.ts` → `PRIVACY_POLICY_URL` / `SUPPORT_EMAIL`（justbegin010@gmail.com）
-- [x] BYOK 默认、托管登录默认关、optional 站点权限
+- [x] BYOK 默认、托管登录默认关、安装时 `host_permissions`（http/https）
 - [x] 打包：`npm run zip`（见 `scripts/build.mjs`）
 
 ---
@@ -26,8 +26,8 @@
 - [ ] **干净 Chrome 配置**自测：解压 → 加载 `chrome-mv3` 文件夹（不能直接选 zip）
   - [ ] 设置 → 模型：填 API Key，Base URL 为 OpenAI 或自建网关
   - [ ] 侧栏 Agent：绑定网页标签 → 发一条简单任务
-  - [ ] 首次 Run 站点权限弹窗符合预期
-  - [ ] 工具箱 / ⌥N 快捷菜单可用
+  - [ ] 安装后站点访问为「在所有网站上」（或等价 host 权限）
+  - [ ] 工具箱 / ⌥⇧N 快捷菜单可用；⌥⇧A / ⌥⇧S / ⌥⇧T 可用
 
 ---
 
