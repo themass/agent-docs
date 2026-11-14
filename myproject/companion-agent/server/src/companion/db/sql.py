@@ -100,6 +100,12 @@ class SqlSessionStore:
 class SqlMessageStore:
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
+        # autocommit 视图：单条语句不需要 BEGIN/COMMIT，省两次往返。
+        # 只在"一条语句就说完"的写路径上用；需要多条语句原子完成的地方仍走 _engine.begin()。
+        self._auto = engine.execution_options(isolation_level="AUTOCOMMIT")
+
+    def _autocommit(self):
+        return self._auto.connect()
 
     async def append(self, *, owner_id: int, session_id: int, role: str, content: str, kind: str,
                      client_message_id: str | None, turn_id: str | None, meta: dict[str, Any],
@@ -110,6 +116,21 @@ class SqlMessageStore:
         给了 ``alt_of``（重新生成）：新消息作为那条回复的另一个候选写入，成为组内被选中的一条；
         组还不存在就以被重生成的那条的 id 建组。``alt_of`` 找不到或不是同会话的助手消息时当作普通消息写入。"""
         now = _now()
+        # 无围栏、无候选组的普通写入是**一条 INSERT**，不需要事务：
+        # engine.begin() 会打 BEGIN / INSERT / COMMIT 三次往返，而库在 180 ms 外，
+        # 实测 715 ms vs 358 ms。fence 与 alt_of 两条路径必须留在同一个事务里
+        # （前者是 SELECT FOR UPDATE + INSERT 的原子性，后者是先改组再插入），
+        # 所以只有这条快路径走 autocommit。
+        if fence is None and alt_of is None:
+            async with self._autocommit() as conn:
+                res = await conn.execute(insert(chat_message).values(
+                    session_id=session_id, owner_id=owner_id, role=role, content=content, kind=kind,
+                    client_message_id=client_message_id, turn_id=turn_id, interrupted=False,
+                    meta=meta or None, created_at=now, deleted=False, alt_group=None, alt_selected=True))
+                new_id = res.inserted_primary_key[0]
+            return MessageRecord(new_id, session_id, owner_id, role, content, kind, client_message_id,
+                                 turn_id, False, now, dict(meta or {}), alt_group=None, alt_selected=True)
+
         async with self._engine.begin() as conn:
             if fence is not None:
                 current = (await conn.execute(
