@@ -4,6 +4,7 @@
 不用 ``from __future__ import annotations``：FastAPI 需要运行时注解（见 turns.py）。
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -16,6 +17,8 @@ from companion.service.chat.submit import SubmitService
 from companion.service.turn.queue import DRAIN_MAX_ATTEMPTS
 from companion.db.port import MessageStore, QueueStore, SessionStore
 from companion.service.turn.control import TurnControlPort
+
+log = logging.getLogger("companion.chat_api")
 
 PREFIX = "/v1"
 REGENERATE_NOTE = "请基于上面的对话重新回答最后一条消息。"
@@ -142,12 +145,27 @@ def build_router(api: ChatApi, current_user):
 
     @router.post("/sessions/{session_id}/messages", status_code=202)
     async def send_message(session_id: int, body: SendBody, user_id: str = Depends(current_user)) -> dict[str, Any]:
+        # 分两段计时：HTTP 层（认证已完成、这里是会话读取）与 submit 内部。
+        # 线上「发消息 → turn.started」有一段几秒的空白，不分开量就分不清是库慢、
+        # 是 Redis 慢，还是事件循环被谁卡住了。
+        import time as _time
+
+        from companion.api.http.routers import chat as _chat_mod
+
+        t0 = _time.perf_counter()
         ensure_open(api.drain.draining)
         owner, record = await owned_session(user_id, session_id)
+        t_read = _time.perf_counter()
         result = await api.submit.submit(
             owner_id=owner, session_id=session_id, character_id=record.role_id, text=body.text,
             client_message_id=body.client_message_id, steerable=body.steerable,
             attachments=[a.model_dump() for a in body.attachments])
+        _chat_mod.log.info(
+            "send_message timing",
+            extra={"session_id": session_id,
+                   "read_session_ms": int((t_read - t0) * 1000),
+                   "submit_ms": int((_time.perf_counter() - t_read) * 1000),
+                   "disposition": result.disposition.value if result.disposition else None})
         if result.status == "denied":
             raise HTTPException(status_code=422, detail={"code": "content_policy", "reason": result.reason})
         return {"status": result.status, "message_id": result.message_id, "turn_id": result.turn_id,
