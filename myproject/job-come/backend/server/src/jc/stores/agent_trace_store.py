@@ -77,6 +77,55 @@ class AgentTraceStore:
         await self._db.flush()
         return row
 
+    async def append_batch(
+        self,
+        items: list[dict[str, Any]],
+        *,
+        session_id: str,
+    ) -> list[AgentTrace]:
+        """Append several rows with ONE sequence allocation and one flush.
+
+        Why this exists: `append` allocates a sequence (lock the parent row + read
+        the tail) and flushes per row. Against a database 166 ms away that is three
+        round-trips per event, and a turn with tool calls emits dozens of events —
+        so the ledger alone cost seconds per turn.
+
+        Continuity is preserved by allocating `seq` ONCE for the batch and walking
+        it upward. That is the same guarantee `append` gives (the allocation is
+        under the parent row's lock), just amortised: two concurrent turns still
+        serialise on that lock, and neither can observe a gap.
+
+        The caller commits. Batching inside one transaction keeps the rows atomic
+        with respect to a reader: a chat that reloads mid-turn sees a prefix, never
+        a hole.
+        """
+        if not items:
+            return []
+        start = await self.next_seq(session_id)
+        rows: list[AgentTrace] = []
+        for offset, item in enumerate(items):
+            seq = item.get("seq")
+            row = AgentTrace(
+                id=item["trace_id_pk"],
+                session_id=session_id,
+                seq=start + offset if seq is None else seq,
+                user_id=item.get("user_id"),
+                profile_id=item.get("profile_id"),
+                job_id=item.get("job_id"),
+                mock_session_id=item.get("mock_session_id"),
+                trace_id=item.get("trace_id"),
+                llm_call_id=item.get("llm_call_id"),
+                event_type=item["event_type"],
+                ui_event=item.get("ui_event"),
+                role=item["role"],
+                content=item.get("content"),
+                payload=item.get("payload") or {},
+            )
+            self._db.add(row)
+            rows.append(row)
+        await self._db.flush()
+        return rows
+
     async def list_for_session(self, session_id: str, *, limit: int = 5000) -> list[AgentTrace]:
         stmt = (
             select(AgentTrace)

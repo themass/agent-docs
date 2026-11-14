@@ -116,10 +116,13 @@ class AuthService:
         guest_session_id: str | None,
     ) -> Actor:
         if session_id:
-            session = await self._sessions.get(session_id)
+            # One round-trip, and usually none at all: `get_and_touch` is `GETEX`
+            # (read + extend in one command) behind a short in-process cache. This
+            # used to be `get` + `touch` — 336 ms on every authenticated request
+            # against a Redis that is 167 ms away, before any business logic ran.
+            session = await self._sessions.get_and_touch(session_id)
             if session is None:
                 raise AuthError("登录状态已失效，请重新登录。", code="session_invalid")
-            await self._sessions.touch(session_id)
             return UserActor(user_id=session.user_id, session_id=session_id)
         if guest_session_id:
             guest = await self._guests.get(guest_session_id)

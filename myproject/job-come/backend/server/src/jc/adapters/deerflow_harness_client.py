@@ -887,9 +887,14 @@ class DeerFlowHarnessSessionClient(DeerFlowSessionClient):
                     yield {"type": "done"}
                     break
                 if kind == "llm_log":
-                    from jc.llm.call_log import record_call
+                    # Queued, not written: this runs inside the stream loop, so an
+                    # awaited insert would put a database round-trip between the
+                    # model's last token and the user's reply. The row lands a
+                    # moment later from the background writer, which is soon
+                    # enough for an audit table nothing reads live.
+                    from jc.llm.call_log import submit_call
 
-                    await record_call(payload)
+                    submit_call(payload)
                     continue
                 if payload.get("type") == "done":
                     saw_done = True

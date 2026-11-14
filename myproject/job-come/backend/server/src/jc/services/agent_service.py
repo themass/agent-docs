@@ -77,6 +77,16 @@ _PERSIST_EVENT_TYPES = frozenset(
     }
 )
 
+#: Events that must hit the database before they reach the client.
+#:
+#: A confirmation is something the user clicks; an error is something they read
+#: as the turn's outcome. If the stream drops between publishing and committing,
+#: the user has acted on a row that does not exist. Everything else (reasoning,
+#: tool calls, tool results, plan todos, usage, skill) is history: it can arrive a
+#: few hundred milliseconds later without anyone noticing, and batching it turns
+#: dozens of round-trips into one.
+_COMMIT_NOW_EVENT_TYPES = frozenset({"confirm", "error", "done"})
+
 _TOOL_ACTIVITY_EVENT_TYPES = frozenset(
     {
         "thinking",
@@ -472,6 +482,7 @@ class AgentService:
             events = client.stream_message(
                 session.deerflow_thread_id, agent_message, metadata=metadata,
             )
+        pending_rows: list[dict[str, Any]] = []
         async for event in events:
             event_type = event.get("type")
             if first_token_at is None and event_type in {"token", "system_prompt_rendered"}:
@@ -492,6 +503,9 @@ class AgentService:
                 # already answered true for it below so it is dropped there
                 # instead of here, keeping the "only once" rule in one place.
                 if trace_needs_system_prompt:
+                    # Seq 0, and the first row of this session's ledger: it has to
+                    # be durable before the user message joins it, so this one still
+                    # takes an immediate commit rather than waiting for the batch.
                     await self._trace.append(
                         trace_id_pk=new_id("agtr"),
                         session_id=session.id,
@@ -506,8 +520,11 @@ class AgentService:
                     )
                     trace_needs_system_prompt = False
                 if trace_user_message_pending is not None:
-                    await self._trace.append(**trace_user_message_pending)
+                    pending_rows.append(trace_user_message_pending)
                     trace_user_message_pending = None
+                if pending_rows:
+                    await self._trace.append_batch(pending_rows, session_id=session.id)
+                    pending_rows.clear()
                 await self._db.commit()
                 continue
             # The harness attaches `diagnostics` (exception type, stage, full
@@ -544,12 +561,19 @@ class AgentService:
                         name=event.get("name"),
                         confirm_id=event.get("confirm_id"),
                     )
-            await self._append_trace_for_stream_event(
+            row = self._trace_row_for_stream_event(
                 session, actor, ui_context, event, diagnostics=diagnostics
             )
-            if event_type in _PERSIST_EVENT_TYPES:
-                # Persist before publishing: a disconnect must not erase a visible
-                # confirmation/error, nor hold a DB transaction until the next token.
+            if row is not None:
+                pending_rows.append(row)
+            # Events the user can act on are committed before they are published:
+            # a disconnect must not erase a visible confirmation or error. The rest
+            # accumulate and go in one batch at the end of the turn — each commit
+            # is a round-trip to a database 166 ms away, and a turn emits dozens of
+            # reasoning/tool events that nobody is waiting on individually.
+            if event_type in _COMMIT_NOW_EVENT_TYPES and pending_rows:
+                await self._trace.append_batch(pending_rows, session_id=session.id)
+                pending_rows.clear()
                 await self._db.commit()
             # Internal full-size audit payloads belong only to jc_agent_trace,
             # not the UI wire projection (nor duplicated in message payload_json).
@@ -566,28 +590,36 @@ class AgentService:
         # errored before the first raw event, or ran entirely from the model's
         # own cache path) must not leave `user_message` stranded unwritten.
         if trace_user_message_pending is not None:
-            await self._trace.append(**trace_user_message_pending)
+            pending_rows.append(trace_user_message_pending)
             trace_user_message_pending = None
 
         final_content = _finalize_assistant_content(
             assistant_parts, had_tool_activity and not had_error,
         )
         if final_content:
-            await self._trace.lock_session(session.id)
-            await self._trace.append(
-                trace_id_pk=new_id("agtr"),
-                session_id=session.id,
-                event_type="assistant_message",
-                ui_event="message",
-                role="assistant",
-                content=final_content,
-                payload={"text": final_content},
-                user_id=actor.user_id,
-                profile_id=session.profile_id,
-                job_id=session.job_id,
-                mock_session_id=ui_context.mock_session_id if ui_context else None,
-                trace_id=session.trace_id,
+            pending_rows.append(
+                {
+                    "trace_id_pk": new_id("agtr"),
+                    "session_id": session.id,
+                    "event_type": "assistant_message",
+                    "ui_event": "message",
+                    "role": "assistant",
+                    "content": final_content,
+                    "payload": {"text": final_content},
+                    "user_id": actor.user_id,
+                    "profile_id": session.profile_id,
+                    "job_id": session.job_id,
+                    "mock_session_id": ui_context.mock_session_id if ui_context else None,
+                    "trace_id": session.trace_id,
+                }
             )
+        # Everything the turn accumulated goes in one transaction, including the
+        # final assistant message. This has to happen BEFORE `done` is yielded: the
+        # UI reloads history as soon as it sees that event, and a reader that raced
+        # the flush would show a turn with a hole where its reasoning used to be.
+        if pending_rows:
+            await self._trace.append_batch(pending_rows, session_id=session.id)
+            pending_rows.clear()
         await self._db.commit()
         turn_ended = asyncio.get_running_loop().time()
         if first_token_at is not None:
@@ -728,15 +760,15 @@ class AgentService:
         "error": "error",
     }
 
-    async def _append_trace_for_stream_event(
+    def _trace_row_for_stream_event(
         self,
         session: AgentSession,
         actor: UserActor,
         ui_context: AgentUiContext | None,
         event: dict[str, Any],
         diagnostics: dict[str, Any] | None = None,
-    ) -> None:
-        """Write one stream event as exactly one ledger row.
+    ) -> dict[str, Any] | None:
+        """Build the ledger row for one stream event, without writing it.
 
         This replaces the pair of writers that used to exist — one for the UI
         projection, one for the audit ledger, both reading the same event — so
@@ -747,7 +779,7 @@ class AgentService:
         stream_type = str(event.get("type") or "event")
         ledger_type = self._TRACE_EVENT_MAP.get(stream_type)
         if ledger_type is None:
-            return
+            return None
 
         ui_event = self._UI_EVENT_MAP.get(stream_type)
         payload: dict[str, Any]
@@ -792,20 +824,20 @@ class AgentService:
             raw = event.get("content")
             content = raw if isinstance(raw, str) else None
 
-        await self._trace.append(
-            trace_id_pk=new_id("agtr"),
-            session_id=session.id,
-            event_type=ledger_type,
-            ui_event=ui_event,
-            role="tool" if ledger_type == "tool_result" else "assistant",
-            content=content,
-            payload=payload,
-            user_id=actor.user_id,
-            profile_id=session.profile_id,
-            job_id=session.job_id,
-            mock_session_id=ui_context.mock_session_id if ui_context else None,
-            trace_id=session.trace_id,
-        )
+        return {
+            "trace_id_pk": new_id("agtr"),
+            "session_id": session.id,
+            "event_type": ledger_type,
+            "ui_event": ui_event,
+            "role": "tool" if ledger_type == "tool_result" else "assistant",
+            "content": content,
+            "payload": payload,
+            "user_id": actor.user_id,
+            "profile_id": session.profile_id,
+            "job_id": session.job_id,
+            "mock_session_id": ui_context.mock_session_id if ui_context else None,
+            "trace_id": session.trace_id,
+        }
 
     @staticmethod
     def _to_message_record(row: AgentTrace) -> AgentMessageRecord:

@@ -127,6 +127,18 @@ class Settings(BaseSettings):
     #: the `application` label already used on every series, so one setting does
     #: not have to be kept in two places.
     jc_metrics_service_name: str = Field("job-come", alias="JC_METRICS_SERVICE_NAME")
+    #: How long one worker may answer from its in-memory session cache before
+    #: asking Redis again. Bounds how long a logout can fail to take effect in a
+    #: worker that missed the revocation broadcast; 60s is the backstop, not the
+    #: expected window. 0 disables caching (one Redis round-trip per request).
+    jc_session_cache_seconds: float = Field(60.0, ge=0, alias="JC_SESSION_CACHE_SECONDS")
+    jc_session_cache_max_entries: int = Field(
+        10_000, ge=0, alias="JC_SESSION_CACHE_MAX_ENTRIES"
+    )
+    #: Bounded queue between a finished model call and its audit row. Writes happen
+    #: off the request path; when the queue is full the row is dropped rather than
+    #: delaying the reply. 2000 covers a burst well past this deployment's traffic.
+    jc_llm_log_queue_max: int = Field(2000, ge=1, alias="JC_LLM_LOG_QUEUE_MAX")
     #: Directory prometheus_client shares counters through when the backend runs
     #: more than one worker. Empty = per-process counters, which under a
     #: `--workers 2` service means a scrape reports exactly one worker's numbers

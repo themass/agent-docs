@@ -19,6 +19,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy.exc import SQLAlchemyError
 
 from jc.api.auth_router import register_exception_handlers
+from jc.redis_client import get_session_store
 from jc.api.openapi import OPENAPI_TAGS, attach_openapi
 from jc.api.profile_router import register_profile_exception_handlers
 from jc.api.router import api_router
@@ -94,9 +95,24 @@ async def lifespan(_app: FastAPI):
 
         prewarm_task = asyncio.create_task(_prewarm())
         dispatchers.append(prewarm_task)
+    # Listen for session revocations so a logout in one worker takes effect in
+    # this one immediately, not after the local cache TTL. Without a listener the
+    # cache would keep a logged-out session valid for up to
+    # JC_SESSION_CACHE_SECONDS — that is a security window, not a latency detail.
+    session_store = get_session_store()
+    await session_store.start()
+
+    # The audit writer: model-call rows are queued and written here, off the
+    # request path. Started before any traffic so the first turn's rows land.
+    from jc.llm.call_log import start_audit_writer, stop_audit_writer
+
+    await start_audit_writer()
+
     try:
         yield
     finally:
+        await stop_audit_writer()
+        await session_store.stop()
         for dispatcher in dispatchers:
             dispatcher.cancel()
         for dispatcher in dispatchers:

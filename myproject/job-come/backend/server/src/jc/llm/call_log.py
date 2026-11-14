@@ -19,6 +19,7 @@ error page, so every public entry point swallows its own failures into a warning
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass, field
 from typing import Any
@@ -363,3 +364,96 @@ def _int(value: Any) -> int | None:
     if isinstance(value, float):
         return int(value)
     return None
+
+
+# --------------------------------------------------------------------------
+# Non-blocking writes
+# --------------------------------------------------------------------------
+# `record_call` opens a session and commits. Called inline from the harness's
+# stream loop that is one database round-trip (166 ms here) between the model
+# finishing and the user seeing the reply — for a row nobody waits on. This queue
+# moves it off the critical path.
+#
+# Deliberately bounded, and it drops when full. An audit table that grows without
+# limit under load becomes the outage it was supposed to explain; losing an audit
+# row beats stalling a turn.
+
+_audit_queue: asyncio.Queue[CallRecord] | None = None
+_audit_worker: asyncio.Task[None] | None = None
+_dropped = 0
+
+
+def _queue() -> asyncio.Queue[CallRecord]:
+    global _audit_queue
+    if _audit_queue is None:
+        _audit_queue = asyncio.Queue(maxsize=settings.jc_llm_log_queue_max)
+    return _audit_queue
+
+
+async def _drain() -> None:
+    """Write queued records until cancelled, one at a time.
+
+    Serial on purpose: these writes are not latency-sensitive, and serialising
+    them keeps the connection pool free for requests that are.
+    """
+    queue = _queue()
+    while True:
+        try:
+            record = await queue.get()
+        except asyncio.CancelledError:
+            raise
+        try:
+            await record_call(record)
+        except Exception:  # noqa: BLE001 - record_call already logs; never die
+            logger.warning("LLM audit drain failed", exc_info=True)
+        finally:
+            queue.task_done()
+
+
+def submit_call(record: CallRecord) -> None:
+    """Queue one finished call for writing. Returns immediately, never raises.
+
+    The message the user is waiting on does not depend on this row existing, so a
+    full queue drops it rather than delaying the stream.
+    """
+    global _dropped
+    if not settings.jc_llm_log_enabled:
+        return
+    queue = _queue()
+    try:
+        queue.put_nowait(record)
+    except asyncio.QueueFull:
+        _dropped += 1
+        # Logged once per hundred rather than per drop: a saturated queue would
+        # otherwise replace one latency problem with a log flood.
+        if _dropped % 100 == 1:
+            logger.warning(
+                "LLM audit queue full; dropped %d rows so far (see JC_LLM_LOG_QUEUE_MAX)",
+                _dropped,
+            )
+
+
+async def start_audit_writer() -> asyncio.Task[None]:
+    """Begin draining. Call once at startup; idempotent."""
+    global _audit_worker
+    if _audit_worker is None or _audit_worker.done():
+        _audit_worker = asyncio.create_task(_drain())
+    return _audit_worker
+
+
+async def stop_audit_writer() -> None:
+    """Flush what is queued, then stop. Called on shutdown so no row is lost."""
+    global _audit_worker
+    if _audit_worker is None:
+        return
+    queue = _queue()
+    try:
+        await asyncio.wait_for(queue.join(), timeout=5.0)
+    except (TimeoutError, asyncio.TimeoutError):
+        logger.warning("LLM audit queue not fully drained at shutdown (%d left)", queue.qsize())
+    _audit_worker.cancel()
+    try:
+        await _audit_worker
+    except (asyncio.CancelledError, Exception):  # noqa: BLE001
+        pass
+    _audit_worker = None
