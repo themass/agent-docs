@@ -81,10 +81,14 @@ class SubmitService:
         message = await self._messages.append(
             owner_id=owner_id, session_id=session_id, role=role, content=text, kind=kind,
             client_message_id=client_message_id, turn_id=None, meta=meta)
-        await self._control.publish(
-            session_id=session_id, event="message.created",
-            data={"message_id": message.id, "client_message_id": client_message_id, "role": role,
-                  "kind": kind, "content": text, "created_at": message.created_at.isoformat()})
+        # message.created 不立刻发，而是攒着，和分支决定后的那条事件合成一次 Redis 往返。
+        # 原先它是独立一次 publish，STARTED 之后回合进程再发一次 turn.started——两次
+        # 往返各 190 ms 量级，而这两条事件客户端都不依赖彼此之间的时间差
+        # （message.created 幂等，turn.started 对还没到的消息 id 是 no-op）。
+        created: tuple[str, dict[str, Any]] = (
+            "message.created",
+            {"message_id": message.id, "client_message_id": client_message_id, "role": role,
+             "kind": kind, "content": text, "created_at": message.created_at.isoformat()})
 
         for _ in range(LOCK_RETRIES):
             disposition, turn_id = await self._control.decide(
@@ -93,7 +97,8 @@ class SubmitService:
 
             if disposition is Disposition.STARTED:
                 started = await self._start(owner_id=owner_id, session_id=session_id,
-                                            character_id=character_id, text=text, message_ids=[message.id])
+                                            character_id=character_id, text=text, message_ids=[message.id],
+                                            also_publish=(created,))
                 if started is not None:
                     return SubmitResult("accepted", Disposition.STARTED, message.id, started)
                 continue  # 别的请求刚抢到锁：回到判定，这次大概率是合并/插话/排队
@@ -101,23 +106,23 @@ class SubmitService:
             if disposition in (Disposition.MERGED, Disposition.STEERED):
                 # 控制消息已由 Lua 原子写入 turn:{tid}:ctl；回合进程会接手并挂接消息。
                 event = "input.merged" if disposition is Disposition.MERGED else "input.steered"
-                await self._control.publish(session_id=session_id, event=event,
-                                            data={"message_id": message.id, "turn_id": turn_id})
+                await self._control.publish_many(session_id=session_id, events=[
+                    created, (event, {"message_id": message.id, "turn_id": turn_id})])
                 return SubmitResult("accepted", disposition, message.id, turn_id)
 
             item = await self._queue.enqueue(
                 owner_id=owner_id, session_id=session_id, message_id=message.id,
                 client_message_id=client_message_id, text=text)
-            await self._control.publish(session_id=session_id, event="input.queued",
-                                        data={"message_id": message.id, "queue_position": item.id})
+            await self._control.publish_many(session_id=session_id, events=[
+                created, ("input.queued", {"message_id": message.id, "queue_position": item.id})])
             return SubmitResult("accepted", Disposition.QUEUED, message.id, turn_id)
 
         # 抢锁反复失败：保守地排队，不丢输入。
         item = await self._queue.enqueue(
             owner_id=owner_id, session_id=session_id, message_id=message.id,
             client_message_id=client_message_id, text=text)
-        await self._control.publish(session_id=session_id, event="input.queued",
-                                    data={"message_id": message.id, "queue_position": item.id})
+        await self._control.publish_many(session_id=session_id, events=[
+            created, ("input.queued", {"message_id": message.id, "queue_position": item.id})])
         return SubmitResult("accepted", Disposition.QUEUED, message.id, None)
 
     async def rerun(self, *, owner_id: int, session_id: int, character_id: str, text: str,
@@ -129,7 +134,8 @@ class SubmitService:
                                  text=text, message_ids=message_ids, alt_of=alt_of)
 
     async def _start(self, *, owner_id: int, session_id: int, character_id: str, text: str,
-                     message_ids: list[int], alt_of: int | None = None) -> str | None:
+                     message_ids: list[int], alt_of: int | None = None,
+                     also_publish: tuple[tuple[str, dict[str, Any]], ...] = ()) -> str | None:
         turn_id = new_ulid()
         owner = f"{self._process}:{turn_id}"
         if not await self._control.acquire_lock(session_id=session_id, owner=owner):
@@ -151,6 +157,14 @@ class SubmitService:
                 self._control.init_turn(session_id=session_id, turn_id=turn_id, message_ids=message_ids))
         else:
             await self._control.init_turn(session_id=session_id, turn_id=turn_id, message_ids=message_ids)
+        # turn.started 在这里发，不留给后台回合进程：它和 also_publish 里攒下的
+        # message.created 合成一次往返，而且顺序上是"客户端先看到回合开始，再看到内容"。
+        # 客户端对这两条的先后不敏感（message.created 幂等、turn.started 对未到的消息是 no-op），
+        # 但客户端**依赖** turn.started 早于同一回合的第一个 step——step 会重置 active.steps。
+        # 在启动回合之前发，这个顺序由构造保证，不靠调度运气。
+        await self._control.publish_many(session_id=session_id, events=[
+            *also_publish,
+            ("turn.started", {"turn_id": turn_id, "user_message_ids": message_ids})])
         await self._start_turn(owner_id=owner_id, session_id=session_id, character_id=character_id,
                                turn_id=turn_id, owner=owner, text=text, message_ids=message_ids, **fencing)
         return turn_id

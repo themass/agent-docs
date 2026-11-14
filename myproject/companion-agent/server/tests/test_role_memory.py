@@ -78,12 +78,12 @@ async def test_tools_use_role_space():
     register_builtin_tools(registry, memory=memory, timeline=InMemoryTimeline())
     ctx = lambda role: SimpleNamespace(owner_id=7, character_id=role, session_id=1, confirmation_id=None)  # noqa: E731
     remember = registry.get("remember_fact").handler
-    recall = registry.get("recall_facts").handler
-    from companion.service.tools_impl.builtin import RecallFactsParams, RememberFactParams
+    recall = registry.get("recall_memory").handler
+    from companion.service.tools_impl.builtin import RecallMemoryParams, RememberFactParams
 
     await remember(ctx("linche"), RememberFactParams(content="下周去杭州"))
-    assert [i["content"] for i in await recall(ctx("linche"), RecallFactsParams(query="杭州"))] == ["下周去杭州"]
-    assert await recall(ctx("sudai"), RecallFactsParams(query="杭州")) == []
+    assert [i["content"] for i in (await recall(ctx("linche"), RecallMemoryParams(query="杭州")))["facts"]] == ["下周去杭州"]
+    assert (await recall(ctx("sudai"), RecallMemoryParams(query="杭州")))["facts"] == []
 
 
 @pytest.fixture

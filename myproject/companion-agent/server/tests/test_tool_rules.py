@@ -143,21 +143,21 @@ def turn(allowed, owner=7):
 
 async def test_tool_outside_whitelist_is_not_executed():
     env = build()
-    outcome = await env.runtime.invoke(turn({"recall_facts"}), "remember_fact", {"content": "我喜欢喝茶"})
+    outcome = await env.runtime.invoke(turn({"recall_memory"}), "remember_fact", {"content": "我喜欢喝茶"})
     assert outcome.status == "not_available"
     assert env.memory.add.await_count == 0
 
 
 async def test_invalid_arguments_are_reported_without_echoing_input():
     env = build()
-    outcome = await env.runtime.invoke(turn({"recall_facts"}), "recall_facts", {"query": "茶", "limit": 99})
+    outcome = await env.runtime.invoke(turn({"recall_memory"}), "recall_memory", {"query": "茶", "limit": 99})
     assert outcome.status == "invalid_args"
     assert "茶" not in outcome.model_text
 
 
 async def test_identity_comes_from_context_not_arguments():
     env = build()
-    outcome = await env.runtime.invoke(turn({"recall_facts"}, owner=7), "recall_facts",
+    outcome = await env.runtime.invoke(turn({"recall_memory"}, owner=7), "recall_memory",
                                        {"query": "茶", "user_id": "99"})
     assert outcome.status == "executed"
     # 身份来自上下文；记忆按角色隔离，所以是「用户 + 当前角色」的记忆主体，而不是参数里的 99。
@@ -202,8 +202,8 @@ async def test_expired_confirmation_is_not_executed():
 
 async def test_every_call_is_audited_with_fingerprint():
     env = build()
-    await env.runtime.invoke(turn({"recall_facts"}), "recall_facts", {"query": "茶"})
-    await env.runtime.invoke(turn({"recall_facts"}), "remember_fact", {"content": "我喜欢喝茶"})
-    assert [(a.tool, a.status) for a in env.audit.rows] == [("recall_facts", "executed"),
+    await env.runtime.invoke(turn({"recall_memory"}), "recall_memory", {"query": "茶"})
+    await env.runtime.invoke(turn({"recall_memory"}), "remember_fact", {"content": "我喜欢喝茶"})
+    assert [(a.tool, a.status) for a in env.audit.rows] == [("recall_memory", "executed"),
                                                              ("remember_fact", "not_available")]
     assert all(len(a.args_fingerprint) == 16 for a in env.audit.rows)

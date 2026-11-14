@@ -172,7 +172,7 @@ def test_tool_call_audit_trim_removes_only_old_rows(migrated):
         engine = await _engine(migrated)
         try:
             store = SqlToolCallStore(engine)
-            await store.append(ToolCallRecord(turn_id="01DDDDDDDDDDDDDDDDDDDDDDDD", owner_id=9005, tool="recall_facts",
+            await store.append(ToolCallRecord(turn_id="01DDDDDDDDDDDDDDDDDDDDDDDD", owner_id=9005, tool="recall_memory",
                                               permission="read", args_fingerprint="0123456789abcdef",
                                               status="executed", latency_ms=5, result_chars=10))
             removed = await store.trim_before(cutoff=datetime(2000, 1, 1))

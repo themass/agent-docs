@@ -94,15 +94,15 @@ async def test_stream_yields_text_deltas_in_order():
 
 
 async def test_tool_call_chunks_are_not_text_and_start_once():
-    graph = StubGraph([tool_start("c1", "recall_facts"), tool_start("c1", "recall_facts"), text("好")])
+    graph = StubGraph([tool_start("c1", "recall_memory"), tool_start("c1", "recall_memory"), text("好")])
     events = [e async for e in DeerFlowBrain(graph).stream(messages=[], context={})]
-    assert events == [ToolStarted(call_id="c1", name="recall_facts"), TextDelta("好")]
+    assert events == [ToolStarted(call_id="c1", name="recall_memory"), TextDelta("好")]
 
 
 async def test_tool_result_becomes_tool_finished():
-    graph = StubGraph([tool_result("c1", "recall_facts", "喜欢茶")])
+    graph = StubGraph([tool_result("c1", "recall_memory", "喜欢茶")])
     events = [e async for e in DeerFlowBrain(graph).stream(messages=[], context={})]
-    assert events == [ToolFinished(call_id="c1", name="recall_facts", content="喜欢茶")]
+    assert events == [ToolFinished(call_id="c1", name="recall_memory", content="喜欢茶")]
 
 
 async def test_start_turn_passes_identity_and_prompt_in_context():

@@ -173,8 +173,8 @@ class TurnRunner:
         try:
             await self._messages.attach_turn(owner_id=inp.owner_id, session_id=inp.session_id,
                                              message_ids=inp.message_ids, turn_id=inp.turn_id)
-            await self._control.publish(session_id=inp.session_id, event="turn.started",
-                                        data={"turn_id": inp.turn_id, "user_message_ids": inp.message_ids})
+            # turn.started 不在这里发：已在 SubmitService._start() 里、启动本任务之前发出，
+            # 并与 message.created 合成了一次 Redis 往返。这里再发一次就是重复事件。
             while True:
                 outcome = await self._attempt(inp, inputs, inbox, state)
                 if outcome != "merged":

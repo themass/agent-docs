@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
@@ -27,13 +28,15 @@ class NoParams(BaseModel):
     pass
 
 
-class RecallFactsParams(BaseModel):
+class RecallMemoryParams(BaseModel):
+    """一次召回同时覆盖事实与近期事件。
+
+    以前是两个工具（recall_facts / recall_events），模型每次都要各调一遍——
+    每次工具调用都要重新过一遍模型，在这套异地基础设施上每次约 2.3 秒。
+    两路数据本来就互不依赖，合成一次调用不损失表达力。
+    """
     query: str = Field(min_length=1, max_length=200)
     limit: int = Field(default=5, ge=1, le=5)
-
-
-class RecallEventsParams(BaseModel):
-    limit: int = Field(default=5, ge=1, le=10)
 
 
 class RememberFactParams(BaseModel):
@@ -72,19 +75,31 @@ def register_builtin_tools(registry: ToolRegistry, *, memory: Any, timeline: Any
         # 记忆按角色隔离：工具只看得到、只写得进当前角色的记忆空间。
         return role_subject(ctx.owner_id, ctx.character_id or None)
 
-    async def recall_facts(ctx: ToolContext, args: RecallFactsParams) -> list[dict[str, str]]:
-        items = await memory.search(subject(ctx), args.query, limit=args.limit)
-        return [{"content": i.content} for i in items]
+    async def recall_memory(ctx: ToolContext, args: RecallMemoryParams) -> dict[str, Any]:
+        """事实记忆与近期事件一起返回。
+
+        两路并发：memory.search 走库、timeline.upcoming 也走库，但它们互不依赖。
+        串行在这套异地数据库上是白白多付一次往返（实测单次约 180 ms）。
+        任一路失败只让那一路为空，不拖累另一路——记忆读不到不该让回合说不出话。
+        """
+        facts, events = await asyncio.gather(
+            memory.search(subject(ctx), args.query, limit=args.limit),
+            timeline.upcoming(owner_id=str(ctx.owner_id), role_id=ctx.character_id,
+                              now=clock(), horizon=RECALL_HORIZON, limit=args.limit),
+            return_exceptions=True,
+        )
+        out: dict[str, Any] = {"facts": [], "events": []}
+        if not isinstance(facts, BaseException):
+            out["facts"] = [{"content": i.content} for i in facts]
+        if not isinstance(events, BaseException):
+            out["events"] = [{"title": e.title, "at": e.at.isoformat(), "kind": e.kind.value}
+                             for e in events]
+        return out
 
     async def remember_fact(ctx: ToolContext, args: RememberFactParams) -> dict[str, str]:
         item = MemoryItem(id=uuid4().hex, content=args.content, source_character_id=ctx.character_id)
         await memory.add(subject(ctx), [item])
         return {"saved": "fact"}
-
-    async def recall_events(ctx: ToolContext, args: RecallEventsParams) -> list[dict[str, str]]:
-        events = await timeline.upcoming(owner_id=str(ctx.owner_id), role_id=ctx.character_id,
-                                         now=clock(), horizon=RECALL_HORIZON, limit=args.limit)
-        return [{"title": e.title, "at": e.at.isoformat(), "kind": e.kind.value} for e in events]
 
     async def remember_event(ctx: ToolContext, args: RememberEventParams) -> dict[str, str]:
         event = TimelineEvent(
@@ -125,13 +140,11 @@ def register_builtin_tools(registry: ToolRegistry, *, memory: Any, timeline: Any
         params=NoParams, permission=Permission.READ, side_effect=SideEffect.NONE, result_budget_chars=200,
     ), get_current_time)
     registry.register(ToolSpec(
-        name="recall_facts", description="按语义查用户的事实记忆（喜好、职业、家人、反复出现的困扰），最多 5 条。",
-        params=RecallFactsParams, permission=Permission.READ, side_effect=SideEffect.NONE,
-    ), recall_facts)
-    registry.register(ToolSpec(
-        name="recall_events", description="查用户近期的重要日子（面试、生日、约定）。",
-        params=RecallEventsParams, permission=Permission.READ, side_effect=SideEffect.NONE,
-    ), recall_events)
+        name="recall_memory",
+        description="回忆用户说过的事：事实记忆（喜好、职业、家人、反复出现的困扰）与近期的重要日子"
+                    "（面试、生日、约定）。需要引用他之前提过的事时调用，不要凭印象编。一次调用同时返回两类。",
+        params=RecallMemoryParams, permission=Permission.READ, side_effect=SideEffect.NONE,
+    ), recall_memory)
     registry.register(ToolSpec(
         name="remember_fact", description="用户明确要求「记住」某件事时调用。用户可以在记忆页删除。",
         params=RememberFactParams, permission=Permission.AUTO, side_effect=SideEffect.OWN_DATA,

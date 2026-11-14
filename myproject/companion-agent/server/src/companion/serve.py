@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import signal
 
@@ -87,7 +88,25 @@ def _placeholder_app():
     return FastAPI()
 
 
+def _configure_logging() -> None:
+    """让应用自己的日志真的落盘。
+
+    这个进程以前只给 uvicorn 传了 ``log_config=None``、自己也从不调 basicConfig。
+    Python 在没有 handler 时只把 WARNING 及以上经 lastResort 写到 stderr，于是
+    ``log.info("recall", ...)`` 这类结构化日志**从来没进过日志文件**——排查线上问题时
+    看到的只有裸的 WARNING，INFO 一条都没有。
+
+    worker.py 与 worker_jobs.py 一直都有这一步，漏的只有 api。
+    """
+    logging.basicConfig(
+        level=os.environ.get("COMPANION_LOG_LEVEL", "INFO"),
+        # 与 uvicorn 默认风格对齐，避免同一个文件里两种格式混杂。
+        format="%(asctime)s %(levelname)-7s %(name)s %(message)s",
+    )
+
+
 def main() -> None:
+    _configure_logging()
     host = os.environ.get("COMPANION_HOST", "127.0.0.1")
     port = int(os.environ.get("COMPANION_PORT", "8081"))
     LoopBuiltServer(host, port).run()

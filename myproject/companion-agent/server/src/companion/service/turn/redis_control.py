@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from typing import Any
 
 from companion.service.turn.queue import Disposition, TurnPhase
@@ -222,6 +223,27 @@ class RedisTurnControl:
         pipe.expire(events_key(session_id), 30 * 60)
         entry_id, _ = await pipe.execute()
         return _s(entry_id)
+
+    async def publish_many(self, *, session_id: int, events: Sequence[tuple[str, dict[str, Any]]]) -> list[str]:
+        """一次往返发多条事件。
+
+        每条仍是**独立的 stream entry、各自递增的 id**——不能折成一条：客户端的去重用
+        ``<=`` 丢弃（`AgentChatState.kt` 的 ``isDuplicate``），合并成一条之后第二条会被
+        永久吞掉，断线续传也找不回来（续传从 ``Last-Event-ID`` 严格之后开始）。
+
+        pipeline 里按顺序 XADD，所以顺序与逐条调用等价；只把往返次数从 N 降到 1。
+        """
+        if not events:
+            return []
+        pipe = self._r.pipeline(transaction=False)
+        for event, data in events:
+            pipe.xadd(events_key(session_id),
+                      {"event": event, "data": json.dumps(data, ensure_ascii=False)},
+                      maxlen=EVENTS_MAXLEN, approximate=True)
+        pipe.expire(events_key(session_id), 30 * 60)
+        results = await pipe.execute()
+        # 最后一条结果是 expire() 的，前面都是各 XADD 的 id。
+        return [_s(entry_id) for entry_id in results[:-1]]
 
     async def publish_and_append(self, *, session_id: int, turn_id: str, event: str,
                                  data: dict[str, Any], delta: str) -> str:
