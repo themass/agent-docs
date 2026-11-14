@@ -162,9 +162,21 @@ def sharing_across_processes() -> bool:
 def mark_worker_exit() -> None:
     """Tell prometheus_client this pid is gone. Call from a worker's shutdown.
 
-    Without it a dead worker's mmap file stays behind and its counters keep
-    contributing to every future sum — totals inflate on each restart and never
-    come back down. Cheap, and the alternative is a dashboard that slowly lies.
+    Scope, stated precisely because the previous version of this docstring
+    overclaimed it and a test caught the difference:
+
+    - **Live gauges are cleaned up.** `agent_turns_in_flight` is declared with
+      `multiprocess_mode="livesum"`, so this call removes its mmap file and the
+      dead worker stops contributing. That is the metric where a stale value is
+      actively misleading (a phantom "turn in flight" that never ends).
+    - **Counters and histograms are NOT touched.** prometheus_client's
+      `mark_process_dead` only deletes `gauge_live*_{pid}.db`, and that is
+      upstream's intent: a counter's final value is real work that happened, so
+      dropping it would lose data. Their files are cleaned instead by wiping the
+      mmap directory at start — see `scripts/backend.sh`.
+
+    So this is not a full reset, and it is not meant to be. A caller that needs
+    totals to start from zero restarts against a clean directory.
     """
     if not MULTIPROCESS_MODE:
         return
@@ -279,11 +291,18 @@ _DEFINITIONS: dict[str, tuple[Any, str, str, tuple[str, ...], dict[str, Any]]] =
         ("application", "env", "target", "status", "error_type"),
         {},
     ),
+    # `livesum`, not the default `all`. This gauge means "how many turns are
+    # running RIGHT NOW", so a worker that no longer exists must stop
+    # contributing — which is exactly what `livesum` does and `all` refuses to.
+    # With `all`, `mark_worker_exit()` had no effect here: prometheus_client's
+    # `mark_process_dead` only removes `gauge_live*_{pid}.db`, so a crashed
+    # worker's last value stayed in every future scrape as a phantom "stuck
+    # turn" — the precise alarm this metric exists to raise, raised falsely.
     "INFLIGHT": (
         Gauge, "agent_turns_in_flight",
         "Turns currently running; a number that only grows means something is stuck.",
         ("application", "env"),
-        {},
+        {"multiprocess_mode": "livesum"},
     ),
 }
 

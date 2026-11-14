@@ -366,6 +366,54 @@ def test_mark_worker_exit_does_not_drop_histogram_samples(tmp_path):
     assert float(out.strip()) == 9.0, out
 
 
+def test_mark_worker_exit_does_clear_the_inflight_gauge(tmp_path):
+    """The one metric that MUST reset when a worker dies.
+
+    `agent_turns_in_flight` answers "is a turn stuck right now". If a worker exits
+    while turns are in flight, its value must stop contributing — otherwise the
+    gauge reports a phantom stuck turn forever, which is the exact alarm it exists
+    to raise.
+
+    That only happens with `multiprocess_mode="livesum"`: prometheus_client's
+    `mark_process_dead` deletes `gauge_live*_{pid}.db` and nothing else, so the
+    default `all` mode leaves the dead worker's file in every future scrape.
+
+    The witness of that difference is the second process below calling
+    `mark_worker_exit()` before it exits: with `all` the total stays 3, with
+    `livesum` it drops to 1.
+    """
+    d = str(tmp_path)
+
+    # Worker A: three turns in flight, then it exits without decrementing (the
+    # crash case) but does call mark_worker_exit on its way out.
+    _run(
+        "from agentkit.observability import configure, inflight_turn, mark_worker_exit\n"
+        "configure(application='exit', environment='test')\n"
+        "for _ in range(3):\n"
+        "    s = inflight_turn(); s.__enter__()\n"
+        "mark_worker_exit()\n"
+        "print('A done')\n",
+        multiproc_dir=d,
+    )
+    # Worker B: one turn in flight, still alive.
+    _run(
+        "from agentkit.observability import configure, inflight_turn\n"
+        "configure(application='exit', environment='test')\n"
+        "s = inflight_turn(); s.__enter__()\n"
+        "print('B done')\n",
+        multiproc_dir=d,
+    )
+    out = _run(
+        "from agentkit.observability import configure, snapshot\n"
+        "configure(application='exit', environment='test')\n"
+        "fam = snapshot()['families']['agent_turns_in_flight']\n"
+        "print(sum(float(s['value'] or 0) for s in fam['series']))\n",
+        multiproc_dir=d,
+    )
+    # 1, not 4: A's file was removed because the gauge is livesum.
+    assert float(out.strip()) == 1.0, out
+
+
 def test_stale_mmap_files_from_sigkill_still_contribute(tmp_path):
     """Document current behaviour: a killed worker's files inflate the sum until cleaned.
 

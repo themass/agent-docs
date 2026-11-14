@@ -465,172 +465,184 @@ class AgentService:
         turn_role = session.role_id or "unknown"
         _turn_span = inflight_turn()
         _turn_span.__enter__()
-
-        if interview_turn:
-            flow_reply = await run_mock_turn(
-                self._db,
-                user_id=actor.user_id,
-                profile_id=session.profile_id,
-                mock_session_id=mock_session_id,
-                text=candidate_words,
-                answered=answered_on_table is not None,
-            )
-            if flow_reply is None:
-                raise AppError("这场模拟面试不存在或已不可用。", code="mock_session_missing")
-            events = _reply_events(flow_reply)
-        else:
-            events = client.stream_message(
-                session.deerflow_thread_id, agent_message, metadata=metadata,
-            )
+        # Declared before the try: the `finally` below must be able to flush it
+        # even when the exception is raised before the stream loop starts.
         pending_rows: list[dict[str, Any]] = []
-        async for event in events:
-            event_type = event.get("type")
-            if first_token_at is None and event_type in {"token", "system_prompt_rendered"}:
-                first_token_at = asyncio.get_running_loop().time()
-                record_agent_phase(phase="ttft", duration=first_token_at - turn_started)
-            if event_type == "done":
-                # The UI may drain its follow-up queue immediately on done. Hold
-                # that signal until the final assistant/history transaction commits.
-                terminal_done = event
-                continue
-            if event_type == "system_prompt_rendered":
-                # Internal-only: `_stream_producer` emits this once per run from
-                # the worker thread, never a real DeerFlow event, so it must not
-                # reach the SSE client (`continue`, not `yield`). Written at
-                # seq 0 only the first time this session sees it; a later turn
-                # on the same session still gets this event (the embedded
-                # client always renders a prompt), but `has_system_prompt`
-                # already answered true for it below so it is dropped there
-                # instead of here, keeping the "only once" rule in one place.
-                if trace_needs_system_prompt:
-                    # Seq 0, and the first row of this session's ledger: it has to
-                    # be durable before the user message joins it, so this one still
-                    # takes an immediate commit rather than waiting for the batch.
-                    await self._trace.append(
-                        trace_id_pk=new_id("agtr"),
-                        session_id=session.id,
-                        event_type="system_prompt",
-                        role="system",
-                        payload={"text": event.get("content") or ""},
-                        user_id=actor.user_id,
-                        profile_id=session.profile_id,
-                        job_id=session.job_id,
-                        mock_session_id=ui_context.mock_session_id if ui_context else None,
-                        trace_id=session.trace_id,
+        try:
+            if interview_turn:
+                flow_reply = await run_mock_turn(
+                    self._db,
+                    user_id=actor.user_id,
+                    profile_id=session.profile_id,
+                    mock_session_id=mock_session_id,
+                    text=candidate_words,
+                    answered=answered_on_table is not None,
+                )
+                if flow_reply is None:
+                    raise AppError("这场模拟面试不存在或已不可用。", code="mock_session_missing")
+                events = _reply_events(flow_reply)
+            else:
+                events = client.stream_message(
+                    session.deerflow_thread_id, agent_message, metadata=metadata,
+                )
+            async for event in events:
+                event_type = event.get("type")
+                if first_token_at is None and event_type in {"token", "system_prompt_rendered"}:
+                    first_token_at = asyncio.get_running_loop().time()
+                    record_agent_phase(phase="ttft", duration=first_token_at - turn_started)
+                if event_type == "done":
+                    # The UI may drain its follow-up queue immediately on done. Hold
+                    # that signal until the final assistant/history transaction commits.
+                    terminal_done = event
+                    continue
+                if event_type == "system_prompt_rendered":
+                    # Internal-only: `_stream_producer` emits this once per run from
+                    # the worker thread, never a real DeerFlow event, so it must not
+                    # reach the SSE client (`continue`, not `yield`). Written at
+                    # seq 0 only the first time this session sees it; a later turn
+                    # on the same session still gets this event (the embedded
+                    # client always renders a prompt), but `has_system_prompt`
+                    # already answered true for it below so it is dropped there
+                    # instead of here, keeping the "only once" rule in one place.
+                    if trace_needs_system_prompt:
+                        # Seq 0, and the first row of this session's ledger: it has to
+                        # be durable before the user message joins it, so this one still
+                        # takes an immediate commit rather than waiting for the batch.
+                        await self._trace.append(
+                            trace_id_pk=new_id("agtr"),
+                            session_id=session.id,
+                            event_type="system_prompt",
+                            role="system",
+                            payload={"text": event.get("content") or ""},
+                            user_id=actor.user_id,
+                            profile_id=session.profile_id,
+                            job_id=session.job_id,
+                            mock_session_id=ui_context.mock_session_id if ui_context else None,
+                            trace_id=session.trace_id,
+                        )
+                        trace_needs_system_prompt = False
+                    if trace_user_message_pending is not None:
+                        pending_rows.append(trace_user_message_pending)
+                        trace_user_message_pending = None
+                    if pending_rows:
+                        await self._trace.append_batch(pending_rows, session_id=session.id)
+                        pending_rows.clear()
+                    await self._db.commit()
+                    continue
+                # The harness attaches `diagnostics` (exception type, stage, full
+                # traceback) to a failed run's `error` event so the trace writer
+                # below can store it. It is removed from the dict that goes out over
+                # SSE: a traceback in a chat bubble is both useless to the user and
+                # an information leak, and the frontend sanitizer never reads it.
+                # `pop` rather than a copy because `_append_trace_for_stream_event`
+                # runs after this and reads the key off the same object -- so the
+                # value is lifted into a local here and handed to the trace writer.
+                diagnostics = (
+                    event.pop("diagnostics", None) if event_type == "error" else None
+                )
+                if event_type == "confirm" and not isinstance(event.get("patch"), dict):
+                    event = await hydrate_confirmation_event(
+                        RunScope(db=self._db, user_id=actor.user_id,
+                                 profile_id=session.profile_id, session_id=session.id), event,
                     )
-                    trace_needs_system_prompt = False
-                if trace_user_message_pending is not None:
-                    pending_rows.append(trace_user_message_pending)
-                    trace_user_message_pending = None
-                if pending_rows:
+                if event_type == "error":
+                    had_error = True
+                if event_type == "token":
+                    assistant_parts.append(_extract_text(event.get("content")))
+                elif event_type in _TOOL_ACTIVITY_EVENT_TYPES:
+                    had_tool_activity = True
+                if event_type in _PERSIST_EVENT_TYPES:
+                    await self._trace.lock_session(session.id)
+                    if event_type in {"tool_start", "confirm"}:
+                        log_product_event(
+                            f"agent_{event_type}",
+                            trace_id=session.trace_id,
+                            user_id=actor.user_id,
+                            profile_id=session.profile_id,
+                            session_id=session.id,
+                            name=event.get("name"),
+                            confirm_id=event.get("confirm_id"),
+                        )
+                row = self._trace_row_for_stream_event(
+                    session, actor, ui_context, event, diagnostics=diagnostics
+                )
+                if row is not None:
+                    pending_rows.append(row)
+                # Events the user can act on are committed before they are published:
+                # a disconnect must not erase a visible confirmation or error. The rest
+                # accumulate and go in one batch at the end of the turn — each commit
+                # is a round-trip to a database 166 ms away, and a turn emits dozens of
+                # reasoning/tool events that nobody is waiting on individually.
+                if event_type in _COMMIT_NOW_EVENT_TYPES and pending_rows:
                     await self._trace.append_batch(pending_rows, session_id=session.id)
                     pending_rows.clear()
-                await self._db.commit()
-                continue
-            # The harness attaches `diagnostics` (exception type, stage, full
-            # traceback) to a failed run's `error` event so the trace writer
-            # below can store it. It is removed from the dict that goes out over
-            # SSE: a traceback in a chat bubble is both useless to the user and
-            # an information leak, and the frontend sanitizer never reads it.
-            # `pop` rather than a copy because `_append_trace_for_stream_event`
-            # runs after this and reads the key off the same object -- so the
-            # value is lifted into a local here and handed to the trace writer.
-            diagnostics = (
-                event.pop("diagnostics", None) if event_type == "error" else None
-            )
-            if event_type == "confirm" and not isinstance(event.get("patch"), dict):
-                event = await hydrate_confirmation_event(
-                    RunScope(db=self._db, user_id=actor.user_id,
-                             profile_id=session.profile_id, session_id=session.id), event,
-                )
-            if event_type == "error":
-                had_error = True
-            if event_type == "token":
-                assistant_parts.append(_extract_text(event.get("content")))
-            elif event_type in _TOOL_ACTIVITY_EVENT_TYPES:
-                had_tool_activity = True
-            if event_type in _PERSIST_EVENT_TYPES:
-                await self._trace.lock_session(session.id)
-                if event_type in {"tool_start", "confirm"}:
-                    log_product_event(
-                        f"agent_{event_type}",
-                        trace_id=session.trace_id,
-                        user_id=actor.user_id,
-                        profile_id=session.profile_id,
-                        session_id=session.id,
-                        name=event.get("name"),
-                        confirm_id=event.get("confirm_id"),
+                    await self._db.commit()
+                # Internal full-size audit payloads belong only to jc_agent_trace,
+                # not the UI wire projection (nor duplicated in message payload_json).
+                yield {k: v for k, v in event.items() if k not in {"full_content", "full_result"}}
+                if event_type == "usage":
+                    yield build_context_usage_event(
+                        prompt_tokens=int(event.get("prompt_tokens") or 0),
+                        completion_tokens=int(event.get("completion_tokens") or 0),
+                        total_tokens=int(event.get("total_tokens") or 0),
+                        limit_tokens=settings.resolved_context_token_limit,
                     )
-            row = self._trace_row_for_stream_event(
-                session, actor, ui_context, event, diagnostics=diagnostics
+
+            # A run that produced no `system_prompt_rendered` event at all (e.g. it
+            # errored before the first raw event, or ran entirely from the model's
+            # own cache path) must not leave `user_message` stranded unwritten.
+            if trace_user_message_pending is not None:
+                pending_rows.append(trace_user_message_pending)
+                trace_user_message_pending = None
+
+            final_content = _finalize_assistant_content(
+                assistant_parts, had_tool_activity and not had_error,
             )
-            if row is not None:
-                pending_rows.append(row)
-            # Events the user can act on are committed before they are published:
-            # a disconnect must not erase a visible confirmation or error. The rest
-            # accumulate and go in one batch at the end of the turn — each commit
-            # is a round-trip to a database 166 ms away, and a turn emits dozens of
-            # reasoning/tool events that nobody is waiting on individually.
-            if event_type in _COMMIT_NOW_EVENT_TYPES and pending_rows:
+            if final_content:
+                pending_rows.append(
+                    {
+                        "trace_id_pk": new_id("agtr"),
+                        "session_id": session.id,
+                        "event_type": "assistant_message",
+                        "ui_event": "message",
+                        "role": "assistant",
+                        "content": final_content,
+                        "payload": {"text": final_content},
+                        "user_id": actor.user_id,
+                        "profile_id": session.profile_id,
+                        "job_id": session.job_id,
+                        "mock_session_id": ui_context.mock_session_id if ui_context else None,
+                        "trace_id": session.trace_id,
+                    }
+                )
+            # Everything the turn accumulated goes in one transaction, including the
+            # final assistant message. This has to happen BEFORE `done` is yielded: the
+            # UI reloads history as soon as it sees that event, and a reader that raced
+            # the flush would show a turn with a hole where its reasoning used to be.
+            if pending_rows:
                 await self._trace.append_batch(pending_rows, session_id=session.id)
                 pending_rows.clear()
-                await self._db.commit()
-            # Internal full-size audit payloads belong only to jc_agent_trace,
-            # not the UI wire projection (nor duplicated in message payload_json).
-            yield {k: v for k, v in event.items() if k not in {"full_content", "full_result"}}
-            if event_type == "usage":
-                yield build_context_usage_event(
-                    prompt_tokens=int(event.get("prompt_tokens") or 0),
-                    completion_tokens=int(event.get("completion_tokens") or 0),
-                    total_tokens=int(event.get("total_tokens") or 0),
-                    limit_tokens=settings.resolved_context_token_limit,
-                )
-
-        # A run that produced no `system_prompt_rendered` event at all (e.g. it
-        # errored before the first raw event, or ran entirely from the model's
-        # own cache path) must not leave `user_message` stranded unwritten.
-        if trace_user_message_pending is not None:
-            pending_rows.append(trace_user_message_pending)
-            trace_user_message_pending = None
-
-        final_content = _finalize_assistant_content(
-            assistant_parts, had_tool_activity and not had_error,
-        )
-        if final_content:
-            pending_rows.append(
-                {
-                    "trace_id_pk": new_id("agtr"),
-                    "session_id": session.id,
-                    "event_type": "assistant_message",
-                    "ui_event": "message",
-                    "role": "assistant",
-                    "content": final_content,
-                    "payload": {"text": final_content},
-                    "user_id": actor.user_id,
-                    "profile_id": session.profile_id,
-                    "job_id": session.job_id,
-                    "mock_session_id": ui_context.mock_session_id if ui_context else None,
-                    "trace_id": session.trace_id,
-                }
+            await self._db.commit()
+            turn_ended = asyncio.get_running_loop().time()
+            if first_token_at is not None:
+                record_agent_phase(phase="generate", duration=turn_ended - first_token_at)
+            record_agent_phase(
+                phase="turn",
+                duration=turn_ended - turn_started,
+                outcome="error" if had_error else "ok",
             )
-        # Everything the turn accumulated goes in one transaction, including the
-        # final assistant message. This has to happen BEFORE `done` is yielded: the
-        # UI reloads history as soon as it sees that event, and a reader that raced
-        # the flush would show a turn with a hole where its reasoning used to be.
-        if pending_rows:
-            await self._trace.append_batch(pending_rows, session_id=session.id)
-            pending_rows.clear()
-        await self._db.commit()
-        turn_ended = asyncio.get_running_loop().time()
-        if first_token_at is not None:
-            record_agent_phase(phase="generate", duration=turn_ended - first_token_at)
-        record_agent_phase(
-            phase="turn",
-            duration=turn_ended - turn_started,
-            outcome="error" if had_error else "ok",
-        )
-        record_agent_turn(role=turn_role, status="error" if had_error else "success")
-        _turn_span.__exit__(None, None, None)
+            record_agent_turn(role=turn_role, status="error" if had_error else "success")
+        finally:
+            # Flush what the turn accumulated even when the stream died or the
+            # client walked away. Before this, an exception between a
+            # `thinking`/`tool_start` event and the end of the turn dropped every
+            # row already built for it — the transcript kept the user's message
+            # and nothing after it. The inflight gauge had the same hole: it stayed
+            # raised forever, which is exactly the alert it exists to give.
+            if pending_rows:
+                await self._flush_pending_rows(session.id, pending_rows)
+                pending_rows.clear()
+            _turn_span.__exit__(None, None, None)
         if terminal_done is not None:
             yield terminal_done
 
@@ -759,6 +771,46 @@ class AgentService:
         "skill": "skill",
         "error": "error",
     }
+
+    async def _flush_pending_rows(
+        self, session_id: str, rows: list[dict[str, Any]]
+    ) -> None:
+        """Persist accumulated ledger rows from a `finally`, surviving cancellation.
+
+        Called after the turn is already over — normally by the `finally` that
+        guarantees they are not lost when the stream raised or the client
+        disconnected. Two things make that harder than a plain await:
+
+        1. **The task may already be cancelled.** Awaiting inside a cancelled
+           task re-raises `CancelledError` at the first suspension point, so a
+           bare `await append_batch(...)` in `finally` would skip the write it
+           exists to perform. `shield` keeps the inner coroutine running when the
+           outer task is cancelled.
+        2. **The session may be in a failed transaction.** A raise mid-turn can
+           leave the session unusable; `rollback` first so the insert is not
+           rejected with a "current transaction is aborted" error that hides the
+           original failure.
+
+        A failure here is logged, not raised: the turn has already ended, and an
+        exception escaping this would replace the caller's real error with a
+        bookkeeping one.
+        """
+        try:
+            await self._db.rollback()
+        except Exception:  # noqa: BLE001 - nothing to recover; the insert may still work
+            logger.debug("rollback before ledger flush failed", exc_info=True)
+        try:
+            await asyncio.shield(self._trace.append_batch(rows, session_id=session_id))
+            await asyncio.shield(self._db.commit())
+        except asyncio.CancelledError:
+            # Still write what we can on a best-effort basis, then let the
+            # cancellation propagate — swallowing it would break task semantics.
+            logger.warning("ledger flush interrupted by cancellation; %d row(s) may be lost", len(rows))
+            raise
+        except Exception:  # noqa: BLE001
+            logger.warning(
+                "ledger flush failed after turn ended; %d row(s) lost", len(rows), exc_info=True
+            )
 
     def _trace_row_for_stream_event(
         self,

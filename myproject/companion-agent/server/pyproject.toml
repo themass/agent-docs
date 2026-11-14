@@ -33,7 +33,7 @@ dependencies = [
     "pyyaml>=6.0.0",
     "litellm>=1.55.0",
     # 公共组件库：指标/快照/联邦与 job-come 共用同一套词汇，监控面板因此能一起看。
-    "agentkit==0.1.0+20261114.e7792e01",
+    "agentkit==0.1.0+20261114.4cbf2ec2",
     # /metrics：进程内指标登记簿（companion/metrics.py）。只是别的包的传递依赖，直接用了就要显式声明。
     "prometheus-client>=0.20",
 ]
@@ -57,7 +57,7 @@ dev = [
 # wheel 装。wheel 文件本身入库：uv.lock 会固定这个路径，只检出本项目、没有 DeerFlow 源码树的
 # 机器（部署机）才能装得出来。换版本要同时换文件并重新 `uv lock`。
 [tool.uv.sources]
-agentkit = { path = "wheels/agentkit-0.1.0+20261114.e7792e01-py3-none-any.whl" }
+agentkit = { path = "wheels/agentkit-0.1.0+20261114.4cbf2ec2-py3-none-any.whl" }
 deerflow-harness = { path = "wheels/deerflow_harness-2.3.0.dev0-py3-none-any.whl" }
 deerflow-extension-api = { path = "wheels/deerflow_extension_api-0.2.9-py3-none-any.whl" }
 
