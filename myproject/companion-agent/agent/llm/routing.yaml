@@ -23,11 +23,24 @@ providers:
 scenarios:
   # 对话主脑：DeerFlow 内部经此场景选择模型，流式输出，文字与语音共用。
   # 第 1 位是主模型，第 2 位是故障转移目标。
+  #
+  # **必须关推理。** 线上用的是推理模型（doubao-seed-2-1），网关默认会先想再答：
+  # 服务器上实测首字 8.3–13.3 秒，关掉之后 0.5–0.6 秒（3 轮配对，中位省 9.3 秒）。
+  # 更糟的是思考内容不进流，用户这十秒里连"正在想"都看不到，只有光标在转。
+  # 语音场景这个长度等于不可用。陪伴对话不需要这种推理深度。
   companion_chat:
     - provider: gateway
       timeout_sec: 60
+      reasoning_effort: none
+      extra_body:
+        thinking:
+          type: disabled
     - provider: gateway
       timeout_sec: 60
+      reasoning_effort: none
+      extra_body:
+        thinking:
+          type: disabled
 
   # 记忆提取：结构化 JSON 输出，用便宜模型，关闭隐式推理。
   # 只在抽取值思维链会在返回 JSON 之前耗尽预算（早期默认值实测 60 秒无 JSON）。
