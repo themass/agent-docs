@@ -127,6 +127,13 @@ def snapshot(*, service: str | None = None) -> dict[str, Any]:
         # these two fields a client can keep one line per process.
         "pid": os.getpid(),
         "host": socket.gethostname(),
+        # Whether the numbers that follow are the whole service's or just this
+        # worker's. It belongs here, next to `pid`, because any caller that
+        # aggregates snapshots needs it — and because the first version put it
+        # only on the `/metrics/snapshot` route, so every other consumer read a
+        # missing key as `False` and reported single-worker numbers as service
+        # totals even while the counters were in fact shared.
+        "sharing_across_processes": MULTIPROCESS_MODE,
         "families": {},
         "errors": [],
     }

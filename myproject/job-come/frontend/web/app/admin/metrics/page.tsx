@@ -170,6 +170,39 @@ export default function AdminMetricsPage() {
   const phaseFamily = familyOf(peer, "agent_phase_duration_seconds");
   const phaseRows = useMemo(() => histogramByLabel(phaseFamily, "phase"), [phaseFamily]);
 
+  // The service's own core methods (`AgentService.stream_message` and friends).
+  // These exist as metrics but had no panel, so the answer to "how long does a
+  // turn take inside the service" was on the wire and invisible on screen — the
+  // panel read as "method_* is always empty" when the series were in fact there.
+  const methodFamily = familyOf(peer, "method_duration_seconds");
+  const methodMeanRows = useMemo(() => histogramByLabel(methodFamily, "target"), [methodFamily]);
+  const methodCallRows = useMemo(
+    () => counterByLabel(familyOf(peer, "method_calls"), "target"),
+    [peer],
+  );
+  const methodErrorRows = useMemo(() => {
+    const family = familyOf(peer, "method_calls");
+    if (!family) return [];
+    // `status` and `error_type` are separate labels on the counter, so a failure
+    // is the series where status=error; summing per target needs that filter or
+    // every target shows its total calls and reads as 100% failing.
+    const acc = new Map<string, number>();
+    for (const series of family.series) {
+      if (series.suffix !== "total" && series.suffix !== "value") continue;
+      if (series.labels.status !== "error") continue;
+      const target = series.labels.target;
+      if (!target) continue;
+      acc.set(target, (acc.get(target) ?? 0) + (series.value ?? 0));
+    }
+    return [...acc.entries()]
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [peer]);
+  const methodCallsTotal = useMemo(
+    () => methodCallRows.reduce((sum, r) => sum + r.value, 0),
+    [methodCallRows],
+  );
+
   return (
     <div className="mx-auto w-full max-w-6xl px-3 py-4 sm:px-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -299,6 +332,38 @@ export default function AdminMetricsPage() {
                       label: r.label,
                       value: r.value,
                     }))}
+                  />
+                </Panel>
+
+                <Panel
+                  title="核心方法耗时"
+                  hint={
+                    methodMeanRows.length
+                      ? `平均耗时，按方法；共 ${formatCompact(methodCallsTotal)} 次调用`
+                      : "暂无数据 · 这些方法被调用后才有"
+                  }
+                >
+                  <BarList
+                    data={methodMeanRows.map((r) => ({
+                      label: r.label,
+                      value: r.value,
+                      display: r.display,
+                    }))}
+                    emptyLabel="进程启动后还没有走过业务方法"
+                  />
+                </Panel>
+
+                <Panel title="核心方法调用次数" hint="按方法；括号内是失败次数">
+                  <BarList
+                    data={methodCallRows.map((r) => {
+                      const failed = methodErrorRows.find((e) => e.label === r.label)?.value ?? 0;
+                      return {
+                        label: failed > 0 ? `${r.label}（失败 ${failed}）` : r.label,
+                        value: r.value,
+                        tone: failed > 0 ? ("danger" as const) : undefined,
+                      };
+                    })}
+                    emptyLabel="进程启动后还没有走过业务方法"
                   />
                 </Panel>
 

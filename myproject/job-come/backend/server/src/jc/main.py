@@ -193,14 +193,11 @@ async def metrics_snapshot() -> JSONResponse:
     """
     from agentkit.observability import snapshot
 
-    from agentkit.observability import sharing_across_processes
-
-    payload = snapshot()
-    # Read at request time, not captured at startup: `lifespan` runs in this
-    # process but its locals are not visible here, and the first version of this
-    # endpoint referenced one and returned 500 on every call.
-    payload["sharing_across_processes"] = sharing_across_processes()
-    return JSONResponse(payload)
+    # `sharing_across_processes` is set by `snapshot()` itself. It used to be
+    # patched on here, and only here — so every other reader of `snapshot()`
+    # (the admin dashboard among them) found no such key and reported
+    # single-worker numbers as if they were the service's totals.
+    return JSONResponse(snapshot())
 
 
 @app.get("/health/llm")
