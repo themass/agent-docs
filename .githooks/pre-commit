@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# 提交前拦一道：改了 agentkit 源码但没重建 wheel，直接拒绝。
+#
+# 为什么是 pre-commit 而不是只靠 CI：这个仓库没有 CI。而失败的代价不对称——
+# 忘了重建 wheel 不会有任何报错，只是部署机装到旧代码，然后在某个不相关的时刻
+# ModuleNotFoundError（job-come 的脚本注释里记着这个事故）。
+set -euo pipefail
+
+root="$(git rev-parse --show-toplevel)"
+guard="${root}/libs/agentkit/scripts/build.sh"
+[[ -x "$guard" ]] || exit 0     # agentkit 不在这个 checkout 里（别的分支/浅克隆）
+
+# 只有动了 agentkit 源码或某个产品的 wheel 时才跑，其它提交不受影响。
+if ! git diff --cached --name-only | grep -qE '^(libs/agentkit/(src|tests|pyproject)|myproject/.*/wheels/agentkit-)'; then
+  exit 0
+fi
+
+if ! "$guard" --check; then
+  cat >&2 <<'EOF'
+
+提交被拦下：agentkit 的源码与已提交的 wheel 不一致。
+
+  修法：libs/agentkit/scripts/build.sh     # 重建并分发到所有产品
+        然后 git add 那两个 wheel 和 pyproject/uv.lock
+
+  要跳过这一道（比如你正在分步提交）：
+        git commit --no-verify
+EOF
+  exit 1
+fi
