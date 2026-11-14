@@ -54,6 +54,20 @@ class SqlMemoryPort:
 
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
+        self._auto_engine = None
+
+    @property
+    def _auto(self):
+        """单语句读/写用的 autocommit 视图，首次使用时才建（理由见 db/sql.py 的同名属性）。
+
+        这一处是上一轮「读路径也走 autocommit」漏掉的：契约测试保护的是 db/sql.py 里的
+        那 7 个 store，召回走的是这里的 SqlMemoryPort 与 timeline/sql.py。实测同一句
+        SELECT 默认连接 550 ms、autocommit 184 ms——召回超时 800 ms 的配置下，
+        默认连接每回合必然超时，她一直拿不到任何记忆。
+        """
+        if self._auto_engine is None:
+            self._auto_engine = self._engine.execution_options(isolation_level="AUTOCOMMIT")
+        return self._auto_engine
 
     async def add(self, user_id: str, items: Sequence[MemoryItem]) -> list[MemoryItem]:
         validate_user_id(user_id)
@@ -85,7 +99,7 @@ class SqlMemoryPort:
         cond = [memory_item.c.user_id == user_id, memory_item.c.is_latest == True]  # noqa: E712 —— 被取代的不再召回
         if kinds:
             cond.append(memory_item.c.kind.in_([MemoryKind(k).value for k in kinds]))
-        async with self._engine.connect() as conn:
+        async with self._auto.connect() as conn:
             rows = (await conn.execute(select(memory_item).where(and_(*cond))
                                        .order_by(memory_item.c.created_at.desc(), memory_item.c.id.desc())
                                        .limit(SEARCH_WINDOW))).mappings().all()
@@ -100,7 +114,7 @@ class SqlMemoryPort:
         cond = [memory_item.c.user_id == user_id]
         if not include_history:
             cond.append(memory_item.c.is_latest == True)  # noqa: E712
-        async with self._engine.connect() as conn:
+        async with self._auto.connect() as conn:
             rows = (await conn.execute(select(memory_item).where(and_(*cond))
                                        .order_by(memory_item.c.created_at.desc(), memory_item.c.id.desc())
                                        .limit(limit).offset(max(0, offset)))).mappings().all()

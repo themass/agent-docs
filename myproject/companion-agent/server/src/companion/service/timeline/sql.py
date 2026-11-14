@@ -58,6 +58,21 @@ def _event(row) -> TimelineEvent:
 class SqlTimelineStore:
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
+        self._auto_engine = None
+
+    @property
+    def _auto(self):
+        """单语句读用的 autocommit 视图，首次使用时才建（理由见 db/sql.py 的同名属性）。
+
+        ``upcoming`` 是每回合都跑的召回来源。默认连接在这台异地库上是三次往返
+        （BEGIN + SELECT + ROLLBACK），实测 550 ms，超过 MemoryPipeline 的 800 ms 超时，
+        于是「近期事件」那一段一直是被丢掉的——日志里 ``timeline: timeout``。
+
+        写路径仍走 ``_engine.begin()``：那些是「先查再写」的多语句事务，不能拆。
+        """
+        if self._auto_engine is None:
+            self._auto_engine = self._engine.execution_options(isolation_level="AUTOCOMMIT")
+        return self._auto_engine
 
     # ---- 写 ----
 
@@ -152,14 +167,14 @@ class SqlTimelineStore:
     # ---- 读 ----
 
     async def get(self, *, owner_id: str, public_id: str) -> TimelineEvent | None:
-        async with self._engine.connect() as conn:
+        async with self._auto.connect() as conn:
             row = (await conn.execute(select(timeline_event).where(and_(
                 timeline_event.c.public_id == public_id,
                 timeline_event.c.owner_id == int(owner_id))))).mappings().first()
         return _event(row) if row else None
 
     async def by_source(self, *, owner_id: str, message_id: str) -> list[TimelineEvent]:
-        async with self._engine.connect() as conn:
+        async with self._auto.connect() as conn:
             rows = (await conn.execute(select(timeline_event).where(and_(
                 timeline_event.c.owner_id == int(owner_id),
                 timeline_event.c.source_message_id == message_id)).order_by(timeline_event.c.at_utc))).mappings().all()
@@ -167,7 +182,7 @@ class SqlTimelineStore:
 
     async def upcoming(self, *, owner_id: str, role_id: str, now: datetime, horizon: timedelta,
                        limit: int = 5) -> list[TimelineEvent]:
-        async with self._engine.connect() as conn:
+        async with self._auto.connect() as conn:
             rows = (await conn.execute(select(timeline_event).where(and_(
                 timeline_event.c.owner_id == int(owner_id), timeline_event.c.role_id == role_id,
                 timeline_event.c.status == EventStatus.SCHEDULED.value,
@@ -182,7 +197,7 @@ class SqlTimelineStore:
         带 ``reminder_id`` 的事件排除在外：它们已经有一条提醒（``ca_reminder``）按用户要求的时间发出，
         再由这里主动开口就是同一件事通知两次。
         """
-        async with self._engine.connect() as conn:
+        async with self._auto.connect() as conn:
             rows = (await conn.execute(select(timeline_event).where(and_(
                 timeline_event.c.status == EventStatus.SCHEDULED.value,
                 timeline_event.c.reminder_id.is_(None),
@@ -194,7 +209,7 @@ class SqlTimelineStore:
 
     async def recent_past(self, *, owner_id: str, role_id: str, now: datetime, window: timedelta,
                           limit: int = 2) -> list[TimelineEvent]:
-        async with self._engine.connect() as conn:
+        async with self._auto.connect() as conn:
             rows = (await conn.execute(select(timeline_event).where(and_(
                 timeline_event.c.owner_id == int(owner_id), timeline_event.c.role_id == role_id,
                 timeline_event.c.status == EventStatus.SCHEDULED.value,
@@ -212,7 +227,7 @@ class SqlTimelineStore:
             cond.append(timeline_event.c.next_at_utc.isnot(None))
             cond.append(timeline_event.c.next_at_utc >= _now())
             cond.append(timeline_event.c.status == EventStatus.SCHEDULED.value)
-        async with self._engine.connect() as conn:
+        async with self._auto.connect() as conn:
             rows = (await conn.execute(select(timeline_event).where(and_(*cond))
                                        .order_by(timeline_event.c.at_utc)
                                        .limit(max(0, min(limit, 100))).offset(max(0, offset)))).mappings().all()
