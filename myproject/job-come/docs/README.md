@@ -17,6 +17,8 @@
 | 本地开发、运行服务 | [`operations/OPS-DEVELOPMENT.md`](operations/OPS-DEVELOPMENT.md) |
 | 部署上线 | [`operations/OPS-DEPLOYMENT.md`](operations/OPS-DEPLOYMENT.md) |
 | 运行测试或判断是否可发布 | [`operations/QA-TESTING.md`](operations/QA-TESTING.md) |
+| **全功能验证：清单 + Playwright 流程** | [`operations/QA-FULL-VERIFICATION.md`](operations/QA-FULL-VERIFICATION.md) |
+| **交付审计：目标、遗漏与误判** | [`operations/AUDIT-2026-11-15-DELIVERY.md`](operations/AUDIT-2026-11-15-DELIVERY.md) |
 | 理解不可轻易推翻的技术选择 | [`decisions/`](decisions/) |
 
 ## Directory map
