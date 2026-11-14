@@ -25,6 +25,7 @@ from jc.schemas.admin_feedback import (
     AdminFeedbackThreadDetailResponse,
     AdminFeedbackThreadListResponse,
 )
+from jc.schemas.admin_metrics import AdminMetricsSnapshotResponse, MetricsPeerStatus
 from jc.schemas.admin_llm import (
     AdminLlmAttempt,
     AdminLlmCallDetailResponse,
@@ -299,6 +300,57 @@ async def admin_llm_usage(
         group_by=group_by,
         days=days,
         rows=[AdminLlmUsageRow.model_validate(row) for row in rows],
+    )
+
+
+@router.get(
+    "/metrics",
+    response_model=AdminMetricsSnapshotResponse,
+    summary="监控指标（本服务 + 其它服务）",
+)
+async def admin_metrics(
+    include_peers: bool = Query(
+        default=True,
+        description="是否同时拉取 JC_METRICS_PEERS 中配置的其它服务",
+    ),
+    _: UserActor = Depends(require_admin),
+) -> AdminMetricsSnapshotResponse:
+    """Every configured service's metrics, as one payload for the dashboard.
+
+    This service's own snapshot is taken in-process — no HTTP hop to itself, so a
+    panel load costs one request whether or not peers are configured. Peers are
+    fetched concurrently, each with a short timeout, and a peer that fails comes
+    back as a failed row rather than vanishing: an absent service would otherwise
+    read as a healthy one.
+    """
+    from agentkit.observability import collect_peer_snapshots, parse_peers, snapshot
+
+    local = snapshot()
+    peers = parse_peers(settings.jc_metrics_peers) if include_peers else []
+    rows = await collect_peer_snapshots(
+        peers, local=local, local_name=settings.jc_metrics_service_name
+    )
+
+    statuses: list[MetricsPeerStatus] = []
+    for row in rows:
+        snap = row.get("snapshot") or {}
+        statuses.append(
+            MetricsPeerStatus(
+                name=row["name"],
+                url=row.get("url"),
+                ok=bool(row["ok"]),
+                latency_ms=int(row.get("latency_ms") or 0),
+                error=row.get("error"),
+                service=snap.get("service"),
+                environment=snap.get("environment"),
+                captured_at=snap.get("captured_at"),
+                families=snap.get("families") or {},
+            )
+        )
+    return AdminMetricsSnapshotResponse(
+        peers=statuses,
+        sharing_across_processes=bool(local.get("sharing_across_processes")),
+        unavailable=sum(1 for s in statuses if not s.ok),
     )
 
 

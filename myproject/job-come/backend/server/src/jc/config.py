@@ -123,6 +123,22 @@ class Settings(BaseSettings):
     #: Prometheus /metrics. Off only when a deployment has no scraper; the
     #: endpoint costs a few microseconds per call and carries no user data.
     jc_metrics_enabled: bool = Field(True, alias="JC_METRICS_ENABLED")
+    #: How this service names itself in the multi-service dashboard. Defaults to
+    #: the `application` label already used on every series, so one setting does
+    #: not have to be kept in two places.
+    jc_metrics_service_name: str = Field("job-come", alias="JC_METRICS_SERVICE_NAME")
+    #: Directory prometheus_client shares counters through when the backend runs
+    #: more than one worker. Empty = per-process counters, which under a
+    #: `--workers 2` service means a scrape reports exactly one worker's numbers
+    #: and looks healthy while doing it. Set this whenever API_WORKERS > 1.
+    jc_metrics_multiprocess_dir: str = Field(
+        "", alias="JC_METRICS_MULTIPROCESS_DIR"
+    )
+    #: Other services whose `/metrics/snapshot` this admin panel may read, as
+    #: `name=url` pairs separated by commas. The panel itself is a client, so the
+    #: list has to live somewhere; the service that owns the panel is the natural
+    #: place. A peer that is unreachable is reported as unreachable, never hidden.
+    jc_metrics_peers: str = Field("", alias="JC_METRICS_PEERS")
     jc_llm_enabled: bool = Field(False, alias="JC_LLM_ENABLED")
     jc_llm_routing_path: str = Field(
         "../agent/llm/routing.yaml",

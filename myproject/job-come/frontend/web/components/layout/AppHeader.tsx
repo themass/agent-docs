@@ -319,12 +319,23 @@ export function AppHeader() {
                 href="/admin/sessions"
                 onClick={(e) => navClick(e, "/admin/sessions")}
                 className={`inline-block rounded-lg px-2.5 py-2 text-sm font-medium transition ${
-                  pathname.startsWith("/admin")
+                  pathname.startsWith("/admin") && !pathname.startsWith("/admin/metrics")
                     ? "bg-brand-50 text-brand-700"
                     : "text-ink-700 hover:bg-ink-50"
                 }`}
               >
                 管理后台
+              </Link>
+              <Link
+                href="/admin/metrics"
+                onClick={(e) => navClick(e, "/admin/metrics")}
+                className={`inline-block rounded-lg px-2.5 py-2 text-sm font-medium transition ${
+                  pathname.startsWith("/admin/metrics")
+                    ? "bg-brand-50 text-brand-700"
+                    : "text-ink-700 hover:bg-ink-50"
+                }`}
+              >
+                监控面板
               </Link>
             </div>
           ) : null}

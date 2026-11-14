@@ -447,3 +447,48 @@ export function getAdminLlmUsage(params?: {
   const qs = q.toString();
   return apiJson(`/admin/llm/usage${qs ? `?${qs}` : ""}`, { headers: adminHeaders() });
 }
+
+/** One service's metrics snapshot in the monitoring panel. */
+export type AdminMetricsPeer = {
+  name: string;
+  url: string | null;
+  ok: boolean;
+  latency_ms: number;
+  error: string | null;
+  service: string | null;
+  environment: string | null;
+  captured_at: number | null;
+  families: Record<string, AdminMetricsFamily>;
+};
+
+/** One metric family, in the shape `agentkit.observability.snapshot()` emits. */
+export type AdminMetricsFamily = {
+  type: "counter" | "gauge" | "histogram" | "summary" | "untyped" | string;
+  help: string;
+  series: Array<{
+    suffix: string;
+    labels: Record<string, string>;
+    value: number | null;
+  }>;
+  truncated: boolean;
+};
+
+export type AdminMetricsSnapshot = {
+  peers: AdminMetricsPeer[];
+  sharing_across_processes: boolean;
+  unavailable: number;
+};
+
+/**
+ * Every configured service's metrics, for the monitoring panel.
+ *
+ * `include_peers=false` reads only this service, which is what a narrow screen or
+ * a fast refresh wants: reaching peers costs one HTTP round-trip each, and a
+ * peer that is down costs the full timeout.
+ */
+export function getAdminMetrics(params?: { include_peers?: boolean }): Promise<AdminMetricsSnapshot> {
+  const q = new URLSearchParams();
+  if (params?.include_peers === false) q.set("include_peers", "false");
+  const qs = q.toString();
+  return apiJson(`/admin/metrics${qs ? `?${qs}` : ""}`, { headers: adminHeaders() });
+}

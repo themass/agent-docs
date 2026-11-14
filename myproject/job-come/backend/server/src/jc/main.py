@@ -37,6 +37,21 @@ async def lifespan(_app: FastAPI):
         environment=settings.jc_env,
         enabled=settings.jc_metrics_enabled,
     )
+    # A multi-worker backend is several independent registries. Without a shared
+    # directory a scrape returns one worker's counters as if they were the
+    # service's — the dashboard renders, and it is wrong by a factor of the
+    # worker count. `main.py` exports the mode so /admin/metrics can say which
+    # one is in effect, rather than leaving an operator to guess.
+    metrics_multiprocess = False
+    if settings.jc_metrics_multiprocess_dir:
+        from agentkit.observability import enable_multiprocess
+
+        metrics_multiprocess = enable_multiprocess(settings.jc_metrics_multiprocess_dir)
+        if not metrics_multiprocess:
+            logger.warning(
+                "JC_METRICS_MULTIPROCESS_DIR is set but sharing is not active; "
+                "counters are per-worker"
+            )
     from jc.observability.logging_setup import configure_application_logging
 
     configure_application_logging(json_logs=settings.jc_log_json, level=settings.jc_log_level)
@@ -145,6 +160,27 @@ async def metrics() -> Response:
     auth the scraper cannot satisfy.
     """
     return Response(content=render_metrics(), media_type=CONTENT_TYPE)
+
+
+@app.get("/metrics/snapshot", include_in_schema=False)
+async def metrics_snapshot() -> JSONResponse:
+    """The same metrics as JSON, for the admin dashboard.
+
+    Same registry, same names, same numbers as `/metrics` — only the encoding
+    differs. A dashboard therefore cannot drift from what Prometheus sees, and
+    a service without a scraper still gets a chartable view.
+
+    Unauthenticated like `/metrics`, for the same reason: a multi-service
+    dashboard polls every service with one fetch, and the payload holds counts
+    and durations only — never a user id, session id, prompt, or error message.
+    `pid` and `host` are here so a client can tell two worker processes apart
+    instead of silently summing them.
+    """
+    from agentkit.observability import snapshot
+
+    payload = snapshot()
+    payload["sharing_across_processes"] = metrics_multiprocess
+    return JSONResponse(payload)
 
 
 @app.get("/health/llm")
