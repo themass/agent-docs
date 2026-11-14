@@ -34,8 +34,8 @@ wheels = [
 
 [[package]]
 name = "agentkit"
-version = "0.1.0"
-source = { path = "wheels/agentkit-0.1.0-py3-none-any.whl" }
+version = "0.1.0+20261114.e7792e01"
+source = { path = "wheels/agentkit-0.1.0+20261114.e7792e01-py3-none-any.whl" }
 dependencies = [
     { name = "bcrypt" },
     { name = "boto3" },
@@ -47,7 +47,7 @@ dependencies = [
     { name = "structlog" },
 ]
 wheels = [
-    { filename = "agentkit-0.1.0-py3-none-any.whl", hash = "sha256:b2bc90bb1940dd6e9d45b4e86711d3521253e557980919c40b4afbb25924f975" },
+    { filename = "agentkit-0.1.0+20261114.e7792e01-py3-none-any.whl", hash = "sha256:9cc3f4844308cf9f8228a41523f5be82173a4e471671a50b8dc4d585995e7359" },
 ]
 
 [package.metadata]
@@ -1414,7 +1414,7 @@ export = [
 
 [package.metadata]
 requires-dist = [
-    { name = "agentkit", path = "wheels/agentkit-0.1.0-py3-none-any.whl" },
+    { name = "agentkit", path = "wheels/agentkit-0.1.0+20261114.e7792e01-py3-none-any.whl" },
     { name = "aiosqlite", marker = "extra == 'dev'", specifier = ">=0.20.0" },
     { name = "alembic", specifier = ">=1.14.0" },
     { name = "anyio", specifier = ">=4.0,<5" },

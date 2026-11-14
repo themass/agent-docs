@@ -5,7 +5,7 @@ description = "JC API — resume, interview coach, DeerFlow agents"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-    "agentkit==0.1.0",
+    "agentkit==0.1.0+20261114.e7792e01",
     "deerflow-extension-api==0.2.9",
     "deerflow-harness==2.3.0.dev0",
     "sqlalchemy[asyncio]>=2.0.36",
@@ -55,7 +55,7 @@ dependencies = [
 # is mandatory whenever the vendored DeerFlow or agentkit source changes — a stale
 # wheel is silently the old code, which is worse than a broken install.
 [tool.uv.sources]
-agentkit = { path = "wheels/agentkit-0.1.0-py3-none-any.whl" }
+agentkit = { path = "wheels/agentkit-0.1.0+20261114.e7792e01-py3-none-any.whl" }
 deerflow-harness = { path = "wheels/deerflow_harness-2.3.0.dev0-py3-none-any.whl" }
 deerflow-extension-api = { path = "wheels/deerflow_extension_api-0.2.11-py3-none-any.whl" }
 

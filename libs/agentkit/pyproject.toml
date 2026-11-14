@@ -1,0 +1,42 @@
+[project]
+name = "agentkit"
+version = "0.1.0+20261114.e7792e01"
+description = "Shared platform kit: trace, web, OSS, Redis session, DeerFlow adapter, MCP scaffold"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "fastapi>=0.115.0",
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.6.0",
+    "structlog>=24.4.0",
+    "redis>=5.2.0",
+    "httpx>=0.28.0",
+    "boto3>=1.35.0",
+    "bcrypt>=4.2.0",
+]
+
+[project.optional-dependencies]
+deerflow = ["deerflow>=0.1.0"]
+# `agentkit.observability` degrades to a no-op when prometheus_client is absent,
+# which is right for a library but wrong for a service that expects metrics: it
+# starts fine and silently exports nothing. Services should install this extra
+# so the failure mode is a missing dependency at install time, not an empty
+# dashboard weeks later.
+metrics = ["prometheus_client>=0.20.0"]
+# `agentkit.llm` carries the LiteLLM transport; without these it is unimportable.
+llm = ["litellm>=1.55.0", "langchain-core>=0.3.0"]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "ruff>=0.8.0",
+    "prometheus_client>=0.20.0",
+    "litellm>=1.55.0",
+    "langchain-core>=0.3.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agentkit"]
