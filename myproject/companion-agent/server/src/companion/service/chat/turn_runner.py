@@ -152,12 +152,11 @@ class TurnRunner:
     async def run(self, inp: TurnInput) -> None:
         if self._tracker is not None:
             self._tracker.turn_started()
-        metrics.ACTIVE_TURNS.inc()
         started = time.monotonic()
         try:
-            await self._run(inp, started=started)
+            with metrics.turn_in_flight():
+                await self._run(inp, started=started)
         finally:
-            metrics.ACTIVE_TURNS.dec()
             if self._tracker is not None:
                 self._tracker.turn_finished()
 
@@ -185,7 +184,7 @@ class TurnRunner:
                         await self._requeue(inp, message_id, text)
                     break
                 restarts += 1
-                metrics.TURN_RESTARTS.inc()
+                metrics.count_restart()
                 await self._attach_merged(inp, state)
                 inputs = inputs + [TurnInputMessage(message_id=mid, text=text) for mid, text in state.merged]
                 state.restart()  # 原地重置：控制协程持有的是同一个对象
@@ -423,7 +422,8 @@ class TurnRunner:
             "cancelled" if state.cancelled else "interrupted" if interrupted else "done"
         metrics.observe_turn(
             state=verdict, duration_sec=ended - state.started,
-            ttft_sec=(state.first_output_at - state.started) if state.first_output_at else None)
+            ttft_sec=(state.first_output_at - state.started) if state.first_output_at else None,
+            role=inp.character_id or "chat")
         if self._after_turn is None:
             return
         user_ids = tuple(inp.message_ids) + tuple(mid for mid, _ in state.merged)

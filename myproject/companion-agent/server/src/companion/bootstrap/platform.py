@@ -305,7 +305,7 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
                                    role_id=request.character_id, current_texts=texts)
         # 用户的等待里有一部分是我们自己造提示词（召回、世界书、角色卡），和模型无关。
         # 单独量出来，别都算到"模型慢"头上。
-        metrics.PREPARE_DURATION.observe(time.monotonic() - prepare_started)
+        metrics.observe_phase(phase="prepare", duration_sec=time.monotonic() - prepare_started)
         request.prompt = plan
         request.system_prompt = plan.system
         if hasattr(brain, "run"):

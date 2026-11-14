@@ -72,6 +72,8 @@ class LlmCallCollector(BaseCallbackHandler):
         meta = metadata or {}
         self._open[run_id] = {
             "t0": time.monotonic(), "first": None, "seq": self._seq,
+            # 场景来自路由表；没有就落到默认值，指标里不能出现空字符串。
+            "scenario": str(meta.get("ls_model_type") or "companion_chat") or "companion_chat",
             "provider": str(meta.get("ls_provider") or ""), "model": str(meta.get("ls_model_name") or ""),
             "input": [_input_item(m) for m in (messages[0] if messages else [])],
         }
@@ -109,9 +111,9 @@ class LlmCallCollector(BaseCallbackHandler):
         # 指标在这里就写掉，不等 drain：drain 的调用方只在 QA 打开时才存在，
         # 而延迟和用量是线上随时要看的，不能跟着 QA 开关一起消失。
         metrics.observe_llm_call(
-            model=record.model, ttft_ms=record.first_token_ms, total_ms=record.total_ms,
-            input_tokens=record.input_tokens, output_tokens=record.output_tokens,
-            cached_tokens=record.cached_tokens)
+            scenario=call["scenario"], model=record.model, ttft_ms=record.first_token_ms,
+            total_ms=record.total_ms, input_tokens=record.input_tokens,
+            output_tokens=record.output_tokens, cached_tokens=record.cached_tokens)
 
     def on_llm_error(self, error: BaseException, *, run_id: UUID, **kwargs: Any) -> None:
         call = self._open.pop(run_id, None)
@@ -122,9 +124,9 @@ class LlmCallCollector(BaseCallbackHandler):
         self._done.append(LlmCall(
             seq=call["seq"], provider=call["provider"], model=call["model"],
             input_messages=call["input"], total_ms=total_ms, error_code=error_code))
-        metrics.observe_llm_call(model=call["model"], ttft_ms=None, total_ms=total_ms,
-                                 input_tokens=None, output_tokens=None, cached_tokens=None,
-                                 error=error_code)
+        metrics.observe_llm_call(scenario=call["scenario"], model=call["model"], ttft_ms=None,
+                                 total_ms=total_ms, input_tokens=None, output_tokens=None,
+                                 cached_tokens=None, error=error_code)
 
     # ---- 取用 ----
 

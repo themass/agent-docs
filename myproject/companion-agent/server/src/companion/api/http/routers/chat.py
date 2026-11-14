@@ -372,6 +372,20 @@ def build_health_router(drain: DrainState):
     @router.get("/metrics")
     async def prometheus() -> Response:
         # 用 bytes 而不是 str：generate_latest 返回 UTF-8 字节，按 str 传会被再编码一次。
-        return Response(content=metrics.render(), media_type="text/plain; version=0.0.4; charset=utf-8")
+        return Response(content=metrics.render(), media_type=metrics.CONTENT_TYPE)
+
+    @router.get("/metrics/snapshot")
+    async def metrics_snapshot() -> dict[str, Any]:
+        """同一份指标的 JSON 形态，给监控面板用。
+
+        与 /metrics 读的是同一个注册表、同样的小数点——只是编码不同。所以面板上的数字
+        不可能和 Prometheus 抓到的漂移。字段名沿用 agentkit 的约定，job-come 的面板
+        不用改就能读。
+        """
+        from agentkit.observability import sharing_across_processes
+
+        payload = metrics.snapshot()
+        payload["sharing_across_processes"] = sharing_across_processes()
+        return payload
 
     return router
