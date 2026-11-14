@@ -73,7 +73,7 @@ cd ..
 | `/v1/memory/*`、`/v1/reminders`、`/v1/inbox`、`/v1/prefs` | 记忆、提醒、主动消息、偏好 |
 | `/v1/voice/sessions` | 建语音房间（返回 LiveKit 入场 token） |
 | `/v1/uploads`、`/v1/consent`、`/v1/export`、`/v1/me` | 上传、同意、导出、账号 |
-| `/health`、`/readyz` | 探针 |
+| `/health`、`/readyz`、`/metrics` | 探针与指标（`/metrics` 是 Prometheus 文本格式，nginx 上只对内网放开） |
 
 完整列表以运行中的 `/openapi.json` 为准。
 
@@ -91,3 +91,6 @@ cd ..
 - 用户侧音频（STT 输入）没有采集；`ca_voice_turn.audio_in_key` 列在，没有代码写入。
 - 所有语音 worker 满载时，用户进房间会静音（建房间接口不知道容量）。
 - 需要 alembic 的测试在 SQLite 下无法执行。
+- **回合首字的剩余大头是两次工具往返**：`recall_facts` / `recall_events` 各要走一次模型，
+  线上实测（2026-11-14）一次回合 14 秒里，造提示词 3.8 秒、模型首字 1.3 秒、
+  其余约 9 秒在这两次工具调用上。合并成一次召回是一次能砍掉一半的改动，还没做。
