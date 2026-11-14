@@ -276,6 +276,9 @@ class TurnRunner:
             await self._control.set_phase(session_id=inp.session_id, phase=TurnPhase.PRE_OUTPUT)
             return False
         state.output_started = True
+        if state.first_output_at is None:
+            # 只记第一次：重跑之后那次的首字不是用户第一次看到字的时刻。
+            state.first_output_at = time.monotonic()
         return True
 
     async def _on_text(self, inp: TurnInput, state: _RunState, text: str) -> None:
@@ -411,6 +414,14 @@ class TurnRunner:
 
     async def _notify(self, inp: TurnInput, state: _RunState, *, saved_id: int | None, text: str,
                       interrupted: bool, failed: bool) -> None:
+        # 指标写在 after_turn 判断**之前**：after_turn 只在组合根装了收尾钩子时才有，
+        # 拿它当开关会让这条指标在某些部署里静默消失，而回合的结局是任何部署都要看到的。
+        ended = time.monotonic()
+        verdict = "lost" if state.lost else "failed" if failed else \
+            "cancelled" if state.cancelled else "interrupted" if interrupted else "done"
+        metrics.observe_turn(
+            state=verdict, duration_sec=ended - state.started,
+            ttft_sec=(state.first_output_at - state.started) if state.first_output_at else None)
         if self._after_turn is None:
             return
         user_ids = tuple(inp.message_ids) + tuple(mid for mid, _ in state.merged)
