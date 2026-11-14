@@ -41,6 +41,12 @@ die() { printf '[backend] ERROR: %s\n' "$*" >&2; exit 1; }
 check_health() { curl -sf "http://127.0.0.1:${API_PORT}/health" >/dev/null 2>&1; }
 
 cmd_start() {
+  # Refuse to run as root, same rule as publish.sh and for the same reason: a process
+  # started as root writes files (pid, logs, the metrics mmap directory) that the `web`
+  # user cannot later update, so every subsequent restart by the real owner fails with
+  # permission errors far from their cause. It also owned a directory tree whose files
+  # the deploy user then could not remove.
+  [[ "$(id -u)" -ne 0 ]] || die "run as the web user, not root: files created as root cannot be updated by the user that runs the services"
   [[ -x "${VENV}/bin/python" ]] || die "no venv at ${VENV} — run ./scripts/deploy.sh first"
   [[ -f "${SERVER_ROOT}/.env" ]] || die "missing ${SERVER_ROOT}/.env"
 
