@@ -15,7 +15,7 @@ cp backend/server/.env.example backend/server/.env
 
 测试：`./scripts/test-local.sh`。完整脚本说明：[`scripts/README.md`](scripts/README.md)。
 
-DeerFlow 上游在 **`../../../libs/agentkit/vendor/deer-flow/`**（不是 monorepo 根的 `deer-flow/`）。生产使用预编译 wheel（`backend/server/wheels/`，已入库）安装，部署机不需要 monorepo 源码，见 ADR-002。改动 vendored DeerFlow 后必须跑 `./scripts/build-release.sh --update`。
+DeerFlow 上游在 **`libs/agentkit/vendor/deer-flow/`**（仓库内 git submodule，钉在 `.gitmodules` 指向的 commit；新 clone 需 `git submodule update --init --recursive`）。生产使用预编译 wheel（`backend/server/wheels/`，已入库）安装，部署机不需要 monorepo 源码，见 ADR-002。改动 vendored DeerFlow 后必须跑 `./scripts/build-release.sh --update`。
 
 ## Architecture contracts
 

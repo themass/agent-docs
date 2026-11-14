@@ -24,11 +24,13 @@ Put this as the first import, before any `jc.*` import and before argument parsi
 
 `ensure_project_env()`:
 
-1. Finds the monorepo root by walking up from this file looking for the directory that
-   owns both `venv/bin/python` and `libs/agentkit` — the same identity check
-   `scripts/lib/project_paths.sh:jc_monorepo_root` uses on the shell side, so the two
+1. Finds the repository root by walking up from this file looking for
+   `libs/agentkit/{pyproject.toml,src/agentkit}` — the same identity check
+   `scripts/lib/project_paths.sh:jc_repo_root` uses on the shell side, so the two
    layers of tooling agree by construction rather than by two people remembering the
-   same magic number.
+   same magic number. The interpreter is chosen separately (see `_target_python`):
+   a virtualenv is never committed, so requiring one beside the source would make a
+   fresh clone look like a missing repository.
 2. If the *running* interpreter is not that venv's `python` (and `JC_PYTHON` was not
    set to deliberately override it), re-execs the current script under the correct one
    via `os.execv`. The script's own `sys.argv` is preserved, so this is transparent to
@@ -50,25 +52,37 @@ from pathlib import Path
 
 
 class ProjectEnvError(RuntimeError):
-    """Raised when the monorepo root cannot be identified from this file's location."""
+    """Raised when the repository root or interpreter cannot be identified."""
 
 
-def _find_monorepo_root(start: Path) -> Path:
-    """Walk up from `start` to the directory owning `venv/` and `libs/agentkit`.
+def _find_repo_root(start: Path) -> Path:
+    """Walk up from `start` to the directory owning the agentkit source tree.
 
     Identity check, not index arithmetic — see module docstring. A script moved to a
     new subdirectory still resolves correctly; a `parents[N]` constant would not.
+
+    The marker is `libs/agentkit/{pyproject.toml,src/agentkit}`, i.e. the *source*.
+    It used to also require `venv/bin/python` next to it, which conflated two
+    unrelated questions: where the repository is, and which interpreter to run. A
+    virtualenv is never committed, so a fresh clone has the source but no venv —
+    that check would have declared the repository missing on exactly the machine
+    that had just cloned it. Interpreter discovery is `_target_python`'s job.
     """
     probe = start
     while True:
-        if (probe / "venv" / "bin" / "python").exists() and (probe / "libs" / "agentkit").is_dir():
+        agentkit = probe / "libs" / "agentkit"
+        if (agentkit / "pyproject.toml").exists() and (agentkit / "src" / "agentkit").is_dir():
             return probe
         if probe.parent == probe:
             raise ProjectEnvError(
-                f"Could not find the monorepo root (venv/ + libs/agentkit) above {start}. "
-                "Run ./scripts/setup-venv.sh first, or set JC_PYTHON explicitly."
+                f"Could not find the repository root (libs/agentkit) above {start}. "
+                "Set JC_PYTHON explicitly if this is a partial checkout."
             )
         probe = probe.parent
+
+
+#: Kept as an alias: callers and docs already use "monorepo root" for this.
+_find_monorepo_root = _find_repo_root
 
 
 def _target_python(project_root: Path) -> Path:
@@ -89,12 +103,24 @@ def _target_python(project_root: Path) -> Path:
     if configured:
         return Path(configured)
     try:
-        return _find_monorepo_root(project_root) / "venv" / "bin" / "python"
+        repo_python = _find_repo_root(project_root) / "venv" / "bin" / "python"
+        if repo_python.exists():
+            return repo_python
     except ProjectEnvError:
-        project_python = project_root / "backend" / "server" / ".venv" / "bin" / "python"
-        if project_python.exists():
-            return project_python
-        raise
+        pass
+    # A venv beside any ancestor of the project, which is where a sibling-checkout
+    # layout keeps it (the venv and the repository need not be the same directory).
+    for parent in project_root.parents:
+        candidate = parent / "venv" / "bin" / "python"
+        if candidate.exists():
+            return candidate
+    project_python = project_root / "backend" / "server" / ".venv" / "bin" / "python"
+    if project_python.exists():
+        return project_python
+    raise ProjectEnvError(
+        f"No interpreter found for {project_root}. "
+        "Run ./scripts/setup-venv.sh, or set JC_PYTHON explicitly."
+    )
 
 
 def _project_root(this_file: Path) -> Path:

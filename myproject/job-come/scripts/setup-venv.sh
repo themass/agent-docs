@@ -7,11 +7,13 @@ set -euo pipefail
 JC_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=lib/project_paths.sh
 source "${JC_ROOT}/scripts/lib/project_paths.sh"
-MONO_ROOT="$(jc_monorepo_root "$JC_ROOT")" || {
-  echo "Cannot find monorepo root (venv + libs/agentkit) above ${JC_ROOT}" >&2
+VENV_PYTHON="$(jc_python "$JC_ROOT" 2>/dev/null || true)"
+[[ -n "$VENV_PYTHON" ]] || {
+  echo "No interpreter found. Create one first:" >&2
+  echo "  python3.12 -m venv ${JC_ROOT}/../../venv" >&2
   exit 1
 }
-VENV="${MONO_ROOT}/venv"
+VENV="$(cd "$(dirname "$VENV_PYTHON")/.." && pwd)"
 
 if [[ ! -x "${VENV}/bin/python" ]]; then
   echo "Missing ${VENV}/bin/python — create monorepo venv first (Python 3.12)."

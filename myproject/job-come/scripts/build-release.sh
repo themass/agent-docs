@@ -34,11 +34,14 @@ case "$MODE" in
   *) die "usage: $0 [--update|--check]" ;;
 esac
 
-MONOREPO_ROOT="$(jc_monorepo_root "$JC_ROOT")" || die \
-  "no monorepo root above ${JC_ROOT}.
+REPO_ROOT="$(jc_repo_root "$JC_ROOT")" || die \
+  "no repository root above ${JC_ROOT}.
        Building needs libs/agentkit and the vendored DeerFlow tree; a deployment host
        does not have them and does not need them — it installs the committed wheels."
-VENDOR="${MONOREPO_ROOT}/libs/agentkit"
+VENDOR="${REPO_ROOT}/libs/agentkit"
+[ -d "${VENDOR}/vendor/deer-flow/backend/packages/harness" ] || die \
+  "vendored DeerFlow missing at ${VENDOR}/vendor/deer-flow.
+       It is a git submodule — run: git submodule update --init --recursive"
 
 # The three path-built packages and the import name each one actually ships. Kept
 # together so the version check and the pin rewrite cannot disagree about a name.

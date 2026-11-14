@@ -16,7 +16,8 @@
 | `db_upgrade.sh` | 单独执行数据库迁移（`deploy.sh` 已经包含这一步） |
 | `prune_llm_log.sh` | 按留存窗口清理 LLM 调用审计日志（里面是简历原文，必须定期清）。用 cron 跑：`17 4 * * * cd /home/web/webroot/job-come && ./scripts/prune_llm_log.sh >> .data/logs/production/prune.log 2>&1`。`JC_PRUNE_DRY_RUN=1` 只报数不删 |
 
-Python 解释器依次找：`JC_PYTHON`、monorepo 的 `venv`、`backend/server/.venv`。
+Python 解释器依次找：`JC_PYTHON`、仓库根旁的 `venv`、上一层目录的 `venv`、`backend/server/.venv`。
+仓库根由 `libs/agentkit/src/agentkit` 判定（不再要求 venv 与源码同级——venv 从不入库）。
 
 ## 服务器：root（Nginx）
 
@@ -29,18 +30,18 @@ Python 解释器依次找：`JC_PYTHON`、monorepo 的 `venv`、`backend/server/
 
 `nginx/lib.sh` 是这两个脚本共用的函数，被 `source`，不直接运行。
 
-## 开发机（在 monorepo 里）
+## 开发机（在仓库里）
 
 | 脚本 | 做什么 |
 |---|---|
-| `setup-venv.sh` | 把后端依赖装进 monorepo 的 `venv`（`dev.sh` 首次启动也会自动调用） |
+| `setup-venv.sh` | 把后端依赖装进仓库旁的 `venv`（`dev.sh` 首次启动也会自动调用） |
 | `dev.sh` | 启动本地 API、Web 和内嵌 Agent；输出同时写到 `.data/logs/dev/`。缺依赖时自动 `uv sync` |
 | `test-local.sh` | 提交前检查：Python 字节码编译、后端测试、所有 shell 脚本语法、前端生产构建。不碰任何真实服务 |
-| `build-release.sh --update` | 改了 vendored DeerFlow 或 `libs/agentkit` 源码后**必须**跑：重建 `backend/server/wheels/` 里的三个 wheel，同步 `pyproject.toml` 的版本并重新 lock。不跑的话服务器装上去的是旧代码，而且不报错。`--check` 只校验不重建。必须在 monorepo 里运行 |
+| `build-release.sh --update` | 改了 vendored DeerFlow 或 `libs/agentkit` 源码后**必须**跑：重建 `backend/server/wheels/` 里的三个 wheel，同步 `pyproject.toml` 的版本并重新 lock。不跑的话服务器装上去的是旧代码，而且不报错。`--check` 只校验不重建。必须在仓库里、且 vendored DeerFlow submodule 已初始化时运行 |
 | `sync-deerflow-upstream.sh` | 维护动作：同步 vendored DeerFlow。不是日常步骤 |
 
 ```bash
-cd docs/myproject/job-come        # 从 monorepo 根目录进入
+cd docs/myproject/job-come        # 从仓库根目录进入
 ./scripts/setup-venv.sh           # 首次或依赖变更时
 cp backend/server/.env.example backend/server/.env   # 首次
 ./scripts/dev.sh                  # 终端 1：API + Web

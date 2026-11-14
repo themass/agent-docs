@@ -5,16 +5,15 @@ set -euo pipefail
 JC_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=lib/project_paths.sh
 source "${JC_ROOT}/scripts/lib/project_paths.sh"
-MONO_ROOT="$(jc_monorepo_root "$JC_ROOT")" || {
-  echo "Cannot find monorepo root (venv + libs/agentkit) above ${JC_ROOT}" >&2
+DF="$(jc_vendor_deerflow "$JC_ROOT")" || {
+  echo "Cannot find the repository root (libs/agentkit) above ${JC_ROOT}" >&2
   exit 1
 }
-DF="${MONO_ROOT}/libs/agentkit/vendor/deer-flow"
 
 if [[ ! -d "${DF}/.git" ]]; then
   echo "Missing ${DF}"
-  echo "Clone:"
-  echo "  git clone --depth 1 https://github.com/bytedance/deer-flow.git ${DF}"
+  echo "It is a git submodule; initialise it:"
+  echo "  git submodule update --init --recursive"
   exit 1
 fi
 
