@@ -31,6 +31,7 @@ import logging
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
+from typing import Any
 
 from companion.service.chat.lifecycle import DrainState
 from companion.service.turn.queue import TurnPhase
@@ -387,20 +388,22 @@ class TurnRunner:
         for mid, text in remaining:
             await self._requeue(inp, int(mid), text)
 
-        if saved_id is not None:
-            await self._control.publish(
-                session_id=inp.session_id, event="message.done",
-                data={"turn_id": inp.turn_id, "assistant_message_id": saved_id,
-                      "steered_message_ids": injected, "usage": None,
-                      **({"alt_group": saved_alt_group} if saved_alt_group is not None else {})})
-        if state.cancelled:
-            await self._control.publish(session_id=inp.session_id, event="turn.cancelled",
-                                        data={"turn_id": inp.turn_id, "assistant_message_id": saved_id})
-
         await self._notify(inp, state, saved_id=saved_id, text=full, interrupted=interrupted,
                            failed=failed)
-        await self._control.clear_turn(session_id=inp.session_id)
-        await self._control.release_lock(session_id=inp.session_id, owner=inp.owner)
+        # 收尾的最后一个事件、删回合状态、放锁，合成一次 Redis 往返。
+        # 顺序有硬约束（事件先发、状态在放锁之前删），pipeline 按注册顺序执行所以不变。
+        if saved_id is not None or state.cancelled:
+            event = "message.done" if saved_id is not None else "turn.cancelled"
+            data: dict[str, Any] = {"turn_id": inp.turn_id, "assistant_message_id": saved_id}
+            if saved_id is not None:
+                data.update({"steered_message_ids": injected, "usage": None})
+                if saved_alt_group is not None:
+                    data["alt_group"] = saved_alt_group
+            await self._control.finish_turn(session_id=inp.session_id, owner=inp.owner,
+                                            turn_id=inp.turn_id, event=event, data=data)
+        else:
+            await self._control.clear_turn(session_id=inp.session_id)
+            await self._control.release_lock(session_id=inp.session_id, owner=inp.owner)
         if self._drain is not None and not failed:
             await self._drain(owner_id=inp.owner_id, session_id=inp.session_id,
                               character_id=inp.character_id)

@@ -156,6 +156,27 @@ class RedisTurnControl:
     async def clear_turn(self, *, session_id: int) -> None:
         await self._r.delete(turn_key(session_id))
 
+    async def finish_turn(self, *, session_id: int, owner: str, turn_id: str, event: str,
+                          data: dict[str, Any]) -> None:
+        """回合收尾：发布最后一个事件、删回合状态、释放锁，**一次往返**。
+
+        这三件事原本是三次串行 Redis 往返（各 180 ms 量级）。顺序是硬约束：
+        1. 事件要先发出去——客户端靠它知道回合结束；
+        2. 回合状态必须在放锁之前删——否则锁一放开，下一个回合就可能已经写好了
+           turn hash，而那之后才执行的 DEL 会把新回合的状态删掉；
+        3. 最后才释放锁。
+        pipeline 按注册顺序执行，三条命令之间没有其它连接能插进来，所以顺序不变；
+        而释放锁的判定仍在 Lua 里做（只删属于自己的那把），不会误删别人的锁。
+        """
+        pipe = self._r.pipeline(transaction=False)
+        pipe.xadd(events_key(session_id),
+                  {"event": event, "data": json.dumps(data, ensure_ascii=False)},
+                  maxlen=EVENTS_MAXLEN, approximate=True)
+        pipe.expire(events_key(session_id), 30 * 60)
+        pipe.delete(turn_key(session_id))
+        self._release(client=pipe, keys=[lock_key(session_id)], args=[owner])
+        await pipe.execute()
+
     # ---- 控制流（回合所在进程读取）----
 
     async def read_ctl(self, *, turn_id: str, last_id: str, block_ms: int = 1000) -> list[tuple[str, dict[str, str]]]:
