@@ -28,8 +28,19 @@ def test_user_token_has_expected_claims_and_grant(minter):
         "roomJoin": True,
         "canPublish": True,
         "canSubscribe": True,
-        "canPublishData": False,
+        "canPublishData": True,
     }
+
+
+def test_the_user_can_publish_data_because_text_chat_goes_over_data_streams(minter):
+    """陪伴页的文字走 LiveKit 数据流，不是 HTTP。
+
+    给 False 的后果特别隐蔽：界面上消息正常发出、显示在自己的气泡里，
+    服务端却一个字节都收不到，agent 一句话不回，两边日志都干净——
+    数据流发布在服务端被静默拒绝。
+    """
+    claims = decode_jwt(minter.user_token("u1", "companion-abc").token, SECRET)
+    assert claims["video"]["canPublishData"] is True
 
 
 def test_agent_token_can_publish_data(minter):

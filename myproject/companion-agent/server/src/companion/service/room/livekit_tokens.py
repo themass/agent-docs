@@ -144,8 +144,16 @@ class TokenMinter:
         name: str = "",
         now: float | None = None,
     ) -> LiveKitToken:
+        """用户的 token 必须能发数据。
+
+        陪伴页的文字不是 HTTP 发出去的，是走 LiveKit 的数据流（客户端
+        ``LiveKitCompanionTransport.sendText`` 用 ``lk.chat`` topic 开一条文本流，
+        服务端 RoomIO 的 ``TOPIC_CHAT`` handler 读走）。这里给 False 的话，
+        数据流发布被服务端静默拒绝：界面上消息看着发出去了，服务端一个字节都收不到，
+        agent 一句话不回，日志里也没有任何错误——只有客户端侧的发送失败被吞掉。
+        """
         return self._mint(
-            user_identity(user_id), room, name=name, can_publish_data=False, now=now
+            user_identity(user_id), room, name=name, can_publish_data=True, now=now
         )
 
     def agent_token(
@@ -156,7 +164,7 @@ class TokenMinter:
         name: str = "",
         now: float | None = None,
     ) -> LiveKitToken:
-        """agent 侧比用户多 canPublishData：它要推文字/事件到房间。"""
+        """agent 同样要能发数据：它推文字回复与各项事件到房间。"""
         return self._mint(
             agent_identity(agent_id), room, name=name, can_publish_data=True, now=now
         )
