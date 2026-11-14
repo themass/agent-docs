@@ -178,8 +178,13 @@ async def metrics_snapshot() -> JSONResponse:
     """
     from agentkit.observability import snapshot
 
+    from agentkit.observability import sharing_across_processes
+
     payload = snapshot()
-    payload["sharing_across_processes"] = metrics_multiprocess
+    # Read at request time, not captured at startup: `lifespan` runs in this
+    # process but its locals are not visible here, and the first version of this
+    # endpoint referenced one and returned 500 on every call.
+    payload["sharing_across_processes"] = sharing_across_processes()
     return JSONResponse(payload)
 
 

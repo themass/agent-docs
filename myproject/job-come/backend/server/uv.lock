@@ -47,7 +47,7 @@ dependencies = [
     { name = "structlog" },
 ]
 wheels = [
-    { filename = "agentkit-0.1.0-py3-none-any.whl", hash = "sha256:faa3af7fefbddd0dcbfd7a79057862565c299861a9f009fe9df7095fda5ab3bb" },
+    { filename = "agentkit-0.1.0-py3-none-any.whl", hash = "sha256:41a3055d0034a5c16a0b71ed7f43c879a987fb9952b2f11c180ce581aa4f1707" },
 ]
 
 [package.metadata]
