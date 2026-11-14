@@ -55,7 +55,14 @@ PROFILES: dict[str, PoolProfile] = {
 # 从池里借连接最多等多久。等不到就报错而不是无限排队：排队会让请求堆积、拖垮整个进程。
 POOL_TIMEOUT_SEC = 10.0
 # 连接存活上限。云数据库和负载均衡会静默回收长空闲的连接，超过它的连接下次使用才发现已断。
-POOL_RECYCLE_SEC = 1800
+#
+# 300 秒而不是 1800：换连接比"每次借出都探一下"便宜得多。
+#   · pool_pre_ping 每次 checkedout 都打一次往返——库在 180 ms 外，实测多付 179 ms，
+#     而且是在**每一个**请求上付；
+#   · pool_recycle 到期后只是扔掉旧连接、建一条新的——每 5 分钟每条连接一次。
+# 服务端实测（2026-11-14）：idle_session_timeout=0（不主动断会话）、tcp_keepalives_idle=1200s，
+# 同一条连接空闲 600 秒仍可用。300 秒稳稳在安全窗口内，连接不可能活到被中间设备掐掉。
+POOL_RECYCLE_SEC = 300
 
 
 def profile_for(name: str) -> PoolProfile:
@@ -91,7 +98,8 @@ def make_engine(url: str, profile: PoolProfile, *, process_tag: str = "") -> Any
         max_overflow=profile.max_overflow,
         pool_timeout=POOL_TIMEOUT_SEC,
         pool_recycle=POOL_RECYCLE_SEC,
-        pool_pre_ping=True,
+        # 不设 pre_ping：靠 pool_recycle 把连接寿命压在不被静默回收的窗口内（见上）。
+        pool_pre_ping=False,
         connect_args=server_options(app_name),
     )
 
