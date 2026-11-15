@@ -22,9 +22,14 @@ npx playwright test --reporter=list
 | 文件 | 用例 | 为什么是它 |
 |---|---|---|
 | `a-auth.spec.ts` | A-02 / A-02b / A-03 / A-08 | 登录表单可用；错误密码给出中文可读文案，不泄漏堆栈；未登录访问业务页要跳登录 |
-| `h-agent.spec.ts` | H-06 / H-01 / H-02 | 等待期只有一个「思考中」；纯对话能拿到回复；**带工具的改档能生成确认卡片** |
-| `k-admin.spec.ts` | K-02 / K-06 / K-07 / K-12 / K-13 / K-14 | 面板有真实数字；核心方法耗时不是 0.00003s；跨进程标识为 true；inflight 回零；列表按时间倒序且不含 payload |
+| `b-profile.spec.ts` | B-04 / B-07 / B-08 / B-08b | 短文本被拒而非编造；新档案是草稿态；**空档案不能被确认** |
 | `d-export.spec.ts` | D-01 ×3 | 三种格式都能生成并**真的下载到有效文件**（校验 magic 头） |
+| `ef-mock.spec.ts` | E-01 / E-04 / F-01 / F-02 | JD 能解析成结构；匹配不阻断；目标岗模式未绑岗位必须被拒 |
+| `g-interview.spec.ts` | G-01 / G-02 / I-01 / I-02 | 面试记录**写进去能读回来**；会员状态可读；无效兑换码给出可读文案 |
+| `h-agent.spec.ts` | H-06 / H-01 / H-02 | 等待期只有一个「思考中」；纯对话能拿到回复；**带工具的改档能生成确认卡片** |
+| `j-feedback.spec.ts` | J-01 / J-02 / J-03 | 通知可读；反馈提交后**列表能读回同一条** |
+| `k-admin.spec.ts` | K-02 / K-06 / K-07 / K-12 / K-13 / K-14 | 面板有真实数字；核心方法耗时不是 0.00003s；跨进程标识为 true；inflight 回零；列表按时间倒序且不含 payload |
+| `m-isolation.spec.ts` | M-05 / M-06 / M-08 | 未登录被拒；监控端点不含用户数据；错误响应不泄漏堆栈或内部路径 |
 
 ## 这些用例针对的是真实缺陷
 
@@ -43,7 +48,16 @@ npx playwright test --reporter=list
 
 ## 还没覆盖
 
-A/B/C/E/F/G/I/J/L/M 各组见
-[`../../docs/operations/QA-FULL-VERIFICATION.md`](../../docs/operations/QA-FULL-VERIFICATION.md)。
-当前只把那几组里**发生过真实缺陷**的部分写成了自动化用例——优先覆盖踩过的坑，
-而不是铺满一个看起来完整的矩阵。
+详细清单见 [`../../docs/operations/QA-FULL-VERIFICATION.md`](../../docs/operations/QA-FULL-VERIFICATION.md)。
+当前 32 个用例，尚未覆盖的主要是：
+
+| 缺口 | 原因 |
+|---|---|
+| C 组（简历优化三档、证据补全、覆盖度、侧栏收起） | 需要真实浏览器交互与生成结果比对，还没写 |
+| L 组（性能门槛） | 已有手工基线（见 [`../../docs/operations/PERF-SUMMARY.md`](../../docs/operations/PERF-SUMMARY.md)），未变成断言 |
+| M-01~M-04 跨用户隔离 | 需要**第二个账号**做对照，当前 fixture 只有一个 |
+| B-01/B-02/B-03 文件上传解析 | 需要真实 PDF/DOCX/图片样本 |
+| F-04~F-10 答题/跳过/换题/报告 | 需要一场完整面试，耗配额 |
+| K-15~K-21 后台各页细节 | 只覆盖了监控面板与调用列表 |
+
+优先覆盖**踩过的坑**，而不是铺满一个看起来完整的矩阵。
