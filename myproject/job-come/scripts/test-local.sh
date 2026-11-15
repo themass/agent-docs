@@ -18,6 +18,10 @@ fi
 for script in "$ROOT"/scripts/*.sh "$ROOT"/scripts/lib/*.sh "$ROOT"/scripts/nginx/*.sh; do
   bash -n "$script"
 done
+# Frontend unit tests run before the build: they cover derived state (data fetching and
+# provider), not first paint, so a failure here means the logic is wrong rather than the
+# build being broken -- and re-running them takes a second instead of a full build.
+(cd "$WEB_ROOT" && npm run test)
 (cd "$WEB_ROOT" && npm run build)
 
 echo "PASS: local checks"
