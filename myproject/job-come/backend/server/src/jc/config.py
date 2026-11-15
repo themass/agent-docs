@@ -31,8 +31,19 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 # then throws away, and the failure surfaces as a fast, plausible-looking draft
 # rather than an error. Hence 45s per attempt and 120s per chain, which leaves
 # the writer 120/2.5 = 48s per hop — nearly 2x the slowest chain member's
-# measured time. Worst-case preview is writer 120 + repair 40 = 160s, still
+# measured time. Worst-case preview is writer 120 + repair 60 = 180s, still
 # inside the 240s SSE budget and the frontend's 255s watchdog.
+#
+# The repair budget was 40s and production showed it failing 4 times out of 8
+# (`Preview repair unavailable; keeping first draft: TimeoutError`) — never a
+# rejection, always the clock. The repair reuses the full writer prompt
+# (~14k tokens of input by design, see `resume_elevator`), which is several times
+# what the first pass sends, so a budget below the writer's own per-hop time was
+# guaranteed to cut it. It degrades gracefully rather than erroring, which is
+# exactly why this went unnoticed: the user just got the first draft and the
+# feature looked like it never fired. 60s is the ceiling the surrounding budgets
+# leave (120 + 60 + overhead < 240s SSE); if repairs still time out at 60s, the
+# prompt size is the thing to fix, not this number.
 
 
 class Settings(BaseSettings):
@@ -55,7 +66,10 @@ class Settings(BaseSettings):
         description="One targeted rewrite when the generated draft measurably misses its blueprint",
     )
     jc_preview_repair_timeout_seconds: float = Field(
-        40, gt=0, le=60, alias="JC_PREVIEW_REPAIR_TIMEOUT_SECONDS",
+        # 60, not 40: at 40 every repair in production timed out rather than
+        # being rejected, because the repair sends the whole writer prompt.
+        # See the budget note above for the measurement.
+        60, gt=0, le=60, alias="JC_PREVIEW_REPAIR_TIMEOUT_SECONDS",
         description=(
             "Budget for the repair pass alone. Separate from the writer budget rather "
             "than carved out of it: the first pass writes the whole document."
