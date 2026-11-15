@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { HAS_CREDENTIALS, login } from "./helpers";
+import { HAS_CREDENTIALS, login, requireValue } from "./helpers";
 
 /** E. JD 解析与匹配 / F. 模拟面试 */
 
@@ -17,8 +17,8 @@ test.describe("E. JD 解析与匹配", () => {
   });
 
   test("E-01 粘贴 JD 能解析出结构化结果", async ({ page }) => {
-    const prof = await firstProfile(page);
-    test.skip(!prof, "没有可用档案");
+    const prof = requireValue(await firstProfile(page), "没有可用档案");
+    
 
     const res = await page.request.post(
       new URL(`/api/v1/jobs/profiles/${prof.id}/parse`, page.url()).toString(),
@@ -41,8 +41,8 @@ test.describe("E. JD 解析与匹配", () => {
     // The product rule is that a match score is a diagnosis, never a gate. Asserting
     // this through the API: scoring a profile against a job must not make the
     // profile unreadable or unexportable.
-    const prof = await firstProfile(page);
-    test.skip(!prof, "没有可用档案");
+    const prof = requireValue(await firstProfile(page), "没有可用档案");
+    
     const res = await page.request.get(
       new URL(`/api/v1/profiles/${prof.id}`, page.url()).toString(),
     );
@@ -57,8 +57,8 @@ test.describe("F. 模拟面试", () => {
   });
 
   test("F-02 目标岗模式未绑定岗位时被拒，且文案正确", async ({ page }) => {
-    const prof = await firstProfile(page);
-    test.skip(!prof, "没有可用档案");
+    const prof = requireValue(await firstProfile(page), "没有可用档案");
+    
 
     const res = await page.request.post(
       new URL("/api/v1/coach/mock/sessions", page.url()).toString(),
@@ -77,8 +77,8 @@ test.describe("F. 模拟面试", () => {
   });
 
   test("F-01 练手模式不绑 JD 可以开", async ({ page }) => {
-    const prof = await firstProfile(page);
-    test.skip(!prof, "没有可用档案");
+    const prof = requireValue(await firstProfile(page), "没有可用档案");
+    
 
     const res = await page.request.post(
       new URL("/api/v1/coach/mock/sessions", page.url()).toString(),

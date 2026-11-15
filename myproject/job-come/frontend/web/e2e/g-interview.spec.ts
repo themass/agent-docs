@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { HAS_CREDENTIALS, login } from "./helpers";
+import { HAS_CREDENTIALS, login, requireValue } from "./helpers";
 
 /** G. 真实面试复盘 / I. 会员与兑换 */
 
@@ -17,8 +17,8 @@ test.describe("G. 面试复盘", () => {
   });
 
   test("G-01 保存一条面试记录后能读回", async ({ page }) => {
-    const prof = await firstProfile(page);
-    test.skip(!prof, "没有可用档案");
+    const prof = requireValue(await firstProfile(page), "没有可用档案");
+    
     const company = `e2e公司-${Date.now()}`;
 
     const res = await page.request.post(
@@ -51,8 +51,8 @@ test.describe("G. 面试复盘", () => {
   });
 
   test("G-02 题库可搜索", async ({ page }) => {
-    const prof = await firstProfile(page);
-    test.skip(!prof, "没有可用档案");
+    const prof = requireValue(await firstProfile(page), "没有可用档案");
+    
     const res = await page.request.get(
       new URL(`/api/v1/coach/profiles/${prof.id}/bank?limit=5`, page.url()).toString(),
     );

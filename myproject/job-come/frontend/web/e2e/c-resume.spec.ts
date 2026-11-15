@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { HAS_CREDENTIALS, login } from "./helpers";
+import { HAS_CREDENTIALS, login, requireValue } from "./helpers";
 
 /**
  * C. 简历优化 — the optimize-preview pipeline.
@@ -26,8 +26,8 @@ test.describe("C. 简历优化", () => {
 
   for (const level of LEVELS) {
     test(`C-01/C-02 ${level} 档位能生成，且带强化手段标注`, async ({ page }) => {
-      const prof = await confirmedProfile(page);
-      test.skip(!prof, "没有可用档案");
+      const prof = requireValue(await confirmedProfile(page), "没有可用档案");
+      
 
       const res = await page.request.get(
         new URL(
@@ -51,8 +51,8 @@ test.describe("C. 简历优化", () => {
   }
 
   test("C-05/C-07 预览带覆盖度与岗位标准，且都是建议", async ({ page }) => {
-    const prof = await confirmedProfile(page);
-    test.skip(!prof, "没有可用档案");
+    const prof = requireValue(await confirmedProfile(page), "没有可用档案");
+    
 
     const res = await page.request.get(
       new URL(
@@ -72,8 +72,8 @@ test.describe("C. 简历优化", () => {
   });
 
   test("C-01b 不同档位产出不同（档位真的生效）", async ({ page }) => {
-    const prof = await confirmedProfile(page);
-    test.skip(!prof, "没有可用档案");
+    const prof = requireValue(await confirmedProfile(page), "没有可用档案");
+    
 
     const get = async (level: string) => {
       const res = await page.request.get(
@@ -99,8 +99,8 @@ test.describe("C. 简历优化", () => {
   });
 
   test("C-10 优化稿版本列表可读", async ({ page }) => {
-    const prof = await confirmedProfile(page);
-    test.skip(!prof, "没有可用档案");
+    const prof = requireValue(await confirmedProfile(page), "没有可用档案");
+    
     const res = await page.request.get(
       new URL(`/api/v1/resume-versions?profile_id=${prof.id}`, page.url()).toString(),
     );

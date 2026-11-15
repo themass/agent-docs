@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { HAS_CREDENTIALS, login } from "./helpers";
+import { HAS_CREDENTIALS, login, requireValue } from "./helpers";
 
 /**
  * F-01 ~ F-10: one mock interview, end to end.
@@ -32,8 +32,8 @@ test.describe("F. 模拟面试完整流程", () => {
   });
 
   test("F-01/F-02/F-06/F-07/F-08 开一场、答一题、结束、报告存在", async ({ page }) => {
-    const prof = await profileWithJob(page);
-    test.skip(!prof, "没有可用档案");
+    const prof = requireValue(await profileWithJob(page), "没有可用档案");
+    
 
     // Warmup mode needs no job, so this works on any profile. Level is left out so
     // the server picks one from the experience; if it cannot, creation is refused
@@ -96,8 +96,8 @@ test.describe("F. 模拟面试完整流程", () => {
   });
 
   test("F-04 答题必须记录到被问的那道题上", async ({ page }) => {
-    const prof = await profileWithJob(page);
-    test.skip(!prof, "没有可用档案");
+    const prof = requireValue(await profileWithJob(page), "没有可用档案");
+    
 
     const bankRes = await page.request.get(
       new URL(`/api/v1/coach/profiles/${prof.id}/bank?limit=1`, page.url()).toString(),
@@ -123,8 +123,8 @@ test.describe("F. 模拟面试完整流程", () => {
   test("F-03 级别推荐可用", async ({ page }) => {
     // `profile_id` is a required query parameter — the recommendation is derived
     // from that profile's experience, so there is no profile-less form of it.
-    const prof = await profileWithJob(page);
-    test.skip(!prof, "没有可用档案");
+    const prof = requireValue(await profileWithJob(page), "没有可用档案");
+    
 
     const res = await page.request.get(
       new URL(

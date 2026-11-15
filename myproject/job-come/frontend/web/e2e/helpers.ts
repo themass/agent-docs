@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 export const EMAIL = process.env.JC_E2E_EMAIL ?? "metrics-probe-20261114@example.com";
 export const PASSWORD = process.env.JC_E2E_PASSWORD ?? "";
@@ -14,6 +14,18 @@ export function emailInput(page: Page) {
   // The email field is the first text-ish input on the form; labelling is
   // inconsistent between the login and register pages.
   return page.locator('input[type="email"], input[autocomplete="username"]').first();
+}
+
+/**
+ * Return `value`, or skip the test when it is absent.
+ *
+ * `test.skip(cond, why)` returns void, so TypeScript cannot narrow anything after
+ * it and every call site needs an assertion. Putting it here keeps the claim in
+ * one place ("after this line it exists") instead of eight.
+ */
+export function requireValue<T>(value: T | undefined | null, reason: string): T {
+  if (value === undefined || value === null) test.skip(true, reason);
+  return value as T;
 }
 
 /**
