@@ -11,3 +11,4 @@ node_modules/
 # Real production secrets belong in `.env.production.local`, which the root
 # `.env.*.local` rule keeps ignored and this exception does not touch.
 !.env.production
+e2e/.auth/

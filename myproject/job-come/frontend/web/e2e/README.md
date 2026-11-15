@@ -15,6 +15,9 @@ npx playwright test --reporter=list
 
 - `JC_E2E_EMAIL` 默认 `metrics-probe-20261114@example.com`。
 - 没有 `JC_E2E_PASSWORD` 时，需要登录的用例会 skip 并注明原因，不会假通过。
+- **跨用户隔离用例需要第二个账号**：`JC_E2E_EMAIL_B`（默认
+  `e2e-probe-b-20261115@example.com`）和 `JC_E2E_PASSWORD_B`。缺 B 密码时
+  `m-cross-user.spec.ts` 整组 skip，不会假通过。
 - 失败会留下截图、录屏和 trace：`test-results/<用例名>/`，用 `npx playwright show-trace` 打开。
 
 ## 覆盖的用例
@@ -30,6 +33,7 @@ npx playwright test --reporter=list
 | `j-feedback.spec.ts` | J-01 / J-02 / J-03 | 通知可读；反馈提交后**列表能读回同一条** |
 | `k-admin.spec.ts` | K-02 / K-06 / K-07 / K-12 / K-13 / K-14 | 面板有真实数字；核心方法耗时不是 0.00003s；跨进程标识为 true；inflight 回零；列表按时间倒序且不含 payload |
 | `m-isolation.spec.ts` | M-05 / M-06 / M-08 | 未登录被拒；监控端点不含用户数据；错误响应不泄漏堆栈或内部路径 |
+| `m-cross-user.spec.ts` | M-01 / M-01b / M-02 / M-04 | **用 B 账号的独立 cookie 去读 A 的档案/会话/简历版本**，必须被拒或拿到空列表 |
 
 ## 这些用例针对的是真实缺陷
 
@@ -55,9 +59,18 @@ npx playwright test --reporter=list
 |---|---|
 | C 组（简历优化三档、证据补全、覆盖度、侧栏收起） | 需要真实浏览器交互与生成结果比对，还没写 |
 | L 组（性能门槛） | 已有手工基线（见 [`../../docs/operations/PERF-SUMMARY.md`](../../docs/operations/PERF-SUMMARY.md)），未变成断言 |
-| M-01~M-04 跨用户隔离 | 需要**第二个账号**做对照，当前 fixture 只有一个 |
 | B-01/B-02/B-03 文件上传解析 | 需要真实 PDF/DOCX/图片样本 |
 | F-04~F-10 答题/跳过/换题/报告 | 需要一场完整面试，耗配额 |
 | K-15~K-21 后台各页细节 | 只覆盖了监控面板与调用列表 |
+
+## 跨用户隔离用例怎么才算有效
+
+`m-cross-user.spec.ts` 用 `playwright.request.newContext()` 建一个**独立 cookie jar**，
+以 B 的身份登录，再去读 A 的资源。
+
+如果复用 page 的 cookie，断言会全部"通过"但毫无意义——那用的是 A 自己的会话，
+拒绝和空结果都会因为错误的原因成立。这条写在这里，是因为它是最容易被写假的一类测试：
+200 也可能是对的（空列表），所以断言分两支——要么被拒（4xx），
+要么 200 但载荷确实是空的。
 
 优先覆盖**踩过的坑**，而不是铺满一个看起来完整的矩阵。

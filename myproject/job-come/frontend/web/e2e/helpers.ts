@@ -17,13 +17,25 @@ export function emailInput(page: Page) {
 }
 
 /**
- * Log in through the real form.
+ * Ensure the page has a signed-in session.
  *
- * Through the UI rather than by injecting a cookie: the cookie name, the session
- * store and the CSRF behaviour are all part of what these tests are here to check.
- * A test that sets the cookie itself would pass with a broken login form.
+ * Normally `global-setup.ts` already logged in and its `storageState` is loaded,
+ * so this only has to confirm it. That matters: with 36 tests each driving the
+ * form, one login timed out mid-run and the export test failed with "still on
+ * /auth/login" — an export failure that was really a login flake.
+ *
+ * The form path stays, and `a-auth.spec.ts` still exercises it for real: that is
+ * the suite which asserts the form works. Logging in by injecting a cookie for
+ * every test would make a broken login form invisible everywhere else.
  */
 export async function login(page: Page): Promise<void> {
+  await page.goto("/auth/account");
+  const url = page.url();
+  const body = await page.locator("body").innerText();
+
+  // Already signed in: the account page rendered instead of redirecting away.
+  if (!/\/auth\/login/.test(url) && !/请先登录|登录后可/.test(body)) return;
+
   await page.goto("/auth/login");
   await emailInput(page).fill(EMAIL);
   await passwordInput(page).fill(PASSWORD);

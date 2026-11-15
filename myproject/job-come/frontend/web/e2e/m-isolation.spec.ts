@@ -11,11 +11,16 @@ import { HAS_CREDENTIALS, login } from "./helpers";
  */
 
 test.describe("M. 安全与隔离", () => {
-  test("M-05 未登录访问业务接口返回 401", async ({ request }) => {
+  test("M-05 未登录访问业务接口返回 401", async ({ request, playwright, baseURL }) => {
+    // These cases are *about* being signed out. `request` inherits the storageState
+    // global-setup created for the other tests, so using it here would send A's
+    // cookie and get 200 — a pass that asserts the opposite of what it claims.
+    const anon = await playwright.request.newContext({ storageState: undefined });
     for (const path of ["/api/v1/profiles", "/api/v1/agent/sessions", "/api/v1/auth/account"]) {
-      const res = await request.get(path);
+      const res = await anon.get(`${baseURL}${path}`);
       expect(res.status(), `${path} 未登录时没有拒绝`).toBe(401);
     }
+    await anon.dispose();
   });
 
   test("M-06 监控端点不含用户数据", async ({ request }) => {

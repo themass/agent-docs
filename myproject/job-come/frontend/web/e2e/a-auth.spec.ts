@@ -24,7 +24,13 @@ test.describe("A. 账户与鉴权", () => {
     expect(body).not.toMatch(/\b(500|502|503)\b/);
   });
 
-  test("A-03 未登录访问业务页会跳转登录", async ({ page }) => {
+  test("A-03 未登录访问业务页会跳转登录", async ({ browser }) => {
+    // This case is *about* the signed-out state, so it must not inherit the
+    // storageState that global-setup produced for the other tests. Built from a
+    // bare context on purpose — reusing `page` would test the signed-in path and
+    // pass for the wrong reason.
+    const ctx = await browser.newContext({ storageState: undefined });
+    const page = await ctx.newPage();
     await page.goto("/resume-agent");
     await page.waitForLoadState("networkidle");
     const url = page.url();
@@ -34,6 +40,7 @@ test.describe("A. 账户与鉴权", () => {
     const redirected = /\/auth\/login/.test(url);
     const asksToLogin = /登录/.test(body);
     expect(redirected || asksToLogin, `url=${url} body=${body.slice(0, 200)}`).toBe(true);
+    await ctx.close();
   });
 
   test("A-08 登录后能进入账户设置", async ({ page }) => {
