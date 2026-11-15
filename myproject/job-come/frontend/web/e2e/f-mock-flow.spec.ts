@@ -99,13 +99,30 @@ test.describe("F. 模拟面试完整流程", () => {
     const prof = requireValue(await profileWithJob(page), "没有可用档案");
     
 
+    // The bank only fills from real interview records, so a fresh account has none —
+    // this case used to skip on every run. Seed one question through the same
+    // endpoint the UI uses, then answer it. That keeps the test about "an answer is
+    // recorded against the question it was asked for" rather than about whether this
+    // account happens to have history.
+    const stem = `e2e 题库种子题 ${Date.now()}：讲一个你做过的性能优化`;
+    const seeded = await page.request.post(
+      new URL(`/api/v1/coach/profiles/${prof.id}/questions`, page.url()).toString(),
+      { data: { source: "real", stem, question_type: "behavioral" } },
+    );
+    expect(seeded.status(), "无法写入种子题目").toBeLessThan(400);
+    const seededBody = await seeded.json();
+    const seededId = seededBody.id ?? seededBody.question_id;
+    expect(seededId, "写入种子题后没有返回题目 id").toBeTruthy();
+
     const bankRes = await page.request.get(
-      new URL(`/api/v1/coach/profiles/${prof.id}/bank?limit=1`, page.url()).toString(),
+      new URL(`/api/v1/coach/profiles/${prof.id}/bank?limit=5`, page.url()).toString(),
     );
     test.skip(bankRes.status() !== 200, "题库接口不可用");
     const bank = await bankRes.json();
-    const q = (bank.questions ?? [])[0];
-    test.skip(!q, "题库为空，无法验证答题落库");
+    // Use the seeded question specifically: picking bank[0] would depend on ordering
+    // and could answer a different question than the one asserted about.
+    const q = (bank.questions ?? []).find((x: { id: string }) => x.id === seededId);
+    expect(q, `题库里找不到刚写入的题 ${seededId}`).toBeTruthy();
 
     const answer = `e2e-answer-${Date.now()}`;
     const res = await page.request.post(
