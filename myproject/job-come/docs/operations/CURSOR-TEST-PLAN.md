@@ -61,7 +61,8 @@ JC_BASE_URL=https://jc.sspacee.com npx playwright test --reporter=list
 
 **先跑一遍现有 e2e，确认 62 绿。跑不绿就是环境或账号问题，先解决再往下。**
 
-那 7 个后端失败是**既有问题**（PDF 导出、LLM env 路由），不是回归，不要当成本轮的发现。
+后端失败据报告实测为 **1 个**（`test_export_three_real_formats[pdf]`），比本文件原先写的 7 个少——
+说明另外 6 个（`test_llm_model_env.py`）依赖本机 `.env`，在别的环境下消失。**以实测为准**。
 
 ---
 
@@ -96,7 +97,7 @@ JC_BASE_URL=https://jc.sspacee.com npx playwright test --reporter=list
 |---|---|---|
 | S1 | 全量 e2e 连跑 **3 次** | 3 次都是 62 绿；任何一次失败都记下来 |
 | S2 | 单独把 `h-agent.spec.ts` 连跑 **5 次** | 5/5 绿。这是历史上最不稳定的路径 |
-| S3 | 后端测试连跑 **3 次** | 失败数稳定在 7；若变动，说明有测试污染 |
+| S3 | 后端测试连跑 **3 次** | 失败数**稳定不变**；若次数变动，说明有测试污染 |
 
 **S2 是重点。** 如果 5 次里有 1 次失败，那是真实缺陷——记录下来，附完整 trace。
 

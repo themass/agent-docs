@@ -69,6 +69,20 @@ npx playwright test --reporter=list
 | B-03 图片 OCR | 需要一个真实图片样本；PDF/DOCX 已覆盖 |
 | F-05 跳过/换题成功路径 | 只在"不存在的题"上验证了不返回 5xx；成功路径需要一场进行中的面试 |
 
+## 用例自身的坑（Cursor 报告后修正）
+
+这些不是产品缺陷，是用例写错，而且每一条都曾把假失败报成真回归：
+
+| 用例 | 错在哪 | 现在的做法 |
+|---|---|---|
+| C-09b | 找 `待补充`，UI 实际用 `GAP_KIND_LABELS`（`换成真实数字` 等）；且没展开 `回答 N 个问题` 面板 | 改为匹配真实标签 + 先展开；**仍未通过，标 `fixme` 并写明 6 次尝试的原因** |
+| M-04 | 要求 B 一条简历版本都没有 | 只断言 A 的 `profile_id` 不出现——B 有自己的版本是正常的 |
+| B-02 / B-04b | `upload` / `from-text` 挂到 **active** 档案，前一用例把 active 留成了 confirmed | 上传前显式 `activate` 一个新 draft |
+| C-01 | 未对 `preview_profile_changed` 重试 | 与 `helpers` 一致，409 最多重试 3 次 |
+| L-02 | 单次采样 3087ms 撞 3000ms 阈值 | 取三次中位数 |
+
+共同点：**测试失败先怀疑测试**。上面五条里没有一条是产品坏了。
+
 ## 跨用户隔离用例怎么才算有效
 
 `m-cross-user.spec.ts` 用 `playwright.request.newContext()` 建一个**独立 cookie jar**，

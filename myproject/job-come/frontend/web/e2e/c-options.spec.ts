@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { HAS_CREDENTIALS, login, requireValue } from "./helpers";
+import { HAS_CREDENTIALS, login, requireValue, seedProfileWithGap } from "./helpers";
 
 /**
  * C-03 / C-04: evidence gaps and writing preferences.
@@ -111,13 +111,13 @@ test.describe("C. 证据补全与写作偏好", () => {
   });
 
   test("C-03b 证据答案能回填并出现在下一次缺口查询里", async ({ page }) => {
-    const prof = requireValue(await confirmedProfile(page), "没有可用档案");
+    const prof = requireValue(await seedProfileWithGap(page), "无法造出带缺口的档案");
 
     const gapUrl = new URL(`/api/v1/profiles/${prof.id}/evidence-gaps`, page.url()).toString();
     const gapsRes = await page.request.get(gapUrl);
     test.skip(gapsRes.status() !== 200, "缺口接口不可用");
     const gaps = (await gapsRes.json()).gaps ?? [];
-    test.skip(!gaps.length, "当前档案没有可补的证据缺口，跳过");
+    expect(gaps.length, "刚写入「多项」却没有产生缺口，缺口规则变了").toBeGreaterThan(0);
 
     const target = gaps[0];
     const answer = `e2e-evidence-${Date.now()}`;

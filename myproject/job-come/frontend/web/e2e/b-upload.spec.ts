@@ -1,3 +1,4 @@
+import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { minimalDocx, minimalPdf } from "./fixtures";
 import { HAS_CREDENTIALS, login } from "./helpers";
@@ -16,7 +17,29 @@ test.describe("B. 文件上传建档", () => {
     await login(page);
   });
 
+  /**
+   * Point the account at a fresh draft before an upload case.
+   *
+   * `POST /profiles/upload` and `/from-text` attach to the currently active profile
+   * instead of always creating one. An earlier suite left a *confirmed* profile
+   * active, so these cases saw `status=confirmed` where they assert `draft` — a
+   * fixture-state failure reported as a product regression. Resetting first makes
+   * the precondition explicit rather than incidental.
+   */
+  async function activateFreshDraft(page: Page): Promise<void> {
+    const created = await page.request.post(
+      new URL("/api/v1/profiles", page.url()).toString(),
+      { data: { name: `e2e-upload-${Date.now()}` } },
+    );
+    if (created.status() >= 400) return;
+    const prof = await created.json();
+    await page.request.post(
+      new URL(`/api/v1/profiles/${prof.id}/activate`, page.url()).toString(),
+    );
+  }
+
   test("B-01 上传 PDF 创建档案并进入解析流程", async ({ page }) => {
+    await activateFreshDraft(page);
     const pdf = minimalPdf("Zhang San Backend Engineer Example Technology Co 2021-2024");
     const res = await page.request.post(new URL("/api/v1/profiles/upload", page.url()).toString(), {
       multipart: {
@@ -37,6 +60,7 @@ test.describe("B. 文件上传建档", () => {
   });
 
   test("B-02 上传 DOCX 同样建档案并进入解析", async ({ page }) => {
+    await activateFreshDraft(page);
     // Word is the other format a real user has. The extractor is a different code
     // path from the PDF one, so a passing PDF says nothing about this.
     const docx = minimalDocx(
@@ -77,6 +101,7 @@ test.describe("B. 文件上传建档", () => {
   });
 
   test("B-04b 粘贴文本达到 80 字能解析", async ({ page }) => {
+    await activateFreshDraft(page);
     const text =
       "张三，后端工程师，2021 年至 2024 年在示例科技负责订单系统，" +
       "主导把接口 P99 从 800ms 降到 120ms，日常使用 Go 和 PostgreSQL，" +

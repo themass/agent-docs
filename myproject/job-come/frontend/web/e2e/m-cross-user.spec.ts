@@ -114,12 +114,17 @@ test.describe("M. 跨用户隔离", () => {
 
     const res = await ctx.get(`${base}/api/v1/resume-versions?profile_id=${pid}`);
     if (res.status() === 200) {
+      // The property is "A's versions never reach B", not "B has no versions at all".
+      // The earlier assertion required every group to be empty, so it failed the moment
+      // B generated a draft of its own — a fixture state, not a leak. B owning versions
+      // is normal; B owning *A's* versions is the defect.
       const data = await res.json();
       const groups = data.groups ?? [];
       for (const g of groups) {
         expect(g.profile_id, "B 读到了 A 的简历版本分组").not.toBe(pid);
-        expect((g.versions ?? []).length, "B 读到了 A 的简历版本").toBe(0);
       }
+      const text = JSON.stringify(groups);
+      expect(text, "响应里出现了 A 的 profile_id").not.toContain(pid);
     } else {
       expect([400, 403, 404]).toContain(res.status());
     }

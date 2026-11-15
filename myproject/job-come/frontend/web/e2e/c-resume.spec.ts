@@ -29,13 +29,19 @@ test.describe("C. 简历优化", () => {
       const prof = requireValue(await confirmedProfile(page), "没有可用档案");
       
 
-      const res = await page.request.get(
-        new URL(
-          `/api/v1/profiles/${prof.id}/elevate/preview?elevation_level=${level}&locale=zh-CN`,
-          page.url(),
-        ).toString(),
-        { timeout: 300_000 },
-      );
+      // `preview_profile_changed` is a legitimate 409: confirming a profile queues
+      // `prepare_resume_tracks`, which bumps the version mid-generation and makes the
+      // preview guard refuse a stale draft. A real client retries; without this the
+      // case failed about one run in three and read as "generation is broken".
+      const previewUrl = new URL(
+        `/api/v1/profiles/${prof.id}/elevate/preview?elevation_level=${level}&locale=zh-CN`,
+        page.url(),
+      ).toString();
+      let res = await page.request.get(previewUrl, { timeout: 300_000 });
+      for (let attempt = 0; attempt < 3 && res.status() === 409; attempt++) {
+        await page.waitForTimeout(2000);
+        res = await page.request.get(previewUrl, { timeout: 300_000 });
+      }
       expect(res.status(), `档位 ${level} 生成失败`).toBe(200);
 
       const body = await res.json();
