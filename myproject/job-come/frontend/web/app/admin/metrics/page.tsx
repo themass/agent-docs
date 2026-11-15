@@ -112,6 +112,38 @@ function counterByLabel(
     .sort((a, b) => b.value - a.value);
 }
 
+/** Two counter totals over the wall-clock gap between their readings. */
+type ServiceRate = {
+  at: number;
+  llmCallsPerMin: number | null;
+  turnsPerMin: number | null;
+  seconds: number;
+  /** Raw totals, kept so the next poll can difference against them. */
+  llmCallsTotal: number | null;
+  turnsTotal: number | null;
+};
+
+/**
+ * Difference two readings of the same cumulative counter.
+ *
+ * Returns null when there is no previous reading (first poll), and when the
+ * counter went *backwards* — which happens legitimately on restart or on a
+ * peer that reports per-worker numbers, and would otherwise render as a
+ * large negative rate. A rate is a claim about the last interval; when the
+ * inputs cannot support one, showing nothing is the honest answer.
+ */
+function rateBetween(
+  previous: { at: number; value: number } | undefined,
+  current: { at: number; value: number | null },
+): number | null {
+  if (!previous || current.value == null) return null;
+  const seconds = (current.at - previous.at) / 1000;
+  if (seconds <= 0) return null;
+  const delta = current.value - previous.value;
+  if (delta < 0) return null;
+  return (delta / seconds) * 60;
+}
+
 export default function AdminMetricsPage() {
   const [snapshot, setSnapshot] = useState<AdminMetricsSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -122,6 +154,13 @@ export default function AdminMetricsPage() {
   // per-worker and reset on restart, so a chart of them is blank right after a
   // deploy — the one moment someone opens this page to compare before/after.
   const [timeline, setTimeline] = useState<AdminLlmTimeBucket[]>([]);
+  // A counter tells you the total since the process started, which is not the
+  // question "how busy is it right now". The rate is a difference over the real
+  // elapsed time between two snapshots — measured, not assumed to be
+  // REFRESH_MS, because a slow request or a manual refresh makes the interval
+  // whatever it actually was. Kept per peer so switching services cannot pair
+  // one service's counter with another's timestamp.
+  const [rates, setRates] = useState<Record<string, ServiceRate>>({});
 
   const load = useCallback(async (withPeers: boolean) => {
     try {
@@ -131,6 +170,40 @@ export default function AdminMetricsPage() {
       ]);
       setTimeline(series.buckets ?? []);
       setSnapshot(data);
+      // Fold this reading into the rate table: what each answering peer's
+      // counters showed, and when. `setSnapshot` above replaces the old
+      // snapshot, so this must read from `data`, not from state.
+      const now = Date.now();
+      setRates((previous) => {
+        const next = { ...previous };
+        for (const p of data.peers) {
+          if (!p.ok) continue;
+          const calls = counterTotal(p.families?.llm_calls);
+          const turns = counterTotal(p.families?.agent_turns);
+          // Compare like with like: a peer absent from the last poll has no
+          // previous reading even if a different peer had one. The guard is on
+          // the previous *total* — `rateBetween` needs two numbers, and earlier
+          // versions of this condition tested the previous rate, which is null
+          // exactly on the first poll and would have suppressed the rate on the
+          // second one as well.
+          const before = previous[p.name];
+          next[p.name] = {
+            at: now,
+            seconds: before ? (now - before.at) / 1000 : 0,
+            llmCallsPerMin: rateBetween(
+              before?.llmCallsTotal != null ? { at: before.at, value: before.llmCallsTotal } : undefined,
+              { at: now, value: calls },
+            ),
+            turnsPerMin: rateBetween(
+              before?.turnsTotal != null ? { at: before.at, value: before.turnsTotal } : undefined,
+              { at: now, value: turns },
+            ),
+            llmCallsTotal: calls,
+            turnsTotal: turns,
+          };
+        }
+        return next;
+      });
       setError(null);
       // Keep the selection only while that peer still exists; otherwise fall back
       // to the first answering one, so a removed peer cannot leave a blank panel.
@@ -166,6 +239,7 @@ export default function AdminMetricsPage() {
   const agentTurns = counterTotal(familyOf(peer, "agent_turns"));
   const inflight = counterTotal(familyOf(peer, "agent_turns_in_flight"));
   const ttft = histogramMean(familyOf(peer, "agent_phase_duration_seconds"));
+  const rate = activePeer ? rates[activePeer] : undefined;
 
   const phaseFamily = familyOf(peer, "agent_phase_duration_seconds");
   const phaseRows = useMemo(() => histogramByLabel(phaseFamily, "phase"), [phaseFamily]);
@@ -251,7 +325,22 @@ export default function AdminMetricsPage() {
 
           {peer?.ok ? (
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+                <StatTile
+                  label="模型调用速率"
+                  // A rate needs two readings, so the first poll after opening
+                  // the page honestly reports nothing rather than 0 — the same
+                  // empty-vs-zero rule as the failure tile below.
+                  value={
+                    rate?.llmCallsPerMin == null ? "—" : rate.llmCallsPerMin.toFixed(1)
+                  }
+                  hint={rate?.llmCallsPerMin == null ? "等下一次采样" : "次/分 · 上一个采样区间"}
+                />
+                <StatTile
+                  label="回合速率"
+                  value={rate?.turnsPerMin == null ? "—" : rate.turnsPerMin.toFixed(1)}
+                  hint={rate?.turnsPerMin == null ? "等下一次采样" : "回合/分 · 上一个采样区间"}
+                />
                 <StatTile
                   label="模型调用"
                   value={llmCalls == null ? "—" : llmCalls.toLocaleString("zh-CN")}
