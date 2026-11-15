@@ -16,9 +16,36 @@ class AgentTraceStore:
         self._db = db
 
     async def lock_session(self, session_id: str) -> None:
-        """Acquire before flushing child rows, avoiding FK lock upgrades."""
+        """Acquire before flushing child rows, avoiding FK lock upgrades.
+
+        `FOR NO KEY UPDATE`, not `FOR UPDATE`, and the difference is a production
+        outage rather than a nicety.
+
+        PostgreSQL's row lock modes are not a simple strength ladder. An insert into
+        a child table takes `FOR KEY SHARE` on the referenced parent row, and
+        `FOR KEY SHARE` conflicts with exactly one mode: `FOR UPDATE`. Every other
+        mode — including `FOR NO KEY UPDATE` — is compatible with it.
+
+        This method is called from inside the streaming loop, and the lock is not
+        released until the next commit, which can be most of a turn away. So while
+        an agent turn was running, the API process held `FOR UPDATE` on the
+        `jc_agent_session` row, and the MCP subprocess — a separate process, a
+        separate connection — could not insert into `jc_profile_patch_confirm`,
+        which carries a foreign key to that session. Measured: `jc_profile_patch`
+        blocked until its 120 s client timeout, every time, while `jc_profile_get`
+        (no child insert) answered in under a second. Reproduced deliberately by
+        holding `FOR UPDATE` on the session row from a second connection:
+        `baseline OK 4.4s` → `while-locked TIMEOUT >20s` → `after-release OK 2.4s`.
+
+        `FOR NO KEY UPDATE` still excludes other writers, which is all `next_seq`
+        needs — two concurrent appends cannot allocate the same sequence number —
+        while leaving foreign-key checks free to proceed.
+        """
         await self._db.execute(
-            select(AgentSession.id).where(AgentSession.id == session_id).with_for_update()
+            select(AgentSession.id)
+            .where(AgentSession.id == session_id)
+            # postgresql: key_share=True with read=False renders FOR NO KEY UPDATE.
+            .with_for_update(key_share=True)
         )
 
     async def next_seq(self, session_id: str) -> int:
@@ -33,7 +60,10 @@ class AgentTraceStore:
         await self.lock_session(session_id)
         last = await self._db.scalar(
             select(AgentTrace.seq).where(AgentTrace.session_id == session_id)
-            .order_by(AgentTrace.seq.desc()).limit(1).with_for_update()
+            .order_by(AgentTrace.seq.desc()).limit(1)
+            # Same reasoning as `lock_session`: the tail row does not need to block
+            # foreign-key checks either.
+            .with_for_update(key_share=True)
         )
         return int(last) + 1 if last is not None else 0
 
