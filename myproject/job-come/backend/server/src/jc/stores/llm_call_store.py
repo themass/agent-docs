@@ -7,6 +7,7 @@ from typing import Any
 
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import defer
 
 from jc.models.llm_call import LlmCall, LlmCallAttempt
 from jc.stores.sorting import SortSpec
@@ -84,6 +85,20 @@ class LlmCallStore:
         rows = (
             await self._db.execute(
                 select(LlmCall)
+                # The three payload columns are LongText and dominate the row:
+                # measured 1.35 MB across 113 calls (1.19 MB of it prompt_text)
+                # against ~9 KB for every other column combined. The list never
+                # renders them — `AdminLlmCallItem` has no such field, and the
+                # detail endpoint fetches one row by id — so selecting them here
+                # turned a 374 ms query into 1190 ms and shipped 68 KB to the
+                # browser for a table that shows a dozen short columns.
+                # `defer` keeps them out of the SELECT; the detail path still
+                # loads them because it fetches a different query.
+                .options(
+                    defer(LlmCall.prompt_text),
+                    defer(LlmCall.response_text),
+                    defer(LlmCall.reasoning_text),
+                )
                 .where(*filters)
                 .order_by(*order_by)
                 .limit(limit)
