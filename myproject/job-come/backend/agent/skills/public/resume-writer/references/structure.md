@@ -8,7 +8,20 @@ four right before touching wording.
 
 Exactly three moves, in this order, 2–4 sentences total:
 
-1. **定位** — years of experience plus what this person *is*. Not what they want.
+1. **定位** — what this person *is* (the role they occupy now), not what they want.
+
+   **Years only when the profile states them.** A date range is not a statement of
+   tenure: `2020-01` to `2026-01` is six calendar years, but writing 「6 年后端研发
+   经验」 turns arithmetic into a claim the candidate never made. Measured on
+   production: every elevation level produced 「6 年后端研发经验」 for a profile
+   whose source text contained no such number. Resume readers take that figure as
+   given and interviewers check it against dates, so an inferred one is a fact the
+   user did not supply — the one thing this pipeline must never add.
+
+   If the source says 「8 年经验」, write 8 年. If it does not, open with the role and
+   the strongest evidence instead: 「后端与平台研发，主导过日均 1200 万单的订单链路
+   微服务化」. If tenure genuinely helps the read and the dates support it, mark it as
+   approximate — 「约 6 年」 — never as a bare figure.
 2. **最硬的一条证据** — the single strongest supported fact in the whole profile,
    restated here. A number if the source has one, otherwise the largest scope or the most
    consequential outcome. This is the only legitimate repetition in a resume.

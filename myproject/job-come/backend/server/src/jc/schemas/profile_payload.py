@@ -87,10 +87,16 @@ class ProfilePhoto(BaseModel):
 
 
 class ProfileContact(BaseModel):
-    name: str | None = None
-    email: str | None = None
-    phone: str | None = None
-    location: str | None = None
+    #: Bounded because `jc_profile.contact_name` is `String(128)` — the payload is
+    #: JSON, but that denormalised column is not, so an unbounded name overflowed it
+    #: and surfaced as `503 database_unavailable` instead of a validation error. A
+    #: 500-character name is a mistake or an attack, never a real name; refusing it
+    #: at the edge says what is wrong, while a 503 tells the user to try again later
+    #: and tells whoever reads the logs to look at the database.
+    name: str | None = Field(default=None, max_length=128)
+    email: str | None = Field(default=None, max_length=254)
+    phone: str | None = Field(default=None, max_length=64)
+    location: str | None = Field(default=None, max_length=128)
     links: list[ProfileLink] = Field(default_factory=list)
     # Lives on `contact` rather than at the payload root because a headshot is
     # identity material, read by the same masthead that renders name and contact
