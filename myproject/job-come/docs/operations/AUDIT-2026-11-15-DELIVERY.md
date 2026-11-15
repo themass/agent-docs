@@ -139,19 +139,60 @@
 
 | # | 事项 | 原状态 | 现在 | 证据 |
 |---|---|---|---|---|
-| 1 | `jc_profile_patch` 超时导致改档不落库 | P0，未修 | **不存在了** | 见 §7.1 |
+| 1 | `jc_profile_patch` 超时导致改档不落库 | P0，未修 | **已修复并端到端验证** | 见 §7.1 |
 | 2 | LLM 延迟 | 未优化 | **已定位**，未完全解决 | 见 §7.2 |
 | 3 | `/admin/llm` 列表慢 | 未优化 | **已修** | 见 §7.3 |
 | 4 | 导出浏览器收不到 download | 未定因 | **已查明：不是缺陷** | 见 §7.4 |
-| 5 | 两个"思考中" | 未浏览器验证 | **仍未浏览器验证** | 仍是缺口 |
+| 5 | 两个"思考中" | 未浏览器验证 | **已加前端测试并用变异验证** | 仍未在真实浏览器确认 |
 | 6 | QPS / 速率面板 | 未做 | **已做** | 见 §7.5 |
 | 7 | 性能方案与步骤总结 | 未写 | **已写** | [`PERF-SUMMARY.md`](PERF-SUMMARY.md) |
-| 8 | Playwright 未安装 | — | **仍未安装** | 交给 Cursor 时装 |
+| 8 | Playwright 未安装 | — | **仍未安装**（已装 vitest 补单测） | 交给 Cursor 时装 |
 | 9 | `method_*` 面板未经第二人验证 | — | **仍未** | 列入验证清单 K-06/K-07 |
 
-### 7.1 `jc_profile_patch` —— 我之前的结论错了一半，正确的一半也不该那么说
+### 7.1 `jc_profile_patch` —— 真实根因是 PostgreSQL 行锁模式（已修复并验证）
 
-先说结论：**这条 P0 在今天的生产上不成立**。但排查过程暴露了真正的问题，见下面三条。
+**最终结论：这条 P0 是真的，现已修复。** 下面记录完整过程，包括我中途两次错误判断，
+因为「怎么错的」比「最后对了」更值得留下来。
+
+#### 真实根因
+
+`AgentTraceStore.lock_session` 用 `FOR UPDATE` 锁在 `jc_agent_session` 上，调用点位于
+**流式循环内部**，锁要等到下一次 commit 才释放——可能是一个回合的大半。
+
+PostgreSQL 的行锁模式不是简单的强弱阶梯：**子表插入时对父行取 `FOR KEY SHARE`，
+而 `FOR KEY SHARE` 只与 `FOR UPDATE` 冲突**，与 `FOR NO KEY UPDATE` 兼容。
+
+于是：API 进程持有 session 行的 `FOR UPDATE` 期间，MCP 子进程（独立进程、独立连接）
+无法向 `jc_profile_patch_confirm` 插入——该表有外键指向这个 session。
+`jc_profile_get` 不插子行，所以照常返回；**这就是「聊天正常、改简历一直失败」的机制**。
+
+#### 证据链
+
+1. 生产日志：MCP 子进程**收到了** `CallToolRequest`（04:25:50），但 120 秒内无响应。
+2. 直接调用 `profile_patch()`：**1.34 秒成功**。所以业务逻辑没问题。
+3. 直接驱动 MCP stdio（真实顺序 plan→get→get→patch→patch）：**全部成功，每次 1.5–1.7 秒**。
+   所以 MCP 传输也没问题。
+4. **受控复现**：从第二个连接对 session 行取 `FOR UPDATE`：
+   `baseline OK 4.4s` → `while-locked TIMEOUT >20s` → `after-release OK 2.4s`。
+5. 改成 `FOR NO KEY UPDATE` 后，真实回合：`pending_confirm` → `confirm 200 status=applied`
+   → `profile version 5→6`，邮箱确实改了。
+
+#### 我中途错在哪
+
+- **第一次**：我在验证时跑的是纯聊天，看到成功就下了「这条是好的」的结论。
+  聊天路径从不插入引用 session 的子行，所以它永远测不出这个缺陷。**测错了路径。**
+- **第二次**：查到运行时配置里 `"command": "python"` 曾解析到 Python 2.7 时，
+  我以为找到了根因。那个问题真实存在且已修好，但**修好之后 patch 仍然超时**——
+  说明它是两个独立缺陷，我把先找到的那个当成了全部。
+
+#### 修复
+
+两个调用点都改为 `key_share=True`（渲染为 `FOR NO KEY UPDATE`）。它仍然排除其它写者——
+`next_seq` 需要的只有这一点——同时不再阻塞外键检查。
+
+---
+
+### 7.1b 早期的判断记录（保留，说明我当时怎么想的）
 
 **(a) 历史上那 120 秒超时是真的，但原因不是 patch。**
 日志里 18:46–18:51 有 3 次 `Timed out while waiting for response to ClientRequest.
