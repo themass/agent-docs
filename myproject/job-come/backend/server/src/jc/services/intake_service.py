@@ -76,6 +76,23 @@ _INTAKE_KIND = "intake"
 _INDEXED_RE = re.compile(r"^(?P<root>[a-z_]+)\[(?P<idx>\d+)\](?:\.(?P<rest>.+))?$")
 _DATE_HINT_RE = re.compile(r"((?:19|20)\d{2}(?:[-./年]\d{1,2})?)")
 _SPLIT_RE = re.compile(r"\s*[·|｜/、,，]\s*|\s{2,}")
+
+#: "<what it is> 是/叫/为 <the value>" — the shape of an answer typed as a sentence.
+#: Split off the value instead of storing the whole line: asked 「你的姓名是？」, people
+#: answer "我的名字叫李测试", and storing that whole string puts "我的名字叫李测试" in
+#: the name field and on the exported resume.
+_SELF_INTRO_RE = re.compile(
+    # "姓名：王五" / "名字: 王五" — a label followed by a colon, the shape a form-filler
+    # types. Checked before the spoken form so the label never survives into the value.
+    r"^(?:我的)?(?:名字|姓名)\s*[：:]\s*"
+    # "我叫李四" / "我是李四" / "我的名字叫李四" — the spoken form.
+    r"|^我(?:的)?(?:名字|姓名)?\s*(?:是|叫|为)\s*[：:，,]?\s*"
+    # "李四" typed bare, with nothing to strip.
+    r"|^",
+)
+
+#: Strip a closing courtesy the same sentence tends to carry ("我叫李四，叫我小李就行").
+_NAME_TRAIL_RE = re.compile(r"\s*[，,。.；;].*$")
 _HIGHLIGHT_SLOT_RE = re.compile(r"^highlights\[(?P<slot>\d+)\]$")
 
 
@@ -145,9 +162,34 @@ def _parse_role_identity(text: str) -> tuple[str, str, str, str | None]:
     return company, title, start, end
 
 
+def extract_name(text: str) -> str:
+    """The name inside an answer, not the whole sentence.
+
+    Asked 「你的姓名是？」, a person types "我的名字叫李测试". Storing that verbatim put
+    the entire sentence in `contact.name` — visible on the review step and printed on
+    the exported resume — because this module's own rule is "store the user's text as
+    typed". That rule exists so nothing is paraphrased or invented; recovering the one
+    token the question actually asked for is not paraphrasing.
+
+    Deliberately conservative: if the answer does not look like a self-introduction it
+    is returned unchanged, because a name heuristically mangled is worse than a name
+    the user can fix on the next screen. Only a leading self-reference and a trailing
+    clause are removed.
+    """
+    body = text.strip()
+    stripped = _SELF_INTRO_RE.sub("", body, count=1).strip()
+    if not stripped:
+        # The whole answer *was* the self-reference ("我叫" alone) — keep the original
+        # rather than writing an empty name.
+        return body
+    # Only drop a trailing clause when something remains before it.
+    head = _NAME_TRAIL_RE.sub("", stripped).strip()
+    return head or stripped
+
+
 def _apply_contact(payload: ProfilePayload, rest: str, text: str) -> str | None:
     if rest == "name":
-        payload.contact.name = text
+        payload.contact.name = extract_name(text)
         return "contact.name"
     if rest in ("email", "phone"):
         # One question covers both; the shape of the answer decides where it lands.
