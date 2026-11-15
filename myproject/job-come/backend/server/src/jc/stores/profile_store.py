@@ -20,6 +20,33 @@ class ProfileStore:
             stmt = stmt.options(selectinload(Profile.sources))
         return (await self._db.execute(stmt)).scalar_one_or_none()
 
+    async def get_for_update(self, profile_id: str) -> Profile | None:
+        """The profile, locked until this transaction ends.
+
+        Every payload write does read-modify-write on `version`:
+        `profile.version += 1` after loading the row with `get_by_id`, which takes
+        no lock. Two concurrent writers therefore read the same version and both
+        compute the same successor — and because every payload write also inserts a
+        `jc_profile_snapshot` row keyed by `(profile_id, version_after)`, the second
+        one dies on the unique index.
+
+        Measured on production during a test run: 21 `UniqueViolation`s, all on
+        `Key (profile_id, version_after)=...`, across five profiles, with
+        `PendingRollbackError` following each one — the session was left unusable for
+        the rest of the request, which is why unrelated endpoints then timed out.
+
+        `FOR NO KEY UPDATE`, not `FOR UPDATE`: the latter conflicts with the
+        `FOR KEY SHARE` that inserting into any child table takes on this row, and
+        holds up every writer that references the profile. This lock still excludes
+        other version writers, which is all the increment needs.
+        """
+        stmt = (
+            select(Profile)
+            .where(Profile.id == profile_id, Profile.deleted_at.is_(None))
+            .with_for_update(key_share=True)
+        )
+        return (await self._db.execute(stmt)).scalar_one_or_none()
+
     async def get_active_for_guest(self, guest_session_id: str) -> Profile | None:
         stmt = (
             select(Profile)

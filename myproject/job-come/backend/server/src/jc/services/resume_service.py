@@ -681,7 +681,7 @@ class ResumeService:
         source_locale: str | None = None,
     ) -> dict[str, Any]:
         await self._profiles.get(profile_id, actor=actor)
-        row = await ProfileStore(self._db).get_by_id(profile_id)
+        row = await ProfileStore(self._db).get_for_update(profile_id)
         if row is None:
             raise NotFoundError("档案不存在或已删除。", code="profile_not_found")
         payload = ProfilePayload.model_validate(row.payload or {})
@@ -694,7 +694,7 @@ class ResumeService:
         return await self.list_tracks(profile_id, actor=actor, elevation_level="conservative")
 
     async def ensure_i18n(self, profile_id: str) -> None:
-        row = await ProfileStore(self._db).get_by_id(profile_id)
+        row = await ProfileStore(self._db).get_for_update(profile_id)
         if row is None:
             return
         payload = ProfilePayload.model_validate(row.payload or {})
@@ -709,7 +709,7 @@ class ResumeService:
     async def prepare_tracks(
         self, profile_id: str, *, elevation_level: str = "conservative"
     ) -> None:
-        row = await ProfileStore(self._db).get_by_id(profile_id)
+        row = await ProfileStore(self._db).get_for_update(profile_id)
         if row is None:
             return
         payload = ProfilePayload.model_validate(row.payload or {})

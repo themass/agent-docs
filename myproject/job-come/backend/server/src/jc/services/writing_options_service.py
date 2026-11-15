@@ -57,7 +57,7 @@ class WritingOptionsService:
         job_id: str | None = None,
     ) -> WritingOptionsResponse:
         await self._profiles.get(profile_id, actor=actor)
-        profile = await self._store.get_by_id(profile_id)
+        profile = await self._store.get_for_update(profile_id)
         if profile is None:
             raise NotFoundError("档案不存在或已删除。", code="profile_not_found")
         payload = ProfilePayload.model_validate(profile.payload)

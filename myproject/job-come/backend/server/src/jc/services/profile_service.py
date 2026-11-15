@@ -251,7 +251,7 @@ class ProfileService:
         import time
 
         parse_started = time.monotonic()
-        profile = await self._profiles.get_by_id(profile_id, with_sources=True)
+        profile = await self._profiles.get_for_update(profile_id)
         if profile is None:
             logger.warning("parse_stored_source: profile missing %s", profile_id)
             return False
@@ -398,7 +398,7 @@ class ProfileService:
         return True
 
     async def get(self, profile_id: str, *, actor: Actor) -> ProfileResponse:
-        profile = await self._require_profile(profile_id, with_sources=True)
+        profile = await self._require_profile(profile_id, with_sources=True, for_update=True)
         self._assert_owner(profile, actor)
         return self._to_response(profile)
 
@@ -409,7 +409,7 @@ class ProfileService:
         actor: Actor,
         body: ProfileUpdateRequest,
     ) -> ProfileResponse:
-        profile = await self._require_profile(profile_id, with_sources=True)
+        profile = await self._require_profile(profile_id, with_sources=True, for_update=True)
         self._assert_owner(profile, actor)
 
         if body.expected_version is not None and profile.version != body.expected_version:
@@ -444,7 +444,7 @@ class ProfileService:
         (a headshot appearing or disappearing is visible on the exported page, which
         is exactly what that history is for).
         """
-        profile = await self._require_profile(profile_id, with_sources=True)
+        profile = await self._require_profile(profile_id, with_sources=True, for_update=True)
         self._assert_owner(profile, actor)
 
         from jc.services.profile_photo_service import store_profile_photo
@@ -484,7 +484,7 @@ class ProfileService:
         to restate the bilingual choice — a caller that only knows about one of the two
         cannot accidentally reset the other.
         """
-        profile = await self._require_profile(profile_id, with_sources=True)
+        profile = await self._require_profile(profile_id, with_sources=True, for_update=True)
         self._assert_owner(profile, actor)
 
         payload = ProfilePayload.model_validate(profile.payload or {})
@@ -527,7 +527,7 @@ class ProfileService:
         object -- object lifecycle is a storage-side retention concern, not something
         a user-facing delete should decide.
         """
-        profile = await self._require_profile(profile_id, with_sources=True)
+        profile = await self._require_profile(profile_id, with_sources=True, for_update=True)
         self._assert_owner(profile, actor)
 
         payload = ProfilePayload.model_validate(profile.payload or {})
@@ -548,7 +548,7 @@ class ProfileService:
         return self._to_response(reloaded)
 
     async def confirm(self, profile_id: str, *, actor: Actor) -> ProfileConfirmResponse:
-        profile = await self._require_profile(profile_id, with_sources=True)
+        profile = await self._require_profile(profile_id, with_sources=True, for_update=True)
         self._assert_owner(profile, actor)
         if profile.sources and profile.sources[0].parse_status in {
             ParseStatus.PENDING, ParseStatus.PROCESSING,
@@ -578,7 +578,7 @@ class ProfileService:
         )
 
     async def reopen(self, profile_id: str, *, actor: Actor) -> ProfileResponse:
-        profile = await self._require_profile(profile_id, with_sources=True)
+        profile = await self._require_profile(profile_id, with_sources=True, for_update=True)
         self._assert_owner(profile, actor)
 
         profile.status = ProfileStatus.DRAFT
@@ -631,8 +631,28 @@ class ProfileService:
         )
         return await self._profiles.create(profile)
 
-    async def _require_profile(self, profile_id: str, *, with_sources: bool = False) -> Profile:
-        profile = await self._profiles.get_by_id(profile_id, with_sources=with_sources)
+    async def _require_profile(
+        self, profile_id: str, *, with_sources: bool = False, for_update: bool = False
+    ) -> Profile:
+        """Load a profile, optionally taking the row lock that a version bump needs.
+
+        `for_update` is required by every caller that mutates `payload` and then does
+        `version += 1`. Without it the read-modify-write races: two writers compute
+        the same successor version, and the second `jc_profile_snapshot` insert dies
+        on the unique index `(profile_id, version_after)` — 21 times in one production
+        test run, each leaving the session in `PendingRollbackError` so the rest of
+        that request failed too.
+
+        Read-only callers must NOT pass it: the lock is held until commit, and a
+        profile row is the parent of several child tables, so holding it across a
+        slow model call blocks every writer that references that profile.
+        """
+        if for_update:
+            profile = await self._profiles.get_for_update(profile_id)
+            if profile is not None and with_sources:
+                await self._db.refresh(profile, attribute_names=["sources"])
+        else:
+            profile = await self._profiles.get_by_id(profile_id, with_sources=with_sources)
         if profile is None:
             raise NotFoundError("档案不存在或已删除。", code="profile_not_found")
         return profile
