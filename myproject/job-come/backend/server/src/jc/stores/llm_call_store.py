@@ -79,12 +79,17 @@ class LlmCallStore:
             filters.append(LlmCall.trace_id == trace_id)
 
         order_by, field, direction = LLM_CALL_SORT.order_by(sort_by, sort_dir)
-        total = await self._db.scalar(
-            select(func.count()).select_from(LlmCall).where(*filters)
-        )
+        # One round trip, not two. The database is 175 ms away on this deployment, so
+        # a separate `SELECT count(*)` cost the same as the page query itself — and it
+        # scans the same filtered set the page query already scans. `count(*) OVER ()`
+        # is computed from that same scan, so the total arrives attached to the rows.
+        #
+        # The catch, handled below: a window over an empty result yields no row at
+        # all, so `total` cannot be read from the payload when the page is empty. That
+        # case is exactly one extra query, and offset-past-the-end lands there too.
         rows = (
             await self._db.execute(
-                select(LlmCall)
+                select(LlmCall, func.count().over().label("total_matches"))
                 # The three payload columns are LongText and dominate the row:
                 # measured 1.35 MB across 113 calls (1.19 MB of it prompt_text)
                 # against ~9 KB for every other column combined. The list never
@@ -104,8 +109,20 @@ class LlmCallStore:
                 .limit(limit)
                 .offset(offset)
             )
-        ).scalars()
-        return list(rows), int(total or 0), field, direction
+        ).all()
+        calls = [row[0] for row in rows]
+        total = int(rows[0][1]) if rows else 0
+        if not calls:
+            # No rows means no window value: either nothing matched, or the offset is
+            # past the end. Only the second has a non-zero total, and it is the one a
+            # paging control needs, so pay for the extra query just in this case.
+            total = int(
+                await self._db.scalar(
+                    select(func.count()).select_from(LlmCall).where(*filters)
+                )
+                or 0
+            )
+        return calls, total, field, direction
 
     async def get_call(self, call_id: str) -> LlmCall | None:
         return await self._db.scalar(select(LlmCall).where(LlmCall.id == call_id))

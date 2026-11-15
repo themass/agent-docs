@@ -80,3 +80,41 @@ async def test_detail_still_reads_payload(db):
         row = await LlmCallStore(session).get_call("call_1")
     assert row is not None
     assert row.prompt_text == "x" * 50_000
+
+
+@pytest.mark.asyncio
+async def test_list_calls_reports_the_total_from_one_query(db):
+    """`count(*) OVER ()` supplies the total, so a full page costs one round trip.
+
+    The database is 175 ms away on the deployment this was measured on, so a
+    separate count query doubled the endpoint's cost while scanning the same rows.
+    """
+    sessions, engine = db
+    statements: list[str] = []
+
+    @event.listens_for(engine.sync_engine, "before_cursor_execute")
+    def capture(conn, cursor, statement, parameters, context, executemany):
+        statements.append(statement)
+
+    async with sessions() as session:
+        rows, total, _, _ = await LlmCallStore(session).list_calls(limit=10)
+
+    assert len(rows) == 1
+    assert total == 1
+    selects = [s for s in statements if s.lstrip().upper().startswith("SELECT")]
+    assert len(selects) == 1, f"expected one round trip, got {len(selects)}:\n" + "\n".join(selects)
+    assert "OVER" in selects[0].upper()
+
+
+@pytest.mark.asyncio
+async def test_list_calls_still_reports_a_total_when_the_page_is_empty(db):
+    """A window over no rows yields no row at all, so the total must not become 0.
+
+    An offset past the end is the case that matters: a paging control that shows
+    0 results while there are results is a worse bug than the extra round trip.
+    """
+    sessions, _ = db
+    async with sessions() as session:
+        rows, total, _, _ = await LlmCallStore(session).list_calls(limit=10, offset=50)
+    assert rows == []
+    assert total == 1, "offset past the end reported a total of 0"
