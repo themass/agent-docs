@@ -95,59 +95,91 @@ async def test_get_for_update_hides_soft_deleted_profiles(db):
 
 
 def test_every_writer_that_bumps_version_takes_the_lock():
-    """Source-level guard across all four services that do read-modify-write.
+    """Source-level guard over every module that can write a profile version.
 
-    Each of these did `get_by_id` + `version += 1` before this fix. A new writer
-    added without the lock reintroduces the collision, and the failure shows up as
-    an unrelated 500 rather than at the line that caused it.
+    Two failure modes, both observed on production:
+
+    1. No row lock at all: `get_by_id` + `version += 1` lets two writers compute
+       the same successor and collide on `(profile_id, version_after)`.
+    2. Lock taken, then released: a `commit()` ends the transaction (and thus the
+       FOR NO KEY UPDATE row lock) before a *later* bump in the same function.
+       `prepare_tracks` had exactly this shape — lock at the top, three bumps,
+       commits between them — and kept raising UniqueViolation after the mode-1
+       fix. Re-locking after each commit is required, so a commit sitting between
+       the nearest lock and a bump is an offence.
+
+    AST rather than regex/text windows: docstrings containing the literal
+    `version += 1` and indentation differences between `services/` (4-space
+    methods) and `mcp/` (module-level functions) both produced phantom results
+    in earlier text-based versions. An `AugAssign` node is real code by
+    construction, and function nodes carry their own line ranges.
     """
+    import ast
     from pathlib import Path
 
-    src = Path(__file__).resolve().parents[1] / "src" / "jc" / "services"
+    src_root = Path(__file__).resolve().parents[1] / "src" / "jc"
     offenders: list[str] = []
 
-    for path in sorted(src.glob("*.py")):
-        text = path.read_text("utf-8")
-        if "version += 1" not in text:
-            continue
-        lines = text.splitlines()
-        in_docstring = False
-        for index, line in enumerate(lines, start=1):
-            # Skip docstrings and comments: `profile_service._require_profile`
-            # explains the rule in prose containing the literal `version += 1`,
-            # and counting that as a write made this check report a phantom.
-            stripped = line.strip()
-            if stripped.count('"""') == 1:
-                in_docstring = not in_docstring
+    lock_markers = ("get_for_update(", "with_for_update(", "for_update=True")
+    # The compare-and-swap writer issues `UPDATE ... WHERE version =
+    # expected_version` and never reads-then-writes; it is serialised by the
+    # predicate itself.
+    cas_marker = "expected_version + 1"
+
+    for path in sorted(src_root.rglob("*.py")):
+        tree = ast.parse(path.read_text("utf-8"), filename=str(path))
+        functions = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        ]
+        for fn in functions:
+            bumps = [
+                node
+                for node in ast.walk(fn)
+                if isinstance(node, ast.AugAssign)
+                and isinstance(node.op, ast.Add)
+                and isinstance(node.target, ast.Attribute)
+                and node.target.attr == "version"
+            ]
+            if not bumps:
                 continue
-            if in_docstring or stripped.startswith("#"):
+            fn_text = ast.get_source_segment(
+                path.read_text("utf-8"), fn
+            ) or ""
+            if cas_marker in fn_text:
                 continue
-            if "version += 1" not in line:
-                continue
-            # Look back to the start of the enclosing function, not a fixed number of
-            # lines. A 40-line window missed `parse_stored_source` (load at 254, bump
-            # at 338) and `prepare_tracks` (712 → 753) and reported both as unlocked
-            # when they were already correct — the same "check the checker" trap as
-            # the docstring false positive.
-            start = 0
-            for back in range(index - 1, -1, -1):
-                line_back = lines[back - 1]
-                if line_back.startswith("    async def ") or line_back.startswith("    def "):
-                    start = back
-                    break
-            window = "\n".join(lines[start:index])
-            locked = (
-                "for_update=True" in window
-                or "get_for_update(" in window
-                or "with_for_update(" in window
-                # The compare-and-swap writer does its own `WHERE version = ...`;
-                # it never reads-then-writes.
-                or "expected_version + 1" in window
-            )
-            if not locked:
-                offenders.append(f"{path.name}:{index}")
+
+            lock_lines = [
+                node.lineno
+                for node in ast.walk(fn)
+                if isinstance(node, ast.Call)
+                and any(marker in ast.get_source_segment(path.read_text("utf-8"), node) or ""
+                        for marker in lock_markers)
+            ]
+            commit_lines = [
+                node.lineno
+                for node in ast.walk(fn)
+                if isinstance(node, ast.Await)
+                and ".commit()" in (ast.get_source_segment(path.read_text("utf-8"), node) or "")
+            ]
+
+            for bump in bumps:
+                prior_locks = [ln for ln in lock_lines if ln < bump.lineno]
+                if not prior_locks:
+                    offenders.append(f"{path.relative_to(src_root)}:{bump.lineno} (no row lock)")
+                    continue
+                nearest_lock = max(prior_locks)
+                released = [
+                    ln for ln in commit_lines if nearest_lock < ln < bump.lineno
+                ]
+                if released:
+                    offenders.append(
+                        f"{path.relative_to(src_root)}:{bump.lineno} "
+                        f"(lock from line {nearest_lock} released by commit at line {released[-1]})"
+                    )
 
     assert not offenders, (
-        "these version bumps have no row lock above them and will collide on "
-        f"(profile_id, version_after): {offenders}"
+        "these version bumps are not protected by a held row lock and will "
+        f"collide on (profile_id, version_after): {offenders}"
     )

@@ -733,6 +733,15 @@ class ResumeService:
 
         try:
             pack = await self._localizer.translate(payload, target_locale=target)
+            # The first COMMIT released the FOR NO KEY UPDATE lock, and translate
+            # runs for minutes without any transaction open. Re-lock *after* it
+            # returns (not around the call) so the lock covers only the few ms of
+            # the read-modify-write, not the whole LLM call, and a concurrent
+            # profile edit cannot make this bump collide on
+            # ix_jc_profile_snapshot_profile_version.
+            row = await ProfileStore(self._db).get_for_update(profile_id)
+            if row is None:
+                return
             payload = ProfilePayload.model_validate(row.payload or {})
             i18n = dict(payload.i18n)
             i18n[target] = pack
@@ -745,6 +754,11 @@ class ResumeService:
                 row.payload = payload.model_dump(mode="json")
                 await self._db.commit()
         except Exception:  # noqa: BLE001
+            # Same reason as the success path: the pre-translate lock was released
+            # at the first COMMIT, so re-acquire before this read-modify-write.
+            row = await ProfileStore(self._db).get_for_update(profile_id)
+            if row is None:
+                return
             payload = ProfilePayload.model_validate(row.payload or {})
             status = dict(payload.meta.i18n_status)
             status[target] = "failed"

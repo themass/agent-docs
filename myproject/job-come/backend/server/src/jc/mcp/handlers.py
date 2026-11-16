@@ -574,7 +574,10 @@ async def intake_record(
         )
 
     applied, stored = record_intake_answers(payload, inputs)
-    row = await ProfileStore(scope.db).get_by_id(profile.id)
+    # Locking read: this is a profile read-modify-write with a version bump, same
+    # contract as the HTTP intake path in intake_service. A plain get_by_id here
+    # races any concurrent writer on ix_jc_profile_snapshot_profile_version.
+    row = await ProfileStore(scope.db).get_for_update(profile.id)
     if row is None:
         raise ValueError("Profile not found")
     row.payload = payload.model_dump(mode="json")
