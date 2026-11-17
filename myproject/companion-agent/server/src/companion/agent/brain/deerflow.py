@@ -19,6 +19,7 @@ from typing import Any
 from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage, HumanMessage, ToolMessage
 
 from companion.agent.brain.graph_middleware import (
+    ImageAttachmentMiddleware,
     PromptMiddleware,
     SteerMiddleware,
     ToolAuditMiddleware,
@@ -83,6 +84,9 @@ def build_turn_graph(model: Any, tools: Sequence[Any] = (), *, name: str = "comp
     extra: list[Any] = [
         PromptMiddleware(),
         ToolVisibilityMiddleware(),
+        # 必须在这里登记：@Next 只声明顺序锚点，不会把类加进链里。
+        # 漏掉它的表现是「图片静默不到模型」——没有任何报错。
+        ImageAttachmentMiddleware(),
         SteerMiddleware(),
         ToolAuditMiddleware(),
         ToolAuthorizationMiddleware(),
