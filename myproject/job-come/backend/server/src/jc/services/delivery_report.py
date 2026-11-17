@@ -26,6 +26,7 @@ module rather than three unrelated helpers:
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from jc.schemas.profile_payload import ProfilePayload
@@ -37,6 +38,15 @@ from jc.services.writing_invariants import audit_additions
 #: highlights. They are ours, not the model's, so they never reach the reviewer's
 #: "placeholder text" rule — which reads the draft as if a model wrote all of it.
 PENDING_PLACEHOLDERS = ("（待补充经历要点）", "(Add experience highlights)")
+
+#: The *honest* gap marker the writer is instructed to write instead of guessing a number:
+#: `[量化指标待补：P99 延迟]`. It carries a dimension, never a value, so it is not
+#: fabrication — it is a visible hole the user is meant to fill before sending the file.
+#: Detected separately from `PENDING_PLACEHOLDERS` because the two need opposite advice:
+#: a builder placeholder means "write this section", a pending metric means "fill in this
+#: number, the sentence is otherwise done". The brackets are full-width or ASCII and the
+#: label varies, hence a pattern rather than a tuple of literals.
+PENDING_METRIC = re.compile(r"[\[［]\s*量化指标待补\s*[：:]\s*([^\]］]*?)\s*[\]］]")
 
 
 def _fields_already_reported(issues: list[dict[str, Any]]) -> set[str]:
@@ -147,6 +157,27 @@ def with_delivery_issues(
                         ),
                     }
                 )
+    for key, label in (("experience_blocks", "经历"), ("project_blocks", "项目")):
+        for index, block in enumerate(sections.get(key) or []):
+            if not isinstance(block, dict):
+                continue
+            for b_index, bullet in enumerate(block.get("bullets") or []):
+                if not isinstance(bullet, str):
+                    continue
+                for match in PENDING_METRIC.finditer(bullet):
+                    dimension = match.group(1) or "指标"
+                    out.append(
+                        {
+                            "severity": "warning",
+                            "code": "pending_metric",
+                            "field": f"{key}[{index}].bullets[{b_index}]",
+                            "message": (
+                                f"这里留了一个待补数字（{dimension}）。"
+                                "句子本身是完整的，把这个数字补进档案后重新生成，"
+                                "或者确认这一项可以不写，把它删掉再导出。"
+                            ),
+                        }
+                    )
     return out
 
 

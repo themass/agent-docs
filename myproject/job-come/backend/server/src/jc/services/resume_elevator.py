@@ -626,7 +626,14 @@ class ResumeElevator:
     @classmethod
     def _normalize_sections(cls, sections: dict[str, Any]) -> dict[str, Any]:
         for key in ("experience_blocks", "project_blocks"):
-            for block in sections.get(key) or []:
+            # Block-level first. Everything below assumes a dict with a string `id`, and a
+            # model that returns `[{"company": ...}, "主导了订单重构", null]` would otherwise
+            # reach the renderer, where a Jinja attribute lookup on a str silently renders
+            # empty — a resume that lost a job with no error anywhere. Dropping the
+            # unusable entries is visible (the coverage check then reports the source
+            # unit missing) while a half-rendered block is not.
+            sections[key] = cls._usable_blocks(sections.get(key))
+            for block in sections[key]:
                 raw_bullets = block.get("bullets") or []
                 normalized: list[str] = []
                 for bullet in raw_bullets:
@@ -648,6 +655,35 @@ class ResumeElevator:
                     # leader P8") spends a line repeating it and pushes the evidence down.
                     block["scope_line"] = None
         return sections
+
+    @staticmethod
+    def _usable_blocks(raw: Any) -> list[dict[str, Any]]:
+        """Keep only entries the renderer and the diff can actually use.
+
+        Three shapes a model produces that used to survive to the template:
+
+        * a bare string where a block was expected,
+        * a block whose `id` is missing or not a string (the diff keys on it, so a
+          non-string id makes every later comparison miss),
+        * `bullets` that is a string rather than a list (one bullet, or a numbered
+          paragraph pasted whole — normalised to a single-element list, which is what it
+          is, rather than iterated character by character).
+        """
+        out: list[dict[str, Any]] = []
+        for entry in raw or []:
+            if not isinstance(entry, dict):
+                continue
+            block = dict(entry)
+            block_id = block.get("id")
+            if not isinstance(block_id, str) or not block_id.strip():
+                continue
+            bullets = block.get("bullets")
+            if isinstance(bullets, str):
+                block["bullets"] = [bullets]
+            elif not isinstance(bullets, list):
+                block["bullets"] = []
+            out.append(block)
+        return out
 
     #: Longest scope line that still reads as one line in the rendered document. Measured
     #: against the export template at A4 width: beyond this it wraps to three lines and

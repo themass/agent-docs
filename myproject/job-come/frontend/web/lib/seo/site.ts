@@ -92,6 +92,10 @@ export const PUBLIC_SITEMAP_PATHS = [
   // server-rendered body text: the rest are client workbenches that a crawler sees as an
   // empty shell, and a page with no content cannot rank however high we rate it.
   { path: "/resume-format", priority: 0.95, changeFrequency: "monthly" as const },
+  // Shows the three templates as rendered by the export engine. Second-highest content
+  // page after `/resume-format`: 「简历模板」 is searched far more often than
+  // 「简历格式转换」, and this is the only page on the site that answers it with pictures.
+  { path: "/resume-template", priority: 0.9, changeFrequency: "monthly" as const },
   { path: "/resume-agent", priority: 0.9, changeFrequency: "weekly" as const },
   { path: "/jobs", priority: 0.9, changeFrequency: "weekly" as const },
   { path: "/coach-agent", priority: 0.85, changeFrequency: "weekly" as const },

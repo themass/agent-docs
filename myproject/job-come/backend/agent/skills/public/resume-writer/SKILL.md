@@ -76,6 +76,13 @@ The level controls **how far wording may travel from the source**, never whether
   permitted change is translation on the English track. A user who edited their own title has
   already decided how it reads; silently restoring the "proper" title deletes their edit.
 - If a fact is missing, omit it or stay general — do not fabricate numbers.
+- **When the bundle clearly wants an outcome the source does not carry, mark the gap
+  instead of filling it.** Write `[量化指标待补：维度]` in place of the missing figure —
+  e.g. `重构订单查询链路，[量化指标待补：P99 延迟] 由缓存层承接`. The label names the
+  dimension, never a value, never a plausible-looking number. This is different from
+  omitting: the page keeps the shape of the claim, the user sees exactly what is missing,
+  and the export gate flags it. A guessed number is worse than a visible hole, because the
+  hole gets fixed before the interview and the number does not.
 - Keep **what the person actually did**: systems, components, ownership, methods, scope. Do not
   replace concrete work with empty slogans.
 - **Source units and project boundaries are invariant at every elevation level.** Keep

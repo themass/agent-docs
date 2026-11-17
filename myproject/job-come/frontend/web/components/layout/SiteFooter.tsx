@@ -13,6 +13,7 @@ export function SiteFooter() {
         <nav className="flex flex-wrap gap-x-4 gap-y-1" aria-label="资源">
           <Link href="/guides" className="hover:text-ink-900">简历指南</Link>
           <Link href="/resume-format" className="hover:text-ink-900">格式转换</Link>
+          <Link href="/resume-template" className="hover:text-ink-900">简历模板</Link>
         </nav>
         <nav className="flex flex-wrap gap-x-4 gap-y-1" aria-label="法律信息">
           <Link href="/privacy" className="hover:text-ink-900">隐私政策</Link>
