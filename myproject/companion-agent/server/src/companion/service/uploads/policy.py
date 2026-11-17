@@ -1,52 +1,39 @@
-"""上传的纯规则（O §5）：按文件头判类型、大小与像素上限。无 I/O。"""
+"""上传的纯规则（O §5）：校验器与图片规范化的实现在 ``agentkit.storage.media``。
+
+**为什么这里只剩转发**：头像、消息图片、解题图片走同一条链路，另外几个应用也要接。
+规则一旦在产品里各写一份，就会各漂各的——一边改了上限，另一边不知道。
+所以真正的实现在共用的 agentkit 里，这里保留这个模块名是为了不让调用点大改。
+
+历史差异：这个产品的默认上限沿用 ``MAX_BYTES = 8 MiB`` 与 ``LONG_EDGE = 2048``，
+与 agentkit 的默认值一致；``UploadRejected`` 也是同一个类，路由层照旧捕获它。
+"""
 
 from __future__ import annotations
 
-MAX_BYTES = 8 * 1024 * 1024
-MAX_PIXELS_SIDE = 4096
-LONG_EDGE = 2048
-JPEG_QUALITY = 85
-
-# 只认文件头，不信扩展名与 Content-Type。
-_SIGNATURES: tuple[tuple[str, bytes, int, int], ...] = (
-    ("image/jpeg", b"\xff\xd8\xff", 0, 3),
-    ("image/png", b"\x89PNG\r\n\x1a\n", 0, 8),
-    ("image/webp", b"RIFF", 0, 4),         # 之后 8–12 字节需为 WEBP，见 detect_type
-    ("image/heic", b"ftyp", 4, 4),         # ftyp 在第 4 字节开始；品牌在 8–12
+from agentkit.storage.media import (  # noqa: F401 —— 对产品而言这就是它的公共接口
+    JPEG_QUALITY,
+    LONG_EDGE,
+    MAX_BYTES,
+    MAX_PIXELS_SIDE,
+    ImageLimits,
+    UploadRejected,
+    check_pixels,
+    check_size,
+    detect_type,
+    normalize_image,
+    scaled_size,
 )
 
-
-class UploadRejected(ValueError):
-    """上传被拒绝；消息面向用户，不包含文件内容。"""
-
-
-def detect_type(head: bytes) -> str | None:
-    for mime, magic, offset, length in _SIGNATURES:
-        if head[offset: offset + length] == magic[:length]:
-            if mime == "image/webp" and head[8:12] != b"WEBP":
-                continue
-            if mime == "image/heic" and head[8:12] not in (b"heic", b"heix", b"mif1", b"msf1"):
-                continue
-            return mime
-    return None
-
-
-def check_size(data: bytes) -> None:
-    if not data:
-        raise UploadRejected("empty upload")
-    if len(data) > MAX_BYTES:
-        raise UploadRejected("file exceeds 8 MB")
-
-
-def check_pixels(width: int, height: int) -> None:
-    if width <= 0 or height <= 0 or max(width, height) > MAX_PIXELS_SIDE * 2:
-        raise UploadRejected("image dimensions out of range")
-
-
-def scaled_size(width: int, height: int) -> tuple[int, int]:
-    """长边缩到 LONG_EDGE，短边等比；不放大。"""
-    longest = max(width, height)
-    if longest <= LONG_EDGE:
-        return width, height
-    scale = LONG_EDGE / longest
-    return max(1, round(width * scale)), max(1, round(height * scale))
+__all__ = [
+    "ImageLimits",
+    "JPEG_QUALITY",
+    "LONG_EDGE",
+    "MAX_BYTES",
+    "MAX_PIXELS_SIDE",
+    "UploadRejected",
+    "check_pixels",
+    "check_size",
+    "detect_type",
+    "normalize_image",
+    "scaled_size",
+]

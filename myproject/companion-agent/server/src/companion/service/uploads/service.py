@@ -1,5 +1,8 @@
 """上传服务（O §5）：校验 → 处理 → 存私有桶 → 记录。
 
+校验与图片规范化的实现在 ``agentkit.storage.media``（共用，另外几个应用走同一条链路）；
+这里只负责「这条记录属于谁」「key 怎么排」「按 id 读回来」。
+
 回合引用 upload_id 时由调用方校验归属（这里提供 get_owned，别人的 id 返回 None）。
 """
 
@@ -7,31 +10,50 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from agentkit.storage.media import (
+    ImageLimits,
+    MediaStore,
+    Processed,
+    UploadRejected,
+    check_size,
+    detect_type,
+    normalize_image,
+)
+
 from companion.db.port import UploadRecord
 from companion.service.uploads.objects_port import ObjectStore
-from companion.service.uploads.policy import UploadRejected, check_size, detect_type
 from companion.agent.util.ids import new_ulid
 
 SIGNED_URL_TTL = 300  # 5 分钟（O §5）
 
 
 class UploadService:
-    def __init__(self, *, objects: ObjectStore, records, normalize, clock=lambda: datetime.now(UTC),
-                 key_prefix: str = "") -> None:
+    def __init__(self, *, objects: ObjectStore, records, normalize=None, clock=lambda: datetime.now(UTC),
+                 key_prefix: str = "", limits: ImageLimits = ImageLimits()) -> None:
         self._objects = objects
-        self._key_prefix = key_prefix  # 共用的 TOS 桶：生产用 companion/，测试用 companion-test/
+        # 共用的 TOS 桶：生产用 companion/，测试用 companion-test/
+        self._key_prefix = key_prefix.strip("/")
+        if self._key_prefix:
+            self._key_prefix += "/"
         self._records = records
-        self._normalize = normalize
+        # normalize 参数保留给测试注入；正常走共用实现。
+        self._normalize = normalize or (lambda raw: normalize_image(raw, limits))
+        self._limits = limits
         self._clock = clock
 
+    @property
+    def media(self) -> MediaStore:
+        """按前缀存取的共用包装（agentkit）。产品侧只在这上面做归属判断。"""
+        return MediaStore(self._objects, key_prefix=self._key_prefix)
+
     async def accept(self, *, owner_id: int, data: bytes) -> UploadRecord:
-        check_size(data)
-        mime = detect_type(data[:16])
-        if mime is None:
+        check_size(data, self._limits)
+        if detect_type(data[:16]) is None:
             raise UploadRejected("unsupported file type")
-        processed = self._normalize(data)
         upload_id = new_ulid()
-        key = f"{self._key_prefix}uploads/{owner_id}/{upload_id}.jpg"  # 统一输出 JPEG，key 不依赖原始扩展名
+        # 统一输出 JPEG，key 不依赖原始扩展名
+        key = f"{self._key_prefix}uploads/{owner_id}/{upload_id}.jpg"
+        processed: Processed = self._normalize(data)
         await self._objects.put(key=key, data=processed.data, content_type="image/jpeg")
         record = UploadRecord(id=upload_id, owner_id=owner_id, object_key=key, mime="image/jpeg",
                               size=len(processed.data), width=processed.width, height=processed.height,

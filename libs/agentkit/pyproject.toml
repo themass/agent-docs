@@ -1,6 +1,6 @@
 [project]
 name = "agentkit"
-version = "0.1.0+20261117.4a69fe45"
+version = "0.1.0+20261117.bf3578c8"
 description = "Shared platform kit: trace, web, OSS, Redis session, DeerFlow adapter, MCP scaffold"
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
@@ -25,6 +25,10 @@ deerflow = ["deerflow>=0.1.0"]
 metrics = ["prometheus_client>=0.20.0"]
 # `agentkit.llm` carries the LiteLLM transport; without these it is unimportable.
 llm = ["litellm>=1.55.0", "langchain-core>=0.3.0"]
+# `agentkit.storage.media.normalize_image` decodes/re-encodes images. The rest of
+# `media` (type detection, size limits, key building) needs nothing extra, so a
+# service that only stores pre-normalized bytes should not be forced to install it.
+image = ["Pillow>=10.0.0"]
 dev = [
     "pytest>=8.3.0",
     "pytest-asyncio>=0.24.0",
@@ -32,6 +36,7 @@ dev = [
     "prometheus_client>=0.20.0",
     "litellm>=1.55.0",
     "langchain-core>=0.3.0",
+    "Pillow>=10.0.0",
 ]
 
 [build-system]
