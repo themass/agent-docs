@@ -95,6 +95,41 @@ class DecodedBlob:
         return _EXT_BY_MIME.get(self.mime, ".bin")
 
 
+def _looks_like(mime: str, raw: bytes) -> bool:
+    """True when the bytes are consistent with the mime the browser declared.
+
+    Magic bytes only — no parser. Enough to refuse the case production saw on
+    2026-11-18 (SVG bytes posted as `image/jpeg`, stored in the ledger as a
+    46-byte "photo"), without pretending to validate files a browser produced.
+    An unrecognised mime passes: the allow-list already gates the categories,
+    and falsely rejecting a phone's exotic audio is worse than storing bytes
+    nothing renders.
+    """
+    if mime == "image/jpeg":
+        return raw[:3] == b"\xff\xd8\xff"
+    if mime == "image/png":
+        return raw[:8] == b"\x89PNG\r\n\x1a\n"
+    if mime == "image/gif":
+        return raw[:6] in (b"GIF87a", b"GIF89a")
+    if mime == "image/webp":
+        return raw[:4] == b"RIFF" and raw[8:12] == b"WEBP"
+    if mime == "image/heic":
+        # Any ISO base-media container: brands vary by encoder, and a browser
+        # would only declare heic for a real HEIC/HEIF anyway.
+        return raw[4:8] == b"ftyp"
+    if mime == "audio/webm":
+        return raw[:4] == b"\x1a\x45\xdf\xa3"
+    if mime in ("audio/ogg", "audio/opus"):
+        return raw[:4] == b"OggS"
+    if mime in ("audio/mp4", "audio/m4a", "audio/aac"):
+        return raw[4:8] == b"ftyp" or (len(raw) >= 2 and raw[0] == 0xFF and raw[1] & 0xF0 == 0xF0)
+    if mime in ("audio/mpeg", "audio/mp3"):
+        return raw[:3] == b"ID3" or (len(raw) >= 2 and raw[0] == 0xFF and raw[1] & 0xE0 == 0xE0)
+    if mime in ("audio/wav", "audio/wave"):
+        return raw[:4] == b"RIFF" and raw[8:12] == b"WAVE"
+    return True
+
+
 def decode_data_url(data_url: str) -> DecodedBlob:
     """Parse `data:<mime>;base64,<payload>`.
 
@@ -119,6 +154,8 @@ def decode_data_url(data_url: str) -> DecodedBlob:
         raise AttachmentRejectedError("附件内容已损坏，请重新上传。") from None
     if not raw:
         raise AttachmentRejectedError("附件是空的，请重新上传。")
+    if not _looks_like(mime, raw):
+        raise AttachmentRejectedError("附件内容与声明的类型不一致，请重新选择文件。")
     return DecodedBlob(raw=raw, mime=mime)
 
 
@@ -192,9 +229,7 @@ async def offload_for_persistence(
                     "attachments",
                     f"{message_id}-{index}{blob.extension}",
                 )
-                await asyncio.to_thread(
-                    store.put_object, key, blob.raw, content_type=blob.mime
-                )
+                await asyncio.to_thread(store.put_object, key, blob.raw, content_type=blob.mime)
                 row["storage_key"] = key
                 row["size_bytes"] = len(blob.raw)
                 try:

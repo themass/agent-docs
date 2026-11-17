@@ -21,6 +21,7 @@ from jc.schemas.agent import (
     AgentSessionListResponse,
     AgentSessionResponse,
 )
+from jc.services.agent_attachment_service import validate_inline_attachments
 from jc.services.agent_service import AgentService
 
 router = APIRouter(prefix="/agent", tags=["agent"])
@@ -125,6 +126,16 @@ async def agent_message_stream(
     actor: UserActor = Depends(require_user),
     agents: AgentService = Depends(get_agent_service),
 ) -> StreamingResponse:
+    # Reject oversized attachments HERE, before the body is returned:
+    # `stream_message` is an async generator, so its own validation only runs once
+    # the first chunk is pulled — after the 200 and the SSE headers are already on
+    # the wire. Production test 2026-11-18 (P1-1): every oversized-upload case came
+    # back "200 + closed stream", indistinguishable from success on the client, and
+    # the >24MB combined case only failed at all because nginx happened to 413 it.
+    # Same sync call the service makes; the service copy stays as the invariant for
+    # every other caller.
+    validate_inline_attachments(body.attachments or [])
+
     async def event_stream() -> AsyncIterator[bytes]:
         upstream = agents.stream_message(
             session_id,
@@ -157,5 +168,8 @@ async def read_agent_image(
     agents: AgentService = Depends(get_agent_service),
 ) -> Response:
     return await agents.read_photo_source(
-        session_id, message_id=message_id, attachment_index=attachment_index, actor=actor,
+        session_id,
+        message_id=message_id,
+        attachment_index=attachment_index,
+        actor=actor,
     )
