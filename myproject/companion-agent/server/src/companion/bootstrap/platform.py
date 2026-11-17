@@ -361,6 +361,21 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
                 "user_text": outcome.user_text, "assistant_text": outcome.assistant_text},
                 run_after=_utcnow(), dedupe_key=f"{TIMELINE_RECORD_JOB}:{outcome.user_message_ids[0]}")
 
+    # 对象存储要在 build_chat_api 之前建好：回合需要按 upload_id 读原图喂给模型。
+    # 放在后面会 UnboundLocalError（uploads 此时还没绑值），而且那是个只在启动时才暴露的错误。
+    uploads = objects = None
+    if settings.tos_endpoint:
+        from companion.service.uploads.tos import TosObjectStore
+        from companion.bootstrap.checks import assert_storage_reachable
+
+        objects = TosObjectStore(endpoint=settings.tos_endpoint, bucket=settings.tos_bucket,
+                                 access_key=settings.tos_access_key, secret_key=settings.tos_secret_key,
+                                 region=settings.tos_region)
+        # 凭据配错时在这里就失败，不要等到第一次上传变成 500（见 assert_storage_reachable）。
+        assert_storage_reachable(objects, bucket=settings.tos_bucket)
+        uploads = UploadService(objects=objects, records=uploads_store, normalize=normalize_image,
+                                key_prefix=settings.tos_key_prefix)
+
     drain = DrainState()
     api, _close = build_chat_api(
         sessions=sessions, messages=messages, queue=queue, control=control,
@@ -406,19 +421,6 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
         if result.status != "accepted":
             raise RuntimeError(f"proactive submit {result.status}: {result.reason}")
         return result.turn_id
-
-    uploads = objects = None
-    if settings.tos_endpoint:
-        from companion.service.uploads.tos import TosObjectStore
-        from companion.bootstrap.checks import assert_storage_reachable
-
-        objects = TosObjectStore(endpoint=settings.tos_endpoint, bucket=settings.tos_bucket,
-                                 access_key=settings.tos_access_key, secret_key=settings.tos_secret_key,
-                                 region=settings.tos_region)
-        # 凭据配错时在这里就失败，不要等到第一次上传变成 500（见 assert_storage_reachable）。
-        assert_storage_reachable(objects, bucket=settings.tos_bucket)
-        uploads = UploadService(objects=objects, records=uploads_store, normalize=normalize_image,
-                                key_prefix=settings.tos_key_prefix)
 
     # 形象发布需要对象存储（形象包是 zip）；没配 TOS 就不挂这组接口。
     avatars = (AvatarCatalog(store=SqlAvatarReleaseStore(engine), objects=objects,
