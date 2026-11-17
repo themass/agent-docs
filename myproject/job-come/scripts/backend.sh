@@ -12,7 +12,8 @@
 # Env:
 #   JC_API_HOST=127.0.0.1   bind loopback only; Nginx is the public listener
 #   JC_API_PORT=8000        must match the jc_api upstream in the Nginx conf
-#   JC_API_WORKERS=2
+#   JC_API_WORKERS=1        default 1: two workers each prewarm three agents and the
+#                          2GB production box has no room for that (see note below)
 #   JC_VENV=/path/to/venv   default: backend/server/.venv (./scripts/deploy.sh)
 set -euo pipefail
 
@@ -27,7 +28,12 @@ jc_load_deploy_env "$JC_ROOT"
 VENV="${JC_VENV:-${SERVER_ROOT}/.venv}"
 API_HOST="${JC_API_HOST:-127.0.0.1}"
 API_PORT="${JC_API_PORT:-8000}"
-API_WORKERS="${JC_API_WORKERS:-2}"
+# Default 1, not 2: production is a 2GB box and each uvicorn worker prewarms three
+# agents; with two workers the machine ran at 85% memory / ~140MB available and a
+# worker died mid-request on 2026-11-18, losing the user message it was persisting.
+# One worker keeps the prewarm resident once; restart costs seconds, an OOM kill
+# mid-turn costs the user their conversation.
+API_WORKERS="${JC_API_WORKERS:-1}"
 
 RUN_DIR="${JC_ROOT}/.data/run"
 LOG_DIR="${JC_PROD_LOG_DIR:-${JC_ROOT}/.data/logs/production}"

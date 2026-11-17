@@ -9,7 +9,7 @@ from pathlib import Path
 
 from agentkit.common.ids import new_id
 from agentkit.web.auth import Actor, UserActor
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from jc.config import settings
@@ -255,7 +255,17 @@ class ProfileService:
         if profile is None:
             logger.warning("parse_stored_source: profile missing %s", profile_id)
             return False
-        source = next((s for s in profile.sources if s.id == source_id), None)
+        # Load the source explicitly. Touching `profile.sources` here would lazy-load
+        # the relationship: on a request session the identity map usually hides that,
+        # but this parse path runs on a fresh AsyncSession in a background task, where
+        # any implicit IO raises MissingGreenlet. Production 2026-11-18: that crash
+        # left the row claimable forever and the dispatcher re-raised it every 30s.
+        source = await self._db.scalar(
+            select(ProfileSource).where(
+                ProfileSource.id == source_id,
+                ProfileSource.profile_id == profile_id,
+            )
+        )
         if source is None:
             logger.warning("parse_stored_source: source missing %s", source_id)
             return False

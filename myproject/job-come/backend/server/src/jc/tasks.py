@@ -28,6 +28,9 @@ async def prepare_resume_tracks(profile_id: str, elevation_level: str = "conserv
 
 
 _PARSE_WORKER_ID = f"api-{uuid.uuid4().hex[:16]}"
+# Distinguishes "the parse path itself crashed" from a real user parse failure
+# (`USER_UPLOAD_PARSE_FAILED`), so support can tell an infra bug from a bad upload.
+INFRA_PARSE_FAILED = "解析服务异常，请稍后重试或重新上传。"
 _PARSE_TASKS: set[asyncio.Task[None]] = set()
 
 
@@ -98,6 +101,29 @@ async def parse_profile_source(profile_id: str, source_id: str) -> None:
                 source_id,
             )
             await db.rollback()
+            # A deterministic crash (not a process death) must not become a poison
+            # row. Without this the source stays PROCESSING, its lease expires, and
+            # the dispatcher re-claims it forever — production 2026-11-18 re-raised
+            # the same MissingGreenlet every 30s for one bad row. Move it to FAILED
+            # under the claim token so it settles; a *process* death never reaches
+            # this branch, so its lease still expires and the row is recovered.
+            await db.execute(
+                update(ProfileSource)
+                .where(
+                    ProfileSource.id == source_id,
+                    ProfileSource.parse_claim_token == claim_token,
+                )
+                .values(
+                    parse_status=ParseStatus.FAILED,
+                    parse_phase="failed",
+                    parse_error=INFRA_PARSE_FAILED,
+                    parse_owner=None,
+                    parse_claim_token=None,
+                    parse_lease_until=None,
+                )
+                .execution_options(synchronize_session=False)
+            )
+            await db.commit()
             return
     logger.info(
         "parse_profile_source finished profile_id=%s source_id=%s ok=%s elapsed_sec=%.1f",
