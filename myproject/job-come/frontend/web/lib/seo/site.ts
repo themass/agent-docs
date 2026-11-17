@@ -84,10 +84,14 @@ export const SITE_KEYWORDS_FORMAT_EN = [
 
 /** Indexable product pages (no auth / settings / admin). */
 export const PUBLIC_SITEMAP_PATHS = [
+  // The landing page leads the sitemap. While `/` was a redirect it was deliberately
+  // absent; now that it is the page that answers the what-is-this question for an
+  // unfamiliar crawler, it is the URL every future inbound link points at.
+  { path: "/", priority: 1.0, changeFrequency: "weekly" as const },
   // `/resume-format` outranks the product routes here because it is the only entry with
   // server-rendered body text: the rest are client workbenches that a crawler sees as an
   // empty shell, and a page with no content cannot rank however high we rate it.
-  { path: "/resume-format", priority: 1.0, changeFrequency: "monthly" as const },
+  { path: "/resume-format", priority: 0.95, changeFrequency: "monthly" as const },
   { path: "/resume-agent", priority: 0.9, changeFrequency: "weekly" as const },
   { path: "/jobs", priority: 0.9, changeFrequency: "weekly" as const },
   { path: "/coach-agent", priority: 0.85, changeFrequency: "weekly" as const },

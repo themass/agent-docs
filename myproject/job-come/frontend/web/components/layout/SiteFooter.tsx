@@ -10,6 +10,10 @@ export function SiteFooter() {
         <p>
           © {new Date().getFullYear()} {PRODUCT_NAME} · {OPERATOR_NAME}
         </p>
+        <nav className="flex flex-wrap gap-x-4 gap-y-1" aria-label="资源">
+          <Link href="/guides" className="hover:text-ink-900">简历指南</Link>
+          <Link href="/resume-format" className="hover:text-ink-900">格式转换</Link>
+        </nav>
         <nav className="flex flex-wrap gap-x-4 gap-y-1" aria-label="法律信息">
           <Link href="/privacy" className="hover:text-ink-900">隐私政策</Link>
           <Link href="/terms" className="hover:text-ink-900">用户协议</Link>

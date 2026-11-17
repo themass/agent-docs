@@ -4,6 +4,7 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { ConsentBanner } from "@/components/consent/ConsentBanner";
 import { FeedbackLauncher } from "@/components/feedback/FeedbackLauncher";
+import { AnalyticsScript } from "@/components/analytics/AnalyticsScript";
 import { AuthProvider } from "@/lib/auth/AuthProvider";
 import { NotificationProvider } from "@/lib/notifications/NotificationProvider";
 
@@ -15,6 +16,7 @@ import {
   PRODUCT_NAME_EN,
 } from "@/lib/brand";
 import { rootJsonLd, SITE_KEYWORDS_EN, SITE_KEYWORDS_ZH, SITE_URL } from "@/lib/seo/site";
+import { googleVerification, verificationMeta } from "@/lib/seo/verification";
 
 import "./globals.css";
 
@@ -40,6 +42,10 @@ export const metadata: Metadata = {
     title: DOCUMENT_TITLE,
     description: DOCUMENT_DESCRIPTION,
   },
+  // Search engine ownership tokens — empty until each console hands one out, and
+  // without them we can only ever be indexed by accident. See lib/seo/verification.ts.
+  verification: googleVerification,
+  other: verificationMeta,
   robots: {
     index: true,
     follow: true,
@@ -55,6 +61,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(rootJsonLd()) }}
         />
+        <AnalyticsScript />
         <AuthProvider>
           <NotificationProvider>
             <AppHeader />
