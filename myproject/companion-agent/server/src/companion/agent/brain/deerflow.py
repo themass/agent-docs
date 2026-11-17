@@ -183,6 +183,10 @@ class DeerFlowBrain:
             "turn_id": turn_id,
             "allowed_tools": self._tool_allowed,
         }
+        # 图片附件：按 upload_id 读字节转 data URL，交给 ImageAttachmentMiddleware。
+        # 读失败（被删、存储没配、不是图片）就不带这一张——文字照常进模型，不整轮失败。
+        if request.images:
+            context["turn_images"] = request.images
         if steer_inbox is not None:
             context["steer_inbox"] = steer_inbox
         if self._tool_runtime is not None:

@@ -39,6 +39,16 @@ class TosObjectStore:
         await asyncio.to_thread(
             self._client.put_object, Bucket=self._bucket, Key=key, Body=data, ContentType=content_type)
 
+    async def get(self, *, key: str) -> bytes:
+        """按 key 直接读字节（AK/SK 鉴权，走内网/公网 SDK 调用，不经签名 URL）。
+
+        模型看图和内部转存都走这条：签名 URL 是 bearer secret，进模型请求或日志就等于外泄。
+        """
+        def _read() -> bytes:
+            return self._client.get_object(Bucket=self._bucket, Key=key)["Body"].read()
+
+        return await asyncio.to_thread(_read)
+
     async def signed_url(self, *, key: str, ttl_seconds: int) -> str:
         return await asyncio.to_thread(
             self._client.generate_presigned_url,
@@ -49,3 +59,10 @@ class TosObjectStore:
 
     async def delete(self, *, key: str) -> None:
         await asyncio.to_thread(self._client.delete_object, Bucket=self._bucket, Key=key)
+
+    def check_bucket(self) -> None:
+        """启动自检：HEAD 一次桶。凭据/桶名/端点任一配错都会在这里抛，而不是等第一次上传变 500。
+
+        同步调用（启动阶段，不在事件循环里）；botocore 的重试策略已把真正的鉴权错误直接抛出。
+        """
+        self._client.head_bucket(Bucket=self._bucket)

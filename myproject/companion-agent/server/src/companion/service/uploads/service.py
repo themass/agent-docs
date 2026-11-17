@@ -47,3 +47,10 @@ class UploadService:
         if record is None:
             return None
         return await self._objects.signed_url(key=record.object_key, ttl_seconds=SIGNED_URL_TTL)
+
+    async def read_bytes(self, *, record: UploadRecord) -> bytes:
+        """按记录直接读字节，给模型用（不经签名 URL，见 ``TosObjectStore.get``）。
+
+        调用方**必须**先 ``get_owned`` 过一遍归属；这里拿到的已经是被授权的那条记录。
+        """
+        return await self._objects.get(key=record.object_key)

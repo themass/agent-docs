@@ -64,3 +64,27 @@ class ObjectStore:
             Params={"Bucket": self._config.bucket, "Key": key},
             ExpiresIn=expires_in,
         )
+
+    def presigned_put_url(
+        self,
+        key: str,
+        *,
+        content_type: str | None = None,
+        expires_in: int = 600,
+    ) -> str:
+        """客户端直传用的 PUT 签名。
+
+        只签一个 key、只给写权限：拿到 URL 的人不能 list、不能读、不能写别的 key。
+        客户端必须原样带 ``Content-Type``（如果这里传了），因为它算进了签名。
+
+        注意 S3 兼容签名**约束不了 Content-Length**：单文件上限要在业务侧校验，
+        入口拦不住（见 shared-media-upload-and-storage.md §10）。
+        """
+        params: dict[str, str] = {"Bucket": self._config.bucket, "Key": key}
+        if content_type:
+            params["ContentType"] = content_type
+        return self._client.generate_presigned_url(
+            "put_object",
+            Params=params,
+            ExpiresIn=expires_in,
+        )

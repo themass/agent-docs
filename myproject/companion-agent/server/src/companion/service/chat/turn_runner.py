@@ -27,6 +27,7 @@ after_turn：收尾时、**释放锁之前**调用（拿着锁，才能安全地
 from __future__ import annotations
 
 import asyncio
+import base64
 import logging
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -58,6 +59,22 @@ MAX_RESTARTS = 2
 
 Produce = Callable[[TurnRequest, SteerInbox], AsyncIterator[BrainEvent]]
 Drain = Callable[..., Awaitable[None]]
+
+
+def _attachment_ids(meta: Any) -> tuple[str, ...]:
+    """从消息 meta 里取出附件 upload_id，按发送顺序。坏数据一律跳过，不因为一条脏附件让整个回合失败。"""
+    if not isinstance(meta, dict):
+        return ()
+    items = meta.get("attachments")
+    if not isinstance(items, list):
+        return ()
+    ids: list[str] = []
+    for item in items:
+        if isinstance(item, dict):
+            upload_id = item.get("upload_id")
+            if isinstance(upload_id, str) and upload_id:
+                ids.append(upload_id)
+    return tuple(ids)
 
 
 @dataclass(frozen=True)
@@ -140,6 +157,7 @@ class TurnRunner:
         tracker: DrainState | None = None,
         steer_budget: int = 3,
         after_turn: AfterTurn | None = None,
+        uploads: Any = None,
     ) -> None:
         self._after_turn = after_turn
         self._control = control
@@ -149,6 +167,9 @@ class TurnRunner:
         self._drain = drain
         self._tracker = tracker
         self._steer_budget = steer_budget
+        # 附件读取器（UploadService）：要 get_owned + read_bytes。没配 TOS 时为 None，
+        # 此时回合照常跑，只是模型看不到图（上传接口本身也没挂）。
+        self._uploads = uploads
 
     async def run(self, inp: TurnInput) -> None:
         if self._tracker is not None:
@@ -211,21 +232,59 @@ class TurnRunner:
 
     async def _load_inputs(self, inp: TurnInput) -> list[TurnInputMessage]:
         """本回合覆盖的用户消息，逐条带 id（排空时有多条）。没有消息 id 的重跑（如「继续」）返回空，
-        由大脑用 ``message`` 字段兜底。"""
+        由大脑用 ``message`` 字段兜底。
+
+        附件在消息的 ``meta["attachments"]`` 里（``UploadService`` 落库时写的 upload_id 列表），
+        这里原样带到 ``TurnInputMessage.upload_ids``：图是不是真能读，到大脑构造消息时才知道。
+        """
         loaded: list[TurnInputMessage] = []
         for mid in inp.message_ids:
             record = await self._messages.get(owner_id=inp.owner_id, message_id=mid)
             if record is not None:
-                loaded.append(TurnInputMessage(message_id=mid, text=record.content))
+                loaded.append(TurnInputMessage(message_id=mid, text=record.content,
+                                               upload_ids=_attachment_ids(record.meta)))
         if inp.message_ids and not loaded:
             loaded = [TurnInputMessage(message_id=inp.message_ids[0], text=inp.text)]
         return loaded
+
+    async def _load_images(self, inp: TurnInput,
+                           inputs: list[TurnInputMessage]) -> dict[int, tuple[str, ...]]:
+        """把本回合的附件读成 data URL，键是消息主键。
+
+        每个 upload_id 先按归属查一次（``uploads.get_owned``），别人的 id 一律当作不存在——
+        否则只要猜中一个 ULID 就能让模型看别人的图。读不到、不是图片、存储没配置，
+        都只跳过这一张并记一条日志：文字照常进模型，不因为一张图让整轮失败。
+        """
+        if self._uploads is None:
+            return {}
+        result: dict[int, tuple[str, ...]] = {}
+        for item in inputs:
+            if not item.upload_ids:
+                continue
+            urls: list[str] = []
+            for upload_id in item.upload_ids:
+                record = await self._uploads.get_owned(owner_id=inp.owner_id, upload_id=upload_id)
+                if record is None:
+                    log.warning("attachment not owned or missing", extra={"upload_id": upload_id,
+                                                                         "session_id": inp.session_id})
+                    continue
+                try:
+                    data = await self._uploads.read_bytes(record=record)
+                except Exception:
+                    log.exception("attachment read failed", extra={"upload_id": upload_id,
+                                                                   "object_key": record.object_key})
+                    continue
+                urls.append(f"data:{record.mime};base64,{base64.b64encode(data).decode('ascii')}")
+            if urls:
+                result[item.message_id] = tuple(urls)
+        return result
 
     async def _attempt(self, inp: TurnInput, inputs: list[TurnInputMessage], inbox: SteerInbox,
                        state: _RunState) -> str:
         message = "\n\n".join(i.text for i in inputs) if inputs else inp.text
         request = TurnRequest(user_id=str(inp.owner_id), character_id=inp.character_id, message=message,
                               session_id=inp.session_id, inputs=tuple(inputs),
+                              images=await self._load_images(inp, inputs),
                               metadata={"turn_id": inp.turn_id, "session_id": inp.session_id})
         stream = self._produce(request, inbox)
         try:

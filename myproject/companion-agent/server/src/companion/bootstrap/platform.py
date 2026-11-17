@@ -365,6 +365,7 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     api, _close = build_chat_api(
         sessions=sessions, messages=messages, queue=queue, control=control,
         produce=produce, drain=drain, process_name=None, after_turn=after_turn, fence_sessions=True,
+        uploads=uploads,
     )
     api.history = history
 
@@ -406,22 +407,25 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
             raise RuntimeError(f"proactive submit {result.status}: {result.reason}")
         return result.turn_id
 
-    dispatcher = ReminderDispatcher(store=reminder_store, submit=submit_proactive,
-                                    owner=f"{socket.gethostname()}:{os.getpid()}", push=push or LogPush())
-
     uploads = objects = None
     if settings.tos_endpoint:
         from companion.service.uploads.tos import TosObjectStore
+        from companion.bootstrap.checks import assert_storage_reachable
 
         objects = TosObjectStore(endpoint=settings.tos_endpoint, bucket=settings.tos_bucket,
                                  access_key=settings.tos_access_key, secret_key=settings.tos_secret_key,
                                  region=settings.tos_region)
+        # 凭据配错时在这里就失败，不要等到第一次上传变成 500（见 assert_storage_reachable）。
+        assert_storage_reachable(objects, bucket=settings.tos_bucket)
         uploads = UploadService(objects=objects, records=uploads_store, normalize=normalize_image,
                                 key_prefix=settings.tos_key_prefix)
 
     # 形象发布需要对象存储（形象包是 zip）；没配 TOS 就不挂这组接口。
     avatars = (AvatarCatalog(store=SqlAvatarReleaseStore(engine), objects=objects,
                              key_prefix=settings.tos_key_prefix) if objects is not None else None)
+
+    dispatcher = ReminderDispatcher(store=reminder_store, submit=submit_proactive,
+                                    owner=f"{socket.gethostname()}:{os.getpid()}", push=push or LogPush())
 
     threads = None
     if checkpointer is not None:

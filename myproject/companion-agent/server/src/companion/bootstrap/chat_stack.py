@@ -31,6 +31,7 @@ def build_chat_api(
     process_name: str | None = None,
     after_turn: AfterTurn | None = None,
     fence_sessions: bool = False,
+    uploads: object | None = None,
 ) -> tuple[ChatApi, Callable[[], None]]:
     """返回 (ChatApi, 关闭回调)。关闭回调目前只占位，停机收尾由 DrainState 等待。"""
     tasks: set[asyncio.Task] = set()
@@ -53,7 +54,8 @@ def build_chat_api(
     submit = SubmitService(messages=messages, queue=queue, control=control, start_turn=start_turn,
                            process_name=process_name, sessions=sessions if fence_sessions else None)
     runner_ref["runner"] = TurnRunner(control=control, messages=messages, queue=queue, produce=produce,
-                                      drain=drain_after, tracker=drain, after_turn=after_turn)
+                                      drain=drain_after, tracker=drain, after_turn=after_turn,
+                                      uploads=uploads)
     drainer_ref["drainer"] = DrainService(queue=queue, submit=submit)
 
     api = ChatApi(sessions=sessions, messages=messages, queue=queue, control=control,

@@ -85,6 +85,59 @@ class ToolVisibilityMiddleware(AgentMiddleware):
 
 
 @Next(ToolVisibilityMiddleware)
+class ImageAttachmentMiddleware(AgentMiddleware):
+    """把本回合的图片附件变成模型能看的 ``image_url`` 内容块（多模态），**只进这一次请求**。
+
+    图片以 base64 data URL 内联：模型网关只能拿 URL 或 base64，而桶是私有的——
+    生成签名 URL 塞进模型请求等于把 bearer secret 交给第三方，还要担心它过期。
+    所以这里由大脑按 upload_id 从对象存储读字节（``ctx["image_loader"]`` 提供），
+    转成 data URL 放进请求。
+
+    **为什么不把 base64 写进消息本身**：对话线程由 LangGraph checkpoint 持久化，
+    每轮都把历史消息重放给模型。一张 800KB 的图转 base64 约 1MB；几轮之后 checkpoint
+    会涨到几十 MB，每轮还要重新序列化、重发。这里只改写 ``request.messages``，
+    不碰 ``state``，checkpoint 里存的一直是纯文字。
+
+    ``ctx["turn_images"]`` 是 {message_id: (data_url, ...)}，由本轮生产端放进 context；
+    没有就是纯文字回合，直接透传。
+    """
+
+    async def awrap_model_call(self, request, handler):
+        ctx = _ctx(request.runtime.context if request.runtime else None)
+        images: dict[int, tuple[str, ...]] = ctx.get("turn_images") or {}
+        if not images:
+            return await handler(request)
+
+        rewritten: list[Any] = []
+        for message in request.messages:
+            urls = _images_for(message, images)
+            if not urls:
+                rewritten.append(message)
+                continue
+            parts: list[dict[str, Any]] = []
+            if isinstance(message.content, str):
+                if message.content:
+                    parts.append({"type": "text", "text": message.content})
+            elif isinstance(message.content, list):
+                parts.extend(message.content)
+            parts.extend({"type": "image_url", "image_url": {"url": url}} for url in urls)
+            rewritten.append(message.model_copy(update={"content": parts}))
+        return await handler(request.override(messages=rewritten))
+
+
+def _images_for(message: Any, images: dict[int, tuple[str, ...]]) -> tuple[str, ...]:
+    """这条消息对应哪几张图。按 LangChain 的消息 id（``lc_user_id(消息主键)``）反查。"""
+    if not isinstance(message, HumanMessage) or not message.id:
+        return ()
+    from companion.agent.brain.conversation import lc_user_id
+
+    for message_id, urls in images.items():
+        if message.id == lc_user_id(message_id):
+            return urls
+    return ()
+
+
+@Next(ImageAttachmentMiddleware)
 class SteerMiddleware(AgentMiddleware):
     """在下一次模型调用之前注入排队的插话（D §6.4）。只实现异步钩子。"""
 

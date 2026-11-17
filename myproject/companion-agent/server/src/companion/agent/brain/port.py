@@ -35,10 +35,15 @@ CancelFn = "Callable[[], Awaitable[None]]"
 @dataclass(frozen=True)
 class TurnInputMessage:
     """本回合的一条用户输入。``message_id`` 是消息表主键，大脑用它生成稳定的消息 id，
-    这样合并重跑、插话、删除、重新生成都能按 id 精确操作（chat-agent-next-plan.md §2.2）。"""
+    这样合并重跑、插话、删除、重新生成都能按 id 精确操作（chat-agent-next-plan.md §2.2）。
+
+    ``upload_ids`` 是这条消息带的附件（来自 ``POST /v1/uploads`` 的 upload_id），按发送顺序。
+    大脑在构造输入消息时把它们换成模型能看的图片内容；为空就是纯文字。
+    """
 
     message_id: int
     text: str
+    upload_ids: tuple[str, ...] = ()
 
 
 @dataclass
@@ -59,6 +64,9 @@ class TurnRequest:
     session_id: int | None = None
     inputs: tuple[TurnInputMessage, ...] = ()
     prompt: PromptPlan | None = None
+    # 本回合的图片：{消息主键: (data URL, ...)}。由回合层从对象存储读好再传，
+    # 大脑只负责把它拼进「这一次」的模型请求（不进 checkpoint，见 ImageAttachmentMiddleware）。
+    images: dict[int, tuple[str, ...]] = field(default_factory=dict)
 
 
 class TurnRefused(Exception):
