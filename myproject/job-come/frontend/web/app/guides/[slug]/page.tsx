@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { PageHeader } from "@/components/layout/PageHeader";
-import { GUIDES, guideBySlug, guideUrl } from "@/lib/seo/content";
+import { ALL_GUIDES, guideBySlug, guideUrl } from "@/lib/seo/content";
 import { SITE_URL, faqJsonLd, pageMetadata } from "@/lib/seo/site";
 
 /**
@@ -18,7 +18,7 @@ import { SITE_URL, faqJsonLd, pageMetadata } from "@/lib/seo/site";
  */
 
 export function generateStaticParams() {
-  return GUIDES.map((guide) => ({ slug: guide.slug }));
+  return ALL_GUIDES.map((guide) => ({ slug: guide.slug }));
 }
 
 /** Unknown slugs 404 through the app shell instead of rendering an empty article. */
@@ -39,7 +39,7 @@ function breadcrumbJsonLd(title: string, slug: string) {
   };
 }
 
-function articleJsonLd(guide: (typeof GUIDES)[number]) {
+function articleJsonLd(guide: (typeof ALL_GUIDES)[number]) {
   const url = `${SITE_URL}${guideUrl(guide.slug)}`;
   return {
     "@context": "https://schema.org",
@@ -73,7 +73,7 @@ export default async function GuidePage({ params }: Params) {
 
   const related = (guide.related ?? [])
     .map((relatedSlug) => guideBySlug.get(relatedSlug))
-    .filter((entry): entry is (typeof GUIDES)[number] => entry !== undefined);
+    .filter((entry): entry is (typeof ALL_GUIDES)[number] => entry !== undefined);
 
   return (
     <article className="mx-auto flex max-w-2xl flex-col gap-8 py-2">

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { ConsentBanner } from "@/components/consent/ConsentBanner";
-import { FeedbackLauncher } from "@/components/feedback/FeedbackLauncher";
+import { DeferredFeedbackLauncher } from "@/components/feedback/DeferredFeedbackLauncher";
 import { AnalyticsScript } from "@/components/analytics/AnalyticsScript";
 import { AuthProvider } from "@/lib/auth/AuthProvider";
 import { NotificationProvider } from "@/lib/notifications/NotificationProvider";
@@ -69,7 +69,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               {children}
             </main>
             <SiteFooter />
-            <FeedbackLauncher />
+            <DeferredFeedbackLauncher />
             <ConsentBanner />
           </NotificationProvider>
         </AuthProvider>

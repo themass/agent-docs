@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-import { GUIDES, guideUrl } from "@/lib/seo/content";
+import { ALL_GUIDES, guideUrl } from "@/lib/seo/content";
 import { PUBLIC_SITEMAP_PATHS, SITE_URL } from "@/lib/seo/site";
 
 /**
@@ -25,7 +25,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     changeFrequency: "monthly",
     priority: 0.8,
   });
-  for (const guide of GUIDES) {
+  for (const guide of ALL_GUIDES) {
     entries.push({
       url: `${SITE_URL}${guideUrl(guide.slug)}`,
       lastModified,

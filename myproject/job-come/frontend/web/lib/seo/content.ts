@@ -21,6 +21,8 @@
  * from the profile patch path. Nothing here promises a feature that is not in `src/jc`.
  */
 
+import { ROLE_GUIDES } from "@/lib/seo/roles";
+
 export type GuideSection = {
   heading: string;
   /** Most sections open with prose; bullet-only sections omit it. */
@@ -264,7 +266,15 @@ export const GUIDES: Guide[] = [
   },
 ];
 
-export const guideBySlug = new Map(GUIDES.map((g) => [g.slug, g]));
+/**
+ * Role-specific guides live in their own module because they follow a different writing
+ * contract (each is built against one role family's outcome vocabulary), but they are
+ * the same page type: same route, same schema, same sitemap. Concatenating them here
+ * keeps one source of truth for "what pages exist" — a second list would drift.
+ */
+export const ALL_GUIDES: Guide[] = [...GUIDES, ...ROLE_GUIDES];
+
+export const guideBySlug = new Map(ALL_GUIDES.map((g) => [g.slug, g]));
 
 /** Absolute URL for a guide, for canonical links and breadcrumbs. */
 export function guideUrl(slug: string): string {

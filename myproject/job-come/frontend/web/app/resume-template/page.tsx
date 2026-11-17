@@ -103,7 +103,7 @@ export default function ResumeTemplatePage() {
       />
 
       <section className="space-y-6">
-        {TEMPLATES.map((template) => (
+        {TEMPLATES.map((template, index) => (
           <article key={template.id} className="card overflow-hidden">
             <div className="border-b border-surface-border bg-surface-muted px-4 py-2.5">
               <h2 className="text-sm font-semibold text-ink-900">{template.name}</h2>
@@ -117,6 +117,11 @@ export default function ResumeTemplatePage() {
                 height={1123}
                 className="w-full rounded border border-surface-border"
                 sizes="(max-width: 640px) 100vw, 240px"
+                // The first template is the LCP element on this page, and Next's default
+                // `lazy` deferred it until after layout — measured LCP 3.4s. Priority on
+                // that one image only; the other two are genuinely below the fold and
+                // stay lazy so they do not compete with it for bandwidth.
+                priority={index === 0}
               />
               <div className="space-y-2">
                 <p className="text-sm leading-relaxed text-ink-700">{template.scene}</p>

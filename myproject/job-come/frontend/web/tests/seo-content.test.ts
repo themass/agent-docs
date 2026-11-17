@@ -2,7 +2,7 @@
 // vitest only collects *.test.ts, so this file uses vitest's own API).
 import { describe, expect, test } from "vitest";
 
-import { GUIDES, guideBySlug, guideUrl } from "@/lib/seo/content";
+import { ALL_GUIDES, GUIDES, guideBySlug, guideUrl } from "@/lib/seo/content";
 import { PUBLIC_SITEMAP_PATHS } from "@/lib/seo/site";
 
 /**
@@ -46,12 +46,12 @@ function validateGuides(guides: typeof GUIDES): string[] {
 }
 
 test("every guide satisfies the publishing invariants", () => {
-  expect(validateGuides(GUIDES)).toEqual([]);
+  expect(validateGuides(ALL_GUIDES)).toEqual([]);
 });
 
 test("guideBySlug and guideUrl agree with GUIDES", () => {
-  expect(guideBySlug.size).toBe(GUIDES.length);
-  for (const guide of GUIDES) {
+  expect(guideBySlug.size).toBe(ALL_GUIDES.length);
+  for (const guide of ALL_GUIDES) {
     expect(guideBySlug.get(guide.slug)).toBe(guide);
     expect(guideUrl(guide.slug).startsWith("/guides/")).toBeTruthy();
   }
@@ -65,7 +65,7 @@ test("the sitemap covers the domain root and every published guide", () => {
   // Guide pages reach the sitemap through app/sitemap.ts importing GUIDES directly
   // (they are not in PUBLIC_SITEMAP_PATHS); what this list must stay free of is a
   // guide path hardcoded here that could drift from the data.
-  for (const guide of GUIDES) {
+  for (const guide of ALL_GUIDES) {
     expect(paths).not.toContain(guideUrl(guide.slug));
   }
 });
@@ -74,7 +74,7 @@ test("sitemap.ts emits exactly the product pages plus the guide cluster", async 
   const { default: sitemap } = await import("@/app/sitemap");
   const urls = sitemap().map((entry) => entry.url);
   expect(new Set(urls).size).toBe(urls.length);
-  for (const guide of GUIDES) {
+  for (const guide of ALL_GUIDES) {
     expect(urls.some((u) => u.endsWith(guideUrl(guide.slug)))).toBeTruthy();
   }
   expect(urls.some((u) => u.endsWith("/guides"))).toBeTruthy();
