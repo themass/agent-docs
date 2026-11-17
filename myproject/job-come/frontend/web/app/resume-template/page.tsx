@@ -122,6 +122,12 @@ export default function ResumeTemplatePage() {
                 // that one image only; the other two are genuinely below the fold and
                 // stay lazy so they do not compete with it for bandwidth.
                 priority={index === 0}
+                // `priority` only emits the preload link; it does NOT put
+                // `fetchpriority="high"` on the <img> itself (checked against the
+                // installed next 15.5.25: get-img-props just forwards the prop, it
+                // never defaults it for priority images). The attribute steers the
+                // browser's own fetch ordering, so ask for it explicitly.
+                fetchPriority={index === 0 ? "high" : undefined}
               />
               <div className="space-y-2">
                 <p className="text-sm leading-relaxed text-ink-700">{template.scene}</p>
