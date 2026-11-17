@@ -7,6 +7,7 @@ from typing import BinaryIO
 
 import boto3
 from botocore.client import BaseClient, Config
+from botocore.exceptions import ClientError
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,3 +89,50 @@ class ObjectStore:
             Params=params,
             ExpiresIn=expires_in,
         )
+
+    def head_object_size(self, key: str) -> int | None:
+        """对象实际字节数；key 不存在返回 ``None``。
+
+        业务侧用它做绑定时的"真的传上来了吗 + 多大"复核：presigned PUT 约束不了
+        Content-Length，声明值只能在签发时当上限提示，权威值只有 HEAD 拿得到。
+        """
+        try:
+            response = self._client.head_object(Bucket=self._config.bucket, Key=key)
+        except ClientError as exc:
+            code = str(exc.response.get("Error", {}).get("Code", ""))
+            if code in {"404", "NoSuchKey", "NotFound", "404 Not Found"}:
+                return None
+            raise
+        return int(response["ContentLength"])
+
+    def list_object_keys(
+        self,
+        prefix: str,
+        *,
+        max_keys: int = 1000,
+        page_size: int = 1000,
+    ) -> list[tuple[str, object]]:
+        """列出 ``prefix`` 下最多 ``max_keys`` 个对象，返回 ``(key, last_modified)``。
+
+        给对账 GC 用：只按前缀分页（S3 list 的原生形状），不做递归遍历之外的任何
+        语义——哪些 key 该删是业务侧的事。
+        """
+        keys: list[tuple[str, object]] = []
+        token: str | None = None
+        while len(keys) < max_keys:
+            kwargs: dict[str, object] = {
+                "Bucket": self._config.bucket,
+                "Prefix": prefix,
+                "MaxKeys": min(page_size, max_keys - len(keys)),
+            }
+            if token:
+                kwargs["ContinuationToken"] = token
+            response = self._client.list_objects_v2(**kwargs)
+            for entry in response.get("Contents", []):
+                keys.append((entry["Key"], entry.get("LastModified")))
+            if not response.get("IsTruncated"):
+                break
+            token = response.get("NextContinuationToken")
+            if not token:
+                break
+        return keys
