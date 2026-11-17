@@ -83,11 +83,7 @@ def _role_layer(profile: RoleProfile, *, user: str) -> str:
 
 
 def _output_layer(locale: str, channel: str) -> str:
-    rule = T.VOICE_CHANNEL_RULE if channel == "voice" else T.TEXT_CHANNEL_RULE
-    text = T.OUTPUT_TEMPLATE.format(language=f"会话语言（{locale}）", channel_rule=rule)
-    if locale.split("-")[0] in T.RTL_LOCALES:
-        text += "\n- " + T.RTL_RULE
-    return text
+    return T.render_output_layer(locale=locale, channel=channel)
 
 
 def build_prompt_plan(

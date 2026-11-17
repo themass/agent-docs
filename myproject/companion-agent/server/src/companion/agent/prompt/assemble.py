@@ -56,12 +56,7 @@ def assemble_system_prompt(
     if task.strip():
         parts.append(f"{T.TASK_HEADER}\n\n{_clip('task', task.strip(), truncated)}")
 
-    language = "会话语言（" + locale + "）"
-    channel_rule = T.VOICE_CHANNEL_RULE if channel == "voice" else T.TEXT_CHANNEL_RULE
-    output = T.OUTPUT_TEMPLATE.format(language=language, channel_rule=channel_rule)
-    if locale.split("-")[0] in T.RTL_LOCALES:
-        output += "\n- " + T.RTL_RULE
-    parts.append(output)
+    parts.append(T.render_output_layer(locale=locale, channel=channel))
 
     user_bits = []
     if profile.strip():
