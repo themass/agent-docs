@@ -371,10 +371,21 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
         objects = TosObjectStore(endpoint=settings.tos_endpoint, bucket=settings.tos_bucket,
                                  access_key=settings.tos_access_key, secret_key=settings.tos_secret_key,
                                  region=settings.tos_region)
-        # 凭据配错时在这里就失败，不要等到第一次上传变成 500（见 assert_storage_reachable）。
-        assert_storage_reachable(objects, bucket=settings.tos_bucket)
-        uploads = UploadService(objects=objects, records=uploads_store, normalize=normalize_image,
-                                key_prefix=settings.tos_key_prefix)
+        # 凭据配错时当场自检，不要等到第一次上传才 500（见 assert_storage_reachable）。
+        #
+        # 但**不因此拒绝启动**：对象存储只影响「发图片」这一条能力，聊天本身不依赖它。
+        # 让一个可选子系统的凭据问题把整个进程挡住，等于用一次配置失误换一次全站停机
+        # （2026-11-17 就这么发生过一次）。所以这里降级：记一条 CRITICAL、关掉上传与形象接口，
+        # 服务照常起来；凭据修好之后重启即恢复。
+        try:
+            assert_storage_reachable(objects, bucket=settings.tos_bucket)
+        except Exception as exc:  # noqa: BLE001 —— 任何原因的自检失败都只降级，不中止启动
+            log.critical("对象存储自检失败，图片上传与形象接口本次不启用；修好 TOS_* 后重启即恢复",
+                         extra={"bucket": settings.tos_bucket, "error": str(exc)[:300]})
+            objects = None
+        if objects is not None:
+            uploads = UploadService(objects=objects, records=uploads_store, normalize=normalize_image,
+                                    key_prefix=settings.tos_key_prefix)
 
     drain = DrainState()
     api, _close = build_chat_api(
