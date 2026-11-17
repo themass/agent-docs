@@ -287,6 +287,18 @@ class Settings(BaseSettings):
         alias="JC_STORAGE_LOCAL_DIR",
     )
 
+    # Direct-upload sign (ADR-011)
+    jc_media_sign_ttl_sec: int = Field(600, alias="JC_MEDIA_SIGN_TTL_SEC")
+    jc_media_sign_rate_limit_per_min: int = Field(
+        20, alias="JC_MEDIA_SIGN_RATE_LIMIT_PER_MIN"
+    )
+    jc_media_sign_daily_limit: int = Field(500, alias="JC_MEDIA_SIGN_DAILY_LIMIT")
+    # GC sweep: expired rows are deleted this long after issuance; BOUND rows
+    # whose business ref is released this long ago.
+    jc_media_gc_expired_grace_hours: int = Field(24, alias="JC_MEDIA_GC_EXPIRED_GRACE_HOURS")
+    jc_media_gc_orphan_age_hours: int = Field(168, alias="JC_MEDIA_GC_ORPHAN_AGE_HOURS")
+    jc_media_gc_batch_limit: int = Field(200, alias="JC_MEDIA_GC_BATCH_LIMIT")
+
     # DeerFlow harness (W5+); M1 dev uses local SQLite checkpoint file
     jc_deerflow_checkpoint_backend: str = Field(
         "sqlite",

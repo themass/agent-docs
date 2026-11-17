@@ -9,21 +9,23 @@ from contextlib import asynccontextmanager
 from agentkit.common.logging import configure_logging
 from agentkit.observability import (
     CONTENT_TYPE,
-    configure as configure_metrics,
     render_metrics,
 )
+from agentkit.observability import (
+    configure as configure_metrics,
+)
 from agentkit.web import TraceMiddleware
-from fastapi import FastAPI
-from fastapi import Response
+from fastapi import FastAPI, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy.exc import SQLAlchemyError
 
 from jc.api.auth_router import register_exception_handlers
-from jc.redis_client import get_session_store
+from jc.api.media_router import register_media_exception_handlers
 from jc.api.openapi import OPENAPI_TAGS, attach_openapi
 from jc.api.profile_router import register_profile_exception_handlers
 from jc.api.router import api_router
 from jc.config import settings
+from jc.redis_client import get_session_store
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +70,7 @@ async def lifespan(_app: FastAPI):
 
     configure_litellm()
     setup_langfuse_callbacks()
+    from jc.services.media_service import run_media_gc
     from jc.services.mock_report_queue import run_mock_report_dispatcher
     from jc.tasks import run_profile_parse_dispatcher
 
@@ -77,6 +80,7 @@ async def lifespan(_app: FastAPI):
     dispatchers = [
         asyncio.create_task(run_profile_parse_dispatcher()),
         asyncio.create_task(run_mock_report_dispatcher()),
+        asyncio.create_task(run_media_gc()),
     ]
 
     # Build the agent graphs now, not on the first user turn: a cold build costs
@@ -138,6 +142,7 @@ attach_openapi(app)
 app.add_middleware(TraceMiddleware)
 register_exception_handlers(app)
 register_profile_exception_handlers(app)
+register_media_exception_handlers(app)
 
 
 @app.exception_handler(PermissionError)

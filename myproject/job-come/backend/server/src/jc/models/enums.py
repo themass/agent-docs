@@ -188,6 +188,19 @@ class FeedbackCategory(StrEnum):
     OTHER = "other"
 
 
+class MediaUploadState(StrEnum):
+    """Direct-upload issuance lifecycle (ADR-011).
+
+    `ISSUED -> BOUND` on a validated bind; `ISSUED -> EXPIRED` by the GC sweep
+    once the sign TTL passed without one. A BOUND row is never reopened — a
+    second bind attempt on the same key is a conflict, not a state transition.
+    """
+
+    ISSUED = "issued"
+    BOUND = "bound"
+    EXPIRED = "expired"
+
+
 class FeedbackMessageRole(StrEnum):
     USER = "user"
     ADMIN = "admin"
