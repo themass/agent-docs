@@ -1,6 +1,6 @@
 # B-1 修复方案：worker 死亡导致的消息丢失与孤儿附件
 
-状态：**已实施，本地全绿，待产线验证**（2026-11-18）。§2.1/§2.2 已落地；实现期间发现并修掉了两个连带缺陷：`upload_pending_attachments` 原地改 committed payload 导致 SQLAlchemy 脏检查失效、`storage_pending` 永久落库（现返回新副本）；`resign` 投影未清除内部标记（现投影为 `storage_error` 后弹出 `storage_pending`）。验收测试 `backend/server/tests/test_agent_stream_persistence.py`（9 项，双侧）。产线事故证据见 `CURSOR-TEST-PLAN-2026-11-18.md` 附录 B-1。
+状态：**已实施，产线取证通过，关闭**（2026-11-18）。§2.1/§2.2 已落地；实现期间发现并修掉了两个连带缺陷：`upload_pending_attachments` 原地改 committed payload 导致 SQLAlchemy 脏检查失效、`storage_pending` 永久落库（现返回新副本）；`resign` 投影未清除内部标记（现投影为 `storage_error` 后弹出 `storage_pending`）。验收测试 `backend/server/tests/test_agent_stream_persistence.py`（9 项，双侧）。产线事故证据见 `CURSOR-TEST-PLAN-2026-11-18.md` 附录 B-1。
 撰写日期：2026-11-18。关联提交：`c720cbf`（B-2 单 worker、B-3 毒任务行，均已上线）。
 
 ## 1. 现状与丢失窗口
@@ -109,6 +109,30 @@ worker 死亡后用户刷新历史，消息（含图片）仍在；最多缺一�
 
 预估半天实现 + 半天测试。无需迁移（无新列；`payload_json` 内加键不涉 schema）。
 前端：`storage_pending` 对外表现复用现有 `storage_error` 渲染，无前端改动。
+
+## 4.5 产线关闭证据（2026-11-18）
+
+一次性进程取证：生产机（`/home/web/webroot/job-come`）以**同一份已部署代码 +
+生产库**起独立 uvicorn（:8010，`JC_DEERFLOW_PREWARM=false`，独立进程组，不触碰
+线上 :8000——第一版脚本 `pgrep` 误杀 master 导致 :8000 短暂停机，由
+`backend.sh restart`（web 用户）恢复，教训记录于此：生产取证不得对 live
+进程动刀）。脚本 `/tmp/b1disp.py`。
+
+结果（原始输出摘录）：
+
+```
+[server] disposable uvicorn pid=595270 (single process = the worker)
+[auth] usr_d757duxd30rmbkaq  [session] agsn_n0dgkzampak7zito
+[kill] SIGKILL -> 595270
+[stream] interrupted as expected: RemoteProtocolError
+[recovered] replacement healthy
+[history] status=200 rows=1          ← 修复前此处为 0：整条消息消失
+[attachment] names_key=True          ← §2.2：行带着 key 存活，孤儿可 SQL 清点
+[RESULT] OK: message + attachment row survived SIGKILL mid-turn
+```
+
+取证对象 `jc/prod/agent/agsn_n0dgkzampak7zito/attachments/agm_dpmoeh1g9tsfb2ny-0.png`
+已按行内 key 删除；残留归零：users/traces/sessions/media_ledger 全部 0。
 
 ## 5. 上线顺序
 
