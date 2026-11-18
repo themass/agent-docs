@@ -1,0 +1,1000 @@
+{
+  "_comment": "协议 v2 的共享测试向量。服务端 tests/test_protocol_codec.py / test_protocol_receiver.py 与客户端 ProtocolCodecTest / ProtocolReceiverTest 读**同一份内容**（客户端侧是 feature-companion/src/test/resources/protocol_v2.json）。改这里必须同时改两处，并一起更新两边的 TEST_VECTOR_SHA256 常量——两边 hash 对不上就说明有人在一边偷偷改了契约。",
+  "protocol_major": 2,
+  "max_payload_bytes": 4096,
+  "decode": [
+    {
+      "name": "最小信封：只有必填字段（ts 可选）",
+      "json": {
+        "v": 2,
+        "t": "presentation.emotion",
+        "id": "01J9Z8K3QP7N4",
+        "seq": 0,
+        "ep": "a3f1",
+        "args": {
+          "emotion": "joy"
+        }
+      },
+      "outcome": "ok"
+    },
+    {
+      "name": "完整信封：at / dst / ts 都在",
+      "json": {
+        "v": 2,
+        "t": "speech.begin",
+        "id": "01J9Z8K3QP7N5",
+        "seq": 41,
+        "ep": "a3f1",
+        "ts": 1731900000456,
+        "at": {
+          "kind": "now"
+        },
+        "dst": [
+          "u-1"
+        ],
+        "args": {
+          "speech_id": "s-1",
+          "segments": []
+        }
+      },
+      "outcome": "ok"
+    },
+    {
+      "name": "seq 取 64 位大值不回绕",
+      "json": {
+        "v": 2,
+        "t": "presentation.state",
+        "id": "01J9Z8K3QP7N6",
+        "seq": 9007199254740991,
+        "ep": "a3f1",
+        "ts": 1731900000457,
+        "args": {
+          "state": "SPEAKING"
+        }
+      },
+      "outcome": "ok"
+    },
+    {
+      "name": "客户端 hello",
+      "json": {
+        "v": 2,
+        "t": "control.hello",
+        "id": "01J9Z8K3QP7N7",
+        "seq": 0,
+        "ep": "b7c2",
+        "ts": 1731900000458,
+        "args": {
+          "proto": {
+            "min": 2,
+            "max": 2
+          },
+          "caps": {
+            "presentation.emotion": 1
+          },
+          "limits": {
+            "max_payload_bytes": 12288
+          },
+          "client": {
+            "app": "android",
+            "version": "3.2.0",
+            "sdk": "livekit-android/2.29.0"
+          }
+        }
+      },
+      "outcome": "ok"
+    },
+    {
+      "name": "C 类遥测",
+      "json": {
+        "v": 2,
+        "t": "telemetry.health",
+        "id": "01J9Z8K3QP7N8",
+        "seq": 7,
+        "ep": "b7c2",
+        "ts": 1731900000459,
+        "args": {
+          "degrade_level": 0,
+          "fps": 58
+        }
+      },
+      "outcome": "ok"
+    },
+    {
+      "name": "缺 ts 仍收下：ts 只用于诊断，不参与调度（§5 规则 5）",
+      "json": {
+        "v": 2,
+        "t": "presentation.emotion",
+        "id": "01J9Z8K3QP7N9",
+        "seq": 1,
+        "ep": "a3f1",
+        "args": {
+          "emotion": "sad"
+        }
+      },
+      "outcome": "ok"
+    },
+    {
+      "name": "at 与 dst 显式为 null",
+      "json": {
+        "v": 2,
+        "t": "presentation.emotion",
+        "id": "01J9Z8K3QP7NA",
+        "seq": 2,
+        "ep": "a3f1",
+        "at": null,
+        "dst": null,
+        "ts": 1731900000460,
+        "args": {
+          "emotion": "calm"
+        }
+      },
+      "outcome": "ok"
+    },
+    {
+      "name": "未知 args 字段被忽略而不是拒收（§14.1）",
+      "json": {
+        "v": 2,
+        "t": "presentation.emotion",
+        "id": "01J9Z8K3QP7NB",
+        "seq": 3,
+        "ep": "a3f1",
+        "ts": 1731900000461,
+        "args": {
+          "emotion": "joy",
+          "future_field": {
+            "x": 1
+          }
+        }
+      },
+      "outcome": "ok"
+    },
+    {
+      "name": "刚好 4096 字节：边界内，收下",
+      "json": {
+        "v": 2,
+        "t": "presentation.emotion",
+        "id": "01J9Z8K3QP7NC",
+        "seq": 4,
+        "ep": "a3f1",
+        "ts": 1731900000462,
+        "args": {
+          "emotion": "joy"
+        }
+      },
+      "pad_to_bytes": 4096,
+      "outcome": "ok"
+    },
+    {
+      "name": "4097 字节：超过 4 KiB 硬限，拒收并计数（§4.3）",
+      "json": {
+        "v": 2,
+        "t": "presentation.emotion",
+        "id": "01J9Z8K3QP7ND",
+        "seq": 5,
+        "ep": "a3f1",
+        "ts": 1731900000463,
+        "args": {
+          "emotion": "joy"
+        }
+      },
+      "pad_to_bytes": 4097,
+      "outcome": "too_large"
+    },
+    {
+      "name": "70 KB：必须拒收且不能 OOM/崩溃（F9）",
+      "json": {
+        "v": 2,
+        "t": "presentation.emotion",
+        "id": "01J9Z8K3QP7NE",
+        "seq": 6,
+        "ep": "a3f1",
+        "ts": 1731900000464,
+        "args": {
+          "emotion": "joy"
+        }
+      },
+      "pad_to_bytes": 71680,
+      "outcome": "too_large"
+    },
+    {
+      "name": "不是 JSON",
+      "raw": "{",
+      "outcome": "bad_json"
+    },
+    {
+      "name": "顶层是数组",
+      "raw": "[]",
+      "outcome": "bad_json"
+    },
+    {
+      "name": "顶层是 null",
+      "raw": "null",
+      "outcome": "bad_json"
+    },
+    {
+      "name": "顶层是字符串",
+      "raw": "\"hi\"",
+      "outcome": "bad_json"
+    },
+    {
+      "name": "空串",
+      "raw": "",
+      "outcome": "bad_json"
+    },
+    {
+      "name": "带 UTF-8 中文的非法 JSON",
+      "raw": "{\"t\":\"表情\"",
+      "outcome": "bad_json"
+    },
+    {
+      "name": "缺 v",
+      "json": {
+        "t": "presentation.emotion",
+        "id": "x",
+        "seq": 0,
+        "ep": "a",
+        "ts": 1,
+        "args": {}
+      },
+      "outcome": "missing_field"
+    },
+    {
+      "name": "缺 t",
+      "json": {
+        "v": 2,
+        "id": "x",
+        "seq": 0,
+        "ep": "a",
+        "ts": 1,
+        "args": {}
+      },
+      "outcome": "missing_field"
+    },
+    {
+      "name": "缺 id",
+      "json": {
+        "v": 2,
+        "t": "presentation.emotion",
+        "seq": 0,
+        "ep": "a",
+        "ts": 1,
+        "args": {}
+      },
+      "outcome": "missing_field"
+    },
+    {
+      "name": "缺 seq",
+      "json": {
+        "v": 2,
+        "t": "presentation.emotion",
+        "id": "x",
+        "ep": "a",
+        "ts": 1,
+        "args": {}
+      },
+      "outcome": "missing_field"
+    },
+    {
+      "name": "缺 ep",
+      "json": {
+        "v": 2,
+        "t": "presentation.emotion",
+        "id": "x",
+        "seq": 0,
+        "ts": 1,
+        "args": {}
+      },
+      "outcome": "missing_field"
+    },
+    {
+      "name": "缺 args",
+      "json": {
+        "v": 2,
+        "t": "presentation.emotion",
+        "id": "x",
+        "seq": 0,
+        "ep": "a",
+        "ts": 1
+      },
+      "outcome": "missing_field"
+    },
+    {
+      "name": "v 高于本端支持：整条忽略，不尝试部分理解（§5 规则 1）",
+      "json": {
+        "v": 3,
+        "t": "presentation.emotion",
+        "id": "x",
+        "seq": 0,
+        "ep": "a",
+        "ts": 1,
+        "args": {}
+      },
+      "outcome": "version"
+    },
+    {
+      "name": "v 低于本端支持：cmp.* 上不存在 v1",
+      "json": {
+        "v": 1,
+        "t": "presentation.emotion",
+        "id": "x",
+        "seq": 0,
+        "ep": "a",
+        "ts": 1,
+        "args": {}
+      },
+      "outcome": "version"
+    },
+    {
+      "name": "v 是 0",
+      "json": {
+        "v": 0,
+        "t": "presentation.emotion",
+        "id": "x",
+        "seq": 0,
+        "ep": "a",
+        "ts": 1,
+        "args": {}
+      },
+      "outcome": "version"
+    },
+    {
+      "name": "v 是字符串",
+      "json": {
+        "v": "2",
+        "t": "presentation.emotion",
+        "id": "x",
+        "seq": 0,
+        "ep": "a",
+        "ts": 1,
+        "args": {}
+      },
+      "outcome": "bad_value"
+    },
+    {
+      "name": "ep 为空：epoch 必须是非空短标签",
+      "json": {
+        "v": 2,
+        "t": "presentation.emotion",
+        "id": "x",
+        "seq": 0,
+        "ep": "",
+        "ts": 1,
+        "args": {}
+      },
+      "outcome": "bad_value"
+    },
+    {
+      "name": "id 为空",
+      "json": {
+        "v": 2,
+        "t": "presentation.emotion",
+        "id": "",
+        "seq": 0,
+        "ep": "a",
+        "ts": 1,
+        "args": {}
+      },
+      "outcome": "bad_value"
+    },
+    {
+      "name": "seq 为负",
+      "json": {
+        "v": 2,
+        "t": "presentation.emotion",
+        "id": "x",
+        "seq": -1,
+        "ep": "a",
+        "ts": 1,
+        "args": {}
+      },
+      "outcome": "bad_value"
+    },
+    {
+      "name": "seq 是小数",
+      "json": {
+        "v": 2,
+        "t": "presentation.emotion",
+        "id": "x",
+        "seq": 1.5,
+        "ep": "a",
+        "ts": 1,
+        "args": {}
+      },
+      "outcome": "bad_value"
+    },
+    {
+      "name": "ts 是字符串",
+      "json": {
+        "v": 2,
+        "t": "presentation.emotion",
+        "id": "x",
+        "seq": 0,
+        "ep": "a",
+        "ts": "abc",
+        "args": {}
+      },
+      "outcome": "bad_value"
+    },
+    {
+      "name": "args 是数组",
+      "json": {
+        "v": 2,
+        "t": "presentation.emotion",
+        "id": "x",
+        "seq": 0,
+        "ep": "a",
+        "ts": 1,
+        "args": []
+      },
+      "outcome": "bad_value"
+    },
+    {
+      "name": "dst 是字符串而不是数组",
+      "json": {
+        "v": 2,
+        "t": "presentation.emotion",
+        "id": "x",
+        "seq": 0,
+        "ep": "a",
+        "ts": 1,
+        "dst": "u-1",
+        "args": {}
+      },
+      "outcome": "bad_value"
+    },
+    {
+      "name": "dst 里有非字符串元素",
+      "json": {
+        "v": 2,
+        "t": "presentation.emotion",
+        "id": "x",
+        "seq": 0,
+        "ep": "a",
+        "ts": 1,
+        "dst": [
+          1
+        ],
+        "args": {}
+      },
+      "outcome": "bad_value"
+    },
+    {
+      "name": "at 是字符串",
+      "json": {
+        "v": 2,
+        "t": "presentation.emotion",
+        "id": "x",
+        "seq": 0,
+        "ep": "a",
+        "ts": 1,
+        "at": "now",
+        "args": {}
+      },
+      "outcome": "bad_value"
+    },
+    {
+      "name": "t 为空串",
+      "json": {
+        "v": 2,
+        "t": "",
+        "id": "x",
+        "seq": 0,
+        "ep": "a",
+        "ts": 1,
+        "args": {}
+      },
+      "outcome": "bad_value"
+    },
+    {
+      "name": "t 不是字符串",
+      "json": {
+        "v": 2,
+        "t": 3,
+        "id": "x",
+        "seq": 0,
+        "ep": "a",
+        "ts": 1,
+        "args": {}
+      },
+      "outcome": "bad_value"
+    },
+    {
+      "name": "未知 t：忽略并计数，这是前向兼容的唯一机制（§5 规则 2）",
+      "json": {
+        "v": 2,
+        "t": "bogus.thing",
+        "id": "x",
+        "seq": 0,
+        "ep": "a",
+        "ts": 1,
+        "args": {}
+      },
+      "outcome": "unknown_type"
+    },
+    {
+      "name": "已知前缀但未知 verb",
+      "json": {
+        "v": 2,
+        "t": "presentation.mouth",
+        "id": "x",
+        "seq": 0,
+        "ep": "a",
+        "ts": 1,
+        "args": {}
+      },
+      "outcome": "unknown_type"
+    }
+  ],
+  "direction": [
+    {
+      "name": "服务端发 cue，客户端收",
+      "role": "client",
+      "topic": "cmp.cue",
+      "t": "presentation.emotion",
+      "outcome": "ok"
+    },
+    {
+      "name": "客户端不能发 cue",
+      "role": "server",
+      "topic": "cmp.cue",
+      "t": "presentation.emotion",
+      "outcome": "wrong_direction"
+    },
+    {
+      "name": "客户端发 hello，服务端收",
+      "role": "server",
+      "topic": "cmp.ctl",
+      "t": "control.hello",
+      "outcome": "ok"
+    },
+    {
+      "name": "服务端不能发 hello（这是客户端的第一条）",
+      "role": "client",
+      "topic": "cmp.ctl",
+      "t": "control.hello",
+      "outcome": "wrong_direction"
+    },
+    {
+      "name": "服务端发 hello_ack，客户端收",
+      "role": "client",
+      "topic": "cmp.ctl",
+      "t": "control.hello_ack",
+      "outcome": "ok"
+    },
+    {
+      "name": "客户端不能发 hello_ack",
+      "role": "server",
+      "topic": "cmp.ctl",
+      "t": "control.hello_ack",
+      "outcome": "wrong_direction"
+    },
+    {
+      "name": "服务端发 cancel，客户端收",
+      "role": "client",
+      "topic": "cmp.ctl",
+      "t": "control.cancel",
+      "outcome": "ok"
+    },
+    {
+      "name": "客户端不能发 cancel",
+      "role": "server",
+      "topic": "cmp.ctl",
+      "t": "control.cancel",
+      "outcome": "wrong_direction"
+    },
+    {
+      "name": "服务端发 request，客户端收",
+      "role": "client",
+      "topic": "cmp.ctl",
+      "t": "control.request",
+      "outcome": "ok"
+    },
+    {
+      "name": "客户端不能发 request",
+      "role": "server",
+      "topic": "cmp.ctl",
+      "t": "control.request",
+      "outcome": "wrong_direction"
+    },
+    {
+      "name": "客户端发 response，服务端收",
+      "role": "server",
+      "topic": "cmp.ctl",
+      "t": "control.response",
+      "outcome": "ok"
+    },
+    {
+      "name": "服务端不能发 response",
+      "role": "client",
+      "topic": "cmp.ctl",
+      "t": "control.response",
+      "outcome": "wrong_direction"
+    },
+    {
+      "name": "客户端发 barge_in，服务端收",
+      "role": "server",
+      "topic": "cmp.ctl",
+      "t": "control.barge_in",
+      "outcome": "ok"
+    },
+    {
+      "name": "服务端不能发 barge_in",
+      "role": "client",
+      "topic": "cmp.ctl",
+      "t": "control.barge_in",
+      "outcome": "wrong_direction"
+    },
+    {
+      "name": "ping 双向：客户端侧收",
+      "role": "client",
+      "topic": "cmp.ctl",
+      "t": "control.ping",
+      "outcome": "ok"
+    },
+    {
+      "name": "pong 双向：服务端侧收",
+      "role": "server",
+      "topic": "cmp.ctl",
+      "t": "control.pong",
+      "outcome": "ok"
+    },
+    {
+      "name": "客户端发触摸，服务端收",
+      "role": "server",
+      "topic": "cmp.in",
+      "t": "control.input",
+      "outcome": "ok"
+    },
+    {
+      "name": "服务端不能发 cmp.in",
+      "role": "client",
+      "topic": "cmp.in",
+      "t": "control.input",
+      "outcome": "wrong_direction"
+    },
+    {
+      "name": "客户端发在场，服务端收",
+      "role": "server",
+      "topic": "cmp.tel",
+      "t": "perception.attention",
+      "outcome": "ok"
+    },
+    {
+      "name": "服务端不能发 telemetry",
+      "role": "client",
+      "topic": "cmp.tel",
+      "t": "telemetry.health",
+      "outcome": "wrong_direction"
+    },
+    {
+      "name": "topic 与 t 不匹配：cmp.in 上不能出现 cue",
+      "role": "server",
+      "topic": "cmp.in",
+      "t": "presentation.emotion",
+      "outcome": "wrong_direction"
+    },
+    {
+      "name": "topic 与 t 不匹配：cmp.cue 上不能出现 hello",
+      "role": "server",
+      "topic": "cmp.cue",
+      "t": "control.hello",
+      "outcome": "wrong_direction"
+    },
+    {
+      "name": "不认识的 topic 一律不收",
+      "role": "client",
+      "topic": "cmp.bogus",
+      "t": "presentation.emotion",
+      "outcome": "wrong_direction"
+    },
+    {
+      "name": "旧 topic 不在 v2 白名单里",
+      "role": "client",
+      "topic": "companion.avatar",
+      "t": "presentation.emotion",
+      "outcome": "wrong_direction"
+    }
+  ],
+  "receiver": [
+    {
+      "name": "正常递增",
+      "ops": [
+        {
+          "publisher": "agent",
+          "topic": "cmp.cue",
+          "ep": "e1",
+          "seq": 0,
+          "id": "m0"
+        },
+        {
+          "publisher": "agent",
+          "topic": "cmp.cue",
+          "ep": "e1",
+          "seq": 1,
+          "id": "m1"
+        },
+        {
+          "publisher": "agent",
+          "topic": "cmp.cue",
+          "ep": "e1",
+          "seq": 2,
+          "id": "m2"
+        }
+      ],
+      "expect": [
+        "accept",
+        "accept",
+        "accept"
+      ]
+    },
+    {
+      "name": "同一 id 重发被去重（F1）",
+      "ops": [
+        {
+          "publisher": "agent",
+          "topic": "cmp.cue",
+          "ep": "e1",
+          "seq": 0,
+          "id": "m0"
+        },
+        {
+          "publisher": "agent",
+          "topic": "cmp.cue",
+          "ep": "e1",
+          "seq": 0,
+          "id": "m0"
+        }
+      ],
+      "expect": [
+        "accept",
+        "duplicate"
+      ]
+    },
+    {
+      "name": "seq 倒退且 id 没见过：乱序，不是重复（开头的 3 已记一次 gap）",
+      "ops": [
+        {
+          "publisher": "agent",
+          "topic": "cmp.cue",
+          "ep": "e1",
+          "seq": 3,
+          "id": "m3"
+        },
+        {
+          "publisher": "agent",
+          "topic": "cmp.cue",
+          "ep": "e1",
+          "seq": 1,
+          "id": "m1"
+        }
+      ],
+      "expect": [
+        "accept",
+        "stale"
+      ],
+      "gaps": 1
+    },
+    {
+      "name": "跳号：记一次 gap，但仍然收下，不请求重传（§5.2）",
+      "ops": [
+        {
+          "publisher": "agent",
+          "topic": "cmp.cue",
+          "ep": "e1",
+          "seq": 0,
+          "id": "m0"
+        },
+        {
+          "publisher": "agent",
+          "topic": "cmp.cue",
+          "ep": "e1",
+          "seq": 2,
+          "id": "m2"
+        }
+      ],
+      "expect": [
+        "accept",
+        "accept"
+      ],
+      "gaps": 1
+    },
+    {
+      "name": "流的第一条不是 0：开头就断了，记一次 gap",
+      "ops": [
+        {
+          "publisher": "agent",
+          "topic": "cmp.cue",
+          "ep": "e1",
+          "seq": 5,
+          "id": "m5"
+        }
+      ],
+      "expect": [
+        "accept"
+      ],
+      "gaps": 1
+    },
+    {
+      "name": "gap 只按事件计数，不按丢了几条计数",
+      "ops": [
+        {
+          "publisher": "agent",
+          "topic": "cmp.cue",
+          "ep": "e1",
+          "seq": 0,
+          "id": "m0"
+        },
+        {
+          "publisher": "agent",
+          "topic": "cmp.cue",
+          "ep": "e1",
+          "seq": 40,
+          "id": "m40"
+        }
+      ],
+      "expect": [
+        "accept",
+        "accept"
+      ],
+      "gaps": 1
+    },
+    {
+      "name": "换了 epoch 就是新流，seq 归零不算倒退（F4）",
+      "ops": [
+        {
+          "publisher": "agent",
+          "topic": "cmp.cue",
+          "ep": "e1",
+          "seq": 9,
+          "id": "m9"
+        },
+        {
+          "publisher": "agent",
+          "topic": "cmp.cue",
+          "ep": "e2",
+          "seq": 0,
+          "id": "n0"
+        }
+      ],
+      "expect": [
+        "accept",
+        "accept"
+      ],
+      "gaps": 1
+    },
+    {
+      "name": "重连清表后同 epoch 也能从 0 重来",
+      "ops": [
+        {
+          "publisher": "agent",
+          "topic": "cmp.cue",
+          "ep": "e1",
+          "seq": 9,
+          "id": "m9"
+        },
+        {
+          "op": "forget",
+          "publisher": "agent"
+        },
+        {
+          "publisher": "agent",
+          "topic": "cmp.cue",
+          "ep": "e1",
+          "seq": 0,
+          "id": "m0"
+        }
+      ],
+      "expect": [
+        "accept",
+        "accept"
+      ],
+      "gaps": 1
+    },
+    {
+      "name": "两个发布者各自计数，互不影响",
+      "ops": [
+        {
+          "publisher": "agent",
+          "topic": "cmp.cue",
+          "ep": "a",
+          "seq": 0,
+          "id": "a0"
+        },
+        {
+          "publisher": "human",
+          "topic": "cmp.cue",
+          "ep": "h",
+          "seq": 0,
+          "id": "h0"
+        },
+        {
+          "publisher": "agent",
+          "topic": "cmp.cue",
+          "ep": "a",
+          "seq": 1,
+          "id": "a1"
+        }
+      ],
+      "expect": [
+        "accept",
+        "accept",
+        "accept"
+      ],
+      "gaps": 0
+    },
+    {
+      "name": "不同 topic 各自的 seq 空间独立",
+      "ops": [
+        {
+          "publisher": "agent",
+          "topic": "cmp.ctl",
+          "ep": "a",
+          "seq": 0,
+          "id": "c0"
+        },
+        {
+          "publisher": "agent",
+          "topic": "cmp.cue",
+          "ep": "a",
+          "seq": 0,
+          "id": "u0"
+        }
+      ],
+      "expect": [
+        "accept",
+        "accept"
+      ],
+      "gaps": 0
+    },
+    {
+      "name": "dst 指向别人：静默丢弃，也不记 gap（§14.1）",
+      "me": "u-1",
+      "ops": [
+        {
+          "publisher": "agent",
+          "topic": "cmp.cue",
+          "ep": "e1",
+          "seq": 0,
+          "id": "m0",
+          "dst": [
+            "u-2"
+          ]
+        },
+        {
+          "publisher": "agent",
+          "topic": "cmp.cue",
+          "ep": "e1",
+          "seq": 1,
+          "id": "m1",
+          "dst": [
+            "u-2",
+            "u-1"
+          ]
+        }
+      ],
+      "expect": [
+        "not_for_me",
+        "accept"
+      ],
+      "gaps": 1
+    },
+    {
+      "name": "dst 为空数组等于广播",
+      "me": "u-1",
+      "ops": [
+        {
+          "publisher": "agent",
+          "topic": "cmp.cue",
+          "ep": "e1",
+          "seq": 0,
+          "id": "m0",
+          "dst": []
+        }
+      ],
+      "expect": [
+        "accept"
+      ],
+      "gaps": 0
+    }
+  ]
+}

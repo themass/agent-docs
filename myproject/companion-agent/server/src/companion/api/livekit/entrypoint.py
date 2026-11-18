@@ -13,12 +13,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from dataclasses import dataclass
 from typing import Any
 
 from companion.api.livekit.bridge import require
+from companion.api.livekit.protocol_bridge import ProtocolBridge, attach, local_sender
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +35,10 @@ TEXT_TOPIC = "lk.chat"
 TOPIC_AVATAR = "companion.avatar"
 TOPIC_PROACTIVE = "companion.proactive"
 TOPIC_ACTION = "companion.action"
+
+#: 握手的后台任务。asyncio 只对任务持弱引用，不自己留一份的话可能在等 hello 的
+#: 3 秒里被 GC 回收，超时回落永远不会发生。
+_HANDSHAKES: set[asyncio.Task[Any]] = set()
 
 
 @dataclass
@@ -269,6 +275,25 @@ class RoomEntrypoint:
 
         publisher = AvatarPublisher(room)
         publisher.set_local_participant(room.local_participant)
+
+        # 协议 v2 的接线。**必须在 session.start 之前挂上**：客户端连上就会发 hello，
+        # 晚挂一步就漏掉那一条，3 秒后会被当成 v1 客户端——一个 v2 客户端就这么被降级了。
+        #
+        # 两个 identity 都是「我们自己」：`identity` 用来判断 dst 指向谁（发给我才收），
+        # `local_identity` 用来把房间回显回来的自家包挡掉。都不是 user_id——用户是对话
+        # 的另一端，不是收信人。
+        self_identity = getattr(room.local_participant, "identity", None)
+        bridge = ProtocolBridge(
+            send=local_sender(room),
+            identity=self_identity,
+            local_identity=self_identity,
+        )
+        attach(room, bridge)
+        # 握手等待放在后台：它只影响「现在能不能发 cmp.*」，不该拖住语音开场 3 秒。
+        handshake = asyncio.create_task(bridge.wait_for_hello())
+        # 在任务表里留个引用，避免被 GC 提前回收（asyncio 只持弱引用）。
+        _HANDSHAKES.add(handshake)
+        handshake.add_done_callback(_HANDSHAKES.discard)
 
         parts: VoiceParts = self._wire_voice(platform)
         pipeline = TurnPipeline(parts.brain, event_sink=publisher)

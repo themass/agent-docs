@@ -1,0 +1,313 @@
+"""协议 v2 接线层：收包、握手、身份白名单（§5 / §7 / §14.1 / §14.2）。
+
+这里锁的是**接线**而不是纯逻辑：纯逻辑已经由 ``test_protocol_codec`` 与
+``test_protocol_handshake`` 覆盖。这一层最容易出的错是「逻辑都对，但没人调用它」
+——服务端原来没有任何 ``data_received`` 处理器，客户端发什么都落不到地上。
+"""
+
+from __future__ import annotations
+
+import json
+from typing import Any
+
+import pytest
+
+from companion.agent.protocol import (
+    TOPIC_CTL,
+    TOPIC_CUE,
+    TOPIC_TEL,
+    decode,
+    encode,
+    new_envelope,
+)
+from companion.api.livekit import protocol_bridge
+from companion.api.livekit.protocol_bridge import ProtocolBridge, attach
+
+CLIENT = "user-1002"
+AGENT = "agent-linche"
+
+
+class _Sink:
+    """把 bridge 发出的消息收进列表。"""
+
+    def __init__(self) -> None:
+        self.sent: list[tuple[str, bytes]] = []
+
+    async def __call__(self, topic: str, payload: bytes) -> None:
+        self.sent.append((topic, payload))
+
+    def types(self) -> list[str]:
+        return [decode(payload)[0].t for _, payload in self.sent]
+
+    def last_args(self) -> dict[str, Any]:
+        _, payload = self.sent[-1]
+        envelope, status = decode(payload)
+        assert envelope is not None, status
+        return envelope.args
+
+
+def _bridge(sink: _Sink | None = None, *, legacy_timeout: float = 0.05) -> ProtocolBridge:
+    return ProtocolBridge(
+        send=sink or _Sink(),
+        identity=AGENT,
+        local_identity=AGENT,
+        sid="s-test",
+        legacy_timeout=legacy_timeout,
+    )
+
+
+def _hello_bytes(proto_min: int = 2, proto_max: int = 2, caps: dict[str, int] | None = None,
+                 seq: int = 0, ep: str = "ep-a", ident: str = "h-1") -> bytes:
+    return encode(
+        new_envelope(
+            "control.hello",
+            args={
+                "proto": {"min": proto_min, "max": proto_max},
+                "caps": caps if caps is not None else {"presentation.emotion": 1},
+                "limits": {"max_payload_bytes": 4096},
+                "client": {"app": "companion", "version": "1.0", "sdk": "2.29.0"},
+            },
+            seq=seq,
+            ep=ep,
+            ident=ident,
+        )
+    )
+
+
+def _packet(data: bytes, *, identity: str | None = "kind-standard", kind: Any = "STANDARD",
+            topic: str | None = TOPIC_CTL) -> dict[str, Any]:
+    """假的 DataPacket。``identity`` 与 ``kind`` 是两件事：前者是谁，后者是哪类进程。"""
+    identity_value = None if identity == "kind-standard" else identity
+    publisher = None if identity_value is None else _Publisher(identity_value, kind)
+    return {"data": data, "topic": topic, "participant": publisher}
+
+
+class _Publisher:
+    def __init__(self, identity: str, kind: Any) -> None:
+        self.identity = identity
+        self.kind = kind
+
+
+async def _feed(bridge: ProtocolBridge, packet: dict[str, Any]):
+    publisher = packet["participant"]
+    return await bridge.on_data(
+        packet["data"],
+        topic=packet["topic"],
+        publisher_identity=getattr(publisher, "identity", None),
+        publisher_kind=getattr(publisher, "kind", None),
+    )
+
+
+# ---------------------------------------------------------------- 握手
+
+async def test_hello_gets_an_ack_with_the_intersection():
+    sink = _Sink()
+    bridge = _bridge(sink)
+    await _feed(bridge, _packet(_hello_bytes(caps={"presentation.emotion": 1, "speech.timing": 3}),
+                               identity=CLIENT))
+
+    assert sink.types() == ["control.hello_ack"]
+    args = sink.last_args()
+    assert args["compat"] == "v2"
+    assert args["sid"] == "s-test"
+    # 交集：客户端报了 3，服务端只有 1，取小。
+    assert args["caps"]["speech.timing"] == 1
+    # 客户端没报的能力不该出现在交集里。
+    assert "presentation.state" not in args["caps"]
+
+
+async def test_no_hello_within_the_window_means_v1():
+    bridge = _bridge(legacy_timeout=0.01)
+    ack = await bridge.wait_for_hello()
+    assert ack.compat == "v1"
+    assert ack.caps == {}
+    assert bridge.legacy
+
+
+async def test_a_hello_inside_the_window_wins_over_the_v1_fallback():
+    bridge = _bridge(legacy_timeout=1.0)
+    await _feed(bridge, _packet(_hello_bytes(), identity=CLIENT))
+    ack = await bridge.wait_for_hello()
+    assert ack.compat == "v2"
+    assert not bridge.legacy
+
+
+async def test_a_resent_hello_after_reconnect_is_renegotiated():
+    """重发不是错误（§7）：服务端在连接期内任意时刻都要重新协商。"""
+    sink = _Sink()
+    bridge = _bridge(sink)
+    await _feed(bridge, _packet(_hello_bytes(ident="h-1"), identity=CLIENT))
+    await _feed(bridge, _packet(_hello_bytes(ident="h-2", ep="ep-b", seq=0), identity=CLIENT))
+    assert sink.types() == ["control.hello_ack", "control.hello_ack"]
+    assert bridge.ack is not None and bridge.ack.compat == "v2"
+
+
+async def test_an_incompatible_hello_gets_an_explicit_ack_instead_of_silence():
+    sink = _Sink()
+    bridge = _bridge(sink)
+    await _feed(bridge, _packet(_hello_bytes(proto_min=3, proto_max=3), identity=CLIENT))
+
+    assert sink.types() == ["control.hello_ack"]
+    assert sink.last_args()["compat"] == "incompatible"
+    # 协商没成功：之后一条 cmp.cue 都不该发出去。
+    assert not await bridge.publish("presentation.emotion", {}, topic=TOPIC_CUE)
+
+
+async def test_v1_connections_get_no_cmp_messages():
+    bridge = _bridge()
+    await bridge.wait_for_hello()
+    assert not await bridge.publish("presentation.emotion", {}, topic=TOPIC_CUE)
+
+
+# ---------------------------------------------------------------- 身份白名单
+
+async def test_another_client_cannot_forge_user_input():
+    """§14.2：``cmp.tel`` 只能由客户端发——但「客户端」指用户设备，不是另一个 agent。"""
+    bridge = _bridge()
+    payload = encode(
+        new_envelope("telemetry.health", args={}, seq=0, ep="ep", ident="t-1")
+    )
+    await _feed(bridge, _packet(payload, identity=AGENT, kind="AGENT", topic=TOPIC_TEL))
+    assert bridge.receiver.dropped_unauthorized == 1
+    assert bridge.receiver.applied == 0
+
+
+async def test_our_own_packets_are_never_user_input():
+    sink = _Sink()
+    bridge = _bridge(sink)
+    payload = encode(
+        new_envelope("control.hello", args={"proto": {"min": 2, "max": 2}, "caps": {}},
+                     seq=0, ep="ep", ident="h")
+    )
+    await _feed(bridge, _packet(payload, identity=AGENT, kind="STANDARD"))
+    assert bridge.receiver.dropped_unauthorized == 1
+    assert sink.sent == []
+
+
+@pytest.mark.parametrize("kind", ["AGENT", "EGRESS"])
+async def test_server_side_kinds_are_refused_as_senders(kind):
+    bridge = _bridge()
+    payload = encode(new_envelope("control.hello", args={"proto": {"min": 2, "max": 2}, "caps": {}},
+                                 seq=0, ep="ep", ident="h"))
+    await _feed(bridge, _packet(payload, identity="someone", kind=kind))
+    assert bridge.receiver.dropped_unauthorized == 1
+
+
+@pytest.mark.parametrize("kind", ["STANDARD", "SIP", "CONNECTOR", "UNKNOWN"])
+async def test_human_backed_kinds_can_send(kind):
+    """SIP 与 CONNECTOR 背后是真人；拒掉它们等于让电话用户用不了。"""
+    bridge = _bridge()
+    payload = encode(new_envelope("control.hello", args={"proto": {"min": 2, "max": 2},
+                                                         "caps": {}}, seq=0, ep="ep", ident="h"))
+    await _feed(bridge, _packet(payload, identity=CLIENT, kind=kind))
+    assert bridge.receiver.dropped_unauthorized == 0
+
+
+async def test_enum_kind_names_are_understood():
+    """``Participant.kind`` 在不同版本里是枚举、整型或字符串。"""
+    sink = _Sink()
+    bridge = _bridge(sink)
+
+    class _Kind:
+        name = "agent"
+
+    await _feed(bridge, _packet(_hello_bytes(), identity="x", kind=_Kind()))
+    assert bridge.receiver.dropped_unauthorized == 1
+
+
+# ---------------------------------------------------------------- 方向
+
+async def test_a_cue_sent_by_a_client_is_refused():
+    """客户端不能往 ``cmp.cue`` 发。方向不对要单独计数，不能和「坏包」混在一起。"""
+    bridge = _bridge()
+    payload = encode(new_envelope("presentation.emotion", args={}, seq=0, ep="ep", ident="c-1"))
+    await _feed(bridge, _packet(payload, identity=CLIENT, topic=TOPIC_CUE))
+    assert bridge.receiver.dropped_unauthorized == 1
+    assert bridge.receiver.applied == 0
+
+
+# ---------------------------------------------------------------- 健壮性
+
+async def test_a_packet_without_a_topic_is_counted_not_crashed():
+    bridge = _bridge()
+    await _feed(bridge, _packet(_hello_bytes(), identity=CLIENT, topic=None))
+    assert bridge.receiver.dropped_bad == 1
+    assert bridge.receiver.received == 1
+
+
+async def test_garbage_does_not_stop_the_next_message():
+    """§14.1：一条坏消息不能影响后续消息。"""
+    sink = _Sink()
+    bridge = _bridge(sink)
+    for bad in (b"", b"{", b"\xff\xfe", b"[]", b'{"v":2}'):
+        await _feed(bridge, _packet(bad, identity=CLIENT))
+    assert bridge.receiver.dropped_bad == 5
+
+    await _feed(bridge, _packet(_hello_bytes(), identity=CLIENT))
+    assert sink.types() == ["control.hello_ack"]
+
+
+async def test_an_unknown_event_type_is_counted_separately():
+    """陌生 ``t`` 不是「坏包」：消息是好的，只是这一版不认识（§5 规则 2）。"""
+    bridge = _bridge()
+    payload = json.dumps({
+        "v": 2, "t": "presentation.teleport", "id": "x", "seq": 0, "ep": "e", "args": {},
+    }).encode()
+    await _feed(bridge, _packet(payload, identity=CLIENT, topic=TOPIC_CUE))
+    assert bridge.receiver.dropped_unknown == 1
+    assert bridge.receiver.dropped_bad == 0
+
+
+async def test_a_failing_handler_is_isolated():
+    bridge = _bridge()
+
+    async def _boom(envelope, topic):
+        raise RuntimeError("handler bug")
+
+    bridge._dispatch = _boom  # type: ignore[method-assign]
+    await _feed(bridge, _packet(_hello_bytes(), identity=CLIENT))
+    assert bridge.receiver.dropped_bad == 1
+    # 下一条仍然能进来：收侧状态机没有被那次失败污染。
+    assert bridge.receiver.applied == 1
+
+
+# ---------------------------------------------------------------- seq
+
+async def test_published_messages_carry_increasing_seq():
+    sink = _Sink()
+    bridge = _bridge(sink)
+    await _feed(bridge, _packet(_hello_bytes(), identity=CLIENT))
+    await bridge.publish("presentation.emotion", {"emotion": "开心"}, topic=TOPIC_CUE)
+    await bridge.publish("presentation.emotion", {"emotion": "难过"}, topic=TOPIC_CUE)
+
+    seqs = []
+    for _, payload in sink.sent:
+        envelope, status = decode(payload)
+        assert envelope is not None, status
+        seqs.append(envelope.seq)
+    # cmp.ctl 与 cmp.cue 各走各的序号空间（§5.1 按 topic 计）。
+    assert seqs == [0, 0, 1]
+
+
+async def test_chinese_is_not_escaped_on_the_wire():
+    sink = _Sink()
+    bridge = _bridge(sink)
+    await _feed(bridge, _packet(_hello_bytes(), identity=CLIENT))
+    await bridge.publish("presentation.emotion", {"emotion": "开心"}, topic=TOPIC_CUE)
+    assert "开心" in sink.sent[-1][1].decode("utf-8")
+
+
+# ---------------------------------------------------------------- attach
+
+async def test_attach_wires_the_room_event():
+    sink = _Sink()
+    bridge = _bridge(sink)
+    handlers: dict[str, Any] = {}
+
+    class _Room:
+        def on(self, event, callback):
+            handlers[event] = callback
+
+    attach(_Room(), bridge)
+    assert "data_received" in handlers
+    assert protocol_bridge.attach is not None
