@@ -482,6 +482,12 @@ class SqlUploadStore:
         return UploadRecord(row["id"], row["owner_id"], row["object_key"], row["mime"], row["size"],
                             row["width"] or 0, row["height"] or 0, bool(row["referenced"]), row["created_at"])
 
+    async def mark_bound(self, *, upload_id: str, actual_size: int) -> None:
+        """直传绑定成功：size 从预登记的 0 更新为 HEAD 的实际字节数（=已消费的标记）。"""
+        async with self._engine.begin() as conn:
+            await conn.execute(update(upload).where(upload.c.id == upload_id).values(
+                size=actual_size, referenced=True))
+
 
 class SqlConfirmationStore:
     def __init__(self, engine: AsyncEngine) -> None:

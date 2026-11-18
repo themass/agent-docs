@@ -395,6 +395,14 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     )
     api.history = history
 
+    # 直传（ADR-011 同款）：sign 签发 presigned PUT、发送时绑定校验。挂在不被 dataclass
+    # 约束的 ChatApi 实例上，随 uploads 一起降级——对象存储自检失败时直传同样不可用。
+    if objects is not None:
+        from companion.service.uploads.direct import DirectUploadService
+
+        api.direct = DirectUploadService(objects=objects, records=uploads_store,
+                                         key_prefix=settings.tos_key_prefix)
+
     # 连续使用提醒：用户发消息就算活跃；一段内到 2 小时，在这条回合的 SSE 里带一条提醒给客户端。
     # 计时失败只记日志（ComplianceService 内部已兜住），不会让回合失败。
     upstream_submit = api.submit

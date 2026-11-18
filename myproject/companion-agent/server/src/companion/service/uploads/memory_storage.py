@@ -15,6 +15,19 @@ class InMemoryObjectStore:
             raise KeyError(key)
         return f"memory://{key}?ttl={ttl_seconds}"
 
+    async def presigned_put(self, *, key: str, content_type: str, ttl_seconds: int) -> str:
+        # 占位格式；put_via_presigned 只认这个前缀（同 signed_url 的待遇）
+        return f"memory-put://{key}?ttl={ttl_seconds}"
+
+    async def put_via_presigned(self, *, url: str, data: bytes, content_type: str) -> bool:
+        key = url.removeprefix("memory-put://").split("?", 1)[0]
+        self._blobs[key] = (data, content_type)
+        return True
+
+    async def head_size(self, *, key: str) -> int | None:
+        blob = self._blobs.get(key)
+        return len(blob[0]) if blob else None
+
     async def delete(self, *, key: str) -> None:
         self._blobs.pop(key, None)
 

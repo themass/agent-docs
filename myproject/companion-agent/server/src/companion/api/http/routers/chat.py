@@ -36,6 +36,9 @@ class ChatApi:
     drainer: DrainService | None = None
     # 编辑、删除、重新生成时同步改大脑的对话线程；没有时只改消息表（无状态大脑）。
     history: HistoryService | None = None
+    # 直传（ADR-011）：发送带直传 upload_id 的附件时先绑定校验。没有直传配置时为 None，
+    # 所有 upload_id 一律按「不是签发给你的」拒绝不了中转通道——见 send_message 的注释。
+    direct: Any = None
 
 
 def _owner_id(user_id: str) -> int:
@@ -156,6 +159,19 @@ def build_router(api: ChatApi, current_user):
         ensure_open(api.drain.draining)
         owner, record = await owned_session(user_id, session_id)
         t_read = _time.perf_counter()
+        # 直传通道（ADR-011 §6-C）：带 upload_id 的附件在落库前先绑定——归属、有效期、
+        # HEAD 存在、实际大小，任一不过都在此刻答 4xx JSON，而不是等模型读图时才炸。
+        # 没配直传（direct=None）时跳过：行为与纯中转通道完全一致。
+        if api.direct is not None:
+            from companion.service.uploads.direct import DirectRejected
+
+            for attachment in body.attachments:
+                try:
+                    await api.direct.bind(owner_id=owner, upload_id=attachment.upload_id)
+                except DirectRejected as exc:
+                    status = {"KEY_NOT_FOUND": 404, "KEY_ALREADY_BOUND": 409, "KEY_EXPIRED": 410,
+                              "KEY_NOT_PUT": 412, "SIZE_NOT_ALLOWED": 413}.get(exc.code, 400)
+                    raise HTTPException(status_code=status, detail={"code": exc.code}) from exc
         result = await api.submit.submit(
             owner_id=owner, session_id=session_id, character_id=record.role_id, text=body.text,
             client_message_id=body.client_message_id, steerable=body.steerable,

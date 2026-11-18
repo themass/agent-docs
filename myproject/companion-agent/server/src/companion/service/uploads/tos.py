@@ -57,6 +57,33 @@ class TosObjectStore:
             ExpiresIn=ttl_seconds,
         )
 
+    async def presigned_put(self, *, key: str, content_type: str, ttl_seconds: int) -> str:
+        """客户端直传用的 PUT 签名：只签这一个 key、只给写权限（ADR-011 同款）。
+
+        Content-Type 算进签名，客户端必须原样带上，否则 TOS 报 SignatureDoesNotMatch。
+        """
+        return await asyncio.to_thread(
+            self._client.generate_presigned_url,
+            "put_object",
+            Params={"Bucket": self._bucket, "Key": key, "ContentType": content_type},
+            ExpiresIn=ttl_seconds,
+        )
+
+    async def head_size(self, *, key: str) -> int | None:
+        """HEAD 一次对象拿实际字节数；对象不存在返回 None（不抛）。绑定时用它挡「根本没传」。"""
+
+        def _head() -> int | None:
+            from botocore.exceptions import ClientError
+
+            try:
+                return int(self._client.head_object(Bucket=self._bucket, Key=key)["ContentLength"])
+            except ClientError as exc:
+                if exc.response.get("Error", {}).get("Code") in ("404", "NoSuchKey", "NotFound"):
+                    return None
+                raise
+
+        return await asyncio.to_thread(_head)
+
     async def delete(self, *, key: str) -> None:
         await asyncio.to_thread(self._client.delete_object, Bucket=self._bucket, Key=key)
 

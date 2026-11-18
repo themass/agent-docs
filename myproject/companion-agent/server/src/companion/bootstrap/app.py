@@ -181,7 +181,7 @@ def create_app(
         app.include_router(build_chat_router(platform.chat, current_user))
         app.include_router(build_roles_router(platform.roles, current_user))
         if platform.uploads is not None:
-            app.include_router(build_uploads_router(platform.uploads, current_user))
+            app.include_router(build_uploads_router(platform.uploads, current_user, direct=platform.chat.direct))
         if platform.reminders is not None:
             app.include_router(build_reminders_router(platform.reminders, current_user))
         app.include_router(build_actions_router(platform.confirmations, current_user))
