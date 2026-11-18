@@ -25,10 +25,14 @@ logger = logging.getLogger(__name__)
 TEXT_TOPIC = "lk.chat"
 # 我们自己加的通道：形象事件、主动消息、待确认动作。不用 lk.chat，避免和用户
 # 输入混在一起——客户端要能区分「她说的话」和「她让你确认一件事」。
+#
+# 都是**服务端 → 客户端**单向。确认回执不走这里：它是用户的决定，走 HTTP
+# `POST /v1/actions/{id}/confirm`（见 api/http/routers/actions.py），带鉴权、
+# 幂等和错误码。这里曾经有一个 `TOPIC_CONFIRM`，但两端都没有实现过——删掉，
+# 不留一个指向不存在的消费者的通道名。
 TOPIC_AVATAR = "companion.avatar"
 TOPIC_PROACTIVE = "companion.proactive"
 TOPIC_ACTION = "companion.action"
-TOPIC_CONFIRM = "companion.confirm"
 
 
 @dataclass

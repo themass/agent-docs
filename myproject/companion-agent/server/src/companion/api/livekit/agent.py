@@ -16,13 +16,13 @@ import time
 from collections.abc import AsyncIterator
 from typing import Any
 
-from companion.service.turn.pipeline import EventSink, TurnPipeline
+from companion.service.turn.pipeline import TurnPipeline
 from companion.agent.brain.port import TurnRefused, TurnRequest
 from companion.api.livekit.bridge import require
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["build_agent_class", "build_event_sink", "build_request", "last_user_confidence", "last_user_message"]
+__all__ = ["build_agent_class", "build_request", "last_user_confidence", "last_user_message"]
 
 
 REFUSED_LINE = "这个我不太方便聊，我们说点别的吧。"
@@ -70,36 +70,6 @@ def last_user_confidence(chat_ctx: Any) -> float | None:
         value = getattr(item, "transcript_confidence", None)
         return float(value) if isinstance(value, (int, float)) and 0.0 < value <= 1.0 else None
     return None
-
-
-def build_event_sink(room: Any) -> EventSink:
-    """把形象事件写成 LiveKit 数据通道里的文本消息。
-
-    发送失败只记日志：事件是装饰，丢了不该让正在说的那句话出错。任务引用留在
-    集合里，否则 ``publish_data`` 可能被 GC 提前回收。
-    """
-    pending: set[asyncio.Task[Any]] = set()
-
-    def sink(payload: str) -> None:
-        participant = getattr(room, "local_participant", None)
-        if participant is None:
-            return
-        try:
-            task = asyncio.create_task(_publish(participant, payload))
-        except RuntimeError:
-            # 没有运行中的事件循环（例如同步调用）——直接放弃，不阻塞回复
-            logger.debug("avatar event dropped: no running loop")
-            return
-        pending.add(task)
-        task.add_done_callback(pending.discard)
-
-    async def _publish(participant: Any, payload: str) -> None:
-        try:
-            await participant.publish_data(payload.encode("utf-8"), reliable=True)
-        except Exception as exc:  # noqa: BLE001
-            logger.debug("avatar event publish failed: %s", exc)
-
-    return sink
 
 
 def build_agent_class() -> type:
