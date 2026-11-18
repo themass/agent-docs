@@ -31,6 +31,7 @@ from companion.db.port import (
     QueueItem,
     RoleRecord,
     SessionRecord,
+    UploadRecord,
 )
 
 
