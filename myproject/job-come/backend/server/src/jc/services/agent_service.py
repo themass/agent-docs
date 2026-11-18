@@ -10,6 +10,12 @@ from typing import Any
 
 from agentkit.adapters.deerflow.client import AgentRunMetadata
 from agentkit.common.ids import new_id
+from agentkit.observability import (
+    inflight_turn,
+    method_metrics,
+    record_agent_phase,
+    record_agent_turn,
+)
 from agentkit.web.auth import UserActor
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -45,9 +51,10 @@ from jc.schemas.agent import (
     AgentUiContext,
 )
 from jc.services.agent_attachment_service import (
-    offload_for_persistence,
+    plan_attachment_rows,
     prepare_direct_attachments,
     resign_persisted_attachments,
+    upload_pending_attachments,
     validate_inline_attachments,
 )
 from jc.services.mock_answer_recorder import record_mock_answer, records_mock_answer
@@ -56,12 +63,6 @@ from jc.services.patch_confirm_service import hydrate_confirmation_event, load_c
 from jc.services.profile_patch_service import apply_confirmed_patch
 from jc.services.profile_service import ProfileService
 from jc.stores.agent_store import AgentStore
-from agentkit.observability import (
-    inflight_turn,
-    method_metrics,
-    record_agent_phase,
-    record_agent_turn,
-)
 from jc.stores.agent_trace_store import AgentTraceStore
 from jc.stores.interview_store import InterviewStore
 
@@ -246,9 +247,7 @@ class AgentService:
             ]
         )
 
-    async def list_messages(
-        self, session_id: str, *, actor: UserActor
-    ) -> AgentMessageListResponse:
+    async def list_messages(self, session_id: str, *, actor: UserActor) -> AgentMessageListResponse:
         await self._require_session(session_id, actor=actor)
         rows = await self._trace.list_ui_for_session(session_id)
         return AgentMessageListResponse(
@@ -326,40 +325,72 @@ class AgentService:
         validate_inline_attachments(attachment_list)
         user_text = _format_user_message(content, attachment_list)
         message_id = new_id("agm")
-        persist_payload: dict[str, Any] | None = None
-        if attachment_list or ui_context is not None:
-            persist_payload = {}
-            if attachment_list:
-                # The bytes go to object storage and the row keeps only the key. The
-                # payload column is MySQL TEXT (64 KB) and one camera frame is ~400 KB
-                # once base64 inflates it, so the inline form never fit.
-                persist_payload["attachments"] = await offload_for_persistence(
-                    attachment_list,
-                    session_id=session.id,
-                    message_id=message_id,
-                )
-            if ui_context is not None:
-                persist_payload["ui_context"] = ui_context.model_dump()
+        persist_payload: dict[str, Any] = {}
+        attachment_rows: list[dict[str, Any]] | None = None
+        if attachment_list:
+            # Attachment keys are minted HERE, deterministically from `message_id`,
+            # and written into the row before a single byte is uploaded (B-1 §2.2).
+            # The old order was PUT-then-row: a worker killed in between left a
+            # bucket object with no row, and the GC cannot enumerate `agent/`
+            # prefixes at all, so that leak was permanently invisible. Reversed,
+            # the worst case is a row naming a key whose object is missing — which
+            # one SQL query can count, and which history renders as a storage error
+            # instead of a dead player.
+            attachment_rows = plan_attachment_rows(
+                attachment_list,
+                session_id=session.id,
+                message_id=message_id,
+            )
+            persist_payload["attachments"] = attachment_rows
+        if ui_context is not None:
+            persist_payload["ui_context"] = ui_context.model_dump()
 
-        # The row the user's turn needs, held until the model input is known: the
-        # ledger stores what the model actually received (profile digest and
-        # methodology already wrapped in), but the chat UI must show what the user
-        # typed. Both belong on one row, and only the second is known this early.
-        user_turn = {
-            "trace_id_pk": new_id("agtr"),
-            "session_id": session.id,
-            "event_type": "user_message",
-            "ui_event": "message",
-            "role": "user",
-            "content": user_text,
-            "payload": dict(persist_payload or {}),
-            "user_id": actor.user_id,
-            "profile_id": session.profile_id,
-            "job_id": session.job_id,
-            "mock_session_id": ui_context.mock_session_id if ui_context else None,
-            "trace_id": session.trace_id,
-        }
+        # One row per user turn, carrying both halves: `content` is what the user
+        # typed (the chat UI shows it), `payload.text` is what DeerFlow actually
+        # received (profile digest / methodology / locale already wrapped in).
+        # They differ on purpose and both are worth keeping — the first is the
+        # transcript, the second is the only way to answer "what did the model
+        # see that made it reply that". Only `content` is knowable this early;
+        # `text` is backfilled below, once the message has been flattened.
+        #
+        # Written and committed NOW, not held in memory until the model stream
+        # starts (B-1 §2.1). Everything between here and the first token is slow
+        # — attachment uploads, a vision call, graph construction — and a worker
+        # killed in that window used to take the whole message with it: the row
+        # never existed, so history showed nothing and nothing could be reaped.
+        user_row = await self._trace.append(
+            trace_id_pk=new_id("agtr"),
+            session_id=session.id,
+            # seq 0 belongs to this session's `system_prompt` row, which is
+            # inserted later with an explicit seq (see the stream loop): the
+            # ledger reads back in seq order, so the prompt must sort first
+            # even though it is written last.
+            seq=max(await self._trace.next_seq(session.id), 1),
+            event_type="user_message",
+            ui_event="message",
+            role="user",
+            content=user_text,
+            payload=persist_payload,
+            user_id=actor.user_id,
+            profile_id=session.profile_id,
+            job_id=session.job_id,
+            mock_session_id=ui_context.mock_session_id if ui_context else None,
+            trace_id=session.trace_id,
+        )
         await self._db.commit()
+
+        if attachment_rows is not None:
+            # The row is durable before the bytes move (see `plan_attachment_rows`).
+            # An upload failure is recorded on the row, never raised: the turn must
+            # go on without its archive rather than not happen at all.
+            attachment_rows = await upload_pending_attachments(
+                attachment_list,
+                attachment_rows,
+                session_id=session.id,
+                message_id=message_id,
+            )
+            user_row.payload = {**user_row.payload, "attachments": attachment_rows}
+            await self._db.commit()
 
         client = get_deerflow_client(db=self._db)
 
@@ -432,22 +463,14 @@ class AgentService:
         # `system_prompt` has to land at seq 0, but its text is only knowable
         # from inside the stream loop below (DeerFlow renders it lazily, on
         # the first `stream()` call that actually builds the agent -- see
-        # `DeerFlowClient._ensure_agent`). So this turn's `user_message` row
-        # is held back as a pending write and flushed by the loop immediately
-        # after `system_prompt` lands (or immediately, for a session whose
-        # `system_prompt` was already written by an earlier turn).
+        # `DeerFlowClient._ensure_agent`). The user row is already durable, so
+        # the loop inserts the prompt with an explicit `seq=0` when it arrives
+        # instead of the row being held back for it.
         trace_needs_system_prompt = not await self._trace.has_system_prompt(session.id)
-        # One row per user turn, carrying both halves: `content` is what the user
-        # typed (the chat UI shows it), `payload.text` is what DeerFlow actually
-        # received (profile digest / methodology / locale already wrapped in).
-        # They differ on purpose and both are worth keeping — the first is the
-        # transcript, the second is the only way to answer "what did the model
-        # see that made it reply that".
-        user_turn["payload"] = {**user_turn["payload"], "text": agent_message}
-        trace_user_message_pending = user_turn
-        if not trace_needs_system_prompt:
-            await self._trace.append(**trace_user_message_pending)
-            trace_user_message_pending = None
+        # Both halves of the turn, now that the model input is known. `content`
+        # (written above) stays the user's words; this is the wrapped text the
+        # model actually received.
+        user_row.payload = {**user_row.payload, "text": agent_message}
 
         metadata = AgentRunMetadata(
             trace_id=session.trace_id or "",
@@ -505,7 +528,9 @@ class AgentService:
                 events = _reply_events(flow_reply)
             else:
                 events = client.stream_message(
-                    session.deerflow_thread_id, agent_message, metadata=metadata,
+                    session.deerflow_thread_id,
+                    agent_message,
+                    metadata=metadata,
                 )
             async for event in events:
                 event_type = event.get("type")
@@ -527,12 +552,16 @@ class AgentService:
                     # already answered true for it below so it is dropped there
                     # instead of here, keeping the "only once" rule in one place.
                     if trace_needs_system_prompt:
-                        # Seq 0, and the first row of this session's ledger: it has to
-                        # be durable before the user message joins it, so this one still
-                        # takes an immediate commit rather than waiting for the batch.
+                        # Explicit seq 0: the session's first ledger row by ORDER, but
+                        # not by insert order — the user message is already written at
+                        # seq >= 1 (B-1 §2.1), because holding it back was what lost
+                        # messages when a worker died mid-turn. The unique index on
+                        # (session_id, seq) is untouched: `next_seq` returns max+1 and
+                        # can never hand out 0 to anyone else.
                         await self._trace.append(
                             trace_id_pk=new_id("agtr"),
                             session_id=session.id,
+                            seq=0,
                             event_type="system_prompt",
                             role="system",
                             payload={"text": event.get("content") or ""},
@@ -543,9 +572,6 @@ class AgentService:
                             trace_id=session.trace_id,
                         )
                         trace_needs_system_prompt = False
-                    if trace_user_message_pending is not None:
-                        pending_rows.append(trace_user_message_pending)
-                        trace_user_message_pending = None
                     if pending_rows:
                         await self._trace.append_batch(pending_rows, session_id=session.id)
                         pending_rows.clear()
@@ -559,13 +585,16 @@ class AgentService:
                 # `pop` rather than a copy because `_append_trace_for_stream_event`
                 # runs after this and reads the key off the same object -- so the
                 # value is lifted into a local here and handed to the trace writer.
-                diagnostics = (
-                    event.pop("diagnostics", None) if event_type == "error" else None
-                )
+                diagnostics = event.pop("diagnostics", None) if event_type == "error" else None
                 if event_type == "confirm" and not isinstance(event.get("patch"), dict):
                     event = await hydrate_confirmation_event(
-                        RunScope(db=self._db, user_id=actor.user_id,
-                                 profile_id=session.profile_id, session_id=session.id), event,
+                        RunScope(
+                            db=self._db,
+                            user_id=actor.user_id,
+                            profile_id=session.profile_id,
+                            session_id=session.id,
+                        ),
+                        event,
                     )
                 if event_type == "error":
                     had_error = True
@@ -610,15 +639,9 @@ class AgentService:
                         limit_tokens=settings.resolved_context_token_limit,
                     )
 
-            # A run that produced no `system_prompt_rendered` event at all (e.g. it
-            # errored before the first raw event, or ran entirely from the model's
-            # own cache path) must not leave `user_message` stranded unwritten.
-            if trace_user_message_pending is not None:
-                pending_rows.append(trace_user_message_pending)
-                trace_user_message_pending = None
-
             final_content = _finalize_assistant_content(
-                assistant_parts, had_tool_activity and not had_error,
+                assistant_parts,
+                had_tool_activity and not had_error,
             )
             if final_content:
                 pending_rows.append(
@@ -690,8 +713,10 @@ class AgentService:
     ) -> AgentConfirmResponse:
         session = await self._require_session(session_id, actor=actor)
         scope = RunScope(
-            db=self._db, user_id=actor.user_id,
-            profile_id=session.profile_id, session_id=session.id,
+            db=self._db,
+            user_id=actor.user_id,
+            profile_id=session.profile_id,
+            session_id=session.id,
         )
         if not body.approved:
             pending = await load_confirmation(scope, body.confirm_id)
@@ -703,13 +728,18 @@ class AgentService:
             if pending.status == "pending":
                 pending.status = "rejected"
                 await self._trace.append(
-                    trace_id_pk=new_id("agtr"), session_id=session.id, role="user",
-                    event_type="confirm_rejected", ui_event="confirm_rejected",
-                    content=None, payload={"confirm_id": body.confirm_id},
+                    trace_id_pk=new_id("agtr"),
+                    session_id=session.id,
+                    role="user",
+                    event_type="confirm_rejected",
+                    ui_event="confirm_rejected",
+                    content=None,
+                    payload={"confirm_id": body.confirm_id},
                 )
             await self._db.commit()
-            return AgentConfirmResponse(status="rejected", confirm_id=body.confirm_id,
-                                        profile_id=session.profile_id)
+            return AgentConfirmResponse(
+                status="rejected", confirm_id=body.confirm_id, profile_id=session.profile_id
+            )
 
         result = await apply_confirmed_patch(
             scope, confirm_id=body.confirm_id, edited_patch=body.edited_patch
@@ -723,9 +753,13 @@ class AgentService:
                 event_type="confirm_applied",
                 ui_event="confirm_applied",
                 content=f"Profile updated to version {result.get('version')}",
-                payload={"confirm_id": body.confirm_id, "profile_id": result.get("id"),
-                         "version": result.get("version"), "status": "applied",
-                         "edited": edited},
+                payload={
+                    "confirm_id": body.confirm_id,
+                    "profile_id": result.get("id"),
+                    "version": result.get("version"),
+                    "status": "applied",
+                    "edited": edited,
+                },
             )
         await self._db.commit()
         return AgentConfirmResponse(
@@ -737,20 +771,29 @@ class AgentService:
         )
 
     async def read_photo_source(
-        self, session_id: str, *, message_id: str, attachment_index: int, actor: UserActor,
+        self,
+        session_id: str,
+        *,
+        message_id: str,
+        attachment_index: int,
+        actor: UserActor,
     ) -> Response:
         from jc.services.agent_photo_service import read_photo_source
 
         session = await self._require_session(session_id, actor=actor)
         raw, mime = await read_photo_source(
             RunScope(
-                db=self._db, user_id=actor.user_id,
-                profile_id=session.profile_id, session_id=session.id,
+                db=self._db,
+                user_id=actor.user_id,
+                profile_id=session.profile_id,
+                session_id=session.id,
             ),
-            message_id=message_id, attachment_index=attachment_index,
+            message_id=message_id,
+            attachment_index=attachment_index,
         )
         return Response(
-            raw, media_type=mime,
+            raw,
+            media_type=mime,
             headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
         )
 
@@ -795,9 +838,7 @@ class AgentService:
         "error": "error",
     }
 
-    async def _flush_pending_rows(
-        self, session_id: str, rows: list[dict[str, Any]]
-    ) -> None:
+    async def _flush_pending_rows(self, session_id: str, rows: list[dict[str, Any]]) -> None:
         """Persist accumulated ledger rows from a `finally`, surviving cancellation.
 
         Called after the turn is already over — normally by the `finally` that
@@ -828,7 +869,9 @@ class AgentService:
         except asyncio.CancelledError:
             # Still write what we can on a best-effort basis, then let the
             # cancellation propagate — swallowing it would break task semantics.
-            logger.warning("ledger flush interrupted by cancellation; %d row(s) may be lost", len(rows))
+            logger.warning(
+                "ledger flush interrupted by cancellation; %d row(s) may be lost", len(rows)
+            )
             raise
         except Exception:  # noqa: BLE001
             logger.warning(
@@ -930,7 +973,6 @@ class AgentService:
             payload=payload,
             created_at=row.created_at,
         )
-
 
     @staticmethod
     def _to_response(session: AgentSession) -> AgentSessionResponse:

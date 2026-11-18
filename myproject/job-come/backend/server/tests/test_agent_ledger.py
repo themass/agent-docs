@@ -168,12 +168,29 @@ async def test_the_chat_title_comes_from_the_first_visible_user_turn(maker):
 
 @pytest.mark.asyncio
 async def test_message_count_only_counts_rows_a_user_would_see(maker):
-    await _append(maker, **_row(trace_id_pk="s1", event_type="system_prompt",
-                                role="system", payload={"text": "sys"}))
-    await _append(maker, **_row(trace_id_pk="u1", event_type="user_message",
-                                ui_event="message", role="user", content="hi", payload={}))
-    await _append(maker, **_row(trace_id_pk="t1", event_type="tool_call",
-                                ui_event="tool_start", payload={"name": "x"}))
+    await _append(
+        maker,
+        **_row(
+            trace_id_pk="s1", event_type="system_prompt", role="system", payload={"text": "sys"}
+        ),
+    )
+    await _append(
+        maker,
+        **_row(
+            trace_id_pk="u1",
+            event_type="user_message",
+            ui_event="message",
+            role="user",
+            content="hi",
+            payload={},
+        ),
+    )
+    await _append(
+        maker,
+        **_row(
+            trace_id_pk="t1", event_type="tool_call", ui_event="tool_start", payload={"name": "x"}
+        ),
+    )
 
     async with maker() as db:
         counts = await AgentStore(db).message_counts(["as1"])
@@ -222,13 +239,71 @@ async def test_a_decided_confirm_is_found_too_so_a_second_click_can_be_refused(m
 
 
 @pytest.mark.asyncio
+async def test_a_prompt_written_last_still_sorts_first(maker):
+    """B-1 §2.1: the user row is written eagerly, `system_prompt` arrives later at seq 0.
+
+    The ordering guarantee is about what a reader sees, not about insert order. If
+    anyone ever "fixes" the explicit `seq=0` back into an ordinary append, the
+    prompt lands after the user's message and this fails.
+    """
+    await _append(
+        maker,
+        **_row(
+            trace_id_pk="u1",
+            event_type="user_message",
+            ui_event="message",
+            role="user",
+            content="你好",
+            payload={"text": "你好"},
+        ),
+        seq=1,
+    )
+    await _append(
+        maker,
+        **_row(
+            trace_id_pk="s0", event_type="system_prompt", role="system", payload={"text": "sys"}
+        ),
+        seq=0,
+    )
+    await _append(
+        maker,
+        **_row(
+            trace_id_pk="a2",
+            event_type="assistant_message",
+            ui_event="message",
+            content="在",
+            payload={"text": "在"},
+        ),
+        seq=2,
+    )
+
+    async with maker() as db:
+        store = AgentTraceStore(db)
+        all_rows = await store.list_for_session("as1")
+        ui_rows = await store.list_ui_for_session("as1")
+
+    assert [(r.seq, r.event_type) for r in all_rows] == [
+        (0, "system_prompt"),
+        (1, "user_message"),
+        (2, "assistant_message"),
+    ]
+    # The chat never shows the prompt, but the user message keeps its own place.
+    assert [r.event_type for r in ui_rows] == ["user_message", "assistant_message"]
+
+
+@pytest.mark.asyncio
 async def test_seq_is_monotonic_across_writers(maker):
     """Two events in the same millisecond must still replay in order."""
     for i in range(5):
         await _append(
             maker,
-            **_row(trace_id_pk=f"agtr_{i}", event_type="reasoning",
-                    ui_event="thinking", content=f"想 {i}", payload={"text": f"想 {i}"}),
+            **_row(
+                trace_id_pk=f"agtr_{i}",
+                event_type="reasoning",
+                ui_event="thinking",
+                content=f"想 {i}",
+                payload={"text": f"想 {i}"},
+            ),
         )
     async with maker() as db:
         rows = await AgentTraceStore(db).list_for_session("as1")

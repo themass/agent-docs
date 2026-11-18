@@ -45,8 +45,9 @@ from jc.services import profile_service as profile_service_module
 from jc.services.agent_attachment_service import (
     AttachmentRejectedError,
     AttachmentTooLargeError,
-    offload_for_persistence,
+    plan_attachment_rows,
     prepare_direct_attachments,
+    upload_pending_attachments,
 )
 from jc.services.media_scene import MediaSceneError
 from jc.services.media_service import MediaService, new_key_id, sweep_media_uploads
@@ -598,7 +599,10 @@ async def test_direct_key_binds_hydrates_and_persists_the_bound_key(env):
     # Persistence: the bound key is the durable record, re-signed on replay,
     # and the bytes are NEVER copied a second time under agent/.
     env.store.puts.clear()
-    (stored,) = await offload_for_persistence(prepared, session_id="agsn_s1", message_id="agm_m1")
+    (stored,) = plan_attachment_rows(prepared, session_id="agsn_s1", message_id="agm_m1")
+    (stored,) = await upload_pending_attachments(
+        prepared, [stored], session_id="agsn_s1", message_id="agm_m1"
+    )
     assert stored["storage_key"] == key
     assert stored["size_bytes"] == len(JPEG)
     assert stored["download_url"] == f"https://bucket.test/{key}?get=fake"

@@ -56,7 +56,7 @@ async def session_images(scope: RunScope, message_id: str | None = None) -> list
                 continue
             # Two key shapes reach here, both written by the server itself
             # (the payload is not user-writable): the agent-side copy made by
-            # `offload_for_persistence` on the inline path, and — since
+            # `plan_attachment_rows` on the inline path, and — since
             # ADR-011 §6-C — the original direct-upload key, which lives under
             # THIS user's uploads partition. Either way the key must be under a
             # prefix that provably belongs to the session's owner.

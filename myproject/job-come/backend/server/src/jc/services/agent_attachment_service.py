@@ -214,7 +214,7 @@ async def prepare_direct_attachments(
     flatten, the photo tool) reads `data_url`, and the model hop needs base64
     no matter which transport delivered the bytes (ADR-011 "边界先说死").
     Persistence then sees BOTH fields and stores the bound key instead of
-    re-PUTting the same bytes (`offload_for_persistence`).
+    re-PUTting the same bytes (`plan_attachment_rows` / `upload_pending_attachments`).
 
     The content type of a hydrated copy is the server-side one recorded at
     sign time, so a client cannot get its spoofed `mime_type` into the ledger
@@ -273,29 +273,32 @@ async def prepare_direct_attachments(
     return prepared
 
 
-async def offload_for_persistence(
+def plan_attachment_rows(
     attachments: list[AgentAttachment],
     *,
     session_id: str,
     message_id: str,
 ) -> list[dict[str, object]]:
-    """Upload each inline blob and return rows safe to store in the message payload.
+    """Mint the storage key for every attachment that needs one — WITHOUT uploading.
 
-    The returned dicts never carry `data_url`. They carry `storage_key` (durable) and
-    `download_url` (signed, short-lived), so replaying history re-signs from the key
-    rather than depending on a URL that has since expired.
+    B-1 §2.2 (key first). The keys are deterministic (`storage_key(...)` derives
+    them from `message_id` and the index), so they can be written into the user
+    message row and committed before a single byte leaves the process. That order
+    is what makes a crash between "row exists" and "object exists" recoverable:
 
-    An upload failure must not cost the user their message: the turn has already run
-    and the answer is on its way, so a failed offload drops to a row without media
-    rather than raising.
+    * old order (PUT, then row): a dead worker left a bucket object nobody
+      references, under an `agent/` prefix the GC cannot even enumerate — an
+      invisible, permanent leak;
+    * new order (row, then PUT): a dead worker leaves a row naming a key with no
+      object, which is one SQL query to count and which history already knows how
+      to render (`storage_error`).
 
-    Async because `put_object` is a blocking network call and this runs on the request
-    loop. Uploading up to `MAX_MESSAGE_ATTACHMENT_BYTES` inline would stall *every*
-    concurrent request for the duration, not just this user's — the one thing the chat
-    path cannot afford, since it already serializes runs behind a process-wide lock.
+    `storage_pending` is the marker the upload step clears. It is deliberately
+    distinct from `storage_error` (a settled failure): a row that still says
+    pending never got its upload step at all, while a row with `storage_error`
+    says the upload was attempted and failed.
     """
     rows: list[dict[str, object]] = []
-    store = get_storage_backend()
     for index, att in enumerate(attachments):
         row: dict[str, object] = {
             "kind": att.kind,
@@ -331,47 +334,105 @@ async def offload_for_persistence(
             except Exception:  # noqa: BLE001
                 row["download_url"] = None
         elif att.data_url:
+            # The key is decided now, the bytes later (see `upload_pending_attachments`).
             try:
                 blob = decode_data_url(att.data_url)
-                key = storage_key(
-                    "agent",
-                    session_id,
-                    "attachments",
-                    f"{message_id}-{index}{blob.extension}",
-                )
-                await asyncio.to_thread(store.put_object, key, blob.raw, content_type=blob.mime)
-                row["storage_key"] = key
-                row["size_bytes"] = len(blob.raw)
-                try:
-                    row["download_url"] = download_url_for_key(key)
-                except Exception:  # noqa: BLE001
-                    # Signing is a convenience; the key is the durable record and the
-                    # bubble can be re-signed on the next read.
-                    row["download_url"] = None
-            except Exception as exc:  # noqa: BLE001
-                # Deliberately not raised: the turn has already run and the answer is
-                # on its way, so losing the archive must not lose the user's message.
-                # But it must not be silent either — a storage outage used to leave a
-                # row that was indistinguishable from "the user sent no media", which
-                # is the one state nobody can debug after the fact. The exception type
-                # and the key are logged; the blob itself never is.
-                logger.warning(
-                    "attachment offload failed",
-                    extra={
-                        "session_id": session_id,
-                        "message_id": message_id,
-                        "attachment_index": index,
-                        "attachment_kind": att.kind,
-                        "error_type": type(exc).__name__,
-                    },
-                )
+            except Exception:  # noqa: BLE001
+                # `validate_inline_attachments` already rejected anything
+                # undecodable, so this row would only be reached for a payload
+                # that changed under us. Record the failure on the row rather
+                # than raising: the user's turn must still go out.
                 row["storage_key"] = None
                 row["download_url"] = None
-                # Lets the bubble say "录音没保存成功" instead of rendering a dead
-                # player, and lets an operator count the damage with one query.
                 row["storage_error"] = True
+                rows.append(row)
+                continue
+            key = storage_key(
+                "agent",
+                session_id,
+                "attachments",
+                f"{message_id}-{index}{blob.extension}",
+            )
+            row["storage_key"] = key
+            row["size_bytes"] = len(blob.raw)
+            row["storage_pending"] = True
         rows.append(row)
     return rows
+
+
+async def upload_pending_attachments(
+    attachments: list[AgentAttachment],
+    rows: list[dict[str, object]],
+    *,
+    session_id: str,
+    message_id: str,
+) -> list[dict[str, object]]:
+    """PUT the planned attachment objects and return rows with `storage_pending` settled.
+
+    Returns NEW row dicts and deliberately does not mutate the ones it was given.
+    That copy is load-bearing, not stylistic: those dicts are already inside the
+    committed payload, so an in-place edit changes the ORM's own loaded value.
+    The follow-up `payload = {**payload, "attachments": rows}` then compares equal
+    to what SQLAlchemy last flushed, the dirty check finds nothing, no UPDATE is
+    issued, and `storage_pending` stays `true` in the database forever — which
+    replay renders as "this upload never finished" for a file that uploaded fine.
+
+    An upload failure must not cost the user their message: the row already exists
+    and the turn has already been acknowledged, so a failed PUT drops to
+    `storage_error` (the bubble says "录音没保存成功") rather than raising.
+
+    Async because `put_object` is a blocking network call and this runs on the
+    request loop. Uploading up to `MAX_MESSAGE_ATTACHMENT_BYTES` inline would stall
+    *every* concurrent request for the duration, not just this user's.
+    """
+    store = get_storage_backend()
+    settled: list[dict[str, object]] = []
+    for index, (att, row) in enumerate(zip(attachments, rows, strict=False)):
+        if not row.get("storage_pending"):
+            settled.append(row)
+            continue
+        # A fresh dict per row: see the docstring — mutating the committed one is
+        # invisible to the session's dirty check and the state never persists.
+        row = dict(row)
+        key = row.get("storage_key")
+        try:
+            if not isinstance(key, str) or not key:
+                raise ValueError("planned row lost its key")
+            blob = decode_data_url(att.data_url or "")
+            await asyncio.to_thread(store.put_object, key, blob.raw, content_type=blob.mime)
+            try:
+                row["download_url"] = download_url_for_key(key)
+            except Exception:  # noqa: BLE001
+                # Signing is a convenience; the key is the durable record and the
+                # bubble can be re-signed on the next read.
+                row["download_url"] = None
+            row.pop("storage_pending", None)
+            settled.append(row)
+        except Exception as exc:  # noqa: BLE001
+            # Deliberately not raised: the turn has already been acknowledged, so
+            # losing the archive must not lose the user's message. But it must not
+            # be silent either — a storage outage used to leave a row that was
+            # indistinguishable from "the user sent no media", which is the one
+            # state nobody can debug after the fact. The exception type and the
+            # key are logged; the blob itself never is.
+            logger.warning(
+                "attachment offload failed",
+                extra={
+                    "session_id": session_id,
+                    "message_id": message_id,
+                    "attachment_index": index,
+                    "attachment_kind": att.kind,
+                    "error_type": type(exc).__name__,
+                },
+            )
+            row["storage_key"] = None
+            row["download_url"] = None
+            # A settled failure, not a pending write: this is what the bubble reads
+            # to say "录音没保存成功" instead of rendering a dead player.
+            row["storage_error"] = True
+            row.pop("storage_pending", None)
+            settled.append(row)
+    return settled
 
 
 def resign_persisted_attachments(payload: dict[str, object] | None) -> dict[str, object] | None:
@@ -391,14 +452,33 @@ def resign_persisted_attachments(payload: dict[str, object] | None) -> dict[str,
         if not isinstance(item, dict):
             refreshed.append(item)
             continue
-        key = item.get("storage_key")
+        updated = dict(item)
+        if updated.get("storage_pending"):
+            # A row still marked pending belongs to a turn whose upload step never
+            # ran to completion (B-1 §2.2) — most often because the worker died
+            # between the row commit and the PUT. The bubble knows only one way to
+            # say "this recording was not saved", and that is exactly what this is,
+            # so the wire projects it as such. No frontend change, and no dead
+            # player: `attachmentSrc` never invents a URL for it.
+            #
+            # Deliberately does NOT sign a URL: the key exists but the object behind
+            # it very likely does not, and a signed link to nothing is worse than no
+            # link — the bubble would render a broken image instead of saying the
+            # upload did not finish.
+            updated["storage_error"] = True
+            updated["download_url"] = None
+            # The marker itself is server-internal bookkeeping (a write that has
+            # not settled). Once it is projected as `storage_error` it has no
+            # business on the wire: two flags for one fact invites a client that
+            # checks the wrong one.
+            updated.pop("storage_pending", None)
+            refreshed.append(updated)
+            continue
+        key = updated.get("storage_key")
         if isinstance(key, str) and key:
-            updated = dict(item)
             try:
                 updated["download_url"] = download_url_for_key(key)
             except Exception:  # noqa: BLE001
                 updated["download_url"] = None
-            refreshed.append(updated)
-        else:
-            refreshed.append(item)
+        refreshed.append(updated)
     return {**payload, "attachments": refreshed}

@@ -1,6 +1,6 @@
 # B-1 修复方案：worker 死亡导致的消息丢失与孤儿附件
 
-状态：**待评审，未实施**。产线事故证据见 `CURSOR-TEST-PLAN-2026-11-18.md` 附录 B-1。
+状态：**已实施，本地全绿，待产线验证**（2026-11-18）。§2.1/§2.2 已落地；实现期间发现并修掉了两个连带缺陷：`upload_pending_attachments` 原地改 committed payload 导致 SQLAlchemy 脏检查失效、`storage_pending` 永久落库（现返回新副本）；`resign` 投影未清除内部标记（现投影为 `storage_error` 后弹出 `storage_pending`）。验收测试 `backend/server/tests/test_agent_stream_persistence.py`（9 项，双侧）。产线事故证据见 `CURSOR-TEST-PLAN-2026-11-18.md` 附录 B-1。
 撰写日期：2026-11-18。关联提交：`c720cbf`（B-2 单 worker、B-3 毒任务行，均已上线）。
 
 ## 1. 现状与丢失窗口
