@@ -60,7 +60,9 @@ class ComplianceService:
         try:
             state = await self._store.touch_usage(owner_id=owner_id, now=datetime.now(UTC))
         except Exception:  # noqa: BLE001
-            log.warning("usage tracking failed", extra={"owner_id": owner_id})
+            # exc_info 必带：这条 warning 每条消息都会出现，没有堆栈就只能看见「失败了」
+            # 而永远查不出为什么失败（生产上已经因此查不下去）。
+            log.warning("usage tracking failed", exc_info=True, extra={"owner_id": owner_id})
             return None
         return USAGE_REMINDER_TEXT if state.should_remind else None
 
