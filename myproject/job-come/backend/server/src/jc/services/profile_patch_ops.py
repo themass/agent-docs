@@ -67,12 +67,70 @@ def _tokens(path: str) -> tuple[str | int, ...]:
     )
 
 
+def _all_have_id(items: list[Any]) -> bool:
+    """True when every element is a dict with a non-empty string id."""
+    return bool(items) and all(
+        isinstance(item, dict) and isinstance(item.get("id"), str) and item["id"]
+        for item in items
+    )
+
+
+def _merge_by_id(base: list[Any], value: list[Any]) -> list[Any]:
+    """Deep-merge patch items into base items that share an id; append unknowns.
+
+    Omitting an id from the patch is not a delete. A confirm card that only names
+    the role being edited must not truncate siblings the user never saw leave.
+    """
+    out = copy.deepcopy(base)
+    index_by_id = {
+        item["id"]: index
+        for index, item in enumerate(out)
+        if isinstance(item, dict) and isinstance(item.get("id"), str) and item["id"]
+    }
+    for item in value:
+        item_id = item["id"]
+        if item_id in index_by_id:
+            index = index_by_id[item_id]
+            out[index] = _merge(out[index], item)
+        else:
+            out.append(copy.deepcopy(item))
+            index_by_id[item_id] = len(out) - 1
+    return out
+
+
+def _merge_list(base: list[Any], value: list[Any]) -> list[Any]:
+    # Empty array against an id-keyed entity list is silent truncation, not a
+    # documented delete. Refuse so the model rewrites as a per-id edit.
+    if not value:
+        if _all_have_id(base):
+            raise _invalid(
+                "不能用空数组清空经历/项目/教育列表；请按 id 修改具体条目。"
+            )
+        return copy.deepcopy(value)
+    if _all_have_id(value):
+        if base and not _all_have_id(base):
+            return copy.deepcopy(value)
+        return _merge_by_id(base, value)
+    # Dict items aimed at an id-keyed list but missing id cannot be aligned.
+    if (
+        all(isinstance(item, dict) for item in value)
+        and (not base or _all_have_id(base))
+        and any(not isinstance(item.get("id"), str) or not item.get("id") for item in value)
+    ):
+        raise _invalid(
+            "经历/项目/教育条目必须带 id，才能与现有档案对齐；请先读取档案再提交。"
+        )
+    return copy.deepcopy(value)
+
+
 def _merge(base: Any, value: Any) -> Any:
     if isinstance(base, dict) and isinstance(value, dict):
         out = copy.deepcopy(base)
         for key, item in value.items():
             out[key] = _merge(out.get(key), item)
         return out
+    if isinstance(base, list) and isinstance(value, list):
+        return _merge_list(base, value)
     return copy.deepcopy(value)
 
 

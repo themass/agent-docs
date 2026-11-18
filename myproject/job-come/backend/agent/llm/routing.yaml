@@ -37,16 +37,15 @@ scenarios:
       timeout_sec: 120
       reasoning_effort: none
       # Some gateways ignore `reasoning_effort`; this body flag disables their
-      # thinking mode without touching agent turns.
+      # thinking mode without touching agent turns. Only on hop 0: the live
+      # fallback (gpt-6-luna) rejects `thinking` outright (`Unknown parameter`),
+      # which turned a recoverable primary miss into a user-visible 500 (R3 P0).
       extra_body:
         thinking:
           type: disabled
     - provider: gateway
       timeout_sec: 120
       reasoning_effort: none
-      extra_body:
-        thinking:
-          type: disabled
 
   # Produces the document the user reads and exports; the repair pass reuses it.
   # A weak first draft is what the evaluate-repair loop exists to avoid paying
