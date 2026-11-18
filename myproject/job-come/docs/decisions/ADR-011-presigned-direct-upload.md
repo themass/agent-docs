@@ -1,6 +1,6 @@
 # ADR-011：媒体上传改为预签名直传（sign → PUT → 绑定）
 
-- **状态**：Accepted（方向与作者确认于 2026-11-17；B 步已实施：media_upload 迁移 027 + sign 路由 + 绑定校验 + GC）
+- **状态**：Accepted（方向与作者确认于 2026-11-17。已实施：A 桶 CORS（2026-11-18 产线配置并 `curl -X OPTIONS` 双 origin 验证）、B `media_upload` 迁移 027 + sign 路由 + 绑定校验 + GC、C `chat-image`/`chat-audio` 直传切换、D `profile-source` JSON 提交形态（含前端重建部署）。E 步观察中：产线 2 日 22 个附件直传 1 / 中继 21（唯一直传发生在 CORS 生效后），直传占比过低，暂不收 `data_url` 拒收门）
 - **日期**：2026-11-17
 - **参考**：`myandroidTest` 仓库 `docs/design/shared-media-upload-and-storage.md`（v2，下称"参考设计"）。本 ADR 采纳它的时序骨架，改掉它的鉴权与信任假设，差别全部在 §Decision 写明。
 
