@@ -35,6 +35,14 @@ PREWARM_IMPORTS = (
     "agentkit.observability",
     # service/uploads/* —— 图片/上传策略第一次用时拉 boto3 客户端构建链
     "agentkit.storage.object_store",
+    # bootstrap/platform.py —— build_platform 第一次装配拉 redis（2026-11-18
+    # 预热上线后的新日志：event loop blocked for 13056ms importing
+    # companion.service.turn.redis_control，冷盘 13 秒）
+    "companion.service.turn.redis_control",
+    # livekit SDK 自己点名（agent_activity 第一次解析 turn detection 时拉）
+    "onnxruntime",
+    # openai/httpx 第一次发请求时才拉 anyio 后端（小头，但同样白捡）
+    "anyio._core._streams",
 )
 
 
