@@ -92,3 +92,44 @@ def plan_speech(
         total_est_ms=sum(s.est_ms for s in segments),
         voice=voice,
     )
+
+
+class SpeechStream:
+    """边出边声明的一句话（§9.3.1 分批声明）。
+
+    流式 LLM 出一句声明一句：第一句随 ``speech.begin`` 发，之后每句一条
+    ``speech.extend``。这里只管段号与估时，不管发不发——发送由调用方按协商结果决定。
+
+    段号从 0 连续编，只计**已声明**的段。空白句不占号；超过 :data:`MAX_SEGMENTS` 的句子
+    照样会被说出来，但不再声明（§9.3.1：超出部分锚定的 cue 按 NO_ANCHOR 丢弃）。
+    """
+
+    def __init__(self, *, turn_id: str, voice: str | None = None, speech_id: str | None = None) -> None:
+        self.speech_id = speech_id or f"sp_{new_ulid()}"
+        self.turn_id = turn_id
+        self.voice = voice
+        self._segments: list[PlannedSegment] = []
+
+    @property
+    def declared(self) -> int:
+        return len(self._segments)
+
+    def push(self, text: str) -> PlannedSegment | None:
+        """登记下一句。返回新段；空白或已满返回 ``None``（此句不声明）。"""
+        if not text or not text.strip():
+            return None
+        if len(self._segments) >= MAX_SEGMENTS:
+            return None
+        seg = PlannedSegment(idx=len(self._segments), text=text, est_ms=estimate_ms(text))
+        self._segments.append(seg)
+        return seg
+
+    def begin_plan(self, first: PlannedSegment) -> SpeechPlan:
+        """第一段的 begin：只带这一段（§9.3.1：begin 带首批，至少 1 段）。"""
+        return SpeechPlan(
+            speech_id=self.speech_id,
+            turn_id=self.turn_id,
+            segments=(first,),
+            total_est_ms=first.est_ms,
+            voice=self.voice,
+        )

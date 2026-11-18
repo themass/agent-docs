@@ -29,6 +29,25 @@ REFUSED_LINE = "这个我不太方便聊，我们说点别的吧。"
 UNAVAILABLE_LINE = "我这边出了点状况，你再说一次好吗？"
 
 
+class _NoSpeech:
+    """没注入 SpeechPublisher 时的空实现：离线测试与未接协议的路径照旧走，什么都不发。"""
+
+    async def start_reply(self) -> None:
+        return None
+
+    async def say(self, text: str, *, turn_id: str) -> None:
+        return None
+
+    async def finish(self) -> None:
+        return None
+
+    async def cancel(self, reason: str = "user_barge_in") -> None:
+        return None
+
+
+_NO_SPEECH = _NoSpeech()
+
+
 def build_request(*, user_id: str, character_id: str, message: str, chat_session_id: int) -> TurnRequest:
     """组一回合的请求。对话线程由 ``session_id`` 决定，与文字共用同一个。"""
     return TurnRequest(
@@ -90,6 +109,7 @@ def build_agent_class() -> type:
             chat_session_id: int,
             recorder: Any = None,
             tts_sink: Any = None,
+            speech: Any = None,
         ) -> None:
             # 提示词由回合引擎按会话组装；llm_node 被重写后框架不会用到这里的 instructions
             super().__init__(instructions="")
@@ -101,6 +121,8 @@ def build_agent_class() -> type:
             self._recorder = recorder
             # TTS 采集的写入口：async (**turn 信息, segment=TtsSegment)。不给就不采集（不改变 tts_node 行为）。
             self._tts_sink = tts_sink
+            # 协议 v2 的 speech.* 发送口（SpeechPublisher 形状）。不给就整段跳过，行为与之前一致。
+            self._speech = speech if speech is not None else _NO_SPEECH
             self._background: set[asyncio.Task[Any]] = set()
 
         async def llm_node(
@@ -124,6 +146,8 @@ def build_agent_class() -> type:
                 message=message,
                 chat_session_id=self._chat_session_id,
             )
+            # 新回合先清掉上一回合挂着的 speech（若有）：§10，用户已经开口了。
+            await self._speech.start_reply()
             started = time.monotonic()
             first_ms: int | None = None
             sentences: list[str] = []
@@ -134,6 +158,10 @@ def build_agent_class() -> type:
                         if first_ms is None:
                             first_ms = int((time.monotonic() - started) * 1000)
                         sentences.append(output.text)
+                        # 先声明、后交给 TTS（§13 不变量 1）：say 返回后这句的 begin/extend 已发出去。
+                        turn_id = self._current_turn_id()
+                        if turn_id:
+                            await self._speech.say(output.text, turn_id=turn_id)
                         yield output.text
                 finished = True
             except TurnRefused:
@@ -178,8 +206,33 @@ def build_agent_class() -> type:
             没配采集（离线、没开质检）时直接走默认实现，行为完全不变。
             """
             if self._tts_sink is None:
-                return Agent.default.tts_node(self, text, model_settings)
-            return self._captured_tts(text, model_settings)
+                frames = Agent.default.tts_node(self, text, model_settings)
+            else:
+                frames = self._captured_tts(text, model_settings)
+            if self._speech is _NO_SPEECH:
+                return frames
+            return self._speech_scoped(frames)
+
+        async def _speech_scoped(self, frames: Any):
+            """TTS 全部出完 → ``speech.end``；中途被关闭（打断、出错）→ ``control.cancel``。
+
+            被关闭时先把内层生成器也关掉：采集的归档写在它的 finally 里，不关就要等 GC。
+            """
+            done = False
+            try:
+                async for frame in frames:
+                    yield frame
+                done = True
+            finally:
+                if done:
+                    await self._speech.finish()
+                else:
+                    close = getattr(frames, "aclose", None)
+                    try:
+                        if close is not None:
+                            await close()
+                    finally:
+                        self._spawn(self._speech.cancel())
 
         async def _captured_tts(self, text: Any, model_settings: Any):
             from companion.service.voice.tts_capture import TtsCapture
@@ -222,6 +275,16 @@ def build_agent_class() -> type:
 
         async def cancel_turn(self) -> None:
             """用户打断。由框架或上层调用；幂等。"""
+            await self._speech.cancel()
             await self._pipeline.cancel()
+
+        def _current_turn_id(self) -> str:
+            turn = self._pipeline.last_turn
+            return turn.turn_id if turn is not None and turn.turn_id else ""
+
+        def _spawn(self, coro: Any) -> None:
+            task = asyncio.ensure_future(coro)
+            self._background.add(task)
+            task.add_done_callback(self._background.discard)
 
     return CompanionAgent

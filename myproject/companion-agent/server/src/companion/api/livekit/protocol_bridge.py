@@ -22,7 +22,7 @@ import asyncio
 import json
 import logging
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from typing import Any
 
 from companion.agent.protocol import (
@@ -42,7 +42,7 @@ from companion.agent.protocol import (
 )
 from companion.agent.protocol.catalog import TOPIC_CTL, TOPIC_CUE
 from companion.agent.protocol.handshake import HelloAck, NegotiationError
-from companion.agent.protocol.speech_plan import SpeechPlan
+from companion.agent.protocol.speech_plan import PlannedSegment, SpeechPlan
 
 logger = logging.getLogger(__name__)
 
@@ -246,6 +246,22 @@ class ProtocolBridge:
     async def speech_begin(self, plan: SpeechPlan) -> bool:
         """``speech.begin``：先于任何引用它的 cue 发出（§13 不变量 1）。"""
         return await self.publish("speech.begin", plan.begin_args(), topic=TOPIC_CUE)
+
+    def can_batch(self) -> bool:
+        """能不能分批声明：``speech.timing`` 与 ``speech.extend`` 必须同时协商出（§9.3.1）。
+
+        只有 timing 没有 extend 时，之后的句子照常说，但不再声明——端侧看不到它们，
+        锚在上面的 cue 会按 NO_ANCHOR 丢掉，这是退化而不是错误。
+        """
+        return self.ack is not None and supports(self.ack, "speech.begin") and supports(self.ack, "speech.extend")
+
+    async def speech_extend(self, speech_id: str, segments: Sequence[PlannedSegment]) -> bool:
+        """``speech.extend``：追加后续段（§9.3.1）。必须先于引用这些段的 cue 发出。"""
+        args = {
+            "speech_id": speech_id,
+            "segments": [{"idx": s.idx, "chars": s.chars, "est_ms": s.est_ms} for s in segments],
+        }
+        return await self.publish("speech.extend", args, topic=TOPIC_CUE)
 
     async def speech_segment(
         self, speech_id: str, idx: int, dur_ms: int, *, start_boundary: bool = False

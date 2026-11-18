@@ -84,6 +84,7 @@ EVENTS: dict[str, EventSpec] = {
     "control.input": _spec(TOPIC_IN, Delivery.MUST, from_=_CLIENT),
     # ---- 表现面（cmp.cue）----
     "speech.begin": _spec(TOPIC_CUE, Delivery.MUST, from_=_SERVER),
+    "speech.extend": _spec(TOPIC_CUE, Delivery.MUST, from_=_SERVER),
     "speech.segment": _spec(TOPIC_CUE, Delivery.DEADLINE, from_=_SERVER),
     "speech.end": _spec(TOPIC_CUE, Delivery.MUST, from_=_SERVER),
     "presentation.state": _spec(TOPIC_CUE, Delivery.DEADLINE, from_=_SERVER),

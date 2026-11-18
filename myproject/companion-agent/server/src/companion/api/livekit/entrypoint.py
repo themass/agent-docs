@@ -21,6 +21,7 @@ from typing import Any
 
 from companion.api.livekit.bridge import require
 from companion.api.livekit.protocol_bridge import ProtocolBridge, attach, local_sender
+from companion.api.livekit.speech_publisher import SpeechPublisher
 
 logger = logging.getLogger(__name__)
 
@@ -343,6 +344,8 @@ class RoomEntrypoint:
             local_identity=self_identity,
         )
         attach(room, bridge)
+        # speech.* 的发送口：begin/extend/end/cancel 都经它出去，由 agent 在 TTS 前后调用。
+        speech = SpeechPublisher(bridge)
         # 握手等待放在后台：它只影响「现在能不能发 cmp.*」，不该拖住语音开场 3 秒。
         handshake = asyncio.create_task(bridge.wait_for_hello())
         # 在任务表里留个引用，避免被 GC 提前回收（asyncio 只持弱引用）。
@@ -363,6 +366,7 @@ class RoomEntrypoint:
             chat_session_id=identity.chat_session_id,
             recorder=parts.recorder,
             tts_sink=parts.tts_sink,
+            speech=speech,
         )
 
         # 语音栈必须显式按 voice 模式装配：不传 mode 时默认是 text，STT/TTS/VAD 都不会挂上，

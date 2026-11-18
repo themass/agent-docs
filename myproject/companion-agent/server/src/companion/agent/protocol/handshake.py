@@ -31,6 +31,8 @@ SERVER_CAPS: dict[str, int] = {
     "presentation.gesture": 1,
     "presentation.gaze": 1,
     "speech.timing": 1,
+    # 分批声明（§9.3.1）：必须与 speech.timing 同时协商出，才能发 speech.extend。
+    "speech.extend": 1,
     "perception.attention": 1,
 }
 
