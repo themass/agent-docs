@@ -101,6 +101,9 @@ class ProtocolBridge:
         #: ``control.input``（端侧触摸等即时输入）的消费者。None 表示还没有人接。
         #: 见 §15 迁移表：``companion.touch`` 文本流迁移到这里。
         self.on_input: Callable[[dict[str, Any]], None] | None = None
+        #: ``control.barge_in``（端侧检测到用户开口）的消费者。可以是同步或 async。
+        #: None 时计入 ``unhandled``——目录声明了、代码没接上，必须看得见（§14.3）。
+        self.on_barge: Callable[[dict[str, Any]], Any] | None = None
 
     # ------------------------------------------------------------------ 发送
 
@@ -216,6 +219,8 @@ class ProtocolBridge:
             self._on_health(envelope)
         elif envelope.t == "control.input":
             self._on_input(envelope)
+        elif envelope.t == "control.barge_in":
+            await self._on_barge(envelope)
         else:
             # 目录里有、代码里还没有消费者的 t。收侧已经把它计进 received 了，
             # 所以这里必须单独记一笔，否则「声明了但没实现」看起来跟「处理成功」一样。
@@ -223,6 +228,24 @@ class ProtocolBridge:
             self.unhandled[envelope.t] = self.unhandled.get(envelope.t, 0) + 1
             if first:
                 logger.info("unhandled event type %s on %s (no handler)", envelope.t, topic)
+
+    async def _on_barge(self, envelope: Any) -> None:
+        """``control.barge_in``（§10.1）：端侧检测到用户开口。
+
+        没有消费者时只记 ``unhandled``。处理器可以是同步或 async（``BargeInRelay``
+        是 async，因为它要 ``await speech.cancel()``）。
+        """
+        handler = self.on_barge
+        if handler is None:
+            self.unhandled[envelope.t] = self.unhandled.get(envelope.t, 0) + 1
+            return
+        args = envelope.args if isinstance(envelope.args, dict) else {}
+        try:
+            result = handler(args)
+            if hasattr(result, "__await__"):
+                await result  # type: ignore[misc]
+        except Exception as exc:  # noqa: BLE001 —— §14.1：处理器写错不拖停消息链
+            logger.warning("control.barge_in handler failed: %s", exc)
 
     def _on_input(self, envelope: Any) -> None:
         """``control.input``（§15 迁移表）：端侧的即时输入，目前是触摸。

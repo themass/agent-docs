@@ -21,6 +21,7 @@ from typing import Any
 
 from companion.api.livekit.bridge import require
 from companion.api.livekit.protocol_bridge import ProtocolBridge, attach, local_sender
+from companion.api.livekit.barge_in import BargeInRelay
 from companion.api.livekit.touch_input import TouchInputRelay
 from companion.api.livekit.speech_publisher import SpeechPublisher
 
@@ -377,6 +378,8 @@ class RoomEntrypoint:
         # 触摸 → 用户句 → generate_reply。必须在 start 之后挂：session 还没起来时
         # 发 generate_reply 会炸；挂晚一点没事，最多丢掉开场几秒内的点按。
         bridge.on_input = TouchInputRelay(session)
+        # 用户开口打断：interrupt 截断 TTS，speech.cancel 立刻发 control.cancel（§10）。
+        bridge.on_barge = BargeInRelay(session, speech)
         logger.info(
             "companion joined room user=%s character=%s",
             identity.user_id,
