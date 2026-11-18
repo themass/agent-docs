@@ -178,6 +178,17 @@ def legacy_ack(*, sid: str) -> HelloAck:
     return HelloAck(sid=sid, caps={}, limits=dict(SERVER_LIMITS), compat="v1")
 
 
+#: 某些 ``t`` 不以自己的名字协商，而是挂在一个能力名下。``caps`` 的键是能力名
+#: （``speech.timing``），不是消息类型；按消息类型直接查会让 ``speech.*`` 永远发不出去。
+CAP_FOR_EVENT: dict[str, str] = {
+    "speech.begin": "speech.timing",
+    "speech.segment": "speech.timing",
+    "speech.end": "speech.timing",
+    # 取消只对带时间线的 speech 有意义；没谈成 speech.timing 的端侧没有可取消的东西。
+    "control.cancel": "speech.timing",
+}
+
+
 def supports(ack: HelloAck, event_type: str) -> bool:
     """服务端能不能往这条连接发某个 ``t``。
 
@@ -186,4 +197,5 @@ def supports(ack: HelloAck, event_type: str) -> bool:
     """
     if ack.compat != "v2":
         return False
-    return ack.caps.get(event_type, 0) > 0
+    cap = CAP_FOR_EVENT.get(event_type, event_type)
+    return ack.caps.get(cap, 0) > 0

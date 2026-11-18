@@ -42,6 +42,7 @@ from companion.agent.protocol import (
 )
 from companion.agent.protocol.catalog import TOPIC_CTL, TOPIC_CUE
 from companion.agent.protocol.handshake import HelloAck, NegotiationError
+from companion.agent.protocol.speech_plan import SpeechPlan
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +91,8 @@ class ProtocolBridge:
         self._send = send
         self._seq: dict[str, int] = {}
         self._hello_seen = asyncio.Event()
+        #: 因未协商而没发出去的外发消息，按 ``t`` 计数（§14.3）。
+        self.unsent: dict[str, int] = {}
 
     # ------------------------------------------------------------------ 发送
 
@@ -104,6 +107,8 @@ class ProtocolBridge:
         谁的错。
         """
         if not force and not self._may_send(event_type):
+            # §14.3：握手前或能力未协商时的静默丢弃要可见，否则「表情没出来」无从查起。
+            self.unsent[event_type] = self.unsent.get(event_type, 0) + 1
             return False
         seq = self._seq.get(topic, 0)
         envelope = new_envelope(
@@ -235,6 +240,36 @@ class ProtocolBridge:
         if intensity is not None:
             args["intensity"] = intensity
         return await self.publish("presentation.emotion", args, topic=TOPIC_CUE)
+
+    # ------------------------------------------------------------------ 语音时间线
+
+    async def speech_begin(self, plan: SpeechPlan) -> bool:
+        """``speech.begin``：先于任何引用它的 cue 发出（§13 不变量 1）。"""
+        return await self.publish("speech.begin", plan.begin_args(), topic=TOPIC_CUE)
+
+    async def speech_segment(
+        self, speech_id: str, idx: int, dur_ms: int, *, start_boundary: bool = False
+    ) -> bool:
+        """``speech.segment``：第 ``idx`` 段的实测时长（可选地附段边界观测）。
+
+        DEADLINE 类：晚了就没用，所以调用方不要为它排队重发。
+        """
+        args = {
+            "speech_id": speech_id,
+            "idx": idx,
+            "dur_ms": dur_ms,
+            "start_boundary": start_boundary,
+        }
+        return await self.publish("speech.segment", args, topic=TOPIC_CUE)
+
+    async def speech_end(self, speech_id: str) -> bool:
+        return await self.publish("speech.end", {"speech_id": speech_id}, topic=TOPIC_CUE)
+
+    async def cancel_speech(self, speech_id: str, reason: str = "user_barge_in") -> bool:
+        """``control.cancel``：该 speech 作废（§10.2），端侧墓碑化（§10.3）。"""
+        return await self.publish(
+            "control.cancel", {"speech_id": speech_id, "reason": reason}, topic=TOPIC_CTL
+        )
 
     async def _on_hello(self, envelope: Any) -> None:
         try:
