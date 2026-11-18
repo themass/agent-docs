@@ -53,7 +53,14 @@ class SpeechPublisher:
             logger.warning("speech say failed", exc_info=True)
 
     async def finish(self) -> None:
-        """TTS 全部出完：``speech.end``。没有打开的 speech 时是空操作。"""
+        """本轮 TTS **生成侧**排空：发 ``speech.end``（§9.3）。
+
+        这里的“出完”是服务端把本轮音频帧全部交给传输，**不是**扬声器播完——
+        服务端没有播放时钟，也测不到端侧播到哪。因此 ``speech.end`` 常会早于
+        端侧 ``t0``；端侧收到后标 DONE，但不因此取消尚未到点的 cue。
+
+        没有打开的 speech 时是空操作。
+        """
         speech_id = self.open_speech_id
         self._reset()
         if speech_id is None:

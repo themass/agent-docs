@@ -69,6 +69,11 @@ async def test_every_sentence_is_declared_in_order_under_one_speech():
 
 
 async def test_finish_sends_end_once_and_resets():
+    """§9.3：``finish`` = 本轮 TTS **生成侧**排空 → ``speech.end``。
+
+    这里不模拟扬声器：服务端本来就没有播放时钟。调用 ``finish`` 本身就表示
+    生成侧已经把帧交出去了；幂等是为了防止 TTS finally 被触发两次。
+    """
     fake = _FakeBridge()
     pub = SpeechPublisher(fake)  # type: ignore[arg-type]
     await pub.say("你好", turn_id="tn_1")
@@ -79,6 +84,15 @@ async def test_finish_sends_end_once_and_resets():
 
     assert fake.calls[-1] == ("end", speech_id)
     assert [k for k, _ in fake.calls].count("end") == 1
+    assert pub.open_speech_id is None
+
+
+async def test_finish_without_open_speech_is_a_noop():
+    """没声明过任何 seg 就 finish：不发 speech.end，避免端侧收到孤儿 end。"""
+    fake = _FakeBridge()
+    pub = SpeechPublisher(fake)  # type: ignore[arg-type]
+    await pub.finish()
+    assert fake.calls == []
     assert pub.open_speech_id is None
 
 

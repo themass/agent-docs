@@ -214,9 +214,11 @@ def build_agent_class() -> type:
             return self._speech_scoped(frames)
 
         async def _speech_scoped(self, frames: Any):
-            """TTS 全部出完 → ``speech.end``；中途被关闭（打断、出错）→ ``control.cancel``。
+            """TTS 生成侧排空 → ``speech.end``；中途被关闭（打断、出错）→ ``control.cancel``。
 
-            被关闭时先把内层生成器也关掉：采集的归档写在它的 finally 里，不关就要等 GC。
+            ``finish`` 挂在帧迭代正常结束后：表示本轮音频帧已全部 yield 给框架，
+            **不是**端侧扬声器播完（§9.3）。被关闭时先把内层生成器也关掉：采集的
+            归档写在它的 finally 里，不关就要等 GC。
             """
             done = False
             try:

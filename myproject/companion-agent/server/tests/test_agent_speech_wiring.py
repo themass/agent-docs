@@ -92,6 +92,11 @@ async def test_empty_user_message_starts_no_reply(monkeypatch):
 
 
 async def test_tts_that_runs_to_the_end_finishes_the_speech(monkeypatch):
+    """帧迭代正常结束 → finish → speech.end（§9.3 生成侧排空）。
+
+    这是服务端能承诺的唯一「说完」：音频帧已全部 yield。端侧扬声器是否播完
+    不在这里、也不该被假装成在这里。
+    """
     monkeypatch.setattr(Agent.default, "tts_node", _fake_default(_frames(2)), raising=True)
     speech = _Speech()
     agent = _agent(Pipeline(), speech)
