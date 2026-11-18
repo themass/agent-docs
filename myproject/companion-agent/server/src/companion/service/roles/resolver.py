@@ -44,6 +44,25 @@ class RoleProfileResolver:
         else:
             self._skill_ids_of = None
 
+    async def exists(self, *, role_id: str, owner_id: int) -> bool:
+        """这个角色能不能被解析——判据与 resolve 逐条对齐，不另起一套。
+
+        建会话时用：未知 role_id 当场拒绝，而不是存下去后每回合 RoleNotFound。
+        （线上曾有旧客户端把占位符 __default__ 当角色 id 发进来，会话建成功了，
+        之后每条消息的回合都整轮失败。）
+        """
+        if role_id.startswith(USER_ROLE_PREFIX):
+            return await self._user_roles.get_owned(owner_id=owner_id, public_id=role_id) is not None
+        if self._catalog is not None and self._catalog.get(role_id) is not None:
+            return True
+        if self._characters is None:
+            return False
+        try:
+            self._characters.load(role_id)
+            return True
+        except FileNotFoundError:
+            return False
+
     async def resolve(self, *, role_id: str, owner_id: int, locale: str = "zh-CN") -> RoleProfile:
         if role_id.startswith(USER_ROLE_PREFIX):
             record = await self._user_roles.get_owned(owner_id=owner_id, public_id=role_id)

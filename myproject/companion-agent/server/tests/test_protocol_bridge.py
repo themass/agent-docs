@@ -311,3 +311,88 @@ async def test_attach_wires_the_room_event():
     attach(_Room(), bridge)
     assert "data_received" in handlers
     assert protocol_bridge.attach is not None
+
+
+# ---------------------------------------------------------------- 表现指令（P0.5 冒烟闭环）
+
+async def test_cue_emotion_uses_name_not_emotion():
+    """§11.1 的 args 键是 ``name``。写成 ``emotion`` 客户端会当成未知情绪映射成 neutral。"""
+    sink = _Sink()
+    bridge = _bridge(sink)
+    await _feed(bridge, _packet(_hello_bytes(), identity=CLIENT))
+
+    assert await bridge.cue_emotion("joy", 0.7) is True
+    topic, payload = sink.sent[-1]
+    envelope, status = decode(payload)
+    assert envelope is not None, status
+    assert topic == TOPIC_CUE
+    assert envelope.t == "presentation.emotion"
+    assert envelope.args == {"name": "joy", "intensity": 0.7}
+
+
+async def test_cue_emotion_without_intensity_omits_the_key():
+    sink = _Sink()
+    bridge = _bridge(sink)
+    await _feed(bridge, _packet(_hello_bytes(), identity=CLIENT))
+
+    await bridge.cue_emotion("calm")
+    assert sink.last_args() == {"name": "calm"}
+
+
+async def test_cue_emotion_is_not_sent_before_negotiation():
+    """v1 与未握手连接只走 companion.avatar；多发一条只会让老客户端日志里多一条解不开的包。"""
+    sink = _Sink()
+    bridge = _bridge(sink)
+
+    assert await bridge.cue_emotion("joy") is False
+    assert sink.sent == []
+
+
+async def test_cue_emotion_is_not_sent_when_capability_missing():
+    sink = _Sink()
+    bridge = _bridge(sink)
+    await _feed(bridge, _packet(_hello_bytes(caps={"speech.timing": 1}), identity=CLIENT))
+
+    assert await bridge.cue_emotion("joy") is False
+    # 只有握手回来的那条 ack，没有 cue。
+    assert sink.types() == ["control.hello_ack"]
+
+
+# ---------------------------------------------------------------- telemetry.health
+
+async def test_health_is_recorded_without_raising():
+    sink = _Sink()
+    bridge = _bridge(sink)
+    await _feed(bridge, _packet(_hello_bytes(), identity=CLIENT))
+    before_bad = bridge.receiver.dropped_bad
+
+    health = encode(
+        new_envelope(
+            "telemetry.health",
+            args={"applied": 12, "dropped_bad": 1, "gap_count": 2, "degrade_level": "L1"},
+            seq=0,
+            ep="ep-a",
+            ident="t-1",
+        )
+    )
+    await _feed(bridge, _packet(health, identity=CLIENT, topic=TOPIC_TEL))
+
+    assert bridge.telemetry is not None
+    assert bridge.telemetry["degrade_level"] == "L1"
+    assert bridge.telemetry["applied"] == 12
+    # 不是 bad：这是它本来就该发的东西。
+    assert bridge.receiver.dropped_bad == before_bad
+
+
+async def test_health_with_odd_args_does_not_break_the_next_message():
+    """§14.1：一个字段缺失的健康包不得影响后续消息。"""
+    sink = _Sink()
+    bridge = _bridge(sink)
+    await _feed(bridge, _packet(_hello_bytes(), identity=CLIENT))
+
+    health = encode(new_envelope("telemetry.health", args={}, seq=0, ep="ep-a", ident="t-1"))
+    await _feed(bridge, _packet(health, identity=CLIENT, topic=TOPIC_TEL))
+    assert bridge.telemetry == {}
+
+    # 之后的一条 cue 照常发得出去。
+    assert await bridge.cue_emotion("joy") is True

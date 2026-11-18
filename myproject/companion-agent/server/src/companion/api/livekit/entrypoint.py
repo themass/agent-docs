@@ -40,6 +40,9 @@ TOPIC_ACTION = "companion.action"
 #: 3 秒里被 GC 回收，超时回落永远不会发生。
 _HANDSHAKES: set[asyncio.Task[Any]] = set()
 
+#: 同上，表现指令的发包任务。
+_CUES: set[asyncio.Task[Any]] = set()
+
 
 @dataclass
 class RoomIdentity:
@@ -110,6 +113,57 @@ class AvatarPublisher:
             await self._local.publish_data(data, topic=TOPIC_AVATAR)
         except Exception as exc:  # noqa: BLE001
             logger.debug("avatar publish failed: %s", exc)
+
+
+class ProtocolCueSink:
+    """把管线产出的形象事件同时送到 v1 与 v2 两条路上。
+
+    管线只认一种输入（``event_sink(event_json: str)``），而它现在有两个消费口径：
+    老的 ``companion.avatar`` 与协议 v2 的 ``cmp.cue`` / ``presentation.emotion``
+    （§11.1）。两条都发不是重复劳动——握手是异步的，3 秒回落窗口里可能已经开始
+    一个回合，服务端没法提前知道对面是哪一版。
+
+    ``cmp.cue`` 那一路由 ``ProtocolBridge.publish`` 自己按协商结果 gate 掉，v1
+    连接不会多收到任何包。
+
+    **事件解析失败只丢弃那一条**：表现层不该因为一条坏 JSON 把整轮回复拽停（§14.1）。
+    """
+
+    def __init__(self, legacy: Any, bridge: ProtocolBridge) -> None:
+        self._legacy = legacy
+        self._bridge = bridge
+
+    def __call__(self, event_json: str) -> None:
+        # 先给老路：它是当前的线上路径，任何新逻辑都不该拦住它。
+        try:
+            self._legacy(event_json)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("legacy avatar sink failed: %s", exc)
+
+        try:
+            event = json.loads(event_json)
+        except (TypeError, ValueError):
+            return
+        if not isinstance(event, dict) or event.get("type") != "emotion":
+            return
+        name = event.get("emotion")
+        if not isinstance(name, str) or not name:
+            return
+        intensity = event.get("intensity")
+        if not isinstance(intensity, (int, float)):
+            intensity = None
+        self._dispatch_cue(name, float(intensity) if intensity is not None else None)
+
+    def _dispatch_cue(self, name: str, intensity: float | None) -> None:
+        try:
+            task = asyncio.get_running_loop().create_task(
+                self._bridge.cue_emotion(name, intensity)
+            )
+        except RuntimeError:
+            # 同步测试里没有事件循环：v1 那条已经发出去了，这里什么都不做。
+            return
+        _CUES.add(task)
+        task.add_done_callback(_CUES.discard)
 
 
 async def publish_proactive(room: Any, text: str, kind: str) -> None:
@@ -296,7 +350,9 @@ class RoomEntrypoint:
         handshake.add_done_callback(_HANDSHAKES.discard)
 
         parts: VoiceParts = self._wire_voice(platform)
-        pipeline = TurnPipeline(parts.brain, event_sink=publisher)
+        # 形象事件两条路一起走：v1 的 companion.avatar 与 v2 的 cmp.cue。
+        # 哪一条真的发出去由 bridge 按协商结果决定，管线不用知道对面是哪一版。
+        pipeline = TurnPipeline(parts.brain, event_sink=ProtocolCueSink(publisher, bridge))
         agent_class = build_agent_class()
 
         # 提示词由回合引擎按会话组装（角色卡、技能、记忆、画像），这里不再自己拼一份。

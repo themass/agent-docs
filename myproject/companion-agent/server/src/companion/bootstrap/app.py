@@ -170,7 +170,10 @@ def create_app(
 
     current_user = build_current_user(app.state.companion.verifier)
     app.include_router(build_router(service, current_user,
-                                    chat_sessions=platform.sessions if platform is not None else None))
+                                    chat_sessions=platform.sessions if platform is not None else None,
+                                    # 与 /v1/sessions 同一个角色校验判据（build_platform 挂在 chat 上）：
+                                    # 语音建会话会自动创建聊天会话，未知角色同样要先拒。
+                                    role_check=platform.chat.role_check if platform is not None else None))
 
     if chat is not None:
         app.include_router(build_chat_router(chat, current_user))

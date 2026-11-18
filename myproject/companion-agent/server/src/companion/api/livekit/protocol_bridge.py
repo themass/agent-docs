@@ -40,7 +40,7 @@ from companion.agent.protocol import (
     parse_hello,
     supports,
 )
-from companion.agent.protocol.catalog import TOPIC_CTL
+from companion.agent.protocol.catalog import TOPIC_CTL, TOPIC_CUE
 from companion.agent.protocol.handshake import HelloAck, NegotiationError
 
 logger = logging.getLogger(__name__)
@@ -79,6 +79,9 @@ class ProtocolBridge:
         self.receiver = Receiver(identity)
         self.ack: HelloAck | None = None
         self.legacy = False
+        # 客户端最近一次自报的 §14.3 计数快照。只留最后一份：这是诊断信息，
+        # 不是需要累积的账本——累积会把内存变成一台没人读的日志。
+        self.telemetry: dict[str, Any] | None = None
         # 每次连接换一个新 epoch：客户端据此判断「旧流的 seq 和我不可比」（§5.1）。
         self.epoch = uuid.uuid4().hex[:16]
         self.sid = sid or uuid.uuid4().hex[:12]
@@ -196,6 +199,42 @@ class ProtocolBridge:
     async def _dispatch(self, envelope: Any, topic: str) -> None:
         if envelope.t == "control.hello":
             await self._on_hello(envelope)
+        elif envelope.t == "telemetry.health":
+            self._on_health(envelope)
+
+    def _on_health(self, envelope: Any) -> None:
+        """收下客户端自报的 §14.3 计数与降级档位。
+
+        只留最后一份并打日志：服务端拿它区分「全网问题还是单个客户端问题」
+        （文档 §8 ``telemetry.health`` 那一行的用途）。不抛——一个字段缺失的
+        健康包不值得把整条消息链记成 bad。
+        """
+        args = envelope.args if isinstance(envelope.args, dict) else {}
+        self.telemetry = args
+        logger.info(
+            "client health sid=%s degrade=%s applied=%s dropped_bad=%s gaps=%s",
+            self.sid,
+            args.get("degrade_level"),
+            args.get("applied"),
+            args.get("dropped_bad"),
+            args.get("gap_count"),
+        )
+
+    # ------------------------------------------------------------------ 表现指令
+
+    async def cue_emotion(self, name: str, intensity: float | None = None) -> bool:
+        """给客户端发一条 ``presentation.emotion``（§11.1）。
+
+        args 的键是 ``name`` 而不是 ``emotion``——这是 v2 与 v1 旧事件唯一不兼容的
+        地方，写错了客户端会静默当成未知情绪映射成 neutral。
+
+        v1 连接由 ``_may_send`` 挡掉：它们本来就在收 ``companion.avatar`` 上的同一个
+        情绪，多发一条只会让老客户端的日志里多一条解不开的包。
+        """
+        args: dict[str, Any] = {"name": name}
+        if intensity is not None:
+            args["intensity"] = intensity
+        return await self.publish("presentation.emotion", args, topic=TOPIC_CUE)
 
     async def _on_hello(self, envelope: Any) -> None:
         try:

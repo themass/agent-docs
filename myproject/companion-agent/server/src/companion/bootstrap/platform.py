@@ -394,6 +394,9 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
         uploads=uploads,
     )
     api.history = history
+    # 建会话时校验角色存在性：与回合里同一判据（同一个 resolver），不会出现
+    # 「建会话放行、发消息必挂」的错位（线上 __default__ 占位符事故的根治）。
+    api.role_check = resolver.exists
 
     # 直传（ADR-011 同款）：sign 签发 presigned PUT、发送时绑定校验。挂在不被 dataclass
     # 约束的 ChatApi 实例上，随 uploads 一起降级——对象存储自检失败时直传同样不可用。

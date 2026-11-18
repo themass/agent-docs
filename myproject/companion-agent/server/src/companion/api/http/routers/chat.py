@@ -39,6 +39,11 @@ class ChatApi:
     # 直传（ADR-011）：发送带直传 upload_id 的附件时先绑定校验。没有直传配置时为 None，
     # 所有 upload_id 一律按「不是签发给你的」拒绝不了中转通道——见 send_message 的注释。
     direct: Any = None
+    # 建会话时的角色存在性校验（异步，role_id/owner_id 两个 kwarg，返回 bool）。
+    # 判据与回合里的 RoleProfileResolver.exists 同源：未知角色在 POST /sessions 就 400，
+    # 不存进库——否则每条消息的回合都会 RoleNotFound（线上 __default__ 占位符事故）。
+    # 没有装配校验器（离线/测试装配）时跳过：宁缺勿错杀。
+    role_check: Any = None
 
 
 def _owner_id(user_id: str) -> int:
@@ -132,7 +137,11 @@ def build_router(api: ChatApi, current_user):
 
     @router.post("/sessions", status_code=201)
     async def create_session(body: CreateSession, user_id: str = Depends(current_user)) -> dict[str, Any]:
-        record = await api.sessions.create(owner_id=_owner_id(user_id), role_id=body.role_id,
+        owner = _owner_id(user_id)
+        # 角色不存在就当场拒绝：会话一旦建了，每条消息的回合都会失败（见 ChatApi.role_check）
+        if api.role_check is not None and not await api.role_check(role_id=body.role_id, owner_id=owner):
+            raise HTTPException(status_code=400, detail={"code": "unknown_role", "role_id": body.role_id})
+        record = await api.sessions.create(owner_id=owner, role_id=body.role_id,
                                            name=body.name, locale=body.locale)
         return _session_json(record)
 
