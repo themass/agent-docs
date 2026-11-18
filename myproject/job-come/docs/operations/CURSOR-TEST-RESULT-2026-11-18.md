@@ -116,12 +116,19 @@
 
 - **现象**：源码有 `priority={0}`，渲染 `<img>` 无 `fetchpriority`。
 - **复现**：`curl -s https://jc.sspacee.com/resume-template | grep -i fetchpriority`（仅命中 script preload 的 low，无 img high）。
+- **复测关闭（2026-11-18 下午）**：生产 HTML 现有 `fetchPriority="high"` ×2（两张模板
+  `<img>`，其余图 `loading="lazy"`）。D-step 部署的前端重建已带上修复；指南页无
+  `<img>`，该项对其本就不适用。
 - **影响**：计划验收项未满足；LCP 优先级声明未落到 DOM。
 - **建议**：确认 Next 15 Image 在该布局下是否应产出属性；必要时显式 `fetchPriority="high"`。
 
-### P2-1 生产 `/guides/resume-quantification` TBT=215ms > 100ms
+### P2-1 生产 `/guides/resume-quantification` TBT=215ms > 100ms —— 已复测关闭（2026-11-18 下午）
 
 - Perf 已到 95，相对基线 72/1600 明显好转；仍差计划 TBT 门槛。
+- **复测**：`lighthouse --form-factor=mobile` 连跑 3 次：TBT = **4 / 57 / 48ms**，
+  Perf 0.96–0.99，全部达标（门槛 100ms）。原始 JSON 见 `~/lh/lh-prod*.json`。
+- 判定：原 215ms 不可复现。测量当时本机正跑部署/测试等重负载（生产机内存同时
+  在 67%），headless Chrome 与之争抢 CPU 足以解释该偏差。P2-1 关闭，无需产品改动。
 
 ---
 
@@ -186,7 +193,7 @@ presigned URL 已从结果 JSON 中截断；报告正文不收录完整签名。
 | P1-1 超限附件 200+SSE | 校验提到路由体（SSE 头发出前 4xx JSON）；服务层原校验保留给其他调用方 | 生产实弹：9MB jpeg → **400 `attachment_too_large`**；合法 jpeg 仍 200+完整 done；拒绝请求历史零落库。单测 10 条双侧（含 8MB/24MB 的 `>` 边界） |
 | P1-2 SVG 伪装 jpeg | `decode_data_url` 加 magic-bytes 嗅探（validate/offload 共用收口；未识别 mime 放行避免误杀冷门格式） | 生产实弹：svg-as-jpeg → **400 `attachment_rejected`** |
 | P1-3 fetchpriority | 根因：next 15.5.25 `priority` 只发 preload link，**不给 img 写 fetchpriority**（核对已装 get-img-props.js 只透传不解默认）→ 显式 `fetchPriority={index===0 ? "high" : undefined}` | 生产 SSR：`<img alt="中文单页…" fetchPriority="high">` 实测存在 |
-| P2-1 quant TBT 215ms | **未修**，保留待排期 | — |
+| P2-1 quant TBT 215ms | **复测关闭**（3 连跑 4/57/48ms） | 测量期本机负载干扰 |
 
 部署插曲两则（对以后跑生产的人有效）：
 1. 生产 clone 曾积累 **85 个 root 属主文件**（早前 root 跑 git 所致），web 用户 checkout 前端文件时 unlink 被拒、半途中断；已 `chown -R web:web` 修复。之前部署都 `--skip-frontend`，恰好绕开。
