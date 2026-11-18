@@ -162,3 +162,9 @@ curl -s -o /dev/null -w 'guides=%{http_code}\n' https://jc.sspacee.com/guides/re
 - B-2 生产内存余量小（available ~144MB、swap 49%），worker 死亡无 traceback，OOM 嫌疑最大。Phase B6 在**生产**跑 3 连发时记录 `/health` 与响应时长，任何一次流被掐（`peer closed connection`）都单独报 P1 并附时间点。
 - B-3 `profile_parse` 毒行 `prof_1jwhnmndkd2u9ivd` 每 30s `MissingGreenlet`（`profile_service.py:258` async 惰性加载），永久重试。测试期 grep `MissingGreenlet` 出现即记录频率，这是已知缺陷非你引入。
 - B-4 TOS 策略拒绝 `jc/prod/agent/` 前缀 ListObjectsV2（`InvalidPathAccess`），`jc/prod/uploads/` 可以列。孤儿盘点不能靠列 agent 前缀，报告里说明用的什么替代办法。
+
+**B-2 / B-3 已于 `c720cbf` 修复并上线（2026-11-18 18:39 UTC 重启生效），以下是关闭证据；测试期若再见到这两类现象按回归处理：**
+- B-3 关闭证据：重启（worker 399198, 18:39:29）后毒行被新进程认领，一次 `worker_claimed → load_file → parse_profile_source finished ok=False`（约 3s）后落终态 `parse_status=failed`，100s 内 3 次采样后不再被重认领；重启后日志无新增 `MissingGreenlet`。注意行内 `parse_error` 是业务失败文案而非 INFRA 文案——因为新代码路径下真实根因已浮出：该 source 的 storage_key 是 `jc/dev/...` 前缀（生产写入用 dev 键，历史遗留），TOS 对 `jc/prod` 的凭证 HEAD `jc/dev` 键返回 403，`parse_stored_source: could not read object` 是正确终态而非崩溃。此 key 前缀异常值得单独排查（谁在生产用 development env 写过上传）。
+- B-2 关闭证据：launch 行 `--workers 1` 已生效；18:45 后机器内存从 85% 回落到 59%。
+- 新 build 生产图片旅程复跑 8/8 PASS（register→SSE 29 events→ledger 键→PUT 可取字节一致→re-sign 轮换→跨用户 404）。
+- B-1 修复方案已成文待评审：[`B1-WORKER-DEATH-MESSAGE-LOSS-2026-11-18.md`](B1-WORKER-DEATH-MESSAGE-LOSS-2026-11-18.md)。
