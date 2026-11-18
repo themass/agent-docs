@@ -200,5 +200,5 @@ class SessionService:
         if provider != PROVIDER_LIVEKIT:
             # 值合法但服务端实现尚未接入（P1）：此时下发 grant 会让客户端拿到
             # 它多半也解不开的凭据，不如在这里就失败。
-            raise SessionError(f"语音线路 {provider} 的服务端实现尚未接入，请勿配置 companion_voice_provider={provider}")
+            raise SessionError(f"语音线路 {provider} 的服务端实现尚未接入，请勿配置 COMPANION_RTC_PROVIDER={provider}")
         return provider

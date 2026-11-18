@@ -31,11 +31,14 @@ class Settings(BaseSettings):
     livekit_api_key: str = ""
     livekit_api_secret: str = ""
 
-    # 语音线路（RTC provider）。建会话时定、随 grant 下发，客户端只照着分发
+    # RTC 线路（provider）。建会话时定、随 grant 下发，客户端只照着分发
     # （companion-agent/docs 或 Android docs/companion-rtc-provider-switching.md §2）。
-    # 目前唯一可用取值是 livekit；容灾线路 volcengine 的服务端实现尚未接入（P1），
+    # 环境变量是 COMPANION_RTC_PROVIDER——**别复用 COMPANION_VOICE_PROVIDER**，
+    # 那个早就存在且含义不同：ASR/TTS 语音栈的供应商（生产上=volcengine），
+    # 撞名会让 .env 里的 volcengine 把 RTC 会话创建整个打死。
+    # 目前唯一可用取值是 livekit；容灾线路 volcengine 的 RTC 实现尚未接入（P1），
     # 配置成它会在建会话时报错而不是静默降级——没有实现可降级，配错必须显式暴露。
-    companion_voice_provider: str = "livekit"
+    companion_rtc_provider: str = "livekit"
 
     companion_token_ttl_sec: int = 600
 
