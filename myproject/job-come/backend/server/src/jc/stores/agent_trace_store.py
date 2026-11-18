@@ -84,6 +84,7 @@ class AgentTraceStore:
         llm_call_id: str | None = None,
         ui_event: str | None = None,
         content: str | None = None,
+        client_message_id: str | None = None,
     ) -> AgentTrace:
         if seq is None:
             seq = await self.next_seq(session_id)
@@ -102,6 +103,7 @@ class AgentTraceStore:
             role=role,
             content=content,
             payload=payload,
+            client_message_id=client_message_id,
         )
         self._db.add(row)
         await self._db.flush()
@@ -155,6 +157,56 @@ class AgentTraceStore:
             rows.append(row)
         await self._db.flush()
         return rows
+
+    async def find_user_message(
+        self, session_id: str, client_message_id: str
+    ) -> AgentTrace | None:
+        """The user row already written under this client id, if any.
+
+        The idempotency lookup for (session_id, client_message_id) (R2 G2).
+        The partial unique index makes this a single-index lookup and — the
+        part no service-level check can do — makes two simultaneous resends
+        of the same id one insert and one IntegrityError rather than two rows.
+        """
+        stmt = (
+            select(AgentTrace)
+            .where(
+                AgentTrace.session_id == session_id,
+                AgentTrace.event_type == "user_message",
+                AgentTrace.client_message_id == client_message_id,
+            )
+            .order_by(AgentTrace.seq.asc())
+            .limit(1)
+        )
+        return (await self._db.execute(stmt)).scalar_one_or_none()
+
+    async def has_assistant_reply_after(self, session_id: str, seq: int) -> bool:
+        """Whether a user row at `seq` already reached a committed answer.
+
+        Decides what a resend of the same `client_message_id` IS (R2 G2):
+
+        * False — the previous attempt died before `assistant_message` was
+          committed (it is batched with the turn's end, so any abort, timeout
+          or worker death leaves it absent). This is the retry-button case,
+          and the turn must re-run: TECH-API: 模型仍会再跑一轮，因为第一次
+          可能根本没跑完.
+        * True — the first attempt completed. Another run would cost the
+          model twice and print the answer twice; that resend is refused
+          with a 409 instead.
+
+        An `error` row after the user row does NOT count: a turn that ended
+        in a visible error is exactly the one the user is allowed to retry.
+        """
+        stmt = (
+            select(AgentTrace.id)
+            .where(
+                AgentTrace.session_id == session_id,
+                AgentTrace.seq > seq,
+                AgentTrace.event_type == "assistant_message",
+            )
+            .limit(1)
+        )
+        return (await self._db.execute(stmt)).scalar_one_or_none() is not None
 
     async def list_for_session(self, session_id: str, *, limit: int = 5000) -> list[AgentTrace]:
         stmt = (

@@ -28,7 +28,7 @@ which is why a plain `created_at` index is enough for the sweep.
 
 from __future__ import annotations
 
-from sqlalchemy import ForeignKey, Index, Integer, String
+from sqlalchemy import ForeignKey, Index, Integer, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from jc.db.base import Base
@@ -65,6 +65,15 @@ class AgentTrace(Base, TimestampMixin):
     #: The `jc_llm_call` row this event belongs to, when the event came from one
     #: model call. Set for assistant/reasoning/tool rows of model turns.
     llm_call_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    #: On `user_message` rows only: the id the client gave the message
+    #: (`AgentMessageRequest.client_message_id`). It answers two questions no
+    #: other column can: the UI re-attaches its optimistic bubble to this row
+    #: after a reload (R2 G1), and a resend of the same id is recognised as the
+    #: same message instead of silently appending a second transcript row
+    #: (R2 G2). NULL on every other row kind and on user turns sent without an
+    #: id — those deliberately do not dedup, so the partial index below never
+    #: constrains them.
+    client_message_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     # --- what kind of event this row is (always set) ---
     # system_prompt | user_message | assistant_message | reasoning | tool_call |
@@ -88,6 +97,21 @@ class AgentTrace(Base, TimestampMixin):
 
     __table_args__ = (
         Index("ix_jc_agent_trace_session_seq", "session_id", "seq", unique=True),
+        # The idempotency key (R2 G2), partial so it costs nothing to the
+        # overwhelming majority of rows that have no client id. Postgres and
+        # SQLite both treat NULLs as distinct and both support the WHERE
+        # clause; the storage engine cannot be the only thing enforcing this,
+        # but it is the only thing that can close the race between two
+        # simultaneous resends, so the writer's read (`find_user_message`)
+        # and this index stand together or the dedup is theater.
+        Index(
+            "uq_jc_agent_trace_session_client_id",
+            "session_id",
+            "client_message_id",
+            unique=True,
+            postgresql_where=text("client_message_id IS NOT NULL"),
+            sqlite_where=text("client_message_id IS NOT NULL"),
+        ),
         Index("ix_jc_agent_trace_user_created", "user_id", "created_at"),
         Index("ix_jc_agent_trace_trace_id", "trace_id"),
         # The chat list reads one session's UI rows in order; the retention sweep

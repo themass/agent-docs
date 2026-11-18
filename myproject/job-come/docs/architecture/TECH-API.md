@@ -216,7 +216,7 @@
 - 候选人的回答由服务在模型运行前写入：写到当前题（最后一个已登记、未跳过、未换掉的题）；没有当前题时（开场问候、自我介绍、跳过或换题之后）不记录。同一题的后续消息追加到同一条回答。面试官不再持有 `jc_answer_save_attempt`。换题后当前题为空，直到登记下一题（会话 `coverage.table_closed`）。
 - `jc_mock_ask` 可直接传 `stem` 创建并登记新题（与 `question_id` 二选一，都传或都不传为 `ValueError`），返回里带 `question_id`。被拒绝时不留下新题。面试官也不再持有 `jc_question_upsert`；真实面试归档（`coach-archive`）仍使用它。
 - 回答按场次隔离：同一道题库题在不同场次里复用时，不再把别的场次的回答当成本场的回答。
-- `POST /agent/sessions/{id}/messages` 新增可选 `client_message_id`（至多 64 字符）：客户端为每条消息生成，重试同一条消息时沿用。服务端在 `jc_mock_session.coverage.recorded_messages` 里记住最近 50 个已写入回答的 id，同一 id 再来不重复记录；模型仍会再跑一轮（第一次可能没跑完）。不带 id 的请求不去重，同一句话换一个 id 是新消息（候选人可能真的说了两遍“是的”）。只有真正写进回答的消息才会被记住。
+- `POST /agent/sessions/{id}/messages` 新增可选 `client_message_id`（至多 64 字符）：客户端为每条消息生成，重试同一条消息时沿用。幂等语义见「Agent 消息幂等与直传失败闸门（2026-11-18）」——台账级检查在前，409 或复用重跑在其后。模拟面试作答记录另有第二层防线：服务端在 `jc_mock_session.coverage.recorded_messages` 里记住最近 50 个已写入回答的 id，同一 id 再来不重复记录（只有真正写进回答的消息才会被记住）。不带 id 的请求两层都不去重，同一句话换一个 id 是新消息（候选人可能真的说了两遍“是的”）。
 - 报告改为后台生成。场次结束时 `jc_mock_session.report_status` 置为 `queued`（没有提问的场次直接置 `failed`，原因“这场面试没有提问”）；API 进程里的 `run_mock_report_dispatcher` 用条件更新认领（`generating` 带 600 秒租约，最多 4 次运行），完成后置 `ready` 或 `failed`。迁移 `024` 对历史已结束场次：有报告为 `ready`，无报告为 `failed`，不自动排队。无报告的场次不写原因（`report_error` 为空），页面显示“这场面试的报告没有生成。”并允许重试。迁移不写任何文字，因为表的字符集若不是 Unicode，写中文会报 1366；所以迁移每一步先查再做，可重复执行，回填只动 `report_status` 为空的行。
 - `GET /coach/mock/sessions/{id}/report` 只读：`status` 为 `active | pending | failed | ready`，`failed` 带原因和 `can_retry`。打开页面不再触发评审。已存储的报告即使状态还没跟上也按 `ready` 返回。
 - `POST /coach/mock/sessions/{id}/report/retry`：把失败的报告重新排队。409 `mock_report_not_failed`（不是失败状态）或 `mock_report_retry_exhausted`（4 次运行已用完）。失败原因是给用户看的短句，不含异常信息。
@@ -246,3 +246,16 @@
 - 引用（证据和总评）必须来自同一段回答，且至少四个字；拼在两段回答之间的、过短的，都被去掉并计入 `checks`。总评里被去掉的引用数在报告页显示。
 - 只表示“下一题 / 换一题 / 跳过 / 结束 / 没听清”的消息前面有语气词（好的、嗯、那就）时仍是控制语句；单独的语气词仍是回答。
 - 刷新页面、换岗位或换档案时，页面会丢掉不属于当前岗位和档案的进行中面试；通知的“查看报告”只属于开始它的那个岗位。
+
+## Agent 消息幂等与直传失败闸门（2026-11-18）
+
+R2 实测三个 P1（`docs/operations/CURSOR-TEST-RESULT-2026-11-18-R2.md`）；本节的三条契约是修复后的权威语义。
+
+- **G1 历史回传**：`user_message` 行落库 `jc_agent_trace.client_message_id`（迁移 `028_client_message_id`，可重复执行）。`GET /agent/sessions/{id}/messages` 的用户行带回该字段（无 id 的请求返回 `null`，不伪造；assistant 行恒为 `null`）。前端 `recordsToDisplayItems` 把它映到气泡的 `clientMessageId`，刷新后乐观气泡按 id 归位，而不是按文本猜。
+- **G2 幂等三分支**（`stream_message` 写用户行前，按 `(session_id, client_message_id)`）：
+  1. 无行 → 正常插入。两个并发都过了查找时，后者撞 `(session_id, client_message_id) WHERE client_message_id IS NOT NULL` 部分唯一索引，回滚后按 409 处理——服务检查挡不住的竞态只有索引能关死，两者配套存在。
+  2. 有行、其后**没有**已提交的 `assistant_message` → **复用原行**（同 id，UI 气泡保持粘合）并重跑一轮。这是重试按钮的既有契约（上节「模型仍会再跑一轮，因为第一次可能没跑完」）；一律 409 会把永远答不上的气泡留给用户。`error` 行不算回答——可见失败的回合正是可重试的回合。
+  3. 有行、其后**已有**提交回答 → 409 `duplicate_message`（「这条消息已经发送过了。」）。旧行为是静默再写一行（R2 P1-2），已禁止。
+  复用路径不重传附件：已 settle 的附件计划原样保留（重传会双存对象并留下 GC 枚举不到的孤儿，B-1 §2.2）；未 settle（`storage_pending`/`storage_error`）的重新规划并修好。
+- **E5 直传失败闸门（前端）**：`DirectUploadUnavailable.attemptStarted` 区分两种失败。sign 就没签出 URL（TOS 从头打不通）＝E6，观察期正式降级，照旧 data_url 中继、无标记。PUT 已经开始再死（半途断网、桶端 403）＝E5：该附件标 `upload_failed: true` 且无 key，`sendMessage` 见 `hasFailedUpload` 即**阻断发送**并让气泡进重试态——不得把半上传的字节中继成「正常图片」。`upload_failed` 只在客户端，永不上行；重试成功会清掉标记（闸门不能比它守的故障活得更久）。服务端不设 E5 兜底：它无法区分「PUT 中途死」和「压根没 PUT」，一刀切拒绝直传会把已 hydrate 的 key 变成孤儿。
+

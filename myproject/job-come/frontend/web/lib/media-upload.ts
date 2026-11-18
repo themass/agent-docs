@@ -69,7 +69,27 @@ export function sceneForMime(mime: string | null | undefined): DirectUploadScene
 }
 
 /** Any sign/PUT failure surfaces as this; callers that degrade catch it. */
-export class DirectUploadUnavailable extends Error {}
+export class DirectUploadUnavailable extends Error {
+  /**
+   * False = sign never handed us a URL (server down, CORS, offline before the
+   * request, sign rejected) — TOS was never reached. True = the PUT itself
+   * was attempted and failed, mid-transfer or at the bucket.
+   *
+   * The distinction is R2 P1-3, and the two answers differ. A never-reached
+   * TOS is E6: the sanctioned observation-period degradation, send inline.
+   * A PUT that started and died usually means the bytes got partway there —
+   * relaying the same bytes inline instead shows the user a "successful"
+   * image for a half-written object nobody will ever read, and the direct
+   * failure is what the retry button exists to fix. Those must not be
+   * silently relabeled as the same event.
+   */
+  readonly attemptStarted: boolean;
+
+  constructor(message: string, options?: { cause?: unknown; attemptStarted?: boolean }) {
+    super(message, { cause: options?.cause });
+    this.attemptStarted = options?.attemptStarted ?? false;
+  }
+}
 
 type SignResponse = {
   objectKey: string;
@@ -105,7 +125,10 @@ export async function directUpload(
     });
     if (!res.ok) throw new Error(`PUT ${res.status}`);
   } catch (error) {
-    throw new DirectUploadUnavailable("直传失败", { cause: error });
+    // The sign already handed out a URL, so TOS was reachable until this
+    // transfer died. `attemptStarted` carries that fact to the caller; the
+    // URL itself is never included (a presigned URL is a bearer secret).
+    throw new DirectUploadUnavailable("直传失败", { cause: error, attemptStarted: true });
   }
   return signed.objectKey;
 }
@@ -160,8 +183,19 @@ export function dataUrlToBlob(dataUrl: string): Blob | null {
  * Items keep their `data_url` in React state as preview + re-upload source;
  * the wire never carries both fields (see `toWireAttachment`).
  *
- * An item whose upload fails keeps its `data_url` and NO key: it goes out the
- * inline channel, which is the degradation ADR-011 keeps on purpose.
+ * Upload failures split in two (R2 P1-3), because they are two different
+ * events wearing the same message:
+ *
+ * - sign never handed out a URL (E6: TOS unreachable from the start) — the
+ *   item keeps its `data_url` and NO key and goes out the inline channel.
+ *   That relay is the degradation ADR-011 keeps on purpose during the
+ *   observation window.
+ * - the PUT itself failed (E5: TOS was reachable, the transfer died) — the
+ *   item gets `upload_failed: true` and NO key. The caller must NOT send it:
+ *   relaying those bytes inline would show the user a finished photo for an
+ *   upload that half-happened, which is exactly the "silently normal image"
+ *   defect R2 filed.
+ *
  * Non-media items and server-history stubs pass through untouched.
  */
 export async function refreshLiveUploads(
@@ -172,10 +206,27 @@ export async function refreshLiveUploads(
       if ((att.kind !== "image" && att.kind !== "audio") || !att.data_url) return att;
       const blob = dataUrlToBlob(att.data_url);
       if (!blob) return att;
-      const objectKey = await tryDirectUpload(blob, att.mime_type ?? blob.type);
-      return objectKey ? { ...att, object_key: objectKey } : att;
+      const scene = sceneForMime(att.mime_type ?? blob.type);
+      if (!scene) return att;
+      try {
+        const objectKey = await directUpload(scene, blob, att.mime_type ?? blob.type);
+        // `upload_failed: false`, not deletion: a retry of a previously
+        // aborted item must lose the old attempt's marker, or a successful
+        // re-upload would still be blocked by the failure it just fixed.
+        return objectKey ? { ...att, object_key: objectKey, upload_failed: false } : att;
+      } catch (error) {
+        if (!(error instanceof DirectUploadUnavailable)) throw error;
+        if (error.attemptStarted) return { ...att, upload_failed: true };
+        return att; // pre-PUT: sanctioned inline fallback (E6)
+      }
     }),
   );
+}
+
+/** True when any attachment carries an aborted PUT (R2 P1-3). The composer
+ * must block the send and surface the failure instead of relaying. */
+export function hasFailedUpload(attachments: AgentAttachment[]): boolean {
+  return attachments.some((att) => att.upload_failed === true);
 }
 
 /**

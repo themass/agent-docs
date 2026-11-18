@@ -35,7 +35,7 @@ import type {
 } from "@/lib/types/agent";
 import { buildContextUsage } from "@/lib/agent-context-usage";
 import { retryPlan } from "@/lib/agent-retry";
-import { refreshLiveUploads, toWireAttachment } from "@/lib/media-upload";
+import { hasFailedUpload, refreshLiveUploads, toWireAttachment } from "@/lib/media-upload";
 import type { AgentUiContext } from "@/lib/ui-context";
 
 // Idle timeout, not a total-duration timeout: reset on every SSE event, including
@@ -96,6 +96,11 @@ function recordsToDisplayItems(messages: AgentMessageRecord[]): AgentDisplayItem
         kind: "user",
         content: row.content ?? "",
         attachments: (row.payload?.attachments as AgentAttachment[] | undefined) ?? undefined,
+        // R2 G1: the server now echoes the id the bubble was sent with. A
+        // reload can therefore recognise its own optimistic message by id
+        // instead of guessing by text — two identical sends stay two bubbles,
+        // and a resent half-dead turn re-attaches to the row that got an id.
+        clientMessageId: row.client_message_id ?? undefined,
       });
       continue;
     }
@@ -651,10 +656,21 @@ export function useAgentSession({
         }
         // Direct-upload keys are minted per send attempt, right here: the sign
         // TTL is short and a key is consumed by bind, so neither composition
-        // time nor a previous attempt may own the key this turn binds. Upload
-        // failures degrade to data_url inside refreshLiveUploads — the turn
-        // must not fail because the direct channel is down.
-        const wireAttachments = (await refreshLiveUploads(attachments)).map(toWireAttachment);
+        // time nor a previous attempt may own the key this turn binds. A
+        // direct channel that was never reached still degrades to data_url
+        // inside refreshLiveUploads (E6); a PUT that STARTED and died marks the
+        // item failed instead (R2 P1-3) — see the gate below.
+        const refreshed = await refreshLiveUploads(attachments);
+        if (hasFailedUpload(refreshed)) {
+          // E5: relaying these bytes inline would show the user a finished
+          // photo for an upload that half-happened. The message is not sent;
+          // the bubble is marked failed so the retry button re-runs the whole
+          // turn (fresh key included).
+          setError("图片上传没有完成，这条消息未发送。请检查网络后点重试。");
+          markLastUserMessageFailed();
+          return;
+        }
+        const wireAttachments = refreshed.map(toWireAttachment);
         // A slow upload on a big album eats into the idle window that started
         // before the stream exists; re-arm it so "waiting on upload" is never
         // misread as "the server stopped talking".

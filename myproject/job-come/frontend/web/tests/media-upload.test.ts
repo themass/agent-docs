@@ -4,6 +4,7 @@ import {
   DirectUploadUnavailable,
   dataUrlToBlob,
   directUpload,
+  hasFailedUpload,
   refreshLiveUploads,
   sceneForMime,
   toWireAttachment,
@@ -295,5 +296,103 @@ describe("directUpload with the profile-source scene", () => {
     ).rejects.toBeInstanceOf(DirectUploadUnavailable);
     // exactly one network call happened: the failed sign, no PUT
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ---- R2 P1-3 (E5/E6): two upload failures wearing the same message. ----
+// E6 = TOS unreachable from the start (sign never handed out a URL): the
+// sanctioned observation-period degradation, send inline, no marker.
+// E5 = the PUT was attempted and died: mark it, block the send, never relay
+// half-written bytes as a "normal" image.
+describe("R2 E5/E6 split in refreshLiveUploads", () => {
+  const image: AgentAttachment = {
+    kind: "image",
+    name: "p.jpg",
+    mime_type: "image/jpeg",
+    data_url: "data:image/jpeg;base64,/9j/4AAQSkZJRg==",
+  };
+
+  test("E6: sign-leg failure keeps data_url, NO key, NO marker — relay stays legal", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ code: "direct_upload_disabled" }, 503));
+    const [out] = await refreshLiveUploads([image]);
+    expect(out!.object_key ?? null).toBeNull();
+    // The absence of the marker is the whole seam: no marker means the
+    // sanctioned inline relay, and the send gate must NOT fire on it.
+    expect(out!.upload_failed ?? false).toBe(false);
+    expect(out!.data_url).toBe(image.data_url);
+  });
+
+  test("E5 thrown PUT: upload_failed=true, NO key, data_url kept for retry", async () => {
+    // sign 200 (TOS was reachable) → fetch itself dies mid-transfer.
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(SIGN_BODY))
+      .mockRejectedValueOnce(new Error("net::ERR_INTERNET_DISCONNECTED"));
+    const [out] = await refreshLiveUploads([image]);
+    expect(out!.upload_failed).toBe(true);
+    expect(out!.object_key ?? null).toBeNull();
+    // The bytes R2 saw relay as a normal image now carry the marker the
+    // send gate keys on.
+    expect(out!.data_url).toBe(image.data_url);
+  });
+
+  test("a successful re-upload CLEARS the marker — the gate cannot outlive the failure", async () => {
+    // Retry sends the same staged bytes with a fresh key. If success only
+    // added the key without clearing the old marker, an upload that just
+    // healed would stay blocked forever: the gate becomes a second defect.
+    const failed: AgentAttachment = { ...image, upload_failed: true };
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(SIGN_BODY))
+      .mockResolvedValueOnce(new Response("", { status: 200 }));
+    const [out] = await refreshLiveUploads([failed]);
+    expect(out!.object_key).toBe(SIGN_BODY.objectKey);
+    expect(out!.upload_failed).toBe(false);
+  });
+});
+
+describe("hasFailedUpload — the composer's send gate", () => {
+  const staged: AgentAttachment = {
+    kind: "image",
+    name: "p.jpg",
+    mime_type: "image/jpeg",
+    data_url: "data:image/jpeg;base64,/9j/4AAQSkZJRg==",
+  };
+  test("false on clean uploads — the gate must not eat legitimate sends", () => {
+    expect(hasFailedUpload([])).toBe(false);
+    expect(hasFailedUpload([{ ...staged, object_key: "jc/dev/x.jpg" }])).toBe(false);
+    // E6 shape: no key, no marker — inline relay stays allowed during the
+    // observation window (ADR-011 E step).
+    expect(hasFailedUpload([staged])).toBe(false);
+  });
+  test("true on one marked item among clean ones", () => {
+    const ok: AgentAttachment = { ...staged, object_key: "jc/dev/ok.jpg", upload_failed: false };
+    expect(hasFailedUpload([ok, { ...staged, upload_failed: true }])).toBe(true);
+  });});
+
+describe("DirectUploadUnavailable.attemptStarted", () => {
+  test("sign-leg failures are NOT attemptStarted (E6 side)", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ code: "rate_limited" }, 429));
+    const error = await directUpload(
+      "chat-image",
+      new Blob(["x"], { type: "image/jpeg" }),
+      "image/jpeg",
+    ).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(DirectUploadUnavailable);
+    expect((error as DirectUploadUnavailable).attemptStarted).toBe(false);
+  });
+  test("PUT-leg failures ARE attemptStarted (E5 side); the signed URL never leaks", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(SIGN_BODY))
+      .mockResolvedValueOnce(new Response("", { status: 500 }));
+    const error = await directUpload(
+      "chat-image",
+      new Blob(["x"], { type: "image/jpeg" }),
+      "image/jpeg",
+    ).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(DirectUploadUnavailable);
+    expect((error as DirectUploadUnavailable).attemptStarted).toBe(true);
+    // ADR-011 §7.4: a presigned URL is a bearer secret; it must never ride
+    // into a message the UI renders or a logger keeps.
+    expect(String((error as Error).message)).not.toContain("sig=");
+    expect(String((error as Error).message)).not.toContain("bucket.test");
   });
 });

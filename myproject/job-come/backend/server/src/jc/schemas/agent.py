@@ -132,6 +132,10 @@ class AgentMessageRecord(BaseModel):
     content: str | None
     payload: dict[str, Any] | None
     created_at: datetime
+    #: Echoed on user rows that were sent with one (R2 G1): the optimistic UI
+    #: merges its own bubble back onto exactly this row after a reload instead
+    #: of inventing a duplicate. NULL on every other row kind.
+    client_message_id: str | None = None
 
 
 class AgentMessageListResponse(BaseModel):

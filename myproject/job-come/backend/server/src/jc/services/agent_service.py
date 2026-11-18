@@ -18,6 +18,7 @@ from agentkit.observability import (
 )
 from agentkit.web.auth import UserActor
 from fastapi.responses import Response
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from jc.adapters.deerflow_client import get_deerflow_client
@@ -325,9 +326,63 @@ class AgentService:
         validate_inline_attachments(attachment_list)
         user_text = _format_user_message(content, attachment_list)
         message_id = new_id("agm")
+
+        # R2 G2: `(session_id, client_message_id)` identifies one message.
+        # A resend with the same id is the same message arriving again — the
+        # retry button after a failed stream, a double send on a flaky
+        # network — and it must never write a second user row ("静默双写" was
+        # the defect). What it does instead is decided by the first attempt's
+        # shape, and every branch is pinned in test_agent_client_message_id.py:
+        #
+        # * row exists, NO committed answer after it: reuse the row and let
+        #   the turn re-run. This is the retry-button case and the contract
+        #   TECH-API:219 documented before the ledger did: 模型仍会再跑一轮，
+        #   因为第一次可能根本没跑完. A blanket 409 would break exactly this.
+        # * row exists WITH a committed answer: the first attempt completed;
+        #   re-running would pay the model twice and print the answer twice,
+        #   so the resend is refused with 409 `duplicate_message` — the
+        #   明确幂等错误码 the R2 plan's G2 allows.
+        # * no row: insert normally. Two attempts that race past the lookup
+        #   collide on the partial unique index; the loser is rolled back and
+        #   refused (the DB is the only thing that can close that race, which
+        #   is why the index stands beside this check, not instead of it).
+
+        existing_user_row = (
+            await self._trace.find_user_message(session.id, client_message_id)
+            if client_message_id
+            else None
+        )
+        if (
+            existing_user_row is not None
+            and await self._trace.has_assistant_reply_after(session.id, existing_user_row.seq)
+        ):
+            raise ConflictError("这条消息已经发送过了。", code="duplicate_message")
         persist_payload: dict[str, Any] = {}
+        if existing_user_row is not None and existing_user_row.payload:
+            persist_payload = dict(existing_user_row.payload)
         attachment_rows: list[dict[str, Any]] | None = None
-        if attachment_list:
+        if attachment_list and existing_user_row is not None:
+            stored_plan = persist_payload.get("attachments")
+            settled = isinstance(stored_plan, list) and len(stored_plan) == len(
+                attachment_list
+            ) and all(
+                isinstance(r, dict)
+                and r.get("storage_key")
+                and not r.get("storage_error")
+                and not r.get("storage_pending")
+                for r in stored_plan
+            )
+            # The first attempt's archive either stands (settled: re-uploading
+            # the same bytes under a new key would orphan the old object and
+            # make the media ledger lie) or is repaired (pending/error: the
+            # upload step never finished, so this attempt's hydrated bytes
+            # replace it).
+            attachment_rows = None if settled else plan_attachment_rows(
+                attachment_list,
+                session_id=session.id,
+                message_id=message_id,
+            )
+        elif attachment_list:
             # Attachment keys are minted HERE, deterministically from `message_id`,
             # and written into the row before a single byte is uploaded (B-1 §2.2).
             # The old order was PUT-then-row: a worker killed in between left a
@@ -344,6 +399,8 @@ class AgentService:
             persist_payload["attachments"] = attachment_rows
         if ui_context is not None:
             persist_payload["ui_context"] = ui_context.model_dump()
+        if attachment_rows is not None:
+            persist_payload["attachments"] = attachment_rows
 
         # One row per user turn, carrying both halves: `content` is what the user
         # typed (the chat UI shows it), `payload.text` is what DeerFlow actually
@@ -358,26 +415,48 @@ class AgentService:
         # — attachment uploads, a vision call, graph construction — and a worker
         # killed in that window used to take the whole message with it: the row
         # never existed, so history showed nothing and nothing could be reaped.
-        user_row = await self._trace.append(
-            trace_id_pk=new_id("agtr"),
-            session_id=session.id,
-            # seq 0 belongs to this session's `system_prompt` row, which is
-            # inserted later with an explicit seq (see the stream loop): the
-            # ledger reads back in seq order, so the prompt must sort first
-            # even though it is written last.
-            seq=max(await self._trace.next_seq(session.id), 1),
-            event_type="user_message",
-            ui_event="message",
-            role="user",
-            content=user_text,
-            payload=persist_payload,
-            user_id=actor.user_id,
-            profile_id=session.profile_id,
-            job_id=session.job_id,
-            mock_session_id=ui_context.mock_session_id if ui_context else None,
-            trace_id=session.trace_id,
-        )
-        await self._db.commit()
+        if existing_user_row is not None:
+            user_row = existing_user_row
+            # Last attempt wins for the displayable state (the model input
+            # `text` is backfilled further below, same rule): the retry button
+            # resends the identical message, so on the happy path these are
+            # writes that change nothing.
+            user_row.content = user_text
+            user_row.payload = persist_payload
+            await self._db.commit()
+        else:
+            try:
+                user_row = await self._trace.append(
+                    trace_id_pk=new_id("agtr"),
+                    session_id=session.id,
+                    # seq 0 belongs to this session's `system_prompt` row, which is
+                    # inserted later with an explicit seq (see the stream loop): the
+                    # ledger reads back in seq order, so the prompt must sort first
+                    # even though it is written last.
+                    seq=max(await self._trace.next_seq(session.id), 1),
+                    event_type="user_message",
+                    ui_event="message",
+                    role="user",
+                    content=user_text,
+                    payload=persist_payload,
+                    user_id=actor.user_id,
+                    profile_id=session.profile_id,
+                    job_id=session.job_id,
+                    mock_session_id=ui_context.mock_session_id if ui_context else None,
+                    trace_id=session.trace_id,
+                    client_message_id=client_message_id,
+                )
+                await self._db.commit()
+            except IntegrityError:
+                await self._db.rollback()
+                # The race branch: both attempts passed the lookup above
+                # simultaneously; the unique index made exactly one of them
+                # real. The loser ends here — the client's retry then finds
+                # the winner's row and reuses it.
+                raise ConflictError(
+                    "这条消息已经发送过了。",
+                    code="duplicate_message",
+                ) from None
 
         if attachment_rows is not None:
             # The row is durable before the bytes move (see `plan_attachment_rows`).
@@ -966,6 +1045,8 @@ class AgentService:
             id=row.id,
             session_id=row.session_id,
             role=row.role,
+            # R2 G1: the optimistic bubble merges back onto this row by it.
+            client_message_id=row.client_message_id,
             # The wire keeps its own vocabulary: this endpoint has always spoken
             # `event_type` in UI terms, and `ui_event` is exactly that.
             event_type=row.ui_event or row.event_type,

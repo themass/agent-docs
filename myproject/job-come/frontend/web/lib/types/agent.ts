@@ -29,6 +29,14 @@ export type AgentAttachment = {
   duration_ms?: number | null;
   /** Set by the server when the clip could not be archived to object storage. */
   storage_error?: boolean | null;
+  /**
+   * Client-side only (R2 P1-3, never on the wire): the direct upload's PUT
+   * was attempted and failed. The composer must not send the message —
+   * relaying those bytes inline would show a "normal" image for a
+   * half-uploaded object. Distinguish from an absent `object_key` with no
+   * marker, which is the sanctioned pre-PUT inline fallback (E6).
+   */
+  upload_failed?: boolean | null;
 };
 
 /** Human-readable clip length, for the voice bubble. */
@@ -62,6 +70,13 @@ export type AgentMessageRecord = {
   content: string | null;
   payload: Record<string, unknown> | null;
   created_at: string;
+  /**
+   * R2 G1: on `user_message` rows, the id the client gave the message when it
+   * was sent (empty when the send had no id, e.g. an older client). The
+   * optimistic bubble is keyed by this, so a reload can merge the rich server
+   * row back onto the local echo instead of doubling it.
+   */
+  client_message_id?: string | null;
 };
 
 export type AgentStreamEvent =

@@ -265,18 +265,25 @@ async def test_a_turn_before_any_question_records_nothing_and_gets_the_server_op
 
 
 @pytest.mark.asyncio
-async def test_a_turn_sent_again_with_the_same_message_id_records_the_answer_once(
+async def test_a_completed_turn_sent_again_is_refused_before_it_reaches_the_recorder(
     maker, monkeypatch
 ):
-    # The retry button re-sends the same message. The model still gets a turn (the first may have
-    # failed before it answered), but the candidate's words are not put on the record twice.
+    # R2 G2 (2026-11-18): the old behavior let a same-id resend through and let
+    # the recorder quietly swallow the second write — 静默双写. Idempotency now
+    # lives at the ledger: resending a turn that ALREADY has a committed answer
+    # is refused with 409 at the service, before the recorder is reached. The
+    # half-dead retry (first attempt answered nothing) still re-runs and re-enters
+    # the recorder — pinned in test_agent_client_message_id.py, where the recorder
+    # unit suite already covers the same-id guard itself.
+    from jc.exceptions import ConflictError
+
     await _open_session(maker, [MAIN])
-    first, _ = await _stream(maker, monkeypatch, "我把结算接口拆成了两张表。",
-                             client_message_id="m1")
-    again, events = await _stream(maker, monkeypatch, "我把结算接口拆成了两张表。",
-                                  client_message_id="m1")
+    await _stream(maker, monkeypatch, "我把结算接口拆成了两张表。", client_message_id="m1")
+    with pytest.raises(ConflictError) as exc:
+        await _stream(maker, monkeypatch, "我把结算接口拆成了两张表。", client_message_id="m1")
+    assert exc.value.code == "duplicate_message"
+    # The refusal happens before any model turn, so the answer stays recorded once.
     assert [row.user_answer for row in await _attempts(maker)] == ["我把结算接口拆成了两张表。"]
-    assert again.received == [] and any(e.get("type") == "token" for e in events)
 
 
 @pytest.mark.asyncio
