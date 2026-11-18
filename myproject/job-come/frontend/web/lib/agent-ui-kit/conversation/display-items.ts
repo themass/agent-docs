@@ -6,6 +6,8 @@ export type AgentUiAttachment = {
   label?: string | null;
   mime_type?: string | null;
   data_url?: string | null;
+  /** Direct-upload key; `data_url` stays set client-side as preview source. */
+  object_key?: string | null;
   text_preview?: string | null;
   storage_key?: string | null;
   download_url?: string | null;

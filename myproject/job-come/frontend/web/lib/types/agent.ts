@@ -7,6 +7,13 @@ export type AgentAttachment = {
   mime_type?: string | null;
   /** Present while the message is being composed and on the live turn only. */
   data_url?: string | null;
+  /**
+   * Direct-upload key (ADR-011 §6-C): the bytes already sit in the bucket and
+   * the server binds + reads them back at send. Mutually exclusive with
+   * `data_url` on the wire; `data_url` is kept client-side anyway as the
+   * preview source and the retry re-upload source (see `refreshLiveUploads`).
+   */
+  object_key?: string | null;
   text_preview?: string | null;
   /** Object-storage key. Set on replayed history, where the bytes are not inline. */
   storage_key?: string | null;

@@ -35,6 +35,7 @@ import type {
 } from "@/lib/types/agent";
 import { buildContextUsage } from "@/lib/agent-context-usage";
 import { retryPlan } from "@/lib/agent-retry";
+import { refreshLiveUploads, toWireAttachment } from "@/lib/media-upload";
 import type { AgentUiContext } from "@/lib/ui-context";
 
 // Idle timeout, not a total-duration timeout: reset on every SSE event, including
@@ -648,11 +649,21 @@ export function useAgentSession({
             ),
           );
         }
+        // Direct-upload keys are minted per send attempt, right here: the sign
+        // TTL is short and a key is consumed by bind, so neither composition
+        // time nor a previous attempt may own the key this turn binds. Upload
+        // failures degrade to data_url inside refreshLiveUploads — the turn
+        // must not fail because the direct channel is down.
+        const wireAttachments = (await refreshLiveUploads(attachments)).map(toWireAttachment);
+        // A slow upload on a big album eats into the idle window that started
+        // before the stream exists; re-arm it so "waiting on upload" is never
+        // misread as "the server stopped talking".
+        resetIdleTimer();
         await streamAgentMessage(
           sid,
           {
             content: text,
-            attachments,
+            attachments: wireAttachments,
             reply_locale: replyLocale,
             ui_context: ctx ?? undefined,
             client_message_id: messageId,

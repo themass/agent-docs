@@ -78,6 +78,8 @@ export type AgentComposerAttachment = {
   label?: string | null;
   mime_type?: string | null;
   data_url?: string | null;
+  /** Set once a direct upload (sign → PUT) put the bytes in the bucket. */
+  object_key?: string | null;
   text_preview?: string | null;
   size_bytes?: number | null;
   transcript?: string | null;
