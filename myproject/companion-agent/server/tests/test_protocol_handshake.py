@@ -121,11 +121,11 @@ def test_negotiate_takes_the_lower_version_per_capability():
 
 def test_negotiate_keeps_zero_versions():
     """丢掉 0 会让客户端以为服务端根本不支持这个能力，从而永久降级。"""
-    hello = parse_hello({"proto": {"min": 2, "max": 2}, "caps": {"speech.timing": 0}})
+    hello = parse_hello({"proto": {"min": 2, "max": 2}, "caps": {"speech.v1": 0}})
     ack = negotiate(hello, sid="s-1")
-    assert ack.caps == {"speech.timing": 0}
+    assert ack.caps == {"speech.v1": 0}
     # 但值为 0 的能力不可发送。
-    assert not supports(ack, "speech.timing")
+    assert not supports(ack, "speech.seg")
 
 
 def test_negotiate_drops_caps_the_client_never_mentioned():

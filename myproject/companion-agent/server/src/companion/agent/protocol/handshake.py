@@ -30,9 +30,8 @@ SERVER_CAPS: dict[str, int] = {
     "presentation.emotion": 1,
     "presentation.gesture": 1,
     "presentation.gaze": 1,
-    "speech.timing": 1,
-    # 分批声明（§9.3.1）：必须与 speech.timing 同时协商出，才能发 speech.extend。
-    "speech.extend": 1,
+    # 句级声明（§9.3）：speech.seg / speech.end / control.cancel 都挂在它下面。
+    "speech.v1": 1,
     "perception.attention": 1,
 }
 
@@ -181,13 +180,12 @@ def legacy_ack(*, sid: str) -> HelloAck:
 
 
 #: 某些 ``t`` 不以自己的名字协商，而是挂在一个能力名下。``caps`` 的键是能力名
-#: （``speech.timing``），不是消息类型；按消息类型直接查会让 ``speech.*`` 永远发不出去。
+#: （``speech.v1``），不是消息类型；按消息类型直接查会让 ``speech.*`` 永远发不出去。
 CAP_FOR_EVENT: dict[str, str] = {
-    "speech.begin": "speech.timing",
-    "speech.segment": "speech.timing",
-    "speech.end": "speech.timing",
-    # 取消只对带时间线的 speech 有意义；没谈成 speech.timing 的端侧没有可取消的东西。
-    "control.cancel": "speech.timing",
+    "speech.seg": "speech.v1",
+    "speech.end": "speech.v1",
+    # 取消只对带时间线的 speech 有意义；没谈成 speech.v1 的端侧没有可取消的东西。
+    "control.cancel": "speech.v1",
 }
 
 

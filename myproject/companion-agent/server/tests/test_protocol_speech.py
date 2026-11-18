@@ -1,4 +1,4 @@
-"""语音时间线的服务端发送侧：能力闸、段计划、bridge 的 speech 方法（§9.3 / §10 / §13）。"""
+"""语音时间线的服务端发送侧：能力闸、段号、bridge 的 speech 方法（§9.3 / §10 / §13）。"""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from typing import Any
 from companion.agent.protocol import decode, legacy_ack, negotiate, parse_hello, supports
 from companion.agent.protocol.catalog import TOPIC_CTL, TOPIC_CUE
 from companion.agent.protocol.handshake import SERVER_CAPS
-from companion.agent.protocol.speech_plan import MAX_SEGMENTS, estimate_ms, plan_speech
+from companion.agent.protocol.speech_plan import SpeechStream, estimate_ms
 from companion.api.livekit.protocol_bridge import ProtocolBridge
 
 
@@ -46,90 +46,72 @@ def _v1_bridge(sink: _Sink) -> ProtocolBridge:
 # ------------------------------------------------------------ 能力闸
 
 
-def test_speech_events_are_gated_by_speech_timing_capability():
-    """caps 的键是能力名；speech.* 必须经 CAP_FOR_EVENT 映射到 speech.timing 才能发。"""
-    ack = negotiate(parse_hello({"proto": {"min": 2, "max": 2}, "caps": {"speech.timing": 1}}), sid="s")
-    assert supports(ack, "speech.begin")
-    assert supports(ack, "speech.segment")
+def test_speech_events_are_gated_by_speech_v1_capability():
+    """caps 的键是能力名；speech.* 必须经 CAP_FOR_EVENT 映射到 speech.v1 才能发。"""
+    ack = negotiate(parse_hello({"proto": {"min": 2, "max": 2}, "caps": {"speech.v1": 1}}), sid="s")
+    assert supports(ack, "speech.seg")
     assert supports(ack, "speech.end")
+    assert supports(ack, "control.cancel")
     assert not supports(ack, "presentation.emotion")
 
 
-def test_speech_events_blocked_when_client_lacks_speech_timing():
+def test_speech_events_blocked_when_client_lacks_speech_v1():
     ack = negotiate(parse_hello({"proto": {"min": 2, "max": 2}, "caps": {"presentation.state": 1}}), sid="s")
-    assert not supports(ack, "speech.begin")
+    assert not supports(ack, "speech.seg")
 
 
 def test_speech_events_blocked_on_v1():
     bridge = _v1_bridge(_Sink())
-    assert not supports(bridge.ack, "speech.begin")
+    assert not supports(bridge.ack, "speech.seg")
 
 
-# ------------------------------------------------------------ 段计划
+# ------------------------------------------------------------ 段号
 
 
-def test_plan_assigns_contiguous_idx_and_estimates():
-    plan = plan_speech(["你好啊", "今天天气不错"], turn_id="tn_1", voice="zh_female_1")
-    assert plan is not None
-    assert [s.idx for s in plan.segments] == [0, 1]
-    assert plan.segments[0].est_ms == estimate_ms("你好啊")
-    assert plan.total_est_ms == sum(s.est_ms for s in plan.segments)
-    assert plan.speech_id.startswith("sp_") and len(plan.speech_id) == 3 + 26
+def test_stream_assigns_contiguous_idx_and_estimates():
+    s = SpeechStream(turn_id="tn_1", speech_id="sp_1")
+    a = s.push("你好啊")
+    b = s.push("今天天气不错")
+    assert a is not None and b is not None
+    assert [a.idx, b.idx] == [0, 1]
+    assert a.est_ms == estimate_ms("你好啊")
+    assert a.seg_args("sp_1") == {"speech_id": "sp_1", "idx": 0, "chars": 3, "est_ms": estimate_ms("你好啊")}
 
 
-def test_plan_skips_blank_segments_without_consuming_idx():
-    plan = plan_speech(["嗯", "  ", "", "好"], turn_id="tn_1")
-    assert plan is not None
-    assert [s.idx for s in plan.segments] == [0, 1]
-    assert [s.text for s in plan.segments] == ["嗯", "好"]
+def test_stream_skips_blank_without_consuming_idx():
+    s = SpeechStream(turn_id="tn_1")
+    assert s.push("  ") is None
+    assert s.push("") is None
+    assert s.push("嗯").idx == 0  # type: ignore[union-attr]
+    assert s.push("好").idx == 1  # type: ignore[union-attr]
 
 
-def test_plan_returns_none_when_nothing_to_say():
-    assert plan_speech(["", "  "], turn_id="tn_1") is None
-
-
-def test_plan_bounds_segment_count_by_merging_tail():
-    texts = [f"第{i}句" for i in range(MAX_SEGMENTS + 10)]
-    plan = plan_speech(texts, turn_id="tn_1")
-    assert plan is not None
-    assert len(plan.segments) == MAX_SEGMENTS
-    assert "".join(s.text for s in plan.segments) == "".join(texts)
-
-
-def test_begin_args_match_spec_shape():
-    plan = plan_speech(["你好"], turn_id="tn_1", speech_id="sp_fixed", voice="v")
-    assert plan is not None
-    args = plan.begin_args()
-    assert args["speech_id"] == "sp_fixed"
-    assert args["turn_id"] == "tn_1"
-    assert args["voice"] == "v"
-    assert args["segments"] == [{"idx": 0, "chars": 2, "est_ms": estimate_ms("你好")}]
-    assert "dur_ms" not in args["segments"][0]
+def test_stream_speech_id_has_ulid_shape_when_not_given():
+    s = SpeechStream(turn_id="tn_1")
+    assert s.speech_id.startswith("sp_") and len(s.speech_id) == 3 + 26
 
 
 # ------------------------------------------------------------ bridge 发送
 
 
-async def test_speech_begin_goes_out_on_cue_topic_for_v2():
+async def test_speech_seg_goes_out_on_cue_topic_for_v2():
     sink = _Sink()
     bridge = _v2_bridge(sink)
-    plan = plan_speech(["你好"], turn_id="tn_1", speech_id="sp_1")
-    assert plan is not None
-    assert await bridge.speech_begin(plan)
+    seg = SpeechStream(turn_id="tn_1").push("你好")
+    assert seg is not None
+    assert await bridge.speech_seg("sp_1", seg)
     [(topic, t, args)] = sink.envelopes()
-    assert (topic, t) == (TOPIC_CUE, "speech.begin")
-    assert args["speech_id"] == "sp_1"
+    assert (topic, t) == (TOPIC_CUE, "speech.seg")
+    assert args == {"speech_id": "sp_1", "idx": 0, "chars": 2, "est_ms": estimate_ms("你好")}
 
 
-async def test_speech_segment_and_end_carry_speech_id():
+async def test_speech_end_carries_speech_id():
     sink = _Sink()
     bridge = _v2_bridge(sink)
-    assert await bridge.speech_segment("sp_1", 2, 900, start_boundary=True)
     assert await bridge.speech_end("sp_1")
-    seg, end = sink.envelopes()
-    assert seg[1] == "speech.segment"
-    assert seg[2] == {"speech_id": "sp_1", "idx": 2, "dur_ms": 900, "start_boundary": True}
-    assert end[2] == {"speech_id": "sp_1"}
+    [(topic, t, args)] = sink.envelopes()
+    assert (topic, t) == (TOPIC_CUE, "speech.end")
+    assert args == {"speech_id": "sp_1"}
 
 
 async def test_cancel_speech_goes_out_on_ctl_topic():
@@ -144,12 +126,12 @@ async def test_cancel_speech_goes_out_on_ctl_topic():
 async def test_speech_before_handshake_is_not_sent_and_is_counted():
     sink = _Sink()
     bridge = _bridge(sink)
-    plan = plan_speech(["你好"], turn_id="tn_1", speech_id="sp_1")
-    assert plan is not None
-    assert not await bridge.speech_begin(plan)
+    seg = SpeechStream(turn_id="tn_1").push("你好")
+    assert seg is not None
+    assert not await bridge.speech_seg("sp_1", seg)
     assert not await bridge.speech_end("sp_1")
     assert sink.sent == []
-    assert bridge.unsent == {"speech.begin": 1, "speech.end": 1}
+    assert bridge.unsent == {"speech.seg": 1, "speech.end": 1}
 
 
 async def test_speech_on_v1_connection_is_not_sent():

@@ -103,7 +103,7 @@ async def _feed(bridge: ProtocolBridge, packet: dict[str, Any]):
 async def test_hello_gets_an_ack_with_the_intersection():
     sink = _Sink()
     bridge = _bridge(sink)
-    await _feed(bridge, _packet(_hello_bytes(caps={"presentation.emotion": 1, "speech.timing": 3}),
+    await _feed(bridge, _packet(_hello_bytes(caps={"presentation.emotion": 1, "speech.v1": 3}),
                                identity=CLIENT))
 
     assert sink.types() == ["control.hello_ack"]
@@ -111,7 +111,7 @@ async def test_hello_gets_an_ack_with_the_intersection():
     assert args["compat"] == "v2"
     assert args["sid"] == "s-test"
     # 交集：客户端报了 3，服务端只有 1，取小。
-    assert args["caps"]["speech.timing"] == 1
+    assert args["caps"]["speech.v1"] == 1
     # 客户端没报的能力不该出现在交集里。
     assert "presentation.state" not in args["caps"]
 
@@ -351,7 +351,7 @@ async def test_cue_emotion_is_not_sent_before_negotiation():
 async def test_cue_emotion_is_not_sent_when_capability_missing():
     sink = _Sink()
     bridge = _bridge(sink)
-    await _feed(bridge, _packet(_hello_bytes(caps={"speech.timing": 1}), identity=CLIENT))
+    await _feed(bridge, _packet(_hello_bytes(caps={"speech.v1": 1}), identity=CLIENT))
 
     assert await bridge.cue_emotion("joy") is False
     # 只有握手回来的那条 ack，没有 cue。

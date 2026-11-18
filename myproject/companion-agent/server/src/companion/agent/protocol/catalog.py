@@ -83,9 +83,7 @@ EVENTS: dict[str, EventSpec] = {
     # 触摸语义走数据包而不是文本流：建流的开销不值得（§15 迁移表）。
     "control.input": _spec(TOPIC_IN, Delivery.MUST, from_=_CLIENT),
     # ---- 表现面（cmp.cue）----
-    "speech.begin": _spec(TOPIC_CUE, Delivery.MUST, from_=_SERVER),
-    "speech.extend": _spec(TOPIC_CUE, Delivery.MUST, from_=_SERVER),
-    "speech.segment": _spec(TOPIC_CUE, Delivery.DEADLINE, from_=_SERVER),
+    "speech.seg": _spec(TOPIC_CUE, Delivery.MUST, from_=_SERVER),
     "speech.end": _spec(TOPIC_CUE, Delivery.MUST, from_=_SERVER),
     "presentation.state": _spec(TOPIC_CUE, Delivery.DEADLINE, from_=_SERVER),
     "presentation.emotion": _spec(TOPIC_CUE, Delivery.DEADLINE, from_=_SERVER),

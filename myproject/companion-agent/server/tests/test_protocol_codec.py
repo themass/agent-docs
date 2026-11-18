@@ -40,7 +40,7 @@ VECTORS = json.loads(FIXTURE.read_text(encoding="utf-8"))
 
 #: 客户端那份拷贝的 sha256 必须与这个值一致。两边对不上就说明契约被单边改过。
 #: 换 fixture 时同时更新客户端 `ProtocolCodecTest.TEST_VECTOR_SHA256`。
-TEST_VECTOR_SHA256 = "b5b8e7d3d2d300391e3262b7f695ea8b04ddc7b0297a272058c6177fb32e2662"
+TEST_VECTOR_SHA256 = "70464b8a66b5687e5b57c27e156e10998fb8627345abe1bdf99d91f654a487f5"
 
 
 def _payload(case: dict) -> bytes:
@@ -172,7 +172,7 @@ def test_direction_vectors(case):
 def test_catalog_covers_every_spec_topic():
     """目录里每条事件的 topic 都得是四个之一，避免拼错字符串。"""
     for name in ("presentation.state", "presentation.emotion", "presentation.gesture",
-                 "presentation.gaze", "speech.begin", "speech.segment", "speech.end",
+                 "presentation.gaze", "speech.seg", "speech.end",
                  "control.hello", "control.hello_ack", "control.ping", "control.pong",
                  "control.cancel", "control.request", "control.response", "control.barge_in",
                  "control.input", "perception.attention", "telemetry.health"):
@@ -183,13 +183,13 @@ def test_catalog_covers_every_spec_topic():
 
 def test_speech_events_are_on_the_ordered_cue_topic():
     """保序需求集中在 cmp.cue 一条流上（§4.1），speech.* 不能散到别的 topic。"""
-    for name in ("speech.begin", "speech.segment", "speech.end"):
+    for name in ("speech.seg", "speech.end"):
         assert spec_of(name).topic == TOPIC_CUE
 
 
 def test_delivery_classes_match_the_catalog():
     assert spec_of("presentation.emotion").delivery is Delivery.DEADLINE
-    assert spec_of("speech.begin").delivery is Delivery.MUST
+    assert spec_of("speech.seg").delivery is Delivery.MUST
     assert spec_of("telemetry.health").delivery is Delivery.DROPPABLE
     assert spec_of("control.hello").delivery is Delivery.MUST
 
@@ -197,7 +197,7 @@ def test_delivery_classes_match_the_catalog():
 def test_may_send_mirrors_allowed():
     assert may_send(TOPIC_CTL, "control.hello", sending=Side.CLIENT)
     assert not may_send(TOPIC_CTL, "control.hello", sending=Side.SERVER)
-    assert not may_send(TOPIC_CUE, "speech.begin", sending=Side.CLIENT)
+    assert not may_send(TOPIC_CUE, "speech.seg", sending=Side.CLIENT)
 
 
 # ---------------------------------------------------------------- 收侧状态机

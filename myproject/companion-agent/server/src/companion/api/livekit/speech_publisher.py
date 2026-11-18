@@ -1,9 +1,9 @@
-"""把 LLM 出的句子变成 ``speech.begin`` / ``speech.extend`` / ``speech.end`` / ``control.cancel``（§9.3.1 / §10）。
+"""把 LLM 出的句子变成 ``speech.seg`` / ``speech.end`` / ``control.cancel``（§9.3 / §10）。
 
 不 import livekit：只依赖 :class:`ProtocolBridge` 的方法，单测直接喂假 bridge。
 
-顺序是本模块存在的理由（§13 不变量 1）：每一句在交给 TTS 之前，它的 ``speech.begin``
-或 ``speech.extend`` 必须已经发出去。所以调用方要 ``await say(...)`` 之后才 ``yield`` 这一句。
+顺序是本模块存在的理由（§13 不变量 1）：每一句在交给 TTS 之前，它的 ``speech.seg``
+必须已经发出去。所以调用方要 ``await say(...)`` 之后才 ``yield`` 这一句。
 
 所有方法都不抛：语音时间线是旁路，发不出去只意味着表现层没有时间锚点，不能拖停通话。
 """
@@ -33,8 +33,8 @@ class SpeechPublisher:
     async def say(self, text: str, *, turn_id: str) -> None:
         """登记一句。在把它交给 TTS 之前调用。
 
-        第一句发 ``speech.begin``（只带这一段）；之后每句发一条 ``speech.extend``。
-        未协商 ``speech.extend`` 时之后的句子不声明，但照样会被说出来。
+        每句发一条 ``speech.seg``。第一句若发不出去（未握手 / 未协商），本回合不再声明，
+        下一句重新开始一条新的 speech；之后的句子照样会被说出来。
         """
         try:
             if self._stream is None:
@@ -42,16 +42,13 @@ class SpeechPublisher:
             seg = self._stream.push(text)
             if seg is None:
                 return                      # 空白，或已超过段数上限：说，但不声明
+            sent = await self._bridge.speech_seg(self._stream.speech_id, seg)
             if not self._open:
-                sent = await self._bridge.speech_begin(self._stream.begin_plan(seg))
                 if sent:
                     self._open = True
                 else:
-                    # begin 没发出去（未握手 / 未协商）：这一回合不再声明，下一句重新开始。
+                    # seg 没发出去：这一回合不再声明，下一句重新开始。
                     self._reset()
-                return
-            if self._bridge.can_batch():
-                await self._bridge.speech_extend(self._stream.speech_id, (seg,))
         except Exception:  # noqa: BLE001 —— 旁路，不能影响语音
             logger.warning("speech say failed", exc_info=True)
 

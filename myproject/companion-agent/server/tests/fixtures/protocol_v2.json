@@ -21,7 +21,7 @@
       "name": "完整信封：at / dst / ts 都在",
       "json": {
         "v": 2,
-        "t": "speech.begin",
+        "t": "speech.seg",
         "id": "01J9Z8K3QP7N5",
         "seq": 41,
         "ep": "a3f1",
@@ -34,7 +34,9 @@
         ],
         "args": {
           "speech_id": "s-1",
-          "segments": []
+          "idx": 0,
+          "chars": 1,
+          "est_ms": 200
         }
       },
       "outcome": "ok"
