@@ -273,6 +273,7 @@ class LLMRouter:
             scenario=scenario,
             caller=caller,
             temperature_locked=transport.temperature_locked,
+            reasoning_off_forced=transport.reasoning_off_forced,
         )
         if timeout_seconds is not None:
             if timeout_seconds <= 0:
@@ -342,6 +343,7 @@ class LLMRouter:
             scenario=scenario,
             caller=caller,
             temperature_locked=transport.temperature_locked,
+            reasoning_off_forced=transport.reasoning_off_forced,
         )
         kwargs["stream"] = True
         router = transport.router
@@ -368,6 +370,7 @@ class LLMRouter:
         scenario: str,
         caller: str,
         temperature_locked: bool = False,
+        reasoning_off_forced: bool = False,
     ) -> dict[str, Any]:
         kwargs: dict[str, Any] = {
             "model": alias,
@@ -390,6 +393,16 @@ class LLMRouter:
         # hop beats an empty stream on the other.
         if temperature is not None and not temperature_locked:
             kwargs["temperature"] = temperature
+        # See `jc.llm.transport._TOOLS_REQUIRE_REASONING_OFF`: on a chain with a
+        # model that refuses tools while reasoning is on, a tools request must
+        # arrive with reasoning explicitly off. Set only when tools are present,
+        # so tools-free calls on the same chain keep their configured thinking.
+        # `extra_body`, not top-level: litellm drops `reasoning_effort` from the
+        # body it sends for gateway models it cannot classify (measured 2026-11-18
+        # — the param reached `acompletion` and vanished from the curl-equivalent
+        # POST). `extra_body` is merged into the JSON by the OpenAI SDK itself.
+        if reasoning_off_forced and tools is not None:
+            kwargs["extra_body"] = {"reasoning_effort": "none"}
         if response_format is not None:
             kwargs["response_format"] = response_format
         if tools is not None:

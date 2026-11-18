@@ -90,6 +90,38 @@ def is_temperature_locked(model: str) -> bool:
     return model.rsplit("/", 1)[-1] in _TEMPERATURE_LOCKED_MODELS
 
 
+#: The same gateway family hides a second trap behind the first, and this one
+#: sits exactly on the agent path: tools and an *active* reasoning mode are
+#: mutually exclusive, and the streaming failure has the same silent shape —
+#: HTTP 200 with zero SSE events. Measured against the live gateway on
+#: 2026-11-18 (`gpt-6-luna`, stream:true, a one-line user message):
+#:
+#:   tools, reasoning left at gateway default  ->  200, 0 events
+#:   tools + reasoning_effort=low              ->  200, 0 events
+#:   tools + extra_body enable_thinking=false  ->  200, 0 events (flag ignored)
+#:   tools + thinking: {type: disabled}        ->  200, 0 events (flag ignored)
+#:   tools + reasoning_effort=none             ->  200, finish_reason=tool_calls
+#:
+#: The non-streaming twin says why: HTTP 500 "Function tools with
+#: reasoning_effort are not supported for gpt-6-luna in /v1/chat/completions"
+#: — the gateway counts its own default as an active reasoning mode, so the
+#: request is rejected before any event is emitted. Only the top-level
+#: `reasoning_effort: none` unlocks it; the `thinking` body flags other models
+#: on this gateway accept do nothing here. glm-5.3-flash, gpt-6-sol and
+#: deepseek-v4-pro stream tool calls with reasoning untouched. Re-probe before
+#: adding or removing entries: post tools with stream:true and count the
+#: `data:` lines.
+_TOOLS_REQUIRE_REASONING_OFF = frozenset({"gpt-6-luna"})
+
+
+def tools_require_reasoning_off(model: str) -> bool:
+    """True when the gateway refuses `tools` unless reasoning is explicitly off.
+
+    Bare-slug matching, same as `is_temperature_locked`.
+    """
+    return model.rsplit("/", 1)[-1] in _TOOLS_REQUIRE_REASONING_OFF
+
+
 @dataclass(frozen=True, slots=True)
 class SkippedEndpoint:
     """An endpoint left out of the router because its API key is not set.
@@ -119,6 +151,12 @@ class ScenarioTransport(NamedTuple):
     #: fallback hop and re-poison the locked model there. The cost is only that
     #: unlocked hops fall back to their measured deployment temperature.
     temperature_locked: bool = False
+    #: True when ANY endpoint in this chain refuses `tools` while reasoning is
+    #: on (see `_TOOLS_REQUIRE_REASONING_OFF`). A tools request on such a chain
+    #: must send top-level `reasoning_effort: "none"` — chain-level for the same
+    #: merge reason as temperature: a per-deployment setting would be overridden
+    #: by a caller's `reasoning_effort`, re-poisoning the locked hop.
+    reasoning_off_forced: bool = False
 
 
 async def complete_deployment_once(
@@ -349,6 +387,7 @@ def router_for(scenario: str) -> ScenarioTransport:
         tuple(skipped),
         deployments,
         any(is_temperature_locked(e.model) for e in chain),
+        any(tools_require_reasoning_off(e.model) for e in chain),
     )
     _router_cache[scenario] = transport
     return transport

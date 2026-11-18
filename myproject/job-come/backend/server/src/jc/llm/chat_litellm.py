@@ -185,11 +185,29 @@ class ChatLiteLLMRouter(BaseChatModel):
         # DeerFlow's when_thinking_enabled template) over the instance default
         # set from config.yaml at model construction time.
         reasoning_effort = kwargs.pop("reasoning_effort", None) or self.reasoning_effort
+        # See `transport._TOOLS_REQUIRE_REASONING_OFF`: this is the harness path,
+        # and the agent loop sends tools on every turn — on a chain whose model
+        # refuses tools-while-thinking, an explicit off must replace whatever
+        # effort the caller asked for, or the stream opens and answers nothing.
+        # Tools-free calls (plain generate) keep their configured thinking.
         if reasoning_effort:
             payload["reasoning_effort"] = reasoning_effort
         extra_body = kwargs.pop("extra_body", None) or self.extra_body
         if extra_body:
             payload["extra_body"] = extra_body
+        # See `transport._TOOLS_REQUIRE_REASONING_OFF`: this is the harness path,
+        # and the agent loop sends tools on every turn — on a chain whose model
+        # refuses tools-while-thinking, reasoning must be off on the wire. The
+        # top-level param cannot express that (litellm drops it for unclassified
+        # gateway models), so `extra_body` carries it; it is merged into the same
+        # JSON, which is where the gateway reads it. Applied LAST so a config's
+        # own `extra_body` (DeerFlow's thinking templates ship one) cannot undo
+        # the unlock. Tools-free calls keep their configured thinking.
+        if transport.reasoning_off_forced and payload.get("tools"):
+            payload["extra_body"] = {
+                **(payload.get("extra_body") or {}),
+                "reasoning_effort": "none",
+            }
         return payload
 
     # -- generation ------------------------------------------------------
