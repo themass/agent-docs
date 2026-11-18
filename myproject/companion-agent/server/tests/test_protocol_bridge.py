@@ -271,6 +271,39 @@ async def test_a_failing_handler_is_isolated():
     assert bridge.receiver.applied == 1
 
 
+async def test_a_catalogued_event_without_a_handler_is_counted():
+    """目录里有、代码里还没有消费者的 t，必须单独计数。
+
+    没有这个桶，``control.barge_in`` 会被计进 ``received`` 然后什么都不做，
+    两端日志都干净——「声明了但没实现」看起来跟「处理成功」一模一样。
+    """
+    bridge = _bridge()
+    payload = new_envelope(
+        "control.barge_in",
+        args={"speech_id": "s-1", "played_ms": 120, "reason": "vad"},
+        seq=0,
+        ep="e",
+        ident="b-1",
+    )
+    await _feed(bridge, _packet(encode(payload), identity=CLIENT, topic=TOPIC_CTL))
+
+    assert bridge.receiver.applied == 1            # 信封层是干净的
+    assert bridge.unhandled == {"control.barge_in": 1}
+    assert bridge.receiver.dropped_bad == 0
+
+
+async def test_hello_and_health_are_not_counted_as_unhandled():
+    """有处理器的 t 不该落进 unhandled——否则这个桶就失去意义了。"""
+    bridge = _bridge()
+    await _feed(bridge, _packet(_hello_bytes(), identity=CLIENT))
+    health = new_envelope(
+        "telemetry.health", args={"degrade_level": "L0"}, seq=0, ep="e", ident="t-1"
+    )
+    await _feed(bridge, _packet(encode(health), identity=CLIENT, topic=TOPIC_TEL))
+
+    assert bridge.unhandled == {}
+
+
 # ---------------------------------------------------------------- seq
 
 async def test_published_messages_carry_increasing_seq():

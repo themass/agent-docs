@@ -1,0 +1,53 @@
+name: companion protocol
+
+# 协议 v2 的共享向量同时存在于两个仓库：Android 侧是
+# feature-companion/src/test/resources/protocol_v2.json，服务端是这份文件旁边的
+# tests/fixtures。两边都把 sha256 硬编码在测试常量里，意思是「改一边、另一边一定红」。
+# 那条保证只有在 CI 真的跑起来时才成立，否则只是两个各写各的常量。
+#
+# 这里只跑协议层：bridge / codec / handshake / speech。全量套件依赖 Postgres、
+# Redis 与 LiveKit，和协议无关，放在部署流水线里跑。
+
+on:
+  push:
+    paths:
+      - 'myproject/companion-agent/server/src/companion/agent/protocol/**'
+      - 'myproject/companion-agent/server/src/companion/api/livekit/protocol_bridge.py'
+      - 'myproject/companion-agent/server/tests/test_protocol_*.py'
+      - '.github/workflows/companion-protocol.yml'
+  pull_request:
+    paths:
+      - 'myproject/companion-agent/server/src/companion/agent/protocol/**'
+      - 'myproject/companion-agent/server/src/companion/api/livekit/protocol_bridge.py'
+      - 'myproject/companion-agent/server/tests/test_protocol_*.py'
+      - '.github/workflows/companion-protocol.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: myproject/companion-agent/server
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.12'
+          enable-cache: true
+          cache-dependency-glob: myproject/companion-agent/server/uv.lock
+
+      # `uv sync` 会拉 livekit-agents 与 deerflow 的本地 wheel；协议测试用不到它们，
+      # 但 pyproject 把 livekit 放在 optional-dependencies 里，所以默认依赖装得更轻。
+      - name: 安装依赖
+        run: uv sync --frozen
+
+      - name: 协议单测
+        run: uv run pytest tests/test_protocol_bridge.py tests/test_protocol_codec.py tests/test_protocol_handshake.py tests/test_protocol_speech.py -q

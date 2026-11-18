@@ -93,6 +93,14 @@ class ProtocolBridge:
         self._hello_seen = asyncio.Event()
         #: 因未协商而没发出去的外发消息，按 ``t`` 计数（§14.3）。
         self.unsent: dict[str, int] = {}
+        #: 过了信封层、却没有任何处理器的 ``t``，按名字计数（§14.3）。
+        #:
+        #: 没有这个桶，一条 ``control.barge_in`` 会被计进 ``received`` 然后什么都不做，
+        #: 两端日志都干净——「目录里声明了、代码里没有」这种缺口就永远查不出来。
+        self.unhandled: dict[str, int] = {}
+        #: ``control.input``（端侧触摸等即时输入）的消费者。None 表示还没有人接。
+        #: 见 §15 迁移表：``companion.touch`` 文本流迁移到这里。
+        self.on_input: Callable[[dict[str, Any]], None] | None = None
 
     # ------------------------------------------------------------------ 发送
 
@@ -206,6 +214,31 @@ class ProtocolBridge:
             await self._on_hello(envelope)
         elif envelope.t == "telemetry.health":
             self._on_health(envelope)
+        elif envelope.t == "control.input":
+            self._on_input(envelope)
+        else:
+            # 目录里有、代码里还没有消费者的 t。收侧已经把它计进 received 了，
+            # 所以这里必须单独记一笔，否则「声明了但没实现」看起来跟「处理成功」一样。
+            first = envelope.t not in self.unhandled
+            self.unhandled[envelope.t] = self.unhandled.get(envelope.t, 0) + 1
+            if first:
+                logger.info("unhandled event type %s on %s (no handler)", envelope.t, topic)
+
+    def _on_input(self, envelope: Any) -> None:
+        """``control.input``（§15 迁移表）：端侧的即时输入，目前是触摸。
+
+        没有消费者时只记 ``unhandled``，不抛也不吞——触摸是低价值输入，丢一条不该
+        影响会话，但丢的次数必须看得见。
+        """
+        handler = self.on_input
+        if handler is None:
+            self.unhandled[envelope.t] = self.unhandled.get(envelope.t, 0) + 1
+            return
+        args = envelope.args if isinstance(envelope.args, dict) else {}
+        try:
+            handler(args)
+        except Exception as exc:  # noqa: BLE001 —— §14.1：处理器写错不拖停消息链
+            logger.warning("control.input handler failed: %s", exc)
 
     def _on_health(self, envelope: Any) -> None:
         """收下客户端自报的 §14.3 计数与降级档位。

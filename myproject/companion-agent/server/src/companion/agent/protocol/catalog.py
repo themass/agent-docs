@@ -89,7 +89,9 @@ EVENTS: dict[str, EventSpec] = {
     "presentation.emotion": _spec(TOPIC_CUE, Delivery.DEADLINE, from_=_SERVER),
     "presentation.gesture": _spec(TOPIC_CUE, Delivery.DEADLINE, from_=_SERVER),
     "presentation.gaze": _spec(TOPIC_CUE, Delivery.DEADLINE, from_=_SERVER),
-    "presentation.resync": _spec(TOPIC_CUE, Delivery.MUST, from_=_SERVER),
+    # 没有 presentation.resync：它曾经只是目录里的一个名字，两端都没有发送方与消费者。
+    # F13（服务端重启）恢复状态走的是重连后的重新握手 + 端侧清时间线。要加回来，先把
+    # 「谁发、什么时候发、收到后覆盖哪些状态」写进 §11，再同时改两侧目录与共享向量。
     # ---- 感知与遥测（cmp.tel）----
     "perception.attention": _spec(TOPIC_TEL, Delivery.DROPPABLE, from_=_CLIENT),
     "telemetry.health": _spec(TOPIC_TEL, Delivery.DROPPABLE, from_=_CLIENT),
