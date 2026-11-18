@@ -44,6 +44,9 @@ def build_router(service: SessionService, current_user, chat_sessions=None):
         expires_at: str
         identity: str
         chat_session_id: int | None = None
+        # 线路选择随 grant 下发（协议 §2）；provider_config 是 provider 特定参数，livekit 时为空对象。
+        provider: str = "livekit"
+        provider_config: dict = Field(default_factory=dict)
 
     router = APIRouter(prefix="/v1/voice", tags=["companion"])
 

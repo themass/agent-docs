@@ -86,6 +86,54 @@ async def test_missing_credentials_surface_as_token_error(service):
         await broken.create(user_id="u1", character_id="xiaowu")
 
 
+# ------------------------------------------------------ provider 线路选择
+# 协议见 docs（Android 侧 docs/companion-rtc-provider-switching.md §2）：
+# provider 在建会话时定、随 grant 下发；选择逻辑收在 SessionService.create 一处。
+
+
+async def test_grant_carries_livekit_provider_by_default(service):
+    """默认线路必须在 grant 里显式出现：客户端不必猜「字段没有=哪种线路」。"""
+    grant = await service.create(user_id="u1", character_id="xiaowu")
+
+    assert grant.provider == "livekit"
+    assert grant.provider_config == {}
+    payload = grant.to_json()
+    assert payload["provider"] == "livekit"
+    assert payload["provider_config"] == {}
+
+
+async def test_configured_provider_reaches_the_grant(service):
+    switched = SessionService(
+        store=service.store,
+        minter=service.minter,
+        livekit_url=LIVEKIT_URL,
+        provider="VOLCENGINE",  # 大小写与空白在解析处归一
+    )
+    # 火山线路的服务端实现尚未接入：合法值也要在建会话时显式失败，
+    # 而不是下发一份客户端解不开的凭据（静默降级是客户端的事，见 _resolve_provider）。
+    with pytest.raises(SessionError, match="volcengine"):
+        await switched.create(user_id="u1", character_id="xiaowu")
+
+
+async def test_unknown_provider_is_a_session_error_not_a_silent_fallback(service):
+    broken = SessionService(
+        store=service.store,
+        minter=service.minter,
+        livekit_url=LIVEKIT_URL,
+        provider="agora",
+    )
+    with pytest.raises(SessionError, match="agora"):
+        await broken.create(user_id="u1", character_id="xiaowu")
+
+
+async def test_blank_provider_setting_means_livekit(service):
+    fallback = SessionService(
+        store=service.store, minter=service.minter, livekit_url=LIVEKIT_URL, provider="  "
+    )
+    grant = await fallback.create(user_id="u1", character_id="xiaowu")
+    assert grant.provider == "livekit"
+
+
 @pytest.mark.parametrize(
     "kwargs", [{"user_id": "", "character_id": "xiaowu"}, {"user_id": "u1", "character_id": ""}]
 )

@@ -31,6 +31,12 @@ class Settings(BaseSettings):
     livekit_api_key: str = ""
     livekit_api_secret: str = ""
 
+    # 语音线路（RTC provider）。建会话时定、随 grant 下发，客户端只照着分发
+    # （companion-agent/docs 或 Android docs/companion-rtc-provider-switching.md §2）。
+    # 目前唯一可用取值是 livekit；容灾线路 volcengine 的服务端实现尚未接入（P1），
+    # 配置成它会在建会话时报错而不是静默降级——没有实现可降级，配错必须显式暴露。
+    companion_voice_provider: str = "livekit"
+
     companion_token_ttl_sec: int = 600
 
     # 身份验证：redis_token（生产，读 Java 登录态）或 allow_all（仅 dev）。D §4、A §5.5

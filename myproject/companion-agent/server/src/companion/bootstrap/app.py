@@ -125,6 +125,7 @@ def create_app(
         minter=minter or TokenMinter.from_settings(settings),
         livekit_url=settings.livekit_url if livekit_url is None else livekit_url,
         provision_room=_room_provisioner_from_settings(),
+        provider=settings.companion_voice_provider,
     )
 
     if platform is not None:
