@@ -103,6 +103,10 @@ def _configure_logging() -> None:
         # 与 uvicorn 默认风格对齐，避免同一个文件里两种格式混杂。
         format="%(asctime)s %(levelname)-7s %(name)s %(message)s",
     )
+    # 8081 直接对公网：扫描器的畸形请求每时每刻都在刷日志，先滤掉（见 observability/noise.py）
+    from companion.observability.noise import attach_noise_filter
+
+    attach_noise_filter()
 
 
 def main() -> None:

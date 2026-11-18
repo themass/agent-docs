@@ -69,6 +69,10 @@ async def _platform():
 def main() -> None:
     load_env()      # 要在读任何语音配置之前
     logging.basicConfig(level=settings.companion_log_level)
+    # 8082 也直接对公网：aiohttp 健康检查端口每天被 PRI/垃圾字节打，整段堆栈刷 voice.log
+    from companion.observability.noise import attach_noise_filter
+
+    attach_noise_filter()
     log = logging.getLogger("companion.worker")
 
     if not (settings.livekit_url and settings.livekit_api_key and settings.livekit_api_secret):
