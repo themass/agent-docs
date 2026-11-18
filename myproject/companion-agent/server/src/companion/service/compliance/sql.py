@@ -15,10 +15,6 @@ def _now() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None, microsecond=0)
 
 
-def _naive(value: datetime) -> datetime:
-    return value.astimezone(UTC).replace(tzinfo=None) if value.tzinfo else value
-
-
 class SqlComplianceStore:
     def __init__(self, engine: AsyncEngine) -> None:
         self._engine = engine
@@ -63,7 +59,11 @@ class SqlComplianceStore:
         return await self.consent(owner_id=owner_id)
 
     async def touch_usage(self, *, owner_id: int, now: datetime) -> UsageState:
-        current = _naive(now)
+        # 必须保持 tz-aware：UTCDateTime 读回来带 UTC 时区，这里若剥掉时区，
+        # `current - row.last_seen_at` 就是 naive-aware 相减 → TypeError，
+        # 于是「同一用户的第二次活跃」起每次计时都失败（生产上每条消息刷一条 warning，
+        # 而调用方 fail-open 把异常吞了，所以只表现为日志、不表现为故障）。
+        current = now.astimezone(UTC) if now.tzinfo else now.replace(tzinfo=UTC)
         gap = timedelta(minutes=SPAN_GAP_MINUTES)
         remind_at = timedelta(minutes=REMIND_AFTER_MINUTES)
         async with self._engine.begin() as conn:
