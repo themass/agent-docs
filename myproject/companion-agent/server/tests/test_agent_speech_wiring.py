@@ -153,3 +153,36 @@ async def test_without_a_speech_publisher_the_agent_still_speaks(monkeypatch):
 
     assert out == ["先歇一会儿。", "我在。"]
     assert len(frames) == 2
+
+
+async def test_turn_logs_user_words_and_the_reply(caplog):
+    """通话排障的基本盘：日志里必须能直接看到用户说的话和回复的内容。
+
+    QA 库受"用户同意留存内容"门控，日志是运维唯一的现场；缺了这两行，
+    「她听错了什么」只能靠复现。"""
+    import logging
+
+    speech = _Speech()
+    agent = _agent(Pipeline(sentences=("先歇一会儿。", "我在。")), speech)
+    with caplog.at_level(logging.INFO, logger="companion.api.livekit.agent"):
+        async for _ in agent.llm_node(CTX, [], None):
+            pass
+
+    lines = [r.message for r in caplog.records if "voice turn" in r.message or "voice reply" in r.message]
+    assert len(lines) == 2, lines
+    assert "今天好累" in lines[0] and "said=" in lines[0]
+    assert "先歇一会儿。" in lines[1] and "interrupted=False" in lines[1]
+
+
+async def test_turn_log_clips_long_transcripts(caplog):
+    import logging
+
+    long = "累" * 500
+    ctx = SimpleNamespace(items=[SimpleNamespace(role="user", text_content=long)])
+    agent = _agent(Pipeline(sentences=("好的。",)), _Speech())
+    with caplog.at_level(logging.INFO, logger="companion.api.livekit.agent"):
+        async for _ in agent.llm_node(ctx, [], None):
+            pass
+
+    said = next(r.message for r in caplog.records if "voice turn" in r.message)
+    assert "(+300)" in said and "\n" not in said

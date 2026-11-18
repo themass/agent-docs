@@ -58,6 +58,11 @@ def build_request(*, user_id: str, character_id: str, message: str, chat_session
     )
 
 
+def _clip(text: str, limit: int = 200) -> str:
+    """日志里的一行放不下整段转写：截断并注明，别让排查的人以为话说完了。"""
+    return text if len(text) <= limit else text[:limit] + f"…(+{len(text) - limit})"
+
+
 def last_user_message(chat_ctx: Any) -> str:
     """取上下文里最后一条用户消息。
 
@@ -139,6 +144,10 @@ def build_agent_class() -> type:
             message = last_user_message(chat_ctx)
             if not message:
                 return
+            # 现场排障全靠这两行：通话出问题时，QA 库未必存了内容（要用户同意），
+            # 而"她到底听错了什么、她回了什么"必须先看见。截断防超长转写刷屏。
+            logger.info("voice turn user=%s role=%s said=%r", self._user_id, self._character_id,
+                        _clip(message))
             confidence = last_user_confidence(chat_ctx)
             request = build_request(
                 user_id=self._user_id,
@@ -173,6 +182,10 @@ def build_agent_class() -> type:
                 finished = True
                 yield UNAVAILABLE_LINE
             finally:
+                logger.info("voice reply user=%s role=%s first_ms=%s total_ms=%s interrupted=%s said=%r",
+                            self._user_id, self._character_id, first_ms,
+                            int((time.monotonic() - started) * 1000), not finished,
+                            _clip("".join(sentences)))
                 # 被打断时生成器会在这里被关闭：记录要放到后台任务里，不能在关闭路径上 await
                 self._record(message, sentences, first_ms, int((time.monotonic() - started) * 1000),
                              interrupted=not finished, confidence=confidence)
