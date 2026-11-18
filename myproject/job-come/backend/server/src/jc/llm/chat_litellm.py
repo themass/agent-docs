@@ -154,8 +154,9 @@ class ChatLiteLLMRouter(BaseChatModel):
     ) -> dict[str, Any]:
         from jc.llm.message_mapping import to_litellm_messages
 
+        transport = self._transport()
         payload: dict[str, Any] = {
-            "model": self._transport().primary,
+            "model": transport.primary,
             "messages": to_litellm_messages(messages),
             "drop_params": True,
             # Read back by the audit callback, which otherwise cannot tell which
@@ -172,7 +173,10 @@ class ChatLiteLLMRouter(BaseChatModel):
         max_tokens = kwargs.pop("max_tokens", None) or self.max_tokens
         if max_tokens:
             payload["max_tokens"] = max_tokens
-        if self.temperature is not None:
+        # Omit rather than send on a locked chain: a call-level temperature
+        # rides the whole chain, including fallback hops. See
+        # `transport._TEMPERATURE_LOCKED_MODELS`.
+        if self.temperature is not None and not transport.temperature_locked:
             payload["temperature"] = self.temperature
         for passthrough in ("tools", "tool_choice", "response_format"):
             if passthrough in kwargs and kwargs[passthrough] is not None:

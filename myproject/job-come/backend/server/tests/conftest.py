@@ -34,11 +34,22 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
+import os
+
 import pytest
+
+#: `JC_LLM_MODEL_*` present when conftest is imported — before any test module
+#: has imported litellm. litellm calls python-dotenv at import time and loads
+#: `backend/server/.env` with override=False, injecting the developer's real
+#: deployment into os.environ no matter that `ensure_dotenv_loaded` is stubbed.
+#: Anything appearing later is that leak.
+_PRISTINE_LLM_ENV = frozenset(k for k in os.environ if k.startswith("JC_LLM_MODEL_"))
 
 
 @pytest.fixture(autouse=True)
-def _never_read_the_developers_dotenv(monkeypatch: pytest.MonkeyPatch) -> None:
+def _never_read_the_developers_dotenv(
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[None]:
     """Tests must not inherit real credentials from `backend/server/.env`.
 
     `ensure_dotenv_loaded()` loads that file with `override=False`, so a test that
@@ -51,8 +62,23 @@ def _never_read_the_developers_dotenv(monkeypatch: pytest.MonkeyPatch) -> None:
     This is also why the defect it masked lived so long: the dotenv path was computed
     one directory too shallow, so the file was never found and these tests passed for
     the wrong reason.
+
+    The stub only covers OUR loader. litellm runs python-dotenv at import time —
+    and something in the suite imports litellm during collection, before any test
+    runs — so the deployment's `JC_LLM_MODEL_*` names still appear in os.environ
+    and `LLMRouter.__init__`'s unknown-scenario check then fails unrelated files
+    (observed: the whole test_llm_model_env suite, once test_llm_audit_queue
+    collected first). Scrubbing the diff against the pristine snapshot around
+    every test closes the hole from the other side.
     """
     monkeypatch.setattr("jc.llm.router.ensure_dotenv_loaded", lambda: None)
+    for key in list(os.environ):
+        if key.startswith("JC_LLM_MODEL_") and key not in _PRISTINE_LLM_ENV:
+            del os.environ[key]
+    yield
+    for key in list(os.environ):
+        if key.startswith("JC_LLM_MODEL_") and key not in _PRISTINE_LLM_ENV:
+            del os.environ[key]
 
 
 @pytest.fixture(autouse=True)

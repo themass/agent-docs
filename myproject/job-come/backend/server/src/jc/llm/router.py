@@ -272,6 +272,7 @@ class LLMRouter:
             max_tokens=max_tokens,
             scenario=scenario,
             caller=caller,
+            temperature_locked=transport.temperature_locked,
         )
         if timeout_seconds is not None:
             if timeout_seconds <= 0:
@@ -340,6 +341,7 @@ class LLMRouter:
             max_tokens=None,
             scenario=scenario,
             caller=caller,
+            temperature_locked=transport.temperature_locked,
         )
         kwargs["stream"] = True
         router = transport.router
@@ -365,6 +367,7 @@ class LLMRouter:
         max_tokens: int | None,
         scenario: str,
         caller: str,
+        temperature_locked: bool = False,
     ) -> dict[str, Any]:
         kwargs: dict[str, Any] = {
             "model": alias,
@@ -379,7 +382,13 @@ class LLMRouter:
                 "trace_id": _current_trace_id(),
             },
         }
-        if temperature is not None:
+        # See `jc.llm.transport._TEMPERATURE_LOCKED_MODELS`: a call-level
+        # temperature rides the WHOLE chain (litellm merges call params over
+        # every deployment's), so on a chain containing a locked model the only
+        # safe request is one without the parameter at all. Unlocked hops fall
+        # back to their measured deployment temperature — losing 0.1 on one
+        # hop beats an empty stream on the other.
+        if temperature is not None and not temperature_locked:
             kwargs["temperature"] = temperature
         if response_format is not None:
             kwargs["response_format"] = response_format

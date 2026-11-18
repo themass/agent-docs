@@ -63,6 +63,33 @@ class NoUsableEndpoint(RuntimeError):
     """No endpoint in the scenario's chain has its API key configured."""
 
 
+#: Models whose gateway endpoint rejects any *explicit* temperature except the
+#: default (1) — and does it asymmetrically, which is what makes the table worth
+#: keeping instead of trusting `drop_params`:
+#:
+#:   non-streaming + temperature!=1  ->  HTTP 500 "Only the default (1) value"
+#:   STREAMING + any temperature!=1  ->  HTTP 200 and ZERO data chunks
+#:
+#: The streaming shape is the P0: an empty-but-successful stream reaches
+#: langchain as "No generations found in stream", the agent's retry loop hits
+#: the same poisoned endpoint three times, and the user sees a turn that opens
+#: with 200 and never says anything. Measured against the gateway on 2026-11-18:
+#: gpt-6-luna locks; glm-5.3-flash, gpt-6-sol, gpt-6-astra, gpt-6.1-sol and
+#: deepseek-v4-pro all accept 0.1. Re-probe before adding or removing entries:
+#: `curl "$JC_LLM_API_BASE/chat/completions"` with temperature 0.1,
+#: stream:true, and count the `data:` chunks.
+_TEMPERATURE_LOCKED_MODELS = frozenset({"gpt-6-luna"})
+
+
+def is_temperature_locked(model: str) -> bool:
+    """True when the gateway serves this model with temperature fixed at 1.
+
+    Matched on the bare slug so `openai/gpt-6-luna` (the `.env` spelling) and a
+    bare `gpt-6-luna` (what a gateway echoes back) behave the same.
+    """
+    return model.rsplit("/", 1)[-1] in _TEMPERATURE_LOCKED_MODELS
+
+
 @dataclass(frozen=True, slots=True)
 class SkippedEndpoint:
     """An endpoint left out of the router because its API key is not set.
@@ -86,6 +113,12 @@ class ScenarioTransport(NamedTuple):
     skipped: tuple[SkippedEndpoint, ...]
     # Keep the resolved config separate from Router's mutable runtime model list.
     deployments: tuple[dict[str, Any], ...] = ()
+    #: True when ANY endpoint in this chain rejects explicit temperature. Call
+    #: sites must then omit `temperature` from the request itself: litellm merges
+    #: call-level params over the deployment's, so a caller's 0.2 would ride the
+    #: fallback hop and re-poison the locked model there. The cost is only that
+    #: unlocked hops fall back to their measured deployment temperature.
+    temperature_locked: bool = False
 
 
 async def complete_deployment_once(
@@ -252,7 +285,14 @@ def router_for(scenario: str) -> ScenarioTransport:
                     "api_base": api_base,
                     "api_key": api_key,
                     "timeout": endpoint.timeout_sec,
-                    "temperature": endpoint.temperature,
+                    # See `_TEMPERATURE_LOCKED_MODELS`: for a locked model the
+                    # gateway's own default (1) is the only accepted value, so
+                    # the correct parameter is no parameter.
+                    **(
+                        {}
+                        if is_temperature_locked(endpoint.model)
+                        else {"temperature": endpoint.temperature}
+                    ),
                     **(
                         {"reasoning_effort": endpoint.reasoning_effort}
                         if getattr(endpoint, "reasoning_effort", None) is not None
@@ -303,6 +343,12 @@ def router_for(scenario: str) -> ScenarioTransport:
         # would multiply latency on a scenario whose point is to move on.
         num_retries=0,
     )
-    transport = ScenarioTransport(router, primary, tuple(skipped), deployments)
+    transport = ScenarioTransport(
+        router,
+        primary,
+        tuple(skipped),
+        deployments,
+        any(is_temperature_locked(e.model) for e in chain),
+    )
     _router_cache[scenario] = transport
     return transport
