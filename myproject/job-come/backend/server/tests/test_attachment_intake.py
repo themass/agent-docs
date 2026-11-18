@@ -96,6 +96,9 @@ class _StubAgents:
     def __init__(self) -> None:
         self.calls = 0
 
+    async def prepare_attachments(self, attachments, *, actor, session_id):  # noqa: ANN001, ANN003
+        return attachments
+
     async def stream_message(self, session_id, **kwargs):  # noqa: ANN001, ANN003
         self.calls += 1
         yield {"type": "done"}

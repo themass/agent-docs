@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import secrets
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from agentkit.web.auth import Actor
@@ -50,6 +51,44 @@ def new_key_id() -> str:
     return secrets.token_urlsafe(_KEY_ID_BYTES).rstrip("=")
 
 
+@dataclass(frozen=True, slots=True)
+class BoundObject:
+    """What bind proved about one object: it exists, it belongs to this actor,
+    it is this many bytes, and it has this content type.
+
+    The content type is the server-side one recorded at sign (validated against
+    the scene whitelist then), NOT the caller's later assertion — consumers may
+    treat it as authoritative for e.g. the mime the model sees.
+    """
+
+    size_bytes: int
+    content_type: str
+
+
+def new_object_key(
+    *, actor_id: str, scene: str, content_type: str, now: datetime | None = None
+) -> str:
+    """The canonical key for one upload, in exactly one place.
+
+    sign is the only issuer — the browser learns the key from the sign
+    response and carries it to the business call — but the shape lives here so
+    nothing else (tests, future callers) re-derives the prefix by hand. The
+    `storage_key()` helper keeps the `jc/<env>/` prefix discipline in one
+    function, as it does everywhere else in the codebase.
+    """
+    now = now or datetime.now(UTC)
+    ext = extension_for(content_type.strip().lower())
+    return storage_key(
+        "uploads",
+        actor_id,
+        scene,
+        f"{now:%Y}",
+        f"{now:%m}",
+        f"{now:%d}",
+        f"{new_key_id()}.{ext}",
+    )
+
+
 class MediaService:
     def __init__(self, db: AsyncSession) -> None:
         self._db = db
@@ -79,15 +118,11 @@ class MediaService:
 
         now = datetime.now(UTC)
         expires_at = now + timedelta(seconds=settings.jc_media_sign_ttl_sec)
-        ext = extension_for(content_type)
-        key = storage_key(
-            "uploads",
-            actor.actor_id,
-            media_scene.name,
-            f"{now:%Y}",
-            f"{now:%m}",
-            f"{now:%d}",
-            f"{new_key_id()}.{ext}",
+        key = new_object_key(
+            actor_id=actor.actor_id,
+            scene=media_scene.name,
+            content_type=content_type,
+            now=now,
         )
 
         store = self._object_store()
@@ -148,8 +183,14 @@ class MediaService:
 
     # ----------------------------- bind -----------------------------
 
-    async def bind(self, *, actor: Actor, object_key: str, scene: str, bound_ref: str) -> int:
-        """Validate and consume one issued key; returns the actual byte count.
+    async def bind(
+        self, *, actor: Actor, object_key: str, scene: str, bound_ref: str
+    ) -> BoundObject:
+        """Validate and consume one issued key; returns what was verified.
+
+        The returned `content_type` is the one recorded at sign time, so a
+        caller that later claims a different mime in its business payload
+        cannot get the server to trust that claim.
 
         Raises NotFoundError (unknown/foreign key shape), ForbiddenError (key
         exists but belongs to someone else — 403, per ADR-011 §7), GoneError
@@ -190,7 +231,7 @@ class MediaService:
         if result.rowcount != 1:  # type: ignore[attr-defined]
             # Lost a race to a concurrent bind of the same key.
             raise ConflictError("该文件已被使用，请重新上传。", code="already_bound")
-        return size
+        return BoundObject(size_bytes=size, content_type=row.content_type)
 
     async def _load_for_bind(self, *, actor: Actor, object_key: str, scene: str) -> MediaUpload:
         row = await self._db.get(MediaUpload, object_key)

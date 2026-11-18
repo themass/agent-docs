@@ -135,13 +135,21 @@ async def agent_message_stream(
     # Same sync call the service makes; the service copy stays as the invariant for
     # every other caller.
     validate_inline_attachments(body.attachments or [])
+    # Direct uploads bind HERE too, for the same reason (ADR-011 §6-C): a
+    # foreign, expired, never-PUT or wrong-content key must answer 4xx JSON
+    # while the composer can still show it, not 200-with-a-dying-stream.
+    # Hydrated attachments (bytes read back from the bucket, server-side mime)
+    # are what the turn runs on; the ledger then stores the bound key.
+    attachments = await agents.prepare_attachments(
+        body.attachments or [], actor=actor, session_id=session_id
+    )
 
     async def event_stream() -> AsyncIterator[bytes]:
         upstream = agents.stream_message(
             session_id,
             actor=actor,
             content=body.content,
-            attachments=body.attachments,
+            attachments=attachments,
             reply_locale=body.reply_locale,
             ui_context=body.ui_context,
             client_message_id=body.client_message_id,

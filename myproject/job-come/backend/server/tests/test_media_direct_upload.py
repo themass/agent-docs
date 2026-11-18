@@ -12,6 +12,7 @@ Redis throttle is a counter fake for the same reason.
 
 from __future__ import annotations
 
+import base64
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
@@ -36,7 +37,14 @@ from jc.exceptions import (
 )
 from jc.models.enums import MediaUploadState
 from jc.models.media_upload import MediaUpload
-from jc.services import media_service
+from jc.schemas.agent import AgentAttachment
+from jc.services import agent_attachment_service, media_service
+from jc.services.agent_attachment_service import (
+    AttachmentRejectedError,
+    AttachmentTooLargeError,
+    offload_for_persistence,
+    prepare_direct_attachments,
+)
 from jc.services.media_scene import MediaSceneError
 from jc.services.media_service import MediaService, new_key_id, sweep_media_uploads
 
@@ -50,6 +58,17 @@ class FakeObjectStore:
         self.deleted: list[str] = []
         self.signed: list[dict] = []
         self.objects: list[tuple[str, object]] = []
+        self.bodies: dict[str, bytes] = {}
+        self.puts: list[dict] = []
+
+    def get_object_bytes(self, key):
+        return self.bodies[key]
+
+    def put_object(self, key, body, *, content_type=None):
+        self.puts.append({"key": key, "size": len(body), "content_type": content_type})
+        self.bodies[key] = body
+        self.sizes[key] = len(body)
+        return key
 
     def presigned_put_url(self, key, *, content_type=None, expires_in=600):
         self.signed.append({"key": key, "content_type": content_type, "expires_in": expires_in})
@@ -57,6 +76,9 @@ class FakeObjectStore:
 
     def head_object_size(self, key):
         return self.sizes.get(key)
+
+    def presigned_get_url(self, key, *, expires_in=900):
+        return f"https://bucket.test/{key}?get=fake"
 
     def delete_object(self, key):
         self.deleted.append(key)
@@ -264,14 +286,16 @@ async def test_bind_happy_path_consumes_the_key(env):
     key = await make_issued(env)
     env.store.sizes[key] = 123_456
     async with env.sessions() as db:
-        size = await MediaService(db).bind(
+        bound = await MediaService(db).bind(
             actor=OWNER,
             object_key=key,
             scene="chat-image",
             bound_ref="msg_1",
         )
         await db.commit()
-    assert size == 123_456
+    assert bound.size_bytes == 123_456
+    # The mime the ledger will trust is the sign-time one, not any later claim.
+    assert bound.content_type == "image/jpeg"
     row = await issued_row(env.sessions, key)
     assert row.state == MediaUploadState.BOUND
     assert row.actual_size == 123_456
@@ -469,3 +493,224 @@ async def test_gc_dry_run_touches_nothing(env):
     assert removed["expired"] >= 1
     assert env.store.deleted == []
     assert await issued_row(env.sessions, old) is not None
+
+
+# ==================== §6-C: chat attachments via direct keys ====================
+#
+# Everything above proves the media-service boundary. Everything below proves
+# the CHAT wiring on top of it: prepare binds → reads back → inlines server
+# mime; offload persists the BOUND key and never re-PUTs; every bind-visible
+# failure surfaces as an AppError BEFORE the SSE stream, and the uncommitted
+# bind rolls back so the row stays ISSUED for GC.
+
+
+@pytest.fixture(autouse=True)
+def _storage_backend_uses_fake_store(env, monkeypatch):
+    # StorageBackend is a process singleton frozen to remote/local at first
+    # construction, so patching settings is not enough here: the chat path
+    # reads bytes through agent_attachment_service.get_storage_backend, and
+    # that is what must point at the fake.
+    monkeypatch.setattr(agent_attachment_service, "get_storage_backend", lambda: env.store)
+
+
+# Magic-bytes-accurate payloads: the sniff `prepare` runs is prefix-only (its
+# docstring says "no parser"), so the fixtures test exactly what production
+# tests — a real header that passes, and a lying body that does not.
+JPEG = b"\xff\xd8\xff\xe0" + bytes(range(120)) + b"\xff\xd9"
+WEBM = b"\x1a\x45\xdf\xa3" + bytes(range(40))
+SVG = b"<svg onload='alert(1)'></svg>"
+
+
+def att(**kw) -> AgentAttachment:
+    base = {"kind": "image", "name": "p.jpg", "mime_type": "image/jpeg"}
+    base.update(kw)
+    return AgentAttachment(**base)
+
+
+def put_blob(env, key, body) -> None:  # noqa: ANN001
+    env.store.bodies[key] = body
+    env.store.sizes[key] = len(body)
+
+
+async def _prepare(env, attachments, *, actor=OWNER, session_id="agsn_s1", commit=False):  # noqa: ANN001
+    """Mirror the route: one request-scoped session, commit only on success."""
+    db = env.sessions()
+    try:
+        out = await prepare_direct_attachments(
+            attachments, db=db, actor=actor, session_id=session_id
+        )
+        if commit:
+            await db.commit()
+        return out
+    finally:
+        await db.close()
+
+
+# ------------------------- schema-level exclusivity -------------------------
+
+
+def test_object_key_and_data_url_are_mutually_exclusive():
+    with pytest.raises(ValueError):
+        att(
+            object_key="jc/dev/uploads/usr_owner/chat-image/2026/11/18/k.jpg",
+            data_url="data:image/jpeg;base64,AAAA",
+        )
+
+
+def test_file_attachments_cannot_be_direct():
+    with pytest.raises(ValueError):
+        att(
+            kind="file",
+            name="x.pdf",
+            object_key="jc/dev/uploads/usr_owner/chat-image/2026/11/18/k.jpg",
+        )
+
+
+# ------------------------------ the pass side ------------------------------
+
+
+async def test_direct_key_binds_hydrates_and_persists_the_bound_key(env):
+    key = await make_issued(env)  # row says image/jpeg
+    put_blob(env, key, JPEG)
+    # Client lies about the mime; the sign-time record must win everywhere.
+    prepared = await _prepare(env, [att(object_key=key, mime_type="image/png")], commit=True)
+
+    (hydrated,) = prepared
+    assert hydrated.object_key == key
+    assert hydrated.mime_type == "image/jpeg"
+    assert hydrated.data_url == f"data:image/jpeg;base64,{base64.b64encode(JPEG).decode()}"
+
+    row = await issued_row(env.sessions, key)
+    assert row.state == MediaUploadState.BOUND
+    assert row.actual_size == len(JPEG)
+    assert row.bound_ref == "agsn:agsn_s1"
+
+    # Persistence: the bound key is the durable record, re-signed on replay,
+    # and the bytes are NEVER copied a second time under agent/.
+    env.store.puts.clear()
+    (stored,) = await offload_for_persistence(prepared, session_id="agsn_s1", message_id="agm_m1")
+    assert stored["storage_key"] == key
+    assert stored["size_bytes"] == len(JPEG)
+    assert stored["download_url"] == f"https://bucket.test/{key}?get=fake"
+    assert "data_url" not in stored  # the whole point of this module
+    assert env.store.puts == []
+
+
+async def test_audio_attachment_binds_chat_audio_scene(env):
+    key = await make_issued(env, scene="chat-audio", content_type="audio/webm")
+    put_blob(env, key, WEBM)
+    prepared = await _prepare(
+        env, [att(kind="audio", name="v.webm", mime_type="audio/webm", object_key=key)]
+    )
+    assert prepared[0].data_url.startswith("data:audio/webm;base64,")
+    assert prepared[0].mime_type == "audio/webm"
+
+
+async def test_prepare_is_a_noop_passthrough_without_keys(env):
+    plain = att()
+    assert await _prepare(env, [plain]) == [plain]
+
+
+# ----------------------------- the reject side -----------------------------
+
+
+async def test_foreign_key_is_403_and_binds_nothing(env):
+    key = await make_issued(env)
+    put_blob(env, key, JPEG)
+    with pytest.raises(ForbiddenError) as exc:
+        await _prepare(env, [att(object_key=key)], actor=OTHER)
+    assert exc.value.code == "foreign_upload"
+    assert (await issued_row(env.sessions, key)).state == MediaUploadState.ISSUED
+
+
+async def test_unknown_key_is_rejected(env):
+    unknown = "jc/dev/uploads/usr_owner/chat-image/2026/11/18/nope.jpg"
+    with pytest.raises(NotFoundError):
+        await _prepare(env, [att(object_key=unknown)])
+
+
+async def test_expired_key_is_gone(env):
+    key = await make_issued(env, expires_offset_sec=-10)
+    put_blob(env, key, JPEG)
+    with pytest.raises(GoneError):
+        await _prepare(env, [att(object_key=key)])
+
+
+async def test_never_uploaded_object_is_rejected_before_readback(env):
+    key = await make_issued(env)  # no bodies/sizes: HEAD says missing
+    with pytest.raises(NotFoundError) as exc:
+        await _prepare(env, [att(object_key=key)])
+    assert exc.value.code == "upload_not_found"
+
+
+async def test_double_use_of_one_key_conflicts(env):
+    key = await make_issued(env)
+    put_blob(env, key, JPEG)
+    await _prepare(env, [att(object_key=key)], commit=True)
+    with pytest.raises(ConflictError) as exc:
+        await _prepare(env, [att(object_key=key)], session_id="agsn_s2")
+    assert exc.value.code == "already_bound"
+
+
+async def test_spoofed_content_under_own_key_is_rejected_and_row_stays_issued(env):
+    # P1-2 closed the inline path (svg bytes as image/jpeg reached the ledger);
+    # the direct path must not reopen it. The row legitimately says image/jpeg
+    # — sign whitelists by contentType — so the sniff must fire on the readback.
+    key = await make_issued(env)
+    put_blob(env, key, SVG)
+    with pytest.raises(AttachmentRejectedError):
+        await _prepare(env, [att(object_key=key)])
+    # The bind was never committed (route commits with the user row), so the
+    # close rolled it back: GC still owns the object.
+    assert (await issued_row(env.sessions, key)).state == MediaUploadState.ISSUED
+
+
+async def test_empty_object_is_rejected(env):
+    key = await make_issued(env)
+    put_blob(env, key, b"")
+    with pytest.raises(AttachmentRejectedError):
+        await _prepare(env, [att(object_key=key)])
+    assert (await issued_row(env.sessions, key)).state == MediaUploadState.ISSUED
+
+
+async def test_object_over_scene_cap_is_rejected_at_bind(env):
+    # Chat scene cap and chat per-file cap coincide at 8 MiB today; bind's HEAD
+    # is what fires, and the row stays ISSUED so GC reclaims the object.
+    key = await make_issued(env)
+    put_blob(env, key, JPEG + b"\x00" * (8 * 1024 * 1024))
+    from jc.services.media_scene import MediaSceneError
+
+    with pytest.raises(MediaSceneError) as exc:
+        await _prepare(env, [att(object_key=key)])
+    assert exc.value.code == "uploaded_size_over_limit"
+    assert (await issued_row(env.sessions, key)).state == MediaUploadState.ISSUED
+
+
+async def test_image_kind_cannot_consume_an_audio_scene_key(env):
+    # The scene is chosen from the attachment KIND server-side; claiming a
+    # legitimately-owned chat-audio key for a photo is a mismatch, never an
+    # implicit upgrade.
+    key = await make_issued(env, scene="chat-audio", content_type="audio/webm")
+    put_blob(env, key, JPEG)
+    with pytest.raises(ForbiddenError) as exc:
+        await _prepare(env, [att(object_key=key)])
+    assert exc.value.code == "scene_mismatch"
+
+
+async def test_direct_and_inline_attachments_count_against_the_combined_cap(env):
+    # Exactly 8 MiB each: per-file caps pass (the check is strictly `>`), so
+    # the only thing that can stop 4 of them is the message total.
+    eight_mib = JPEG + b"\x00" * (8 * 1024 * 1024 - len(JPEG))
+    assert len(eight_mib) == 8 * 1024 * 1024
+    inline = att(data_url=f"data:image/jpeg;base64,{base64.b64encode(eight_mib).decode()}")
+    keys = []
+    for _ in range(3):
+        key = await make_issued(env)
+        put_blob(env, key, eight_mib)
+        keys.append(key)
+    with pytest.raises(AttachmentTooLargeError):
+        await _prepare(env, [inline, *(att(object_key=key) for key in keys)])
+    # Nothing bound survives a rejected message: binds rolled back with the
+    # request transaction, GC owns all three objects.
+    for key in keys:
+        assert (await issued_row(env.sessions, key)).state == MediaUploadState.ISSUED

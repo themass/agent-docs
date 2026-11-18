@@ -31,12 +31,17 @@ import base64
 import binascii
 import logging
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from jc.exceptions import AppError
 from jc.schemas.agent import AgentAttachment
 from jc.storage_backend import get_storage_backend
 from jc.storage_client import download_url_for_key
 from jc.storage_keys import storage_key
+
+if TYPE_CHECKING:
+    from agentkit.web.auth import Actor
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -182,6 +187,92 @@ def validate_inline_attachments(attachments: list[AgentAttachment]) -> None:
         raise AttachmentTooLargeError(f"这条消息的附件合计超过 {limit_mb} MB，请分几次发送。")
 
 
+#: Which upload scene guards which attachment kind (ADR-011 §4). A `file`
+# attachment never goes direct: documents arrive as text_preview, and there is
+# no scene that accepts arbitrary bytes.
+_DIRECT_SCENE_BY_KIND = {"image": "chat-image", "audio": "chat-audio"}
+
+
+async def prepare_direct_attachments(
+    attachments: list[AgentAttachment],
+    *,
+    db: AsyncSession,
+    actor: Actor,
+    session_id: str,
+) -> list[AgentAttachment]:
+    """Bind every direct-upload key, then hand back model-ready copies.
+
+    This runs in the route body, BEFORE the SSE headers go out — the P1-1 rule
+    applies to the direct path as much as to inline bytes: a foreign, expired,
+    never-uploaded or fake-content key must come back as 4xx JSON, never as a
+    200 stream that dies on the first event.
+
+    What one direct attachment costs: one bind (ownership + scene + TTL +
+    HEAD size, which is the only place the REAL byte size of a direct upload is
+    ever learned) and one readback. The bytes come back inlined as a `data:`
+    URL on an in-memory copy — every existing consumer (vision parts, OCR
+    flatten, the photo tool) reads `data_url`, and the model hop needs base64
+    no matter which transport delivered the bytes (ADR-011 "边界先说死").
+    Persistence then sees BOTH fields and stores the bound key instead of
+    re-PUTting the same bytes (`offload_for_persistence`).
+
+    The content type of a hydrated copy is the server-side one recorded at
+    sign time, so a client cannot get its spoofed `mime_type` into the ledger
+    by lying about a key it legitimately holds. The magic-bytes sniff that
+    closed P1-2 for the inline path runs here on the readback for the direct
+    path, which otherwise would never have passed through `decode_data_url`.
+
+    The transaction is deliberately left uncommitted: `stream_message` commits
+    it with the user row. A rejection before that rolls the bind back, the
+    media row stays ISSUED, and the GC reclaims the object — a refused upload
+    leaves nothing behind but a bucket object with a known owner and an age.
+    """
+    if not any(att.object_key for att in attachments):
+        return attachments
+
+    from jc.services.media_service import MediaService
+
+    media = MediaService(db)
+    prepared: list[AgentAttachment] = []
+    total = 0
+    for att in attachments:
+        if not att.object_key:
+            if att.data_url:
+                total += len(decode_data_url(att.data_url).raw)
+            prepared.append(att)
+            continue
+        scene = _DIRECT_SCENE_BY_KIND.get(att.kind)
+        if scene is None:  # schema validator blocks `file`; belt for future kinds
+            raise AttachmentRejectedError("该类型附件不支持直传，请重新选择文件。")
+        bound = await media.bind(
+            actor=actor, object_key=att.object_key, scene=scene, bound_ref=f"agsn:{session_id}"
+        )
+        raw = await asyncio.to_thread(get_storage_backend().get_object_bytes, att.object_key)
+        if not raw:
+            raise AttachmentRejectedError("附件是空的，请重新上传。")
+        if not _looks_like(bound.content_type, raw):
+            raise AttachmentRejectedError("附件内容与声明的类型不一致，请重新选择文件。")
+        if len(raw) > MAX_ATTACHMENT_BYTES:
+            limit_mb = MAX_ATTACHMENT_BYTES // (1024 * 1024)
+            raise AttachmentTooLargeError(
+                f"「{att.label or att.name}」超过 {limit_mb} MB，请压缩后再发送。"
+            )
+        total += len(raw)
+        encoded = base64.b64encode(raw).decode("ascii")
+        prepared.append(
+            att.model_copy(
+                update={
+                    "data_url": f"data:{bound.content_type};base64,{encoded}",
+                    "mime_type": bound.content_type,
+                }
+            )
+        )
+    if total > MAX_MESSAGE_ATTACHMENT_BYTES:
+        limit_mb = MAX_MESSAGE_ATTACHMENT_BYTES // (1024 * 1024)
+        raise AttachmentTooLargeError(f"这条消息的附件合计超过 {limit_mb} MB，请分几次发送。")
+    return prepared
+
+
 async def offload_for_persistence(
     attachments: list[AgentAttachment],
     *,
@@ -220,7 +311,26 @@ async def offload_for_persistence(
             row["transcript"] = att.transcript
         if att.duration_ms is not None:
             row["duration_ms"] = att.duration_ms
-        if att.data_url:
+        if att.object_key:
+            # Direct upload (ADR-011 §6-C): `prepare_direct_attachments` bound
+            # this key and inlined the bytes for the model. The bucket already
+            # holds the object under a key this actor was issued — copying it
+            # again under an agent/ key would double-store every photo and
+            # make the media ledger lie about what is live.
+            key = att.object_key
+            row["storage_key"] = key
+            try:
+                blob = decode_data_url(att.data_url or "")
+                row["size_bytes"] = len(blob.raw)
+            except Exception:  # noqa: BLE001
+                # Hydrated copies always decode; if that invariant ever breaks,
+                # the key is still the durable record — size just stays unknown.
+                pass
+            try:
+                row["download_url"] = download_url_for_key(key)
+            except Exception:  # noqa: BLE001
+                row["download_url"] = None
+        elif att.data_url:
             try:
                 blob = decode_data_url(att.data_url)
                 key = storage_key(

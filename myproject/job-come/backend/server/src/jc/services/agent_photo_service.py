@@ -52,11 +52,20 @@ async def session_images(scope: RunScope, message_id: str | None = None) -> list
             if not isinstance(att, dict) or att.get("kind") != "image":
                 continue
             key = att.get("storage_key")
-            prefix = storage_key("agent", session.id, "attachments", f"{row.id}-{index}")
-            if not isinstance(key, str) or key not in [
-                prefix + ext for ext in (".jpg", ".jpeg", ".png", ".webp")
-            ]:
+            if not isinstance(key, str):
                 continue
+            # Two key shapes reach here, both written by the server itself
+            # (the payload is not user-writable): the agent-side copy made by
+            # `offload_for_persistence` on the inline path, and — since
+            # ADR-011 §6-C — the original direct-upload key, which lives under
+            # THIS user's uploads partition. Either way the key must be under a
+            # prefix that provably belongs to the session's owner.
+            suffix_ok = key.rsplit(".", 1)[-1] in ("jpg", "jpeg", "png", "webp")
+            agent_prefix = storage_key("agent", session.id, "attachments", f"{row.id}-{index}")
+            uploads_prefix = storage_key("uploads", session.user_id, "chat-image")
+            if key not in [agent_prefix + ext for ext in (".jpg", ".jpeg", ".png", ".webp")]:
+                if not (key.startswith(uploads_prefix + "/") and suffix_ok):
+                    continue
             candidates.append(
                 {
                     "message_id": row.id,

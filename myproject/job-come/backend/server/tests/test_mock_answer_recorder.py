@@ -289,6 +289,9 @@ async def test_the_message_route_hands_the_clients_message_id_to_the_service():
     seen: dict = {}
 
     class StubAgents:
+        async def prepare_attachments(self, attachments, *, actor, session_id):
+            return attachments
+
         async def stream_message(self, session_id, **kwargs):
             seen.update(kwargs)
             yield {"type": "done"}

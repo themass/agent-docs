@@ -51,6 +51,13 @@ class AgentAttachment(BaseModel):
     label: str | None = Field(default=None, max_length=128)
     mime_type: str | None = None
     data_url: str | None = Field(default=None, description="Base64 data URL for images/audio")
+    #: Direct-upload alternative (ADR-011 §6-C): the key was minted by
+    # `POST /media/sign`, the bytes PUT straight to the bucket, and the server
+    # binds (ownership + scene + HEAD size) before the stream opens. Mutually
+    # exclusive with `data_url`.
+    object_key: str | None = Field(
+        default=None, max_length=512, description="直传对象 key（与 data_url 互斥）"
+    )
     text_preview: str | None = Field(default=None, description="Extracted text for documents")
     # Voice clips only. The browser does the speech-to-text (Web Speech API) and sends
     # both: the clip is the archive, the transcript is what the model reads. Stored on
@@ -67,6 +74,16 @@ class AgentAttachment(BaseModel):
         le=6 * 60 * 60 * 1000,
         description="Recorded length of an audio attachment",
     )
+
+    @model_validator(mode="after")
+    def _byte_channels_are_exclusive(self) -> AgentAttachment:
+        if self.data_url and self.object_key:
+            raise ValueError("data_url 与 object_key 只能二选一")
+        if self.object_key and self.kind == "file":
+            # Documents never arrive as bytes today: the composer sends a
+            # text_preview, and no upload scene accepts arbitrary files.
+            raise ValueError("file 附件不支持直传")
+        return self
 
 
 class AgentUiFocus(BaseModel):

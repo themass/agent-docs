@@ -46,6 +46,7 @@ from jc.schemas.agent import (
 )
 from jc.services.agent_attachment_service import (
     offload_for_persistence,
+    prepare_direct_attachments,
     resign_persisted_attachments,
     validate_inline_attachments,
 )
@@ -271,6 +272,20 @@ class AgentService:
         return mock_id
 
     @method_metrics()
+    async def prepare_attachments(
+        self, attachments: list[AgentAttachment], *, actor: UserActor, session_id: str
+    ) -> list[AgentAttachment]:
+        """Bind direct-upload keys and hydrate them for this turn (ADR-011 §6-C).
+
+        Called from the route body before the SSE response exists, so every
+        bind rejection is still an ordinary 4xx JSON the composer can show.
+        Returns the attachments the turn should run on — for direct uploads
+        that is a copy carrying the read-back bytes and the server-side mime.
+        """
+        return await prepare_direct_attachments(
+            attachments, db=self._db, actor=actor, session_id=session_id
+        )
+
     async def stream_message(
         self,
         session_id: str,
