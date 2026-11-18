@@ -99,6 +99,7 @@ def main() -> None:
 
     entry = make_entrypoint(_platform, voice_factory=build_voice_stack, wire_voice=voice_wiring(voice_info))
     from companion.api.livekit.capacity import worker_options_kwargs
+    from companion.api.livekit.prewarm import prewarm
 
     # LiveKit 的 CLI 是子命令式的（start / dev / console / download-files），
     # 不带子命令时它只打印帮助然后退出——进程"启动成功"却什么都没做，日志里只有一段 usage。
@@ -109,8 +110,11 @@ def main() -> None:
     # 按房间数限流：默认按 CPU 判断的话语音 agent 永远“不满”，房间会把数据库连接占满。
     # port 是 worker 自己的健康检查端口：SDK 生产模式默认 8081，和 api 撞车（两个进程都在本机时
     # 后起的那个绑不上就退出），所以由配置单独给一个。
+    # 预热：job 进程一启动就把首帧必经的重 import（botocore 那条 11.8s 的链）做完，
+    # 而不是等第一个房间的第一次调用在事件循环里干——那时用户已经在等首帧了。
     cli.run_app(WorkerOptions(
         entrypoint_fnc=entry,
+        prewarm_fnc=prewarm,
         **worker_options_kwargs(settings.companion_voice_max_rooms, port=settings.companion_voice_worker_port)))
 
 
