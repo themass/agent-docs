@@ -150,6 +150,70 @@ class ProfileService:
             )
         return self._to_response(reloaded)
 
+    async def upload_direct(
+        self,
+        *,
+        actor: Actor,
+        object_key: str,
+        file_name: str,
+    ) -> ProfileResponse:
+        """Consume an already-uploaded `profile-source` key (ADR-011 §6-D).
+
+        The same outcome as `upload`, minus the proxying: the bytes are
+        already in the bucket under a key this actor was issued, so bind
+        validates ownership/scene/TTL and — for the first time anywhere — the
+        REAL size via HEAD. Two deliberate differences from the multipart
+        path:
+
+        * No re-PUT, and the bound key becomes `storage_key` verbatim.
+          Copying to a `profiles/` key would store every resume twice and
+          make the media ledger lie: the BOUND row says THIS object is the
+          resume, and GC will never touch a BOUND row.
+        * `content_type` and `file_size` are the server's numbers (sign-time
+          type, HEAD size), never the client's claim — the response row
+          cannot be talked into disagreeing with the bucket.
+
+        Any raise rolls back the bind with the uncommitted source row: the
+        key returns to ISSUED and GC reclaims the object, so a rejected
+        submit can never strand a BOUND row pointing at a source that does
+        not exist.
+        """
+        from jc.services.media_service import MediaService
+
+        source_id = new_id("psrc")
+        media = MediaService(self._db)
+        bound = await media.bind(
+            actor=actor,
+            object_key=object_key,
+            scene="profile-source",
+            bound_ref=f"psrc:{source_id}",
+        )
+        # Server-learned size goes through the same ingest gate multipart uses,
+        # so both transports reject the same set of names and sizes.
+        self._ingest.validate_upload(file_name, bound.content_type, bound.size_bytes)
+        profile = await self._get_or_create_active_profile(actor)
+
+        source = ProfileSource(
+            id=source_id,
+            profile_id=profile.id,
+            file_name=file_name,
+            content_type=bound.content_type,
+            file_size=bound.size_bytes,
+            storage_key=object_key,
+            parse_status=ParseStatus.PROCESSING,
+            parse_phase="queued",
+            parse_error=None,
+        )
+        await self._profiles.add_source(source)
+        await self._db.commit()
+        reloaded = await self._profiles.get_by_id(profile.id, with_sources=True)
+        if reloaded is None:
+            raise NotFoundError(
+                "上传已完成，但没找到对应的档案，请重新上传。",
+                code="profile_not_found",
+            )
+        return self._to_response(reloaded)
+
     async def ingest_text(
         self,
         *,
@@ -274,7 +338,10 @@ class ProfileService:
             return True
 
         await self._commit_parse_phase(
-            source, "load_file", profile_id, elapsed_sec=time.monotonic() - parse_started,
+            source,
+            "load_file",
+            profile_id,
+            elapsed_sec=time.monotonic() - parse_started,
             claim_token=claim_token,
         )
 
@@ -499,9 +566,7 @@ class ProfileService:
 
         payload = ProfilePayload.model_validate(profile.payload or {})
         if enabled and not payload.contact.photo.storage_key:
-            raise NotFoundError(
-                "还没有上传照片，请先上传再开启显示。", code="photo_not_uploaded"
-            )
+            raise NotFoundError("还没有上传照片，请先上传再开启显示。", code="photo_not_uploaded")
         next_bilingual = (
             payload.contact.photo.show_in_bilingual
             if show_in_bilingual is None
@@ -561,7 +626,8 @@ class ProfileService:
         profile = await self._require_profile(profile_id, with_sources=True, for_update=True)
         self._assert_owner(profile, actor)
         if profile.sources and profile.sources[0].parse_status in {
-            ParseStatus.PENDING, ParseStatus.PROCESSING,
+            ParseStatus.PENDING,
+            ParseStatus.PROCESSING,
         }:
             raise ConflictError(
                 "简历仍在解析，请等待解析完成后再确认。", code="profile_parse_in_progress"

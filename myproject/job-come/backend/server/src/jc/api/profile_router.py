@@ -52,6 +52,7 @@ from jc.schemas.profile import (
     ProfileResponse,
     ProfileTextIngestRequest,
     ProfileUpdateRequest,
+    ProfileUploadDirectRequest,
 )
 from jc.schemas.resume import (
     ElevatePreviewResponse,
@@ -149,6 +150,34 @@ async def upload_profile(
         content_type=file.content_type,
         raw_bytes=raw,
     )
+    from jc.tasks import parse_profile_source
+
+    if result.sources:
+        background_tasks.add_task(parse_profile_source, result.id, result.sources[0].id)
+    return result
+
+
+@router.post(
+    "/upload-direct",
+    response_model=ProfileResponse,
+    summary="以直传 key 提交简历",
+    description=(
+        "ADR-011 §6-D：先 `POST /media/sign`（scene=`profile-source`）→ 浏览器直传 PUT → "
+        "本接口提交 `{objectKey, fileName}`。字节不再经过服务端；绑定失败时上传记录回退 "
+        "ISSUED 并由 GC 回收。multipart `/profiles/upload` 原样保留为降级通道。"
+    ),
+)
+async def upload_profile_direct(
+    body: ProfileUploadDirectRequest,
+    background_tasks: BackgroundTasks,
+    actor: Actor = Depends(get_actor_with_guest),
+    profiles: ProfileService = Depends(get_profile_service),
+) -> ProfileResponse:
+    result = await profiles.upload_direct(
+        actor=actor, object_key=body.object_key, file_name=body.file_name
+    )
+    # Same background hand-off as multipart upload: parsing is a model call that
+    # can take minutes and must not hold the request open.
     from jc.tasks import parse_profile_source
 
     if result.sources:
@@ -469,10 +498,18 @@ async def export_review_stream(
     actor: UserActor = Depends(require_user),
     resumes: ResumeService = Depends(get_resume_service),
 ) -> StreamingResponse:
-    events = await resumes.review_events(profile_id, actor=actor,
-        elevation_level=elevation_level.value, locale=locale, draft_id=draft_id)
-    return ClosingStreamingResponse(events, media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no"})
+    events = await resumes.review_events(
+        profile_id,
+        actor=actor,
+        elevation_level=elevation_level.value,
+        locale=locale,
+        draft_id=draft_id,
+    )
+    return ClosingStreamingResponse(
+        events,
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.get(
@@ -569,8 +606,12 @@ async def elevate_preview_stream(
     resumes: ResumeService = Depends(get_resume_service),
 ) -> StreamingResponse:
     events = await resumes.preview_events(
-        profile_id, actor=actor, elevation_level=elevation_level.value,
-        locale=locale, job_id=job_id, force=force,
+        profile_id,
+        actor=actor,
+        elevation_level=elevation_level.value,
+        locale=locale,
+        job_id=job_id,
+        force=force,
     )
     return ClosingStreamingResponse(
         events,
@@ -592,9 +633,7 @@ async def list_resume_tracks(
     actor: Actor = Depends(require_capability("elevate_preview")),
     resumes: ResumeService = Depends(get_resume_service),
 ) -> dict:
-    return await resumes.list_tracks(
-        profile_id, actor=actor, elevation_level=elevation_level.value
-    )
+    return await resumes.list_tracks(profile_id, actor=actor, elevation_level=elevation_level.value)
 
 
 @router.post(
@@ -607,9 +646,7 @@ async def localize_profile(
     actor: Actor = Depends(get_actor),
     resumes: ResumeService = Depends(get_resume_service),
 ) -> dict:
-    return await resumes.localize(
-        profile_id, actor=actor, source_locale=body.source_locale
-    )
+    return await resumes.localize(profile_id, actor=actor, source_locale=body.source_locale)
 
 
 @router.post(

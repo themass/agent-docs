@@ -21,7 +21,7 @@
 import { apiJson } from "@/lib/api/client";
 import type { AgentAttachment } from "@/lib/types/agent";
 
-export type DirectUploadScene = "chat-image" | "chat-audio";
+export type DirectUploadScene = "chat-image" | "chat-audio" | "profile-source";
 
 /** Mirrors `media_scene.py` whitelists; keep in step. A mime the server would
  * reject at sign must degrade to inline HERE rather than round-trip a 400. */
@@ -40,6 +40,21 @@ const AUDIO_TYPES = new Set([
   "audio/aac",
   "audio/mpeg",
   "audio/wav",
+]);
+
+/** The `profile-source` scene whitelist (ADR-011 §4): photo resumes plus
+ * documents. Mirrors `media_scene.py` (`_IMAGE_TYPES | _DOC_TYPES`) minus
+ * gif/heic, which the resume uploader's own accept list has never taken. A
+ * mime the server would refuse at sign degrades to multipart HERE rather
+ * than round-tripping a 400 — same net effect, one less red line in prod. */
+export const PROFILE_SOURCE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "text/plain",
 ]);
 
 function baseMime(mime: string): string {

@@ -27,6 +27,7 @@ from jc.api.deps import get_actor, get_db
 from jc.api.media_router import register_media_exception_handlers
 from jc.api.media_router import router as media_router
 from jc.api.profile_router import register_profile_exception_handlers
+from jc.api.profile_router import router as profile_router
 from jc.config import settings
 from jc.db.base import Base
 from jc.exceptions import (
@@ -37,8 +38,10 @@ from jc.exceptions import (
 )
 from jc.models.enums import MediaUploadState
 from jc.models.media_upload import MediaUpload
+from jc.models.profile import ProfileSource
 from jc.schemas.agent import AgentAttachment
 from jc.services import agent_attachment_service, media_service
+from jc.services import profile_service as profile_service_module
 from jc.services.agent_attachment_service import (
     AttachmentRejectedError,
     AttachmentTooLargeError,
@@ -47,6 +50,7 @@ from jc.services.agent_attachment_service import (
 )
 from jc.services.media_scene import MediaSceneError
 from jc.services.media_service import MediaService, new_key_id, sweep_media_uploads
+from jc.services.profile_service import ProfileService
 
 OWNER = UserActor(user_id="usr_owner", session_id="s")
 OTHER = UserActor(user_id="usr_other", session_id="s")
@@ -137,7 +141,13 @@ async def env(monkeypatch, tmp_path):
         transport=httpx.ASGITransport(app=app), base_url="http://fixture"
     ) as client:
         yield SimpleNamespace(
-            sessions=sessions, client=client, store=store, redis=redis, actor=actor, engine=engine
+            app=app,
+            sessions=sessions,
+            client=client,
+            store=store,
+            redis=redis,
+            actor=actor,
+            engine=engine,
         )
     await engine.dispose()
 
@@ -714,3 +724,223 @@ async def test_direct_and_inline_attachments_count_against_the_combined_cap(env)
     # request transaction, GC owns all three objects.
     for key in keys:
         assert (await issued_row(env.sessions, key)).state == MediaUploadState.ISSUED
+
+
+# ------------------------- ADR-011 §6-D: profile-source direct -------------------------
+
+PDF = b"%PDF-1.4\n" + bytes(range(200))
+DOCX = b"PK\x03\x04" + bytes(range(150))
+
+
+@pytest.fixture
+def _profile_service_storage(env, monkeypatch):
+    # ProfileService holds a process-singleton StorageBackend from import time;
+    # upload_direct never re-PUTs, but the multipart comparison path and any
+    # future touch must not talk to a real bucket from tests either.
+    monkeypatch.setattr(profile_service_module, "get_storage_backend", lambda: env.store)
+
+
+async def _seed_users(env):
+    """`resolve_active_profile_id` reads jc_user; fixture actors exist only there.
+
+    A bare actor makes UserStore.get_or_create_meta raise ValueError -> 500,
+    which would fail the happy path for the wrong reason. Seed minimally.
+    """
+    from jc.models.user import User
+
+    async with env.sessions() as db:
+        for actor in (OWNER, OTHER):
+            if await db.get(User, actor.user_id) is None:
+                db.add(
+                    User(
+                        id=actor.user_id,
+                        email=f"{actor.user_id}@test.invalid",
+                        password_hash="not-a-real-hash",
+                    )
+                )
+        await db.commit()
+
+
+def _mount_profile_router(env):
+    from jc.api.deps import get_profile_service
+
+    if profile_router not in env.app.routes:
+        env.app.include_router(profile_router, prefix="/api/v1")
+
+    async def _svc():
+        async with env.sessions() as session:
+            yield ProfileService(session)
+
+    env.app.dependency_overrides[get_profile_service] = _svc
+
+
+async def _sign_profile(env, *, content_type="application/pdf", size=len(PDF)):
+    r = await env.client.post(
+        "/api/v1/media/sign",
+        json={"scene": "profile-source", "contentType": content_type, "sizeBytes": size},
+    )
+    assert r.status_code == 200, r.text
+    return r.json()["objectKey"]
+
+
+async def _upload_direct(env, key, *, file_name="简历.pdf"):
+    await _seed_users(env)
+    return await env.client.post(
+        "/api/v1/profiles/upload-direct",
+        json={"objectKey": key, "fileName": file_name},
+    )
+
+
+async def _sources_of(env, profile_id):
+    from sqlalchemy import select
+
+    async with env.sessions() as db:
+        rows = (
+            (await db.execute(select(ProfileSource).where(ProfileSource.profile_id == profile_id)))
+            .scalars()
+            .all()
+        )
+        return [
+            {
+                "file_name": r.file_name,
+                "content_type": r.content_type,
+                "file_size": r.file_size,
+                "storage_key": r.storage_key,
+            }
+            for r in rows
+        ]
+
+
+@pytest.mark.usefixtures("_profile_service_storage")
+async def test_upload_direct_happy_path_stores_bound_key_with_server_sized_row(env):
+    """PASS side: JSON submit binds, and the ledger row carries ONLY server numbers."""
+    _mount_profile_router(env)
+    key = await _sign_profile(env)
+    put_blob(env, key, PDF)  # HEAD will report len(PDF)
+
+    r = await _upload_direct(env, key)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    source = body["sources"][0]
+    assert source["storage_key"] == key  # the bound key verbatim — no second copy
+    assert source["file_size"] == len(PDF)
+    assert source["content_type"] == "application/pdf"
+    assert source["parse_status"] == "processing"
+
+    row = await issued_row(env.sessions, key)
+    assert row.state == MediaUploadState.BOUND
+    assert row.bound_ref.startswith("psrc:")
+    assert row.actual_size == len(PDF)
+    # No re-PUT: the only object operation this request caused was the bind HEAD.
+    assert env.store.puts == []
+
+
+@pytest.mark.usefixtures("_profile_service_storage")
+async def test_upload_direct_declared_size_lie_cannot_shrink_the_row(env):
+    """The client signed for 10 bytes but uploaded 300; the row says the HEAD truth."""
+    _mount_profile_router(env)
+    key = await _sign_profile(env, size=10)
+    put_blob(env, key, PDF)  # much larger than declared; bind accepts, row uses HEAD
+
+    r = await _upload_direct(env, key)
+    assert r.status_code == 200, r.text
+    assert r.json()["sources"][0]["file_size"] == len(PDF)
+
+
+@pytest.mark.usefixtures("_profile_service_storage")
+async def test_upload_direct_rolls_back_bind_when_filename_extension_rejected(env):
+    """REJECT side: `简历.exe` passes nothing — and the rolled-back key goes back to ISSUED.
+
+    This is the pair to the happy path: proof that a rejected submit cannot strand
+    a BOUND row pointing at a source row that was never committed, which is exactly
+    what GC reclaims (ISSUED rows get deleted with their objects).
+    """
+    _mount_profile_router(env)
+    key = await _sign_profile(env)
+    put_blob(env, key, PDF)
+
+    r = await _upload_direct(env, key, file_name="resume.exe")
+    assert r.status_code == 400, r.text  # IngestValidationError -> invalid_upload
+    assert r.json()["code"] == "invalid_upload"
+
+    row = await issued_row(env.sessions, key)
+    assert row.state == MediaUploadState.ISSUED  # bind rolled back with the business row
+
+    # The rollback must be visible in BOTH ledgers: a source row that survived
+    # its rolled-back bind would parse an object the media table says nobody
+    # owns, and GC would delete bytes a live source still references.
+    from sqlalchemy import select as _select
+
+    async with env.sessions() as db:
+        survivors = (
+            (await db.execute(_select(ProfileSource).where(ProfileSource.storage_key == key)))
+            .scalars()
+            .all()
+        )
+    assert survivors == []  # uncommitted business row, rolled back together
+
+
+@pytest.mark.usefixtures("_profile_service_storage")
+async def test_upload_direct_rejects_foreign_key_without_touching_either_ledger(env):
+    """REJECT side: B cannot submit A's key (ADR-011 §7 ownership = 403)."""
+    _mount_profile_router(env)
+    key = await _sign_profile(env)  # signed for OWNER
+    put_blob(env, key, PDF)
+
+    env.actor["current"] = OTHER
+    try:
+        r = await _upload_direct(env, key)
+    finally:
+        env.actor["current"] = OWNER
+    assert r.status_code == 403, r.text
+    assert r.json()["code"] == "foreign_upload"
+
+    row = await issued_row(env.sessions, key)
+    assert row.state == MediaUploadState.ISSUED  # the real owner's key stays usable
+
+
+@pytest.mark.usefixtures("_profile_service_storage")
+async def test_upload_direct_rejects_never_uploaded_key(env):
+    """REJECT side: sign gives a URL; nobody PUT; the key cannot open a source row."""
+    _mount_profile_router(env)
+    key = await _sign_profile(env)  # no put_blob
+
+    r = await _upload_direct(env, key)
+    assert r.status_code == 404, r.text
+    assert r.json()["code"] == "upload_not_found"
+
+
+@pytest.mark.usefixtures("_profile_service_storage")
+async def test_upload_direct_rejects_double_submit_of_one_key(env):
+    """REJECT side: one key = one resume, even for its own owner."""
+    _mount_profile_router(env)
+    key = await _sign_profile(env)
+    put_blob(env, key, PDF)
+
+    first = await _upload_direct(env, key)
+    assert first.status_code == 200, first.text
+    second = await _upload_direct(env, key)
+    assert second.status_code == 409, second.text
+    assert second.json()["code"] == "already_bound"
+
+
+@pytest.mark.usefixtures("_profile_service_storage")
+async def test_upload_direct_rejects_chat_scene_key_as_profile_source(env):
+    """REJECT side: scene is not a suggestion — a chat-image key cannot be a resume."""
+    _mount_profile_router(env)
+    key = await sign_key_for(env, scene="chat-image")
+
+    r = await _upload_direct(env, key, file_name="resume.jpg")
+    assert r.status_code == 403
+    assert r.json()["code"] == "scene_mismatch"
+
+
+async def sign_key_for(env, *, scene="chat-image", content_type="image/jpeg", body=JPEG):
+    r = await env.client.post(
+        "/api/v1/media/sign",
+        json={"scene": scene, "contentType": content_type, "sizeBytes": len(body)},
+    )
+    assert r.status_code == 200, r.text
+    key = r.json()["objectKey"]
+    put_blob(env, key, body)
+    return key

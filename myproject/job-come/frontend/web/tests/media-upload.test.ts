@@ -8,6 +8,7 @@ import {
   sceneForMime,
   toWireAttachment,
   tryDirectUpload,
+  PROFILE_SOURCE_TYPES,
 } from "@/lib/media-upload";
 import type { AgentAttachment } from "@/lib/types/agent";
 
@@ -235,5 +236,64 @@ describe("refreshLiveUploads", () => {
     expect(out[1]!.object_key).toContain("#");
     expect(out[0]!.object_key).not.toBe(out[1]!.object_key);
     expect(fetchMock).toHaveBeenCalledTimes(4); // two signs + two PUTs
+  });
+});
+
+
+describe("PROFILE_SOURCE_TYPES (ADR-011 §6-D resume uploads)", () => {
+  test("accepts photo resumes and documents, both sides of the whitelist", () => {
+    expect(PROFILE_SOURCE_TYPES.has("application/pdf")).toBe(true);
+    expect(PROFILE_SOURCE_TYPES.has("image/jpeg")).toBe(true);
+    expect(
+      PROFILE_SOURCE_TYPES.has(
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ),
+    ).toBe(true);
+  });
+  test("excludes svg and audio: a resume is neither a voice clip nor markup", () => {
+    expect(PROFILE_SOURCE_TYPES.has("image/svg+xml")).toBe(false);
+    expect(PROFILE_SOURCE_TYPES.has("audio/webm")).toBe(false);
+  });
+});
+
+describe("directUpload with the profile-source scene", () => {
+  test("signs the scene verbatim and PUTs a PDF, returning only the key", async () => {
+    const pdf = new Blob(["%PDF-1.4 test bytes"], { type: "application/pdf" });
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/media/sign")) {
+        const body = JSON.parse(String(init?.body));
+        expect(body.scene).toBe("profile-source");
+        expect(body.contentType).toBe("application/pdf");
+        return jsonResponse({
+          objectKey: "jc/prod/uploads/usr_a/profile-source/2026/11/18/k22charsxxxxxxxx.pdf",
+          upload: {
+            method: "PUT",
+            url: "https://bucket.test/key?sig=SECRET",
+            headers: { "Content-Type": "application/pdf" },
+          },
+          limits: { maxBytes: 15 * 1024 * 1024 },
+        });
+      }
+      // the PUT itself
+      expect(init?.method).toBe("PUT");
+      return new Response(null, { status: 200 });
+    });
+    const key = await directUpload("profile-source", pdf, "application/pdf");
+    expect(key).toBe("jc/prod/uploads/usr_a/profile-source/2026/11/18/k22charsxxxxxxxx.pdf");
+    expect(key).not.toContain("sig="); // the bearer secret never rides onward
+  });
+
+  test("a refused sign on a profile upload still throws the typed degrade error", async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.endsWith("/media/sign")) {
+        return jsonResponse({ code: "direct_upload_disabled", message: "关闭" }, 503);
+      }
+      throw new Error("must not PUT after a failed sign");
+    });
+    await expect(
+      directUpload("profile-source", new Blob(["x"], { type: "application/pdf" }), "application/pdf"),
+    ).rejects.toBeInstanceOf(DirectUploadUnavailable);
+    // exactly one network call happened: the failed sign, no PUT
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

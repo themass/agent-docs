@@ -85,3 +85,17 @@ class ProfileListItem(BaseModel):
 class ProfileListResponse(BaseModel):
     profiles: list[ProfileListItem]
     active_profile_id: str | None
+
+
+class ProfileUploadDirectRequest(BaseModel):
+    """Submit a `profile-source` key the browser already PUT (ADR-011 §6-D).
+
+    Only the key the server issued — deliberately NOT a size or a type: the
+    truth is the sign-time declaration plus the HEAD size `bind` returns, and
+    letting the client re-assert either here would create a second number to
+    disagree with the ledger. `file_name` is display text for the sources
+    list; it never reaches the object key.
+    """
+
+    object_key: str = Field(alias="objectKey", min_length=1, max_length=512)
+    file_name: str = Field(alias="fileName", min_length=1, max_length=200)

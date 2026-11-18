@@ -1,4 +1,5 @@
 import { apiJson } from "./client";
+import { directUpload, PROFILE_SOURCE_TYPES } from "@/lib/media-upload";
 import { ApiError, USER_NETWORK_ERROR, USER_SERVICE_UNAVAILABLE } from "./errors";
 import {
   isSourceParseSettled,
@@ -148,8 +149,49 @@ export function uploadProfile(file: File): Promise<Profile> {
   return uploadProfileWithProgress(file);
 }
 
-/** Upload a binary with real transport progress; fetch does not expose upload progress. */
-export function uploadProfileWithProgress(
+/**
+ * Upload a resume: direct upload first (ADR-011 §6-D), multipart as the
+ * permanent fallback.
+ *
+ * Direct path: sign (`profile-source`) → PUT the bytes straight to the bucket
+ * → submit `{objectKey, fileName}` JSON. The bytes never touch this server,
+ * which is the whole point. Because a presigned PUT is not observable from
+ * fetch, progress is reported as a step (0 → 90 at submit) rather than bytes;
+ * XHR multipart below keeps true transport progress and is also what runs when
+ * direct is unavailable (CORS unconfigured, sign 503/429, offline PUT) —
+ * degradation is the designed behavior, not an error state.
+ */
+export async function uploadProfileWithProgress(
+  file: File,
+  onProgress?: (percent: number) => void,
+): Promise<Profile> {
+  const contentType = file.type || "application/octet-stream";
+  if (!PROFILE_SOURCE_TYPES.has(contentType)) {
+    // A type the sign endpoint would refuse (or empty type from an old browser
+    // on a .doc): skip straight to multipart instead of burning a 400.
+    return uploadProfileMultipart(file, onProgress);
+  }
+  try {
+    const objectKey = await directUpload("profile-source", file, contentType);
+    onProgress?.(90);
+    // `signal` is not threaded through the upload UI today; aborting mid-parse
+    // is handled by the polling loop in uploadProfileAndWait.
+    const profile = await apiJson<Profile>("/profiles/upload-direct", {
+      method: "POST",
+      body: JSON.stringify({ objectKey, fileName: file.name }),
+    });
+    onProgress?.(100);
+    return profile;
+  } catch {
+    // Any direct-path failure (sign refused, PUT blocked or failed, bind
+    // rejected) degrades to the channel that has always worked. The user
+    // sees the same progress bar and the same eventual profile.
+  }
+  return uploadProfileMultipart(file, onProgress);
+}
+
+/** Upload a binary over multipart with real transport progress; fetch does not expose upload progress. */
+function uploadProfileMultipart(
   file: File,
   onProgress?: (percent: number) => void,
 ): Promise<Profile> {

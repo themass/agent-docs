@@ -96,13 +96,20 @@ test('failed parsing does not hide the independent no-model manual creation rout
   assert.match(html, /不必等待解析服务恢复/);
 });
 
-test('upload client reports real XHR progress and parses the created profile', async () => {
+// ADR-011 §6-D: uploadProfileWithProgress is direct-first with a multipart
+// fallback. All three paths are asserted here: the gate (a type the sign
+// endpoint would refuse never reaches the network), the direct channel (no
+// XHR at all), and the fallback (direct fails -> the real-progress XHR runs).
+// Real `directUpload` semantics live in tests/media-upload.test.ts; this file
+// pins the WIRING, so the module is mocked deliberately.
+function loadUploadClient({ directImpl, apiJsonImpl }) {
+  const calls = { json: [], xhrOpened: 0, progressFns: [] };
   const events = {};
   class FakeXHR {
-    upload = { set onprogress(fn) { events.progress = fn; } };
+    upload = { set onprogress(fn) { events.progress = fn; calls.progressFns.push(fn); } };
     status = 201;
     responseText = JSON.stringify({ id: 'p', sources: [] });
-    open(method, url) { this.method = method; this.url = url; }
+    open(method, url) { this.method = method; this.url = url; calls.xhrOpened += 1; }
     send(body) {
       this.body = body;
       events.progress({ lengthComputable: true, loaded: 50, total: 100 });
@@ -112,14 +119,32 @@ test('upload client reports real XHR progress and parses the created profile', a
     set onerror(fn) { events.error = fn; }
     set onabort(fn) { events.abort = fn; }
   }
-  const { uploadProfileWithProgress } = load('../lib/api/profile.ts', {
-    './client': { apiJson: async () => ({}) },
+  const mod = load('../lib/api/profile.ts', {
+    './client': { apiJson: apiJsonImpl ?? (async () => ({})) },
     './errors': {
       ApiError: class ApiError extends Error {},
       USER_NETWORK_ERROR: 'network',
       USER_SERVICE_UNAVAILABLE: 'unavailable',
     },
     '@/lib/profile-parse': parse,
+    '@/lib/media-upload': {
+      directUpload: directImpl ?? (async () => { throw new Error('unreachable in this test'); }),
+      PROFILE_SOURCE_TYPES: new Set([
+        'image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain',
+      ]),
+    },
+  });
+  return { uploadProfileWithProgress: mod.uploadProfileWithProgress, calls, FakeXHR };
+}
+
+test('upload client reports real XHR progress and parses the created profile', async () => {
+  // An untyped Blob (old browsers report '' for .doc) is outside the scene
+  // whitelist: it must skip the direct channel entirely and keep the real
+  // transport progress the bar has always shown.
+  const directCalls = [];
+  const { uploadProfileWithProgress, calls, FakeXHR } = loadUploadClient({
+    directImpl: async (...args) => { directCalls.push(args); return 'key-never-happens'; },
   });
   const prior = global.XMLHttpRequest;
   global.XMLHttpRequest = FakeXHR;
@@ -127,6 +152,60 @@ test('upload client reports real XHR progress and parses the created profile', a
     const percentages = [];
     const profile = await uploadProfileWithProgress(new Blob(['resume']), value => percentages.push(value));
     assert.equal(profile.id, 'p');
+    assert.deepEqual(percentages, [50]);
+    assert.deepEqual(directCalls, []); // the gate: no sign call for a non-whitelisted type
+  } finally {
+    global.XMLHttpRequest = prior;
+  }
+});
+
+test('profile upload goes direct when the type is whitelisted, with no XHR at all', async () => {
+  const signed = [];
+  const { uploadProfileWithProgress, calls, FakeXHR } = loadUploadClient({
+    directImpl: async (scene, blob, contentType) => {
+      signed.push({ scene, contentType, size: blob.size });
+      return 'jc/prod/uploads/usr_a/profile-source/2026/11/18/k22charsxxxxxxxx.pdf';
+    },
+    apiJsonImpl: async (path, init) => {
+      calls.json.push({ path, body: JSON.parse(String(init.body)) });
+      return { id: 'p', sources: [{ id: 's1' }] };
+    },
+  });
+  const prior = global.XMLHttpRequest;
+  global.XMLHttpRequest = FakeXHR;
+  try {
+    const file = new Blob(['%PDF-1.4 bytes'], { type: 'application/pdf' });
+    file.name = 'resume.pdf';
+    const percentages = [];
+    const profile = await uploadProfileWithProgress(file, value => percentages.push(value));
+    assert.equal(profile.id, 'p');
+    assert.deepEqual(signed, [{ scene: 'profile-source', contentType: 'application/pdf', size: 14 }]);
+    assert.deepEqual(calls.json, [{
+      path: '/profiles/upload-direct',
+      body: {
+        objectKey: 'jc/prod/uploads/usr_a/profile-source/2026/11/18/k22charsxxxxxxxx.pdf',
+        fileName: 'resume.pdf',
+      },
+    }]);
+    assert.equal(calls.xhrOpened, 0); // the bytes never went through this server
+    assert.deepEqual(percentages, [90, 100]);
+  } finally {
+    global.XMLHttpRequest = prior;
+  }
+});
+
+test('a failed direct upload falls back to multipart and still resolves the profile', async () => {
+  const { uploadProfileWithProgress, calls, FakeXHR } = loadUploadClient({
+    directImpl: async () => { throw new Error('CORS refused the PUT'); },
+  });
+  const prior = global.XMLHttpRequest;
+  global.XMLHttpRequest = FakeXHR;
+  try {
+    const file = new Blob(['%PDF-1.4 bytes'], { type: 'application/pdf' });
+    const percentages = [];
+    const profile = await uploadProfileWithProgress(file, value => percentages.push(value));
+    assert.equal(profile.id, 'p');
+    assert.equal(calls.xhrOpened, 1); // degradation ran
     assert.deepEqual(percentages, [50]);
   } finally {
     global.XMLHttpRequest = prior;
