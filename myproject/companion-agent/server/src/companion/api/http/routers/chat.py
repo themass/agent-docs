@@ -64,6 +64,10 @@ def _message_json(m, alt_ids: list[int] | None = None) -> dict[str, Any]:
     ``alt_index`` 是这条消息在组里的位置（从 0 起）。"""
     out = {"id": m.id, "role": m.role, "kind": m.kind, "content": m.content, "turn_id": m.turn_id,
            "interrupted": m.interrupted, "created_at": _iso(m.created_at)}
+    # 客户端发起时带的本地 id：客户端缓存里的富内容行（图片/语音）就用它对上这条服务端行，
+    # 刷新历史时把富内容合并过来而不是当陌生消息。只对消息主人可见，不泄露跨账号信息。
+    if m.client_message_id:
+        out["client_message_id"] = m.client_message_id
     # 附件挂在消息的 meta 上：刷新历史后要能重新渲染图片/文件卡片
     attachments = (m.meta or {}).get("attachments")
     if attachments:
