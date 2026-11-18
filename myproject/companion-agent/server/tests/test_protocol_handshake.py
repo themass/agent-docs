@@ -115,8 +115,10 @@ def test_negotiate_takes_the_lower_version_per_capability():
         "caps": {"presentation.emotion": 3, "presentation.gaze": 1},
     })
     ack = negotiate(hello, sid="s-1")
-    # 服务端都只有 1：emotion 取 min(1, 3) = 1，gaze 取 min(1, 1) = 1。
-    assert ack.caps == {"presentation.emotion": 1, "presentation.gaze": 1}
+    # emotion 取 min(1, 3) = 1；gaze 服务端是 0（知道但未启用），取 min(0, 1) = 0。
+    assert ack.caps == {"presentation.emotion": 1, "presentation.gaze": 0}
+    assert supports(ack, "presentation.emotion")
+    assert not supports(ack, "presentation.gaze")
 
 
 def test_negotiate_keeps_zero_versions():
@@ -131,8 +133,10 @@ def test_negotiate_keeps_zero_versions():
 def test_negotiate_drops_caps_the_client_never_mentioned():
     hello = parse_hello({"proto": {"min": 2, "max": 2}, "caps": {"presentation.state": 1}})
     ack = negotiate(hello, sid="s-1")
-    assert ack.caps == {"presentation.state": 1}
+    # 服务端对 state 标的是 0：交集会保留 0，但不能发。
+    assert ack.caps == {"presentation.state": 0}
     assert "presentation.emotion" not in ack.caps
+    assert not supports(ack, "presentation.state")
 
 
 def test_negotiate_drops_caps_the_server_does_not_know():
@@ -215,15 +219,20 @@ def test_v1_connection_can_send_nothing_from_the_v2_catalog():
 def test_supports_is_false_for_anything_not_negotiated():
     """哪怕对端「应该有」这个能力，只要这次握手没协商出来就不能发。
 
-    ``SERVER_CAPS`` 里包含 ``perception.attention``（客户端上报注意力），所以它协商
-    成功是正常的；没进交集的类型一律 False，这是最后一道闸。
+    ``SERVER_CAPS`` 里保留了未启用的名字（值为 0），所以整表协商后那些项仍在
+    ``ack.caps`` 里，但 ``supports`` 必须是 False；没进交集的类型一律 False。
     """
     ack = negotiate(parse_hello({"proto": {"min": 2, "max": 2}, "caps": dict(SERVER_CAPS)}), sid="s-1")
     assert not supports(ack, "presentation.teleport")
     assert not supports(ack, "telemetry.health")  # 在目录里，但服务端不协商它
+    assert not supports(ack, "presentation.state")
+    assert not supports(ack, "presentation.gesture")
+    assert not supports(ack, "presentation.gaze")
+    assert not supports(ack, "perception.attention")
 
     partial = negotiate(parse_hello({"proto": {"min": 2, "max": 2}, "caps": {"presentation.state": 1}}), sid="s-1")
-    assert supports(partial, "presentation.state")
+    assert partial.caps == {"presentation.state": 0}
+    assert not supports(partial, "presentation.state")
     assert not supports(partial, "presentation.emotion")
 
 
@@ -233,3 +242,50 @@ def test_handshake_is_repeatable_within_a_connection():
     first = negotiate(hello, sid="s-1")
     second = negotiate(hello, sid="s-1")
     assert first == second
+
+
+# ---------------------------------------------------------------- 能力兑现
+
+
+def test_server_caps_only_enable_what_we_can_ship():
+    """SERVER_CAPS 的 1 必须对应实际发送/消费路径，否则协商会虚报。
+
+    现在能兑现的只有：
+    * ``presentation.emotion`` —— ``ProtocolCueSink`` / ``ProtocolBridge.cue_emotion``
+    * ``speech.v1`` —— ``speech_seg`` / ``speech_end`` / ``cancel_speech``
+
+    目录里仍保留 state / gesture / gaze / attention 的名字，所以表里也要有它们，
+    但版本必须是 0：客户端会看到「知道但未启用」，而不是「会收到」。
+    """
+    assert SERVER_CAPS["presentation.emotion"] == 1
+    assert SERVER_CAPS["speech.v1"] == 1
+    for name in (
+        "presentation.state",
+        "presentation.gesture",
+        "presentation.gaze",
+        "perception.attention",
+    ):
+        assert name in SERVER_CAPS, name
+        assert SERVER_CAPS[name] == 0, name
+
+    ack = negotiate(parse_hello({"proto": {"min": 2, "max": 2}, "caps": {
+        # 客户端把未实现项报成 1 也没关系——交集取低版本后仍是 0。
+        "presentation.state": 1,
+        "presentation.emotion": 1,
+        "presentation.gesture": 1,
+        "presentation.gaze": 1,
+        "speech.v1": 1,
+        "perception.attention": 1,
+    }}), sid="s-1")
+    assert supports(ack, "presentation.emotion")
+    assert supports(ack, "speech.seg")
+    assert supports(ack, "speech.end")
+    assert supports(ack, "control.cancel")
+    for name in (
+        "presentation.state",
+        "presentation.gesture",
+        "presentation.gaze",
+        "perception.attention",
+    ):
+        assert ack.caps[name] == 0, name
+        assert not supports(ack, name), name

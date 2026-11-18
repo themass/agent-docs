@@ -24,15 +24,22 @@ from companion.agent.protocol.envelope import PROTOCOL_MAJOR
 LEGACY_WAIT_SECONDS = 3.0
 
 #: 我们认识的每一项能力及其自身版本号。0 表示「知道但未启用」。
-#: 与客户端 `ProtocolCaps.kt` 里那张表必须一致，否则交集会少一项。
+#: 与客户端 `ProtocolHandshake.CLIENT_CAPS` 必须覆盖同一批名字，否则交集会少一项；
+#: 版本号可以不同——这里只报**当前这条连接真正会发 / 会收**的版本。
+#:
+#: 现在能兑现的只有两条：``presentation.emotion``（``ProtocolCueSink`` /
+#: ``cue_emotion``）与 ``speech.v1``（``speech_seg`` / ``speech_end`` /
+#: ``cancel_speech``）。``state`` / ``gesture`` / ``gaze`` 在目录与客户端解析器里
+#: 都还在，但服务端没有发送方，标 1 会让客户端以为会收到它们；``perception.attention``
+#: 同理，``ProtocolBridge`` 没有消费者，标 1 只会把它送进 ``unhandled``。
 SERVER_CAPS: dict[str, int] = {
-    "presentation.state": 1,
+    "presentation.state": 0,
     "presentation.emotion": 1,
-    "presentation.gesture": 1,
-    "presentation.gaze": 1,
+    "presentation.gesture": 0,
+    "presentation.gaze": 0,
     # 句级声明（§9.3）：speech.seg / speech.end / control.cancel 都挂在它下面。
     "speech.v1": 1,
-    "perception.attention": 1,
+    "perception.attention": 0,
 }
 
 #: 服务端自报的上限。客户端据此裁剪自己的发送节奏。
