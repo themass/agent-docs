@@ -14,12 +14,16 @@ on:
       - 'myproject/companion-agent/server/src/companion/agent/protocol/**'
       - 'myproject/companion-agent/server/src/companion/api/livekit/protocol_bridge.py'
       - 'myproject/companion-agent/server/tests/test_protocol_*.py'
+      - 'myproject/companion-agent/server/tests/test_touch_input.py'
+      - 'myproject/companion-agent/server/src/companion/api/livekit/touch_input.py'
       - '.github/workflows/companion-protocol.yml'
   pull_request:
     paths:
       - 'myproject/companion-agent/server/src/companion/agent/protocol/**'
       - 'myproject/companion-agent/server/src/companion/api/livekit/protocol_bridge.py'
       - 'myproject/companion-agent/server/tests/test_protocol_*.py'
+      - 'myproject/companion-agent/server/tests/test_touch_input.py'
+      - 'myproject/companion-agent/server/src/companion/api/livekit/touch_input.py'
       - '.github/workflows/companion-protocol.yml'
   workflow_dispatch:
 
@@ -50,4 +54,4 @@ jobs:
         run: uv sync --frozen
 
       - name: 协议单测
-        run: uv run pytest tests/test_protocol_bridge.py tests/test_protocol_codec.py tests/test_protocol_handshake.py tests/test_protocol_speech.py -q
+        run: uv run pytest tests/test_protocol_bridge.py tests/test_protocol_codec.py tests/test_protocol_handshake.py tests/test_protocol_speech.py tests/test_touch_input.py -q
