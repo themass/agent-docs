@@ -108,7 +108,14 @@ class ProtocolBridge:
     # ------------------------------------------------------------------ 发送
 
     async def publish(
-        self, event_type: str, args: dict[str, Any], *, topic: str, force: bool = False
+        self,
+        event_type: str,
+        args: dict[str, Any],
+        *,
+        topic: str,
+        force: bool = False,
+        at: dict[str, Any] | None = None,
+        dst: list[str] | None = None,
     ) -> bool:
         """组一封带 seq 的信发出去。返回是否真的发了。
 
@@ -116,21 +123,33 @@ class ProtocolBridge:
         空转，还会让客户端日志里多出一条解不开的消息。``force`` 只给握手本身用
         ——协商失败的 ack 必须发出去，否则客户端只能干等超时，日志里看不出是
         谁的错。
+
+        ``at`` / ``dst`` 原样进信封（§5 / §9.2）：表现 cue 挂 ``speech.seg`` 时必须带
+        ``at``，否则端侧无法锚时间线（§13 不变量 1）。
         """
         if not force and not self._may_send(event_type):
             # §14.3：握手前或能力未协商时的静默丢弃要可见，否则「表情没出来」无从查起。
             self.unsent[event_type] = self.unsent.get(event_type, 0) + 1
             return False
         seq = self._seq.get(topic, 0)
-        envelope = new_envelope(
-            event_type,
-            args=args,
-            seq=seq,
-            ep=self.epoch,
-            ident=uuid.uuid4().hex[:12],
-        )
         try:
-            await self._send(topic, encode(envelope))
+            envelope = new_envelope(
+                event_type,
+                args=args,
+                seq=seq,
+                ep=self.epoch,
+                ident=uuid.uuid4().hex[:12],
+                at=at,
+                dst=dst,
+            )
+            payload = encode(envelope)
+        except ValueError as exc:
+            # §13 不变量 3 / §14.1：超限不截断、不分批；记一笔让「表情没出来」可查。
+            self.unsent[event_type] = self.unsent.get(event_type, 0) + 1
+            logger.warning("publish %s rejected: %s", event_type, exc)
+            return False
+        try:
+            await self._send(topic, payload)
         except Exception as exc:  # noqa: BLE001
             # 发不出去只记日志：表现层断掉不该拽停整条会话。
             logger.warning("publish %s to %s failed: %s", event_type, topic, exc)
@@ -283,11 +302,20 @@ class ProtocolBridge:
 
     # ------------------------------------------------------------------ 表现指令
 
-    async def cue_emotion(self, name: str, intensity: float | None = None) -> bool:
+    async def cue_emotion(
+        self,
+        name: str,
+        intensity: float | None = None,
+        *,
+        at: dict[str, Any] | None = None,
+    ) -> bool:
         """给客户端发一条 ``presentation.emotion``（§11.1）。
 
         args 的键是 ``name`` 而不是 ``emotion``——这是 v2 与 v1 旧事件唯一不兼容的
         地方，写错了客户端会静默当成未知情绪映射成 neutral。
+
+        ``at`` 挂在信封上（不是 args）：端侧用它锚 ``speech.seg``（§9.2）。P3 起
+        正常路径都会带；留可选是为了旧冒烟测试与无锚点的兜底仍能编过。
 
         v1 连接由 ``_may_send`` 挡掉：它们本来就在收 ``companion.avatar`` 上的同一个
         情绪，多发一条只会让老客户端的日志里多一条解不开的包。
@@ -295,7 +323,7 @@ class ProtocolBridge:
         args: dict[str, Any] = {"name": name}
         if intensity is not None:
             args["intensity"] = intensity
-        return await self.publish("presentation.emotion", args, topic=TOPIC_CUE)
+        return await self.publish("presentation.emotion", args, topic=TOPIC_CUE, at=at)
 
     # ------------------------------------------------------------------ 语音时间线
 

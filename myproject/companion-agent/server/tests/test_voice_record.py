@@ -22,7 +22,7 @@ class Pipeline:
         if self.error:
             raise self.error
         for s in self.sentences:
-            yield SimpleNamespace(text=s, events=[])
+            yield SimpleNamespace(text=s, events=[], intents=[], source="tag")
         if self.stall:
             await asyncio.sleep(30)
 

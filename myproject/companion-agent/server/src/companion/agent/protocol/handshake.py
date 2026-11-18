@@ -27,11 +27,13 @@ LEGACY_WAIT_SECONDS = 3.0
 #: 与客户端 `ProtocolHandshake.CLIENT_CAPS` 必须覆盖同一批名字，否则交集会少一项；
 #: 版本号可以不同——这里只报**当前这条连接真正会发 / 会收**的版本。
 #:
-#: 现在能兑现的只有两条：``presentation.emotion``（``ProtocolCueSink`` /
-#: ``cue_emotion``）与 ``speech.v1``（``speech_seg`` / ``speech_end`` /
-#: ``cancel_speech``）。``state`` / ``gesture`` / ``gaze`` 在目录与客户端解析器里
-#: 都还在，但服务端没有发送方，标 1 会让客户端以为会收到它们；``perception.attention``
-#: 同理，``ProtocolBridge`` 没有消费者，标 1 只会把它送进 ``unhandled``。
+#: 现在能兑现的只有两条：``presentation.emotion``（P3 起由
+#: ``AnchoredCuePublisher`` 在 ``speech.seg`` 之后带 ``at`` 发出；
+#: ``cue_emotion`` 仍保留给冒烟）与 ``speech.v1``（``speech_seg`` /
+#: ``speech_end`` / ``cancel_speech``）。``state`` / ``gesture`` / ``gaze`` 在目录与
+#: 客户端解析器里都还在，但服务端没有发送方，标 1 会让客户端以为会收到它们；
+#: ``perception.attention`` 同理，``ProtocolBridge`` 没有消费者，标 1 只会把它送进
+#: ``unhandled``。
 SERVER_CAPS: dict[str, int] = {
     "presentation.state": 0,
     "presentation.emotion": 1,

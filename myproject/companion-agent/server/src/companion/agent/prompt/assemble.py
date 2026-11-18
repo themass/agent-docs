@@ -57,6 +57,8 @@ def assemble_system_prompt(
         parts.append(f"{T.TASK_HEADER}\n\n{_clip('task', task.strip(), truncated)}")
 
     parts.append(T.render_output_layer(locale=locale, channel=channel))
+    # P3：与 roleplay 路径同款约束；assemble 没有 DepthInjection，直接挂在系统层。
+    parts.append(T.CUE_OUTPUT_SNIPPET)
 
     user_bits = []
     if profile.strip():

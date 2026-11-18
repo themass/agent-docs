@@ -1,8 +1,11 @@
-"""回合管线：主脑 token 流 → 可朗读整句 + 形象事件，并持有取消入口。
+"""回合管线：主脑 token 流 → 可朗读整句 + 形象事件 / CueIntent，并持有取消入口。
 
-断句与事件编码来自 ``companion.text``，不在这里重写。这一层不依赖 LiveKit：
-HTTP 的 SSE 接口与房间内的 ``llm_node`` 共用它，语音场景最难调的断句与打断
-也就不必只在真机房间里验证。
+断句与事件编码来自 ``companion.text`` / ``companion.agent.protocol.fragment``，
+不在这里重写。这一层不依赖 LiveKit：HTTP 的 SSE 接口与房间内的 ``llm_node``
+共用它，语音场景最难调的断句与打断也就不必只在真机房间里验证。
+
+P3：``PipelineOutput.intents`` 给 v2 锚点路径用；``events`` 仍喂 v1
+``companion.avatar``。结构化 say+cues 优先，标签回落映射到同一份意图。
 """
 
 from __future__ import annotations
@@ -11,11 +14,13 @@ import asyncio
 import json
 import logging
 from collections.abc import AsyncIterator, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from companion.agent.brain.port import BrainPort, BrainTurn, TurnRequest
-from companion.agent.text.events import strip_emotion_tags, to_avatar_events
+from companion.agent.protocol.cue_intent import CueIntent
+from companion.agent.protocol.fragment import ingest
+from companion.agent.text.events import to_avatar_events
 from companion.agent.text.splitter import SentenceSplitter
 
 logger = logging.getLogger(__name__)
@@ -26,10 +31,12 @@ EventSink = Callable[[str], None]
 
 @dataclass
 class PipelineOutput:
-    """管线每轮吐给上层的东西：一句可朗读的文本，和这轮产生的形象事件。"""
+    """管线每轮吐给上层的东西：一句可朗读的文本，v1 事件，v2 意图。"""
 
     text: str
     events: list[dict]
+    intents: list[CueIntent] = field(default_factory=list)
+    source: str = "tag"  # "structured" | "tag"
 
 
 class TurnPipeline:
@@ -100,12 +107,18 @@ class TurnPipeline:
         return self._turn.turn_id if self._turn is not None else ""
 
     def _emit(self, sentence: str) -> PipelineOutput:
-        clean, emotions = strip_emotion_tags(sentence)
+        frag = ingest(sentence)
+        emotions = [i.name for i in frag.intents if i.kind == "emotion"]
         events = to_avatar_events(emotions, state=None)
         if self._event_sink is not None:
             for event in events:
                 self._safe_sink(event)
-        return PipelineOutput(text=clean, events=events)
+        return PipelineOutput(
+            text=frag.say,
+            events=events,
+            intents=list(frag.intents),
+            source=frag.source,
+        )
 
     def _safe_sink(self, event: dict[str, Any]) -> None:
         # 数据通道发不出去不能影响正在进行的回复

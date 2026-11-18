@@ -78,6 +78,15 @@ def test_stream_assigns_contiguous_idx_and_estimates():
     assert a.seg_args("sp_1") == {"speech_id": "sp_1", "idx": 0, "chars": 3, "est_ms": estimate_ms("你好啊")}
 
 
+def test_seg_args_omits_dur_ms_when_unset_and_includes_when_set():
+    from companion.agent.protocol.speech_plan import PlannedSegment
+
+    plain = PlannedSegment(idx=0, text="你好", est_ms=400)
+    assert "dur_ms" not in plain.seg_args("sp_1")
+    with_dur = PlannedSegment(idx=0, text="你好", est_ms=400, dur_ms=380)
+    assert with_dur.seg_args("sp_1")["dur_ms"] == 380
+
+
 def test_stream_skips_blank_without_consuming_idx():
     s = SpeechStream(turn_id="tn_1")
     assert s.push("  ") is None

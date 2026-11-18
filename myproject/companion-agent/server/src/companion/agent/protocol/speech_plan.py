@@ -30,14 +30,24 @@ class PlannedSegment:
     idx: int
     text: str
     est_ms: int
+    #: 可选实测 / 校正时长（§18 #2）。声明时通常不设；有值才上线，不升版。
+    dur_ms: int | None = None
 
     @property
     def chars(self) -> int:
         return len(self.text)
 
     def seg_args(self, speech_id: str) -> dict[str, Any]:
-        """``speech.seg`` 的 args（§9.3）。"""
-        return {"speech_id": speech_id, "idx": self.idx, "chars": self.chars, "est_ms": self.est_ms}
+        """``speech.seg`` 的 args（§9.3）。``dur_ms`` 有值才带，老端忽略未知键。"""
+        args: dict[str, Any] = {
+            "speech_id": speech_id,
+            "idx": self.idx,
+            "chars": self.chars,
+            "est_ms": self.est_ms,
+        }
+        if self.dur_ms is not None:
+            args["dur_ms"] = self.dur_ms
+        return args
 
 
 def estimate_ms(text: str) -> int:

@@ -35,7 +35,7 @@ class _NoSpeech:
     async def start_reply(self) -> None:
         return None
 
-    async def say(self, text: str, *, turn_id: str) -> None:
+    async def say(self, text: str, *, turn_id: str):
         return None
 
     async def finish(self) -> None:
@@ -45,7 +45,18 @@ class _NoSpeech:
         return None
 
 
+class _NoCues:
+    """没注入 AnchoredCuePublisher 时的空实现。"""
+
+    def reset_turn(self) -> None:
+        return None
+
+    async def publish_for_segment(self, intents: Any, *, speech_id: str, seg_idx: int, source: str = "tag") -> int:
+        return 0
+
+
 _NO_SPEECH = _NoSpeech()
+_NO_CUES = _NoCues()
 
 
 def build_request(*, user_id: str, character_id: str, message: str, chat_session_id: int) -> TurnRequest:
@@ -115,6 +126,7 @@ def build_agent_class() -> type:
             recorder: Any = None,
             tts_sink: Any = None,
             speech: Any = None,
+            cues: Any = None,
         ) -> None:
             # 提示词由回合引擎按会话组装；llm_node 被重写后框架不会用到这里的 instructions
             super().__init__(instructions="")
@@ -128,6 +140,8 @@ def build_agent_class() -> type:
             self._tts_sink = tts_sink
             # 协议 v2 的 speech.* 发送口（SpeechPublisher 形状）。不给就整段跳过，行为与之前一致。
             self._speech = speech if speech is not None else _NO_SPEECH
+            # 协议 v2 的锚点 cue 发送口。不给就跳过 presentation.*（离线测试）。
+            self._cues = cues if cues is not None else _NO_CUES
             self._background: set[asyncio.Task[Any]] = set()
 
         async def llm_node(
@@ -157,6 +171,7 @@ def build_agent_class() -> type:
             )
             # 新回合先清掉上一回合挂着的 speech（若有）：§10，用户已经开口了。
             await self._speech.start_reply()
+            self._cues.reset_turn()
             started = time.monotonic()
             first_ms: int | None = None
             sentences: list[str] = []
@@ -167,10 +182,21 @@ def build_agent_class() -> type:
                         if first_ms is None:
                             first_ms = int((time.monotonic() - started) * 1000)
                         sentences.append(output.text)
-                        # 先声明、后交给 TTS（§13 不变量 1）：say 返回后这句的 begin/extend 已发出去。
+                        # §13 不变量 1：speech.seg(k) → 挂着它的 presentation.* → TTS(k)。
                         turn_id = self._current_turn_id()
+                        declared = None
                         if turn_id:
-                            await self._speech.say(output.text, turn_id=turn_id)
+                            declared = await self._speech.say(output.text, turn_id=turn_id)
+                        if declared is not None:
+                            speech_id, seg = declared
+                            intents = getattr(output, "intents", None) or []
+                            if intents:
+                                await self._cues.publish_for_segment(
+                                    intents,
+                                    speech_id=speech_id,
+                                    seg_idx=seg.idx,
+                                    source=getattr(output, "source", "tag"),
+                                )
                         yield output.text
                 finished = True
             except TurnRefused:

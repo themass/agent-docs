@@ -363,6 +363,20 @@ async def test_cue_emotion_uses_name_not_emotion():
     assert envelope.args == {"name": "joy", "intensity": 0.7}
 
 
+async def test_cue_emotion_at_round_trips_on_envelope():
+    """P3：``at`` 挂在信封上，端侧靠它锚 speech.seg。"""
+    sink = _Sink()
+    bridge = _bridge(sink)
+    await _feed(bridge, _packet(_hello_bytes(), identity=CLIENT))
+    at = {"speech": "sp_1", "seg": 0, "phase": "start"}
+
+    assert await bridge.cue_emotion("joy", at=at) is True
+    _, payload = sink.sent[-1]
+    envelope, status = decode(payload)
+    assert envelope is not None, status
+    assert envelope.at == at
+
+
 async def test_cue_emotion_without_intensity_omits_the_key():
     sink = _Sink()
     bridge = _bridge(sink)

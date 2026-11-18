@@ -3,7 +3,8 @@
 不 import livekit：只依赖 :class:`ProtocolBridge` 的方法，单测直接喂假 bridge。
 
 顺序是本模块存在的理由（§13 不变量 1）：每一句在交给 TTS 之前，它的 ``speech.seg``
-必须已经发出去。所以调用方要 ``await say(...)`` 之后才 ``yield`` 这一句。
+必须已经发出去。所以调用方要 ``await say(...)`` 之后才 ``yield`` 这一句；挂在这句上
+的 presentation cue 也必须在 ``say`` 返回的 ``(speech_id, seg)`` 之后再发。
 
 所有方法都不抛：语音时间线是旁路，发不出去只意味着表现层没有时间锚点，不能拖停通话。
 """
@@ -12,7 +13,7 @@ from __future__ import annotations
 
 import logging
 
-from companion.agent.protocol.speech_plan import SpeechStream
+from companion.agent.protocol.speech_plan import PlannedSegment, SpeechStream
 from companion.api.livekit.protocol_bridge import ProtocolBridge
 
 logger = logging.getLogger(__name__)
@@ -30,27 +31,35 @@ class SpeechPublisher:
     def open_speech_id(self) -> str | None:
         return self._stream.speech_id if self._open and self._stream is not None else None
 
-    async def say(self, text: str, *, turn_id: str) -> None:
+    async def say(self, text: str, *, turn_id: str) -> tuple[str, PlannedSegment] | None:
         """登记一句。在把它交给 TTS 之前调用。
 
-        每句发一条 ``speech.seg``。第一句若发不出去（未握手 / 未协商），本回合不再声明，
-        下一句重新开始一条新的 speech；之后的句子照样会被说出来。
+        每句发一条 ``speech.seg``。成功时返回 ``(speech_id, PlannedSegment)``，调用方
+        用它给同句的 presentation cue 挂 ``at``；失败 / 空白 / 超段数返回 ``None``
+        （句子仍可朗读，只是没有锚点）。
+
+        第一句若发不出去（未握手 / 未协商），本回合不再声明，下一句重新开始一条新的
+        speech；之后的句子照样会被说出来。
         """
         try:
             if self._stream is None:
                 self._stream = SpeechStream(turn_id=turn_id)
             seg = self._stream.push(text)
             if seg is None:
-                return                      # 空白，或已超过段数上限：说，但不声明
-            sent = await self._bridge.speech_seg(self._stream.speech_id, seg)
+                return None                      # 空白，或已超过段数上限：说，但不声明
+            speech_id = self._stream.speech_id
+            sent = await self._bridge.speech_seg(speech_id, seg)
             if not self._open:
                 if sent:
                     self._open = True
                 else:
                     # seg 没发出去：这一回合不再声明，下一句重新开始。
                     self._reset()
+                    return None
+            return (speech_id, seg) if sent else None
         except Exception:  # noqa: BLE001 —— 旁路，不能影响语音
             logger.warning("speech say failed", exc_info=True)
+            return None
 
     async def finish(self) -> None:
         """本轮 TTS **生成侧**排空：发 ``speech.end``（§9.3）。

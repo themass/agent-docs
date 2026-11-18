@@ -61,7 +61,9 @@ def test_roleplay_plan_orders_blocks_and_keeps_platform_rules_first():
                                   "<example_dialogue>", "# 输出", T.PROFILE_HEADER)]
     assert order == sorted(order)
     assert "{{char}}" not in s and "{{user}}" not in s
-    assert [(i.depth, i.text) for i in plan.injections] == [(1, "她刚刚擦完杯子。"), (0, "保持角色。")]
+    assert (1, "她刚刚擦完杯子。") in [(i.depth, i.text) for i in plan.injections]
+    assert (0, "保持角色。") in [(i.depth, i.text) for i in plan.injections]
+    assert any(i.depth == 0 and i.text == T.CUE_OUTPUT_SNIPPET for i in plan.injections)
     assert set(plan.lore_uids) == {"a", "b", "d"}
 
 
@@ -83,7 +85,10 @@ def test_optional_blocks_are_dropped_examples_first():
 def test_author_note_and_depth_prompt_become_injections():
     plan = build_prompt_plan(_profile(depth_prompt=DepthInjection(4, "system", "{{char}}在想心事")),
                              author_note=AuthorNote("描写要细腻", depth=3))
-    assert [(i.depth, i.text) for i in plan.injections] == [(4, "林澈在想心事"), (3, "描写要细腻")]
+    texts = [(i.depth, i.text) for i in plan.injections]
+    assert (4, "林澈在想心事") in texts
+    assert (3, "描写要细腻") in texts
+    assert any(i.depth == 0 and i.text == T.CUE_OUTPUT_SNIPPET for i in plan.injections)
 
 
 def test_method_layer_is_part_of_the_role_section():
