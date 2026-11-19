@@ -17,6 +17,37 @@ from companion.api.livekit.protocol_bridge import ProtocolBridge
 
 logger = logging.getLogger(__name__)
 
+#: 端侧梯子的最高档（§12.3 L0–L4）。看不懂的数字档位按它处理。
+_MAX_LEVEL = 4
+
+#: L1 起端侧 `DegradeController.shouldEmit` 仍会放行的 kind。
+#: emotion 留在服务端全发、端上自己半频丢；gesture/gaze 端上直接丢，这里就别占弱网带宽。
+_LEVEL1_KINDS = frozenset({"emotion"})
+
+
+def _degrade_level(telemetry: object) -> int:
+    """从客户端自报的 ``telemetry.health`` 里取档位，取不到按 0。
+
+    垃圾字符串（``"degraded"``）回退 0：照发最差也就是客户端丢包前的现状，
+    而误判成高段会把她的表情整条抹掉。数字越界往 L4 夹——能写出 L9 的
+    只会是真降级的怪值，不该多占带宽。
+    """
+    if not isinstance(telemetry, dict):
+        return 0
+    raw = telemetry.get("degrade_level")
+    if not isinstance(raw, str):
+        return 0
+    text = raw.strip().upper()
+    if not text.startswith("L"):
+        return 0
+    try:
+        level = int(text[1:])
+    except ValueError:
+        return 0
+    if level < 0:
+        return 0
+    return min(level, _MAX_LEVEL)
+
 
 class AnchoredCuePublisher:
     """一个房间一个。跨段共享回合预算（每回合 ≤4 条）。"""
@@ -44,9 +75,10 @@ class AnchoredCuePublisher:
     ) -> int:
         """编译并发送本段 cue。返回实际发出的条数。"""
         self._budget.stats.note_source(source)
+        level = _degrade_level(getattr(self._bridge, "telemetry", None))
         caps = self._caps()
         compiled = compile_cues(
-            intents,
+            self._gate(intents, level),
             speech_id=speech_id,
             seg_idx=seg_idx,
             caps=caps,
@@ -57,6 +89,23 @@ class AnchoredCuePublisher:
             if await self._send(cue):
                 sent += 1
         return sent
+
+    def _gate(self, intents: Iterable[CueIntent], level: int) -> list[CueIntent]:
+        """按端侧自报档位丢掉「客户端反正会丢」的意图，并计数。
+
+        丢在编译前而不是发送后：降级的意图不该再占每段/每回合的预算——
+        弱网时 budget 是给 emotion 这类还要保的 cue 用的。
+        """
+        if level <= 0:
+            return list(intents)
+        allowed = _LEVEL1_KINDS if level == 1 else frozenset()
+        kept: list[CueIntent] = []
+        for intent in intents:
+            if intent.kind in allowed:
+                kept.append(intent)
+            else:
+                self._budget.stats.cues_dropped_degrade += 1
+        return kept
 
     def _caps(self) -> Mapping[str, int]:
         ack = self._bridge.ack

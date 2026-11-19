@@ -44,6 +44,7 @@ class CompileStats:
     cues_dropped_unsupported: int = 0
     cues_dropped_overflow: int = 0
     cues_dropped_bad: int = 0
+    cues_dropped_degrade: int = 0
 
     def note_source(self, source: str) -> None:
         if source == "structured":
