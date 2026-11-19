@@ -58,8 +58,8 @@ def test_roleplay_plan_orders_blocks_and_keeps_platform_rules_first():
     s = plan.system
     assert s.startswith(T.PLATFORM_LAYER)
     order = [s.index(x) for x in ("店里只卖手冲", T.ROLE_HEADER, "说话简短", "林澈是一名咖啡师，叫小明", "老板姓周",
-                                  "<example_dialogue>", "# 输出", T.PROFILE_HEADER)]
-    assert order == sorted(order)
+                                  "<example_dialogue>", T.PROFILE_HEADER, "# 输出")]
+    assert order == sorted(order), "# 输出 必须是最后一段：约束紧挨着用户消息才压得住角色卡的体量"
     assert "{{char}}" not in s and "{{user}}" not in s
     assert (1, "她刚刚擦完杯子。") in [(i.depth, i.text) for i in plan.injections]
     assert (0, "保持角色。") in [(i.depth, i.text) for i in plan.injections]

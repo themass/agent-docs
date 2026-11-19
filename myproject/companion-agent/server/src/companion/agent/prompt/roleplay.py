@@ -141,11 +141,14 @@ def build_prompt_plan(
         parts.append(after)
     if optional["examples"]:
         parts.append(optional["examples"])
-    parts.append(output)
+    # 画像与记忆是"数据"，不是指令；放在输出规则之前，让约束成为模型读到的最后一段。
+    # 曾经反过来：BREVITY_RULES 后面还压着 1122 字符的用户资料，模型最后看到的是
+    # 「你了解这位用户的事」，而不是「闲聊就回 2–4 句」——约束被数据块稀释掉了。
     if optional["persona"]:
         parts.append(f"{T.PERSONA_HEADER}\n\n{T.PERSONA_GUIDE}\n\n{optional['persona']}")
     if optional["memory"]:
         parts.append(f"{T.PROFILE_HEADER}\n\n{optional['memory']}")
+    parts.append(output)
 
     injections: list[DepthInjection] = []
     if profile.depth_prompt is not None:

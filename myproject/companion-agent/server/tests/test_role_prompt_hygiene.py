@@ -56,7 +56,12 @@ def test_every_role_assembles_with_the_brevity_rules_after_the_card(roles):
 
 
 def test_companion_assembly_path_gets_the_same_rules():
-    """输出层曾在 roleplay.py 与 assemble.py 各拼一遍；只改一边，另一边会静悄悄不生效。"""
+    """输出层曾在 roleplay.py 与 assemble.py 各拼一遍；只改一边，另一边会静悄悄不生效。
+
+    注意：``assemble_system_prompt`` 在生产里**没有调用方**（chat 走 build_prompt_plan）。
+    这条测试守的是两条路径的输出层别再分叉，不代表 chat 的行为靠它保证——
+    chat 的行为由本文件下半部分的结构断言守。
+    """
     from companion.agent.prompt.assemble import assemble_system_prompt
 
     text = assemble_system_prompt(persona="你是林澈，一个咖啡师。", locale="zh-CN").text
@@ -134,3 +139,53 @@ def test_no_card_forces_a_minimum_length():
     # 已知冲突如果不再命中（上游改了卡），就该把它从名单里删掉，别让名单越攒越长
     stale = set(KNOWN_LENGTH_CONFLICTS) - seen_known
     assert not stale, f"这些已知冲突已不再出现，请从 KNOWN_LENGTH_CONFLICTS 里删掉：{sorted(stale)}"
+
+
+# --- 结构分层：任务清单不得再进「# 你的角色」 --------------------------------------
+# 背景补记：上面那些正则断言的是「卡里有没有坏句式」，防不住「整张任务卡被当人设」。
+# 2026-11-19 的真实成因就是后者——283 张卡里 276 张的 Core mission / Rules 原样落在
+# 角色层，占了系统提示词的 84%。下面按结构断言，不靠句式匹配。
+
+#: 角色层里不该出现的任务型标题。命中的卡就是没被正确分流。
+_TASK_TITLES = ("## Core mission", "## Rules", "## Capabilities", "You remember:")
+
+
+def test_task_sections_never_reach_the_role_layer():
+    bad: list[str] = []
+    for role in load_catalog_from_files(CATALOG_ROOT).roles:
+        profile = from_system_role(role, locale="zh-CN")
+        for title in _TASK_TITLES:
+            if title in profile.description:
+                bad.append(f"{role.id}: 角色层里还有 {title!r}")
+    assert not bad, "这些卡的任务清单还在人设层：\n" + "\n".join(bad[:20])
+
+
+def test_role_layer_stays_small_enough_to_be_a_persona():
+    """人设层要比任务清单小。给个宽松上限，只为拦住「整张卡塞进来」这种回归。"""
+    over: list[str] = []
+    for role in load_catalog_from_files(CATALOG_ROOT).roles:
+        length = len(from_system_role(role, locale="zh-CN").description)
+        if length > 3200:
+            over.append(f"{role.id}: {length} 字符")
+    assert not over, "人设层过长，多半又把任务卡整段塞回来了：\n" + "\n".join(over[:20])
+
+
+def test_catalog_roles_speak_the_product_locale():
+    """中文界面下的人设必须是中文的：产品自己写了 283 条中文 description / vibe。"""
+    from companion.service.roles.catalog_md import load_catalog_from_files as _load
+
+    for role in _load(CATALOG_ROOT).roles:
+        if not role.description_zh:
+            continue
+        profile = from_system_role(role, locale="zh-CN")
+        assert role.description_zh.strip() in profile.description, f"{role.id}: 中文人设没进角色层"
+
+
+def test_brevity_rules_are_the_last_block_in_the_system_prompt():
+    """约束必须最后读：后面再压一段用户资料，它就被稀释了。"""
+    plan = build_prompt_plan(from_system_role(load_catalog_from_files(CATALOG_ROOT).roles[0], locale="zh-CN"),
+                             locale="zh-CN", memory_block="关于用户：\n- 喜欢拿铁",
+                             persona_block="他最近在换工作。")
+    tail = plan.system[plan.system.index(T.render_output_layer(locale="zh-CN", channel="text")):]
+    for header in (T.PROFILE_HEADER, T.PERSONA_HEADER):
+        assert header not in tail, f"{header} 出现在输出规则之后，会把约束挤走"
