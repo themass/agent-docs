@@ -77,6 +77,15 @@ def _attachment_ids(meta: Any) -> tuple[str, ...]:
     return tuple(ids)
 
 
+def _channel_for(inputs: list[TurnInputMessage]) -> str:
+    """一条回合里只要有语音输入就按语音算。
+
+    语音回合 ``steerable=False``，不会和文字输入合并，所以「任一为语音」与
+    「全部为语音」等价；按任一判断是为了合并不上线时也不会把语音当文字处理。
+    """
+    return "voice" if any(i.kind == "voice" for i in inputs) else "text"
+
+
 @dataclass(frozen=True)
 class TurnOutcome:
     """一个回合结束时的事实，交给 after_turn（记忆写入、补记中断回复等）。"""
