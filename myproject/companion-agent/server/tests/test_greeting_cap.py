@@ -1,25 +1,28 @@
-"""首轮招呼的 ``max_tokens`` 上限：这套提示词里唯一的确定性防线。
+"""回复长度交给模型：服务端不再判断用户说了什么。
 
-背景：用户对角色说 hello，得到一整篇「Core mission / Rules」的自述。提示词层改了三轮
-（人设分层、约束移到末尾、文案重写），但那都是概率性的——283 张卡 × 长尾模型总会有漏网。
-真正能保证「一句 hello 换不回八百字」的只有输出长度上限。
+这里原来守的是一张问候语词表加一道 ``max_tokens`` 硬上限：首轮 + 纯招呼就压到 160 token。
+那是**服务端替模型理解对话**——词表永远漏（`您好呀` 漏过），也永远会误伤，而且用户能感觉到
+自己在被一张规则表接话。产品要的是「角色有自己的性格」，不是「服务端认得出招呼」。
 
-这里的断言分两半：
-- **该压的压下去**：首轮 + 纯招呼 → ``model_settings["max_tokens"]`` 被设成上限；
-- **不该动的绝不碰**：任何可能截断一份正常回答的情形（非首轮、正常提问、带图、
-  已经在工具链里）都必须原样放行。误伤比话多是更严重的问题。
+设计改成：
+
+1. 中间件**不再看消息内容**，也不再改 ``model_settings``；
+2. 「怎么说话」写进角色层——``templates.BREVITY_RULES`` 说人设不是台词，
+   卡里的 ``## Communication style`` 摘成「这个人怎么说话」挂在角色层末尾。
+
+所以这个文件现在守两件事：中间件不判断（下面），以及说话方式真的进了提示词
+（``test_role_prompt_hygiene.py`` 与 ``test_voice_sample``）。
 """
 
 from __future__ import annotations
 
-import pytest
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+import inspect
 
-from companion.agent.brain.graph_middleware import (
-    FIRST_GREETING_MAX_TOKENS,
-    PromptMiddleware,
-    is_bare_greeting,
-)
+import pytest
+from langchain_core.messages import HumanMessage, SystemMessage
+
+from companion.agent.brain import graph_middleware as M
+from companion.agent.brain.graph_middleware import PromptMiddleware
 
 
 class _Request:
@@ -40,7 +43,6 @@ class _Request:
 
 
 async def _run(request):
-    """跑一遍中间件，返回交给 handler 的那个 request。"""
     seen = []
 
     async def handler(req):
@@ -51,120 +53,68 @@ async def _run(request):
     return seen[0]
 
 
-def _caps(request) -> int | None:
-    return request.model_settings.get("max_tokens")
+# --- 服务端不再判断用户说了什么 ---------------------------------------------------
+
+def test_the_greeting_classifier_is_gone():
+    """词表是这套设计的根：只要它还在，就总有人会再拿它做点什么。"""
+    assert not hasattr(M, "is_bare_greeting")
+    assert not hasattr(M, "FIRST_GREETING_MAX_TOKENS")
+    assert not hasattr(M, "_GREETINGS")
 
 
-# --- 判定：什么算「一句招呼」 -----------------------------------------------------
+def test_the_middleware_does_not_read_message_text():
+    """结构断言：中间件里不该再出现按消息内容分支的代码。
 
-@pytest.mark.parametrize("text", ["你好", "你好！", "您好呀", "嗨", "在吗", "在吗？", "早上好",
-                                  "hello", "Hi!", "hey~", "How are you?", "hola", "こんにちは",
-                                  "안녕하세요", "你好🙂", "  hello  "])
-def test_bare_greetings_are_recognised(text):
-    assert is_bare_greeting(text), f"{text!r} 应该算一句招呼"
-
-
-@pytest.mark.parametrize("text", [
-    "你好，帮我写一个 Python 脚本",
-    "hello 你能做什么",
-    "在吗？我有个问题想问",
-    "今天天气怎么样",
-    "讲个笑话",
-    "", "   ",
-    "hello " * 10,          # 超长
-    "hey buddy what's up",  # 不是纯招呼
-])
-def test_real_questions_are_never_mistaken_for_greetings(text):
-    assert not is_bare_greeting(text), f"{text!r} 不是纯招呼，压掉长度会截断正常回答"
+    把文档字符串剔掉再看——里面提到旧设计是为了说明为什么删掉它。
+    """
+    source = inspect.getsource(PromptMiddleware)
+    if PromptMiddleware.__doc__:
+        source = source.replace(PromptMiddleware.__doc__, "")
+    for forbidden in ("is_bare_greeting", "max_tokens", "_last_human_text", "_is_session_opening"):
+        assert forbidden not in source, f"PromptMiddleware 里还有 {forbidden!r}"
 
 
-# --- 该压的压下去 ---------------------------------------------------------------
-
-async def test_first_turn_greeting_gets_the_cap():
-    out = await _run(_Request([HumanMessage(content="你好")]))
-    assert _caps(out) == FIRST_GREETING_MAX_TOKENS
-
-
-async def test_the_cap_is_far_below_the_default_so_it_actually_bites():
-    """不写死 4096——路由表一改这个断言就没意义了；只要求它明显小于常规上限。"""
-    assert FIRST_GREETING_MAX_TOKENS < 1000
+@pytest.mark.parametrize("text", ["你好", "你好！", "您好呀", "hello", "在吗？", "嗨"])
+async def test_a_greeting_does_not_get_a_token_cap(text):
+    out = await _run(_Request([HumanMessage(content=text)], model_settings={"max_tokens": 4096}))
+    assert out.model_settings == {"max_tokens": 4096}
 
 
-async def test_voice_channel_injections_do_not_mask_the_greeting():
-    """语音通道在深度 0 注入 cue 片段（以用户消息形式落在最后）。判定必须看注入前的消息，
-    否则「最后一条用户消息」永远是那段协议文本，招呼永远判不出来。"""
+async def test_a_normal_question_keeps_its_settings_exactly():
+    out = await _run(_Request([HumanMessage(content="帮我对比一下 Kafka 和 Pulsar 的取舍")],
+                              model_settings={"max_tokens": 4096, "temperature": 0.3}))
+    assert out.model_settings == {"max_tokens": 4096, "temperature": 0.3}
+
+
+async def test_caller_supplied_settings_are_never_rewritten():
+    """调用方给什么就是什么——包括它自己压得很低的情况。"""
+    out = await _run(_Request([HumanMessage(content="你好")], model_settings={"max_tokens": 40}))
+    assert out.model_settings == {"max_tokens": 40}
+
+
+async def test_a_system_message_alone_does_not_break():
+    out = await _run(_Request([SystemMessage(content="系统")]))
+    assert out.model_settings == {}
+
+
+# --- 中间件该做的还照做 -----------------------------------------------------------
+
+async def test_the_system_prompt_is_still_installed():
+    plan = type("Plan", (), {"system": "这是系统提示词", "injections": ()})()
+    runtime = type("Runtime", (), {"context": {"prompt_plan": plan}})()
+    out = await _run(_Request([HumanMessage(content="你好")], runtime=runtime))
+    assert out.system_message.content == "这是系统提示词"
+
+
+async def test_injections_still_land_in_this_request_only():
     plan = type("Plan", (), {
-        "system": "系统提示词",
+        "system": "系统",
         "injections": [type("Inj", (), {"depth": 0, "role": "user", "text": "输出 cue JSON",
                                         "order": 0})()],
     })()
     runtime = type("Runtime", (), {"context": {"prompt_plan": plan}})()
     request = _Request([HumanMessage(content="你好")], runtime=runtime)
+    original = list(request.messages)
     out = await _run(request)
-    assert _caps(out) == FIRST_GREETING_MAX_TOKENS
-    # 注入本身仍然生效
     assert any("cue JSON" in str(getattr(m, "content", "")) for m in out.messages)
-
-
-# --- 不该动的绝不碰 -------------------------------------------------------------
-
-async def test_a_normal_question_on_the_first_turn_is_untouched():
-    out = await _run(_Request([HumanMessage(content="帮我对比一下 Kafka 和 Pulsar 的取舍")]))
-    assert _caps(out) is None
-
-
-async def test_a_greeting_mid_conversation_is_untouched():
-    """会话里已经有助手消息 → 不再动手。后来的「在吗」由上下文长度感自己拿捏。"""
-    out = await _run(_Request([
-        HumanMessage(content="你好"),
-        AIMessage(content="嗨，今天想聊点什么？"),
-        HumanMessage(content="在吗"),
-    ]))
-    assert _caps(out) is None
-
-
-async def test_the_second_model_call_in_a_tool_turn_is_untouched():
-    """工具返回后的第二次模型调用会看到本回合自己的 AI 消息，于是自动解除上限——
-    否则一个「你好，帮我查下天气」的回合里，工具结果之后那句话也会被截断。"""
-    out = await _run(_Request([
-        HumanMessage(content="你好"),
-        AIMessage(content="", tool_calls=[{"id": "c1", "name": "recall_memory", "args": {}}]),
-    ]))
-    assert _caps(out) is None
-
-
-async def test_image_turns_are_untouched():
-    out = await _run(_Request([HumanMessage(content=[
-        {"type": "text", "text": "你好"},
-        {"type": "image_url", "image_url": {"url": "data:image/png;base64,AAAA"}},
-    ])]))
-    assert _caps(out) is None
-
-
-async def test_a_stricter_existing_cap_is_not_relaxed():
-    """调用方已经压得比我们更严时，我们的上限不该把它反手放宽。"""
-    out = await _run(_Request([HumanMessage(content="你好")], model_settings={"max_tokens": 40}))
-    assert _caps(out) == 40
-
-
-async def test_a_looser_existing_cap_is_tightened():
-    out = await _run(_Request([HumanMessage(content="你好")], model_settings={"max_tokens": 4096}))
-    assert _caps(out) == FIRST_GREETING_MAX_TOKENS
-
-
-async def test_other_model_settings_survive_the_override():
-    out = await _run(_Request([HumanMessage(content="你好")],
-                              model_settings={"max_tokens": 4096, "temperature": 0.3}))
-    assert out.model_settings["temperature"] == 0.3
-
-
-async def test_non_greeting_turns_keep_their_model_settings_exactly():
-    out = await _run(_Request([HumanMessage(content="讲个笑话")],
-                              model_settings={"max_tokens": 4096}))
-    assert out.model_settings == {"max_tokens": 4096}
-
-
-async def test_a_system_message_alone_never_triggers_the_cap():
-    """只有系统消息、没有用户输入（不该发生，但别在这里炸）。"""
-    out = await _run(_Request([SystemMessage(content="系统")]))
-    assert _caps(out) is None
+    assert request.messages == original, "注入不该写回对话线程"

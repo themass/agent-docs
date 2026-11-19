@@ -13,15 +13,25 @@
 ### 1. 角色念任务清单（已修完）
 
 **已修**（`eaa8e8a`）：人设层不再整张塞任务卡、约束移到系统末尾、文案重写。
-**兜底已加**（`cb0918d`）：首轮 + 纯招呼时把本次模型调用的 `max_tokens` 压到 160
-（`graph_middleware.py` 的 `_greeting_cap`）。判定只看注入前的消息，且要求
-「没有助手消息 / 最后一条用户消息是纯招呼 / 没带多模态块」三条同时成立——
-正经提问和工具链的第二次调用都不受影响。已在 `httpx.MockTransport` 上验证
-`request.model_settings` 确实落到 `max_completion_tokens`。
 
-**顺带补（未做）**：目录角色的 `examples` 恒为空（`from_system_role` 不填），模型手里没有一个
-「这个角色怎么说话」的样本。可从卡里的 `## Communication style` 抽带引号的句子合成 1–2 条
-`<example_dialogue>`，走现有 `_examples_block`（`roleplay.py`，预算 1500）。
+**又改一次（2026-11-20 晚，用户否决了原来的兜底）**：`cb0918d` 加了一道德性防线——
+首轮 + 纯招呼时把 `max_tokens` 压到 160（`graph_middleware.py` 的 `_greeting_cap`，
+配一张问候语词表）。用户明确否了：**这是服务端替模型理解对话**。「角色该有自己的性格，
+不能对什么话都夸夸其谈，更不能做这种判断，应该都交给模型。」
+而且这类判定永远不完美——`您好呀` 就现场漏过，长句会误判。
+
+现在：
+- **删掉**问候语词表、`is_bare_greeting`、`FIRST_GREETING_MAX_TOKENS`、`_greeting_cap`。
+  `PromptMiddleware` 不再看消息内容，也不再改 `model_settings`。
+- 长度交给模型，靠**角色层**定住说话方式：`templates.BREVITY_RULES` 只讲
+  「设定不是台词」，不再按消息种类下指令。
+- 目录卡里的 `## Communication style`（218 张卡都有，标题完全一致）摘成
+  「这个人怎么说话」挂在角色层末尾（`role_profile.split_card_prompt` → `RoleProfile.voice_sample`
+  → `roleplay._role_layer`）。它写的就是语气和带引号例句，是**性格**，比任何
+  「回复要简短」的元指令更能定住一个人说话的样子。
+
+测试：`tests/test_greeting_cap.py`（断言判定代码已不存在、中间件不改 settings）+
+`tests/test_character_voice_style.py`（断言说话方式真的进了系统提示词、且在预算紧张时不被丢）。
 
 ### 2. 冷启动断网显示「空会话」，和「历史被清空」一模一样
 

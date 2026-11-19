@@ -79,6 +79,10 @@ def _role_layer(profile: RoleProfile, *, user: str) -> str:
         parts.append(f"性格：{sub(profile.personality)}")
     if profile.scenario.strip():
         parts.append(f"场景：{sub(profile.scenario)}")
+    # 说话方式挂在角色层末尾：它是性格的一部分，必须和角色一起出现；
+    # 放进可选层就可能因为预算被丢掉，那正是「只剩任务清单」的起点。
+    if profile.voice_sample.strip():
+        parts.append(f"{T.VOICE_SAMPLE_HEADER}\n\n{T.VOICE_SAMPLE_GUIDE}\n\n{sub(profile.voice_sample)}")
     return "\n\n".join(parts)
 
 
