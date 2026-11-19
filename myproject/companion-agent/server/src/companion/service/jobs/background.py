@@ -76,7 +76,8 @@ def build_initiative_loop(platform):
     async def claim(key: str) -> bool:
         return bool(await platform.redis.set(f"ca:initiative:{key}", b"1", nx=True, ex=CLAIM_TTL_SEC))
 
-    brain = PlatformBrain(submit=platform.chat.submit, control=platform.chat.control, role="system", kind="proactive")
+    brain = PlatformBrain(submit=platform.chat.submit, control=platform.chat.control,
+                          role="system", kind="proactive", wait_for_busy=False)
     return InitiativeLoop(
         scheduler=InitiativeScheduler(timeline=platform.timeline, preferences_loader=platform.preferences.load,
                                       state_loader=platform.ledger.state_for),

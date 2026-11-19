@@ -162,13 +162,47 @@ async def test_denied_input_is_not_spoken_and_not_silent():
     assert info.value.reason == "blocked"
 
 
-async def test_a_queued_turn_has_nothing_to_stream():
-    # 会话正忙（比如文字那边正在回复）：这句话已经落库排队，由当前回合结束后的 drain 处理，
-    # 语音这边不挂等一个还没开始的回合。
+async def test_a_queued_turn_waits_for_drain_and_streams_that_reply():
+    # 会话正忙：这句话先排队。drain 之后会发 turn.started(user_message_ids 含本条)，
+    # 语音必须挂等并朗读那一轮——否则端上就是 remote PCM=0 / said=''。
     control = FakeControl()
-    submit = FakeSubmit(control, _happy, disposition=Disposition.QUEUED, turn_id=None)
+    submit = FakeSubmit(control, lambda _c: None, disposition=Disposition.QUEUED, turn_id=None)
     turn = await _brain(control, submit).start_turn(_request())
-    assert await _collect(turn) == ""
+    drained = "01DRAINEDTURNXXXXXXXXXXXX"
+    control.add("turn.started", turn_id=drained, user_message_ids=[11])
+    control.add("message.delta", turn_id=drained, delta="排队后说的话。")
+    control.add("message.done", turn_id=drained)
+    assert await _collect(turn) == "排队后说的话。"
+    assert turn.turn_id == drained
+
+
+async def test_a_merged_turn_streams_the_active_turn():
+    # PRE_OUTPUT 合并：decide 给出正在跑的 turn_id；语音应挂到那一轮，而不是空流。
+    control = FakeControl()
+    active = "01ACTIVETURNXXXXXXXXXXXXX"
+
+    def script(c: FakeControl) -> None:
+        c.add("message.delta", turn_id=active, delta="合并后一起说。")
+        c.add("message.done", turn_id=active)
+
+    submit = FakeSubmit(control, script, disposition=Disposition.MERGED, turn_id=active)
+    turn = await _brain(control, submit).start_turn(_request())
+    assert await _collect(turn) == "合并后一起说。"
+    assert turn.turn_id == active
+
+
+async def test_a_queued_turn_ignores_other_message_drains():
+    control = FakeControl()
+    submit = FakeSubmit(control, lambda _c: None, disposition=Disposition.QUEUED, turn_id=None)
+    turn = await _brain(control, submit).start_turn(_request())
+    control.add("turn.started", turn_id="OTHER", user_message_ids=[99])
+    control.add("message.delta", turn_id="OTHER", delta="别人的排队")
+    control.add("message.done", turn_id="OTHER")
+    mine = "01MINEDRAINEDTURNXXXXXXXX"
+    control.add("turn.started", turn_id=mine, user_message_ids=[11])
+    control.add("message.delta", turn_id=mine, delta="我的。")
+    control.add("message.done", turn_id=mine)
+    assert await _collect(turn) == "我的。"
 
 
 async def test_no_session_is_a_programming_error():

@@ -29,7 +29,8 @@ class Compliance:
 def _speaker(submit, control, sessions=None, compliance=None):
     from companion.service.turns.platform_brain import PlatformBrain
 
-    brain = PlatformBrain(submit=submit, control=control, role="system", kind="proactive")
+    brain = PlatformBrain(submit=submit, control=control, role="system", kind="proactive",
+                          wait_for_busy=False)
     return PlatformSpeaker(sessions=sessions or Sessions(), brain=brain, compliance=compliance)
 
 
