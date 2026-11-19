@@ -6,7 +6,9 @@
 from __future__ import annotations
 
 import json
+import re
 import time
+import unicodedata
 from typing import Any
 
 from langchain.agents.middleware import AgentMiddleware
@@ -23,6 +25,65 @@ from deerflow.agents.middlewares.system_message_coalescing_middleware import Sys
 from deerflow.agents.middlewares.tool_error_handling_middleware import ToolErrorHandlingMiddleware
 
 ASK_CLARIFICATION = "ask_clarification"
+
+#: 首轮打招呼时给模型的最大输出。默认 4096（routing.yaml defaults.max_tokens）。
+#: 160 token 约合 200 多个汉字，够三四个短句；而一段「自我介绍 + Core mission 逐条」起码 800。
+FIRST_GREETING_MAX_TOKENS = 160
+
+#: 判定「一句招呼」。只认整句都是招呼的输入：`len <= 12` 且整体命中。
+#: 宁可漏（退回概率性的提示词约束），不可误伤——把一次正经提问截在半句是更糟的体验。
+#:
+#: 实现上先按 Unicode 类别剥掉标点/空白/符号（`你好！` `hey~` `你好🙂`），
+#: 再和一张小表精确比对。不用 `\p{P}`——那是 PCRE 语法，Python 的 `re` 不支持。
+_GREETINGS = frozenset({
+    # 中文
+    "你好", "您好", "你好啊", "你好呀", "您好啊", "您好呀", "哈喽", "哈啰", "嗨", "在吗", "在么",
+    "在不在", "在不在呀", "早上好", "早安", "早", "中午好", "下午好", "晚上好", "晚安", "好久不见",
+    # 英文
+    "hi", "hiya", "hello", "hey", "yo", "howdy", "greetings",
+    "good morning", "good afternoon", "good evening", "good night",
+    "how are you", "how r u", "hello there", "hi there", "hey there",
+    # 其它常见语种
+    "hola", "bonjour", "salut", "coucou", "hallo", "ciao", "olá", "oi",
+    "привет", "здравствуй", "こんにちは", "こんばんは", "おはよう", "안녕", "안녕하세요", "مرحبا",
+})
+
+GREETING_MAX_CHARS = 12
+
+#: 比对用的“去空白”版本：``_bare`` 会把空格一起去掉，所以表也要按同样规则归一。
+_BARE_GREETINGS = frozenset("".join(g.split()).lower() for g in _GREETINGS)
+
+
+def _bare(text: str) -> str:
+    """去掉标点、空白、符号与表情，只留下文字本身（大小写归一）。"""
+    kept = [ch for ch in text if unicodedata.category(ch)[0] not in "PZSC"]
+    return "".join(kept).lower()
+
+
+def is_bare_greeting(text: str) -> bool:
+    """整句只有一个招呼（可带标点、感叹号、表情）。"""
+    body = (text or "").strip()
+    if not body or len(body) > GREETING_MAX_CHARS:
+        return False
+    return _bare(body) in _BARE_GREETINGS
+
+
+def _last_human_text(messages: list[Any]) -> str:
+    for message in reversed(messages):
+        if isinstance(message, HumanMessage):
+            content = message.content
+            return content if isinstance(content, str) else ""
+    return ""
+
+
+def _is_session_opening(messages: list[Any]) -> bool:
+    """本会话里助手还没说过话。
+
+    用「消息里没有 AI 消息」判断，而不是数回合：同一回合里的第二次模型调用（工具返回后）
+    会看到自己上一轮的 AI 消息，于是自动不受上限影响——工具链不会被截断。
+    """
+    return not any(isinstance(m, AIMessage) for m in messages)
+
 
 
 def _ctx(obj: Any) -> dict[str, Any]:
@@ -49,22 +110,60 @@ class PromptMiddleware(AgentMiddleware):
 
     - 系统提示词写进 ``request.system_message``（图可缓存，提示词每轮重算）；
     - 提示词计划里的按深度注入（角色备注、世界书、作者注、历史后指令）插进本次请求的消息列表，
-      **只进请求，不写回对话线程**。
+      **只进请求，不写回对话线程**；
+    - 首轮一句招呼时给 ``max_tokens`` 上一道硬上限（见下方 ``_greeting_cap``）。
+
+    最后一条是这套提示词里**唯一的确定性防线**。前面几条（人设分层、约束放末尾、文案重写）
+    都是概率性的：283 张角色卡 × 长尾模型，一轮轮试总有漏网。真正能保证「对 hello 不会回
+    八百字」的只有输出长度上限。
     """
 
     async def awrap_model_call(self, request, handler):
         ctx = _ctx(request.runtime.context if request.runtime else None)
+        # 判定招呼要用**注入之前**的消息：深度 0 的注入会以用户消息的形式落在最后一条
+        # （语音通道的 cue 片段就是这样），拼完再看最后一条用户消息就成了注入内容。
+        original = list(request.messages)
         plan = ctx.get("prompt_plan")
         prompt = plan.system if plan is not None else ctx.get("system_prompt")
         if prompt:
             request = request.override(system_message=SystemMessage(content=prompt))
         if plan is not None and plan.injections:
             system_as_user = bool(ctx.get("system_injection_as_user", True))
-            messages = splice_injections(
+            request = request.override(messages=splice_injections(
                 list(request.messages), plan.injections,
-                lambda role, text: _injection_message(role, text, system_as_user=system_as_user))
-            request = request.override(messages=messages)
+                lambda role, text: _injection_message(role, text, system_as_user=system_as_user)))
+        request = self._greeting_cap(request, original)
         return await handler(request)
+
+    @staticmethod
+    def _greeting_cap(request, original_messages: list[Any]):
+        """本会话第一句、且用户只说了句招呼 → 压住输出长度。
+
+        三条都要成立，缺一条就不动手：
+        1. **消息里还没有助手消息**（首轮）。后续对话的长度由模型按上下文自己拿捏。
+           无状态图（没有 checkpointer）每轮都只带本轮输入，等于每句招呼都受限——
+           这也正是想要的：中途一句「在吗」同样不该换来一篇小作文。
+        2. **最近一条用户消息是纯招呼**（``is_bare_greeting``）。正经提问不受影响——
+           截断一份正常的长回答是比话多更严重的体验问题。
+        3. 没带多模态内容块。带图的回合往往就是要看东西、要长篇分析。
+
+        只提前设上限、不等回复出来再截：文字通道的 delta 是直接下发的，
+        事后截断用户会看到一句话说到一半断掉。
+        """
+        if not _is_session_opening(original_messages):
+            return request
+        if not is_bare_greeting(_last_human_text(original_messages)):
+            return request
+        if any(isinstance(m, HumanMessage) and isinstance(m.content, list) for m in original_messages):
+            return request
+        settings = dict(request.model_settings or {})
+        current = settings.get("max_tokens")
+        # 已经比上限更严（例如调用方自己压得更低）就不要反手放宽。
+        if isinstance(current, int) and 0 < current <= FIRST_GREETING_MAX_TOKENS:
+            return request
+        settings["max_tokens"] = FIRST_GREETING_MAX_TOKENS
+        return request.override(model_settings=settings)
+
 
 
 @Next(PromptMiddleware)
