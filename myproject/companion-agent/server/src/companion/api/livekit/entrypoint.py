@@ -22,6 +22,7 @@ from typing import Any
 from companion.api.livekit.bridge import require
 from companion.api.livekit.protocol_bridge import ProtocolBridge, attach, local_sender
 from companion.api.livekit.barge_in import BargeInRelay
+from companion.api.livekit.inbound_audio_probe import attach_inbound_audio_probe
 from companion.api.livekit.touch_input import TouchInputRelay
 from companion.api.livekit.speech_publisher import SpeechPublisher
 from companion.api.livekit.anchored_cues import AnchoredCuePublisher
@@ -348,6 +349,9 @@ class RoomEntrypoint:
         # 表现是「agent 进房间了但一句话不说」。
         session = AgentSession(**build_session_options(mode="voice", voice_factory=self._voice_factory))
         await session.start(agent, room=room)
+        # Mode B 探针：INFO 打出第一帧 / track_subscribed / user_state。
+        # 必须在 start 之后——RoomIO 这时才把 audio input 挂到 session.input。
+        attach_inbound_audio_probe(session, room)
         # 触摸 → 用户句 → generate_reply。必须在 start 之后挂：session 还没起来时
         # 发 generate_reply 会炸；挂晚一点没事，最多丢掉开场几秒内的点按。
         bridge.on_input = TouchInputRelay(session)
