@@ -211,6 +211,12 @@ def build_session_options(*, mode: str = "text", voice_factory: Any = None) -> d
     与被识别的语音都走不到 ``llm_node``。
     """
     options: dict[str, Any] = {"llm": _pipeline_llm()}
+    if mode == "voice":
+        # Continuous VAD activity can hold soft-pause playback indefinitely.
+        # Keep hard interruptions, including the explicit client barge-in relay.
+        options["turn_handling"] = {
+            "interruption": {"resume_false_interruption": False},
+        }
     if mode == "voice" and voice_factory is not None:
         tts, stt, *rest = voice_factory()
         options["tts"] = tts

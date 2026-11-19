@@ -153,6 +153,20 @@ def test_session_options_always_carry_an_llm():
         assert isinstance(options.get("llm"), lk_llm.LLM)
 
 
+async def test_voice_session_disables_soft_pause_but_keeps_interruptions():
+    from livekit.agents import AgentSession
+
+    options = build_session_options(mode="voice", voice_factory=None)
+    assert options["turn_handling"]["interruption"]["resume_false_interruption"] is False
+    session = AgentSession(**options)
+    assert session.options.interruption["resume_false_interruption"] is False
+    assert session.options.interruption["enabled"] is True
+
+
+def test_text_session_keeps_default_turn_handling():
+    assert "turn_handling" not in build_session_options(mode="text")
+
+
 def test_the_placeholder_llm_refuses_to_be_the_one_generating():
     """真被调用就报错，而不是返回空串。
 
