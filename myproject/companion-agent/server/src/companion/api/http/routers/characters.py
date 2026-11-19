@@ -34,6 +34,9 @@ class CharacterSummary:
     tags: list[str] = field(default_factory=list)
     # 有音色才可以语音聊。接真实火山音色时只需改角色卡里的 voice_id。
     voice_available: bool = True
+    # 这个角色说话用谁的声音。客户端拿它显示音色名（「贴心女友」）或调试时对账。
+    # 只给 provider 与 voice_id，不给 params：那里面可能有账号侧的调参。
+    voice_ref: dict[str, str] | None = None
 
     def to_json(self) -> dict[str, Any]:
         return {
@@ -42,6 +45,7 @@ class CharacterSummary:
             "tagline": self.tagline,
             "tags": list(self.tags),
             "voice_available": self.voice_available,
+            "voice_ref": dict(self.voice_ref) if self.voice_ref else None,
         }
 
 
@@ -88,6 +92,21 @@ def voice_is_available(card: CharacterCard) -> bool:
     return bool(str((card.voice_ref or {}).get("voice_id") or "").strip())
 
 
+def public_voice_ref(card: CharacterCard) -> dict[str, str] | None:
+    """对外只给 provider 与 voice_id。
+
+    ``voice_ref.params`` 是账号侧的调参（语速、情感强度之类），客户端不需要，
+    公开出去只是把服务端的供应商配置摊开。没有音色就返回 ``None``——
+    客户端据此退回「用默认音色」的那条显示，而不是猜一个名字。
+    """
+    ref = card.voice_ref or {}
+    voice_id = str(ref.get("voice_id") or "").strip()
+    if not voice_id:
+        return None
+    return {"provider": str(ref.get("provider") or "volcengine").strip(),
+            "voice_id": voice_id}
+
+
 def skill_id(card: CharacterCard) -> str:
     vvv = card.extensions.get("vvv")
     if not isinstance(vvv, dict):
@@ -103,6 +122,7 @@ def summarize(character_id: str, card: CharacterCard) -> CharacterSummary:
         tagline=card.tagline,
         tags=list(card.tags),
         voice_available=voice_is_available(card),
+        voice_ref=public_voice_ref(card),
     )
 
 
@@ -177,6 +197,8 @@ def build_router(catalog: CharacterCatalog, current_user):
         tagline: str
         tags: list[str]
         voice_available: bool
+        # 客户端据此显示音色名。没有音色的角色给 null。
+        voice_ref: dict[str, str] | None = None
 
     class CharacterListResponse(BaseModel):
         items: list[CharacterSummaryResponse]
