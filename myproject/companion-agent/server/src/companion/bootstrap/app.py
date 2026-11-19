@@ -91,19 +91,31 @@ def _default_room_store(settings: Any) -> Any:
 
 
 def _default_script_lease(settings: Any) -> Any:
-    """剧本房 lease：有 Redis 走 Redis（多副本共享），否则进程内。"""
+    """剧本房 lease：有 Redis 走 Redis（多副本共享）；dev 无 Redis 才退回内存。
+
+    非 dev：Redis URL 缺失或初始化失败一律 fail-closed——内存版无跨副本、
+    且历史上曾静默 immortal，生产不能悄悄降级。
+    """
+    from companion.bootstrap.checks import StartupRefused
+    from companion.devtools.script_room.lease import InMemoryScriptRoomLease, RedisScriptRoomLease
+
+    env = (getattr(settings, "companion_env", "") or "dev").strip().lower()
     url = getattr(settings, "companion_redis_url", "") or ""
     if url:
         try:
             from redis import asyncio as redis_async
 
-            from companion.devtools.script_room.lease import RedisScriptRoomLease
-
             return RedisScriptRoomLease(redis_async.from_url(url, decode_responses=True))
-        except Exception:  # noqa: BLE001
-            pass
-    from companion.devtools.script_room.lease import InMemoryScriptRoomLease
-
+        except Exception as exc:  # noqa: BLE001
+            if env != "dev":
+                raise StartupRefused(
+                    f"剧本房 Redis lease 初始化失败（env={env}）：{type(exc).__name__}: {exc}"
+                ) from exc
+    elif env != "dev":
+        raise StartupRefused(
+            f"COMPANION_ENV={env} 需要 companion_redis_url 以启用剧本房 Redis lease；"
+            f"禁止静默降级到进程内 immortal lease"
+        )
     return InMemoryScriptRoomLease()
 
 def create_app(
