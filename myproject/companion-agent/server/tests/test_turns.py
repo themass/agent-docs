@@ -131,6 +131,97 @@ async def test_cancelled_json_turn_does_not_poison_next_turn(partial):
     assert [o.text for o in out] == ["下一轮正常。"]
 
 
+async def test_cancelled_prose_is_discarded_before_next_turn():
+    class Brain:
+        def __init__(self):
+            self.calls = 0
+            self.blocked = asyncio.Event()
+            self.cancelled = []
+
+        async def start_turn(self, request):
+            self.calls += 1
+            turn_id = str(self.calls)
+
+            async def tokens():
+                if turn_id == "1":
+                    yield "[joy]cancelled buffer"
+                    self.blocked.set()
+                    await asyncio.Event().wait()
+                else:
+                    yield "Next turn."
+
+            async def cancel():
+                self.cancelled.append(turn_id)
+
+            return BrainTurn(tokens=tokens(), cancel=cancel, turn_id=turn_id)
+
+    brain = Brain()
+    events = []
+    emitted = []
+    pipeline = TurnPipeline(brain, event_sink=events.append)
+
+    async def consume():
+        async for output in pipeline.run(req()):
+            emitted.append(output.text)
+
+    task = asyncio.create_task(consume())
+    try:
+        await asyncio.wait_for(brain.blocked.wait(), timeout=1)
+    finally:
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+    assert emitted == []
+    assert events == []
+    assert brain.cancelled == ["1"]
+    assert pipeline.turn_id == ""
+    out = await drain(pipeline, req())
+    assert [o.text for o in out] == ["Next turn."]
+    assert events == []
+
+
+async def test_aclose_discards_buffer_and_allows_next_turn():
+    class Brain:
+        def __init__(self):
+            self.calls = 0
+            self.cancelled = []
+
+        async def start_turn(self, request):
+            self.calls += 1
+            turn_id = str(self.calls)
+
+            async def tokens():
+                if turn_id == "1":
+                    # feed() buffers the tail before run() yields the first sentence.
+                    yield "First. [joy]cancelled buffer"
+                else:
+                    yield '{"say":"Next turn.","cues":[]}'
+
+            async def cancel():
+                self.cancelled.append(turn_id)
+
+            return BrainTurn(tokens=tokens(), cancel=cancel, turn_id=turn_id)
+
+    brain = Brain()
+    events = []
+    pipeline = TurnPipeline(brain, event_sink=events.append)
+    stream = pipeline.run(req())
+    try:
+        first = await stream.__anext__()
+        assert first.text == "First."
+    finally:
+        await stream.aclose()
+    with pytest.raises(StopAsyncIteration):
+        await stream.__anext__()
+    assert brain.cancelled == ["1"]
+    assert pipeline.turn_id == ""
+    assert events == []
+    out = await drain(pipeline, req())
+    assert [o.text for o in out] == ["Next turn."]
+    assert out[0].source == "structured"
+    assert events == []
+
+
 async def test_pipeline_cancel_reaches_brain():
     brain = _SlowBrain()
     pipeline = TurnPipeline(brain)
