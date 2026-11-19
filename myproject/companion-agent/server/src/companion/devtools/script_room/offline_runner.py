@@ -62,20 +62,24 @@ async def drive_reply_line(
     text: str,
     *,
     publisher: SpeechPublisher,
-    bridge: RecordingBridge,
+    bridge: Any,
     turn_id: str,
     budget: CueBudget | None = None,
-) -> None:
+) -> list[str]:
     """驱动一句假脑输出：断句 → ``say`` → 解析标签/片段 → ``compile_cues`` → 记 emotion。
 
-    Task 5 的真房推流器可以复用：同样的「一句 → 声明 + cue」顺序。
+    返回本句实际朗读文本列表（剥标签后的 ``frag.say``），供 Task 5 TTS/PCM 复用。
+    bridge 需提供 ``cue_emotion`` / ``publish``（RecordingBridge 或 BridgeOverRtc）。
     """
     if budget is None:
         budget = CueBudget()
     splitter = SentenceSplitter()
+    said: list[str] = []
     for sentence in splitter.feed(text) + splitter.flush():
         frag = ingest(sentence)
         declared = await publisher.say(frag.say, turn_id=turn_id)
+        if frag.say.strip():
+            said.append(frag.say)
         if declared is None or not frag.intents:
             continue
         speech_id, seg = declared
@@ -91,6 +95,7 @@ async def drive_reply_line(
                 await bridge.cue_emotion(cue.args.get("name", ""), at=cue.at)
             else:
                 await bridge.publish(cue.event_type, cue.args, at=cue.at)
+    return said
 
 
 async def run_offline(case: ScriptCase) -> list[str]:
