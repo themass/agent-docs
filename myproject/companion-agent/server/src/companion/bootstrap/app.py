@@ -89,6 +89,23 @@ def _default_room_store(settings: Any) -> Any:
 
     return InMemorySessionStore()
 
+
+def _default_script_lease(settings: Any) -> Any:
+    """剧本房 lease：有 Redis 走 Redis（多副本共享），否则进程内。"""
+    url = getattr(settings, "companion_redis_url", "") or ""
+    if url:
+        try:
+            from redis import asyncio as redis_async
+
+            from companion.devtools.script_room.lease import RedisScriptRoomLease
+
+            return RedisScriptRoomLease(redis_async.from_url(url, decode_responses=True))
+        except Exception:  # noqa: BLE001
+            pass
+    from companion.devtools.script_room.lease import InMemoryScriptRoomLease
+
+    return InMemoryScriptRoomLease()
+
 def create_app(
     *,
     verifier: CredentialVerifier | None = None,
@@ -120,12 +137,14 @@ def create_app(
 
     # 房间会话：有 Redis 就存 Redis（多副本可见、重启不丢），否则退回进程内。
     resolved_store = store or _default_room_store(settings)
+    script_lease = _default_script_lease(settings)
     service = SessionService(
         store=resolved_store,
         minter=minter or TokenMinter.from_settings(settings),
         livekit_url=settings.livekit_url if livekit_url is None else livekit_url,
         provision_room=_room_provisioner_from_settings(),
         provider=settings.companion_rtc_provider,
+        script_lease=script_lease,
     )
 
     if platform is not None:
@@ -173,7 +192,8 @@ def create_app(
                                     chat_sessions=platform.sessions if platform is not None else None,
                                     # 与 /v1/sessions 同一个角色校验判据（build_platform 挂在 chat 上）：
                                     # 语音建会话会自动创建聊天会话，未知角色同样要先拒。
-                                    role_check=platform.chat.role_check if platform is not None else None))
+                                    role_check=platform.chat.role_check if platform is not None else None,
+                                    lease=script_lease))
 
     if chat is not None:
         app.include_router(build_chat_router(chat, current_user))

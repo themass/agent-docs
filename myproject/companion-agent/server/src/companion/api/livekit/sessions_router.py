@@ -1,17 +1,8 @@
-
-import asyncio
-import secrets
-import time
-from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, field
-from datetime import UTC, datetime
-from typing import Protocol
 from companion.service.room.resolve import ChatSessionError, resolve_chat_session
-from companion.service.room.livekit_port import LiveKitToken, TokenIssuer
 from companion.service.room.sessions import SessionError, SessionService
 
 
-def build_router(service: SessionService, current_user, chat_sessions=None, role_check=None):
+def build_router(service: SessionService, current_user, chat_sessions=None, role_check=None, lease=None):
     """挂到 app 上。fastapi/pydantic 在这里才导入。
 
     ``chat_sessions``：聊天会话存储。给了就把房间绑到用户与角色唯一的那段历史（语音与文字共用）；
@@ -20,6 +11,9 @@ def build_router(service: SessionService, current_user, chat_sessions=None, role
     ``role_check``：角色存在性校验（异步，role_id/owner_id，返回 bool）。语音建会话会
     **自动创建**聊天会话（resolve_chat_session），未知角色不挡就会建出一段每回合必挂的
     历史——与 /v1/sessions 用同一个判据、同一种拒绝。
+
+    ``lease``：剧本房租赁（``ScriptRoomLease``）。给了才挂 ``POST /script-sessions``；
+    create_script 也读 ``service.script_lease``，bootstrap 两边都要注入同一实例。
     """
     from typing import Annotated
 
@@ -39,6 +33,10 @@ def build_router(service: SessionService, current_user, chat_sessions=None, role
         # 要接着聊的聊天会话。不给就用该用户与该角色最近的会话（没有则新建），
         # 所以语音与文字永远是同一段历史。给了必须属于当前用户且角色一致。
         chat_session_id: int | None = Field(default=None, ge=1)
+
+    class CreateScriptSessionBody(BaseModel):
+        character_id: str = Field(min_length=1)
+        case_id: str = Field(min_length=1)
 
     class SessionResponse(BaseModel):
         session_id: str
@@ -84,5 +82,23 @@ def build_router(service: SessionService, current_user, chat_sessions=None, role
         except SessionError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return SessionResponse(**grant.to_json(), chat_session_id=chat_session_id)
+
+    if lease is not None:
+
+        @router.post("/script-sessions", response_model=SessionResponse)
+        async def create_script_session(
+            body: CreateScriptSessionBody,
+            user_id: Annotated[str, Depends(current_user)],
+        ) -> SessionResponse:
+            # 剧本房：user_id 只来自 auth；不走 chat resolve / 不派生产 agent。
+            try:
+                grant = await service.create_script(
+                    user_id=user_id, character_id=body.character_id, case_id=body.case_id,
+                )
+            except MissingCredentials as exc:
+                raise HTTPException(status_code=503, detail=str(exc)) from exc
+            except SessionError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+            return SessionResponse(**grant.to_json())
 
     return router

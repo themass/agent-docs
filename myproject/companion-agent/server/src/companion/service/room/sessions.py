@@ -6,16 +6,22 @@ import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Protocol
+from typing import Any, Protocol
 from companion.service.room.livekit_port import LiveKitToken, TokenIssuer
 
 
 ROOM_PREFIX = "companion-"
+SCRIPT_ROOM_PREFIX = "script-"
 
 
 def room_name_for(session_id: str) -> str:
     """房间名与会话一对一：同一用户连开两次不会撞进同一房间。"""
     return f"{ROOM_PREFIX}{session_id}"
+
+
+def script_room_name_for(case_id: str, short_id: str) -> str:
+    """剧本房命名：script-{case_id}-{short_id}；前缀给 worker / gate 分流用。"""
+    return f"{SCRIPT_ROOM_PREFIX}{case_id}-{short_id}"
 
 
 def new_session_id() -> str:
@@ -128,6 +134,7 @@ class SessionService:
     livekit_url: str
     provision_room: RoomProvisioner | None = None
     provider: str = PROVIDER_LIVEKIT
+    script_lease: Any = None  # ScriptRoomLease；create_script 用
 
     async def create(
         self, *, user_id: str, character_id: str, now: float | None = None,
@@ -184,6 +191,69 @@ class SessionService:
             provider=provider,
             # livekit 的连接参数就是顶层 livekit_url + token，所以 provider_config 为空；
             # 火山线路落地时在这里组装 app_id/room_id/token/turn_url（协议 §2 草案）。
+            provider_config={},
+        )
+
+    async def create_script(
+        self, *, user_id: str, character_id: str, case_id: str,
+        chat_session_id: int | None = None, now: float | None = None,
+    ) -> SessionGrant:
+        """剧本房会话：房间名由 lease 按 case_id 幂等分配，**不**派发生产 agent。
+
+        仍走 provision_room（仅 create_room + metadata），与 create 同路径发 user token / 落库。
+        """
+        if not user_id:
+            raise SessionError("user_id 不能为空")
+        if not character_id:
+            raise SessionError("character_id 不能为空")
+        if not case_id:
+            raise SessionError("case_id 不能为空")
+        if self.script_lease is None:
+            raise SessionError("script lease 未配置")
+        provider = self._resolve_provider()
+        if provider == PROVIDER_LIVEKIT and not self.livekit_url:
+            raise SessionError("LIVEKIT_URL 未配置")
+
+        issued_at = time.time() if now is None else now
+        session_id = new_session_id()
+        room = await self.script_lease.attach(case_id)
+        if not room.startswith(SCRIPT_ROOM_PREFIX):
+            raise SessionError(f"lease 返回了非法剧本房名：{room}")
+        if self.provision_room is not None:
+            try:
+                metadata: dict[str, object] = {
+                    "user_id": user_id,
+                    "character_id": character_id,
+                    "case_id": case_id,
+                    "script": "true",
+                }
+                if chat_session_id is not None:
+                    metadata["chat_session_id"] = chat_session_id
+                await self.provision_room(room, metadata)
+            except Exception as exc:  # noqa: BLE001
+                raise SessionError(f"无法创建房间：{exc}") from exc
+        minted: LiveKitToken = self.minter.user_token(user_id, room, now=issued_at)
+
+        await self.store.save(
+            SessionRecord(
+                session_id=session_id,
+                user_id=user_id,
+                character_id=character_id,
+                room_name=room,
+                identity=minted.identity,
+                created_at=datetime.fromtimestamp(issued_at, UTC),
+                expires_at=minted.expires_at,
+                chat_session_id=chat_session_id,
+            )
+        )
+        return SessionGrant(
+            session_id=session_id,
+            room_name=room,
+            token=minted.token,
+            livekit_url=self.livekit_url,
+            expires_at=minted.expires_at,
+            identity=minted.identity,
+            provider=provider,
             provider_config={},
         )
 
