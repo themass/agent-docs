@@ -53,6 +53,17 @@ def test_worker_wires_it_into_the_real_worker_options():
     assert opts.prewarm_fnc is prewarm
 
 
+def test_redis_asyncio_is_on_the_list():
+    """2026-11-20 生产：job 进程 `event loop blocked for 11232ms importing
+    redis.asyncio`，超了 liveness 窗口被 SDK 杀掉重试。redis_control 只带 Lua
+    字符串、不 import redis 客户端；真正的重 import 在 platform.build_platform
+    的 `from redis import asyncio`。清单漏它 = 每个冷 job 再赌一次十几秒。"""
+    assert "redis.asyncio" in PREWARM_IMPORTS
+    prewarm()
+    assert "redis.asyncio" in sys.modules
+    assert "redis.typing" in sys.modules  # 日志点名的另一半，随 asyncio 一起进来
+
+
 def test_saxw_cold_start_blockers_are_on_the_list():
     """2026-11-18 Saxw 真机对账点名的首帧阻塞：漏一项 = 用户再等十几秒。"""
     required = {

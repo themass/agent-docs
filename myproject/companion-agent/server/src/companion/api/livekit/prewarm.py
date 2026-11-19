@@ -39,6 +39,11 @@ PREWARM_IMPORTS = (
     # 预热上线后的新日志：event loop blocked for 13056ms importing
     # companion.service.turn.redis_control，冷盘 13 秒）
     "companion.service.turn.redis_control",
+    # bootstrap/platform.py:209 `from redis import asyncio`——redis_control 只带
+    # Lua 字符串不拉客户端，真正的重 import 是这里。2026-11-20 生产：
+    # "event loop blocked for 11232ms importing redis.asyncio"，job 进程超
+    # liveness 窗口被 SDK SIGUSR1 杀掉重试，握手期间用户干等。
+    "redis.asyncio",
     # livekit SDK 自己点名（agent_activity 第一次解析 turn detection 时拉）
     "onnxruntime",
     # openai/httpx 第一次发请求时才拉 anyio 后端（小头，但同样白捡）
