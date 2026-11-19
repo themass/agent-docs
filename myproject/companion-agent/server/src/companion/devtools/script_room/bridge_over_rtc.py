@@ -1,8 +1,9 @@
 """把 ProtocolBridge 接到 RtcAdapter.publish_data，并记录时间线事件类型名。
 
-剧本房要求 v2 hello：**fail closed**（不静默退 v1）。入向 hello 可由
-:meth:`simulate_hello` 注入（Memory 单测）；真房侧后续可把 data_received 喂进
-``inner.on_data``。
+剧本房要求 v2 hello：**fail closed**（不静默退 v1）。入向 data 由
+``run_script_room`` 经 ``RtcAdapter.set_data_handler`` 接线到 ``inner.on_data``
+（真房 ``data_received`` 与 Memory ``simulate_data`` 同路径）。
+:meth:`simulate_hello` 仅作为测试捷径，直接喂 ``inner.on_data``。
 """
 
 from __future__ import annotations

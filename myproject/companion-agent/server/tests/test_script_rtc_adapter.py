@@ -132,3 +132,77 @@ async def test_livekit_adapter_smoke_mocked():
 
         await adapter.close()
         fake_room.disconnect.assert_awaited()
+
+
+@pytest.mark.asyncio
+async def test_memory_set_data_handler_receives_simulated_data():
+    from companion.devtools.script_room.rtc import MemoryRtcAdapter
+
+    rtc = MemoryRtcAdapter()
+    seen: list[tuple] = []
+
+    async def _handler(payload: bytes, topic: str, identity: str, kind: str) -> None:
+        seen.append((payload, topic, identity, kind))
+
+    rtc.set_data_handler(_handler)
+    await rtc.connect("wss://example", "tok")
+    await rtc.simulate_data(b"x", topic="cmp.ctl", publisher_identity="phone", publisher_kind="STANDARD")
+    assert seen == [(b"x", "cmp.ctl", "phone", "STANDARD")]
+    await rtc.close()
+
+
+@pytest.mark.asyncio
+async def test_memory_simulate_data_without_handler_is_noop():
+    from companion.devtools.script_room.rtc import MemoryRtcAdapter
+
+    rtc = MemoryRtcAdapter()
+    await rtc.simulate_data(b"x", topic="cmp.ctl", publisher_identity="phone")
+
+
+@pytest.mark.asyncio
+async def test_livekit_adapter_data_received_reaches_handler():
+    """真房 data_received（同步回调）→ 异步 handler，字段映射与 protocol_bridge.attach 一致。"""
+    from types import SimpleNamespace
+
+    from companion.devtools.script_room.rtc import LiveKitRtcAdapter
+
+    adapter = LiveKitRtcAdapter()
+    seen: list[tuple] = []
+
+    async def _handler(payload: bytes, topic: str, identity: str, kind: str) -> None:
+        seen.append((payload, topic, identity, kind))
+
+    adapter.set_data_handler(_handler)
+
+    callbacks: dict[str, object] = {}
+    fake_room = MagicMock()
+    fake_room.connect = AsyncMock()
+    fake_room.disconnect = AsyncMock()
+    fake_room.remote_participants = {}
+
+    def _on(event_name: str, callback=None):
+        if callback is not None:
+            callbacks[event_name] = callback
+            return callback
+
+        def _decorator(fn):
+            callbacks[event_name] = fn
+            return fn
+
+        return _decorator
+
+    fake_room.on = _on
+
+    with patch("companion.devtools.script_room.rtc.rtc.Room", return_value=fake_room):
+        await adapter.connect("wss://lk", "jwt")
+
+    assert "data_received" in callbacks
+    packet = SimpleNamespace(
+        data=b"hello-bytes",
+        topic="cmp.ctl",
+        participant=SimpleNamespace(identity="phone-1", kind=SimpleNamespace(name="STANDARD")),
+    )
+    callbacks["data_received"](packet)
+    await asyncio.sleep(0.01)
+    assert seen == [(b"hello-bytes", "cmp.ctl", "phone-1", "STANDARD")]
+    await adapter.close()

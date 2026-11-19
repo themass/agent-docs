@@ -92,6 +92,19 @@ async def run_script_room(
     if voice_ref is None:
         voice_ref = VoiceRef(provider="fake", voice_id="script")
 
+    async def _on_rtc_data(
+        payload: bytes, topic: str, publisher_identity: str, publisher_kind: str
+    ) -> None:
+        # 真房 data_received → ProtocolBridge（hello / barge 等入向）；on_data 自身不抛。
+        await bridge.inner.on_data(
+            payload,
+            topic=topic,
+            publisher_identity=publisher_identity,
+            publisher_kind=publisher_kind,
+        )
+
+    rtc.set_data_handler(_on_rtc_data)
+
     publisher = SpeechPublisher(bridge)  # type: ignore[arg-type]
     budget = CueBudget()
     turn_id = f"script-{case.id}"

@@ -7,8 +7,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 # livekit 仅本文件可见；其它 script_room / 生产入口禁止依赖。
 from livekit import rtc
@@ -17,9 +18,28 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_CHANNELS = 1
 
+#: 入向 data 包处理器：``(payload, topic, publisher_identity, publisher_kind)``。
+#: ``publisher_kind`` 为大写名（``STANDARD`` / ``AGENT`` …），与 ``ProtocolBridge`` 的身份白名单口径一致。
+DataHandler = Callable[[bytes, str, str, str], Awaitable[None]]
+
+
+def _kind_name(kind: Any) -> str:
+    """``Participant.kind`` 是 protobuf 整型枚举；归一成 ``STANDARD`` / ``AGENT`` 等大写名。"""
+    if isinstance(kind, int) and not isinstance(kind, bool):
+        try:
+            kind = rtc.ParticipantKind.Name(kind)
+        except ValueError:
+            return str(kind)
+    name = getattr(kind, "name", None)
+    text = name if isinstance(name, str) else str(kind)
+    text = text.rsplit(".", 1)[-1].upper()
+    return text.removeprefix("PARTICIPANT_KIND_")
+
 
 @runtime_checkable
 class RtcAdapter(Protocol):
+    def set_data_handler(self, handler: DataHandler | None) -> None: ...
+
     async def connect(self, url: str, token: str) -> None: ...
 
     async def publish_data(self, topic: str, payload: bytes) -> None: ...
@@ -38,6 +58,24 @@ class MemoryRtcAdapter:
     published: list[tuple] = field(default_factory=list)
     _remote: asyncio.Event = field(default_factory=asyncio.Event, repr=False)
     _connected: bool = field(default=False, repr=False)
+    _data_handler: DataHandler | None = field(default=None, repr=False)
+
+    def set_data_handler(self, handler: DataHandler | None) -> None:
+        self._data_handler = handler
+
+    async def simulate_data(
+        self,
+        payload: bytes,
+        *,
+        topic: str,
+        publisher_identity: str,
+        publisher_kind: str = "STANDARD",
+    ) -> None:
+        """测试：模拟真房 ``data_received``，经 ``set_data_handler`` 注册的处理器送达。"""
+        handler = self._data_handler
+        if handler is None:
+            return
+        await handler(payload, topic, publisher_identity, publisher_kind)
 
     async def connect(self, url: str, token: str) -> None:
         del url, token
@@ -74,10 +112,40 @@ class LiveKitRtcAdapter:
         self._audio_source: rtc.AudioSource | None = None
         self._audio_sample_rate: int | None = None
         self._track_published = False
+        self._data_handler: DataHandler | None = None
+        self._data_tasks: set[asyncio.Task[None]] = set()
+
+    def set_data_handler(self, handler: DataHandler | None) -> None:
+        self._data_handler = handler
+
+    def _dispatch_data(self, packet: Any) -> None:
+        """``data_received`` 是同步回调：起 task 跑 async handler，字段映射同 ``protocol_bridge.attach``。"""
+        handler = self._data_handler
+        if handler is None:
+            return
+        publisher = getattr(packet, "participant", None)
+        coro = handler(
+            getattr(packet, "data", b"") or b"",
+            getattr(packet, "topic", None) or "",
+            getattr(publisher, "identity", None) or "",
+            _kind_name(getattr(publisher, "kind", None)),
+        )
+        task = asyncio.get_running_loop().create_task(coro)
+        self._data_tasks.add(task)
+        task.add_done_callback(self._on_data_task_done)
+
+    def _on_data_task_done(self, task: asyncio.Task[None]) -> None:
+        self._data_tasks.discard(task)
+        if not task.cancelled() and task.exception() is not None:
+            logger.warning("script room data handler failed: %s", task.exception())
 
     async def connect(self, url: str, token: str) -> None:
         room = rtc.Room()
         self._remote.clear()
+
+        @room.on("data_received")
+        def _on_data_received(packet: Any) -> None:
+            self._dispatch_data(packet)
 
         @room.on("participant_connected")
         def _on_participant_connected(participant: rtc.RemoteParticipant) -> None:
@@ -115,6 +183,9 @@ class LiveKitRtcAdapter:
     async def close(self) -> None:
         room = self._room
         self._room = None
+        for task in list(self._data_tasks):
+            task.cancel()
+        self._data_tasks.clear()
         self._audio_source = None
         self._audio_sample_rate = None
         self._track_published = False
