@@ -164,9 +164,19 @@ class TokenMinter:
         name: str = "",
         now: float | None = None,
     ) -> LiveKitToken:
-        """agent 同样要能发数据：它推文字回复与各项事件到房间。"""
+        """agent 同样要能发数据：它推文字回复与各项事件到房间。
+
+        顶层 claim ``kind=agent`` 对应 LiveKit ``AccessToken.Claims.kind``：
+        SFU 据此把参与者标成 ``Participant.Kind.AGENT``。剧本房手机端只
+        消费 AGENT 的数据；漏了这个 claim，推送会被客户端过滤掉。
+        """
         return self._mint(
-            agent_identity(agent_id), room, name=name, can_publish_data=True, now=now
+            agent_identity(agent_id),
+            room,
+            name=name,
+            can_publish_data=True,
+            kind="agent",
+            now=now,
         )
 
     def _mint(
@@ -177,6 +187,7 @@ class TokenMinter:
         name: str,
         can_publish_data: bool,
         now: float | None,
+        kind: str | None = None,
     ) -> LiveKitToken:
         if not self.api_key or not self.api_secret:
             raise MissingCredentials(
@@ -203,6 +214,9 @@ class TokenMinter:
         }
         if name:
             claims["name"] = name
+        # LiveKit AccessToken.Claims.kind → 顶层 JWT claim；只给 agent 设置。
+        if kind:
+            claims["kind"] = kind
         return LiveKitToken(
             token=encode_jwt(claims, self.api_secret),
             identity=identity,
