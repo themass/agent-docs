@@ -85,6 +85,9 @@ class TurnPipeline:
                 yield self._emit(sentence)
             completed = True
         finally:
+            # Cancelled turns must not retain partial JSON or overflow quarantine.
+            # Discard buffered text here; only the normal completion path yields it.
+            self._splitter.flush()
             if not completed:
                 await self.cancel()
             self._turn = None

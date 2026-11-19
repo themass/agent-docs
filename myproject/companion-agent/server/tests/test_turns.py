@@ -96,6 +96,41 @@ class _SlowBrain:
         return None
 
 
+@pytest.mark.parametrize("partial", ['{"say":"unfinished', '{"say":"' + "x" * 4100])
+async def test_cancelled_json_turn_does_not_poison_next_turn(partial):
+    class Brain:
+        def __init__(self):
+            self.calls = 0
+            self.blocked = asyncio.Event()
+
+        async def start_turn(self, request):
+            self.calls += 1
+            first = self.calls == 1
+
+            async def tokens():
+                if first:
+                    yield partial
+                    self.blocked.set()
+                    await asyncio.Event().wait()
+                else:
+                    yield '{"say":"下一轮正常。","cues":[]}'
+
+            async def cancel():
+                return None
+
+            return BrainTurn(tokens=tokens(), cancel=cancel, turn_id=str(self.calls))
+
+    brain = Brain()
+    pipeline = TurnPipeline(brain)
+    task = asyncio.create_task(drain(pipeline, req()))
+    await asyncio.wait_for(brain.blocked.wait(), timeout=1)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    out = await drain(pipeline, req())
+    assert [o.text for o in out] == ["下一轮正常。"]
+
+
 async def test_pipeline_cancel_reaches_brain():
     brain = _SlowBrain()
     pipeline = TurnPipeline(brain)
