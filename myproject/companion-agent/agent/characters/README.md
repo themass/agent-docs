@@ -20,7 +20,13 @@
 
 ## 形象与音色
 
-- `voice_ref` 的 `voice_id` 是占位值，接火山引擎时替换为实际音色 id。
+- `voice_ref.voice_id` 必须是**实测能出声**的火山说话人 id，不是描述性占位。
+  2026-11-20 用 `server/tools/probe_voices.py` 在当前账号（`resource_id=seed-tts-2.0`）
+  上逐个试过：只有 `saturn_zh_female_keainvsheng_tob`、`saturn_zh_female_bingjiaojiejie_tob`、
+  `saturn_zh_female_tiexinnvyou_tob` 三个可用，**没有任何男声被授权**。写一个不可用的 id，
+  表现是语音回合静音加一条 400，且只有真机会发现。新增/改卡后先跑那个探测脚本。
+- 音色**按角色**生效：入口用房间的 `character_id` 读 ``voice_ref``，传给该房间的 TTS。
+  卡里没写或读不出来才退回环境变量 `COMPANION_VOICE_ID` / `VOLC_TTS_VOICE`。
 - `model_ref` 指向简单动画渲染器的素材 id。素材尚未制作，渲染器缺图时回退到立绘。
 
 ## 新增角色

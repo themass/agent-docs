@@ -21,7 +21,7 @@
       "vvv": {
         "skill": "org-psychology",
         "locale": "zh-CN",
-        "voice_ref": {"provider": "volcengine", "voice_id": "female_warm"},
+        "voice_ref": {"provider": "volcengine", "voice_id": "saturn_zh_female_tiexinnvyou_tob"},
         "model_ref": {"renderer": "simple", "asset": "sudai-v1"},
         "emotion_map": {
           "calm": "expression_calm",

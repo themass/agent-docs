@@ -22,6 +22,10 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_VOICE = "female_warm"
 
+#: 与 ``worker.py`` 里那个兜底值同一个字符串。两处都留着是因为它们服务于不同的时点：
+#: 一个在装配房间、一个在写质检记录，谁都不该为了让另一个少一行字而改。
+ENV_FALLBACK_VOICE = "saturn_zh_female_keainvsheng_tob"
+
 
 @dataclass(frozen=True)
 class VoiceStackConfig:
@@ -29,6 +33,8 @@ class VoiceStackConfig:
     voice_id: str = DEFAULT_VOICE
     # 语音模式是否启用。默认关闭：第一版默认文字。
     enabled: bool = False
+    # 角色卡 ``voice_ref.voice_id`` 不是火山说话人 id 时的兜底。``None`` 表示按环境变量。
+    fallback_voice: str | None = None
 
 
 def config_from_env() -> VoiceStackConfig:
@@ -39,10 +45,40 @@ def config_from_env() -> VoiceStackConfig:
     )
 
 
+def resolve_voice_id(*, card_voice: str | None, config: VoiceStackConfig) -> str:
+    """一张卡该用哪个说话人。顺序：角色卡 → 环境变量 → 常量兜底。
+
+    **角色卡里的值必须能真的出声，否则要在装配前被换掉。** 仓库自带的卡写的是
+    ``male_calm`` / ``female_warm`` 这类描述性占位（见 ``agent/characters/README.md``），
+    不是火山说话人 id；直接送过去，每一句都是一个 400，用户听到的是静音。
+    所以卡里的值只当作**已核实的候选**：调用方能确认它可用时传进来，否则用环境变量的值。
+    """
+    for candidate in (card_voice, config.voice_id, config.fallback_voice,
+                      os.getenv("VOLC_TTS_VOICE"), ENV_FALLBACK_VOICE):
+        value = (candidate or "").strip()
+        if value:
+            return value
+    return ENV_FALLBACK_VOICE
+
+
+def build_tts(config: VoiceStackConfig, *, voice_id: str | None = None) -> Any:
+    """这个房间的 TTS。单独一个函数，是为了让「说话人到底传没传进去」可以被直接断言——
+    走整个 ``build_voice_stack`` 的话还得先把 VAD 模型加载起来，测试就成了在验 silero。"""
+    from companion.service.voice.volcengine_livekit import NewConsoleTTS
+
+    return NewConsoleTTS(voice=resolve_voice_id(card_voice=voice_id, config=config), sample_rate=16000)
+
+
 def build_voice_stack(
     config: VoiceStackConfig | None = None,
+    *,
+    voice_id: str | None = None,
 ) -> tuple[object, object, object]:
     """返回 (tts, stt, vad)，供 ``AgentSession(tts=..., stt=..., vad=...)``。
+
+    ``voice_id`` 是**这个房间**的说话人（由入口从角色卡解析后传入）。不传就用
+    ``config.voice_id``——单角色调试与离线脚本走这条路。这一层必须接受它：
+    否则一间房里两个角色只能共用一个嗓子，而「音色跟着形象走」是这个产品的主线。
 
     **用社区插件 ``livekit-plugins-volcengine``**，不自己实现协议：插件负责 URL、
     请求体、分包、响应解析与重连；我们只覆盖鉴权头（新版控制台签发的是
@@ -68,16 +104,16 @@ def build_voice_stack(
     if resolved.provider != "volcengine":
         raise RuntimeError(f"暂只接了火山（volcengine），当前配置是 {resolved.provider!r}")
 
-    from companion.service.voice.volcengine_livekit import NewConsoleSTT, NewConsoleTTS
+    from companion.service.voice.volcengine_livekit import NewConsoleSTT
 
-    voice = resolved.voice_id or os.getenv("VOLC_TTS_VOICE", "saturn_zh_female_keainvsheng_tob")
-    tts = NewConsoleTTS(voice=voice, sample_rate=16000)
+    tts = build_tts(resolved, voice_id=voice_id)
     stt = NewConsoleSTT()
     # silero 需要在 worker 启动时预加载（prewarm），否则第一句会有明显延迟。
     vad = silero.VAD.load()
     if not isinstance(vad, lk_vad.VAD):
         raise RuntimeError("VAD 不是 LiveKit 的 VAD 实例")
     return tts, stt, vad
+
 
 
 # ---- 以下从 app/voice/gateway.py 移入：装配火山引擎等具体供应商，属于组合根 ----

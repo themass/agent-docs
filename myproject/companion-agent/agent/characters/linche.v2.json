@@ -21,7 +21,7 @@
       "vvv": {
         "skill": "growth-coaching",
         "locale": "zh-CN",
-        "voice_ref": {"provider": "volcengine", "voice_id": "male_calm"},
+        "voice_ref": {"provider": "volcengine", "voice_id": "saturn_zh_female_bingjiaojiejie_tob"},
         "model_ref": {"renderer": "simple", "asset": "linche-v1"},
         "emotion_map": {
           "calm": "expression_calm",

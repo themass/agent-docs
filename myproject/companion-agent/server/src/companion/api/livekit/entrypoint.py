@@ -201,11 +201,36 @@ def _pipeline_llm() -> Any:
     return _PipelineLLM()
 
 
-def build_session_options(*, mode: str = "text", voice_factory: Any = None) -> dict:
+def room_voice_id(identity: "RoomIdentity", characters: Any) -> str | None:
+    """这个房间该用哪个说话人：从角色卡的 ``voice_ref`` 里取。
+
+    取不到就返回 ``None``，让语音栈退回环境变量的默认值——**不在这一层猜**。
+    猜错的表现是「两个角色一个嗓子」，而那正是这条链路要解决的问题本身。
+
+    卡读不出来也不抛：角色卡是发布资产，读盘失败不该让整个房间连不上。入口
+    已经拿到了 ``character_id``，人设与历史都按它走，只有音色退回默认。
+    """
+    if characters is None:
+        return None
+    try:
+        card = characters.load(identity.character_id)
+    except Exception as exc:  # noqa: BLE001 —— 缺卡 / 坏卡都不该拦住房间
+        logger.warning("voice: cannot load character %s: %s", identity.character_id, exc)
+        return None
+    voice_id = str((getattr(card, "voice_ref", None) or {}).get("voice_id") or "").strip()
+    return voice_id or None
+
+
+def build_session_options(*, mode: str = "text", voice_factory: Any = None,
+                          voice_id: str | None = None) -> dict:
     """AgentSession 的构造参数。
 
     文字模式不挂 STT/TTS，语音模式才需要；两者都挂会让文字模式也去合成语音，
     白白烧钱。语音栈由调用方（组合根）注入，接口层不认识具体供应商。
+
+    ``voice_id`` 是**这个房间**的说话人（来自角色卡 ``voice_ref``）。它必须一路
+    传到 ``voice_factory``：音色由角色决定，不是进程级配置——否则同一台 worker
+    上所有角色共用一个嗓子。
 
     ``llm`` 两种模式都要给（原因见 ``_pipeline_llm``）：不给的话房间里的文字输入
     与被识别的语音都走不到 ``llm_node``。
@@ -218,13 +243,15 @@ def build_session_options(*, mode: str = "text", voice_factory: Any = None) -> d
             "interruption": {"resume_false_interruption": False},
         }
     if mode == "voice" and voice_factory is not None:
-        tts, stt, *rest = voice_factory()
+        parts = voice_factory(voice_id=voice_id) if voice_id else voice_factory()
+        tts, stt, *rest = parts
         options["tts"] = tts
         options["stt"] = stt
         if rest:
             # 官方 silero VAD：语音端点检测交给框架的模型，不自己写
             options["vad"] = rest[0]
     return options
+
 
 
 @dataclass
@@ -255,10 +282,15 @@ class RoomEntrypoint:
     模块级的函数（``build_voice_stack``、``voice_wiring`` 返回的闭包不行，见 ``worker.py`` 的说明）。
     """
 
-    def __init__(self, platform_factory: Any, voice_factory: Any = None, wire_voice: Any = None) -> None:
+    def __init__(self, platform_factory: Any, voice_factory: Any = None, wire_voice: Any = None,
+                 characters: Any = None) -> None:
         self._platform_factory = platform_factory
         self._voice_factory = voice_factory
         self._wire_voice = wire_voice
+        # 角色卡来源：只用来解析本房间的说话人（见 ``room_voice_id``）。
+        # 是 ``companion.service.roles.port.CharacterSourcePort``，一个 ``load(id)`` 就够；
+        # 接口层只认这个形状，不认它读盘还是读服务。
+        self._characters = characters
 
     async def __call__(self, ctx: Any) -> None:
         """worker 的入口。由 LiveKit 的 job context 调用。"""
@@ -335,7 +367,11 @@ class RoomEntrypoint:
         _HANDSHAKES.add(handshake)
         handshake.add_done_callback(_HANDSHAKES.discard)
 
-        parts: VoiceParts = self._wire_voice(platform)
+        # 房间说话人解析一次，语音栈与质检记录都用它：TTS 用它出声，记录用它写 tts_voice。
+        # 分成两处各自解析会出现「说的是 A、记的是 B」这种事后没法查的错。
+        voice_id = room_voice_id(identity, self._characters)
+
+        parts: VoiceParts = self._wire_voice(platform, voice_id)
         # event_sink 只喂 v1 companion.avatar；v2 presentation.* 走 AnchoredCuePublisher。
         pipeline = TurnPipeline(parts.brain, event_sink=ProtocolCueSink(publisher))
         agent_class = build_agent_class()
@@ -354,7 +390,12 @@ class RoomEntrypoint:
 
         # 语音栈必须显式按 voice 模式装配：不传 mode 时默认是 text，STT/TTS/VAD 都不会挂上，
         # 表现是「agent 进房间了但一句话不说」。
-        session = AgentSession(**build_session_options(mode="voice", voice_factory=self._voice_factory))
+        #
+        # 音色跟着角色走：说话人由本房间的 ``character_id`` 解析出的角色卡 ``voice_ref`` 决定。
+        # 不传的话每个房间都落到进程级默认值，两个角色一个嗓子。
+        session = AgentSession(**build_session_options(
+            mode="voice", voice_factory=self._voice_factory, voice_id=voice_id))
+
         await session.start(agent, room=room)
         # Mode B 探针：INFO 打出第一帧 / track_subscribed / user_state。
         # 必须在 start 之后——RoomIO 这时才把 audio input 挂到 session.input。
@@ -374,6 +415,7 @@ class RoomEntrypoint:
         )
 
 
-def make_entrypoint(platform_factory: Any, voice_factory: Any = None, wire_voice: Any = None) -> RoomEntrypoint:
+def make_entrypoint(platform_factory: Any, voice_factory: Any = None, wire_voice: Any = None,
+                    characters: Any = None) -> RoomEntrypoint:
     """装配好的 worker 入口。返回的是可 pickle 的对象（见 ``RoomEntrypoint`` 的说明）。"""
-    return RoomEntrypoint(platform_factory, voice_factory, wire_voice)
+    return RoomEntrypoint(platform_factory, voice_factory, wire_voice, characters)

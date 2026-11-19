@@ -92,12 +92,19 @@ def main() -> None:
     from companion.bootstrap.voice_stack import config_from_env
 
     cfg = config_from_env()
-    # 质检记录里的供应商与音色：取自实际装配的配置，不靠事后猜
+    # 质检记录里的供应商与音色：**这里只是兜底**。真正记的那一份由入口按房间说话人改写
+    # （``VoiceWiring.info_for``）——音色跟着角色走，不是进程级配置。
     voice_info = {"stt_provider": cfg.provider, "tts_provider": cfg.provider,
                   "tts_voice": cfg.voice_id or os.environ.get("VOLC_TTS_VOICE", "saturn_zh_female_keainvsheng_tob")}
     from companion.bootstrap.voice_wiring import voice_wiring
+    from companion.paths import CHARACTERS_DIR
+    from companion.service.roles.files import CharacterSource
 
-    entry = make_entrypoint(_platform, voice_factory=build_voice_stack, wire_voice=voice_wiring(voice_info))
+    # 角色卡来源：入口用它把房间的 character_id 解析成 voice_ref。与 HTTP 服务读同一个目录，
+    # 「页面上显示的这个角色」和「语音里说话的这个声音」因此不会分家。
+    entry = make_entrypoint(_platform, voice_factory=build_voice_stack,
+                            wire_voice=voice_wiring(voice_info),
+                            characters=CharacterSource(CHARACTERS_DIR))
     from companion.api.livekit.capacity import worker_options_kwargs
     from companion.api.livekit.prewarm import prewarm
 

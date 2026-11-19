@@ -41,7 +41,11 @@ def build_tts_archiver(platform: Any, voice_info: dict[str, str] | None = None):
 
 
 class VoiceWiring:
-    """``wire_voice(platform) -> VoiceParts``。
+    """``wire_voice(platform, voice_id) -> VoiceParts``。
+
+    ``voice_id`` 是**这个房间**的说话人（入口从角色卡解析后传进来）；不传就用装配时的
+    默认值。质检记录里的 ``tts_voice`` 必须跟着它走：记成默认音色的话，"林澈用的是哪个
+    声音"这个问题在事后就查不出来了——而音色错了最难从文本里看出来。
 
     **为什么是类而不是闭包**：LiveKit 在 Linux 上用 forkserver 起房间子进程，入口对象要能
     pickle 过去，它带着的 ``wire_voice`` 也必须能。实例可以按"模块 + 类名 + __dict__"重建，
@@ -51,10 +55,19 @@ class VoiceWiring:
     def __init__(self, voice_info: dict[str, str] | None = None) -> None:
         self.voice_info = dict(voice_info or {})
 
-    def __call__(self, platform: Any) -> VoiceParts:
+    def info_for(self, voice_id: str | None = None) -> dict[str, str]:
+        """这一轮该记什么音色。房间说话人优先于装配时的全局值。"""
+        info = dict(self.voice_info)
+        if voice_id:
+            info["tts_voice"] = voice_id
+        return info
+
+    def __call__(self, platform: Any, voice_id: str | None = None) -> VoiceParts:
+        info = self.info_for(voice_id)
         return VoiceParts(brain=PlatformBrain(submit=platform.chat.submit, control=platform.chat.control),
-                          recorder=build_voice_recorder(platform, self.voice_info),
-                          tts_sink=build_tts_archiver(platform, self.voice_info))
+                          recorder=build_voice_recorder(platform, info),
+                          tts_sink=build_tts_archiver(platform, info))
+
 
 
 def voice_wiring(voice_info: dict[str, str] | None = None) -> VoiceWiring:

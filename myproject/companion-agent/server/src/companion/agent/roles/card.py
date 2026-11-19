@@ -179,8 +179,13 @@ def from_v2_json(payload: dict[str, Any]) -> CharacterCard:
         if vvv:
             extensions[VVV_KEY] = vvv
 
-    voice_ref = data.get("voice_ref")
-    model_ref = data.get("model_ref")
+    # ``voice_ref`` / ``model_ref`` 在仓库自带的卡里写在 ``extensions.vvv`` 下
+    # （见 ``agent/characters/README.md``），只读 ``data.voice_ref`` 会永远拿到 None——
+    # 于是线上每一张卡都被当成「没有声音」，语音走全局默认音色，两个角色一个嗓子。
+    # 顶层字段优先（那是 V2 规范的位置，外部卡会这么写），其次才是 ``vvv``。
+    _vvv_block = extensions.get(VVV_KEY) if isinstance(extensions.get(VVV_KEY), dict) else {}
+    voice_ref = data.get("voice_ref") or _vvv_block.get("voice_ref")
+    model_ref = data.get("model_ref") or _vvv_block.get("model_ref")
     return CharacterCard(
         id=_text(data.get("id")),
         name=_text(data.get("name")),
