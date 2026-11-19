@@ -10,19 +10,16 @@
 
 ## P0 — 用户现在就能感知到，且改动小
 
-### 1. 角色念任务清单（部分已修，还剩一道兜底）
+### 1. 角色念任务清单（已修完）
 
 **已修**（`eaa8e8a`）：人设层不再整张塞任务卡、约束移到系统末尾、文案重写。
+**兜底已加**（`cb0918d`）：首轮 + 纯招呼时把本次模型调用的 `max_tokens` 压到 160
+（`graph_middleware.py` 的 `_greeting_cap`）。判定只看注入前的消息，且要求
+「没有助手消息 / 最后一条用户消息是纯招呼 / 没带多模态块」三条同时成立——
+正经提问和工具链的第二次调用都不受影响。已在 `httpx.MockTransport` 上验证
+`request.model_settings` 确实落到 `max_completion_tokens`。
 
-**还剩**：提示词是概率性的，283 张卡 × 长尾模型一定有漏网。需要一道确定性防线。
-建议做首轮 `max_tokens` 上限：`graph_middleware.py:47-67` 的 `awrap_model_call` 里判断
-「本会话首条助手回复 + 用户输入是短招呼」，把 `max_tokens` 压到 ~120（现在 `routing.yaml:74` 是 4096）。
-
-- 判定短招呼：`len(text) <= 12` 且命中一个很小的多语问候正则表。
-- 只对首轮、只对命中问候的输入生效，避免把正常长回答截断在半句。
-- 不做「检测到长回复后截断」——文字通道的 delta 是直接发出的，事后截断用户会看到断句。
-
-**顺带补**：目录角色的 `examples` 恒为空（`from_system_role` 不填），模型手里没有一个
+**顺带补（未做）**：目录角色的 `examples` 恒为空（`from_system_role` 不填），模型手里没有一个
 「这个角色怎么说话」的样本。可从卡里的 `## Communication style` 抽带引号的句子合成 1–2 条
 `<example_dialogue>`，走现有 `_examples_block`（`roleplay.py`，预算 1500）。
 
