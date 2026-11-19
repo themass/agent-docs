@@ -288,13 +288,27 @@ def build_agent_class() -> type:
                     yield chunk
 
             completed = False
+            # 静音下行排查用的观测行：tts start 证明 tts_node 真被调用，tts done 的
+            # frames/audio_ms 说明合成侧真出了多少音频。火山插件空音频会抛错而不是吐零，
+            # 所以"有 done、frames>0、端上仍全零"= 断点在发布层；没有 start = 断点在合成之前。
+            turn_id = self._current_turn_id()
+            logger.info("tts start turn=%s", turn_id or "-")
+            frames_out = 0
+            audio_ms = 0
             try:
                 # 默认实现是异步生成器（async def + yield），调用得到的就是生成器，不能 await
                 frames = Agent.default.tts_node(self, capture.tee_text(watched(text)), model_settings)
                 async for frame in capture.tee_frames(frames):
+                    frames_out += 1
+                    rate = int(getattr(frame, "sample_rate", 0) or 0)
+                    channels = int(getattr(frame, "num_channels", 1) or 1)
+                    if rate and channels:
+                        audio_ms += int(len(frame.data) * 1000 // (2 * rate * channels))
                     yield frame
                 completed = True
             finally:
+                logger.info("tts done turn=%s frames=%d audio_ms=%d completed=%s",
+                            turn_id or "-", frames_out, audio_ms, completed)
                 self._archive_tts(capture, turn_ref.get("turn"), completed)
 
         def _archive_tts(self, capture: Any, turn: Any, completed: bool) -> None:

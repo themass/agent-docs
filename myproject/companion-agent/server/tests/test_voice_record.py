@@ -1,6 +1,7 @@
 """语音回合的质检记录：谁来写、记什么、同意之前不留什么、被打断时仍然记。"""
 
 import asyncio
+import logging
 from types import SimpleNamespace
 
 from companion.service.trace.qa import SqlQaStore, VoiceTurnRecord
@@ -297,6 +298,59 @@ async def test_the_recognition_confidence_reaches_the_voice_record():
     [s async for s in agent.llm_node(ctx, [], None)]
     await _settle(agent)
     assert rec.records[0].stt_confidence == 0.87
+
+
+# ---- tts_node 观测日志：生产里判断"TTS 到底跑没跑、出了多少帧" ----
+#
+# 生产静音下行排查：端上收到的是持续全零 PCM，插件空音频会抛错而不是吐零，
+# 所以断点必在"llm_node 吐了文本"到"音频进发布层"之间。插件的 INFO 日志在
+# voice.log 里看不到，tts_node 自己必须留下行：start 证明被调用，done 给出帧数。
+
+def _tts_logs(caplog):
+    return [r.message for r in caplog.records
+            if r.name == "companion.api.livekit.agent" and ("tts start" in r.message or "tts done" in r.message)]
+
+
+async def test_tts_node_logs_start_and_a_frame_count_summary(caplog, monkeypatch):
+    monkeypatch.setattr(Agent.default, "tts_node", _fake_default(_frames(2)), raising=True)
+    agent = build_agent_class()(pipeline=Pipeline(), user_id="1002", character_id="linche", chat_session_id=42,
+                                tts_sink=Sink())
+    with caplog.at_level(logging.INFO, logger="companion.api.livekit.agent"):
+        await _synthesize(agent)
+    await _settle(agent)
+    logs = _tts_logs(caplog)
+    assert any("tts start turn=T1" in m for m in logs)
+    done = next(m for m in logs if "tts done" in m)
+    assert "turn=T1" in done and "frames=2" in done and "audio_ms=200" in done and "completed=True" in done
+
+
+async def test_tts_node_logs_what_it_yielded_before_an_interrupt(caplog, monkeypatch):
+    """打断时也必须留行：frames=1 而端上一帧没听到 → 断点在发布层，不在合成侧。"""
+    monkeypatch.setattr(Agent.default, "tts_node", _fake_default(_frames(5)), raising=True)
+    agent = build_agent_class()(pipeline=Pipeline(), user_id="1002", character_id="linche", chat_session_id=42,
+                                tts_sink=Sink())
+    with caplog.at_level(logging.INFO, logger="companion.api.livekit.agent"):
+        node = await agent.tts_node(_texts("先歇一会儿"), None)
+        await node.__anext__()
+        await node.aclose()
+    await _settle(agent)
+    done = next(m for m in _tts_logs(caplog) if "tts done" in m)
+    assert "frames=1" in done and "completed=False" in done
+
+
+async def test_tts_node_logs_when_the_engine_raises(caplog, monkeypatch):
+    monkeypatch.setattr(Agent.default, "tts_node", _fake_default(_frames(3), fail_after=1), raising=True)
+    agent = build_agent_class()(pipeline=Pipeline(), user_id="1002", character_id="linche", chat_session_id=42,
+                                tts_sink=Sink())
+    with caplog.at_level(logging.INFO, logger="companion.api.livekit.agent"):
+        node = await agent.tts_node(_texts("你好"), None)
+        try:
+            [f async for f in node]
+        except RuntimeError:
+            pass
+    await _settle(agent)
+    done = next(m for m in _tts_logs(caplog) if "tts done" in m)
+    assert "frames=1" in done and "completed=False" in done
 
 
 # ---- .env 载入 ----
