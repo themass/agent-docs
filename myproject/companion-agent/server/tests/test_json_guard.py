@@ -68,22 +68,62 @@ def test_brace_that_is_not_json_goes_to_splitter():
     assert "{不是协议" in joined
 
 
-def test_unclosed_json_still_delivered_at_flush():
+def test_unclosed_json_is_dropped_at_flush():
     g = guard()
-    out = g.feed('{"say":"没写完的')
-    assert out == []
-    out += g.flush()
-    assert "".join(out) == '{"say":"没写完的'
+    assert g.feed('{"say":"没写完的') == []
+    assert g.flush() == []
 
 
-def test_unclosed_json_over_cap_releases_to_splitter():
-    # 跑偏的长 JSON 超过上限必须脱手（回落断句器），不能永远扣在守卫里。
+def test_unclosed_json_over_cap_discards_rest_until_flush():
     g = CueJsonGuard(SentenceSplitter(), max_pending_chars=40)
-    blob = '{"say":"' + "很长很长" * 10
-    out = g.feed(blob)
+    assert g.feed('{"say":"' + "很长很长" * 10) == []
     assert g._pending is None
+    assert g.feed('剩余内容。","cues":[]}') == []
+    assert g.flush() == []
+    valid = '{"say":"继续。"}'
+    assert g.feed(valid) == [valid]
+
+
+@pytest.mark.parametrize("blob", [
+    '{"say":"好。{"say":"继续。","cues":[]}',
+    '{"say":123,"cues":[]}',
+    '{"say":"好。",oops}',
+    '{"say":"好。","cues":[]]',
+    '{"say":"好。{\\"say\\":\\"继续。\\"}","cues":[]}',
+])
+@pytest.mark.parametrize("step", [1, 9, 1000])
+def test_contaminated_cue_json_never_reaches_speech(blob, step):
+    g = guard()
+    out = []
+    for i in range(0, len(blob), step):
+        out += g.feed(blob[i:i + step])
     out += g.flush()
-    assert "".join(out) == blob
+    assert out == []
+
+
+def test_malformed_complete_object_does_not_drop_following_valid_fragment():
+    g = guard()
+    assert g.feed('{"say":123}' + LINE) + g.flush() == [LINE]
+
+
+@pytest.mark.parametrize("blob", [
+    '{"say":"好。{"say":"继续。","cues":[]}',
+    '{"say":"未完成',
+])
+async def test_pipeline_never_yields_malformed_json(blob):
+    from companion.agent.brain.fake import FakeBrain
+    from companion.agent.brain.port import TurnRequest
+    from companion.service.turn.pipeline import TurnPipeline
+
+    pipeline = TurnPipeline(FakeBrain(list(blob)))
+    request = TurnRequest(user_id="test", character_id="test", message="test")
+    assert [item async for item in pipeline.run(request)] == []
+
+
+def test_complete_over_cap_is_dropped_but_following_prose_survives():
+    g = CueJsonGuard(SentenceSplitter(), max_pending_chars=40)
+    blob = '{"say":"' + "长" * 50 + '"}'
+    assert g.feed(blob + "正常正文。") + g.flush() == ["正常正文。"]
 
 
 def test_two_json_objects_in_stream():

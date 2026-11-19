@@ -11,15 +11,14 @@ prompt（``CUE_OUTPUT_SNIPPET``）要求模型优先输出一行 cue JSON，而
 看到 ``{`` 且前缀还可能是 cue 片段就停止向下游透传，缓存到花括号配平（跳过字符串
 字面量与 ``\\`` 转义）后把整段一次性返回，调用方喂给 ``fragment.ingest`` 即走结构化路径。
 
-不越权也不扣话：
-- 它不解析内容——合不合法是 ``fragment`` 的事，形状不符的 ``{`` 原样放行给断句器；
-- 缓存超过 ``max_pending_chars``（模型跑偏写长文）立刻回落断句器，宁可退回旧行为
-  也不永久扣住用户该听到的话；
-- ``flush()`` 时未闭合的残段照吐（流断了也要把话交付）。
+已识别的 cue JSON 必须可解析且含可朗读的 say 才能交付。畸形、未闭合或
+超限片段丢弃，绝不回落到原文朗读。超限后丢弃本轮余下 token，flush 重置状态；
+普通非协议花括号正文仍走断句器。
 """
 
 from __future__ import annotations
 
+import json
 import re
 from typing import TYPE_CHECKING
 
@@ -33,8 +32,6 @@ _PARTIAL_SHAPE = re.compile(r'^\{\s*("?\s*(s(a(y)?)?)?)?$')
 def looks_like_fragment_start(prefix: str) -> bool:
     """缓存中的前缀是否还可能长成 cue 片段？False 时原样放行，不再等。"""
     if not prefix.startswith("{"):
-        return False
-    if len(prefix) > 400:          # cue 片段是"一行 JSON"，远超就是跑偏
         return False
     if _PARTIAL_SHAPE.match(prefix):
         return True
@@ -50,9 +47,12 @@ class CueJsonGuard:
         self._splitter = splitter
         self._max_pending = max_pending_chars
         self._pending: str | None = None   # None = 当前不在 JSON 缓存里
+        self._discarding = False
 
     def feed(self, chunk: str) -> list[str]:
         """吃一块模型文本，返回此刻能交付的"句"（cue 片段是完整一行 JSON）。"""
+        if self._discarding:
+            return []
         out: list[str] = []
         buf = chunk
         while buf:
@@ -66,7 +66,7 @@ class CueJsonGuard:
                     # 下一段 JSON 到达时它还没吐——见 flush 与测试的顺序约定）。
                     out += self._splitter.feed(buf[:brace])
                 rest = buf[brace:]
-                if not looks_like_fragment_start(rest[:401]):
+                if not looks_like_fragment_start(rest):
                     out += self._splitter.feed(rest)
                     return out
                 # JSON 开头：断句器里没到终止符的尾巴（"好的，"）必须先出来，
@@ -78,29 +78,39 @@ class CueJsonGuard:
             probe = self._pending + buf
             end = _scan_close(probe)
             if end is None:
-                if not looks_like_fragment_start(probe[:401]):
+                if not looks_like_fragment_start(probe):
                     # 进来后才露馅（如 `{"foo"`）：整段回落断句器。
                     dumped, self._pending = probe, None
                     out += self._splitter.feed(dumped)
                     return out
                 self._pending = probe
                 if len(self._pending) > self._max_pending:
-                    dumped, self._pending = self._pending, None
-                    out += self._splitter.feed(dumped)
+                    self._pending = None
+                    self._discarding = True
                 return out
             complete, self._pending = probe[:end], None
-            out.append(complete)
+            if len(complete) <= self._max_pending and _safe_fragment(complete):
+                out.append(complete)
             buf = probe[end:]         # 闭合后的尾巴（可能是正文或下一段 JSON）继续走循环
         return out
 
     def flush(self) -> list[str]:
-        """收尾：未闭合的 JSON 残段与断句器缓冲一起吐出。"""
-        out: list[str] = []
-        if self._pending is not None:
-            out.append(self._pending)
-            self._pending = None
-        out += self._splitter.flush()
-        return out
+        """收尾：丢弃不完整的协议片段，释放普通正文，重置下一轮状态。"""
+        self._pending = None
+        self._discarding = False
+        return self._splitter.flush()
+
+
+def _safe_fragment(text: str) -> bool:
+    try:
+        data = json.loads(text)
+    except (ValueError, RecursionError):
+        return False
+    if not isinstance(data, dict):
+        return False
+    say = data.get("say")
+    # A syntactically valid outer object can still contain leaked cue JSON in say.
+    return isinstance(say, str) and re.search(r'\{\s*"say"\s*:', say) is None
 
 
 def _scan_close(text: str) -> int | None:
