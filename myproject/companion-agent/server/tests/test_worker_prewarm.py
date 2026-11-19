@@ -51,3 +51,16 @@ def test_worker_wires_it_into_the_real_worker_options():
     opts = WorkerOptions(entrypoint_fnc=lambda ctx: None, prewarm_fnc=prewarm,
                          **worker_options_kwargs(5, port=8091))
     assert opts.prewarm_fnc is prewarm
+
+
+def test_saxw_cold_start_blockers_are_on_the_list():
+    """2026-11-18 Saxw 真机对账点名的首帧阻塞：漏一项 = 用户再等十几秒。"""
+    required = {
+        "companion.agent.memory.hooks",   # 16.2s
+        "companion.bootstrap.platform",   # sqlalchemy/schema 冷 import
+        "companion.api.livekit.agent",    # 368ms
+        "osc_data._core",                 # 998ms（volcengine TTS）
+        "anyio.streams.stapled",          # 147ms
+    }
+    missing = required - set(PREWARM_IMPORTS)
+    assert not missing, f"Saxw 阻塞模块没进预热清单: {sorted(missing)}"

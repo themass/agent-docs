@@ -43,6 +43,17 @@ PREWARM_IMPORTS = (
     "onnxruntime",
     # openai/httpx 第一次发请求时才拉 anyio 后端（小头，但同样白捡）
     "anyio._core._streams",
+    # 2026-11-18 Saxw 真机对账：entrypoint → _platform 仍在事件循环里
+    # import companion.agent.memory.hooks，冷盘 16.2s（经 bootstrap.platform）
+    "companion.agent.memory.hooks",
+    # 同上路径的组装入口：顺带把 sqlalchemy schema 等平台冷 import 提前做完
+    "companion.bootstrap.platform",
+    # 房间 agent 类本身（同通 368ms）；提前编译进 job 进程
+    "companion.api.livekit.agent",
+    # volcengine TTS 链：build_voice_stack 第一次拉 osc_data._core（同通 998ms）
+    "osc_data._core",
+    # openai/httpx 第一次发请求才拉的 anyio 流封装（同通 147ms）
+    "anyio.streams.stapled",
 )
 
 
