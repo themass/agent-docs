@@ -45,6 +45,33 @@ def test_unsupported_kinds_are_dropped_by_caps():
     assert budget.stats.cues_emitted == 1
 
 
+def test_gesture_and_gaze_emit_when_caps_enabled():
+    budget = CueBudget()
+    compiled = compile_cues(
+        [
+            CueIntent(kind="gesture", name="nod", params={"repeat": 1}, phase="after"),
+            CueIntent(kind="gaze", name="look_user"),
+            _emotion("joy"),
+        ],
+        speech_id="sp_1",
+        seg_idx=1,
+        caps={
+            "presentation.emotion": 1,
+            "presentation.gesture": 1,
+            "presentation.gaze": 1,
+        },
+        budget=budget,
+    )
+    # 每段上限 2：第三条 emotion 被预算裁掉。
+    assert [(c.event_type, c.args) for c in compiled] == [
+        ("presentation.gesture", {"id": "nod", "repeat": 1}),
+        ("presentation.gaze", {"name": "look_user"}),
+    ]
+    assert compiled[0].at == {"speech": "sp_1", "seg": 1, "phase": "after"}
+    assert budget.stats.cues_emitted == 2
+    assert budget.stats.cues_dropped_cap == 1
+
+
 def test_per_segment_cap():
     intents = [_emotion(f"e{i}") for i in range(5)]
     budget = CueBudget()

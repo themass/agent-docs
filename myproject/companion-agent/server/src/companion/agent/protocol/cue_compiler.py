@@ -2,10 +2,11 @@
 
 顺序与上限是本模块存在的理由：
 
-1. 只发协商过的能力（F12 = caps 交集；本轮 gesture/gaze 仍为 0）。
+1. 只发协商过的能力（F12 = caps 交集）。
 2. 每段 ≤ :data:`MAX_CUES_PER_SEG`，每回合 ≤ :data:`MAX_CUES_PER_TURN`。
 3. 给每条挂上 ``at={speech, seg, phase}``，保证端侧能锚到 ``speech.seg(k)``。
 4. 编码后超 :data:`MAX_PAYLOAD_BYTES` 的整条丢掉并计数（§13 不变量 3）。
+5. ``gesture`` 的 wire 键是 ``id``（§11.1）；``emotion`` / ``gaze`` 用 ``name``。
 
 纯函数 + 可选计数桶；不碰网络。
 """
@@ -70,11 +71,15 @@ def compile_cues(
     """把意图编译成带锚点的 cue 列表。
 
     ``caps`` 形如握手交集（``{presentation.emotion: 1, ...}``）；``None`` 视为
-    只开 emotion（与当前 :data:`SERVER_CAPS` 一致），避免测试每次手填。
+    开 emotion / gesture / gaze（与当前 :data:`SERVER_CAPS` 非零项一致），避免测试每次手填。
     """
     if budget is None:
         budget = CueBudget()
-    caps_map = dict(caps) if caps is not None else {"presentation.emotion": 1}
+    caps_map = dict(caps) if caps is not None else {
+        "presentation.emotion": 1,
+        "presentation.gesture": 1,
+        "presentation.gaze": 1,
+    }
     out: list[CompiledCue] = []
 
     for intent in intents:
@@ -92,11 +97,7 @@ def compile_cues(
             budget.stats.cues_dropped_bad += 1
             continue
 
-        args: dict[str, Any] = {"name": intent.name}
-        for key, value in intent.params.items():
-            if key == "name":
-                continue
-            args[key] = value
+        args = _args_for(intent)
         at = {"speech": speech_id, "seg": seg_idx, "phase": intent.phase}
         compiled = CompiledCue(event_type=event_type, args=args, at=at)
         if _overflows(compiled):
@@ -106,6 +107,21 @@ def compile_cues(
         budget.remaining -= 1
         budget.stats.cues_emitted += 1
     return out
+
+
+def _args_for(intent: CueIntent) -> dict[str, Any]:
+    """把意图名映射成 wire args。
+
+    §11.1 示例里 gesture 用 ``id``；emotion / gaze 与结构化片段一致，用 ``name``。
+    params 里同名键会被意图名覆盖，避免模型改写规范键。
+    """
+    primary = "id" if intent.kind == "gesture" else "name"
+    args: dict[str, Any] = {primary: intent.name}
+    for key, value in intent.params.items():
+        if key in ("name", "id"):
+            continue
+        args[key] = value
+    return args
 
 
 def _overflows(cue: CompiledCue) -> bool:

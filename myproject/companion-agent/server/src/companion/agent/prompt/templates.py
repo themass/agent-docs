@@ -71,7 +71,8 @@ CUE_OUTPUT_SNIPPET = """# 表现建议（可选）
 优先用一行 JSON 片段回复，形状固定为 {"say":"…","cues":[…]}：
 - say：对用户说的话，进字幕和语音；不要在这里写动作标签或协议说明。
 - cues：可选视觉建议，没有合适动作就写 [] 或省略；每段最多 2 条，每回合最多 4 条。
-- 每条 cue 只含 kind、name、params、anchor。kind 目前可用 avatar.expression；
-  name 用简短情绪名（如 joy / warm_smile / calm）；anchor 只能是 segment_start 或 segment_end。
+- 每条 cue 只含 kind、name、params、anchor。kind 可用 avatar.expression / gesture / gaze；
+  name 用简短标识（情绪如 joy / warm_smile / calm；手势如 nod / tilt_head；注视如 look_user）；
+  anchor 只能是 segment_start 或 segment_end。
 - 不要生成 seq、topic、设备指令、精确毫秒或口型序列。
 若写不成 JSON，也可以继续用自然语言；情绪可用 [joy] 或（开心）这类标签夹在句里——服务端会剥掉。"""
