@@ -28,6 +28,13 @@ def test_frame_peak_is_normalized_abs_max():
     assert frame_peak(_frame([-32768])) == pytest.approx(1.0)
 
 
+def test_frame_nonzero_counts_non_silent_samples():
+    from companion.api.livekit.inbound_audio_probe import frame_nonzero
+
+    assert frame_nonzero(_frame([0, 0, 0])) == 0
+    assert frame_nonzero(_frame([0, 1, -2, 0])) == 2
+
+
 class _Source(AudioInput):
     def __init__(self, frames: list[rtc.AudioFrame]):
         super().__init__(label="fake")

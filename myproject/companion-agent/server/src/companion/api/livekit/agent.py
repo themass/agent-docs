@@ -239,15 +239,12 @@ def build_agent_class() -> type:
                 logger.warning("voice turn record failed turn=%s", record.turn_id)
 
         async def tts_node(self, text: Any, model_settings: Any):
-            """合成语音，同时留一份“送进 TTS 的文本 + 出来的音频”，供质检判断 TTS 准不准。
+            """合成语音，并留下 start/done（含 peak）观测；有质检 sink 时再 tee 归档。
 
             这里拿到的文本是框架做完文本变换（默认过滤 markdown / emoji）之后真正送给合成引擎的那份。
-            没配采集（离线、没开质检）时直接走默认实现，行为完全不变。
+            观测日志**常开**——静音下行排查不能依赖 QA sink 是否挂上。没配 sink 时只记日志、不写归档。
             """
-            if self._tts_sink is None:
-                frames = Agent.default.tts_node(self, text, model_settings)
-            else:
-                frames = self._captured_tts(text, model_settings)
+            frames = self._captured_tts(text, model_settings)
             if self._speech is _NO_SPEECH:
                 return frames
             return self._speech_scoped(frames)
@@ -288,15 +285,20 @@ def build_agent_class() -> type:
                     yield chunk
 
             completed = False
-            # 静音下行排查用的观测行：tts start 证明 tts_node 真被调用，tts done 的
-            # frames/audio_ms 说明合成侧真出了多少音频。火山插件空音频会抛错而不是吐零，
-            # 所以"有 done、frames>0、端上仍全零"= 断点在发布层；没有 start = 断点在合成之前。
+            # 静音下行排查：tts start 证明被调用；tts done 的 frames/audio_ms 是字节时长，
+            # peak/nonzero 才是样本能量。零填充帧也会 frames>0——所以 peak=0 才说明合成侧静音。
+            # 火山插件“无音频块”会抛错，但仍可能吐全零 PCM。
+            from companion.api.livekit.inbound_audio_probe import frame_nonzero, frame_peak
+
             turn_id = self._current_turn_id()
             logger.info("tts start turn=%s", turn_id or "-")
             frames_out = 0
             audio_ms = 0
+            peak_max = 0.0
+            nonzero = 0
             try:
                 # 默认实现是异步生成器（async def + yield），调用得到的就是生成器，不能 await
+                # 没挂 tts_sink 时 TtsCapture 仍 tee，只是 finally 不归档。
                 frames = Agent.default.tts_node(self, capture.tee_text(watched(text)), model_settings)
                 async for frame in capture.tee_frames(frames):
                     frames_out += 1
@@ -304,11 +306,17 @@ def build_agent_class() -> type:
                     channels = int(getattr(frame, "num_channels", 1) or 1)
                     if rate and channels:
                         audio_ms += int(len(frame.data) * 1000 // (2 * rate * channels))
+                    peak = frame_peak(frame)
+                    if peak > peak_max:
+                        peak_max = peak
+                    nonzero += frame_nonzero(frame)
                     yield frame
                 completed = True
             finally:
-                logger.info("tts done turn=%s frames=%d audio_ms=%d completed=%s",
-                            turn_id or "-", frames_out, audio_ms, completed)
+                logger.info(
+                    "tts done turn=%s frames=%d audio_ms=%d peak=%.4f nonzero=%d completed=%s",
+                    turn_id or "-", frames_out, audio_ms, peak_max, nonzero, completed,
+                )
                 self._archive_tts(capture, turn_ref.get("turn"), completed)
 
         def _archive_tts(self, capture: Any, turn: Any, completed: bool) -> None:

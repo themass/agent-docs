@@ -167,8 +167,9 @@ def test_the_worker_builds_voice_info_without_crashing():
 from livekit.agents import Agent
 
 
-def _frames(n=2, rate=16000):
-    return [SimpleNamespace(data=b"\x01\x00" * 1600, sample_rate=rate, num_channels=1) for _ in range(n)]
+def _frames(n=2, rate=16000, *, sample=b"\x01\x00"):
+    # sample 默认几乎静音（int16=1）；要测 peak 用 sample=b"\x00\x40"（=0.5）
+    return [SimpleNamespace(data=sample * 1600, sample_rate=rate, num_channels=1) for _ in range(n)]
 
 
 def _fake_default(frames, *, fail_after=None, seen=None):
@@ -220,15 +221,14 @@ async def test_tts_node_plays_every_frame_and_reports_text_audio_and_turn(monkey
     assert seg.text == "先歇一会儿。我在。" and seg.completed and len(seg.pcm) == 2 * 3200 and seg.audio_ms == 200
 
 
-async def test_without_a_sink_the_default_tts_node_is_returned_untouched(monkeypatch):
-    sentinel = object()
-    monkeypatch.setattr(Agent.default, "tts_node", lambda agent, text, ms: sentinel)
+async def test_without_a_sink_tts_still_plays_and_does_not_archive(monkeypatch):
+    """观测日志常开；没配质检 sink 时仍合成，只是不写归档。"""
+    monkeypatch.setattr(Agent.default, "tts_node", _fake_default(_frames(2)), raising=True)
     agent = build_agent_class()(pipeline=Pipeline(), user_id="1002", character_id="linche", chat_session_id=42)
-    node = agent.tts_node(_texts("x"), None)
-    if hasattr(node, "__await__"):        # 框架先判断 iscoroutine 再 await，这里照做
-        node = await node
-    assert node is sentinel
-    assert not agent._background
+    played = await _synthesize(agent)
+    await _settle(agent)
+    assert len(played) == 2
+    assert not agent._background          # 没 sink → 不启归档任务
 
 
 async def test_an_engine_failure_is_still_reported_as_an_incomplete_segment(monkeypatch):
@@ -312,7 +312,7 @@ def _tts_logs(caplog):
 
 
 async def test_tts_node_logs_start_and_a_frame_count_summary(caplog, monkeypatch):
-    monkeypatch.setattr(Agent.default, "tts_node", _fake_default(_frames(2)), raising=True)
+    monkeypatch.setattr(Agent.default, "tts_node", _fake_default(_frames(2, sample=b"\x00\x40")), raising=True)
     agent = build_agent_class()(pipeline=Pipeline(), user_id="1002", character_id="linche", chat_session_id=42,
                                 tts_sink=Sink())
     with caplog.at_level(logging.INFO, logger="companion.api.livekit.agent"):
@@ -322,6 +322,29 @@ async def test_tts_node_logs_start_and_a_frame_count_summary(caplog, monkeypatch
     assert any("tts start turn=T1" in m for m in logs)
     done = next(m for m in logs if "tts done" in m)
     assert "turn=T1" in done and "frames=2" in done and "audio_ms=200" in done and "completed=True" in done
+    assert "peak=0.5000" in done and "nonzero=3200" in done
+
+
+async def test_tts_node_logs_peak_zero_for_silence_filled_frames(caplog, monkeypatch):
+    """零填充帧仍有 frames/audio_ms；peak=0 才能说明合成侧其实是静音。"""
+    monkeypatch.setattr(Agent.default, "tts_node", _fake_default(_frames(2, sample=b"\x00\x00")), raising=True)
+    agent = build_agent_class()(pipeline=Pipeline(), user_id="1002", character_id="linche", chat_session_id=42)
+    with caplog.at_level(logging.INFO, logger="companion.api.livekit.agent"):
+        await _synthesize(agent)
+    done = next(m for m in _tts_logs(caplog) if "tts done" in m)
+    assert "frames=2" in done and "peak=0.0000" in done and "nonzero=0" in done
+
+
+async def test_tts_node_logs_even_without_a_tts_sink(caplog, monkeypatch):
+    """peak 观测不能再被 QA sink 门控——现网没开归档时也要能看到。"""
+    monkeypatch.setattr(Agent.default, "tts_node", _fake_default(_frames(1, sample=b"\x00\x40")), raising=True)
+    agent = build_agent_class()(pipeline=Pipeline(), user_id="1002", character_id="linche", chat_session_id=42)
+    with caplog.at_level(logging.INFO, logger="companion.api.livekit.agent"):
+        await _synthesize(agent)
+    logs = _tts_logs(caplog)
+    assert any("tts start turn=T1" in m for m in logs)
+    done = next(m for m in logs if "tts done" in m)
+    assert "peak=0.5000" in done and "frames=1" in done
 
 
 async def test_tts_node_logs_what_it_yielded_before_an_interrupt(caplog, monkeypatch):

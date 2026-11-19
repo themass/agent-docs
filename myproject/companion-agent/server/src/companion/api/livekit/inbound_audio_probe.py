@@ -36,19 +36,25 @@ DEFAULT_SUMMARY_EVERY = 500
 ENERGY_PEAK = 0.02
 
 
-def frame_peak(frame: rtc.AudioFrame) -> float:
-    """单帧峰值振幅，归一化到 ``[0, 1]``。空帧 / 非 int16 返回 0。"""
+def _int16_samples(frame: Any):
+    """把帧 data 读成 int16 memoryview；读不到返回 None。"""
     data = getattr(frame, "data", None)
     if data is None:
-        return 0.0
+        return None
     try:
         samples = memoryview(data)
         # LiveKit AudioFrame.data 已是 format='h'；从 bytes 来时再 cast。
-        if samples.format != "h":
+        if getattr(samples, "format", None) != "h":
             samples = samples.cast("h")
     except (TypeError, ValueError):
-        return 0.0
-    if not samples:
+        return None
+    return samples if samples else None
+
+
+def frame_peak(frame: Any) -> float:
+    """单帧峰值振幅，归一化到 ``[0, 1]``。空帧 / 非 int16 返回 0。"""
+    samples = _int16_samples(frame)
+    if samples is None:
         return 0.0
     peak = 0
     for sample in samples:
@@ -56,6 +62,14 @@ def frame_peak(frame: rtc.AudioFrame) -> float:
         if value > peak:
             peak = value
     return peak / 32768.0
+
+
+def frame_nonzero(frame: Any) -> int:
+    """帧里非零 int16 样本个数。静音填充帧会是 0，哪怕 ``len(data)>0``。"""
+    samples = _int16_samples(frame)
+    if samples is None:
+        return 0
+    return sum(1 for sample in samples if sample != 0)
 
 
 class InboundAudioProbe(AudioInput):
