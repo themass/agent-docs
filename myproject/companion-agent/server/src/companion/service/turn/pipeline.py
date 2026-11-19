@@ -21,6 +21,7 @@ from companion.agent.brain.port import BrainPort, BrainTurn, TurnRequest
 from companion.agent.protocol.cue_intent import CueIntent
 from companion.agent.protocol.fragment import ingest
 from companion.agent.text.events import to_avatar_events
+from companion.agent.text.json_guard import CueJsonGuard
 from companion.agent.text.splitter import SentenceSplitter
 
 logger = logging.getLogger(__name__)
@@ -47,7 +48,8 @@ class TurnPipeline:
         event_sink: EventSink | None = None,
     ) -> None:
         self._brain = brain
-        self._splitter = splitter or SentenceSplitter()
+        # JSON 守卫包在断句器前面：模型输出的一行 cue 片段不能被标点切碎（见 json_guard）。
+        self._splitter = CueJsonGuard(splitter or SentenceSplitter())
         self._event_sink = event_sink
         # 保留当前回合的句柄：用户打断时要真的 call 到 cancel_turn()，
         # 只记一条日志等于没取消，DeerFlow 那边会继续烧 token。

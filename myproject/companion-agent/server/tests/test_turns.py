@@ -27,6 +27,24 @@ async def test_pipeline_emits_one_sentence_at_a_time():
     assert [o.text for o in out] == ["我最近。", "有点卡住。"]
 
 
+async def test_pipeline_keeps_one_line_cue_json_whole():
+    """生产日志里 `said='{"say":"…` 泄漏的回归测试：一行 cue JSON 无论怎么分块
+    都必须整段进 ingest——say 变成人话，cues 变成意图，`{"say":` 绝不进朗读文本。"""
+    line = '{"say":"好，那先把能跑的部分跑起来。你现在卡在哪？","cues":[{"kind":"avatar.expression","name":"calm","anchor":"segment_start"}]}'
+    chunks = [line[i:i + 9] for i in range(0, len(line), 9)]
+    brain = FakeBrain(chunks)
+    out = await drain(TurnPipeline(brain), req())
+    assert [o.text for o in out] == ["好，那先把能跑的部分跑起来。你现在卡在哪？"]
+    assert out[0].source == "structured"
+    assert [i.name for i in out[0].intents] == ["calm"]
+
+
+async def test_pipeline_text_then_json_order():
+    brain = FakeBrain(["你把报错贴给我。", '{"say":"好。","cues":[]}'])
+    out = await drain(TurnPipeline(brain), req())
+    assert [o.text for o in out] == ["你把报错贴给我。", "好。"]
+
+
 async def test_pipeline_strips_emotion_tags_and_emits_events():
     brain = FakeBrain(["[joy]你来了。今天怎么样？"])
     sink: list[str] = []
