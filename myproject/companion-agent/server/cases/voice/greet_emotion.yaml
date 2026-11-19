@@ -1,0 +1,11 @@
+id: greet_emotion
+goal: 问候带情绪，完整回合以 speech.end 收尾
+steps:
+  - user: "你好"
+  - expect_reply:
+      - "[soft]你好呀，我在这儿。"
+  - protocol:
+      - speech.seg
+      - presentation.emotion
+      - speech.end
+audios: synthesize

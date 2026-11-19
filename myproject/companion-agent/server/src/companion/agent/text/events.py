@@ -42,6 +42,8 @@ _EMOTIONS: dict[str, str] = {
     "neutral": "neutral",
     "平静": "neutral",
     "calm": "neutral",
+    "soft": "soft",
+    "温柔软": "soft",
 }
 
 # 方括号标签可以出现在句中。否定断言排除 markdown 链接 [text](url) 与 [ref][id]。

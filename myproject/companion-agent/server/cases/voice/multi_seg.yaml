@@ -1,0 +1,14 @@
+id: multi_seg
+goal: 多句回复声明多段 speech.seg，最后 speech.end
+steps:
+  - user: "聊聊今天吧"
+  - expect_reply:
+      - "今天天气不错。"
+      - "要不要出去走走？"
+      - "我陪你。"
+  - protocol:
+      - speech.seg
+      - speech.seg
+      - speech.seg
+      - speech.end
+audios: synthesize
