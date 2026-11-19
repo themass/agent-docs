@@ -63,8 +63,22 @@ def test_roleplay_plan_orders_blocks_and_keeps_platform_rules_first():
     assert "{{char}}" not in s and "{{user}}" not in s
     assert (1, "她刚刚擦完杯子。") in [(i.depth, i.text) for i in plan.injections]
     assert (0, "保持角色。") in [(i.depth, i.text) for i in plan.injections]
-    assert any(i.depth == 0 and i.text == T.CUE_OUTPUT_SNIPPET for i in plan.injections)
     assert set(plan.lore_uids) == {"a", "b", "d"}
+
+
+def test_cue_snippet_is_injected_on_the_voice_channel_only():
+    """cue JSON 是语音通道的协议：文字聊天不该被要求输出它。
+
+    生产里文字气泡出现过整行 `{"say":…}`：约束挂了所有通道，而文字通道的
+    token 流不经过断句器与 cue 解析，原样进了气泡。语音侧仍需要它——
+    字幕与 presentation.* 都从 say/cues 来。
+    """
+    voice = build_prompt_plan(_profile(), channel="voice")
+    assert any(i.depth == 0 and i.text == T.CUE_OUTPUT_SNIPPET for i in voice.injections)
+
+    text = build_prompt_plan(_profile(), channel="text")
+    assert not any(i.text == T.CUE_OUTPUT_SNIPPET for i in text.injections)
+    assert T.CUE_OUTPUT_SNIPPET not in text.system
 
 
 def test_mandatory_overflow_is_an_error_not_a_silent_truncation():
@@ -88,7 +102,6 @@ def test_author_note_and_depth_prompt_become_injections():
     texts = [(i.depth, i.text) for i in plan.injections]
     assert (4, "林澈在想心事") in texts
     assert (3, "描写要细腻") in texts
-    assert any(i.depth == 0 and i.text == T.CUE_OUTPUT_SNIPPET for i in plan.injections)
 
 
 def test_method_layer_is_part_of_the_role_section():

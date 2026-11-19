@@ -161,9 +161,11 @@ def build_prompt_plan(
                                          substitute(author_note.text, char=char, user=user_name)))
     if profile.post_history.strip():
         injections.append(DepthInjection(0, "system", substitute(profile.post_history, char=char, user=user_name)))
-    # P3：结构化 say+cues 约束挂在深度 0（最后一条之后）。不按 channel 过滤——
-    # 语音路径今天常仍以 channel="text" 建提示词；标签回落也覆盖文字通道。
-    injections.append(DepthInjection(0, "system", T.CUE_OUTPUT_SNIPPET, order=-100))
+    # P3：结构化 say+cues 约束挂在深度 0（最后一条之后），只给语音通道。
+    # 文字通道的 token 流不经过断句器与 cue 解析（turn_runner 直接发 message.delta），
+    # 要求它输出 cue JSON 只会让整行 `{"say":…}` 原样进气泡。
+    if channel == "voice":
+        injections.append(DepthInjection(0, "system", T.CUE_OUTPUT_SNIPPET, order=-100))
 
     return PromptPlan(
         system="\n\n".join(parts),

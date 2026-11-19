@@ -242,7 +242,8 @@ class TurnRunner:
             record = await self._messages.get(owner_id=inp.owner_id, message_id=mid)
             if record is not None:
                 loaded.append(TurnInputMessage(message_id=mid, text=record.content,
-                                               upload_ids=_attachment_ids(record.meta)))
+                                               upload_ids=_attachment_ids(record.meta),
+                                               kind=getattr(record, "kind", "") or "chat"))
         if inp.message_ids and not loaded:
             loaded = [TurnInputMessage(message_id=inp.message_ids[0], text=inp.text)]
         return loaded
@@ -285,7 +286,9 @@ class TurnRunner:
         request = TurnRequest(user_id=str(inp.owner_id), character_id=inp.character_id, message=message,
                               session_id=inp.session_id, inputs=tuple(inputs),
                               images=await self._load_images(inp, inputs),
-                              metadata={"turn_id": inp.turn_id, "session_id": inp.session_id})
+                              metadata={"turn_id": inp.turn_id, "session_id": inp.session_id,
+                                        # 输出层按来源渠道选：语音要口语短句、文字不要 cue JSON。
+                                        "channel": _channel_for(inputs)})
         stream = self._produce(request, inbox)
         try:
             async for event in stream:

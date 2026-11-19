@@ -58,7 +58,9 @@ def assemble_system_prompt(
 
     parts.append(T.render_output_layer(locale=locale, channel=channel))
     # P3：与 roleplay 路径同款约束；assemble 没有 DepthInjection，直接挂在系统层。
-    parts.append(T.CUE_OUTPUT_SNIPPET)
+    # 只给语音通道——文字通道不解析 cue，要求它输出只会让 JSON 原样进气泡。
+    if channel == "voice":
+        parts.append(T.CUE_OUTPUT_SNIPPET)
 
     user_bits = []
     if profile.strip():

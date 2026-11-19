@@ -300,9 +300,12 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     async def produce(request: TurnRequest, inbox: Any) -> AsyncIterator[Any]:
         owner_id = int(request.user_id)
         texts = tuple(i.text for i in request.inputs) or (request.message,)
+        # 输出层要知道这句话从哪来：语音要口语短句且带 cue JSON，文字不要 Markdown 之外的东西。
+        # 渠道由回合层写在 metadata 里（见 TurnRunner._attempt）。
+        channel = str(request.metadata.get("channel") or "text")
         prepare_started = time.monotonic()
         plan = await context.build(owner_id=owner_id, session_id=request.session_id or 0,
-                                   role_id=request.character_id, current_texts=texts)
+                                   role_id=request.character_id, current_texts=texts, channel=channel)
         # 用户的等待里有一部分是我们自己造提示词（召回、世界书、角色卡），和模型无关。
         # 单独量出来，别都算到"模型慢"头上。
         metrics.observe_phase(phase="prepare", duration_sec=time.monotonic() - prepare_started)

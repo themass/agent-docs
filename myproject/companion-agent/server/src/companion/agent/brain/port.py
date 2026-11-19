@@ -39,11 +39,15 @@ class TurnInputMessage:
 
     ``upload_ids`` 是这条消息带的附件（来自 ``POST /v1/uploads`` 的 upload_id），按发送顺序。
     大脑在构造输入消息时把它们换成模型能看的图片内容；为空就是纯文字。
+
+    ``kind`` 是这条消息的来源渠道（``voice`` / ``chat``）：提示词要按它选输出层，
+    语音不该带 Markdown 规则，文字也不该被要求输出 cue JSON。
     """
 
     message_id: int
     text: str
     upload_ids: tuple[str, ...] = ()
+    kind: str = "chat"
 
 
 @dataclass
