@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 
 from companion.bootstrap.platform import default_prompts
 from companion.agent.memory.port import MemoryItem
+from companion.api.http.deps import AllowAllVerifier
 from companion.bootstrap.app import create_app
 from companion.api.http.routers.memory import DEFAULT_PAGE, MAX_PAGE
 
@@ -31,7 +32,9 @@ def _platform():
 
 
 def _client(platform=None):
-    return TestClient(create_app(livekit_url="",
+    # 显式注入 dev 验签：不注入的话 verifier 取 Settings 默认，
+    # 开发机 .env 一旦配了 redis_token（生产口径）就整文件 401——测试不该读开发机环境。
+    return TestClient(create_app(livekit_url="", verifier=AllowAllVerifier(),
                                  platform=platform or _platform()))
 
 

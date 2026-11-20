@@ -10,6 +10,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from companion.api.http.deps import AllowAllVerifier
 from companion.service.room.sessions import ROOM_PREFIX, InMemorySessionStore, SessionError, SessionRecord, SessionService, room_name_for
 from companion.service.room.livekit_tokens import TokenMinter, decode_jwt, user_identity
 
@@ -171,6 +172,8 @@ def test_http_endpoint_wires_identity_room_and_token():
     from companion.bootstrap.app import create_app
 
     app = create_app(
+        # 同 test_api_routes：显式 dev 验签，别把测试挂在开发机 .env 的 auth 口径上
+        verifier=AllowAllVerifier(),
         minter=TokenMinter(api_key=API_KEY, api_secret=SECRET, ttl_sec=600),
         livekit_url=LIVEKIT_URL,
     )
