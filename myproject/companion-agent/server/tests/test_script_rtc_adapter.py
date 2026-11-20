@@ -130,6 +130,14 @@ async def test_livekit_adapter_smoke_mocked():
         fake_lp.publish_track.assert_awaited()
         fake_source.capture_frame.assert_awaited()
 
+        # 奇数长 PCM：截到 int16 对齐再喂 AudioFrame，不抛 ValueError。
+        FakeFrame.reset_mock()
+        fake_source.capture_frame.reset_mock()
+        await adapter.publish_pcm(b"\x00\x01\x02", sample_rate=16000)
+        FakeFrame.assert_called_once()
+        assert FakeFrame.call_args.kwargs["data"] == b"\x00\x01"
+        fake_source.capture_frame.assert_awaited()
+
         await adapter.close()
         fake_room.disconnect.assert_awaited()
 

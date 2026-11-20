@@ -166,9 +166,13 @@ class LiveKitRtcAdapter:
         room = self._require_room()
         await self._ensure_audio_track(sample_rate)
         assert self._audio_source is not None
-        samples_per_channel = len(frame) // 2 // _DEFAULT_CHANNELS
-        if samples_per_channel <= 0:
+        # LiveKit AudioFrame 要 int16 对齐；fake TTS 用 utf-8 种子，尾块可能奇数长。
+        usable = len(frame) - (len(frame) % (2 * _DEFAULT_CHANNELS))
+        if usable <= 0:
             return
+        if usable != len(frame):
+            frame = frame[:usable]
+        samples_per_channel = usable // 2 // _DEFAULT_CHANNELS
         audio_frame = rtc.AudioFrame(
             data=frame,
             sample_rate=sample_rate,
