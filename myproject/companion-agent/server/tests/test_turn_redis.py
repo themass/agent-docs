@@ -333,3 +333,97 @@ async def test_merge_that_lands_before_the_first_token_is_never_lost(control, re
         assert "turn.restarted" in events
     finally:
         await _cleanup(redis_client, sid)
+
+
+# ---- 展示清洗（文字气泡协议泄漏的修复，2026-11-20）----
+
+CUE_LINE = ('{"say":"好，那先把能跑的部分跑起来。",'
+            '"cues":[{"kind":"avatar.expression","name":"calm","anchor":"segment_start"}]}')
+
+
+async def test_saved_message_never_contains_the_cue_protocol(control, redis_client):
+    """根因用例：模型输出的 cue 片段只该在朗读跳被剥掉；落库必须是 say 文本。
+
+    曾经 `content` 存的是整行 `{"say":…}` 原文，历史接口把它原样端给文字气泡，
+    下一轮模型又在线程里照抄——用户看到的「say 字样」就是这么来的。
+    """
+    from companion.service.chat.turn_runner import TurnInput, TurnRunner
+    from companion.agent.brain.port import TextDelta
+
+    sid = _session_id()
+    messages, queue = Messages(), Queue()
+
+    async def produce(request, inbox):
+        for i in range(0, len(CUE_LINE), 11):   # 9~11 字符一片地切，token 边界不该影响结果
+            yield TextDelta(CUE_LINE[i:i + 11])
+
+    runner = TurnRunner(control=control, messages=messages, queue=queue, produce=produce)
+    turn = TurnInput(owner_id=7, session_id=sid, character_id="linche", turn_id="T1",
+                     owner="p:T1", text="在吗", message_ids=[])
+    try:
+        await runner.run(turn)
+        saved = [m for m in messages.rows.values() if m.role == "assistant"]
+        assert len(saved) == 1
+        assert saved[0].content == "好，那先把能跑的部分跑起来。"
+    finally:
+        await _cleanup(redis_client, sid)
+
+
+async def test_published_delta_is_clean_and_raw_delta_keeps_the_cues(control, redis_client):
+    """实时气泡与语音回读共用 message.delta：delta 给用户看（无协议），
+    raw_delta 给 PlatformBrain→TurnPipeline 提 cues（原文）。"""
+    from companion.service.chat.turn_runner import TurnInput, TurnRunner
+    from companion.agent.brain.port import TextDelta
+
+    sid = _session_id()
+    messages, queue = Messages(), Queue()
+
+    async def produce(request, inbox):
+        yield TextDelta("先说一句。")
+        yield TextDelta(CUE_LINE)
+
+    runner = TurnRunner(control=control, messages=messages, queue=queue, produce=produce)
+    turn = TurnInput(owner_id=7, session_id=sid, character_id="linche", turn_id="T1",
+                     owner="p:T1", text="在吗", message_ids=[])
+    try:
+        await runner.run(turn)
+        events = await control.read_events_after(session_id=sid, after_id="0-0")
+        deltas = [d for _i, n, d in events if n == "message.delta"]
+        shown = "".join(d.get("delta", "") for d in deltas)
+        # 回读方（PlatformBrain）实际看到的原文：raw_delta 优先，缺省回落 delta。
+        raw = "".join(d.get("raw_delta") or d.get("delta", "") for d in deltas)
+        assert '"say"' not in shown
+        assert shown == "先说一句。好，那先把能跑的部分跑起来。"
+        # raw_delta 只在「展示与原文不一致」的那帧出现（省流）；文字端忽略它，
+        # 语音/主动开口的回读靠它拿 cues。不按渠道开关：主动开口的 kind 不是
+        # voice，按渠道关就等于悄悄砍掉它的 cues。
+        assert raw == "先说一句。" + CUE_LINE
+    finally:
+        await _cleanup(redis_client, sid)
+
+
+async def test_voice_turn_publishes_raw_delta_for_the_tts_pipeline(control, redis_client):
+    """语音回合必须带 raw_delta： cues 靠它提取，剥过的 delta 里没有 cues。"""
+    from companion.service.chat.turn_runner import TurnInput, TurnRunner
+    from companion.agent.brain.port import TextDelta
+
+    sid = _session_id()
+    messages, queue = Messages(), Queue()
+    user = await messages.append(owner_id=7, session_id=sid, role="user", content="今天好累",
+                                 kind="voice", client_message_id=None, turn_id=None, meta={})
+
+    async def produce(request, inbox):
+        yield TextDelta(CUE_LINE)
+
+    runner = TurnRunner(control=control, messages=messages, queue=queue, produce=produce)
+    turn = TurnInput(owner_id=7, session_id=sid, character_id="linche", turn_id="T1",
+                     owner="p:T1", text="今天好累", message_ids=[user.id])
+    try:
+        await runner.run(turn)
+        events = await control.read_events_after(session_id=sid, after_id="0-0")
+        deltas = [d for _i, n, d in events if n == "message.delta"]
+        assert all(d.get("raw_delta") for d in deltas)
+        assert "".join(d.get("raw_delta", "") for d in deltas) == CUE_LINE
+        assert "".join(d.get("delta", "") for d in deltas) == "好，那先把能跑的部分跑起来。"
+    finally:
+        await _cleanup(redis_client, sid)

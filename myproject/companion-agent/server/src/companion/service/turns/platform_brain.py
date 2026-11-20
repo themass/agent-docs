@@ -143,7 +143,9 @@ class PlatformBrain:
                     if data.get("turn_id") != turn_id:
                         continue
                     if name == "message.delta":
-                        delta = data.get("delta")
+                        # 优先 raw_delta：TurnRunner 落库/发布的是剥掉协议片段的展示文本，
+                        # cues 只在原文里，TTS 链路必须读原文（没有 raw_delta 就是两串一致）。
+                        delta = data.get("raw_delta") or data.get("delta")
                         if delta:
                             yield str(delta)
                     elif name in _END_EVENTS:

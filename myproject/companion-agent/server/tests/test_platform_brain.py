@@ -218,3 +218,16 @@ async def test_a_non_numeric_user_id_is_refused_before_anything_is_written():
     with pytest.raises(ValueError):
         await _brain(control, submit).start_turn(bad)
     assert submit.calls == []
+
+
+async def test_raw_delta_is_preferred_over_the_display_delta():
+    """展示清洗后 delta 只剩 say；朗读必须读 raw_delta，否则 cues 再也提不出来。"""
+    def script(control: FakeControl) -> None:
+        control.add("turn.started", turn_id=TURN)
+        control.add("message.delta", turn_id=TURN, delta="好。",
+                    raw_delta='{"say":"好。","cues":[{"kind":"avatar.expression","name":"calm"}]}')
+        control.add("message.done", turn_id=TURN, assistant_message_id=12)
+
+    control = FakeControl()
+    turn = await _brain(control, FakeSubmit(control, script)).start_turn(_request())
+    assert await _collect(turn) == '{"say":"好。","cues":[{"kind":"avatar.expression","name":"calm"}]}'

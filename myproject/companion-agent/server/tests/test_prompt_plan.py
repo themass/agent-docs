@@ -81,6 +81,20 @@ def test_cue_snippet_is_injected_on_the_voice_channel_only():
     assert T.CUE_OUTPUT_SNIPPET not in text.system
 
 
+def test_text_channel_bans_writing_the_protocol_shape_itself():
+    """清洗器兜住已经冒出来的协议行，提示词这层还要把它按名禁掉。
+
+    2026-11-20 的实际泄漏路径：协议片段进了 checkpointer 线程历史，下一轮
+    文字回合的模型看见自己「写过」`{"say":…}` 就照抄。历史删不掉，
+    所以文字通道要明说那种形状不是给用户写的。
+    """
+    text = build_prompt_plan(_profile(), channel="text")
+    # 文字通道里 CUE_OUTPUT_SNIPPET 已确认不在；此时系统层里唯一能出现
+    # `"say"` 的合法位置就是这条禁令本身。
+    assert '"say"' in text.system
+    assert "协议" in T.TEXT_CHANNEL_RULE or "语音通道" in T.TEXT_CHANNEL_RULE
+
+
 def test_mandatory_overflow_is_an_error_not_a_silent_truncation():
     with pytest.raises(PromptBudgetExceeded):
         build_prompt_plan(_profile(description="长" * 5000), budget=PromptBudget(system_chars=2000))

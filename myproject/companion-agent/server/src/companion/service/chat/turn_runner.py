@@ -37,6 +37,7 @@ from typing import Any
 from companion.service.chat.lifecycle import DrainState
 from companion.service.turn.queue import TurnPhase
 from companion.agent.brain.steer import SteerInbox
+from companion.agent.text.display_cleaner import DisplayTextCleaner
 from companion.agent.brain.port import (
     BrainEvent,
     GraphMessageIds,
@@ -128,14 +129,17 @@ class _RunState:
     steer_pushed: list[int] = field(default_factory=list)
     cancelled: bool = False
     output_started: bool = False
-    deltas: list[str] = field(default_factory=list)
-    pending: str = ""
+    deltas: list[str] = field(default_factory=list)     # 展示文本（协议片段已剥成 say）
+    pending: str = ""                                    # 待发帧的展示文本
+    pending_raw: str = ""                                # 待发帧的原始文本（语音回合的 raw_delta）
     last_flush: float = field(default_factory=time.monotonic)
     ctl_last: str = "0-0"      # 已处理的最后一条控制消息 id（去重用）
     lost: bool = False         # 续租失败：这把锁已经不是我们的
     lc_ids: list[str] = field(default_factory=list)   # 大脑写进对话线程的消息 id（跨重跑累计）
     started: float = field(default_factory=time.monotonic)   # 回合开始，用来算用户等了多久
     first_output_at: float | None = None                     # 第一个可见 token 的时刻
+    # 协议片段清洗：落库/发布的是 say 文本，原文只走 raw_delta（见 display_cleaner）。
+    cleaner: DisplayTextCleaner = field(default_factory=DisplayTextCleaner)
 
     def restart(self) -> None:
         self.merge_requested = False
@@ -143,7 +147,9 @@ class _RunState:
         self.output_started = False
         self.deltas = []
         self.pending = ""
+        self.pending_raw = ""
         self.last_flush = time.monotonic()
+        self.cleaner = DisplayTextCleaner()   # 半截片段不能带进重跑后的那一遍
 
 
 def _id_after(a: str, b: str) -> bool:
@@ -353,22 +359,32 @@ class TurnRunner:
         return True
 
     async def _on_text(self, inp: TurnInput, state: _RunState, text: str) -> None:
-        state.deltas.append(text)
-        state.pending += text
+        # text 是模型原文；进气泡与落库的是剥掉协议片段后的 say。
+        shown = state.cleaner.feed(text)
+        state.deltas.append(shown)
+        state.pending += shown
+        state.pending_raw += text
         now = time.monotonic()
         if len(state.pending) >= DELTA_FLUSH_CHARS or now - state.last_flush >= DELTA_FLUSH_SEC:
             await self._flush(inp, state)
 
     async def _flush(self, inp: TurnInput, state: _RunState) -> None:
-        if not state.pending:
+        if not state.pending and not state.pending_raw:
             return
         chunk, state.pending = state.pending, ""
+        raw, state.pending_raw = state.pending_raw, ""
         state.last_flush = time.monotonic()
+        data: dict[str, Any] = {"turn_id": inp.turn_id, "delta": chunk}
+        # raw_delta 只在两串不一致的那帧出现（省流）。不按渠道开关：主动开口的
+        # kind 不是 voice，按渠道关就把它的 cues 也砍了；文字端本来就不读这个键。
+        if raw != chunk:
+            data["raw_delta"] = raw
         # 正文追加与事件发布合成一次 Redis 往返：这两件事永远一起发生，
         # 分开写就是每帧 4 条串行命令。托管 Redis 单命令 193 ms，27 帧差 30 多秒。
+        # 落进 turn:{tid}:text 的也是清洗后的 chunk——SSE 重连的 turn.snapshot 直接发它。
         await self._control.publish_and_append(
             session_id=inp.session_id, turn_id=inp.turn_id, event="message.delta",
-            data={"turn_id": inp.turn_id, "delta": chunk}, delta=chunk)
+            data=data, delta=chunk)
 
     # ---- 控制流 ----
 
