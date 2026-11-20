@@ -52,9 +52,10 @@ class Messages:
         self.next_id = 1
 
     async def append(self, *, owner_id, session_id, role, content, kind, client_message_id, turn_id, meta):
+        # meta 必须存进行里：TurnRunner._load_inputs 读 record.meta 取附件 upload_ids（6e81d06）。
         m = SimpleNamespace(id=self.next_id, owner_id=owner_id, session_id=session_id, role=role, content=content,
                             kind=kind, client_message_id=client_message_id, turn_id=turn_id, interrupted=False,
-                            created_at=datetime.now(UTC), deleted=False)
+                            created_at=datetime.now(UTC), deleted=False, meta=meta)
         self.next_id += 1
         self.rows[m.id] = m
         return m
