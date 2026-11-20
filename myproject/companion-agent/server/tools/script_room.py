@@ -44,7 +44,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--wait",
         type=float,
         default=120.0,
-        help="等手机入房超时秒数（默认 120）",
+        help="等手机入房 + control.hello 的超时秒数（默认 120；两段共用）",
     )
     return parser
 
@@ -124,6 +124,9 @@ async def _run(args: argparse.Namespace) -> int:
             token=minted.token,
             tts=tts,
             wait_timeout_sec=args.wait,
+            # 真机 Intent 冷启动：入房后还要走 createScriptSession→connect→hello，
+            # 不能卡在 LEGACY_WAIT_SECONDS(3s)；与 --wait 共用预算。
+            hello_timeout_sec=args.wait,
             rtc=rtc,
             voice_ref=voice_ref,
         )
