@@ -45,6 +45,7 @@ class CompileStats:
     cues_dropped_overflow: int = 0
     cues_dropped_bad: int = 0
     cues_dropped_degrade: int = 0
+    cues_dropped_bad_intensity: int = 0
 
     def note_source(self, source: str) -> None:
         if source == "structured":
@@ -98,7 +99,7 @@ def compile_cues(
             budget.stats.cues_dropped_bad += 1
             continue
 
-        args = _args_for(intent)
+        args = _args_for(intent, budget.stats)
         at = {"speech": speech_id, "seg": seg_idx, "phase": intent.phase}
         compiled = CompiledCue(event_type=event_type, args=args, at=at)
         if _overflows(compiled):
@@ -110,19 +111,39 @@ def compile_cues(
     return out
 
 
-def _args_for(intent: CueIntent) -> dict[str, Any]:
+def _args_for(intent: CueIntent, stats: CompileStats) -> dict[str, Any]:
     """把意图名映射成 wire args。
 
     §11.1 示例里 gesture 用 ``id``；emotion / gaze 与结构化片段一致，用 ``name``。
     params 里同名键会被意图名覆盖，避免模型改写规范键。
+
+    ``intensity`` 在这里钳到 0..1（B7 / §18.6）：模型很容易写出「强度 1.8 的狂喜」，
+    而协议规定这个区间、端侧缺省 1.0。两条摄入路径（结构化 / 标签）的 params
+    都汇到这里，所以钳制放编译器而不是 fragment。越界压回端点值，坏值只丢参数。
     """
     primary = "id" if intent.kind == "gesture" else "name"
     args: dict[str, Any] = {primary: intent.name}
     for key, value in intent.params.items():
         if key in ("name", "id"):
             continue
+        if key == "intensity":
+            clamped = _clamp_intensity(value)
+            if clamped is None:
+                stats.cues_dropped_bad_intensity += 1
+                continue
+            args[key] = clamped
+            continue
         args[key] = value
     return args
+
+
+def _clamp_intensity(value: Any) -> float | None:
+    """数值压到 0..1；非数值 / 布尔 / NaN 返回 None（调用方丢参数不丢 cue）。"""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    if value != value:  # NaN：任何比较都是 False，clamp 会原样漏出去
+        return None
+    return max(0.0, min(1.0, float(value)))
 
 
 def _overflows(cue: CompiledCue) -> bool:

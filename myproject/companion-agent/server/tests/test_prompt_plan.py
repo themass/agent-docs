@@ -111,3 +111,13 @@ def test_method_layer_is_part_of_the_role_section():
 
 def test_rtl_locale_adds_the_rtl_rule():
     assert T.RTL_RULE in build_prompt_plan(_profile(), locale="ar-SA").system
+
+
+def test_cue_snippet_teaches_the_intensity_limit():
+    """§18.6：intensity 给了模型就容易滥用（"强度 1.0 的狂喜"）。
+
+    编译期钳制（B7）兜住越界值，但 prompt 也要写明区间与「默认省略」——
+    少让模型写它，比每次帮它擦掉更好。这条锁住那段话还在。
+    """
+    assert "intensity" in T.CUE_OUTPUT_SNIPPET
+    assert "0..1" in T.CUE_OUTPUT_SNIPPET
