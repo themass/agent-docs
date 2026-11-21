@@ -265,11 +265,15 @@ class TurnRunner:
 
     async def _load_images(self, inp: TurnInput,
                            inputs: list[TurnInputMessage]) -> dict[int, tuple[str, ...]]:
-        """把本回合的附件读成 data URL，键是消息主键。
+        """把本回合的**图片**附件读成 data URL，键是消息主键。
 
         每个 upload_id 先按归属查一次（``uploads.get_owned``），别人的 id 一律当作不存在——
         否则只要猜中一个 ULID 就能让模型看别人的图。读不到、不是图片、存储没配置，
         都只跳过这一张并记一条日志：文字照常进模型，不因为一张图让整轮失败。
+
+        mime 闸门（P2-13）在**读字节之前**：视频/文件附件的字节一旦 base64 进模型输入就是
+        几十万 token 的账单，所以按 ca_upload 的 mime 判「是不是图片」，非图片直接跳过——
+        判据用前缀而不是枚举 image 类型之外的东西，将来接文件消息时不用回来改这里。
         """
         if self._uploads is None:
             return {}
@@ -283,6 +287,11 @@ class TurnRunner:
                 if record is None:
                     log.warning("attachment not owned or missing", extra={"upload_id": upload_id,
                                                                          "session_id": inp.session_id})
+                    continue
+                if not record.mime.startswith("image/"):
+                    log.info("attachment skipped for model input (not an image)",
+                             extra={"upload_id": upload_id, "mime": record.mime,
+                                    "session_id": inp.session_id})
                     continue
                 try:
                     data = await self._uploads.read_bytes(record=record)

@@ -24,10 +24,21 @@ from companion.agent.util.ids import new_ulid
 
 UPLOAD_TTL = timedelta(minutes=10)
 SCENE_CHAT_IMAGE = "chat-image"
-ALLOWED_CONTENT_TYPES = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
+SCENE_CHAT_VIDEO = "chat-video"
+# 场景与 Content-Type 成对放开：chat-image 拿不到视频凭证，反之亦然——否则视频能绕过
+# 自己的上限从 2 MiB 的图片场景挤进来。视频只收 MP4（Android 系统相机与分享的标准容器；
+# 用户拍出的 mov 由客户端选片时拒收或转封装，是客户端的事，这里不养第二套容器白名单）。
+SCENE_CONTENT_TYPES: dict[str, dict[str, str]] = {
+    SCENE_CHAT_IMAGE: {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"},
+    SCENE_CHAT_VIDEO: {"video/mp4": "mp4"},
+}
 # 直传聊天图上限 2 MiB（ADR-011 §4）：客户端 ImageCompressor 的目标是 800 KiB，这是安全边际。
 # 与中转通道的 8 MiB 不同是有意的——中转有 normalize_image 兜底，直传没有服务端重编码。
 MAX_BYTES_CHAT_IMAGE = 2 * 1024 * 1024
+# 直传聊天视频上限 25 MiB（P2-13 拍板：不转码直传，约 1080p 30~60 秒）。
+# **与客户端上限同值写死**：presigned PUT 约束不了字节数，绑定时的 HEAD 复核是唯一闸门，
+# 两边不同值就会出现「客户端放行、发消息时 413」的幽灵失败。
+MAX_BYTES_CHAT_VIDEO = 25 * 1024 * 1024
 
 _KEY_SEGMENT = re.compile(r"^[a-z0-9-]{1,32}$")
 
@@ -56,7 +67,7 @@ class DirectUploadService:
                  clock=lambda: datetime.now(UTC), key_prefix: str = "") -> None:
         self._objects = objects
         self._records = records  # SqlUploadStore：create / get_owned
-        self._limits = limits or {SCENE_CHAT_IMAGE: MAX_BYTES_CHAT_IMAGE}
+        self._limits = limits or {SCENE_CHAT_IMAGE: MAX_BYTES_CHAT_IMAGE, SCENE_CHAT_VIDEO: MAX_BYTES_CHAT_VIDEO}
         self._clock = clock
         self._env = _env_prefix(key_prefix)
 
@@ -66,13 +77,15 @@ class DirectUploadService:
         limit = self._limits.get(scene)
         if limit is None:
             raise DirectRejected("SCENE_NOT_ALLOWED")
-        if content_type not in ALLOWED_CONTENT_TYPES:
+        # 白名单按场景查：类型表与上限表同源，改场景不会漏改另一张表
+        types = SCENE_CONTENT_TYPES.get(scene, {})
+        if content_type not in types:
             raise DirectRejected("CONTENT_TYPE_NOT_ALLOWED")
         if not (0 < size_bytes <= limit):
             raise DirectRejected("SIZE_NOT_ALLOWED")
         now = self._clock()
         key_id = new_ulid()
-        ext = ALLOWED_CONTENT_TYPES[content_type]
+        ext = types[content_type]
         key = (f"{self._env}/uploads/{owner_id}/{scene}/{now:%Y/%m/%d}/{key_id}.{ext}")
         url = await self._objects.presigned_put(key=key, content_type=content_type,
                                                 ttl_seconds=int(UPLOAD_TTL.total_seconds()))

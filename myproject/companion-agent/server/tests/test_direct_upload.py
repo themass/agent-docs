@@ -13,6 +13,7 @@ import pytest
 from companion.db.port import UploadRecord
 from companion.service.uploads.direct import (
     MAX_BYTES_CHAT_IMAGE,
+    MAX_BYTES_CHAT_VIDEO,
     DirectRejected,
     DirectUploadService,
 )
@@ -163,3 +164,65 @@ async def test_relay_row_passes_bind_untouched():
     await store.create(relay)
     await service.bind(owner_id=7, upload_id=relay.id)  # 不抛
     assert store.rows[relay.id].size == 1234
+
+
+# ---------------------------------------------------------------- 视频直传（P2-13）
+
+
+def _video_service() -> tuple[DirectUploadService, MemoryUploadStore, InMemoryObjectStore]:
+    store = MemoryUploadStore()
+    objects = InMemoryObjectStore()
+    service = DirectUploadService(objects=objects, records=store, clock=lambda: NOW,
+                                  key_prefix="companion-qa")
+    return service, store, objects
+
+
+async def _signed_video(service: DirectUploadService, owner: int = 7, size: int = 5_000_000,
+                        content_type: str = "video/mp4") -> dict:
+    return await service.sign(owner_id=owner, scene="chat-video", content_type=content_type,
+                              size_bytes=size)
+
+
+async def test_sign_video_scene_returns_mp4_put_credential():
+    service, store, _ = _video_service()
+    signed = await _signed_video(service)
+
+    assert signed["upload"]["headers"] == {"Content-Type": "video/mp4"}
+    key = signed["object_key"]
+    env, uploads, owner_seg, scene, *_ , name = key.split("/")
+    assert (env, uploads, owner_seg, scene) == ("companion-qa", "uploads", "7", "chat-video")
+    assert name.endswith(".mp4")
+    row = store.rows[signed["upload_id"]]
+    assert (row.owner_id, row.size, row.mime) == (7, 0, "video/mp4")
+
+
+async def test_sign_video_respects_25_mib_limit():
+    """客户端与服务端必须同值（25 MiB）：绑定时的 HEAD 复核按同一上限拒收。"""
+    service, _, objects = _video_service()
+    signed = await _signed_video(service, size=MAX_BYTES_CHAT_VIDEO)
+    await objects.put_via_presigned(url=signed["upload"]["url"],
+                                    data=b"x" * MAX_BYTES_CHAT_VIDEO, content_type="video/mp4")
+    await service.bind(owner_id=7, upload_id=signed["upload_id"])  # 恰好等于上限要放行
+
+    signed = await _signed_video(service, size=1000)
+    await objects.put_via_presigned(url=signed["upload"]["url"],
+                                    data=b"x" * (MAX_BYTES_CHAT_VIDEO + 1), content_type="video/mp4")
+    with pytest.raises(DirectRejected) as exc:
+        await service.bind(owner_id=7, upload_id=signed["upload_id"])
+    assert exc.value.code == "SIZE_NOT_ALLOWED"
+
+
+async def test_sign_video_rejects_non_mp4_types():
+    service, _, _ = _video_service()
+    for ctype in ("video/quicktime", "video/x-msvideo", "application/octet-stream", "image/jpeg"):
+        with pytest.raises(DirectRejected) as exc:
+            await service.sign(owner_id=7, scene="chat-video", content_type=ctype, size_bytes=1000)
+        assert exc.value.code == "CONTENT_TYPE_NOT_ALLOWED"
+
+
+async def test_image_scene_still_rejects_mp4():
+    """场景与类型必须成对：chat-image 不能签发视频，防止绕过视频上限走图片通道。"""
+    service, _, _ = _service()
+    with pytest.raises(DirectRejected) as exc:
+        await service.sign(owner_id=7, scene="chat-image", content_type="video/mp4", size_bytes=1000)
+    assert exc.value.code == "CONTENT_TYPE_NOT_ALLOWED"

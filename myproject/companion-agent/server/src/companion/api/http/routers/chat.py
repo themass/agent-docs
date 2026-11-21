@@ -77,6 +77,10 @@ def _message_json(m, alt_ids: list[int] | None = None) -> dict[str, Any]:
     attachments = (m.meta or {}).get("attachments")
     if attachments:
         out["attachments"] = attachments
+    # 位置消息同理：kind=location 的行把结构化坐标原样带回，端上渲染坐标气泡
+    location = (m.meta or {}).get("location")
+    if location:
+        out["location"] = location
     if alt_ids and len(alt_ids) > 1 and m.id in alt_ids:
         out.update({"alt_group": m.alt_group, "alt_index": alt_ids.index(m.id), "alt_count": len(alt_ids),
                     "alt_ids": alt_ids})
@@ -96,12 +100,21 @@ def build_router(api: ChatApi, current_user):
         kind: str = Field(default="image", max_length=16)
         name: str = Field(default="", max_length=255)
 
+    class Location(BaseModel):
+        """位置消息的坐标（P2-13）。客户端只发经纬度 + 可选精度，地名由客户端自己解决
+        （MVP 不引反地理编码：服务不存第三方 key，也不替端上背 geocoding 配额）。"""
+
+        lat: float = Field(ge=-90, le=90)
+        lng: float = Field(ge=-180, le=180)
+        accuracy_m: int | None = Field(default=None, ge=0, le=100_000)
+
     class SendBody(BaseModel):
-        # 允许只发附件不带文字（发一张图不说话）：text 与 attachments 至少要有一个
+        # 允许只发附件不带文字（发一张图不说话）：text、attachments、location 至少要有一个
         text: str = Field(default="", max_length=4000)
         client_message_id: str | None = Field(default=None, max_length=64)
         steerable: bool = True
         attachments: list[Attachment] = Field(default_factory=list)
+        location: Location | None = None
 
     class CreateSession(BaseModel):
         role_id: str = Field(min_length=1, max_length=128)
@@ -170,6 +183,10 @@ def build_router(api: ChatApi, current_user):
 
         t0 = _time.perf_counter()
         ensure_open(api.drain.draining)
+        # 三样全空（只有 client_message_id / steerable 这类控制字段）不是消息：
+        # 落到 submit 会建出一条空 content、模型看不见的用户消息，还会占一个回合。
+        if not (body.text.strip() or body.attachments or body.location):
+            raise HTTPException(status_code=422, detail={"code": "empty_message"})
         owner, record = await owned_session(user_id, session_id)
         t_read = _time.perf_counter()
         # 直传通道（ADR-011 §6-C）：带 upload_id 的附件在落库前先绑定——归属、有效期、
@@ -185,10 +202,21 @@ def build_router(api: ChatApi, current_user):
                     status = {"KEY_NOT_FOUND": 404, "KEY_ALREADY_BOUND": 409, "KEY_EXPIRED": 410,
                               "KEY_NOT_PUT": 412, "SIZE_NOT_ALLOWED": 413}.get(exc.code, 400)
                     raise HTTPException(status_code=status, detail={"code": exc.code}) from exc
+        # 位置消息的模型可见形态在这里定：content 自动生成一行文本（模型零改动就读得到），
+        # 结构化坐标进 meta.location（客户端历史回读渲染坐标气泡）。kind=location 让
+        # 端上、审核、以后可能的「附近」功能都能按类型分流，String(16) 放得下，无需迁移。
+        kind = "location" if body.location is not None else "chat"
+        content = body.text
+        if body.location is not None and not content.strip():
+            loc = body.location
+            acc = f" (±{loc.accuracy_m}m)" if loc.accuracy_m is not None else ""
+            content = f"[位置] {loc.lat},{loc.lng}{acc}"
         result = await api.submit.submit(
-            owner_id=owner, session_id=session_id, character_id=record.role_id, text=body.text,
+            owner_id=owner, session_id=session_id, character_id=record.role_id, text=content,
             client_message_id=body.client_message_id, steerable=body.steerable,
-            attachments=[a.model_dump() for a in body.attachments])
+            attachments=[a.model_dump() for a in body.attachments],
+            kind=kind,
+            location=body.location.model_dump(exclude_none=True) if body.location else None)
         _chat_mod.log.info(
             "send_message timing session=%s read_session_ms=%d submit_ms=%d disposition=%s",
             session_id, int((t_read - t0) * 1000), int((_time.perf_counter() - t_read) * 1000),
