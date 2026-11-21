@@ -83,3 +83,19 @@ def test_malformed_fragment_shaped_text_is_dropped_not_shown():
     out = _drain(c, ['{"say": 这不是字符串,}', "尾句"])
     assert '{"say"' not in out
     assert "尾句" in out
+
+
+def test_cues_first_fragment_becomes_say_text():
+    """与语音守卫同判：`cues` 写在前面也是协议片段，气泡里只留 say。"""
+    c = DisplayTextCleaner()
+    out = _drain(c, ['{"cues":[{"kind":"avatar.expression","name":"joy"}],"say":"你来啦。"}'])
+    assert out == "你来啦。"
+    assert c.fragments == 1
+    assert "{" not in out
+
+
+def test_cues_first_fragment_split_across_chunks_stays_clean():
+    c = DisplayTextCleaner()
+    blob = '{"cues":[{"kind":"gesture","name":"nod"}],"say":"好呀。"}'
+    out = "".join(c.feed(blob[i:i + 6]) for i in range(0, len(blob), 6)) + c.flush()
+    assert out == "好呀。"

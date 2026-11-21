@@ -132,3 +132,40 @@ def test_two_json_objects_in_stream():
     b = '{"say":"第二句。","cues":[]}'
     out = g.feed(a[:5]) + g.feed(a[5:] + b[:7]) + g.feed(b[7:])
     assert out == [a, b]
+
+
+CUES_FIRST = '{"cues":[{"kind":"avatar.expression","name":"joy","anchor":"segment_start"}],"say":"你好呀。今天过得怎么样？"}'
+
+
+def test_cues_first_object_is_recognized_as_protocol():
+    """键序反过来也必须认作协议片段。
+
+    守卫原先只认 `say` 开头的对象（`_PARTIAL_SHAPE` 只放行 s/sa/say）。模型把
+    `cues` 写在前面时，前缀判定说"这不是片段"，于是整段回落断句器——`{"cues":[…`
+    原文进字幕与 TTS，say 也被句号切成半句。语音 prompt 现在要求连续短片段，
+    键序由模型决定，不能只认一种写法。
+    """
+    assert guard().feed(CUES_FIRST) == [CUES_FIRST]
+
+
+def test_cues_first_object_holds_until_closed_when_chunked():
+    """同一条 cues-first 片段逐字喂也不能漏出协议外壳。"""
+    g = guard()
+    out: list[str] = []
+    for i in range(0, len(CUES_FIRST), 7):
+        out += g.feed(CUES_FIRST[i:i + 7])
+    out += g.flush()
+    assert out == [CUES_FIRST]
+
+
+def test_a_bare_open_brace_still_holds_for_either_key():
+    """只到 `{` / `{"` 时两把钥匙都可能，不能提前放行。"""
+    assert guard().feed('{"c') == []
+    assert guard().feed('{"cu') == []
+
+
+def test_prose_brace_that_is_not_a_fragment_still_passes():
+    """放宽识别不等于放宽一切：`{"port"` 之类仍是正文。"""
+    g = guard()
+    out = g.feed('配置写成 {"port": 8081} 这样') + g.flush()
+    assert out == ['配置写成 {"port": 8081} 这样']

@@ -25,8 +25,13 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from companion.agent.text.splitter import SentenceSplitter
 
-#: ``{`` + 可选空白 + 可选引号 + "say" 的前缀（s/sa/say）。前缀阶段还判不了就继续等。
-_PARTIAL_SHAPE = re.compile(r'^\{\s*("?\s*(s(a(y)?)?)?)?$')
+#: cue 片段顶层可能出现的键。识别只认这两个键的前缀，`{"port"` 之类仍是正文。
+#: `cues` 必须在列：模型把 cues 写在前面是合法 JSON，只认 say 就会把整段当正文
+#: 放给断句器——`{"cues":[…` 原文进字幕与 TTS，say 也被句号切成半句。
+_FRAGMENT_KEYS = ("say", "cues")
+
+#: ``{`` + 可选空白 + 可选引号 + 键名的前缀。前缀阶段还判不了就继续等。
+_PARTIAL_SHAPE = re.compile(r'^\{\s*("?\s*(s(a(y)?)?|c(u(e(s)?)?)?)?)?$')
 
 
 def looks_like_fragment_start(prefix: str) -> bool:
@@ -35,9 +40,9 @@ def looks_like_fragment_start(prefix: str) -> bool:
         return False
     if _PARTIAL_SHAPE.match(prefix):
         return True
-    # 键名已开始：只认 "say" 的前缀；`{"speak"` / `{"foo"` 之类放行给断句器。
+    # 键名已开始：只认 say / cues 的前缀；`{"speak"` / `{"port"` 之类放行给断句器。
     m = re.match(r'^\{\s*"([a-z_]*)', prefix)
-    return bool(m and "say".startswith(m.group(1)))
+    return bool(m and any(k.startswith(m.group(1)) for k in _FRAGMENT_KEYS))
 
 
 class CueJsonGuard:

@@ -135,3 +135,16 @@ def test_cue_snippet_teaches_the_intensity_limit():
     """
     assert "intensity" in T.CUE_OUTPUT_SNIPPET
     assert "0..1" in T.CUE_OUTPUT_SNIPPET
+
+
+def test_cue_snippet_asks_for_successive_short_fragments():
+    """F16：整条回复攒成一段 JSON 时，say 要等 cues 写完才闭合，第一句永远贴着流末。
+
+    58 条生产语音回合 first_ms/total_ms 中位数 = 1.000。服务端守卫本来就能在每段
+    闭合时放行（见 tests/test_json_guard.py），扣住首句的是这份提示词的「一行整段」
+    写法。这条锁住「连续短片段、每段自己闭合」的要求，别被下次整理提示词改回去。
+    """
+    assert "优先用一行 JSON 片段回复" not in T.CUE_OUTPUT_SNIPPET
+    assert "闭合" in T.CUE_OUTPUT_SNIPPET
+    assert "短片段" in T.CUE_OUTPUT_SNIPPET
+    assert T.PROMPT_VERSION > "2026-11-20.3"

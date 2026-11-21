@@ -242,3 +242,61 @@ def test_app_requires_livekit_for_sessions():
     client = TestClient(create_app(livekit_url=""))
     response = client.post("/v1/voice/sessions", json={"character_id": "linche"})
     assert response.status_code >= 400
+
+
+class _PausableBrain:
+    """吐完给定片段后停在流里，等 release。用来证明片段不必等整条流结束。"""
+
+    def __init__(self, script):
+        self._script = list(script)
+        self.release = asyncio.Event()
+        self.cancelled = False
+
+    async def start_turn(self, request):
+        brain = self
+
+        async def tokens():
+            for chunk in brain._script:
+                yield chunk
+            await brain.release.wait()
+            yield "后面的还在生成。"
+
+        async def cancel():
+            brain.cancelled = True
+
+        return BrainTurn(tokens=tokens(), cancel=cancel, turn_id="p1")
+
+    async def aclose(self):
+        return None
+
+
+async def test_first_fragment_reaches_output_while_stream_continues():
+    """F16 的结构回归：第一个片段闭合即交付，不等整条流。
+
+    58 条生产语音回合里 first_ms/total_ms 中位数 = 1.000——第一句几乎总在流的
+    末尾才出（`{"say":…,"cues":[…]}` 整段扣到闭合）。prompt 改为连续短片段后，
+    管线必须在第一个对象闭合时就吐出它，此时上游还挂着。
+    """
+    brain = _PausableBrain(['{"say":"今天过得挺辛苦吧。","cues":[{"kind":"avatar.expression","name":"gentle"}]}'])
+    pipeline = TurnPipeline(brain)
+    got = pipeline.run(req()).__aiter__()
+    first = await asyncio.wait_for(got.__anext__(), timeout=1)
+    assert first.text == "今天过得挺辛苦吧。"
+    assert first.source == "structured"
+    assert [i.name for i in first.intents] == ["gentle"]
+    assert not brain.cancelled          # 还没走到取消路径，流仍在进行
+    brain.release.set()
+    rest = [o async for o in got]
+    assert [o.text for o in rest] == ["后面的还在生成。"]
+
+
+async def test_bad_fragment_is_dropped_without_replaying_good_one():
+    """识别为协议但坏掉的片段：丢弃，绝不回落成原文，也不影响已交付的好片段。"""
+    brain = FakeBrain([
+        '{"say":"先说好的。","cues":[]}',
+        '{"say": 这不是字符串,}',
+        '{"say":"收尾这句还在。","cues":[]}',
+    ])
+    out = await drain(TurnPipeline(brain), req())
+    assert [o.text for o in out] == ["先说好的。", "收尾这句还在。"]
+    assert not any("say" in o.text or "{" in o.text for o in out)
