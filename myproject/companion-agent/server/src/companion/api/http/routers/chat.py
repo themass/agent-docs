@@ -99,6 +99,10 @@ def build_router(api: ChatApi, current_user):
         upload_id: str = Field(min_length=1, max_length=64)
         kind: str = Field(default="image", max_length=16)
         name: str = Field(default="", max_length=255)
+        # 视频时长（秒，P2-13）：接收方的卡片要显示「0:42」，但服务端不解析视频字节
+        # （直传不中转，服务端也没有 ffprobe）——发送方客户端读自己的文件带上来。
+        # 必须是声明字段：pydantic 默认丢弃未声明的额外键，不声明它就活不过一次发送。
+        duration_s: int | None = Field(default=None, ge=0, le=24 * 3600)
 
     class Location(BaseModel):
         """位置消息的坐标（P2-13）。客户端只发经纬度 + 可选精度，地名由客户端自己解决

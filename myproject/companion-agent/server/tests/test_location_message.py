@@ -177,3 +177,20 @@ def test_empty_send_without_text_attachment_or_location_is_rejected(env):
     http, sid = _session(env)
     r = http.post(f"/v1/sessions/{sid}/messages", json={}, headers=ME)
     assert r.status_code in (400, 422), r.text
+
+
+def test_video_attachment_keeps_duration_in_meta(env):
+    """视频卡片要显示时长；pydantic 默认丢弃未声明字段，所以 duration_s 必须是模型字段，
+    否则发送时带的时长到不了 meta，接收方刷新历史后卡片只剩文件名。"""
+    http, sid = _session(env)
+    r = http.post(f"/v1/sessions/{sid}/messages",
+                  json={"attachments": [{"upload_id": "01" + "V" * 24, "kind": "video",
+                                         "name": "海边.mp4", "duration_s": 42}]}, headers=ME)
+    assert r.status_code == 202, r.text
+
+    row = next(m for m in env.messages.rows.values() if m.role == "user")
+    att = row.meta["attachments"][0]
+    assert att["kind"] == "video" and att["name"] == "海边.mp4" and att["duration_s"] == 42
+
+    items = http.get(f"/v1/sessions/{sid}/messages", headers=ME).json()["items"]
+    assert items[0]["attachments"][0]["duration_s"] == 42
