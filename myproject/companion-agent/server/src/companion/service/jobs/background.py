@@ -36,9 +36,10 @@ def build_handlers(platform) -> dict:
     from companion.db.sql import SqlConfirmationStore, SqlToolCallStore
     from companion.service.account.purge import PURGE_JOB
     from companion.service.jobs.handlers import (
-        QA_PURGE_JOB, account_purge, audit_trim, confirmation_expire, memory_record, persona_update, qa_purge,
-        session_resummarize, timeline_record, timeline_sweep)
+        QA_PURGE_JOB, account_purge, audit_trim, confirmation_expire, memory_record, persona_update, profile_doc_update,
+        qa_purge, session_resummarize, timeline_record, timeline_sweep)
     from companion.service.persona.updater import PERSONA_JOB
+    from companion.service.profile_doc.updater import PROFILE_DOC_JOB
     from companion.service.timeline.sweep import TIMELINE_SWEEP_JOB
     from companion.agent.memory.pipeline import MEMORY_RECORD_JOB
 
@@ -56,6 +57,8 @@ def build_handlers(platform) -> dict:
         handlers[TIMELINE_SWEEP_JOB] = timeline_sweep(platform.timeline)
     if platform.persona_updater is not None:
         handlers[PERSONA_JOB] = persona_update(platform.persona_updater, sessions=platform.sessions)
+    if platform.profile_doc_updater is not None:
+        handlers[PROFILE_DOC_JOB] = profile_doc_update(platform.profile_doc_updater, sessions=platform.sessions)
     if platform.account is not None:
         handlers[PURGE_JOB] = account_purge(platform.account)
     if platform.qa is not None:

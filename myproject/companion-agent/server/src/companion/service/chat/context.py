@@ -40,9 +40,11 @@ class ContextSettings:
 class ContextBuilder:
     def __init__(self, *, roles: RoleProfileResolver, messages: MessageStore, sessions: SessionStore,
                  memory: MemoryPipeline | None = None, settings: ContextSettings = ContextSettings(),
-                 persona: object | None = None, relationship: object | None = None) -> None:
+                 persona: object | None = None, relationship: object | None = None,
+                 profile_doc: object | None = None) -> None:
         self._persona = persona   # PersonaStore：对话路径只读，写入全在后台任务里
         self._relationship = relationship   # RelationshipStore：对话路径只读，bump 在 after_turn
+        self._profile_doc = profile_doc   # ProfileDocStore：对话路径只读，维护在后台任务里
         self._roles = roles
         self._messages = messages
         self._sessions = sessions
@@ -95,8 +97,18 @@ class ContextBuilder:
                 log.warning("relationship read failed", extra={"session_id": session_id})
                 return ""
 
-        profile, recent, recalled, persona_block, relationship_block = await asyncio.gather(
-            profile_task(), recent_task(), memory_task(), persona_task(), relationship_task())
+        async def profile_doc_task():
+            if self._profile_doc is None:
+                return ""
+            try:
+                doc = await self._profile_doc.get(owner_id=owner_id, role_id=role_id)
+                return doc.markdown if doc is not None and doc.markdown else ""
+            except Exception:  # noqa: BLE001 —— 档案读不到只是这一轮少一段，不能让回合失败
+                log.warning("profile doc read failed", extra={"session_id": session_id})
+                return ""
+
+        profile, recent, recalled, persona_block, relationship_block, profile_doc_block = await asyncio.gather(
+            profile_task(), recent_task(), memory_task(), persona_task(), relationship_task(), profile_doc_task())
 
         # 最新在前；本轮输入已经落库，所以通常已在 recent 里，去重后放在最前。
         texts: list[str] = [t for t in reversed(current_texts) if t]
@@ -111,7 +123,8 @@ class ContextBuilder:
 
         plan = build_prompt_plan(profile, user_name=self._settings.user_name, locale=locale, channel=channel,
                                  recent_texts=tuple(texts), memory_block=memory_block,
-                                 persona_block=persona_block or "", relationship_block=relationship_block,
+                                 persona_block=persona_block or "", profile_doc_block=profile_doc_block,
+                                 relationship_block=relationship_block,
                                  budget=self._settings.budget)
         if plan.dropped:
             log.info("prompt budget dropped", extra={"session_id": session_id, "dropped": plan.dropped})

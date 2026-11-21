@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from companion.agent.lorebook import activate
@@ -34,6 +35,7 @@ class PromptBudget:
     examples_chars: int = 1500
     memory_chars: int = 800
     persona_chars: int = 700   # 画像始终注入，单独的预算，不和召回的记忆抢
+    profile_doc_chars: int = 1600   # 档案（长篇版）同样始终注入，独立预算
 
 
 @dataclass(frozen=True)
@@ -64,6 +66,22 @@ def _examples_block(raw: str, *, char: str, user: str, budget: int) -> str:
         return ""
     body = "\n\n---\n\n".join(kept)
     return f"<example_dialogue>\n{body}\n</example_dialogue>\n（以上是说话风格的示例，不是真实发生过的对话。）"
+
+
+def _trim_doc(doc: str, budget: int) -> str:
+    """档案超预算时按章节（## 标题）整节丢弃，从后往前丢，绝不在句子里腰斩；放不下就整块不注入。"""
+    if not doc or len(doc) <= budget:
+        return doc
+    chunks = re.split(r"(?m)^(?=## )", doc)
+    kept = chunks[:1]                                   # 第一块（首个 ## 之前的引言，通常很短）
+    used = sum(len(c) for c in kept)
+    for chunk in chunks[1:]:
+        if used + len(chunk) > budget:
+            break
+        kept.append(chunk)
+        used += len(chunk)
+    text = "".join(kept).strip()
+    return text if text and len(text) <= budget else ""
 
 
 def _role_layer(profile: RoleProfile, *, user: str) -> str:
@@ -99,6 +117,7 @@ def build_prompt_plan(
     recent_texts: tuple[str, ...] = (),
     memory_block: str = "",
     persona_block: str = "",
+    profile_doc_block: str = "",
     relationship_block: str = "",
     author_note: AuthorNote | None = None,
     budget: PromptBudget = PromptBudget(),
@@ -126,13 +145,16 @@ def build_prompt_plan(
     persona = persona_block.strip()
     if len(persona) > budget.persona_chars:
         persona = ""
+    # 档案在维护端已按 MAX_DOC_CHARS 卡过（超长直接保留旧版）；这里再按章节边界裁一次兜底，
+    # 绝不在句子里腰斩
+    profile_doc = _trim_doc(profile_doc_block.strip(), budget.profile_doc_chars)
     # 关系段在渲染时就是 ≤200 字的一小段；这里兜底截断，超长说明渲染端出了问题，宁缺毋滥
     relationship = relationship_block.strip()[:200]
 
     optional = {"examples": examples, "lore": before + after, "memory": memory, "persona": persona,
-                "relationship": relationship}
+                "profile_doc": profile_doc, "relationship": relationship}
     dropped: list[str] = []
-    for name in ("examples", "lore", "memory", "relationship", "persona"):  # 超预算时的丢弃顺序：画像最后丢
+    for name in ("examples", "lore", "memory", "profile_doc", "relationship", "persona"):  # 超预算时条目画像最后丢
         if mandatory + sum(len(v) for v in optional.values()) <= budget.system_chars:
             break
         if optional[name]:
@@ -154,6 +176,9 @@ def build_prompt_plan(
     # 「你了解这位用户的事」，而不是「闲聊就回 2–4 句」——约束被数据块稀释掉了。
     if optional["persona"]:
         parts.append(f"{T.PERSONA_HEADER}\n\n{T.PERSONA_GUIDE}\n\n{optional['persona']}")
+    # 档案是画像条目的长篇版：紧挨着条目画像放，同属「关于他」的数据
+    if optional["profile_doc"]:
+        parts.append(f"{T.PROFILE_DOC_HEADER}\n\n{T.PROFILE_DOC_GUIDE}\n\n{optional['profile_doc']}")
     # 关系与画像同属「数据」：紧挨着放，都是关于「他」的参考，不是指令
     if optional["relationship"]:
         parts.append(f"{T.RELATIONSHIP_HEADER}\n\n{T.RELATIONSHIP_GUIDE}\n\n{optional['relationship']}")

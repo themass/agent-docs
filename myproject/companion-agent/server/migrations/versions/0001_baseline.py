@@ -199,8 +199,22 @@ CREATE TABLE ca_persona_cursor (
 	PRIMARY KEY (owner_id, role_id)
 );
 
+CREATE TABLE ca_profile_doc (
+	owner_id BIGINT NOT NULL,
+	role_id VARCHAR(128) NOT NULL,
+	markdown TEXT NOT NULL,
+	version INTEGER DEFAULT '0' NOT NULL,
+	source VARCHAR(16) DEFAULT '' NOT NULL,
+	generated_from JSONB,
+	last_message_id BIGINT DEFAULT '0' NOT NULL,
+	pending_chars INTEGER DEFAULT '0' NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	PRIMARY KEY (owner_id, role_id)
+);
+
 CREATE TABLE ca_persona_entry (
-	id BIGSERIAL NOT NULL, 
+	id BIGSERIAL NOT NULL,
 	owner_id BIGINT NOT NULL, 
 	role_id VARCHAR(128) NOT NULL, 
 	topic VARCHAR(32) NOT NULL, 
@@ -635,8 +649,22 @@ CREATE TABLE ca_persona_cursor (
 	PRIMARY KEY (owner_id, role_id)
 );
 
+CREATE TABLE ca_profile_doc (
+	owner_id BIGINT NOT NULL,
+	role_id VARCHAR(128) NOT NULL,
+	markdown MEDIUMTEXT NOT NULL,
+	version INTEGER NOT NULL DEFAULT '0',
+	source VARCHAR(16) NOT NULL DEFAULT '',
+	generated_from MEDIUMTEXT,
+	last_message_id BIGINT NOT NULL DEFAULT '0',
+	pending_chars INTEGER NOT NULL DEFAULT '0',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	PRIMARY KEY (owner_id, role_id)
+);
+
 CREATE TABLE ca_persona_entry (
-	id BIGINT NOT NULL AUTO_INCREMENT, 
+	id BIGINT NOT NULL AUTO_INCREMENT,
 	owner_id BIGINT NOT NULL, 
 	role_id VARCHAR(128) NOT NULL, 
 	topic VARCHAR(32) NOT NULL, 

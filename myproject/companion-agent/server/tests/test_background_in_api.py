@@ -46,7 +46,8 @@ def platform(monkeypatch, tmp_path):
     p = Platform(tmp_path)
     # 这些属性不存在也应当能起（缺哪块能力就不注册哪块）
     for name in ("pipeline", "resummarize", "timeline_recorder", "timeline", "persona_updater",
-                 "account", "qa", "preferences", "ledger", "delivery", "compliance", "sessions", "chat"):
+                 "profile_doc_updater", "account", "qa", "preferences", "ledger", "delivery",
+                 "compliance", "sessions", "chat"):
         setattr(p, name, None)
     monkeypatch.setattr("companion.service.jobs.background.build_initiative_loop", lambda p: _NoopLoop())
     return p

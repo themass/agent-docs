@@ -84,6 +84,20 @@ def persona_update(updater: Any, *, sessions: Any = None):
     return handle
 
 
+def profile_doc_update(updater: Any, *, sessions: Any = None):
+    """批量维护用户档案（形态 A）。会话已删除或账号已注销时跳过，不把档案写回来。"""
+
+    async def handle(payload: dict[str, Any]) -> None:
+        if sessions is not None and await sessions.get(
+                owner_id=int(payload["owner_id"]), session_id=int(payload["session_id"])) is None:
+            return
+        await updater.run(owner_id=int(payload["owner_id"]), role_id=str(payload["role_id"]),
+                          session_id=int(payload["session_id"]),
+                          up_to_message_id=int(payload["up_to_message_id"]))
+
+    return handle
+
+
 def account_purge(service: Any):
     """账号注销的跨存储删除。每一步可重复执行，失败整体重试（chat-agent-ops-design.md §3）。"""
 

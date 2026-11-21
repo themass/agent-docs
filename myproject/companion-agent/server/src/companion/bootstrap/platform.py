@@ -63,6 +63,8 @@ from companion.service.chat.turn_runner import TurnOutcome
 from companion.agent.memory.extraction import MemoryExtractor
 from companion.agent.memory.recorder import ExtractionRecorder
 from companion.service.persona.updater import PERSONA_JOB, PersonaUpdater
+from companion.service.profile_doc.sql import SqlProfileDocStore
+from companion.service.profile_doc.updater import ProfileDocUpdater
 from companion.service.timeline.recorder import TimelineRecorder
 from companion.service.proactive.reminders import ReminderDispatcher, ReminderService, SessionGone
 from companion.service.roles.resolver import RoleProfileResolver
@@ -131,6 +133,8 @@ class Platform:
     timeline_recorder: TimelineRecorder | None = None
     persona_updater: PersonaUpdater | None = None
     persona: Any = None
+    profile_doc_updater: Any = None
+    profile_doc: Any = None
     relationship: Any = None
     compliance: ComplianceService | None = None
     account: AccountPurgeService | None = None
@@ -286,9 +290,13 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     compliance = ComplianceService(store=SqlComplianceStore(engine))
     persona = SqlPersonaStore(engine)
     persona_updater = PersonaUpdater(store=persona, memory=memory, messages=messages, llm=llm) if llm is not None else None
+    # 用户档案（形态 A）：与画像条目并行的长篇 Markdown，同一套「攒批 + 后台维护」节奏
+    profile_doc = SqlProfileDocStore(engine)
+    profile_doc_updater = (ProfileDocUpdater(store=profile_doc, memory=memory, messages=messages, llm=llm)
+                           if llm is not None else None)
     relationship = SqlRelationshipStore(engine)
     context = ContextBuilder(roles=resolver, messages=messages, sessions=sessions, memory=pipeline, persona=persona,
-                             relationship=relationship)
+                             relationship=relationship, profile_doc=profile_doc)
     history = HistoryService(messages=messages, control=control, conversation=conversation, jobs=jobs,
                              timeline=timeline)
     resummarize = (ResummarizeService(messages=messages, conversation=conversation, control=control, llm=llm)
@@ -384,6 +392,11 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
         # 画像：累计用户发言字数，够一批才入队（对话路径只记数，不抽取、不等模型）。
         if persona_updater is not None and not outcome.failed and outcome.user_text.strip() and outcome.user_message_ids:
             await persona_updater.note_turn(
+                owner_id=outcome.owner_id, role_id=outcome.character_id, last_message_id=max(outcome.user_message_ids),
+                user_text=outcome.user_text, jobs=jobs, session_id=outcome.session_id)
+        # 用户档案：同一套攒批节奏，但批次更大（整篇重写比逐条更贵）
+        if profile_doc_updater is not None and not outcome.failed and outcome.user_text.strip() and outcome.user_message_ids:
+            await profile_doc_updater.note_turn(
                 owner_id=outcome.owner_id, role_id=outcome.character_id, last_message_id=max(outcome.user_message_ids),
                 user_text=outcome.user_text, jobs=jobs, session_id=outcome.session_id)
         # 事件的来源是这一回合的第一条用户消息（重新生成、合并时也指向它）。
@@ -503,7 +516,8 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
                     memory=memory, timeline=timeline, drain=drain, engine=engine, redis=redis,
                     reminders=reminders, history=history, dispatcher=dispatcher, resummarize=resummarize,
                     pipeline=pipeline, jobs=jobs, timeline_recorder=timeline_recorder, persona_updater=persona_updater,
-                    persona=persona, relationship=relationship, compliance=compliance, account=account, avatars=avatars,
+                    persona=persona, profile_doc_updater=profile_doc_updater, profile_doc=profile_doc,
+                    relationship=relationship, compliance=compliance, account=account, avatars=avatars,
                     admin_token=settings.companion_admin_token, sessions=sessions, brain=brain, qa=qa, objects=objects,
                     qa_retention_days=settings.companion_qa_retention_days, trace_writer=trace_writer, qa_enabled=qa_enabled,
                     tos_key_prefix=settings.tos_key_prefix, _pool=pool, _checkpointer=checkpointer)

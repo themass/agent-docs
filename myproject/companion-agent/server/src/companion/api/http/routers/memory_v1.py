@@ -56,7 +56,7 @@ def _event_json(event: TimelineEvent) -> dict[str, Any]:
     }
 
 
-def build_router(*, memory, timeline, current_user, persona=None):
+def build_router(*, memory, timeline, current_user, persona=None, profile_doc=None):
     from fastapi import APIRouter, Depends, HTTPException, Query, Response
     from pydantic import AwareDatetime, BaseModel, Field
 
@@ -181,5 +181,32 @@ def build_router(*, memory, timeline, current_user, persona=None):
         if persona is None or not await persona.delete(owner_id=_uid(user_id), entry_id=entry_id):
             raise HTTPException(status_code=404, detail={"code": "not_found"})
         return Response(status_code=204)
+
+    # ---- 用户档案（形态 A）：长篇 Markdown，LLM 维护 + 用户可直接改写 ----
+
+    class DocIn(BaseModel):
+        markdown: str = Field(min_length=0, max_length=4000)
+
+    @router.get("/profile_doc")
+    async def profile_doc_get(role_id: str = Query(min_length=1, max_length=128),
+                              user_id: str = Depends(current_user)) -> dict[str, Any]:
+        """这个角色对你的档案；还没有生成过返回空串（不编造）。"""
+        if profile_doc is None:
+            return {"markdown": "", "version": None, "source": None}
+        doc = await profile_doc.get(owner_id=_uid(user_id), role_id=role_id)
+        if doc is None:
+            return {"markdown": "", "version": None, "source": None}
+        return {"markdown": doc.markdown, "version": doc.version, "source": doc.source}
+
+    @router.put("/profile_doc", status_code=201)
+    async def profile_doc_put(body: DocIn, role_id: str = Query(min_length=1, max_length=128),
+                              user_id: str = Depends(current_user)) -> dict[str, Any]:
+        """用户亲手改档案：无条件覆盖（LLM 维护走乐观并发，下一批以这份为底稿）。"""
+        if profile_doc is None:
+            raise HTTPException(status_code=404, detail={"code": "not_found"})
+        await profile_doc.save_admin(owner_id=_uid(user_id), role_id=role_id,
+                                     markdown=body.markdown.strip()[:1600])
+        doc = await profile_doc.get(owner_id=_uid(user_id), role_id=role_id)
+        return {"markdown": doc.markdown, "version": doc.version, "source": doc.source}
 
     return router

@@ -364,6 +364,24 @@ persona_cursor = Table(
     Column("updated_at", UTCDateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP")),
 )
 
+# 用户档案（形态 A）：每个「用户 + 角色」一份 Markdown 档案，是画像条目的长篇叙事版。
+# 一行一人一角：LLM 后台任务（profile_doc.update）按批维护，管理员可直接改写（source="admin"），
+# 始终注入提示词；飞书等外部渠道只是后续只读导出，删号等物理删除不依赖它。
+# last_message_id / pending_chars 是批量触发的游标（同 persona_cursor 的思路）：
+# 回合收尾累计用户发言字数，够一批才入队一次档案维护，对话路径只读。
+profile_doc = Table(
+    TABLE_PREFIX + "profile_doc", metadata,
+    Column("owner_id", BigInteger, primary_key=True),
+    Column("role_id", String(128), primary_key=True),
+    Column("markdown", LongText, nullable=False),                  # 空串 = 还没生成过（游标行先于档案出现）
+    Column("version", Integer, nullable=False, server_default="0"),  # 每写一次 +1（llm 或 admin）
+    Column("source", String(16), nullable=False, server_default=""),  # "" | llm | admin
+    Column("generated_from", JsonText, nullable=True),             # llm 维护的出处：{"up_to_message_id": n}
+    Column("last_message_id", BigInteger, nullable=False, server_default="0"),
+    Column("pending_chars", Integer, nullable=False, server_default="0"),
+    _now(), _upd(),
+)
+
 # 关系状态（docs/relationship-state-design.md）：「你们到了哪一步」，与画像（她**知道**你什么）分开。
 # warmth 只增不减；阶段与有效温度在读时算（随空闲天数衰减），所以这里不存 stage、没有后台 sweep。
 relationship = Table(
