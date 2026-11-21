@@ -25,6 +25,7 @@ from companion.db.schema import (
     usage_span,
     user_consent,
     persona_profile,
+    relationship,
     reminder,
     timeline_event,
     tool_call,
@@ -39,7 +40,7 @@ from companion.service.account.port import AccountFootprint
 # 删除顺序：先子表后会话。没有外键约束，顺序只为了中途失败时不留下「有消息没会话」的孤儿。
 _OWNED = (chat_message, chat_turn, chat_queue, action_confirmation, tool_call, reminder, timeline_event,
           upload, persona_profile, persona_entry, persona_cursor, user_consent, usage_span, user_role,
-          turn_trace, text_blob, voice_turn, chat_session)
+          turn_trace, text_blob, voice_turn, relationship, chat_session)
 
 # 载荷里带用户数据、还没执行的后台任务：注销后不能再跑（否则会把记忆写回来）。
 USER_JOB_KINDS = ("memory.record", "session.resummarize", "timeline.record", "persona.update")

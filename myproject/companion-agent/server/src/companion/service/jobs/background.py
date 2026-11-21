@@ -78,9 +78,20 @@ def build_initiative_loop(platform):
 
     brain = PlatformBrain(submit=platform.chat.submit, control=platform.chat.control,
                           role="system", kind="proactive", wait_for_busy=False)
+
+    async def relationship_warmth(user_id: str, role_id: str) -> float | None:
+        """关系闸门用：None = 还没聊过（不抬门槛），数字 = 衰减后的有效温度。"""
+        from companion.service.relationship.model import effective_warmth
+
+        row = await platform.relationship.get(owner_id=int(user_id), role_id=role_id)
+        if row is None:
+            return None
+        return effective_warmth(row, now=datetime.now(UTC))
+
     return InitiativeLoop(
         scheduler=InitiativeScheduler(timeline=platform.timeline, preferences_loader=platform.preferences.load,
-                                      state_loader=platform.ledger.state_for),
+                                      state_loader=platform.ledger.state_for,
+                                      relationship_loader=relationship_warmth),
         speak=PlatformSpeaker(sessions=platform.sessions, brain=brain, compliance=platform.compliance),
         router=ChannelRouter({Channel.IN_APP: platform.delivery}, recorder=platform.ledger),
         preferences_loader=platform.preferences.load,

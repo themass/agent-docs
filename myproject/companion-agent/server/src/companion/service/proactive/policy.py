@@ -2,6 +2,11 @@
 
 这个类是整个主动系统里最该保守的地方：一次不合时宜的打扰，代价远大于少说一次话。
 所以所有判断都是「没把握就不发」。
+
+关系闸门（docs/relationship-state-design.md §5.2）：关系越冷，打扰门槛越高。
+effective=0（陌生人）时门槛抬 50%——普通问候过不了线，只有重要事件还能打扰；
+effective 满档（50）时系数回到 1.0，不抬。它只调「重要度门槛」这一层：
+频率上限与免打扰是用户显式偏好，关系不覆盖用户的选择。
 """
 
 from __future__ import annotations
@@ -9,6 +14,7 @@ from __future__ import annotations
 from datetime import datetime, time
 
 from companion.service.proactive.models import Channel, InitiativeDecision, InitiativePreferences, InitiativeState
+from companion.service.relationship.model import SATURATION
 from companion.service.turn.trigger import TriggerKind
 
 # 事件的重要度基线。面试和生日值得打扰，一个模糊的「旅行」不值得。
@@ -47,6 +53,7 @@ class InitiativePolicy:
         preferences: InitiativePreferences,
         state: InitiativeState,
         now: datetime,
+        relationship_warmth: float | None = None,
     ) -> InitiativeDecision:
         if preferences.paused_until is not None and now < preferences.paused_until:
             return InitiativeDecision(False, reason="paused")
@@ -70,6 +77,10 @@ class InitiativePolicy:
         threshold = (
             _GREETING_MIN_PRIORITY if kind == TriggerKind.SCHEDULE else self._min_priority
         )
+        # 关系闸门：None = 刚认识（不抬，用户显式打开的开关照旧生效）；
+        # 数字 = 衰减后的有效温度，越低门槛抬得越高（最多 50%）
+        if relationship_warmth is not None:
+            threshold *= self._warmth_factor(relationship_warmth)
         if priority < threshold:
             return InitiativeDecision(False, reason="low_priority", priority=priority)
 
@@ -89,6 +100,15 @@ class InitiativePolicy:
             # 日常问候永远低于事件：它是锦上添花，不是必须。
             return 0.55 if payload.get("important") else 0.45
         return 0.2
+
+    @staticmethod
+    def _warmth_factor(effective: float) -> float:
+        """关系系数：0 → 1.5（门槛抬 50%），满档（50）→ 1.0（不抬），中间线性。"""
+        if effective <= 0:
+            return 1.5
+        if effective >= SATURATION:
+            return 1.0
+        return 1.0 + 0.5 * (1.0 - effective / SATURATION)
 
     @staticmethod
     def _channel(kind: TriggerKind, preferences: InitiativePreferences) -> Channel:

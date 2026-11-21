@@ -13,11 +13,13 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from companion.service.roles.resolver import RoleProfileResolver
 from companion.agent.memory.hooks import RecallQuery
 from companion.agent.memory.pipeline import MemoryPipeline, render_memory_block
 from companion.service.persona.model import render_profile
+from companion.service.relationship.model import render_relationship_block, snapshot
 from companion.agent.prompt.plan import PromptPlan
 from companion.agent.prompt.roleplay import PromptBudget, build_prompt_plan
 from companion.db.port import MessageStore, SessionStore
@@ -38,8 +40,9 @@ class ContextSettings:
 class ContextBuilder:
     def __init__(self, *, roles: RoleProfileResolver, messages: MessageStore, sessions: SessionStore,
                  memory: MemoryPipeline | None = None, settings: ContextSettings = ContextSettings(),
-                 persona: object | None = None) -> None:
+                 persona: object | None = None, relationship: object | None = None) -> None:
         self._persona = persona   # PersonaStore：对话路径只读，写入全在后台任务里
+        self._relationship = relationship   # RelationshipStore：对话路径只读，bump 在 after_turn
         self._roles = roles
         self._messages = messages
         self._sessions = sessions
@@ -79,8 +82,21 @@ class ContextBuilder:
                 log.warning("persona read failed", extra={"session_id": session_id})
                 return None
 
-        profile, recent, recalled, persona_block = await asyncio.gather(
-            profile_task(), recent_task(), memory_task(), persona_task())
+        async def relationship_task():
+            if self._relationship is None:
+                return ""
+            try:
+                row = await self._relationship.get(owner_id=owner_id, role_id=role_id)
+                if row is None:
+                    return ""
+                now = datetime.now(UTC)
+                return render_relationship_block(snapshot(row, now=now), now=now)
+            except Exception:  # noqa: BLE001 —— 关系读不到只是这一轮少一段，不能让回合失败
+                log.warning("relationship read failed", extra={"session_id": session_id})
+                return ""
+
+        profile, recent, recalled, persona_block, relationship_block = await asyncio.gather(
+            profile_task(), recent_task(), memory_task(), persona_task(), relationship_task())
 
         # 最新在前；本轮输入已经落库，所以通常已在 recent 里，去重后放在最前。
         texts: list[str] = [t for t in reversed(current_texts) if t]
@@ -95,7 +111,8 @@ class ContextBuilder:
 
         plan = build_prompt_plan(profile, user_name=self._settings.user_name, locale=locale, channel=channel,
                                  recent_texts=tuple(texts), memory_block=memory_block,
-                                 persona_block=persona_block or "", budget=self._settings.budget)
+                                 persona_block=persona_block or "", relationship_block=relationship_block,
+                                 budget=self._settings.budget)
         if plan.dropped:
             log.info("prompt budget dropped", extra={"session_id": session_id, "dropped": plan.dropped})
         return plan

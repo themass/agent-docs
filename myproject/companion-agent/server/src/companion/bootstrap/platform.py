@@ -32,6 +32,8 @@ from companion.service.account.sql import SqlAccountStore
 from companion.service.avatar.sql import SqlAvatarReleaseStore
 from companion.service.jobs.sql import SqlJobStore
 from companion.service.persona.sql import SqlPersonaStore
+from companion.service.relationship.model import delta_for
+from companion.service.relationship.sql import SqlRelationshipStore
 from companion.service.proactive.store import (
     SqlDelivery, SqlPreferencesStore, SqlSendLedger,
 )
@@ -111,6 +113,7 @@ class Platform:
     timeline_recorder: TimelineRecorder | None = None
     persona_updater: PersonaUpdater | None = None
     persona: Any = None
+    relationship: Any = None
     compliance: ComplianceService | None = None
     account: AccountPurgeService | None = None
     avatars: AvatarCatalog | None = None
@@ -265,7 +268,9 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     compliance = ComplianceService(store=SqlComplianceStore(engine))
     persona = SqlPersonaStore(engine)
     persona_updater = PersonaUpdater(store=persona, memory=memory, messages=messages, llm=llm) if llm is not None else None
-    context = ContextBuilder(roles=resolver, messages=messages, sessions=sessions, memory=pipeline, persona=persona)
+    relationship = SqlRelationshipStore(engine)
+    context = ContextBuilder(roles=resolver, messages=messages, sessions=sessions, memory=pipeline, persona=persona,
+                             relationship=relationship)
     history = HistoryService(messages=messages, control=control, conversation=conversation, jobs=jobs,
                              timeline=timeline)
     resummarize = (ResummarizeService(messages=messages, conversation=conversation, control=control, llm=llm)
@@ -351,6 +356,10 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
                 "turn_id": outcome.turn_id, "user_text": outcome.user_text,
                 "assistant_text": outcome.assistant_text}, run_after=_utcnow(),
                 dedupe_key=f"{MEMORY_RECORD_JOB}:{outcome.turn_id}")
+        # 关系：纯算术（无模型），每个成功回合直接落一次；失败与中断的回合不算真实互动。
+        if not outcome.failed and outcome.user_text.strip():
+            await relationship.bump(owner_id=outcome.owner_id, role_id=outcome.character_id,
+                                    delta=delta_for(outcome.user_text), at=_utcnow())
         # 画像：累计用户发言字数，够一批才入队（对话路径只记数，不抽取、不等模型）。
         if persona_updater is not None and not outcome.failed and outcome.user_text.strip() and outcome.user_message_ids:
             await persona_updater.note_turn(
@@ -473,7 +482,7 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
                     memory=memory, timeline=timeline, drain=drain, engine=engine, redis=redis,
                     reminders=reminders, history=history, dispatcher=dispatcher, resummarize=resummarize,
                     pipeline=pipeline, jobs=jobs, timeline_recorder=timeline_recorder, persona_updater=persona_updater,
-                    persona=persona, compliance=compliance, account=account, avatars=avatars,
+                    persona=persona, relationship=relationship, compliance=compliance, account=account, avatars=avatars,
                     admin_token=settings.companion_admin_token, sessions=sessions, brain=brain, qa=qa, objects=objects,
                     qa_retention_days=settings.companion_qa_retention_days, trace_writer=trace_writer, qa_enabled=qa_enabled,
                     tos_key_prefix=settings.tos_key_prefix, _pool=pool, _checkpointer=checkpointer)

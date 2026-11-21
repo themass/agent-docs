@@ -220,6 +220,17 @@ CREATE TABLE ca_persona_entry (
 
 CREATE INDEX ca_ix_persona_owner_role ON ca_persona_entry (owner_id, role_id, superseded_by);
 
+CREATE TABLE ca_relationship (
+	owner_id BIGINT NOT NULL,
+	role_id VARCHAR(128) NOT NULL,
+	warmth FLOAT DEFAULT '0.0' NOT NULL,
+	interactions INTEGER DEFAULT '0' NOT NULL,
+	last_active_at TIMESTAMP WITH TIME ZONE,
+	created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	PRIMARY KEY (owner_id, role_id)
+);
+
 CREATE TABLE ca_persona_profile (
 	id BIGSERIAL NOT NULL, 
 	owner_id BIGINT NOT NULL, 
@@ -644,6 +655,17 @@ CREATE TABLE ca_persona_entry (
 );
 
 CREATE INDEX ca_ix_persona_owner_role ON ca_persona_entry (owner_id, role_id, superseded_by);
+
+CREATE TABLE ca_relationship (
+	owner_id BIGINT NOT NULL,
+	role_id VARCHAR(128) NOT NULL,
+	warmth FLOAT NOT NULL DEFAULT '0.0',
+	interactions INTEGER NOT NULL DEFAULT '0',
+	last_active_at DATETIME,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	PRIMARY KEY (owner_id, role_id)
+);
 
 CREATE TABLE ca_persona_profile (
 	id BIGINT NOT NULL AUTO_INCREMENT, 

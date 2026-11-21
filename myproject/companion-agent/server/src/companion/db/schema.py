@@ -364,6 +364,18 @@ persona_cursor = Table(
     Column("updated_at", UTCDateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP")),
 )
 
+# 关系状态（docs/relationship-state-design.md）：「你们到了哪一步」，与画像（她**知道**你什么）分开。
+# warmth 只增不减；阶段与有效温度在读时算（随空闲天数衰减），所以这里不存 stage、没有后台 sweep。
+relationship = Table(
+    TABLE_PREFIX + "relationship", metadata,
+    Column("owner_id", BigInteger, primary_key=True),
+    Column("role_id", String(128), primary_key=True),                  # 按「用户 + 角色」隔离，和画像一致
+    Column("warmth", types.Float, nullable=False, server_default="0.0"),
+    Column("interactions", Integer, nullable=False, server_default="0"),
+    Column("last_active_at", UTCDateTime, nullable=True),             # 最近一次有效互动；空 = 还没聊过
+    _now(), _upd(),
+)
+
 
 user_consent = Table(
     TABLE_PREFIX + "user_consent", metadata,

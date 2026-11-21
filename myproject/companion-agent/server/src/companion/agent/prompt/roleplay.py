@@ -99,6 +99,7 @@ def build_prompt_plan(
     recent_texts: tuple[str, ...] = (),
     memory_block: str = "",
     persona_block: str = "",
+    relationship_block: str = "",
     author_note: AuthorNote | None = None,
     budget: PromptBudget = PromptBudget(),
 ) -> PromptPlan:
@@ -125,10 +126,13 @@ def build_prompt_plan(
     persona = persona_block.strip()
     if len(persona) > budget.persona_chars:
         persona = ""
+    # 关系段在渲染时就是 ≤200 字的一小段；这里兜底截断，超长说明渲染端出了问题，宁缺毋滥
+    relationship = relationship_block.strip()[:200]
 
-    optional = {"examples": examples, "lore": before + after, "memory": memory, "persona": persona}
+    optional = {"examples": examples, "lore": before + after, "memory": memory, "persona": persona,
+                "relationship": relationship}
     dropped: list[str] = []
-    for name in ("examples", "lore", "memory", "persona"):  # 超预算时的丢弃顺序：画像最后丢
+    for name in ("examples", "lore", "memory", "relationship", "persona"):  # 超预算时的丢弃顺序：画像最后丢
         if mandatory + sum(len(v) for v in optional.values()) <= budget.system_chars:
             break
         if optional[name]:
@@ -150,6 +154,9 @@ def build_prompt_plan(
     # 「你了解这位用户的事」，而不是「闲聊就回 2–4 句」——约束被数据块稀释掉了。
     if optional["persona"]:
         parts.append(f"{T.PERSONA_HEADER}\n\n{T.PERSONA_GUIDE}\n\n{optional['persona']}")
+    # 关系与画像同属「数据」：紧挨着放，都是关于「他」的参考，不是指令
+    if optional["relationship"]:
+        parts.append(f"{T.RELATIONSHIP_HEADER}\n\n{T.RELATIONSHIP_GUIDE}\n\n{optional['relationship']}")
     if optional["memory"]:
         parts.append(f"{T.PROFILE_HEADER}\n\n{optional['memory']}")
     parts.append(output)
