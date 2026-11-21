@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-output/1",
+  "title": "AgentOutput",
+  "description": "Final structured output of an authoring run (DeerFlow final message or STUB). The worker validates it (rules V1-V8) and compiles it into a v1 DraftProposal; this schema covers the structural part (V1). Rules that need the snapshot (existing ids, no fabricated locator, no KNOWN certainty, ...) are enforced in code.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "task_type", "summary", "items", "unknowns", "human_review_question"],
+  "properties": {
+    "schema": {"const": "agent-output/1"},
+    "task_type": {"enum": ["GAP_ANALYSIS", "ANNOTATION_DRAFT", "SCRIPT_DRAFT", "COMPILE_TRIAGE", "CONTENT_REVIEW"]},
+    "summary": {"type": "string", "minLength": 1, "maxLength": 1500},
+    "items": {"type": "array", "maxItems": 50, "items": {"$ref": "#/$defs/item"}},
+    "unknowns": {"type": "array", "maxItems": 50, "items": {"type": "string"}},
+    "human_review_question": {"type": "string", "minLength": 1, "maxLength": 2000, "description": "Exactly one answerable question (one question mark); checked in code."}
+  },
+  "$defs": {
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "epistemic", "body"],
+      "properties": {
+        "kind": {"enum": ["GAP", "ANNOTATION", "BACKGROUND_NOTE", "SCRIPT_BEAT", "SOURCE_REQUEST", "TRIAGE_ITEM", "REVIEW_FINDING"]},
+        "epistemic": {"enum": ["FACT_REQUEST", "INTERPRETATION", "DRAMATIZATION", "DRAFT_TEXT", "UNKNOWN"]},
+        "target_ref": {"type": ["string", "null"], "maxLength": 256, "description": "line:<version_id>#<line_seq> | claim:<id> | background:<id> | annotation:<id> | version:<id> | source:<id> | work:<id> | null; must resolve in the snapshot."},
+        "body": {"type": "string", "minLength": 1, "maxLength": 7000},
+        "evidence_refs": {"type": "array", "maxItems": 20, "items": {"type": "string"}, "description": "Ids that exist in the snapshot."},
+        "severity": {"enum": ["HIGH", "MEDIUM", "LOW", null]},
+        "annotation": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/annotation"}], "description": "Only for kind=ANNOTATION with epistemic INTERPRETATION or DRAFT_TEXT; never for FACT_REQUEST."},
+        "source_request": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/source_request"}], "description": "Required for epistemic=FACT_REQUEST (kind=SOURCE_REQUEST), forbidden otherwise."}
+      }
+    },
+    "annotation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version_id", "line_seq", "annotation_kind", "audience", "content", "certainty"],
+      "properties": {
+        "version_id": {"type": "string", "minLength": 1, "maxLength": 64},
+        "line_seq": {"type": "integer", "minimum": 1},
+        "annotation_kind": {"enum": ["WORD", "PHRASE", "ALLUSION", "IMAGE", "RHYME", "OTHER"]},
+        "audience": {"enum": ["PRIMARY", "JUNIOR", "SENIOR"]},
+        "content": {"type": "string", "minLength": 1, "maxLength": 8000},
+        "claim_value": {"type": ["string", "null"], "maxLength": 8000, "description": "Defaults to content when absent."},
+        "certainty": {"enum": ["LIKELY", "DISPUTED", "UNKNOWN"], "description": "KNOWN is refused (V4)."},
+        "source_id": {"type": ["string", "null"], "maxLength": 64},
+        "locator": {"type": "null", "description": "Always null: only a human reviewer fills a locator."}
+      }
+    },
+    "source_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["what_to_verify"],
+      "properties": {
+        "claim_ref": {"type": ["string", "null"], "maxLength": 128},
+        "what_to_verify": {"type": "string", "minLength": 1, "maxLength": 2000},
+        "suggested_source_kind": {"enum": ["OFFICIAL_HISTORY", "YEAR_BOOK", "ANTHOLOGY", "TEXTBOOK", "MODERN_STUDY", "DIGITIZED_TEXT", "ONLINE_ENTRY", "OTHER", null]},
+        "suggested_source_title": {"type": ["string", "null"], "maxLength": 300},
+        "locator": {"type": "null", "description": "Always null."}
+      }
+    }
+  }
+}

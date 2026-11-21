@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "task_id": "a-nar-arrive-scene-sub",
+  "delivered_at": "2026-11-06T15:36:38.745Z",
+  "author": "placeholder-generator",
+  "rights": {
+    "origin": "由 bundle 台词派生,时间轴按占位音频时长分配",
+    "license": "自有占位,不可上线",
+    "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+    "human_fix": false,
+    "author": "placeholder-generator",
+    "evidence": [],
+    "notes": "占位素材,代码生成,不可上线。"
+  },
+  "placeholder": true,
+  "notes": "占位:让学生端先跑通。正式素材交付后会以同一 asset_id 替换。"
+}

@@ -1,0 +1,178 @@
+{
+  "schema": "chronology-work-links/1",
+  "subject": {
+    "work_id": "work-chun-wang",
+    "person_id": "person-du-fu",
+    "theme_id": "theme-anshi-rebellion",
+    "events": {
+      "rebellion": "event-anshi-rebellion",
+      "capture": "event-chang-an-capture",
+      "experience": "exp-du-fu-chang-an-757"
+    }
+  },
+  "provenance": {
+    "method": {
+      "snapshot_rule": "引文由脚本对 /tmp/src-dl 的维基文库 wikitext 快照做唯一锚点切片，与快照逐字节一致；{{YL|}}、{{SK notes|}} 等录入标记原样保留",
+      "date_rule": "年号换算只引用 tang-eras.json（至德 756–757：至德元载=756、至德二载=757），换算说明写进 locator，不改写证据句",
+      "single_note_rule": "《杜诗详注》引「鹤注」是单源注本：春望 757 系年因此仍是 DISPUTED（758 一说至今没有任何来源，两说并存的现状不变）；757 与 758 都落在安史之乱 755–763 区间内，所以「写于安史乱中」这条挂接不受系年分歧影响",
+      "certainty_rule": "两个独立来源一致才升 KNOWN（陷长安 756：旧唐书·杜甫传天宝十五载 + 通鉴卷218 至德元年带公元年标题）；注本单源、或结论建立在 DISPUTED 系年之上的一律 LIKELY"
+    },
+    "snapshots": {
+      "qss04": {
+        "page": "杜詩詳註 (四庫全書本)/巻四",
+        "file": "qss-卷04.txt"
+      },
+      "tj218": {
+        "page": "資治通鑑/卷218",
+        "file": "tongjian/tj-218.txt"
+      },
+      "xts201": {
+        "page": "新唐書/卷201",
+        "file": "xts-卷201.txt"
+      }
+    }
+  },
+  "quotes": {
+    "note_full": {
+      "src": "qss04",
+      "quote": "春望{{SK notes|鶴注此當是{{YL|至德二載}}三月䧟賊營時所作三月者指季春三月趙氏謂禄山反於天寳十四載之十一月至次年正月為三月失於不考耳　顧宸云十五年正月明皇在長安六月始幸蜀安得謂之破是時公移家在奉先五月方入鄜州道路未嘗隔絶安得云家書抵萬金當從鶴説為正"
+    },
+    "note_short": {
+      "src": "qss04",
+      "quote": "春望{{SK notes|鶴注此當是{{YL|至德二載}}三月䧟賊營時所作"
+    },
+    "tj_year": {
+      "src": "tj218",
+      "quote": "肅宗文明武德大聖大宣孝皇帝上之下至德元年（丙申，公元七五六年）"
+    },
+    "tj_ev": {
+      "src": "tj218",
+      "quote": "安祿山不意上遽西幸，遣使止崔乾祐兵留潼關，凡十日，乃遣孫孝哲將兵入長安，以張通儒為西京留守，崔光遠為京兆尹"
+    },
+    "xts_capture": {
+      "src": "xts201",
+      "quote": "肅宗立，自鄜州羸服欲奔行在，為賊所得"
+    },
+    "poem8": {
+      "src": "v011",
+      "quote": "春望　杜甫：國破山河在，城春草木深。感時花濺淚，恨別鳥驚心。烽火連三月，家書抵萬金。白頭搔更短，渾欲不勝簪。"
+    }
+  },
+  "note_chars": {
+    "note_full": 132,
+    "note_short": 37
+  },
+  "updates": {
+    "source_title": {
+      "id": "source-zizhi-tongjian-events",
+      "old_title": "《資治通鑑》唐紀（大事件用：卷222、254）",
+      "new_title": "《資治通鑑》唐紀（大事件用：卷218、222、254）",
+      "why": "本迁移在同一个通鉴来源上增引卷218；沿用同一版次，不另开来源行"
+    },
+    "citation_swaps": [
+      {
+        "claim_id": "claim-chun-wang-time-757",
+        "placeholder_source": "source-dufu-nianpu-candidate",
+        "new_source": "source-dushi-xiangzhu",
+        "new_locator": "卷四·春望·鶴注（至德二載=757，由年表換算；同一條注內顧宸異議與「當從鶴説為正」並存，單源注本，故係年仍 DISPUTED）",
+        "quote_key": "note_full",
+        "why": "V004 占位「待人工核对：系年于至德二载的年谱与页码」换成真实定位与逐字原文",
+        "old_locator": "待人工核对：系年于至德二载的年谱与页码"
+      },
+      {
+        "claim_id": "claim-exp-757-time",
+        "placeholder_source": "source-dufu-nianpu-candidate",
+        "new_source": "source-dushi-xiangzhu",
+        "new_locator": "卷四·春望·鶴注（「陷賊營時所作」：人在賊佔長安的注本依據；至德二載=757，由年表換算）",
+        "quote_key": "note_short",
+        "why": "V004 占位「待人工核对：年谱系年」换成真实定位与逐字原文",
+        "old_locator": "待人工核对：年谱系年"
+      },
+      {
+        "claim_id": "claim-chang-an-capture-time",
+        "placeholder_source": "source-anshi-candidate",
+        "old_locator": "待人工核对：通鉴纪事年月",
+        "new_source": "source-zizhi-tongjian-events",
+        "new_locator": "通鑑卷二百十八·唐紀三十四（卷首注「起柔兆涒灘五月，至九月」；卷內唯一帶公元的年標題）；起點年標題與入長安句以「……」相連",
+        "why": "为 V015 明言「本轮没有句子」的陷长安年份补上带公元纪年的纪事句；同时替换 V004 在同一断言上指向通鉴的占位行（占位问的正是这个年月）",
+        "quote_keys": [
+          "tj_year",
+          "tj_ev"
+        ]
+      }
+    ],
+    "certainty_upgrades": [
+      {
+        "claim_id": "claim-chang-an-capture-time",
+        "from": "LIKELY",
+        "to": "KNOWN",
+        "why": "756 年由两个独立来源一致：旧唐书·杜甫传「十五載，禄山䧞京師」（V011 已引，天宝十五载=756）+ 通鉴卷218「至德元年（丙申，公元七五六年）」年标题下的入长安句"
+      }
+    ]
+  },
+  "citation_inserts": [
+    {
+      "claim_id": "claim-exp-757-time",
+      "source_id": "source-dufu-zhuan-candidate",
+      "locator": "卷二百一·文藝上·杜甫传（肅宗立于至德元載=756，由年表換算；為賊所得與鹤注「陷賊營」互为呼应）",
+      "quote_keys": [
+        "xts_capture"
+      ],
+      "why": "困居贼占长安的两史依据之一（另一条是本传「十五載，禄山䧞京師…宵遁赴河西」，已在 V011 引于处境背景）"
+    }
+  ],
+  "claims": [
+    {
+      "id": "claim-chun-wang-in-anshi",
+      "subject_id": "work-chun-wang",
+      "property_key": "event.name",
+      "value_text": "安史之亂（755–763）。757 與 758 兩說年份均落在亂期內，本掛接不受係年分歧影響；鶴注「陷賊營時所作」與詩中「國破」「烽火連三月」為亂中語境依據",
+      "claim_kind": "FACT",
+      "certainty": "LIKELY",
+      "selection": true,
+      "relation": {
+        "id": "rel-work-chun-wang-written-during-anshi",
+        "predicate": "written_during",
+        "object_id": "event-anshi-rebellion"
+      },
+      "citations": [
+        {
+          "source_id": "source-dushi-xiangzhu",
+          "locator": "卷四·春望·鶴注（「陷賊營時所作」；至德二載=757，由年表換算）",
+          "quote_keys": [
+            "note_full"
+          ]
+        },
+        {
+          "source_id": "source-quantangshi-224",
+          "locator": "卷二百二十四·杜甫·春望（「國破」「烽火連三月」為本詩內證）",
+          "quote_keys": [
+            "poem8"
+          ]
+        }
+      ]
+    }
+  ],
+  "new_sources": [
+    {
+      "id": "source-dushi-xiangzhu",
+      "title": "《杜詩詳註》卷四（清仇兆鰲注，引宋鶴注系年）",
+      "author": "仇兆鰲",
+      "edition": "欽定四庫全書本（维基文库录入本，页面标注需据扫描版校对；{{YL|}}、{{SK notes|}} 等录入标记在引文中原样保留）",
+      "url": "https://zh.wikisource.org/wiki/杜詩詳註_(四庫全書本)/卷04",
+      "rights_note": "公有领域古籍。系年依据是仇注所引宋人黄鹤注，属注本单源：只用于登记「系年于至德二载」一说有出处，不用于裁决两说。reliability 不代表已核验。",
+      "verification_status": "PENDING",
+      "source_kind": "YEAR_BOOK",
+      "reliability": "MEDIUM"
+    }
+  ],
+  "gap": {
+    "id": "gap-chunwang-dating-open",
+    "status": "OPEN",
+    "facts": [
+      "鹤注（杜诗详注卷四）支持至德二载=757；同一注条内顾宸逐点反驳并主张别解，末附「當從鶴説為正」是仇兆鰲的取舍，不是史裁",
+      "758 一说自 V004 起就没有任何来源，本轮仍未找到任何支持它的材料"
+    ],
+    "open_question": "春望到底系于 757 还是 758：需要能独立于鹤注的系年材料（年谱原本或更早总集题注）才能裁决；裁决前两说并存、相关 claim 保持 DISPUTED"
+  }
+}

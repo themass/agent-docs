@@ -1,0 +1,39 @@
+# DeerFlow 自定义 agent 配置。字段以 deerflow/config/agents_config.py:207-248 的 AgentConfig 为准
+# (agent 目录由 compose 挂载到 {DEER_FLOW_HOME}/agents/poetry-editor-lead/,读取路径见
+#  config/paths.py:208-236 与 persistence/agents/file.py:46-59; assistant_id 经 gateway/services.py:1311-1325
+#  规范化后作为 agent_name)。
+name: poetry-editor-lead
+display_name: 诗词总编
+description: 受治理的诗词内容生产 Agent;只读取快照与缺口报告,在最后一条消息输出供人审核的 agent-output/1。
+
+# 模型选择: 默认用 models 里的第一条 (poetry-primary)。DeerFlow 2.2.0 没有自动回退到备用模型的机制;
+# 需要用备用模型时由 worker 在 run 的 context 里传 model_name: poetry-fallback
+# (lead_agent/agent.py:1050-1062: 请求 > agent 配置 > 全局默认)。不在这里写死 model,以便请求可覆盖。
+
+# 只开放文件只读组(read_file,用于加载 skill)。MCP 工具不受 tool_groups 过滤,由 mcp_plugins 限定。
+tool_groups:
+  - file:read
+
+# skills 白名单(None=全部, []=无): 五个任务 skill
+skills:
+  - authoring-orchestrator
+  - poem-gap-analysis
+  - annotation-design
+  - scene-script-draft
+  - compile-triage
+  - content-review
+
+# MCP 按"安装 ID"选择(capabilities/runtime.py:11-17: 取 extensions_config.json 里 server.capability.id)
+mcp_plugins:
+  - poetry-domain-mcp-v1
+
+allowed_subagents: [] # 明确禁止子 agent (agent.py:1004: 空列表是硬拒绝)
+
+model_settings:
+  temperature: 0.2 # 内容生产要稳定,不要发散
+  max_tokens: 8192
+
+# 不启用 thinking: 网关对 extra_body.thinking 的支持未经验证,见 config.yaml 模型段说明
+thinking_enabled: false
+
+memory_enabled: false # 关闭所有记忆路径(AgentConfig.memory_enabled)

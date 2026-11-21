@@ -1,0 +1,87 @@
+{
+  "results": {
+    "items": [
+      {
+        "id": "dynasty-tang",
+        "entityType": "DYNASTY",
+        "slug": "tang",
+        "title": "唐",
+        "summary": "待核查：朝代时间范围与背景。",
+        "startYear": 618,
+        "endYear": 907,
+        "timePrecision": "RANGE",
+        "revision": 1
+      },
+      {
+        "id": "event-anshi-rebellion",
+        "entityType": "EVENT",
+        "slug": "anshi-rebellion",
+        "title": "安史之乱",
+        "summary": "待核查：起讫年份采用通行说，需史源定位。",
+        "startYear": 755,
+        "endYear": 763,
+        "timePrecision": "RANGE",
+        "revision": 1
+      },
+      {
+        "id": "event-chang-an-capture",
+        "entityType": "EVENT",
+        "slug": "chang-an-capture",
+        "title": "叛军陷长安",
+        "summary": "待核查：具体月份与史料表述需核对。",
+        "startYear": 756,
+        "endYear": 756,
+        "timePrecision": "EXACT",
+        "revision": 1
+      },
+      {
+        "id": "person-du-fu",
+        "entityType": "PERSON",
+        "slug": "du-fu",
+        "title": "杜甫",
+        "summary": "待核查：生平、年谱与相关史料。",
+        "startYear": 712,
+        "endYear": 770,
+        "timePrecision": "APPROXIMATE",
+        "revision": 1
+      },
+      {
+        "id": "work-chun-wang",
+        "entityType": "WORK",
+        "slug": "chun-wang",
+        "title": "春望",
+        "summary": "待核查：作者归属、文本版本、写作时地与解释依据。",
+        "startYear": 757,
+        "endYear": 757,
+        "timePrecision": "EXACT",
+        "revision": 1
+      }
+    ],
+    "limit": 50,
+    "offset": 0,
+    "hasMore": false
+  },
+  "coverage": [
+    {
+      "id": "cov-person-700-780",
+      "entityType": "PERSON",
+      "fromYear": 700,
+      "toYear": 780,
+      "coverageKind": "PARTIAL",
+      "note": "唐代诗人只录入个位数。"
+    },
+    {
+      "id": "cov-work-755-760",
+      "entityType": "WORK",
+      "fromYear": 755,
+      "toYear": 760,
+      "coverageKind": "PARTIAL",
+      "note": "当前只录入极小样本；空白只代表尚未覆盖，不代表这段时间没有作品。"
+    }
+  ],
+  "includesUnknownDates": false,
+  "coverageNotice": "仅展示当前已发布且有年代范围的内容；空白代表尚未覆盖，不代表历史上不存在。年代不可考的内容请通过目录查询。",
+  "lessonWorkIds": [
+    "work-chun-wang"
+  ]
+}

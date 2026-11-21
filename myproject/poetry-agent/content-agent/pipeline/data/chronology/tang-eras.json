@@ -1,0 +1,1516 @@
+{
+  "schema": "chronology-eras/1",
+  "dynasty": "tang",
+  "provenance": {
+    "annals": {
+      "title": "《舊唐書》本紀",
+      "url_pattern": "https://zh.wikisource.org/wiki/舊唐書/卷{n}",
+      "volumes": [
+        "卷1",
+        "卷2",
+        "卷3",
+        "卷4",
+        "卷5",
+        "卷6",
+        "卷7",
+        "卷8",
+        "卷9",
+        "卷10",
+        "卷11",
+        "卷12",
+        "卷13",
+        "卷14",
+        "卷15",
+        "卷16",
+        "卷17上",
+        "卷17下",
+        "卷18上",
+        "卷18下",
+        "卷19上",
+        "卷19下",
+        "卷20上",
+        "卷20下"
+      ],
+      "fetched": "2026-11-18",
+      "notes": "维基文库 raw wikitext（action=raw）。录入本多处标注未校对；年号标题取 ==…== / ===…=== 节题，贞元四年、二十一年取卷13/14 正文岁首句。"
+    },
+    "method": {
+      "anchors": {
+        "武德1": 618,
+        "貞觀23": 649,
+        "天寶1": 742,
+        "天寶15": 756,
+        "至德1": 756,
+        "天祐1": 904,
+        "天祐4": 907,
+        "光宅1": 684,
+        "天授1": 690,
+        "神龍1": 705,
+        "開元1": 713,
+        "廣德1": 763,
+        "建中1": 780,
+        "元和1": 806,
+        "光化1": 898
+      },
+      "same_year_rule": "只有『改元』写在上一个年号正文里，或旧年号已起算下一年再改元（旧 n+1 年…改元），才能判定与相邻年号的公历关系。新年号节内的年中改元（二月及以后）对『是否等于上一个年号最后一年』无充分信息，标为 ambiguous，不拿来推年。",
+      "default_when_no_phrase": "相邻年号之间找不到改元句时，暂按『下一年』接龙，置信度为 low；只有整段能接到锚点且不与锚点冲突时，才写入 eras。",
+      "builder": "build_eras.py（输入 /tmp/src-dl/jts-卷*.txt）",
+      "tongjian_role": "武周至先天、中晚唐：公历年取通鉴年标题（缺题年份按相邻年序补）；改元同异年关系仍按旧唐书 same_year_rule。"
+    },
+    "rulers_file": "tang-rulers.json",
+    "tongjian": {
+      "title": "《資治通鑑》唐紀",
+      "url_pattern": "https://zh.wikisource.org/wiki/資治通鑑/卷{n}",
+      "volumes": [
+        "卷203",
+        "卷204",
+        "卷205",
+        "卷206",
+        "卷207",
+        "卷208",
+        "卷209",
+        "卷210",
+        "卷211",
+        "卷212",
+        "卷213",
+        "卷214",
+        "卷215",
+        "卷216",
+        "卷217",
+        "卷218",
+        "卷219",
+        "卷220",
+        "卷221",
+        "卷222",
+        "卷223",
+        "卷224",
+        "卷225",
+        "卷226",
+        "卷227",
+        "卷228",
+        "卷229",
+        "卷230",
+        "卷231",
+        "卷232",
+        "卷233",
+        "卷234",
+        "卷235",
+        "卷236",
+        "卷237",
+        "卷238",
+        "卷239",
+        "卷240",
+        "卷241",
+        "卷242",
+        "卷243",
+        "卷244",
+        "卷245",
+        "卷246",
+        "卷247",
+        "卷248",
+        "卷249",
+        "卷250",
+        "卷251",
+        "卷252",
+        "卷253",
+        "卷254",
+        "卷255",
+        "卷256",
+        "卷257",
+        "卷258",
+        "卷259",
+        "卷260",
+        "卷261",
+        "卷262",
+        "卷263",
+        "卷264",
+        "卷265"
+      ],
+      "fetched": "2026-11-19",
+      "notes": "维基文库 raw wikitext。年标题自带公元/西元；武周–先天与中晚唐公历均取此。少数年份（元和元–三、大和三–七、开成三–五、会昌元–二、咸通十一–十四、乾符元–三、中和三）卷面缺标题，由相邻通鉴年序补。"
+    }
+  },
+  "eras": [
+    {
+      "seq": 1,
+      "name": "武德",
+      "start": 618,
+      "end": 626,
+      "max_n": 9,
+      "vols": [
+        "卷1"
+      ],
+      "ruler": "高祖",
+      "confidence": "anchor-chain",
+      "status": "verified"
+    },
+    {
+      "seq": 2,
+      "name": "貞觀",
+      "start": 627,
+      "end": 649,
+      "max_n": 23,
+      "vols": [
+        "卷2",
+        "卷3"
+      ],
+      "ruler": "太宗",
+      "confidence": "anchor-chain",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "正月改元（贞观元年节）",
+        "confidence": "high"
+      }
+    },
+    {
+      "seq": 3,
+      "name": "永徽",
+      "start": 650,
+      "end": 655,
+      "max_n": 6,
+      "vols": [
+        "卷4"
+      ],
+      "ruler": "高宗",
+      "confidence": "anchor-chain",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "永徽元年春正月…詔改元",
+        "confidence": "high"
+      }
+    },
+    {
+      "seq": 4,
+      "name": "顯慶",
+      "start": 656,
+      "end": 660,
+      "max_n": 5,
+      "vols": [
+        "卷4"
+      ],
+      "ruler": "高宗",
+      "confidence": "anchor-chain",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "七年…改元為顯慶（永徽七年=显庆元年）",
+        "confidence": "high"
+      }
+    },
+    {
+      "seq": 5,
+      "name": "龍朔",
+      "start": 661,
+      "end": 663,
+      "max_n": 3,
+      "vols": [
+        "卷4"
+      ],
+      "ruler": "高宗",
+      "confidence": "anchor-chain",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "龍朔元年…改元（正月）",
+        "confidence": "high"
+      }
+    },
+    {
+      "seq": 6,
+      "name": "麟德",
+      "start": 664,
+      "end": 665,
+      "max_n": 2,
+      "vols": [
+        "卷4"
+      ],
+      "ruler": "高宗",
+      "confidence": "derived-low",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "无改元句，按明年默认；整段接到贞观二十三年=649 与弘道元年=683 两个已核锚",
+        "confidence": "low"
+      }
+    },
+    {
+      "seq": 7,
+      "name": "乾封",
+      "start": 666,
+      "end": 667,
+      "max_n": 2,
+      "vols": [
+        "卷5"
+      ],
+      "ruler": "高宗",
+      "confidence": "derived-low",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "无改元句，按明年默认",
+        "confidence": "low"
+      }
+    },
+    {
+      "seq": 8,
+      "name": "總章",
+      "start": 668,
+      "end": 669,
+      "max_n": 2,
+      "vols": [
+        "卷5"
+      ],
+      "ruler": "高宗",
+      "confidence": "anchor-chain",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "三年…改元為總章（乾封三年=总章元年）",
+        "confidence": "high"
+      }
+    },
+    {
+      "seq": 9,
+      "name": "咸亨",
+      "start": 670,
+      "end": 673,
+      "max_n": 4,
+      "vols": [
+        "卷5"
+      ],
+      "ruler": "高宗",
+      "confidence": "anchor-chain",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "三年…改元（总章三年=咸亨元年）",
+        "confidence": "high"
+      }
+    },
+    {
+      "seq": 10,
+      "name": "上元",
+      "disambiguation": "高宗",
+      "start": 674,
+      "end": 675,
+      "max_n": 2,
+      "vols": [
+        "卷5"
+      ],
+      "ruler": "高宗",
+      "confidence": "derived-low",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "无改元句，按明年默认",
+        "confidence": "low"
+      }
+    },
+    {
+      "seq": 11,
+      "name": "儀鳳",
+      "start": 676,
+      "end": 678,
+      "max_n": 3,
+      "vols": [
+        "卷5"
+      ],
+      "ruler": "高宗",
+      "confidence": "derived-low",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "无改元句，按明年默认",
+        "confidence": "low"
+      }
+    },
+    {
+      "seq": 12,
+      "name": "調露",
+      "start": 679,
+      "end": 679,
+      "max_n": 1,
+      "vols": [
+        "卷5"
+      ],
+      "ruler": "高宗",
+      "confidence": "derived-low",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "无改元句，按明年默认",
+        "confidence": "low"
+      }
+    },
+    {
+      "seq": 13,
+      "name": "永隆",
+      "start": 680,
+      "end": 680,
+      "max_n": 1,
+      "vols": [
+        "卷5"
+      ],
+      "ruler": "高宗",
+      "confidence": "derived-low",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "无改元句，按明年默认",
+        "confidence": "low"
+      }
+    },
+    {
+      "seq": 14,
+      "name": "開耀",
+      "start": 681,
+      "end": 681,
+      "max_n": 1,
+      "vols": [
+        "卷5"
+      ],
+      "ruler": "高宗",
+      "confidence": "derived-low",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "无改元句，按明年默认",
+        "confidence": "low"
+      }
+    },
+    {
+      "seq": 15,
+      "name": "永淳",
+      "start": 682,
+      "end": 682,
+      "max_n": 1,
+      "vols": [
+        "卷5"
+      ],
+      "ruler": "高宗",
+      "confidence": "derived-low",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "无改元句，按明年默认",
+        "confidence": "low"
+      }
+    },
+    {
+      "seq": 16,
+      "name": "弘道",
+      "start": 683,
+      "end": 683,
+      "max_n": 1,
+      "vols": [
+        "卷5",
+        "卷6"
+      ],
+      "ruler": "高宗",
+      "confidence": "anchor-chain",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "无改元句，按明年默认；结果与已核『弘道元年=683』一致",
+        "confidence": "low"
+      },
+      "notes": "卷6：『弘道元年十二月丁巳，大帝崩，皇太子顯即位』。与 tang-rulers 中宗 684 的缺口见该文件 boundary_before。"
+    },
+    {
+      "name": "嗣聖",
+      "start": 684,
+      "end": 684,
+      "max_n": 1,
+      "vols": [
+        "卷6",
+        "卷7"
+      ],
+      "ruler": "中宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "通鉴卷203光宅元年条：春正月甲申朔改元嗣聖；旧唐书卷6光宅元年节首同",
+        "confidence": "high"
+      },
+      "notes": "与文明、光宅同一公历年。通鉴将该年标题作光宅元年（公元六八四年）。",
+      "seq": 17
+    },
+    {
+      "name": "文明",
+      "start": 684,
+      "end": 684,
+      "max_n": 1,
+      "vols": [
+        "卷6"
+      ],
+      "ruler": "睿宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": true,
+        "evidence": "旧唐书卷6：二月…改元文明（嗣圣年内）",
+        "confidence": "high"
+      },
+      "notes": "中宗被废、睿宗即位当年；九月再改光宅。",
+      "seq": 18
+    },
+    {
+      "name": "光宅",
+      "start": 684,
+      "end": 684,
+      "max_n": 1,
+      "vols": [
+        "卷6"
+      ],
+      "ruler": "武后",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": true,
+        "evidence": "旧唐书卷6：九月…改元為光宅；通鉴卷203标题光宅元年=684",
+        "confidence": "high"
+      },
+      "seq": 19
+    },
+    {
+      "name": "垂拱",
+      "start": 685,
+      "end": 688,
+      "max_n": 4,
+      "vols": [
+        "卷6"
+      ],
+      "ruler": "武后",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "垂拱元年春正月…改元；通鉴垂拱元年=685至四年=688",
+        "confidence": "high"
+      },
+      "seq": 20
+    },
+    {
+      "name": "永昌",
+      "start": 689,
+      "end": 689,
+      "max_n": 1,
+      "vols": [
+        "卷6"
+      ],
+      "ruler": "武后",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "永昌元年春正月…改元；通鉴永昌元年=689",
+        "confidence": "high"
+      },
+      "seq": 21
+    },
+    {
+      "name": "載初",
+      "start": 690,
+      "end": 690,
+      "max_n": 1,
+      "vols": [
+        "卷6"
+      ],
+      "ruler": "武后",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "旧唐书卷6天授元年节：改永昌元年十一月為載初元年正月（周正）；通鉴以天授元年=690统摄该年",
+        "confidence": "medium"
+      },
+      "notes": "周正建子：载初与天授同一公历年（690）。九月改国号周、改元天授。",
+      "seq": 22
+    },
+    {
+      "name": "天授",
+      "start": 690,
+      "end": 692,
+      "max_n": 3,
+      "vols": [
+        "卷6"
+      ],
+      "ruler": "武后",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": true,
+        "evidence": "九月九日…改元為天授；通鉴天授元年=690、二年=691；旧唐书长寿节首『三年』=天授三年",
+        "confidence": "high"
+      },
+      "notes": "天授三年与如意/长寿元年同一公历年692。",
+      "seq": 23
+    },
+    {
+      "name": "如意",
+      "start": 692,
+      "end": 692,
+      "max_n": 1,
+      "vols": [
+        "卷6"
+      ],
+      "ruler": "武后",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": true,
+        "evidence": "旧唐书卷6长寿元年节：四月…改元為如意；通鉴卷205长寿元年条四月改元如意",
+        "confidence": "high"
+      },
+      "seq": 24
+    },
+    {
+      "name": "長壽",
+      "start": 692,
+      "end": 693,
+      "max_n": 2,
+      "vols": [
+        "卷6"
+      ],
+      "ruler": "武后",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": true,
+        "evidence": "九月…改元為長壽；通鉴长寿元年=692、二年=693",
+        "confidence": "high"
+      },
+      "seq": 25
+    },
+    {
+      "name": "延載",
+      "start": 694,
+      "end": 694,
+      "max_n": 1,
+      "vols": [
+        "卷6"
+      ],
+      "ruler": "武后",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "旧唐书延载元年节首『三年』…五月改元為延載（长寿三年）；通鉴延载元年=694",
+        "confidence": "high"
+      },
+      "seq": 26
+    },
+    {
+      "name": "證聖",
+      "start": 695,
+      "end": 695,
+      "max_n": 1,
+      "vols": [
+        "卷6"
+      ],
+      "ruler": "武后",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "天册万岁元年节首：證聖元年春一月…改元；通鉴天册万岁元年=695条正月改元证圣",
+        "confidence": "high"
+      },
+      "seq": 27
+    },
+    {
+      "name": "天冊萬歲",
+      "start": 695,
+      "end": 695,
+      "max_n": 1,
+      "vols": [
+        "卷6"
+      ],
+      "ruler": "武后",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": true,
+        "evidence": "秋九月…改元為天冊萬歲；通鉴该年标题天册万岁元年=695",
+        "confidence": "high"
+      },
+      "seq": 28
+    },
+    {
+      "name": "萬歲登封",
+      "start": 696,
+      "end": 696,
+      "max_n": 1,
+      "vols": [
+        "卷6"
+      ],
+      "ruler": "武后",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "万岁通天元年节首：萬歲登封元年臘月…改元；通鉴万岁通天元年=696",
+        "confidence": "high"
+      },
+      "notes": "腊月登封改元；同年夏四月改万岁通天。与万岁通天同一公历年。",
+      "seq": 29
+    },
+    {
+      "name": "萬歲通天",
+      "start": 696,
+      "end": 697,
+      "max_n": 2,
+      "vols": [
+        "卷6"
+      ],
+      "ruler": "武后",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": true,
+        "evidence": "夏四月…改元為萬歲通天；通鉴万岁通天元年=696；神功节『二年』九月改神功",
+        "confidence": "high"
+      },
+      "seq": 30
+    },
+    {
+      "name": "神功",
+      "start": 697,
+      "end": 697,
+      "max_n": 1,
+      "vols": [
+        "卷6"
+      ],
+      "ruler": "武后",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": true,
+        "evidence": "九月…改元為神功；通鉴神功元年=697",
+        "confidence": "high"
+      },
+      "seq": 31
+    },
+    {
+      "name": "聖歷",
+      "start": 698,
+      "end": 700,
+      "max_n": 3,
+      "vols": [
+        "卷6"
+      ],
+      "ruler": "武后",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "聖歷元年正月…改元；通鉴圣历元年=698、二年=699；久视节首『三年』五月改久视",
+        "confidence": "high"
+      },
+      "seq": 32
+    },
+    {
+      "name": "久視",
+      "start": 700,
+      "end": 700,
+      "max_n": 1,
+      "vols": [
+        "卷6"
+      ],
+      "ruler": "武后",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": true,
+        "evidence": "五月…改元為久視；通鉴久视元年=700",
+        "confidence": "high"
+      },
+      "seq": 33
+    },
+    {
+      "name": "大足",
+      "start": 701,
+      "end": 701,
+      "max_n": 1,
+      "vols": [
+        "卷6"
+      ],
+      "ruler": "武后",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "长安元年节首：大足元年春正月制改元；通鉴长安元年=701条正月改元大足",
+        "confidence": "high"
+      },
+      "seq": 34
+    },
+    {
+      "name": "長安",
+      "start": 701,
+      "end": 704,
+      "max_n": 4,
+      "vols": [
+        "卷6"
+      ],
+      "ruler": "武后",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": true,
+        "evidence": "冬十月…改元為長安；通鉴长安元年=701至四年=704",
+        "confidence": "high"
+      },
+      "seq": 35
+    },
+    {
+      "name": "神龍",
+      "start": 705,
+      "end": 707,
+      "max_n": 3,
+      "vols": [
+        "卷6",
+        "卷7"
+      ],
+      "ruler": "中宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "神龍元年春正月…改元；通鉴神龙元年=705、二年=706；景龙节首『三年』九月改景龙",
+        "confidence": "high"
+      },
+      "notes": "正月中宗复位。神龙三年与景龙元年同一公历年707。",
+      "seq": 36
+    },
+    {
+      "name": "景龍",
+      "start": 707,
+      "end": 710,
+      "max_n": 4,
+      "vols": [
+        "卷7"
+      ],
+      "ruler": "中宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": true,
+        "evidence": "九月…改元為景龍；通鉴景龙元年=707、二年=708、三年=709；四年夏改唐隆/景云",
+        "confidence": "high"
+      },
+      "seq": 37
+    },
+    {
+      "name": "唐隆",
+      "start": 710,
+      "end": 710,
+      "max_n": 1,
+      "vols": [
+        "卷7"
+      ],
+      "ruler": "中宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": true,
+        "evidence": "景龙四年…改元為唐隆；通鉴景云元年=710",
+        "confidence": "high"
+      },
+      "notes": "中宗崩后韦后临朝所用；旋改景云。与景云元年同一公历年。",
+      "seq": 38
+    },
+    {
+      "name": "景雲",
+      "start": 710,
+      "end": 712,
+      "max_n": 3,
+      "vols": [
+        "卷7"
+      ],
+      "ruler": "睿宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": true,
+        "evidence": "旧唐书景云元年节…改元為景雲；通鉴景云元年=710、二年=711；先天节首『三年』改太极",
+        "confidence": "high"
+      },
+      "seq": 39
+    },
+    {
+      "name": "太極",
+      "start": 712,
+      "end": 712,
+      "max_n": 1,
+      "vols": [
+        "卷7"
+      ],
+      "ruler": "睿宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": true,
+        "evidence": "景云三年正月…改元為太極；通鉴先天元年=712",
+        "confidence": "high"
+      },
+      "seq": 40
+    },
+    {
+      "name": "延和",
+      "start": 712,
+      "end": 712,
+      "max_n": 1,
+      "vols": [
+        "卷7"
+      ],
+      "ruler": "睿宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": true,
+        "evidence": "五月…改元為延和；同年八月传位改先天",
+        "confidence": "high"
+      },
+      "seq": 41
+    },
+    {
+      "name": "先天",
+      "start": 712,
+      "end": 713,
+      "max_n": 2,
+      "vols": [
+        "卷7",
+        "卷8"
+      ],
+      "ruler": "睿宗/玄宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": true,
+        "evidence": "八月…改元為先天；通鉴先天元年=712；开元元年十二月改元，先天二年=713",
+        "confidence": "high"
+      },
+      "notes": "先天二年十二月改开元，与开元元年同一公历年713。",
+      "seq": 42
+    },
+    {
+      "seq": 43,
+      "name": "開元",
+      "start": 713,
+      "end": 741,
+      "max_n": 29,
+      "vols": [
+        "卷8",
+        "卷9"
+      ],
+      "ruler": "玄宗",
+      "confidence": "anchor-chain",
+      "status": "verified",
+      "notes": "开元元年=713 与通鉴年标题及先天二年十二月改元一致；并由天寶元年=742 回推：开元二十九年=741。",
+      "transition_from_prev": {
+        "same_year": true,
+        "evidence": "旧唐书卷8开元元年节：先天二年…十二月…改元為開元；通鉴开元元年=713",
+        "confidence": "high"
+      }
+    },
+    {
+      "seq": 44,
+      "name": "天寶",
+      "start": 742,
+      "end": 756,
+      "max_n": 15,
+      "vols": [
+        "卷9"
+      ],
+      "ruler": "玄宗",
+      "confidence": "anchor",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "天寶元年春正月…改元",
+        "confidence": "high"
+      }
+    },
+    {
+      "seq": 45,
+      "name": "至德",
+      "start": 756,
+      "end": 757,
+      "max_n": 2,
+      "vols": [
+        "卷10"
+      ],
+      "ruler": "肃宗",
+      "confidence": "anchor",
+      "status": "verified",
+      "notes": "与天宝十五载同一公历年（七月改元曰至德）。锚点直接写入，不靠『是否等于上一年号末年』的推断。"
+    },
+    {
+      "seq": 46,
+      "name": "乾元",
+      "start": 758,
+      "end": 759,
+      "max_n": 2,
+      "vols": [
+        "卷10"
+      ],
+      "ruler": "肃宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "通鉴乾元元年=758",
+        "confidence": "high"
+      }
+    },
+    {
+      "seq": 47,
+      "name": "上元",
+      "disambiguation": "肃宗",
+      "start": 760,
+      "end": 761,
+      "max_n": 2,
+      "vols": [
+        "卷10"
+      ],
+      "ruler": "肃宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "通鉴上元元年=760",
+        "confidence": "high"
+      }
+    },
+    {
+      "seq": 48,
+      "name": "寶應",
+      "start": 762,
+      "end": 763,
+      "max_n": 2,
+      "vols": [
+        "卷10",
+        "卷11"
+      ],
+      "ruler": "肃宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "无改元句，按明年默认；通鉴上元二年=761→宝应元年=762",
+        "confidence": "high"
+      },
+      "notes": "通鉴宝应元年=762。旧唐书卷11广德元年节：宝应二年秋七月改元曰广德，故宝应二年与广德元年同一公历年763。"
+    },
+    {
+      "name": "廣德",
+      "start": 763,
+      "end": 764,
+      "max_n": 2,
+      "vols": [
+        "卷11"
+      ],
+      "ruler": "代宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": true,
+        "evidence": "旧唐书卷11：宝应二年秋七月…改元曰廣德；通鉴广德元年=763、二年=764",
+        "confidence": "high"
+      },
+      "seq": 49
+    },
+    {
+      "name": "永泰",
+      "start": 765,
+      "end": 765,
+      "max_n": 1,
+      "vols": [
+        "卷11"
+      ],
+      "ruler": "代宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "改廣德三年為永泰元年；通鉴永泰元年=765",
+        "confidence": "high"
+      },
+      "seq": 50
+    },
+    {
+      "name": "大歷",
+      "start": 766,
+      "end": 779,
+      "max_n": 14,
+      "vols": [
+        "卷11",
+        "卷12"
+      ],
+      "ruler": "代宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "通鉴大曆元年=766至十四年=779",
+        "confidence": "high"
+      },
+      "notes": "旧唐书作大歷，通鉴多作大曆；公历取通鉴。",
+      "seq": 51
+    },
+    {
+      "name": "建中",
+      "start": 780,
+      "end": 783,
+      "max_n": 4,
+      "vols": [
+        "卷12"
+      ],
+      "ruler": "德宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "建中元年春正月…政元建中；通鉴建中元年=780（德宗…皇帝一）至四年=783",
+        "confidence": "high"
+      },
+      "seq": 52
+    },
+    {
+      "name": "興元",
+      "start": 784,
+      "end": 784,
+      "max_n": 1,
+      "vols": [
+        "卷12"
+      ],
+      "ruler": "德宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "通鉴兴元元年=784",
+        "confidence": "high"
+      },
+      "seq": 53
+    },
+    {
+      "name": "貞元",
+      "start": 785,
+      "end": 805,
+      "max_n": 21,
+      "vols": [
+        "卷12",
+        "卷13",
+        "卷14"
+      ],
+      "ruler": "德宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "贞元元年正月…改元贞元；通鉴贞元元年=785至二十年=804；二十一年即永贞元年",
+        "confidence": "high"
+      },
+      "notes": "贞元二十一年=805，同年八月改永贞。max_n=21 含与永贞重叠之年。",
+      "seq": 54
+    },
+    {
+      "name": "永貞",
+      "start": 805,
+      "end": 805,
+      "max_n": 1,
+      "vols": [
+        "卷14"
+      ],
+      "ruler": "順宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": true,
+        "evidence": "通鉴永贞元年=805（贞元二十一年改元）",
+        "confidence": "high"
+      },
+      "seq": 55
+    },
+    {
+      "name": "元和",
+      "start": 806,
+      "end": 820,
+      "max_n": 15,
+      "vols": [
+        "卷14",
+        "卷15",
+        "卷16"
+      ],
+      "ruler": "憲宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "旧唐书卷14宪宗纪：改元曰元和；通鉴元和四年=809，回推元年=806；至十五年=820",
+        "confidence": "high"
+      },
+      "notes": "通鉴卷面缺元和元–三年标题，由四年=809与永贞=805相邻回推。",
+      "seq": 56
+    },
+    {
+      "name": "長慶",
+      "start": 821,
+      "end": 824,
+      "max_n": 4,
+      "vols": [
+        "卷16",
+        "卷17上"
+      ],
+      "ruler": "穆宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "长庆元年…改元长庆；通鉴长庆元年=821至四年=824",
+        "confidence": "high"
+      },
+      "seq": 57
+    },
+    {
+      "name": "寶曆",
+      "start": 825,
+      "end": 826,
+      "max_n": 2,
+      "vols": [
+        "卷17上"
+      ],
+      "ruler": "敬宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "宝历元年…改元宝历；通鉴宝历元年=825、二年=826",
+        "confidence": "high"
+      },
+      "seq": 58
+    },
+    {
+      "name": "大和",
+      "start": 827,
+      "end": 835,
+      "max_n": 9,
+      "vols": [
+        "卷17上",
+        "卷17下"
+      ],
+      "ruler": "文宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "大和元年…改元大和；通鉴太和元年=827、二年=828、八年=834、九年=835；三年至七年按序补829–833",
+        "confidence": "high"
+      },
+      "notes": "通鉴写作太和；旧唐书节题作大和。中间三年至七年标题在已取卷中缺失，按年序补公历。",
+      "seq": 59
+    },
+    {
+      "name": "開成",
+      "start": 836,
+      "end": 840,
+      "max_n": 5,
+      "vols": [
+        "卷17下",
+        "卷18上"
+      ],
+      "ruler": "文宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "开成元年正月…改元开成；通鉴开成元年=836、二年=837；三年至五年按序至840",
+        "confidence": "high"
+      },
+      "seq": 60
+    },
+    {
+      "name": "會昌",
+      "start": 841,
+      "end": 846,
+      "max_n": 6,
+      "vols": [
+        "卷18上"
+      ],
+      "ruler": "武宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "会昌元年…改元；通鉴会昌三年=843，回推元年=841；至六年=846",
+        "confidence": "high"
+      },
+      "seq": 61
+    },
+    {
+      "name": "大中",
+      "start": 847,
+      "end": 859,
+      "max_n": 13,
+      "vols": [
+        "卷18下",
+        "卷19上"
+      ],
+      "ruler": "宣宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "大中元年…改元；通鉴大中元年=847至十三年=859",
+        "confidence": "high"
+      },
+      "seq": 62
+    },
+    {
+      "name": "咸通",
+      "start": 860,
+      "end": 873,
+      "max_n": 14,
+      "vols": [
+        "卷19上",
+        "卷19下"
+      ],
+      "ruler": "懿宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "咸通元年十一月…改元；通鉴咸通元年=860至十年=869；十一至十四年按序至873",
+        "confidence": "high"
+      },
+      "seq": 63
+    },
+    {
+      "name": "乾符",
+      "start": 874,
+      "end": 879,
+      "max_n": 6,
+      "vols": [
+        "卷19下"
+      ],
+      "ruler": "僖宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "乾符元年十一月…改元为乾符；通鉴乾符四年=877，回推元年=874；至六年=879",
+        "confidence": "high"
+      },
+      "seq": 64
+    },
+    {
+      "name": "廣明",
+      "start": 880,
+      "end": 880,
+      "max_n": 1,
+      "vols": [
+        "卷19下"
+      ],
+      "ruler": "僖宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "通鉴广明元年=880",
+        "confidence": "high"
+      },
+      "seq": 65
+    },
+    {
+      "name": "中和",
+      "start": 881,
+      "end": 884,
+      "max_n": 4,
+      "vols": [
+        "卷19下"
+      ],
+      "ruler": "僖宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "通鉴中和元年=881、二年=882、四年=884；三年按序883",
+        "confidence": "high"
+      },
+      "seq": 66
+    },
+    {
+      "name": "光啟",
+      "start": 885,
+      "end": 887,
+      "max_n": 3,
+      "vols": [
+        "卷19下"
+      ],
+      "ruler": "僖宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "光启元年三月…改元光启；通鉴光启元年=885至三年=887",
+        "confidence": "high"
+      },
+      "seq": 67
+    },
+    {
+      "name": "文德",
+      "start": 888,
+      "end": 888,
+      "max_n": 1,
+      "vols": [
+        "卷19下",
+        "卷20上"
+      ],
+      "ruler": "僖宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "文德元年…改元文德；通鉴文德元年=888",
+        "confidence": "high"
+      },
+      "seq": 68
+    },
+    {
+      "name": "龍紀",
+      "start": 889,
+      "end": 889,
+      "max_n": 1,
+      "vols": [
+        "卷20上"
+      ],
+      "ruler": "昭宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "龙纪元年正月…改元；通鉴龙纪元年=889",
+        "confidence": "high"
+      },
+      "seq": 69
+    },
+    {
+      "name": "大順",
+      "start": 890,
+      "end": 891,
+      "max_n": 2,
+      "vols": [
+        "卷20上"
+      ],
+      "ruler": "昭宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "大顺元年正月…改元大顺；通鉴大顺元年=890、二年=891",
+        "confidence": "high"
+      },
+      "seq": 70
+    },
+    {
+      "name": "景福",
+      "start": 892,
+      "end": 893,
+      "max_n": 2,
+      "vols": [
+        "卷20上"
+      ],
+      "ruler": "昭宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "景福元年正月…改元景福；通鉴景福元年=892、二年=893",
+        "confidence": "high"
+      },
+      "seq": 71
+    },
+    {
+      "name": "乾寧",
+      "start": 894,
+      "end": 898,
+      "max_n": 5,
+      "vols": [
+        "卷20上"
+      ],
+      "ruler": "昭宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "乾宁元年正月…改元乾宁；通鉴乾宁元年=894至四年=897；五年与光化元年同一公历年898",
+        "confidence": "high"
+      },
+      "notes": "光化元年八月改元；乾宁五年=光化元年。",
+      "seq": 72
+    },
+    {
+      "seq": 73,
+      "name": "光化",
+      "start": 898,
+      "end": 900,
+      "max_n": 3,
+      "vols": [
+        "卷20上"
+      ],
+      "ruler": "昭宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "notes": "与乾宁五年同一公历年。通鉴光化元年=898至三年=900。",
+      "transition_from_prev": {
+        "same_year": true,
+        "evidence": "旧唐书卷20上光化元年：八月…改元光化；通鉴光化元年=898",
+        "confidence": "high"
+      }
+    },
+    {
+      "seq": 74,
+      "name": "天復",
+      "start": 901,
+      "end": 903,
+      "max_n": 3,
+      "vols": [
+        "卷20上"
+      ],
+      "ruler": "昭宗",
+      "confidence": "tongjian-ce",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "改元天復（月份不清，按明年）",
+        "confidence": "medium"
+      }
+    },
+    {
+      "seq": 75,
+      "name": "天祐",
+      "start": 904,
+      "end": 907,
+      "max_n": 4,
+      "vols": [
+        "卷20上",
+        "卷20下"
+      ],
+      "ruler": "昭宗/哀帝",
+      "confidence": "anchor",
+      "status": "verified",
+      "transition_from_prev": {
+        "same_year": false,
+        "evidence": "无改元句，按明年默认；天祐元年/四年为锚点",
+        "confidence": "low"
+      },
+      "notes": "天祐元年=904、四年=907 已在 V013 核过。哀帝用天祐年号至禅位。"
+    }
+  ],
+  "gaps": []
+}

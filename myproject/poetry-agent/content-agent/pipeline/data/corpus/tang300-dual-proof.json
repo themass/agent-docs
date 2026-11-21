@@ -1,0 +1,6827 @@
+[
+  {
+    "title": "在嶽詠蟬",
+    "author": "駱賓王",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第30字 沈≠沉",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "駱賓王"
+    ],
+    "author_poettang": [
+      "駱賓王"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "在獄詠蟬",
+    "quantangshi_volume": "卷七十八",
+    "seq": 1
+  },
+  {
+    "title": "登幽州臺歌",
+    "author": "陳子昂",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "陳子昂"
+    ],
+    "author_poettang": [
+      "陳子昂"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "登幽州台歌",
+    "quantangshi_volume": "卷八十三",
+    "seq": 2
+  },
+  {
+    "title": "經鄒魯祭孔子而歎之",
+    "author": "明皇帝",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：爲/為、栖/棲",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李隆基"
+    ],
+    "author_poettang": [
+      "明皇帝"
+    ],
+    "author_ok": false,
+    "overall": "TEXT_OK_AUTHOR_SPLIT",
+    "matched_yuding_title": "經鄒魯祭孔子而歎之",
+    "quantangshi_volume": "卷三",
+    "seq": 3
+  },
+  {
+    "title": "鼓吹曲辭 將進酒",
+    "author": "李白",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 176≠113，首异在第 56 字（千金散盡… / 岑夫子丹…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "樂府雜曲：鼓吹曲辭：將進酒",
+    "quantangshi_volume": "卷一十七",
+    "seq": 4
+  },
+  {
+    "title": "橫吹曲辭 出塞 一",
+    "author": "王昌齡",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 28≠56，首异在第 29 字（… / 白花垣上…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王昌齡"
+    ],
+    "author_poettang": [
+      "王昌齡"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "橫吹曲辭：出塞",
+    "quantangshi_volume": "卷一十八",
+    "seq": 5
+  },
+  {
+    "title": "橫吹曲辭 出塞",
+    "author": "王之渙",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第23字 風≠光",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王之渙"
+    ],
+    "author_poettang": [
+      "王之渙"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "橫吹曲辭：出塞",
+    "quantangshi_volume": "卷一十八",
+    "seq": 6
+  },
+  {
+    "title": "橫吹曲辭 關山月",
+    "author": "李白",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "橫吹曲辭：關山月",
+    "quantangshi_volume": "卷一十八",
+    "seq": 7
+  },
+  {
+    "title": "新嫁娘詞三首 三",
+    "author": "王建",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "王建"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 8
+  },
+  {
+    "title": "故行宮",
+    "author": "王建",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "元稹",
+      "王建"
+    ],
+    "author_poettang": [
+      "元稹",
+      "王建"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "故行宮",
+    "quantangshi_volume": "卷三百零一",
+    "seq": 9
+  },
+  {
+    "title": "錦瑟",
+    "author": "李商隱",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（望帝春心… / 此情可待…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李商隱"
+    ],
+    "author_poettang": [
+      "李商隱"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "錦瑟",
+    "quantangshi_volume": "卷五百三十九",
+    "seq": 10
+  },
+  {
+    "title": "蟬",
+    "author": "李商隱",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：疎/疏、汎/泛",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李商隱"
+    ],
+    "author_poettang": [
+      "李商隱"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "蟬",
+    "quantangshi_volume": "卷五百三十九",
+    "seq": 11
+  },
+  {
+    "title": "樂遊原",
+    "author": "李商隱",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李商隱"
+    ],
+    "author_poettang": [
+      "李商隱"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "樂游原",
+    "quantangshi_volume": "卷五百三十九",
+    "seq": 12
+  },
+  {
+    "title": "夜雨寄北",
+    "author": "李商隱",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：却/卻",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李商隱"
+    ],
+    "author_poettang": [
+      "李商隱"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "夜雨寄北",
+    "quantangshi_volume": "卷五百三十九",
+    "seq": 13
+  },
+  {
+    "title": "韓碑",
+    "author": "李商隱",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 366≠189，首异在第 22 字（坐法宮中… / 不據山河…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李商隱"
+    ],
+    "author_poettang": [
+      "李商隱"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "韓碑",
+    "quantangshi_volume": "卷五百三十九",
+    "seq": 14
+  },
+  {
+    "title": "風雨",
+    "author": "李商隱",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第38字 斗≠鬥",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李商隱"
+    ],
+    "author_poettang": [
+      "李商隱"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "風雨",
+    "quantangshi_volume": "卷五百三十九",
+    "seq": 15
+  },
+  {
+    "title": "寄令狐郎中",
+    "author": "李商隱",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李商隱"
+    ],
+    "author_poettang": [
+      "李商隱"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "寄令狐郎中",
+    "quantangshi_volume": "卷五百三十九",
+    "seq": 16
+  },
+  {
+    "title": "隋宮",
+    "author": "李商隱",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（錦帆應是… / 地下若逢…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李商隱"
+    ],
+    "author_poettang": [
+      "李商隱"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "隋宮",
+    "quantangshi_volume": "卷五百三十九",
+    "seq": 17
+  },
+  {
+    "title": "籌筆驛",
+    "author": "李商隱",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（終見降王… / 他年錦裡…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李商隱"
+    ],
+    "author_poettang": [
+      "李商隱"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "籌筆驛",
+    "quantangshi_volume": "卷五百三十九",
+    "seq": 18
+  },
+  {
+    "title": "無題二首 一",
+    "author": "李商隱",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠63，首异在第 17 字（綵鳳雙飛… / 彩鳳雙飛…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李商隱"
+    ],
+    "author_poettang": [
+      "李商隱"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "無題二首",
+    "quantangshi_volume": "卷五百三十九",
+    "seq": 19
+  },
+  {
+    "title": "無題四首 一",
+    "author": "李商隱",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠145，首异在第 22 字（書被催成… / 劉郎已恨…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李商隱"
+    ],
+    "author_poettang": [
+      "李商隱"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "無題四首",
+    "quantangshi_volume": "卷五百三十九",
+    "seq": 20
+  },
+  {
+    "title": "無題四首 二",
+    "author": "李商隱",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "李商隱"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 21
+  },
+  {
+    "title": "隋宮",
+    "author": "李商隱",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李商隱"
+    ],
+    "author_poettang": [
+      "李商隱"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "隋宮",
+    "quantangshi_volume": "卷五百三十九",
+    "seq": 22
+  },
+  {
+    "title": "落花",
+    "author": "李商隱",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：遰/遞",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李商隱"
+    ],
+    "author_poettang": [
+      "李商隱"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "落花",
+    "quantangshi_volume": "卷五百三十九",
+    "seq": 23
+  },
+  {
+    "title": "爲有",
+    "author": "李商隱",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：爲/為、壻/婿",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李商隱"
+    ],
+    "author_poettang": [
+      "李商隱"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "為有",
+    "quantangshi_volume": "卷五百三十九",
+    "seq": 24
+  },
+  {
+    "title": "無題",
+    "author": "李商隱",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第28字 乾≠幹",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李商隱"
+    ],
+    "author_poettang": [
+      "李商隱"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "無題",
+    "quantangshi_volume": "卷五百三十九",
+    "seq": 25
+  },
+  {
+    "title": "瑤池",
+    "author": "李商隱",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李商隱"
+    ],
+    "author_poettang": [
+      "李商隱"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "瑤池",
+    "quantangshi_volume": "卷五百三十九",
+    "seq": 26
+  },
+  {
+    "title": "春雨",
+    "author": "李商隱",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（珠箔飄燈… / 玉璫緘劄…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李商隱"
+    ],
+    "author_poettang": [
+      "李商隱"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "春雨",
+    "quantangshi_volume": "卷五百四十",
+    "seq": 27
+  },
+  {
+    "title": "常娥",
+    "author": "李商隱",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李商隱"
+    ],
+    "author_poettang": [
+      "李商隱"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "常娥",
+    "quantangshi_volume": "卷五百四十",
+    "seq": 28
+  },
+  {
+    "title": "無題二首 一",
+    "author": "李商隱",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 42≠70，首异在第 22 字（車走雷聲… / 斑騅只系…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李商隱"
+    ],
+    "author_poettang": [
+      "李商隱"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "無題二首",
+    "quantangshi_volume": "卷五百四十",
+    "seq": 29
+  },
+  {
+    "title": "無題二首 二",
+    "author": "李商隱",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "李商隱"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 30
+  },
+  {
+    "title": "賈生",
+    "author": "李商隱",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李商隱"
+    ],
+    "author_poettang": [
+      "李商隱"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "賈生",
+    "quantangshi_volume": "卷五百四十",
+    "seq": 31
+  },
+  {
+    "title": "涼思",
+    "author": "李商隱",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李商隱"
+    ],
+    "author_poettang": [
+      "李商隱"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "涼思",
+    "quantangshi_volume": "卷五百四十",
+    "seq": 32
+  },
+  {
+    "title": "北青蘿",
+    "author": "李商隱",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李商隱"
+    ],
+    "author_poettang": [
+      "李商隱"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "北青蘿",
+    "quantangshi_volume": "卷五百四十一",
+    "seq": 33
+  },
+  {
+    "title": "赤壁",
+    "author": "李商隱",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李商隱",
+      "杜牧"
+    ],
+    "author_poettang": [
+      "李商隱",
+      "杜牧"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "赤壁",
+    "quantangshi_volume": "卷五百二十三",
+    "seq": 34
+  },
+  {
+    "title": "章臺夜思",
+    "author": "韋莊",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第24字 云≠雲",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "韋莊"
+    ],
+    "author_poettang": [
+      "韋莊"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "章台夜思",
+    "quantangshi_volume": "卷六百九十五",
+    "seq": 35
+  },
+  {
+    "title": "金陵圖",
+    "author": "韋莊",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "韋莊"
+    ],
+    "author_poettang": [
+      "韋莊"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "金陵圖",
+    "quantangshi_volume": "卷六百九十七",
+    "seq": 36
+  },
+  {
+    "title": "臺城",
+    "author": "韋莊",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第27字 里≠裡",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "韋莊"
+    ],
+    "author_poettang": [
+      "韋莊"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "台城",
+    "quantangshi_volume": "卷六百九十七",
+    "seq": 37
+  },
+  {
+    "title": "宮詞",
+    "author": "薛逢",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（水滴銅龍… / 遙窺正殿…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "薛逢"
+    ],
+    "author_poettang": [
+      "薛逢"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "宮詞",
+    "quantangshi_volume": "卷五百四十八",
+    "seq": 38
+  },
+  {
+    "title": "楚江懷古三首 一",
+    "author": "馬戴",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 40≠120，首异在第 41 字（… / 驚鳥去無…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "馬戴"
+    ],
+    "author_poettang": [
+      "馬戴"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "楚江懷古三首",
+    "quantangshi_volume": "卷五百五十五",
+    "seq": 39
+  },
+  {
+    "title": "灞上秋居",
+    "author": "馬戴",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：鴈/雁、隣/鄰",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "馬戴"
+    ],
+    "author_poettang": [
+      "馬戴"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "灞上秋居",
+    "quantangshi_volume": "卷五百五十五",
+    "seq": 40
+  },
+  {
+    "title": "馬嵬坡",
+    "author": "鄭畋",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "鄭畋"
+    ],
+    "author_poettang": [
+      "鄭畋"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "馬嵬坡",
+    "quantangshi_volume": "卷五百五十七",
+    "seq": 41
+  },
+  {
+    "title": "沒蕃故人",
+    "author": "張籍",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "張籍"
+    ],
+    "author_poettang": [
+      "張籍"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "沒蕃故人",
+    "quantangshi_volume": "卷三百八十四",
+    "seq": 42
+  },
+  {
+    "title": "春怨",
+    "author": "金昌緒",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "金昌緒"
+    ],
+    "author_poettang": [
+      "金昌緒"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "春怨",
+    "quantangshi_volume": "卷七百六十八",
+    "seq": 43
+  },
+  {
+    "title": "遣悲懷三首 一",
+    "author": "元稹",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠105，首异在第 22 字（泥他沽酒… / 今日俸錢…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "元稹"
+    ],
+    "author_poettang": [
+      "元稹"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "遣悲懷三首",
+    "quantangshi_volume": "卷四百零四",
+    "seq": 44
+  },
+  {
+    "title": "遣悲懷三首 二",
+    "author": "元稹",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "元稹"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 45
+  },
+  {
+    "title": "遣悲懷三首 三",
+    "author": "元稹",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "元稹"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 46
+  },
+  {
+    "title": "行宮",
+    "author": "元稹",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "元稹",
+      "王建"
+    ],
+    "author_poettang": [
+      "元稹",
+      "王建"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "故行宮",
+    "quantangshi_volume": "卷三百零一",
+    "seq": 47
+  },
+  {
+    "title": "哥舒歌",
+    "author": "西鄙人",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "西鄙人"
+    ],
+    "author_poettang": [
+      "西鄙人"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "哥舒歌",
+    "quantangshi_volume": "卷七百八十四",
+    "seq": 48
+  },
+  {
+    "title": "雜詩 十三",
+    "author": "無名氏",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "無名氏"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 49
+  },
+  {
+    "title": "雜詩三首 三",
+    "author": "沈佺期",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "沈佺期"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 50
+  },
+  {
+    "title": "古意呈補闕喬知之",
+    "author": "沈佺期",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "沈佺期"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 51
+  },
+  {
+    "title": "次北固山下",
+    "author": "王灣",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王灣"
+    ],
+    "author_poettang": [
+      "王灣"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "次北固山下",
+    "quantangshi_volume": "卷一百一十五",
+    "seq": 52
+  },
+  {
+    "title": "桃花谿",
+    "author": "張旭",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：谿/溪",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "張旭"
+    ],
+    "author_poettang": [
+      "張旭"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "桃花溪",
+    "quantangshi_volume": "卷一百一十七",
+    "seq": 53
+  },
+  {
+    "title": "送別",
+    "author": "王維",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王維"
+    ],
+    "author_poettang": [
+      "王維"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "送別",
+    "quantangshi_volume": "卷一百二十五",
+    "seq": 54
+  },
+  {
+    "title": "送綦毋潛落第還鄉",
+    "author": "王維",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第27字 云≠雲",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王維"
+    ],
+    "author_poettang": [
+      "王維"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "送綦毋潛落第還鄉",
+    "quantangshi_volume": "卷一百二十五",
+    "seq": 55
+  },
+  {
+    "title": "青谿",
+    "author": "王維",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "王維"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 56
+  },
+  {
+    "title": "渭川田家",
+    "author": "王維",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：荆/荊、閑/閒",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王維"
+    ],
+    "author_poettang": [
+      "王維"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "渭川田家",
+    "quantangshi_volume": "卷一百二十五",
+    "seq": 57
+  },
+  {
+    "title": "西施詠",
+    "author": "王維",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：衆/眾",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王維"
+    ],
+    "author_poettang": [
+      "王維"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "西施詠",
+    "quantangshi_volume": "卷一百二十五",
+    "seq": 58
+  },
+  {
+    "title": "老將行",
+    "author": "王維",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 210≠105，首异在第 14 字（射射殺中… / 騎射殺中…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王維"
+    ],
+    "author_poettang": [
+      "王維"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "老將行",
+    "quantangshi_volume": "卷一百二十五",
+    "seq": 59
+  },
+  {
+    "title": "桃源行",
+    "author": "王維",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 224≠119，首异在第 22 字（行盡青溪… / 遙看一處…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王維"
+    ],
+    "author_poettang": [
+      "王維"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "桃源行",
+    "quantangshi_volume": "卷一百二十五",
+    "seq": 60
+  },
+  {
+    "title": "洛陽女兒行",
+    "author": "王維",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "王維"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 61
+  },
+  {
+    "title": "輞川閑居贈裴秀才迪",
+    "author": "王維",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第27字 里≠裡；第31字 復≠複",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王維"
+    ],
+    "author_poettang": [
+      "王維"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "輞川閒居贈裴秀才迪",
+    "quantangshi_volume": "卷一百二十六",
+    "seq": 62
+  },
+  {
+    "title": "酬張少府",
+    "author": "王維",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王維"
+    ],
+    "author_poettang": [
+      "王維"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "酬張少府",
+    "quantangshi_volume": "卷一百二十六",
+    "seq": 63
+  },
+  {
+    "title": "送梓州李使君",
+    "author": "王維",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第38字 倚≠依",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王維"
+    ],
+    "author_poettang": [
+      "王維"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "送梓州李使君",
+    "quantangshi_volume": "卷一百二十六",
+    "seq": 64
+  },
+  {
+    "title": "玉臺體十二首 十一",
+    "author": "權德輿",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "權德輿"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 65
+  },
+  {
+    "title": "山石",
+    "author": "韓愈",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 140≠77，首异在第 22 字（芭蕉葉大… / 鋪床拂席…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "韓愈"
+    ],
+    "author_poettang": [
+      "韓愈"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "山石",
+    "quantangshi_volume": "卷三百三十八",
+    "seq": 66
+  },
+  {
+    "title": "八月十五夜贈張功曹",
+    "author": "韓愈",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 182≠105，首异在第 22 字（一杯相屬… / 洞庭連天…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "韓愈"
+    ],
+    "author_poettang": [
+      "韓愈"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "八月十五夜贈張功曹",
+    "quantangshi_volume": "卷三百三十八",
+    "seq": 67
+  },
+  {
+    "title": "謁衡嶽廟遂宿嶽寺題門樓",
+    "author": "韓愈",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 224≠119，首异在第 22 字（天假神柄… / 我來正逢…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "韓愈"
+    ],
+    "author_poettang": [
+      "韓愈"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "謁衡嶽廟遂宿嶽寺題門樓",
+    "quantangshi_volume": "卷三百三十八",
+    "seq": 68
+  },
+  {
+    "title": "已涼",
+    "author": "韓偓",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "韓偓"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 69
+  },
+  {
+    "title": "春宮怨",
+    "author": "杜荀鶴",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第38字 採≠采",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "周樸",
+      "杜荀鶴"
+    ],
+    "author_poettang": [
+      "周朴",
+      "杜荀鶴"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "春宮怨",
+    "quantangshi_volume": "卷六百七十三",
+    "seq": 70
+  },
+  {
+    "title": "近試上張籍水部",
+    "author": "朱慶餘",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：壻/婿",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "朱慶餘"
+    ],
+    "author_poettang": [
+      "朱慶餘"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "近試上張籍水部",
+    "quantangshi_volume": "卷五百一十五",
+    "seq": 71
+  },
+  {
+    "title": "將赴吳興登樂遊原一絕",
+    "author": "杜牧",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第23字 遊≠游",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜牧"
+    ],
+    "author_poettang": [
+      "杜牧"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "將赴吳興登樂游原一絕",
+    "quantangshi_volume": "卷五百二十一",
+    "seq": 72
+  },
+  {
+    "title": "赤壁",
+    "author": "杜牧",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：鏁/鎖",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李商隱",
+      "杜牧"
+    ],
+    "author_poettang": [
+      "李商隱",
+      "杜牧"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "赤壁",
+    "quantangshi_volume": "卷五百二十三",
+    "seq": 73
+  },
+  {
+    "title": "泊秦淮",
+    "author": "杜牧",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜牧"
+    ],
+    "author_poettang": [
+      "杜牧"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "泊秦淮",
+    "quantangshi_volume": "卷五百二十三",
+    "seq": 74
+  },
+  {
+    "title": "贈別二首 一",
+    "author": "杜牧",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 28≠56，首异在第 18 字（里揚州路… / 裡揚州路…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜牧"
+    ],
+    "author_poettang": [
+      "杜牧"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "贈別二首",
+    "quantangshi_volume": "卷五百二十三",
+    "seq": 75
+  },
+  {
+    "title": "贈別二首 二",
+    "author": "杜牧",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "杜牧"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 76
+  },
+  {
+    "title": "遣懷",
+    "author": "杜牧",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：倖/幸",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜牧"
+    ],
+    "author_poettang": [
+      "杜牧"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "遣懷",
+    "quantangshi_volume": "卷五百二十四",
+    "seq": 77
+  },
+  {
+    "title": "秋夕",
+    "author": "杜牧",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜牧"
+    ],
+    "author_poettang": [
+      "杜牧"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "秋夕",
+    "quantangshi_volume": "卷五百二十四",
+    "seq": 78
+  },
+  {
+    "title": "金谷園",
+    "author": "杜牧",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜牧"
+    ],
+    "author_poettang": [
+      "杜牧"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "金谷園",
+    "quantangshi_volume": "卷五百二十五",
+    "seq": 79
+  },
+  {
+    "title": "旅宿",
+    "author": "杜牧",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第29字 隔≠來；第37字 繫≠系",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜牧"
+    ],
+    "author_poettang": [
+      "杜牧"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "旅宿",
+    "quantangshi_volume": "卷五百二十五",
+    "seq": 80
+  },
+  {
+    "title": "早秋三首 一",
+    "author": "許渾",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 40≠120，首异在第 41 字（… / 一葉下前…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "許渾"
+    ],
+    "author_poettang": [
+      "許渾"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "早秋三首",
+    "quantangshi_volume": "卷五百二十八",
+    "seq": 81
+  },
+  {
+    "title": "秋日赴闕題潼關驛樓",
+    "author": "許渾",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：疎/疏",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "許渾"
+    ],
+    "author_poettang": [
+      "許渾"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "秋日赴闕題潼關驛樓",
+    "quantangshi_volume": "卷五百二十九",
+    "seq": 82
+  },
+  {
+    "title": "寄人 一",
+    "author": "張泌",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 28≠56，首异在第 29 字（… / 酷憐風月…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "張泌"
+    ],
+    "author_poettang": [
+      "張泌"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "寄人",
+    "quantangshi_volume": "卷七百四十二",
+    "seq": 83
+  },
+  {
+    "title": "隴西行四首 二",
+    "author": "陳陶",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "陳陶"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 84
+  },
+  {
+    "title": "頌古三十二首  其二三",
+    "author": "釋明辯",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": null,
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [],
+    "author_ok": false,
+    "overall": "MISSING",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 85
+  },
+  {
+    "title": "後宮詞",
+    "author": "白居易",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第24字 薰≠熏",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "白居易"
+    ],
+    "author_poettang": [
+      "白居易"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "後宮詞",
+    "quantangshi_volume": "卷四百四十一",
+    "seq": 86
+  },
+  {
+    "title": "喜見外弟又言別",
+    "author": "李益",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李益"
+    ],
+    "author_poettang": [
+      "李益"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "喜見外弟又言別",
+    "quantangshi_volume": "卷二百八十三",
+    "seq": 87
+  },
+  {
+    "title": "江南詞",
+    "author": "李益",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "李益"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 88
+  },
+  {
+    "title": "夜上受降城聞笛",
+    "author": "李益",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "不詳",
+      "李益"
+    ],
+    "author_poettang": [
+      "李益",
+      "楊敬述進"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "夜上受降城聞笛",
+    "quantangshi_volume": "卷二百八十三",
+    "seq": 89
+  },
+  {
+    "title": "聽箏",
+    "author": "李端",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李端"
+    ],
+    "author_poettang": [
+      "李端"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "聽箏",
+    "quantangshi_volume": "卷二百八十六",
+    "seq": 90
+  },
+  {
+    "title": "賊平後送人北歸",
+    "author": "司空曙",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "司空曙"
+    ],
+    "author_poettang": [
+      "司空曙"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "賊平後送人北歸",
+    "quantangshi_volume": "卷二百九十二",
+    "seq": 91
+  },
+  {
+    "title": "雲陽館與韓紳宿別",
+    "author": "司空曙",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：溼/濕",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "司空曙"
+    ],
+    "author_poettang": [
+      "司空曙"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "雲陽館與韓紳宿別",
+    "quantangshi_volume": "卷二百九十二",
+    "seq": 92
+  },
+  {
+    "title": "喜外弟盧綸見宿",
+    "author": "司空曙",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "司空曙"
+    ],
+    "author_poettang": [
+      "司空曙"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "喜外弟盧綸見宿",
+    "quantangshi_volume": "卷二百九十三",
+    "seq": 93
+  },
+  {
+    "title": "聽彈琴",
+    "author": "劉長卿",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "劉長卿"
+    ],
+    "author_poettang": [
+      "劉長卿"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "聽彈琴",
+    "quantangshi_volume": "卷一百四十七",
+    "seq": 94
+  },
+  {
+    "title": "送方外上人",
+    "author": "劉長卿",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "劉長卿"
+    ],
+    "author_poettang": [
+      "劉長卿"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "送方外上人",
+    "quantangshi_volume": "卷一百四十七",
+    "seq": 95
+  },
+  {
+    "title": "送靈澈上人",
+    "author": "劉長卿",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "劉長卿"
+    ],
+    "author_poettang": [
+      "劉長卿"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "送靈澈上人",
+    "quantangshi_volume": "卷一百四十七",
+    "seq": 96
+  },
+  {
+    "title": "新年作",
+    "author": "劉長卿",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第32字 是≠似",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "劉長卿",
+      "宋之問"
+    ],
+    "author_poettang": [
+      "劉長卿"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "新年作",
+    "quantangshi_volume": "卷五十三",
+    "seq": 97
+  },
+  {
+    "title": "秋日登吳公臺上寺遠眺寺即陳將吳明徹戰場",
+    "author": "劉長卿",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：臺/台",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "劉長卿"
+    ],
+    "author_poettang": [
+      "劉長卿"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "秋日登吳公臺上寺遠眺，寺即陳將吳明徹戰場",
+    "quantangshi_volume": "卷一百四十七",
+    "seq": 98
+  },
+  {
+    "title": "尋南溪常山道人隱居",
+    "author": "劉長卿",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "劉長卿"
+    ],
+    "author_poettang": [
+      "劉長卿"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "尋南溪常山道人隱居",
+    "quantangshi_volume": "卷一百四十八",
+    "seq": 99
+  },
+  {
+    "title": "餞別王十一南遊",
+    "author": "劉長卿",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：霑/沾",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "劉長卿"
+    ],
+    "author_poettang": [
+      "劉長卿"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "餞別王十一南游",
+    "quantangshi_volume": "卷一百四十八",
+    "seq": 100
+  },
+  {
+    "title": "江州重別薛六柳八二員外",
+    "author": "劉長卿",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（淮南木落… / 今日龍鍾…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "劉長卿"
+    ],
+    "author_poettang": [
+      "劉長卿"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "江州重別薛六、柳八二員外",
+    "quantangshi_volume": "卷一百五十一",
+    "seq": 101
+  },
+  {
+    "title": "長沙過賈誼宅",
+    "author": "劉長卿",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（寒林空見… / 寂寂江山…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "劉長卿"
+    ],
+    "author_poettang": [
+      "劉長卿"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "長沙過賈誼宅",
+    "quantangshi_volume": "卷一百五十一",
+    "seq": 102
+  },
+  {
+    "title": "自夏口至鸚鵡洲夕望岳陽寄源中丞",
+    "author": "劉長卿",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "劉長卿"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 103
+  },
+  {
+    "title": "賦得",
+    "author": "劉長卿",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（心隨明月… / 為問元戎…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "劉長卿",
+      "皇甫冉"
+    ],
+    "author_poettang": [
+      "劉長卿",
+      "皇甫冉"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "賦得",
+    "quantangshi_volume": "卷一百五十一",
+    "seq": 104
+  },
+  {
+    "title": "九日登望仙臺呈劉明府容",
+    "author": "崔曙",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（二陵風雨… / 且欲近尋…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "崔曙"
+    ],
+    "author_poettang": [
+      "崔曙"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "九日登望仙台，呈劉明府容",
+    "quantangshi_volume": "卷一百五十五",
+    "seq": 105
+  },
+  {
+    "title": "涼州詞二首 一",
+    "author": "王翰",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "王翰"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 106
+  },
+  {
+    "title": "秋登蘭山寄張五",
+    "author": "孟浩然",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "孟浩然"
+    ],
+    "author_poettang": [
+      "孟浩然"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "秋登蘭山寄張五",
+    "quantangshi_volume": "卷一百五十九",
+    "seq": 107
+  },
+  {
+    "title": "夏日南亭懷辛大",
+    "author": "孟浩然",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第12字 髮≠發",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "孟浩然"
+    ],
+    "author_poettang": [
+      "孟浩然"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "夏日南亭懷辛大",
+    "quantangshi_volume": "卷一百五十九",
+    "seq": 108
+  },
+  {
+    "title": "宿業師山房期丁大不至",
+    "author": "孟浩然",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：羣/群、逕/徑",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "孟浩然"
+    ],
+    "author_poettang": [
+      "孟浩然"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "宿業師山房，期丁大不至",
+    "quantangshi_volume": "卷一百五十九",
+    "seq": 109
+  },
+  {
+    "title": "夜歸鹿門山歌",
+    "author": "孟浩然",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（余亦乘舟… / 岩扉松徑…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "孟浩然"
+    ],
+    "author_poettang": [
+      "孟浩然"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "夜歸鹿門山歌",
+    "quantangshi_volume": "卷一百五十九",
+    "seq": 110
+  },
+  {
+    "title": "望洞庭湖贈張丞相",
+    "author": "孟浩然",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "孟浩然"
+    ],
+    "author_poettang": [
+      "孟浩然"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "望洞庭湖，贈張丞相",
+    "quantangshi_volume": "卷一百六十",
+    "seq": 111
+  },
+  {
+    "title": "秦中感秋寄遠上人",
+    "author": "孟浩然",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "孟浩然"
+    ],
+    "author_poettang": [
+      "孟浩然"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "秦中感秋，寄遠上人",
+    "quantangshi_volume": "卷一百六十",
+    "seq": 112
+  },
+  {
+    "title": "宿桐廬江寄廣陵舊遊",
+    "author": "孟浩然",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "孟浩然"
+    ],
+    "author_poettang": [
+      "孟浩然"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "宿桐廬江，寄廣陵舊游",
+    "quantangshi_volume": "卷一百六十",
+    "seq": 113
+  },
+  {
+    "title": "早寒江上有懷",
+    "author": "孟浩然",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "孟浩然"
+    ],
+    "author_poettang": [
+      "孟浩然"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "早寒江上有懷",
+    "quantangshi_volume": "卷一百六十",
+    "seq": 114
+  },
+  {
+    "title": "留別王侍御維",
+    "author": "孟浩然",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：秪/只",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "孟浩然"
+    ],
+    "author_poettang": [
+      "孟浩然"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "留別王侍禦維",
+    "quantangshi_volume": "卷一百六十",
+    "seq": 115
+  },
+  {
+    "title": "清明日宴梅道士房",
+    "author": "孟浩然",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：竈/灶",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "孟浩然"
+    ],
+    "author_poettang": [
+      "孟浩然"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "清明日宴梅道士房",
+    "quantangshi_volume": "卷一百六十",
+    "seq": 116
+  },
+  {
+    "title": "與諸子登峴山",
+    "author": "孟浩然",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第18字 復≠複",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "孟浩然"
+    ],
+    "author_poettang": [
+      "孟浩然"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "與諸子登峴山",
+    "quantangshi_volume": "卷一百六十",
+    "seq": 117
+  },
+  {
+    "title": "過故人莊",
+    "author": "孟浩然",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "孟浩然"
+    ],
+    "author_poettang": [
+      "孟浩然"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "過故人莊",
+    "quantangshi_volume": "卷一百六十",
+    "seq": 118
+  },
+  {
+    "title": "歲暮歸南山",
+    "author": "孟浩然",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：疎/疏",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "孟浩然"
+    ],
+    "author_poettang": [
+      "孟浩然"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "歲暮歸南山",
+    "quantangshi_volume": "卷一百六十",
+    "seq": 119
+  },
+  {
+    "title": "歲除夜有懷",
+    "author": "孟浩然",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第17字 燈≠燭；第27字 於≠于",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "孟浩然",
+      "崔塗"
+    ],
+    "author_poettang": [
+      "孟浩然"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "歲除夜有懷",
+    "quantangshi_volume": "卷一百六十",
+    "seq": 120
+  },
+  {
+    "title": "春曉",
+    "author": "孟浩然",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "孟浩然"
+    ],
+    "author_poettang": [
+      "孟浩然"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "春曉",
+    "quantangshi_volume": "卷一百六十",
+    "seq": 121
+  },
+  {
+    "title": "宿建德江",
+    "author": "孟浩然",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "孟浩然"
+    ],
+    "author_poettang": [
+      "孟浩然"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "宿建德江",
+    "quantangshi_volume": "卷一百六十",
+    "seq": 122
+  },
+  {
+    "title": "蜀道難",
+    "author": "李白",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 123
+  },
+  {
+    "title": "將進酒",
+    "author": "李白",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 176≠113，首异在第 56 字（千金散盡… / 岑夫子丹…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "樂府雜曲：鼓吹曲辭：將進酒",
+    "quantangshi_volume": "卷一十七",
+    "seq": 124
+  },
+  {
+    "title": "春宮怨",
+    "author": "杜荀鶴",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第38字 採≠采",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "周樸",
+      "杜荀鶴"
+    ],
+    "author_poettang": [
+      "周朴",
+      "杜荀鶴"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "春宮怨",
+    "quantangshi_volume": "卷六百七十三",
+    "seq": 125
+  },
+  {
+    "title": "客夜與故人偶集",
+    "author": "戴叔倫",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "戴叔倫"
+    ],
+    "author_poettang": [
+      "戴叔倫"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "客夜與故人偶集",
+    "quantangshi_volume": "卷二百七十三",
+    "seq": 126
+  },
+  {
+    "title": "和張僕射塞下曲 一",
+    "author": "盧綸",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 20≠120，首异在第 21 字（… / 林暗草驚…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "盧綸"
+    ],
+    "author_poettang": [
+      "盧綸"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "和張僕射塞下曲",
+    "quantangshi_volume": "卷二百七十八",
+    "seq": 127
+  },
+  {
+    "title": "和張僕射塞下曲 二",
+    "author": "盧綸",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "盧綸"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 128
+  },
+  {
+    "title": "和張僕射塞下曲 三",
+    "author": "盧綸",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：鴈/雁",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "錢起"
+    ],
+    "author_poettang": [
+      "盧綸",
+      "錢起"
+    ],
+    "author_ok": false,
+    "overall": "TEXT_OK_AUTHOR_SPLIT",
+    "matched_yuding_title": "和張僕射塞下曲",
+    "quantangshi_volume": "卷二百三十九",
+    "seq": 129
+  },
+  {
+    "title": "和張僕射塞下曲 四",
+    "author": "盧綸",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "盧綸"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 130
+  },
+  {
+    "title": "晚次鄂州",
+    "author": "盧綸",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（舟人夜語… / 舊業已隨…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "盧綸"
+    ],
+    "author_poettang": [
+      "盧綸"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "晚次鄂州",
+    "quantangshi_volume": "卷二百七十九",
+    "seq": 131
+  },
+  {
+    "title": "李端公",
+    "author": "盧綸",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：爲/為",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "盧綸"
+    ],
+    "author_poettang": [
+      "盧綸"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "李端公",
+    "quantangshi_volume": "卷二百八十",
+    "seq": 132
+  },
+  {
+    "title": "過香積寺",
+    "author": "王維",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "王維"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 133
+  },
+  {
+    "title": "山居秋暝",
+    "author": "王維",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王維"
+    ],
+    "author_poettang": [
+      "王維"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "山居秋暝",
+    "quantangshi_volume": "卷一百二十六",
+    "seq": 134
+  },
+  {
+    "title": "終南別業",
+    "author": "王維",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王維"
+    ],
+    "author_poettang": [
+      "王維"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "終南別業",
+    "quantangshi_volume": "卷一百二十六",
+    "seq": 135
+  },
+  {
+    "title": "歸嵩山作",
+    "author": "王維",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王維"
+    ],
+    "author_poettang": [
+      "王維"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "歸嵩山作",
+    "quantangshi_volume": "卷一百二十六",
+    "seq": 136
+  },
+  {
+    "title": "終南山",
+    "author": "王維",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：迴/回、衆/眾",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王維"
+    ],
+    "author_poettang": [
+      "王維"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "終南山",
+    "quantangshi_volume": "卷一百二十六",
+    "seq": 137
+  },
+  {
+    "title": "漢江臨汎",
+    "author": "王維",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：荆/荊",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王維"
+    ],
+    "author_poettang": [
+      "王維"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "漢江臨泛",
+    "quantangshi_volume": "卷一百二十六",
+    "seq": 138
+  },
+  {
+    "title": "奉和聖製從蓬萊向興慶閣道中留春雨中春望之作應制",
+    "author": "王維",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（閣道回看… / 為乘陽氣…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王維"
+    ],
+    "author_poettang": [
+      "王維"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "奉和聖制從蓬萊向興慶閣道中留春雨中春望之作應制",
+    "quantangshi_volume": "卷一百二十八",
+    "seq": 139
+  },
+  {
+    "title": "和賈舍人早朝大明宮之作",
+    "author": "王維",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（萬國衣冠… / 朝罷須裁…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王維"
+    ],
+    "author_poettang": [
+      "王維"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "和賈舍人早朝大明宮之作",
+    "quantangshi_volume": "卷一百二十八",
+    "seq": 140
+  },
+  {
+    "title": "酬郭給事",
+    "author": "王維",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（省中啼鳥… / 強欲從君…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王維"
+    ],
+    "author_poettang": [
+      "王維"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "酬郭給事",
+    "quantangshi_volume": "卷一百二十八",
+    "seq": 141
+  },
+  {
+    "title": "積雨輞川莊作",
+    "author": "王維",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（陰陰夏木… / 野老與人…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王維"
+    ],
+    "author_poettang": [
+      "王維"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "積雨輞川莊作",
+    "quantangshi_volume": "卷一百二十八",
+    "seq": 142
+  },
+  {
+    "title": "輞川集 鹿柴",
+    "author": "王維",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第16字 復≠複",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王維"
+    ],
+    "author_poettang": [
+      "王維"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "輞川集：鹿柴",
+    "quantangshi_volume": "卷一百二十八",
+    "seq": 143
+  },
+  {
+    "title": "輞川集 竹里館",
+    "author": "王維",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "王維"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 144
+  },
+  {
+    "title": "送別",
+    "author": "王維",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王維"
+    ],
+    "author_poettang": [
+      "王維"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "送別",
+    "quantangshi_volume": "卷一百二十八",
+    "seq": 145
+  },
+  {
+    "title": "雜詩三首 二",
+    "author": "王維",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "王維"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 146
+  },
+  {
+    "title": "相思",
+    "author": "王維",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第14字 采≠採",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王維"
+    ],
+    "author_poettang": [
+      "王維"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "相思",
+    "quantangshi_volume": "卷一百二十八",
+    "seq": 147
+  },
+  {
+    "title": "九月九日憶山東兄弟",
+    "author": "王維",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：爲/為",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王維"
+    ],
+    "author_poettang": [
+      "王維"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "九月九日憶山東兄弟",
+    "quantangshi_volume": "卷一百二十八",
+    "seq": 148
+  },
+  {
+    "title": "渭城曲",
+    "author": "王維",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王維"
+    ],
+    "author_poettang": [
+      "王維"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "渭城曲",
+    "quantangshi_volume": "卷一百二十八",
+    "seq": 149
+  },
+  {
+    "title": "崔九欲往南山馬上口號與別",
+    "author": "裴迪",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第17字 游≠遊",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "裴迪"
+    ],
+    "author_poettang": [
+      "裴迪"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "崔九欲往南山馬上口號與別",
+    "quantangshi_volume": "卷一百二十九",
+    "seq": 150
+  },
+  {
+    "title": "尋西山隱者不遇",
+    "author": "丘爲",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "丘爲"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 151
+  },
+  {
+    "title": "黃鶴樓",
+    "author": "崔顥",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（白雲千載… / 日暮鄉關…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "崔顥"
+    ],
+    "author_poettang": [
+      "崔顥"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "黃鶴樓",
+    "quantangshi_volume": "卷一百三十",
+    "seq": 152
+  },
+  {
+    "title": "行經華陰",
+    "author": "崔顥",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "崔顥"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 153
+  },
+  {
+    "title": "長干曲四首 一",
+    "author": "崔顥",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 20≠80，首异在第 21 字（… / 家臨九江…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "崔顥"
+    ],
+    "author_poettang": [
+      "崔顥"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "長幹曲四首",
+    "quantangshi_volume": "卷一百三十",
+    "seq": 154
+  },
+  {
+    "title": "長干曲四首 二",
+    "author": "崔顥",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "崔顥"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 155
+  },
+  {
+    "title": "望薊門",
+    "author": "祖詠",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（三邊曙色… / 少小雖非…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "祖詠"
+    ],
+    "author_poettang": [
+      "祖詠"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "望薊門",
+    "quantangshi_volume": "卷一百三十一",
+    "seq": 156
+  },
+  {
+    "title": "終南望餘雪",
+    "author": "祖詠",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "祖詠"
+    ],
+    "author_poettang": [
+      "祖詠"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "終南望餘雪",
+    "quantangshi_volume": "卷一百三十一",
+    "seq": 157
+  },
+  {
+    "title": "古從軍行",
+    "author": "李頎",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 84≠42，首异在第 18 字（斗風沙暗… / 鬥風沙暗…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李頎"
+    ],
+    "author_poettang": [
+      "李頎"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "古從軍行",
+    "quantangshi_volume": "卷一百三十三",
+    "seq": 158
+  },
+  {
+    "title": "琴歌",
+    "author": "李頎",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 70≠42，首异在第 22 字（霜淒萬樹… / 一聲已動…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李頎"
+    ],
+    "author_poettang": [
+      "李頎"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "琴歌",
+    "quantangshi_volume": "卷一百三十三",
+    "seq": 159
+  },
+  {
+    "title": "送陳章甫",
+    "author": "李頎",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 126≠63，首异在第 22 字（嘶馬出門… / 腹中貯書…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李頎"
+    ],
+    "author_poettang": [
+      "李頎"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "送陳章甫",
+    "quantangshi_volume": "卷一百三十三",
+    "seq": 160
+  },
+  {
+    "title": "聽安萬善吹觱篥歌",
+    "author": "李頎",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 126≠63，首异在第 22 字（涼州胡人… / 世人解聽…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李頎"
+    ],
+    "author_poettang": [
+      "李頎"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "聽安萬善吹觱篥歌",
+    "quantangshi_volume": "卷一百三十三",
+    "seq": 161
+  },
+  {
+    "title": "古意",
+    "author": "李頎",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 72≠51，首异在第 26 字（鬚如蝟毛… / 須如蝟毛…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李頎"
+    ],
+    "author_poettang": [
+      "李頎"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "古意",
+    "quantangshi_volume": "卷一百三十三",
+    "seq": 162
+  },
+  {
+    "title": "聽董大彈胡笳聲兼寄語弄房給事",
+    "author": "李頎",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 191≠104，首异在第 22 字（漢使斷腸… / 先拂商弦…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李頎"
+    ],
+    "author_poettang": [
+      "李頎"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "聽董大彈胡笳聲兼寄語弄房給事",
+    "quantangshi_volume": "卷一百三十三",
+    "seq": 163
+  },
+  {
+    "title": "送魏萬之京",
+    "author": "李頎",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（雲山況是… / 莫見長安…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李頎"
+    ],
+    "author_poettang": [
+      "李頎"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "送魏萬之京",
+    "quantangshi_volume": "卷一百三十四",
+    "seq": 164
+  },
+  {
+    "title": "春泛若耶溪",
+    "author": "綦毋潛",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：爲/為",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "綦毋潛"
+    ],
+    "author_poettang": [
+      "綦毋潛"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "春泛若耶溪",
+    "quantangshi_volume": "卷一百三十五",
+    "seq": 165
+  },
+  {
+    "title": "塞下曲四首 一",
+    "author": "王昌齡",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 40≠160，首异在第 24 字（幷客皆共… / 並客皆共…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王昌齡"
+    ],
+    "author_poettang": [
+      "王昌齡"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "塞下曲四首",
+    "quantangshi_volume": "卷一百四十",
+    "seq": 166
+  },
+  {
+    "title": "塞下曲四首 二",
+    "author": "王昌齡",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "王昌齡"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 167
+  },
+  {
+    "title": "同從弟銷南齋玩月憶山陰崔少府",
+    "author": "王昌齡",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王昌齡"
+    ],
+    "author_poettang": [
+      "王昌齡"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "同從弟銷南齋玩月憶山陰崔少府",
+    "quantangshi_volume": "卷一百四十",
+    "seq": 168
+  },
+  {
+    "title": "出塞二首 一",
+    "author": "王昌齡",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 28≠56，首异在第 29 字（… / 白花垣上…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王昌齡"
+    ],
+    "author_poettang": [
+      "王昌齡"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "橫吹曲辭：出塞",
+    "quantangshi_volume": "卷一十八",
+    "seq": 169
+  },
+  {
+    "title": "春宮曲",
+    "author": "王昌齡",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王昌齡"
+    ],
+    "author_poettang": [
+      "王昌齡"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "春宮曲",
+    "quantangshi_volume": "卷一百四十三",
+    "seq": 170
+  },
+  {
+    "title": "閨怨",
+    "author": "王昌齡",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：壻/婿",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王昌齡"
+    ],
+    "author_poettang": [
+      "王昌齡"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "閨怨",
+    "quantangshi_volume": "卷一百四十三",
+    "seq": 171
+  },
+  {
+    "title": "芙蓉樓送辛漸二首 一",
+    "author": "王昌齡",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 28≠56，首异在第 29 字（… / 丹陽城南…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王昌齡"
+    ],
+    "author_poettang": [
+      "王昌齡"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "芙蓉樓送辛漸二首",
+    "quantangshi_volume": "卷一百四十三",
+    "seq": 172
+  },
+  {
+    "title": "宿王昌齡隱居",
+    "author": "常建",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：爲/為、羣/群",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "常建"
+    ],
+    "author_poettang": [
+      "常建"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "宿王昌齡隱居",
+    "quantangshi_volume": "卷一百四十四",
+    "seq": 173
+  },
+  {
+    "title": "清平調 一",
+    "author": "李白",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 28≠84，首异在第 29 字（… / 一枝紅豔…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "雜曲歌辭：清平調",
+    "quantangshi_volume": "卷二十七",
+    "seq": 174
+  },
+  {
+    "title": "清平調 二",
+    "author": "李白",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 175
+  },
+  {
+    "title": "清平調 三",
+    "author": "李白",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 176
+  },
+  {
+    "title": "還鄉偶書  其二",
+    "author": "黄拱",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "VARIANT",
+    "detail_poettang": "第22字 借≠笑",
+    "author_yuding": [],
+    "author_poettang": [
+      "賀知章"
+    ],
+    "author_ok": false,
+    "overall": "VARIANT_ONLY",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 177
+  },
+  {
+    "title": "長恨歌",
+    "author": "白居易",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "白居易"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 178
+  },
+  {
+    "title": "琵琶引",
+    "author": "白居易",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 616≠315，首异在第 22 字（舉酒欲飲… / 忽聞水上…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "白居易"
+    ],
+    "author_poettang": [
+      "白居易"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "琵琶引",
+    "quantangshi_volume": "卷四百三十五",
+    "seq": 179
+  },
+  {
+    "title": "賦得古原草送別",
+    "author": "白居易",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "白居易"
+    ],
+    "author_poettang": [
+      "白居易"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "賦得古原草送別",
+    "quantangshi_volume": "卷四百三十六",
+    "seq": 180
+  },
+  {
+    "title": "自河南經亂關內阻饑兄弟離散各在一處因望月有感聊書所懷寄上浮梁大兄於潛七兄烏江十五兄兼示符離及下邽弟妹",
+    "author": "白居易",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "白居易"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 181
+  },
+  {
+    "title": "問劉十九",
+    "author": "白居易",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "白居易"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 182
+  },
+  {
+    "title": "尋隱者不遇",
+    "author": "賈島",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "孫革",
+      "賈島"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 183
+  },
+  {
+    "title": "利州南渡",
+    "author": "溫庭筠",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（柳邊人歇… / 誰解乘舟…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "溫庭筠"
+    ],
+    "author_poettang": [
+      "溫庭筠"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "利州南渡",
+    "quantangshi_volume": "卷五百七十八",
+    "seq": 184
+  },
+  {
+    "title": "瑤瑟怨",
+    "author": "溫庭筠",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：牀/床",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "溫庭筠"
+    ],
+    "author_poettang": [
+      "溫庭筠"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "瑤瑟怨",
+    "quantangshi_volume": "卷五百七十九",
+    "seq": 185
+  },
+  {
+    "title": "送人東遊",
+    "author": "溫庭筠",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：櫂/棹",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "溫庭筠"
+    ],
+    "author_poettang": [
+      "溫庭筠"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "送人東游",
+    "quantangshi_volume": "卷五百八十一",
+    "seq": 186
+  },
+  {
+    "title": "蘇武廟",
+    "author": "溫庭筠",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（隴上羊歸… / 茂陵不見…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "溫庭筠"
+    ],
+    "author_poettang": [
+      "溫庭筠"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "蘇武廟",
+    "quantangshi_volume": "卷五百八十二",
+    "seq": 187
+  },
+  {
+    "title": "渡漢江",
+    "author": "李頻",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "李頻"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 188
+  },
+  {
+    "title": "貧女",
+    "author": "秦韜玉",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "秦韜玉"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 189
+  },
+  {
+    "title": "春宮怨",
+    "author": "周朴",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：爲/為",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "周樸",
+      "杜荀鶴"
+    ],
+    "author_poettang": [
+      "周朴",
+      "杜荀鶴"
+    ],
+    "author_ok": false,
+    "overall": "TEXT_OK_AUTHOR_SPLIT",
+    "matched_yuding_title": "春宮怨",
+    "quantangshi_volume": "卷六百七十三",
+    "seq": 190
+  },
+  {
+    "title": "孤鴈 二",
+    "author": "崔塗",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "崔塗"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 191
+  },
+  {
+    "title": "巴山道中除夜書懷",
+    "author": "崔塗",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "崔塗"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 192
+  },
+  {
+    "title": "宮詞二首 一",
+    "author": "張祜",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 20≠40，首异在第 21 字（… / 自倚能歌…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "張祜"
+    ],
+    "author_poettang": [
+      "張祜"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "宮詞二首",
+    "quantangshi_volume": "卷五百一十一",
+    "seq": 193
+  },
+  {
+    "title": "贈內人",
+    "author": "張祜",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "張祜"
+    ],
+    "author_poettang": [
+      "張祜"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "贈內人",
+    "quantangshi_volume": "卷五百一十一",
+    "seq": 194
+  },
+  {
+    "title": "集靈臺二首 一",
+    "author": "張祜",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 28≠56，首异在第 29 字（… / 虢國夫人…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "張祜"
+    ],
+    "author_poettang": [
+      "張祜"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "集靈台二首",
+    "quantangshi_volume": "卷五百一十一",
+    "seq": 195
+  },
+  {
+    "title": "集靈臺二首 二",
+    "author": "張祜",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "張祜"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 196
+  },
+  {
+    "title": "題金陵渡",
+    "author": "張祜",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "張祜"
+    ],
+    "author_poettang": [
+      "張祜"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "題金陵渡",
+    "quantangshi_volume": "卷五百一十一",
+    "seq": 197
+  },
+  {
+    "title": "宮詞",
+    "author": "朱慶餘",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "朱慶餘"
+    ],
+    "author_poettang": [
+      "朱慶餘"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "宮詞",
+    "quantangshi_volume": "卷五百一十四",
+    "seq": 198
+  },
+  {
+    "title": "石鼓歌",
+    "author": "韓愈",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 462≠231，首异在第 22 字（才薄將奈… / 大開明堂…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "韓愈"
+    ],
+    "author_poettang": [
+      "韓愈"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "石鼓歌",
+    "quantangshi_volume": "卷三百四十",
+    "seq": 199
+  },
+  {
+    "title": "秋夜曲",
+    "author": "王涯",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王涯"
+    ],
+    "author_poettang": [
+      "王涯"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "雜曲歌辭：秋夜曲",
+    "quantangshi_volume": "卷二十六",
+    "seq": 200
+  },
+  {
+    "title": "晨詣超師院讀禪經",
+    "author": "柳宗元",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：閒/閑",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "柳宗元"
+    ],
+    "author_poettang": [
+      "柳宗元"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "晨詣超師院讀禪經",
+    "quantangshi_volume": "卷三百五十一",
+    "seq": 201
+  },
+  {
+    "title": "登柳州城樓寄漳汀封連四州",
+    "author": "柳宗元",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（密雨斜侵… / 共來百越…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "柳宗元"
+    ],
+    "author_poettang": [
+      "柳宗元"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "登柳州城樓寄漳汀封連四州",
+    "quantangshi_volume": "卷三百五十一",
+    "seq": 202
+  },
+  {
+    "title": "溪居",
+    "author": "柳宗元",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：爲/為",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "柳宗元"
+    ],
+    "author_poettang": [
+      "柳宗元"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "溪居",
+    "quantangshi_volume": "卷三百五十二",
+    "seq": 203
+  },
+  {
+    "title": "江雪",
+    "author": "柳宗元",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：逕/徑",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "柳宗元"
+    ],
+    "author_poettang": [
+      "柳宗元"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "江雪",
+    "quantangshi_volume": "卷三百五十二",
+    "seq": 204
+  },
+  {
+    "title": "漁翁",
+    "author": "柳宗元",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "柳宗元"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 205
+  },
+  {
+    "title": "蜀先主廟",
+    "author": "劉禹錫",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第17字 復≠複",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "劉禹錫"
+    ],
+    "author_poettang": [
+      "劉禹錫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "蜀先主廟",
+    "quantangshi_volume": "卷三百五十七",
+    "seq": 206
+  },
+  {
+    "title": "月夜",
+    "author": "杜甫",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第40字 乾≠幹",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "月夜",
+    "quantangshi_volume": "卷二百二十四",
+    "seq": 207
+  },
+  {
+    "title": "春望",
+    "author": "杜甫",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "春望",
+    "quantangshi_volume": "卷二百二十四",
+    "seq": 208
+  },
+  {
+    "title": "春宿左省",
+    "author": "杜甫",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "春宿左省",
+    "quantangshi_volume": "卷二百二十五",
+    "seq": 209
+  },
+  {
+    "title": "至德二載甫自京金光門出問道歸鳳翔乾元初從左拾遺移華州掾與親故別因出此門有悲往事",
+    "author": "杜甫",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "至德二載甫自京金光門出問道歸鳳翔乾元初從左拾遺移華州掾與親故別因出此門有悲往事",
+    "quantangshi_volume": "卷二百二十五",
+    "seq": 210
+  },
+  {
+    "title": "月夜憶舍弟",
+    "author": "杜甫",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "月夜憶舍弟",
+    "quantangshi_volume": "卷二百二十五",
+    "seq": 211
+  },
+  {
+    "title": "天末憶李白",
+    "author": "杜甫",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第39字 汩≠汨",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "天末懷李白",
+    "quantangshi_volume": "卷二百二十五",
+    "seq": 212
+  },
+  {
+    "title": "蜀相",
+    "author": "杜甫",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 16 字（堦碧草自… / 階碧草自…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "蜀相",
+    "quantangshi_volume": "卷二百二十六",
+    "seq": 213
+  },
+  {
+    "title": "客至",
+    "author": "杜甫",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（蓬門今始… / 肯與鄰翁…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "客至",
+    "quantangshi_volume": "卷二百二十六",
+    "seq": 214
+  },
+  {
+    "title": "野望",
+    "author": "杜甫",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（天涯涕淚… / 跨馬出郊…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "野望",
+    "quantangshi_volume": "卷二百二十七",
+    "seq": 215
+  },
+  {
+    "title": "奉濟驛重送嚴公四韻",
+    "author": "杜甫",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 216
+  },
+  {
+    "title": "聞官軍收河南河北",
+    "author": "杜甫",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（漫卷詩書… / 即從巴峽…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "聞官軍收河南河北",
+    "quantangshi_volume": "卷二百二十七",
+    "seq": 217
+  },
+  {
+    "title": "登高",
+    "author": "杜甫",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（不盡長江… / 艱難苦恨…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "登高",
+    "quantangshi_volume": "卷二百二十七",
+    "seq": 218
+  },
+  {
+    "title": "別房太尉墓",
+    "author": "杜甫",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 219
+  },
+  {
+    "title": "登樓",
+    "author": "杜甫",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（玉壘浮雲… / 可憐後主…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "登樓",
+    "quantangshi_volume": "卷二百二十八",
+    "seq": 220
+  },
+  {
+    "title": "宿府",
+    "author": "杜甫",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（中天月色… / 已忍伶俜…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "宿府",
+    "quantangshi_volume": "卷二百二十八",
+    "seq": 221
+  },
+  {
+    "title": "旅夜書懷",
+    "author": "杜甫",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "旅夜書懷",
+    "quantangshi_volume": "卷二百二十九",
+    "seq": 222
+  },
+  {
+    "title": "閣夜",
+    "author": "杜甫",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（三峽星河… / 臥龍躍馬…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "閣夜",
+    "quantangshi_volume": "卷二百二十九",
+    "seq": 223
+  },
+  {
+    "title": "八陣圖",
+    "author": "杜甫",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "八陣圖",
+    "quantangshi_volume": "卷二百二十九",
+    "seq": 224
+  },
+  {
+    "title": "詠懷古跡五首 一",
+    "author": "杜甫",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠175，首异在第 22 字（五溪衣服… / 庾信平生…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "詠懷古跡五首",
+    "quantangshi_volume": "卷二百三十",
+    "seq": 225
+  },
+  {
+    "title": "詠懷古跡五首 二",
+    "author": "杜甫",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 226
+  },
+  {
+    "title": "詠懷古跡五首 三",
+    "author": "杜甫",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 227
+  },
+  {
+    "title": "詠懷古跡五首 四",
+    "author": "杜甫",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 228
+  },
+  {
+    "title": "詠懷古跡五首 五",
+    "author": "杜甫",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 229
+  },
+  {
+    "title": "江南逢李龜年",
+    "author": "杜甫",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 230
+  },
+  {
+    "title": "登岳陽樓",
+    "author": "杜甫",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "登岳陽樓",
+    "quantangshi_volume": "卷二百三十三",
+    "seq": 231
+  },
+  {
+    "title": "虢國夫人",
+    "author": "杜甫",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第23字 埽≠掃",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "虢國夫人",
+    "quantangshi_volume": "卷二百三十四",
+    "seq": 232
+  },
+  {
+    "title": "望月懷遠",
+    "author": "張九齡",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "張九齡"
+    ],
+    "author_poettang": [
+      "張九齡"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "望月懷遠",
+    "quantangshi_volume": "卷四十八",
+    "seq": 233
+  },
+  {
+    "title": "題大庾嶺北驛",
+    "author": "宋之問",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第18字 復≠複",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": "分段不同（正文逐字一致）",
+    "author_yuding": [
+      "宋之問"
+    ],
+    "author_poettang": [
+      "宋之問"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "題大庾嶺北驛",
+    "quantangshi_volume": "卷五十二",
+    "seq": 234
+  },
+  {
+    "title": "渡漢江",
+    "author": "宋之問",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "宋之問"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 235
+  },
+  {
+    "title": "新年作",
+    "author": "宋之問",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "宋之問"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 236
+  },
+  {
+    "title": "杜少府之任蜀州",
+    "author": "王勃",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 40≠41，首异在第 22 字（內存知己… / 記憶體知…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王勃"
+    ],
+    "author_poettang": [
+      "王勃"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "杜少府之任蜀州",
+    "quantangshi_volume": "卷五十六",
+    "seq": 237
+  },
+  {
+    "title": "和晉陵陸丞早春遊望",
+    "author": "杜審言",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：霑/沾",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜審言",
+      "韋應物"
+    ],
+    "author_poettang": [
+      "杜審言",
+      "韋應物"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "和晉陵陸丞早春遊望",
+    "quantangshi_volume": "卷六十二",
+    "seq": 238
+  },
+  {
+    "title": "登樓",
+    "author": "朱斌",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "朱斌",
+      "王之渙"
+    ],
+    "author_poettang": [
+      "朱斌",
+      "王之渙"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "登鸛雀樓",
+    "quantangshi_volume": "卷二百五十三",
+    "seq": 239
+  },
+  {
+    "title": "送李少府貶峽中王少府貶長沙",
+    "author": "高適",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（衡陽歸雁… / 聖代即今…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "高適"
+    ],
+    "author_poettang": [
+      "高適"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "送李少府貶峽中，王少府貶長沙",
+    "quantangshi_volume": "卷二百一十四",
+    "seq": 240
+  },
+  {
+    "title": "望嶽",
+    "author": "杜甫",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第13字 鍾≠鐘；第21字 盪≠蕩；第22字 胷≠胸",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "望岳",
+    "quantangshi_volume": "卷二百一十六",
+    "seq": 241
+  },
+  {
+    "title": "兵車行",
+    "author": "杜甫",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 223≠144，首异在第 15 字（孃妻子走… / 娘妻子走…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": "分段不同（正文逐字一致）",
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "兵車行",
+    "quantangshi_volume": "卷二百一十六",
+    "seq": 242
+  },
+  {
+    "title": "贈衛八處士",
+    "author": "杜甫",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第13字 復≠複；第83字 剪≠翦；第115字 岳≠嶽",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "贈衛八處士",
+    "quantangshi_volume": "卷二百一十六",
+    "seq": 243
+  },
+  {
+    "title": "麗人行",
+    "author": "杜甫",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 178≠95，首异在第 22 字（肌理細膩… / 頭上何所…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "雜曲歌辭：麗人行",
+    "quantangshi_volume": "卷二十五",
+    "seq": 244
+  },
+  {
+    "title": "哀江頭",
+    "author": "杜甫",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 140≠77，首异在第 22 字（細柳新蒲… / 昭陽殿裡…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "哀江頭",
+    "quantangshi_volume": "卷二百一十六",
+    "seq": 245
+  },
+  {
+    "title": "哀王孫",
+    "author": "杜甫",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 196≠127，首异在第 22 字（屋底達官… / 腰下寶玦…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "哀王孫",
+    "quantangshi_volume": "卷二百一十六",
+    "seq": 246
+  },
+  {
+    "title": "佳人",
+    "author": "杜甫",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 247
+  },
+  {
+    "title": "夢李白二首 一",
+    "author": "杜甫",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 80≠160，首异在第 65 字（梁猶疑照… / 樑猶疑照…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "夢李白二首",
+    "quantangshi_volume": "卷二百一十八",
+    "seq": 248
+  },
+  {
+    "title": "夢李白二首 二",
+    "author": "杜甫",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 249
+  },
+  {
+    "title": "韋諷錄事宅觀曹將軍畫馬圖",
+    "author": "杜甫",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 241≠136，首异在第 22 字（人間又見… / 內府殷紅…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "韋諷錄事宅觀曹將軍畫馬圖",
+    "quantangshi_volume": "卷二百二十",
+    "seq": 250
+  },
+  {
+    "title": "丹青引贈曹將軍霸",
+    "author": "杜甫",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 280≠147，首异在第 22 字（文彩風流… / 丹青不知…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "丹青引，贈曹將軍霸",
+    "quantangshi_volume": "卷二百二十",
+    "seq": 251
+  },
+  {
+    "title": "寄韓諫議",
+    "author": "杜甫",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 154≠84，首异在第 22 字（濯足洞庭… / 玉京群帝…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "寄韓諫議",
+    "quantangshi_volume": "卷二百二十",
+    "seq": 252
+  },
+  {
+    "title": "古柏行",
+    "author": "杜甫",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 168≠84，首异在第 22 字（黛色參天… / 雲來氣接…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "古柏行",
+    "quantangshi_volume": "卷二百二十一",
+    "seq": 253
+  },
+  {
+    "title": "觀公孫大娘弟子舞劒器行",
+    "author": "杜甫",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 182≠98，首异在第 22 字（天地為之… / 來如雷霆…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "觀公孫大娘弟子舞劍器行",
+    "quantangshi_volume": "卷二百二十二",
+    "seq": 254
+  },
+  {
+    "title": "寄人二首  其一",
+    "author": "張佖",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 28≠56，首异在第 29 字（… / 酷憐風月…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "張泌"
+    ],
+    "author_poettang": [
+      "張泌"
+    ],
+    "author_ok": false,
+    "overall": "SINGLE",
+    "matched_yuding_title": "寄人",
+    "quantangshi_volume": "卷七百四十二",
+    "seq": 255
+  },
+  {
+    "title": "雜曲歌辭 蓋羅縫 一",
+    "author": "不詳",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 28≠56，首异在第 29 字（… / 音書杜絕…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "不詳"
+    ],
+    "author_poettang": [
+      "不詳"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "雜曲歌辭：蓋羅縫",
+    "quantangshi_volume": "卷二十七",
+    "seq": 256
+  },
+  {
+    "title": "雜曲歌辭 婆羅門",
+    "author": "楊敬述進",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：迴/回",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "不詳",
+      "李益"
+    ],
+    "author_poettang": [
+      "李益",
+      "楊敬述進"
+    ],
+    "author_ok": false,
+    "overall": "TEXT_OK_AUTHOR_SPLIT",
+    "matched_yuding_title": "雜曲歌辭：婆羅門",
+    "quantangshi_volume": "卷二十七",
+    "seq": 257
+  },
+  {
+    "title": "雜曲歌辭 清平調 一",
+    "author": "李白",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 28≠84，首异在第 29 字（… / 一枝紅豔…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "雜曲歌辭：清平調",
+    "quantangshi_volume": "卷二十七",
+    "seq": 258
+  },
+  {
+    "title": "雜曲歌辭 清平調 二",
+    "author": "李白",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 259
+  },
+  {
+    "title": "雜曲歌辭 清平調 三",
+    "author": "李白",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 260
+  },
+  {
+    "title": "雜曲歌辭 渭城曲",
+    "author": "王維",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "王維"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 261
+  },
+  {
+    "title": "雜曲歌辭 金縷衣",
+    "author": "不詳",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "不詳"
+    ],
+    "author_poettang": [
+      "不詳"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "雜曲歌辭：金縷衣",
+    "quantangshi_volume": "卷二十八",
+    "seq": 262
+  },
+  {
+    "title": "感遇十二首 一",
+    "author": "張九齡",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 40≠600，首异在第 41 字（… / 幽林歸獨…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "張九齡"
+    ],
+    "author_poettang": [
+      "張九齡"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "感遇十二首",
+    "quantangshi_volume": "卷四十七",
+    "seq": 263
+  },
+  {
+    "title": "感遇十二首 二",
+    "author": "張九齡",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "張九齡"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 264
+  },
+  {
+    "title": "感遇十二首 四",
+    "author": "張九齡",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "張九齡"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 265
+  },
+  {
+    "title": "感遇十二首 七",
+    "author": "張九齡",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "張九齡"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 266
+  },
+  {
+    "title": "尋陸鴻漸不遇",
+    "author": "皎然",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第32字 道≠導",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "皎然"
+    ],
+    "author_poettang": [
+      "皎然"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "尋陸鴻漸不遇",
+    "quantangshi_volume": "卷八百一十五",
+    "seq": 267
+  },
+  {
+    "title": "西塞山懷古",
+    "author": "劉禹錫",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 19 字（沈江底一… / 沉江底今…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "劉禹錫"
+    ],
+    "author_poettang": [
+      "劉禹錫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "西塞山懷古",
+    "quantangshi_volume": "卷三百五十九",
+    "seq": 268
+  },
+  {
+    "title": "金陵五題 烏衣巷",
+    "author": "劉禹錫",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "劉禹錫"
+    ],
+    "author_poettang": [
+      "劉禹錫"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "金陵五題：烏衣巷",
+    "quantangshi_volume": "卷三百六十五",
+    "seq": 269
+  },
+  {
+    "title": "和樂天春詞",
+    "author": "劉禹錫",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "劉禹錫"
+    ],
+    "author_poettang": [
+      "劉禹錫"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "和樂天春詞",
+    "quantangshi_volume": "卷三百六十五",
+    "seq": 270
+  },
+  {
+    "title": "列女操",
+    "author": "孟郊",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第12字 女≠婦；第14字 狥≠殉；第16字 捨≠舍",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "孟郊"
+    ],
+    "author_poettang": [
+      "孟郊"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "琴曲歌辭：列女操",
+    "quantangshi_volume": "卷二十三",
+    "seq": 271
+  },
+  {
+    "title": "遊子吟",
+    "author": "孟郊",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "孟郊"
+    ],
+    "author_poettang": [
+      "孟郊"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "雜曲歌辭：遊子吟",
+    "quantangshi_volume": "卷二十五",
+    "seq": 272
+  },
+  {
+    "title": "度南澗",
+    "author": "蔡襄",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": null,
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [],
+    "author_ok": false,
+    "overall": "MISSING",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 273
+  },
+  {
+    "title": "谷口書齋寄楊補闕",
+    "author": "錢起",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：逕/徑",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "錢起"
+    ],
+    "author_poettang": [
+      "錢起"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "穀口書齋寄楊補闕",
+    "quantangshi_volume": "卷二百三十七",
+    "seq": 274
+  },
+  {
+    "title": "送僧歸日本",
+    "author": "錢起",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "錢起"
+    ],
+    "author_poettang": [
+      "錢起"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "送僧歸日本",
+    "quantangshi_volume": "卷二百三十七",
+    "seq": 275
+  },
+  {
+    "title": "贈闕下裴舍人",
+    "author": "錢起",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（龍池柳色… / 獻賦十年…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "錢起"
+    ],
+    "author_poettang": [
+      "錢起"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "贈闕下裴舍人",
+    "quantangshi_volume": "卷二百三十九",
+    "seq": 276
+  },
+  {
+    "title": "和張僕射塞下曲",
+    "author": "錢起",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "錢起"
+    ],
+    "author_poettang": [
+      "盧綸",
+      "錢起"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "和張僕射塞下曲",
+    "quantangshi_volume": "卷二百三十九",
+    "seq": 277
+  },
+  {
+    "title": "賊退示官吏",
+    "author": "元結",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第83字 徴≠征",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "元結"
+    ],
+    "author_poettang": [
+      "元結"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "賊退示官吏",
+    "quantangshi_volume": "卷二百四十一",
+    "seq": 278
+  },
+  {
+    "title": "石魚湖上醉歌",
+    "author": "元結",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 54≠33，首异在第 20 字（酒徒歷歷… / 我持長瓢…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "元結"
+    ],
+    "author_poettang": [
+      "元結"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "石魚湖上醉歌",
+    "quantangshi_volume": "卷二百四十一",
+    "seq": 279
+  },
+  {
+    "title": "楓橋夜泊",
+    "author": "張繼",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "張繼"
+    ],
+    "author_poettang": [
+      "張繼"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "楓橋夜泊",
+    "quantangshi_volume": "卷二百四十二",
+    "seq": 280
+  },
+  {
+    "title": "酬程延秋夜即事見贈",
+    "author": "韓翃",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "韓翃"
+    ],
+    "author_poettang": [
+      "韓翃"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "酬程延秋夜即事見贈",
+    "quantangshi_volume": "卷二百四十四",
+    "seq": 281
+  },
+  {
+    "title": "同題仙游觀",
+    "author": "韓翃",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（砧聲近報… / 何用別尋…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "韓翃"
+    ],
+    "author_poettang": [
+      "韓翃"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "同題仙游觀",
+    "quantangshi_volume": "卷二百四十五",
+    "seq": 282
+  },
+  {
+    "title": "寒食",
+    "author": "韓翃",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第12字 御≠禦",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "韓翃"
+    ],
+    "author_poettang": [
+      "韓翃"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "寒食",
+    "quantangshi_volume": "卷二百四十五",
+    "seq": 283
+  },
+  {
+    "title": "寄李儋元錫",
+    "author": "韋應物",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（春愁黯黯… / 聞道欲來…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "韋應物"
+    ],
+    "author_poettang": [
+      "韋應物"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "寄李儋、元錫",
+    "quantangshi_volume": "卷一百八十八",
+    "seq": 284
+  },
+  {
+    "title": "寄全椒山中道士",
+    "author": "韋應物",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：荆/荊",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "韋應物"
+    ],
+    "author_poettang": [
+      "韋應物"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "寄全椒山中道士",
+    "quantangshi_volume": "卷一百八十八",
+    "seq": 285
+  },
+  {
+    "title": "秋夜寄丘二十二員外",
+    "author": "韋應物",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "韋應物"
+    ],
+    "author_poettang": [
+      "韋應物"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "秋夜寄丘二十二員外",
+    "quantangshi_volume": "卷一百八十八",
+    "seq": 286
+  },
+  {
+    "title": "賦得暮雨送李胄",
+    "author": "韋應物",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "韋應物"
+    ],
+    "author_poettang": [
+      "韋應物"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "賦得暮雨，送李胄",
+    "quantangshi_volume": "卷一百八十九",
+    "seq": 287
+  },
+  {
+    "title": "送楊氏女",
+    "author": "韋應物",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "韋應物"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 288
+  },
+  {
+    "title": "長安遇馮著",
+    "author": "韋應物",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：爲/為",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "韋應物"
+    ],
+    "author_poettang": [
+      "韋應物"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "長安遇馮著",
+    "quantangshi_volume": "卷一百九十",
+    "seq": 289
+  },
+  {
+    "title": "夕次盱眙縣",
+    "author": "韋應物",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第19字 沈≠沉",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "韋應物"
+    ],
+    "author_poettang": [
+      "韋應物"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "夕次盱眙縣",
+    "quantangshi_volume": "卷一百九十一",
+    "seq": 290
+  },
+  {
+    "title": "東郊",
+    "author": "韋應物",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": "分段不同（正文逐字一致）",
+    "author_yuding": [],
+    "author_poettang": [
+      "韋應物"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 291
+  },
+  {
+    "title": "滁州西澗",
+    "author": "韋應物",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "韋應物"
+    ],
+    "author_poettang": [
+      "韋應物"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "滁州西澗",
+    "quantangshi_volume": "卷一百九十三",
+    "seq": 292
+  },
+  {
+    "title": "和晉陵陸丞早春遊望",
+    "author": "韋應物",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：霑/沾",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜審言",
+      "韋應物"
+    ],
+    "author_poettang": [
+      "杜審言",
+      "韋應物"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "和晉陵陸丞早春遊望",
+    "quantangshi_volume": "卷一百九十五",
+    "seq": 293
+  },
+  {
+    "title": "與高適薛據慈恩寺浮圖",
+    "author": "岑參",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：挂/掛",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "岑參"
+    ],
+    "author_poettang": [
+      "岑參"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "與高適、薛據登慈恩寺浮圖",
+    "quantangshi_volume": "卷一百九十八",
+    "seq": 294
+  },
+  {
+    "title": "白雪歌送武判官歸京",
+    "author": "岑參",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "岑參"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 295
+  },
+  {
+    "title": "輪臺歌奉送封大夫出師西征",
+    "author": "岑參",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 126≠63，首异在第 22 字（單于已在… / 上將擁旄…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "岑參"
+    ],
+    "author_poettang": [
+      "岑參"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "輪台歌，奉送封大夫出師西征",
+    "quantangshi_volume": "卷一百九十九",
+    "seq": 296
+  },
+  {
+    "title": "走馬川行奉送出師西征",
+    "author": "岑參",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第31字 斗≠鬥",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "岑參"
+    ],
+    "author_poettang": [
+      "岑參"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "走馬川行，奉送出師西征",
+    "quantangshi_volume": "卷一百九十九",
+    "seq": 297
+  },
+  {
+    "title": "寄左省杜拾遺",
+    "author": "岑參",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第18字 御≠禦",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "岑參"
+    ],
+    "author_poettang": [
+      "岑參"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "寄左省杜拾遺",
+    "quantangshi_volume": "卷二百",
+    "seq": 298
+  },
+  {
+    "title": "奉和中書舍人賈至早朝大明宮",
+    "author": "岑參",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（玉階仙仗… / 獨有鳳凰…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "岑參"
+    ],
+    "author_poettang": [
+      "岑參"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "奉和中書舍人賈至早朝大明宮",
+    "quantangshi_volume": "卷二百零一",
+    "seq": 299
+  },
+  {
+    "title": "逢入京使",
+    "author": "岑參",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第14字 乾≠幹",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "岑參"
+    ],
+    "author_poettang": [
+      "岑參"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "逢入京使",
+    "quantangshi_volume": "卷二百零一",
+    "seq": 300
+  },
+  {
+    "title": "訪羊尊師",
+    "author": "孫革",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "孫革",
+      "賈島"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 301
+  },
+  {
+    "title": "書邊事",
+    "author": "張喬",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "張喬"
+    ],
+    "author_poettang": [
+      "張喬"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "書邊事",
+    "quantangshi_volume": "卷六百三十八",
+    "seq": 302
+  },
+  {
+    "title": "行路難三首 一",
+    "author": "李白",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 303
+  },
+  {
+    "title": "行路難三首 二",
+    "author": "李白",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 304
+  },
+  {
+    "title": "行路難三首 三",
+    "author": "李白",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 305
+  },
+  {
+    "title": "長相思",
+    "author": "李白",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 75≠143，首异在第 13 字（闌微霜淒… / 欄微霜淒…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "雜曲歌辭：長相思三首",
+    "quantangshi_volume": "卷二十五",
+    "seq": 306
+  },
+  {
+    "title": "關山月",
+    "author": "李白",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": "分段不同（正文逐字一致）",
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "橫吹曲辭：關山月",
+    "quantangshi_volume": "卷一十八",
+    "seq": 307
+  },
+  {
+    "title": "玉階怨",
+    "author": "李白",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：却/卻",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "玉階怨",
+    "quantangshi_volume": "卷一百六十四",
+    "seq": 308
+  },
+  {
+    "title": "清平調詞三首 一",
+    "author": "李白",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 28≠84，首异在第 29 字（… / 一枝紅豔…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "雜曲歌辭：清平調",
+    "quantangshi_volume": "卷二十七",
+    "seq": 309
+  },
+  {
+    "title": "清平調詞三首 二",
+    "author": "李白",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 310
+  },
+  {
+    "title": "靜夜思",
+    "author": "李白",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：牀/床",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "靜夜思",
+    "quantangshi_volume": "卷一百六十五",
+    "seq": 311
+  },
+  {
+    "title": "春思",
+    "author": "李白",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "春思",
+    "quantangshi_volume": "卷一百六十五",
+    "seq": 312
+  },
+  {
+    "title": "子夜吳歌 春歌",
+    "author": "李白",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 313
+  },
+  {
+    "title": "子夜吳歌 夏歌",
+    "author": "李白",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第15字 採≠采；第20字 耶≠邪",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "相和歌辭：子夜四時歌四首：夏歌",
+    "quantangshi_volume": "卷二十一",
+    "seq": 314
+  },
+  {
+    "title": "子夜吳歌 秋歌",
+    "author": "李白",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": "分段不同（正文逐字一致）",
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "相和歌辭：子夜四時歌四首：秋歌",
+    "quantangshi_volume": "卷二十一",
+    "seq": 315
+  },
+  {
+    "title": "子夜吳歌 冬歌",
+    "author": "李白",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "相和歌辭：子夜四時歌四首：冬歌",
+    "quantangshi_volume": "卷二十一",
+    "seq": 316
+  },
+  {
+    "title": "贈孟浩然",
+    "author": "李白",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "贈孟浩然",
+    "quantangshi_volume": "卷一百六十八",
+    "seq": 317
+  },
+  {
+    "title": "廬山謠寄盧侍御虛舟",
+    "author": "李白",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 191≠100，首异在第 42 字（屏風九疊… / 翠影紅霞…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "廬山謠，寄盧侍禦虛舟",
+    "quantangshi_volume": "卷一百七十三",
+    "seq": 318
+  },
+  {
+    "title": "夢遊天姥吟留別",
+    "author": "李白",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 285≠134，首异在第 18 字（雲霓明滅… / 天台四萬…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": "分段不同（正文逐字一致）",
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "夢遊天姥吟留別",
+    "quantangshi_volume": "卷一百七十四",
+    "seq": 319
+  },
+  {
+    "title": "金陵酒肆留別",
+    "author": "李白",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 42≠21，首异在第 22 字（欲行不行… / …）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "金陵酒肆留別",
+    "quantangshi_volume": "卷一百七十四",
+    "seq": 320
+  },
+  {
+    "title": "黃鶴樓送孟浩然之廣陵",
+    "author": "李白",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "黃鶴樓送孟浩然之廣陵",
+    "quantangshi_volume": "卷一百七十四",
+    "seq": 321
+  },
+  {
+    "title": "渡荆門送別",
+    "author": "李白",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 322
+  },
+  {
+    "title": "送友人",
+    "author": "李白",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：遶/繞、爲/為",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "送友人",
+    "quantangshi_volume": "卷一百七十七",
+    "seq": 323
+  },
+  {
+    "title": "宣州謝朓樓餞別校書叔雲",
+    "author": "李白",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 92≠64，首异在第 44 字（中間小謝… / 抽刀斷水…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "宣州謝脁樓餞別校書叔雲",
+    "quantangshi_volume": "卷一百七十七",
+    "seq": 324
+  },
+  {
+    "title": "下終南山過斛斯山人宿置酒",
+    "author": "李白",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第64字 復≠複",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "下終南山過斛斯山人宿置酒",
+    "quantangshi_volume": "卷一百七十九",
+    "seq": 325
+  },
+  {
+    "title": "登金陵鳳凰臺",
+    "author": "李白",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 22 字（晉代衣冠… / 總為浮雲…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "登金陵鳳凰台",
+    "quantangshi_volume": "卷一百八十",
+    "seq": 326
+  },
+  {
+    "title": "早發白帝城",
+    "author": "李白",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：猨/猿",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "早發白帝城",
+    "quantangshi_volume": "卷一百八十一",
+    "seq": 327
+  },
+  {
+    "title": "夜泊牛渚懷古",
+    "author": "李白",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：挂/掛",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "夜泊牛渚懷古",
+    "quantangshi_volume": "卷一百八十一",
+    "seq": 328
+  },
+  {
+    "title": "月下獨酌四首 一",
+    "author": "李白",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 70≠270，首异在第 71 字（… / 天若不愛…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "月下獨酌四首",
+    "quantangshi_volume": "卷一百八十二",
+    "seq": 329
+  },
+  {
+    "title": "聽蜀僧濬彈琴",
+    "author": "李白",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：爲/為",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "聽蜀僧浚彈琴",
+    "quantangshi_volume": "卷一百八十三",
+    "seq": 330
+  },
+  {
+    "title": "怨情",
+    "author": "李白",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 331
+  },
+  {
+    "title": "淮上喜會梁川故人",
+    "author": "韋應物",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：爲/為、疎/疏",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "韋應物"
+    ],
+    "author_poettang": [
+      "韋應物"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "淮上喜會梁川故人",
+    "quantangshi_volume": "卷一百八十六",
+    "seq": 332
+  },
+  {
+    "title": "郡齋雨中與諸文士燕集",
+    "author": "韋應物",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第22字 疴≠屙；第28字 復≠複；第32字 慙≠慚；第37字 覩≠睹；第49字 迹≠跡",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "韋應物"
+    ],
+    "author_poettang": [
+      "韋應物"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "郡齋雨中與諸文士燕集",
+    "quantangshi_volume": "卷一百八十六",
+    "seq": 333
+  },
+  {
+    "title": "初發揚子寄元大校書",
+    "author": "韋應物",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "韋應物"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 334
+  },
+  {
+    "title": "相和歌辭 江南曲",
+    "author": "李益",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李益"
+    ],
+    "author_poettang": [
+      "李益"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "相和歌辭：江南曲",
+    "quantangshi_volume": "卷一十九",
+    "seq": 335
+  },
+  {
+    "title": "相和歌辭 燕歌行",
+    "author": "高適",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 197≠113，首异在第 22 字（天子非常… / 校尉羽書…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "高適"
+    ],
+    "author_poettang": [
+      "高適"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "相和歌辭：燕歌行",
+    "quantangshi_volume": "卷一十九",
+    "seq": 336
+  },
+  {
+    "title": "相和歌辭 從軍行",
+    "author": "李頎",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 84≠42，首异在第 18 字（斗風砂暗… / 鬥風砂暗…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李頎"
+    ],
+    "author_poettang": [
+      "李頎"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "相和歌辭：從軍行",
+    "quantangshi_volume": "卷一十九",
+    "seq": 337
+  },
+  {
+    "title": "相和歌辭 蜀道難",
+    "author": "李白",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": "分段不同（正文逐字一致）",
+    "author_yuding": [],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 338
+  },
+  {
+    "title": "相和歌辭 長信怨 二",
+    "author": "王昌齡",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "王昌齡"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 339
+  },
+  {
+    "title": "相和歌辭 玉階怨",
+    "author": "李白",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：却/卻",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "相和歌辭：玉階怨",
+    "quantangshi_volume": "卷二十",
+    "seq": 340
+  },
+  {
+    "title": "相和歌辭 子夜四時歌四首 春歌",
+    "author": "李白",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第22字 飢≠饑",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "相和歌辭：子夜四時歌四首：春歌",
+    "quantangshi_volume": "卷二十一",
+    "seq": 341
+  },
+  {
+    "title": "相和歌辭 子夜四時歌四首 夏歌",
+    "author": "李白",
+    "verdict_yuding": "FOLD_EXACT",
+    "detail_yuding": "异体字：迴/回",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_FOLDED",
+    "matched_yuding_title": "相和歌辭：子夜四時歌四首：夏歌",
+    "quantangshi_volume": "卷二十一",
+    "seq": 342
+  },
+  {
+    "title": "相和歌辭 子夜四時歌四首 秋歌",
+    "author": "李白",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "相和歌辭：子夜四時歌四首：秋歌",
+    "quantangshi_volume": "卷二十一",
+    "seq": 343
+  },
+  {
+    "title": "相和歌辭 子夜四時歌四首 冬歌",
+    "author": "李白",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "相和歌辭：子夜四時歌四首：冬歌",
+    "quantangshi_volume": "卷二十一",
+    "seq": 344
+  },
+  {
+    "title": "琴曲歌辭 列女操",
+    "author": "孟郊",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第14字 徇≠殉",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "孟郊"
+    ],
+    "author_poettang": [
+      "孟郊"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "琴曲歌辭：列女操",
+    "quantangshi_volume": "卷二十三",
+    "seq": 345
+  },
+  {
+    "title": "雜曲歌辭 遊子吟",
+    "author": "孟郊",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "孟郊"
+    ],
+    "author_poettang": [
+      "孟郊"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "雜曲歌辭：遊子吟",
+    "quantangshi_volume": "卷二十五",
+    "seq": 346
+  },
+  {
+    "title": "雜曲歌辭 麗人行",
+    "author": "杜甫",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 178≠95，首异在第 22 字（肌理細膩… / 頭上何所…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "杜甫"
+    ],
+    "author_poettang": [
+      "杜甫"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "雜曲歌辭：麗人行",
+    "quantangshi_volume": "卷二十五",
+    "seq": 347
+  },
+  {
+    "title": "雜曲歌辭 長相思三首 一",
+    "author": "李白",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 75≠143，首异在第 63 字（夢魂不到… / 日色已盡…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "雜曲歌辭：長相思三首",
+    "quantangshi_volume": "卷二十五",
+    "seq": 348
+  },
+  {
+    "title": "雜曲歌辭 長相思三首 二",
+    "author": "李白",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 71≠64，首异在第 22 字（蜀琴欲奏… / 不信妾腸…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "李白"
+    ],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "長相思",
+    "quantangshi_volume": "卷一百六十五",
+    "seq": 349
+  },
+  {
+    "title": "雜曲歌辭 行路難三首 一",
+    "author": "李白",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": "分段不同（正文逐字一致）",
+    "author_yuding": [],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 350
+  },
+  {
+    "title": "雜曲歌辭 行路難三首 二",
+    "author": "李白",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 351
+  },
+  {
+    "title": "雜曲歌辭 行路難三首 三",
+    "author": "李白",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": "分段不同（正文逐字一致）",
+    "author_yuding": [],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 352
+  },
+  {
+    "title": "雜曲歌辭 長干曲四首 一",
+    "author": "崔顥",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 20≠80，首异在第 21 字（… / 家臨九江…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "崔顥"
+    ],
+    "author_poettang": [
+      "崔顥"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "雜曲歌辭：長幹曲四首",
+    "quantangshi_volume": "卷二十六",
+    "seq": 353
+  },
+  {
+    "title": "雜曲歌辭 長干曲四首 二",
+    "author": "崔顥",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "崔顥"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 354
+  },
+  {
+    "title": "雜曲歌辭 長干行二首 一",
+    "author": "李白",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "李白"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 355
+  },
+  {
+    "title": "雜曲歌辭 獨不見",
+    "author": "沈佺期",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "沈佺期"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 356
+  },
+  {
+    "title": "雜曲歌辭 秋夜曲",
+    "author": "王涯",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王涯"
+    ],
+    "author_poettang": [
+      "王涯"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "雜曲歌辭：秋夜曲",
+    "quantangshi_volume": "卷二十六",
+    "seq": 357
+  },
+  {
+    "title": "春思",
+    "author": "皇甫冉",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 56≠35，首异在第 17 字（秦城鄰漢… / 層城臨漢…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "劉長卿",
+      "皇甫冉"
+    ],
+    "author_poettang": [
+      "劉長卿",
+      "皇甫冉"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "賦得",
+    "quantangshi_volume": "卷一百五十一",
+    "seq": 358
+  },
+  {
+    "title": "夜月",
+    "author": "劉方平",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第11字 干≠幹",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "劉方平"
+    ],
+    "author_poettang": [
+      "劉方平"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "夜月",
+    "quantangshi_volume": "卷二百五十一",
+    "seq": 359
+  },
+  {
+    "title": "春怨",
+    "author": "劉方平",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "劉方平"
+    ],
+    "author_poettang": [
+      "劉方平"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "春怨",
+    "quantangshi_volume": "卷二百五十一",
+    "seq": 360
+  },
+  {
+    "title": "登鸛雀樓",
+    "author": "王之渙",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "朱斌",
+      "王之渙"
+    ],
+    "author_poettang": [
+      "朱斌",
+      "王之渙"
+    ],
+    "author_ok": true,
+    "overall": "DUAL_RAW",
+    "matched_yuding_title": "登鸛雀樓",
+    "quantangshi_volume": "卷二百五十三",
+    "seq": 361
+  },
+  {
+    "title": "涼州詞二首 一",
+    "author": "王之渙",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "长度 28≠56，首异在第 29 字（… / 單于北望…）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "王之渙"
+    ],
+    "author_poettang": [
+      "王之渙"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "涼州詞二首",
+    "quantangshi_volume": "卷二百五十三",
+    "seq": 362
+  },
+  {
+    "title": "闕題",
+    "author": "劉眘虛",
+    "verdict_yuding": "RAW_EXACT",
+    "detail_yuding": "分段不同（正文逐字一致）",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "劉昚虛"
+    ],
+    "author_poettang": [
+      "劉眘虛"
+    ],
+    "author_ok": false,
+    "overall": "TEXT_OK_AUTHOR_SPLIT",
+    "matched_yuding_title": "闕題",
+    "quantangshi_volume": "卷二百五十六",
+    "seq": 363
+  },
+  {
+    "title": "征怨",
+    "author": "柳中庸",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "柳中庸"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 364
+  },
+  {
+    "title": "送李端",
+    "author": "嚴維",
+    "verdict_yuding": "VARIANT",
+    "detail_yuding": "第31字 揜≠掩",
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [
+      "嚴維"
+    ],
+    "author_poettang": [
+      "嚴維"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": "送李端",
+    "quantangshi_volume": "卷二百六十三",
+    "seq": 365
+  },
+  {
+    "title": "宮詞五首 二",
+    "author": "顧況",
+    "verdict_yuding": null,
+    "detail_yuding": null,
+    "verdict_poettang": "RAW_EXACT",
+    "detail_poettang": null,
+    "author_yuding": [],
+    "author_poettang": [
+      "顧況",
+      "馬逢"
+    ],
+    "author_ok": true,
+    "overall": "SINGLE",
+    "matched_yuding_title": null,
+    "quantangshi_volume": null,
+    "seq": 366
+  }
+]

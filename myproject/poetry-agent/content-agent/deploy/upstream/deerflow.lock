@@ -1,0 +1,6 @@
+# Generated/updated by scripts/deerflow/bootstrap-deerflow-runtime.sh
+repository=https://github.com/bytedance/deer-flow.git
+version=2.2.0
+tag=v2.2.0
+commit=58fc5bd5b8e6ea46538e9481ba06ca2a46e14e2a
+released_at=2026-11-04T12:56:57Z

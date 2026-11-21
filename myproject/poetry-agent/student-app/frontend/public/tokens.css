@@ -1,0 +1,59 @@
+/* 诗词时空 · 设计令牌 v0.1（2026-11-06）
+   原则：可读优先（学生独立使用）、可信优先（史实/解释/演绎三态可见）、降级优先（无图无声也完整）。 */
+:root {
+  /* 纸与墨：不用纯白纯黑，长文本不刺眼 */
+  --paper: #f6f1e7;          /* 宣纸底 */
+  --paper-raised: #fbf7ef;
+  --ink: #1f1e1b;            /* 浓墨：正文 */
+  --ink-soft: #4a4740;       /* 淡墨：次要 */
+  --ink-faint: #8a857a;      /* 清水：辅助、禁用 */
+  --rule: #ded6c6;           /* 分隔线 */
+
+  /* 语义色（可信系统，全站唯一含义） */
+  --fact: #2d4a5e;           /* 史实：靛青 */
+  --interp: #4f6d4b;         /* 解释：青绿 */
+  --drama: #b5342a;          /* 演绎：朱砂（必须带角标） */
+  --unknown: #8a857a;        /* 未考：灰（虚线，绝不画成"不存在"） */
+  --accent: #b5342a;         /* 主动作 */
+
+  /* 中文排印 */
+  --font-serif: "Noto Serif SC", "Songti SC", "Source Han Serif SC", serif;
+  --font-sans: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", sans-serif;
+  --fs-xs: 13px; --fs-sm: 15px; --fs-base: 17px; --fs-lg: 20px;
+  --fs-poem: clamp(26px, 5.2vw, 40px);
+  --lh-body: 1.85;           /* 中文正文需要更宽的行高 */
+  --lh-poem: 2.0;
+  --measure: 34em;           /* 单栏不超一行 34 字 */
+
+  /* 间距与栅格（4 的倍数，卡片留白优先） */
+  --s1: 4px; --s2: 8px; --s3: 16px; --s4: 24px; --s5: 40px; --s6: 64px;
+  --r1: 4px; --r2: 10px; --r3: 18px;
+
+  /* 动效：像墨在纸上洇开，不做弹跳 */
+  --ease-ink: cubic-bezier(.22,.61,.36,1);
+  --t-fast: 160ms; --t-med: 320ms; --t-slow: 640ms;
+
+  /* 媒体分级（与架构文档一致） */
+  --z-text: 1; --z-illustration: 2; --z-character: 3; --z-scene: 4; --z-caption: 6;
+}
+
+/* 可信三态：学生不需要读说明书，也能看出哪句是史实、哪句是演绎 */
+.basis { font: 500 var(--fs-xs)/1.4 var(--font-sans); padding: 2px 6px; border-radius: var(--r1); }
+.basis--fact   { color: var(--fact);  border-bottom: 1px solid var(--fact); cursor: help; }
+.basis--interp { color: var(--interp); border-left: 3px solid var(--interp); padding-left: var(--s2); }
+.basis--drama  { color: #fff; background: var(--drama); }
+/* No ::before text here: the wording is fixed in ui/trust.js (OQ-01) and must be real text, read aloud by screen readers. */
+.basis--unknown { color: var(--unknown); border-bottom: 1px dashed var(--unknown); }
+
+.poem-line { font: 400 var(--fs-poem)/var(--lh-poem) var(--font-serif); letter-spacing: 0; }
+.prose { font: 400 var(--fs-base)/var(--lh-body) var(--font-serif); max-width: var(--measure); }
+.annotated > em { font-style: normal; border-bottom: 1px solid var(--ink-faint); cursor: help; }
+
+/* 降级：L0 永远可用；媒体缺失不得留空洞 */
+.level-frame[data-level="L1"] { background: var(--paper-raised); }
+.level-frame[data-level="missing"]::after {
+  content: "这张图没加载出来，文字讲的内容不受影响。";
+  display: block; padding: var(--s3); color: var(--ink-faint);
+  border: 1px dashed var(--rule); border-radius: var(--r2);
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

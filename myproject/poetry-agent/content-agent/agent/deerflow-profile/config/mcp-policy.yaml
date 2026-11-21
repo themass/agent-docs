@@ -1,0 +1,47 @@
+# MCP 工具授权：按角色声明，单一语义（2026-11-11 重写）。
+#
+# 旧版的问题（已修）：
+#   - 每个角色都写了一大串 deny 通配符（"*publish*"），但 DeerFlow 的 AllowlistProvider **只做精确名匹配、
+#     不解释通配符**，这些 deny 从来没生效过，只是"看起来安全"。
+#   - 同时 deny: ["*"] 与 allow 并存，语义自相矛盾（gap_analyst 既 allow 两个工具又 deny 全部）。
+#   - 真正的拦截在 config.yaml 的 guardrails.allowed_tools，两份文件各说各话。
+#
+# 现在的规则：**只写 allow，不写 deny**。"不能做什么"由三处共同保证，不靠这里：
+#   1. 工具清单本身只有 5 个，其中 3 个（create_draft_proposal / apply_approved_draft / request_compile）
+#      在 MCP 服务端默认不暴露（POETRY_MCP_EXPOSED_TOOLS 缺省 = 两个只读工具，见
+#      poetry-domain-mcp/server.py:exposed_tool_names）。未列出的工具在服务端就不存在。
+#   2. DeerFlow 的 guardrails.allowed_tools 是执行时的第二道闸门（精确名白名单，fail_closed）。
+#   3. Java 侧按 X-Poetry-Agent-Role（部署绑定，不是模型可控字段）判权。
+#
+# check_profile.py 会校验：本文件的 allow ⊆ config.yaml 的 allowed_tools，且每个角色的 skill 的
+# allowed-tools ⊆ 本文件的 allow。三方不一致即失败。
+version: 3
+principals:
+  # 入口角色：只读两样；提案由 worker 校验后经控制桥写入，agent 自己不写。
+  poetry_editor_lead:
+    allow:
+      - read_file
+      - poetry-domain_get_work_snapshot
+      - poetry-domain_get_integrity_gap_report
+  # 四个任务角色由 lead 按 task_type 选定，权限相同（最小权限），差异在 skill 与 prompt。
+  gap_analyst:
+    allow:
+      - poetry-domain_get_work_snapshot
+      - poetry-domain_get_integrity_gap_report
+  annotation_editor:
+    allow:
+      - poetry-domain_get_work_snapshot
+      - poetry-domain_get_integrity_gap_report
+  scene_dramaturg:
+    allow:
+      - poetry-domain_get_work_snapshot
+      - poetry-domain_get_integrity_gap_report
+  compiler_triage:
+    allow:
+      - poetry-domain_get_work_snapshot
+      - poetry-domain_get_integrity_gap_report
+  # 审核角色与其它任务角色权限相同：只读两样。它不能改内容、不能发布、不能核验来源。
+  content_reviewer:
+    allow:
+      - poetry-domain_get_work_snapshot
+      - poetry-domain_get_integrity_gap_report

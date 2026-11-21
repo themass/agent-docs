@@ -1,0 +1,198 @@
+{
+  "mock": true,
+  "mock_note": "这是为验证『方法能否复制』而写的 mock 需求,不是内容负责人审定的内容。状态一律为草稿/待核;诗句文本只写一种版本且版本待核;不含任何卷、页、古籍引文。",
+  "status": "草稿/待核",
+  "poem": "jing-ye-si",
+  "title": "静夜思(李白,mock)",
+  "bundle": "tasks/jing-ye-si/script.mock.json",
+  "bundle_note": "mock 剧本骨架,放在本目录;台词文本一律从这里取(text_from)。注意它的 assets 为空:素材引用由 bundle-refs 从登记簿生成,再由 compile-check 合并后送编译器检查。",
+  "poem_lines": [
+    {
+      "seq": 1,
+      "text": "床前明月光"
+    },
+    {
+      "seq": 2,
+      "text": "疑是地上霜"
+    },
+    {
+      "seq": 3,
+      "text": "举头望明月"
+    },
+    {
+      "seq": 4,
+      "text": "低头思故乡"
+    }
+  ],
+  "poem_lines_note": "mock:只写一种常见文本。这首诗流传有多个文本版本(例如第一句、第三句的字有出入),采用哪个版本待内容负责人对照课本定稿,本包不替他们选。",
+  "vars": {
+    "form": "四句小诗",
+    "polyphone_note": "字音待纸质课本核对",
+    "glyph_coverage": "本诗四句全部用字",
+    "reader_voice": "Grandpa (中文（中国大陆）)",
+    "narrator_voice": "Tingting"
+  },
+  "regen": [
+    "node tools/prod.mjs gen jing-ye-si",
+    "node tools/gen/gen-text.mjs jing-ye-si",
+    "node tools/gen/gen-jing-ye-si-scene.mjs",
+    "node tools/gen/gen-audio.mjs jing-ye-si",
+    "node tools/prod.mjs placeholder jing-ye-si",
+    "node tools/prod.mjs bundle-refs jing-ye-si"
+  ],
+  "holds": {
+    "scene_spec": "《静夜思》的场景要素表不存在(与《春望》同样缺失,且这首诗更特殊:诗里只有月光、地上的白、抬头与低头)。尤其『床』指什么(卧具、坐具还是井栏)学界有不同说法,没有定论前,画面里不得出现任何床、窗、屋、家具;时间、地点、季节、天气也不得指明。",
+    "text_version": "诗句文本有多个流传版本,课本采用哪一版需要内容负责人对照纸质课本确认。确认前不得派发真人诵读,字幕和文字卡也只能暂用 mock 的一种版本。",
+    "claims": "台词引用的 claim(claim-jys-*)是 mock,不存在可核查的引文;『诗里的月光像霜』这类只依据诗句本身的解读,契约里没有『依据=作品文本』的表达方式,见 second-poem-playbook.md。"
+  },
+  "global_forbidden": [
+    "指明创作地点或创作年份(不可考,不展示)",
+    "画出床、窗、屋宇、家具、人物或人物的剪影",
+    "给月亮标注具体月相、季节、天气作为事实",
+    "画面中出现文字、印章、落款(文字由前端排印)",
+    "把演绎当作史实呈现:李白当时的处境、心情、动作一律不得带『据记载』的口吻",
+    "来源不明的参考图、他人作品的描摹"
+  ],
+  "tasks": [
+    {
+      "id": "a-jys-moonlight",
+      "type": "scene-illustration",
+      "priority": "P0",
+      "title": "月光(场景插画,概括轮廓)",
+      "steps": [
+        "arrive"
+      ],
+      "layers": [
+        "SCENE"
+      ],
+      "line_seqs": [
+        1,
+        2
+      ],
+      "purpose": "让学生看见诗里的月光铺在地上、白得像霜——对应『床前明月光,疑是地上霜』",
+      "bundle_refs": [
+        "steps[1].layers[0].assets"
+      ],
+      "fallback": "a-jys-moonlight-text",
+      "depiction": "DRAMATIZATION",
+      "hold": "scene_spec",
+      "creative": "夜空、一轮月、地面上一片淡淡的白光。只画诗句字面上有的东西:月和地上的白。不画床、窗、屋和人;不指明季节与天气。画面下方四分之一保持安静,方便叠字幕。月亮用概括的圆表示,不是在断言月相。",
+      "grounding": "诗句『床前明月光,疑是地上霜』的字面意象(月光、地上、霜)。创作时间、地点、『床』的所指均无可靠定论,因此画面不承载这些信息。",
+      "forbidden": [
+        "画出床或任何家具",
+        "画出窗、门、屋顶、院落",
+        "画出人物或剪影",
+        "画出具体的季节标志(落叶、积雪、花)"
+      ],
+      "placeholder": {
+        "strategy": "generated-svg",
+        "generator": "tools/gen/gen-jing-ye-si-scene.mjs"
+      }
+    },
+    {
+      "id": "a-jys-moonlight-text",
+      "type": "text-card",
+      "priority": "P0",
+      "companion_of": "a-jys-moonlight",
+      "title": "月光(文字卡)",
+      "steps": [
+        "arrive"
+      ],
+      "layers": [
+        "SCENE"
+      ],
+      "line_seqs": [
+        1,
+        2
+      ],
+      "purpose": "图没加载时,仍告诉学生诗里写的是地上白白的月光——文字永远是降级终点",
+      "bundle_refs": [
+        "assets.a-jys-moonlight.fallback"
+      ],
+      "fallback": null,
+      "depiction": "INTERPRETATION",
+      "text_from": "steps[1].layers[0].lines[0].text",
+      "creative": "只复述诗句本身的画面(月光、地上的白、像霜),不添加时间、地点、天气。",
+      "grounding": "诗句『疑是地上霜』的字面比喻;台词在剧本骨架里,文字取自那里。",
+      "placeholder": {
+        "strategy": "generated-text",
+        "generator": "tools/gen/gen-text.mjs"
+      }
+    },
+    {
+      "id": "a-jys-recite",
+      "type": "recitation",
+      "priority": "P0",
+      "title": "《静夜思》诵读示范(真人)",
+      "steps": [
+        "recite"
+      ],
+      "layers": [
+        "SCENE"
+      ],
+      "line_seqs": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "purpose": "示范停顿与韵律,学生知道这四句该怎么读出来——对应全诗四句",
+      "bundle_refs": [
+        "steps[3].demo_audio"
+      ],
+      "fallback": "a-jys-recite-subtitle",
+      "depiction": "FACT",
+      "hold": "text_version",
+      "constraints": {
+        "entry": {
+          "min_duration_ms": 4000,
+          "max_duration_ms": 30000
+        }
+      },
+      "creative": "真人诵读,语速适合学生跟读,不加配乐。全诗只有四句,总时长比《春望》短得多,故时长下限放宽到 4 秒。TTS 读古诗韵律不合格,不得作正式版。",
+      "grounding": "诗句全文(mock 的一种版本,待核)。",
+      "script_text": "床前明月光,疑是地上霜。举头望明月,低头思故乡。",
+      "placeholder": {
+        "strategy": "generated-audio",
+        "generator": "tools/gen/gen-audio.mjs",
+        "note": "占位:macOS say 朗读,韵律不可信,不可上线"
+      }
+    },
+    {
+      "id": "a-jys-recite-subtitle",
+      "type": "subtitle",
+      "priority": "P0",
+      "companion_of": "a-jys-recite",
+      "depends_on": [
+        "a-jys-recite"
+      ],
+      "title": "诵读字幕(WebVTT)",
+      "steps": [
+        "recite"
+      ],
+      "layers": [
+        "SCENE"
+      ],
+      "line_seqs": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "purpose": "音频不可用时,文本与断句仍在(也是无障碍与降级必需)",
+      "bundle_refs": [
+        "assets.a-jys-recite.fallback"
+      ],
+      "fallback": null,
+      "depiction": "FACT",
+      "creative": "逐句字幕,时间轴依据真实录音的停顿;文字与 recite.txt 逐字一致。",
+      "grounding": "诗句全文。时间轴只能在真录音交付后确定。",
+      "script_text": "床前明月光,疑是地上霜。举头望明月,低头思故乡。",
+      "placeholder": {
+        "strategy": "generated-vtt",
+        "generator": "tools/gen/gen-audio.mjs",
+        "note": "占位:时间轴按占位音频的实际时长均分"
+      }
+    }
+  ]
+}

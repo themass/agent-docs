@@ -1,0 +1,13 @@
+{
+  "name": "@xuexi/scene-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "框架无关的奇境场景运行时内核：bundle → 五步状态机 → 降级 → 离线预取。Web 与 App 壳共用这一份。",
+  "main": "src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "engines": { "node": ">=23.6" },
+  "scripts": {
+    "verify": "node scripts/verify.ts"
+  }
+}

@@ -1,0 +1,183 @@
+/* Mobile first, iPad portrait first. Touch targets >= 44px. Colours and type come from tokens.css; the
+   trust tags (.basis--*) are defined there and must not be restyled here. */
+:root { --font-scale: 1; --pad: max(16px, env(safe-area-inset-left)); }
+* { box-sizing: border-box; }
+html { font-size: calc(100% * var(--font-scale)); -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 var(--fs-base)/var(--lh-body) var(--font-serif); padding-bottom: env(safe-area-inset-bottom); }
+a { color: var(--fact); }
+.skip { position: absolute; left: -999px; } .skip:focus { left: 8px; top: 8px; background: #fff; padding: 8px; z-index: 20; }
+:focus-visible { outline: 3px solid var(--fact); outline-offset: 2px; }
+
+.topbar { position: sticky; top: 0; z-index: 10; display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); align-items: center; justify-content: space-between;
+  padding: calc(8px + env(safe-area-inset-top)) var(--pad) 8px; background: var(--paper-raised); border-bottom: 1px solid var(--rule); font-family: var(--font-sans); }
+.brand { font-size: var(--fs-lg); font-weight: 600; color: var(--ink); text-decoration: none; }
+.topbar nav { display: flex; gap: var(--s1); }
+.topbar nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 var(--s3); color: var(--ink-soft); text-decoration: none; border-radius: var(--r2); }
+.topbar nav a:hover { background: var(--rule); }
+
+main { max-width: 64rem; margin: 0 auto; padding: var(--s3) var(--pad) var(--s6); outline: none; }
+.page > h1 { font-size: 1.6rem; margin: var(--s3) 0; }
+.soft { color: var(--ink-faint); font-family: var(--font-sans); font-size: var(--fs-sm); }
+.loading { padding: var(--s5) 0; text-align: center; }
+.plain { list-style: none; padding: 0; margin: var(--s2) 0; } .plain li { padding: var(--s1) 0; }
+.back { display: inline-flex; align-items: center; min-height: 44px; text-decoration: none; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; padding: 0 var(--s3); border: 1px solid var(--ink-faint);
+  border-radius: var(--r2); background: var(--paper-raised); color: var(--ink); font: 500 var(--fs-sm)/1 var(--font-sans); text-decoration: none; cursor: pointer; }
+.btn:hover:not(:disabled) { border-color: var(--ink); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.big { min-height: 52px; font-size: var(--fs-base); padding: 0 var(--s4); }
+.linkline { min-height: 44px; padding: 0; border: 0; background: none; color: var(--fact); font: inherit; font-family: var(--font-sans); font-size: var(--fs-sm); text-align: left; cursor: pointer; text-decoration: underline; }
+.row, .asks { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; margin: var(--s2) 0; }
+.chip { margin-left: var(--s2); padding: 2px 8px; border-radius: 999px; background: var(--rule); font: 500 var(--fs-xs)/1.4 var(--font-sans); }
+.tag { padding: 2px 8px; border-radius: var(--r1); font: 500 var(--fs-xs)/1.4 var(--font-sans); } .tag--drama { background: var(--drama); color: #fff; }
+
+.card { padding: var(--s3); margin: var(--s3) 0; background: var(--paper-raised); border: 1px solid var(--rule); border-radius: var(--r2); }
+.card h2 { margin: 0 0 var(--s2); font-size: 1.1rem; }
+.notice { border-left: 4px solid var(--fact); }
+.coverage { margin-top: var(--s5); padding-top: var(--s3); border-top: 1px dashed var(--rule); color: var(--ink-soft); font: 400 var(--fs-sm)/1.7 var(--font-sans); }
+.legend { font: 400 var(--fs-xs)/2 var(--font-sans); color: var(--ink-soft); }
+
+.banner { margin: 0; padding: var(--s2) var(--pad); font: 400 var(--fs-sm)/1.6 var(--font-sans); }
+.banner.gate { background: #f3dcd8; border-bottom: 1px solid var(--drama); }
+.banner.degrade { background: #e3ebf0; border-bottom: 1px solid var(--fact); }
+
+.doors { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: var(--s3); margin: var(--s3) 0; }
+.door { display: flex; flex-direction: column; gap: var(--s1); min-height: 6rem; padding: var(--s4); border: 1px solid var(--rule); border-radius: var(--r3); background: var(--paper-raised); color: var(--ink); text-decoration: none; }
+.door strong { font-size: 1.2rem; } .door span { color: var(--ink-soft); font-family: var(--font-sans); font-size: var(--fs-sm); }
+/* 首屏「今天」：一首诗占主位，其余入口变小。没有分数、没有进度条。 */
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.today { margin: var(--s3) 0 var(--s4); padding: var(--s5) var(--s4); border-radius: var(--r3); background: var(--paper-raised); border: 1px solid var(--rule); }
+.today-kicker { margin: 0; font-family: var(--font-sans); font-size: var(--fs-sm); color: var(--ink-soft); }
+.today-title { margin: var(--s2) 0; font-size: clamp(2rem, 7vw, 3rem); font-weight: 600; letter-spacing: .04em; }
+.today-hook { margin: 0 0 var(--s4); font-size: var(--fs-lg); max-width: var(--measure); }
+.today--empty { padding: var(--s4); }
+.doors--small { grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); }
+.doors--small .door { min-height: 0; padding: var(--s3); border-radius: var(--r2); }
+.doors--small .door strong { font-size: 1.05rem; }
+/* 家长入口：在角落、字小，但仍是 44px 的触控目标（防误触靠闸门，不靠把它做小到点不中）。 */
+.corner-link { display: inline-flex; align-items: center; min-height: 44px; padding: 0 var(--s2); color: var(--ink-soft); font-size: var(--fs-xs); text-decoration: none; }
+.corner-link:hover { text-decoration: underline; }
+
+/* poem */
+.byline { color: var(--ink-soft); font-family: var(--font-sans); margin-top: 0; }
+.poem { list-style: none; margin: var(--s3) 0; padding: 0; }
+.poem-line { padding: var(--s1) var(--s3); border-left: 4px solid transparent; transition: background var(--t-med) var(--ease-ink); }
+.line-text { font: 400 var(--fs-poem)/var(--lh-poem) var(--font-serif); display: inline-block; min-height: 44px; cursor: pointer; }
+.pinyin { display: block; color: var(--ink-soft); font: 400 var(--fs-sm)/1.3 var(--font-sans); }
+.poem-line.hot { border-left-color: var(--accent); background: rgba(181, 52, 42, .07); padding-left: calc(var(--s3) + 6px); }
+.poem-line.selected { background: rgba(45, 74, 94, .1); }
+.notes .note { margin: var(--s1) 0; font: 400 var(--fs-sm)/1.7 var(--font-sans); color: var(--ink-soft); }
+.enter { margin: var(--s4) 0; }
+.context-row { padding: var(--s3); margin: var(--s2) 0; border: 1px solid var(--rule); border-left: 4px solid var(--rule); border-radius: var(--r2); }
+.context-row.active { border-left-color: var(--accent); background: rgba(181, 52, 42, .05); }
+.context-row p { margin: var(--s1) 0; }
+.sources { margin: var(--s4) 0; font-family: var(--font-sans); } .sources summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
+.tools .switch, .switch { display: inline-flex; align-items: center; gap: var(--s2); min-height: 44px; font-family: var(--font-sans); }
+.switch input { width: 22px; height: 22px; }
+fieldset { border: 1px solid var(--rule); border-radius: var(--r2); margin: var(--s3) 0; }
+
+/* timeline */
+.tl-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--s2); }
+.tabs { display: inline-flex; border: 1px solid var(--rule); border-radius: var(--r2); overflow: hidden; font-family: var(--font-sans); }
+.tabs a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 var(--s4); text-decoration: none; color: var(--ink-soft); }
+.tabs a[aria-selected="true"] { background: var(--ink); color: var(--paper); }
+.tl-controls { display: flex; align-items: center; gap: var(--s2); margin: var(--s3) 0; flex-wrap: wrap; } .tl-level { font: 500 var(--fs-sm)/1 var(--font-sans); flex: 1; text-align: center; }
+.tl-axis { position: relative; padding: var(--s2) 0 var(--s5); overflow: hidden; }
+.tl-row { position: relative; height: 3.2rem; margin-bottom: var(--s2); }
+.tl-band, .tl-gap { position: absolute; top: 0; height: 100%; display: flex; align-items: center; padding: 0 var(--s2); overflow: hidden; border-radius: var(--r1); font: 500 var(--fs-sm)/1.2 var(--font-sans); }
+.tl-band { background: #d9c3a3; color: var(--ink); cursor: pointer; }
+.tl-gap { border: 1px dashed var(--unknown); color: var(--unknown); background: repeating-linear-gradient(135deg, transparent 0 6px, rgba(138, 133, 122, .08) 6px 12px); }
+.tl-lanes { position: relative; margin-top: var(--s2); }
+.tl-bar, .tl-point { position: absolute; min-height: 2.2rem; display: flex; align-items: center; cursor: pointer; white-space: nowrap; font: 400 var(--fs-sm)/1 var(--font-sans); }
+.tl-bar { background: rgba(45, 74, 94, .14); border-left: 3px solid var(--fact); padding: 0 var(--s2); border-radius: var(--r1); }
+.tl-point::before { content: ""; width: 14px; height: 14px; margin-right: 6px; background: var(--ink); flex: none; }
+.tl-dot::before { border-radius: 50%; } .tl-square::before { border-radius: 2px; }
+.selected, .tl-bar.selected, .tl-band.selected { outline: 2px solid var(--accent); } .tl-point.selected::before { background: var(--accent); }
+.dim { opacity: .25; }
+.tl-label { overflow: hidden; text-overflow: ellipsis; }
+.tl-ruler { position: relative; height: 1.6rem; border-top: 1px solid var(--rule); margin-top: var(--s3); font: 400 var(--fs-xs)/1.6 var(--font-sans); color: var(--ink-faint); }
+.tl-ruler span { position: absolute; transform: translateX(-50%); }
+.tl-list { list-style: none; padding: 0; } .tl-item { cursor: pointer; } .tl-item.selected { border-color: var(--accent); }
+.summary[hidden] { display: none; }
+.ov-scroll { overflow-x: auto; padding-bottom: var(--s3); } .ov { position: relative; padding-bottom: 2rem; }
+.ov-row { position: relative; height: 3rem; margin-bottom: var(--s2); } .ov-density { height: 2rem; }
+.ov-cell { position: absolute; top: 0; height: 100%; background: rgba(45, 74, 94, calc(.12 + var(--n, 0) * .14)); }
+.ov-cell.none { background: none; border: 1px dashed var(--rule); }
+.ov-themes { position: relative; } .ov-theme { position: relative; height: 2.6rem; min-height: 44px; cursor: pointer; }
+.ov-theme-dash { position: absolute; top: 50%; border-top: 1px dashed var(--unknown); }
+.ov-theme-line { position: absolute; top: calc(50% - 3px); height: 6px; background: var(--interp); border-radius: 3px; }
+.ov-theme .tl-label { position: absolute; top: -2px; font: 500 var(--fs-xs)/1 var(--font-sans); } .ov-theme.selected .ov-theme-line { background: var(--accent); }
+
+/* lesson */
+.lesson-top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s4); }
+.rail { display: inline-flex; gap: var(--s2); margin-left: auto; }
+.rail .step { min-width: 48px; min-height: 48px; border-radius: 50%; border: 1px solid var(--ink-faint); background: var(--paper-raised); font: 500 1.05rem var(--font-serif); cursor: pointer; }
+.rail .step[aria-current="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.lesson-grid { display: grid; gap: var(--s4); margin-top: var(--s3); }
+@media (min-width: 760px) { .lesson-grid { grid-template-columns: minmax(0, 22rem) minmax(0, 1fr); } .poem-side { position: sticky; top: 5rem; align-self: start; } }
+.lesson-foot { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s4); padding-top: var(--s3); border-top: 1px solid var(--rule); }
+.step-hint { color: var(--ink-soft); font-family: var(--font-sans); }
+.layer-card { margin: var(--s2) 0; border: 1px solid var(--rule); border-radius: var(--r2); background: var(--paper-raised); }
+.layer-card > summary { min-height: 48px; display: flex; align-items: center; padding: 0 var(--s3); font-weight: 600; cursor: pointer; }
+.layer-card[open] > summary { border-bottom: 1px solid var(--rule); } .layer-card > :not(summary) { margin-left: var(--s3); margin-right: var(--s3); }
+/* 处境句：一处"你在这里"，然后由学生选先看哪儿。比四张并列卡片先出现，但不挡住它们。 */
+.situation { margin-bottom: var(--s3); }
+.situation .spoken { margin-top: 0; }
+.situation-ask { margin: var(--s3) 0 var(--s2); font-family: var(--font-sans); color: var(--ink-soft); }
+.situation .choices { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.spoken { margin: var(--s3) 0; padding-left: var(--s2); } .spoken .who { font-family: var(--font-sans); }
+.source-link { color: var(--fact); text-decoration: underline; cursor: pointer; font: 500 var(--fs-xs) var(--font-sans); }
+.speaker { display: flex; align-items: center; gap: var(--s2); font-family: var(--font-sans); margin: var(--s2) 0; }
+.seal { display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: #fff; font: 600 1rem var(--font-serif); } .seal.big { width: 96px; height: 96px; font-size: 2.4rem; }
+.stage { width: min(100%, 15rem); aspect-ratio: 2/3; margin: var(--s3) auto; display: grid; place-items: center; background: var(--paper-raised); border: 1px solid var(--rule); border-radius: var(--r2); overflow: hidden; }
+.depiction { text-align: center; }
+.bubble { margin: var(--s3) 0; padding: var(--s3); border-radius: var(--r2); background: var(--paper-raised); border: 1px solid var(--rule); } .bubble-say { margin: var(--s1) 0; }
+.bubble--poet { border-color: var(--drama); } .bubble .src-tag { margin-left: var(--s2); }
+.level-frame { margin: var(--s2) 0; border-radius: var(--r2); overflow: hidden; background: var(--paper-raised); }
+.level-frame img { display: block; max-width: 100%; height: auto; }
+.parallax { position: relative; overflow: hidden; width: 100%; } .parallax img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform var(--t-med) var(--ease-ink); }
+textarea { width: 100%; min-height: 6rem; padding: var(--s2); border: 1px solid var(--ink-faint); border-radius: var(--r2); background: #fff; font: inherit; }
+.eval .card { margin: var(--s2) 0; }
+.sheet-backdrop { position: fixed; inset: 0; z-index: 30; display: grid; place-items: end center; background: rgba(0, 0, 0, .35); }
+.sheet { width: min(100%, 36rem); max-height: 80vh; overflow: auto; padding: var(--s3) var(--s3) calc(var(--s3) + env(safe-area-inset-bottom)); background: var(--paper); border-radius: var(--r3) var(--r3) 0 0; }
+.sheet-head { display: flex; justify-content: space-between; align-items: center; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+
+/* narration */
+.btn.voice { min-height: 44px; min-width: 44px; margin-left: var(--s1); }
+.tag--placeholder { margin-left: var(--s2); border: 1px dashed var(--unknown); color: var(--unknown); background: none; }
+.voice-note { margin-left: var(--s2); }
+
+/* ---- pass 2 (from screenshots + audit) ----
+   Secondary text used the design's --ink-faint (3.3:1 on paper). Learner-facing secondary text now uses --ink-soft (>7:1). */
+.soft, .src-tag, .depiction, .tag--placeholder, .tl-ruler, .tl-gap, .ov-theme-dash + *, .legend, .coverage { color: var(--ink-soft); }
+.tag--placeholder { border-color: var(--ink-soft); }
+/* Touch targets: every tappable thing is at least 44px tall. */
+.brand { display: inline-flex; align-items: center; min-height: 44px; }
+.source-link { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; justify-content: center; padding: 0 var(--s2); box-sizing: border-box; }
+/* A bare <input> renders ~21px tall on every browser; the gate's arithmetic field was the last control
+   under the 44px touch minimum. Volume, not look: padding grows the box, the border stays the same. */
+.parent-gate input, .gate input, input[type=number], input[type=tel] { min-height: 44px; }
+.tl-bar, .tl-point { min-height: 44px; }
+/* The timeline bars are absolutely positioned by start/end year, so a 44px height alone does not make
+   them tappable: their width is whatever the year span computes to (19px for a one-year event).
+   Keep the visual height but guarantee a 44px-wide hit area without changing where the bar sits. */
+.tl-bar { min-width: 44px; box-sizing: border-box; }
+.tl-lanes { margin-top: var(--s1); }
+.tl-level { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.95rem; min-width: 0; }
+/* min-width:0 on the flex item is what lets the ellipsis actually apply: without it a nowrap
+   span refuses to shrink below its content width and pushes the page wider than the viewport.
+   Seen at 820x1180 in the asset-missing walk: the whole page measured ~1000px wide. */
+.tl-controls .btn { min-width: 44px; }
+input[type=range] { min-height: 44px; width: min(100%, 14rem); }
+/* A dramatization row has a vermilion background (tokens.css .basis--drama): its secondary text must be light, not ink. */
+.spoken.basis--drama .soft, .spoken.basis--drama .tag--placeholder, .spoken.basis--drama .voice-note { color: #fff; }
+.spoken.basis--drama .tag--placeholder { border-color: #fff; }
+/* A dramatization reply bubble: the vermilion must reach the bubble itself, not just its label (the bubble's own paper background won). */
+.bubble.basis--drama { background: var(--drama); border-color: var(--drama); }
+.bubble.basis--drama .soft, .bubble.basis--drama .speaker-name, .bubble.basis--drama .bubble-say, .bubble.basis--drama .seal { color: #fff; }
+.bubble.basis--drama .seal { background: #fff; color: var(--drama); }
+

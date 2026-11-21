@@ -1,0 +1,30 @@
+[project]
+name = "poetry-agent-platform"
+version = "0.1.0"
+description = "Governed multi-service platform for Poetry Space authoring agents"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv.workspace]
+members = [
+  "content-agent/agent/agent-bff",
+  "content-agent/agent/poetry-domain-mcp",
+  "content-agent/agent/agent-worker",
+  "student-app/agent",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "ruff>=0.14.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["content-agent/agent", "student-app/agent/tests"]
+addopts = "--import-mode=importlib -q"
+
+[tool.ruff]
+cache-dir = ".venv/.ruff_cache"
+line-length = 100
+target-version = "py312"

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" aria-hidden="true">
+<!-- 占位素材:代码生成的几何水墨风,不可上线。不依据场景要素表;城郭只是概括轮廓。 -->
+<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e5ddca"/><stop offset="0.65" stop-color="#f6f1e7"/><stop offset="1" stop-color="#efe6d3"/></linearGradient></defs>
+<rect width="1280" height="720" fill="url(#sky)"/>
+<circle cx="930" cy="190" r="58" fill="#f3e9cf" opacity="0.8"/>
+</svg>

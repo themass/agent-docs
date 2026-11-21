@@ -1,0 +1,126 @@
+# Staging 部署清单。Secret 只引用名称,值由部署平台注入,绝不写进本文件。
+# 令牌切分与 deploy/compose.yaml 一致(A-contract §14),每个服务只引用自己需要的 Secret:
+#   poetry-agent-bff-secrets     POETRY_DOMAIN_CONTROL_TOKEN, POETRY_DOMAIN_REVIEW_TOKEN, POETRY_STUDIO_REVIEWER_TOKEN, POETRY_WORKER_TOKEN
+#   poetry-agent-worker-secrets  POETRY_DOMAIN_CONTROL_TOKEN, POETRY_WORKER_TOKEN, DEERFLOW_GATEWAY_TOKEN
+#   poetry-domain-mcp-secrets    POETRY_AGENT_INTERNAL_TOKEN, MCP_INTERNAL_TOKEN, POETRY_DOMAIN_CONTROL_TOKEN, POETRY_DOMAIN_REVIEW_TOKEN
+#   deerflow-gateway-secrets     POETRY_LLM_API_KEY, DEER_FLOW_INTERNAL_AUTH_TOKEN, DEER_FLOW_CREDENTIALS_KEY,
+#                                POETRY_DOMAIN_MCP_AUTHORIZATION(值为完整的 "Bearer <token>", DeerFlow 只展开整串 $VAR)
+# deerflow-gateway 的 Secret 里不得出现 CONTROL / REVIEWER / WORKER 令牌(check_profile.py 检查本文件)。
+# 非敏感配置(URL、模型名、角色、端口)放在各服务的 ConfigMap 中,名称见下。
+# 旧的单一 poetry-agent-runtime Secret 已废弃,迁移时先建上述四个 Secret 再应用本文件。
+#
+# 本文件还需要在应用前由部署方补齐(见 docs/handoff/A.md 第 7 节,这些不是清单能替你决定的):
+#   - poetry-agent-bff-secrets 增加 POETRY_STUDIO_SESSION_SECRET(>=32 字符,不以 change-me 开头)。
+#   - Studio 账号文件 /studio-auth/users.json:挂一个持久卷(PVC),用 `python -m agent_bff.users` 创建账号。
+#     BFF 的登录限流是进程内的,两个副本各算各的;多副本生产环境需要外部限流(见 handoff)。
+#   - BFF 的 /profile:BFF 镜像不含 deerflow-profile,必须以只读卷或 ConfigMap 挂入,否则创建运行返回 503 PROFILE_UNAVAILABLE。
+#   - 如果 BFF 之前接到过外网入口,记得把 Service 类型与 Ingress 规则一并检查(本文件只定义 ClusterIP)。
+#
+# DeerFlow 网关本身的 Deployment 不在本文件内: 它需要用上游源码构建的镜像,并把
+#   config/config.yaml、config/extensions_config.json、skills/(挂到 <skills 根>/public)、agents/
+# 作为 ConfigMap / 只读卷挂入; 网络上只允许 worker 访问它,并只允许它访问 MCP 与模型网关。
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: poetry-agent-bff
+  namespace: poetry-agent-staging
+spec:
+  replicas: 2
+  selector: {matchLabels: {app: poetry-agent-bff}}
+  template:
+    metadata: {labels: {app: poetry-agent-bff}}
+    spec:
+      containers:
+        - name: agent-bff
+          image: poetry/agent-bff:${IMAGE_TAG}
+          ports: [{containerPort: 8100}]
+          env:
+            - {name: PORT, value: "8100"}
+            - {name: POETRY_AGENT_PROFILE_ROOT, value: /profile}
+            - {name: POETRY_DOMAIN_CONTROL_URL, value: "http://poetry-domain-mcp:8101"}
+            - {name: POETRY_WORKER_URL, value: "http://poetry-agent-worker:8102"}
+            - {name: DEERFLOW_ENABLED, value: "false"}
+            - {name: POETRY_STUDIO_AUTH, value: required}          # login is mandatory; "off" is the offline demo only
+            - {name: POETRY_STUDIO_USERS_FILE, value: /studio-auth/users.json}
+            - {name: POETRY_STUDIO_TRUST_PROXY, value: "1"}        # one trusted ingress in front; uses the LAST X-Forwarded-For hop
+          envFrom:
+            - configMapRef: {name: poetry-agent-bff-config}   # POETRY_API_BASE_URL, POETRY_API_TIMEOUT_SECONDS, POETRY_STUDIO_ORIGINS
+            - secretRef: {name: poetry-agent-bff-secrets}     # includes POETRY_STUDIO_SESSION_SECRET (see the header)
+          readinessProbe: {httpGet: {path: /health/ready, port: 8100}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: poetry-agent-worker
+  namespace: poetry-agent-staging
+spec:
+  replicas: 1 # 运行状态在内存里调度,单副本; 重启后 RUNNING 的运行需要重新派发
+  selector: {matchLabels: {app: poetry-agent-worker}}
+  template:
+    metadata: {labels: {app: poetry-agent-worker}}
+    spec:
+      containers:
+        - name: agent-worker
+          image: poetry/agent-worker:${IMAGE_TAG}
+          ports: [{containerPort: 8102}]
+          env:
+            - {name: PORT, value: "8102"}
+            - {name: POETRY_AGENT_PROFILE_ROOT, value: /app/deerflow-profile}
+            - {name: POETRY_DOMAIN_CONTROL_URL, value: "http://poetry-domain-mcp:8101"}
+            - {name: DEERFLOW_ENABLED, value: "false"}
+            - {name: DEERFLOW_GATEWAY_URL, value: "http://deerflow-gateway:8001"}
+            - {name: DEERFLOW_ASSISTANT_ID, value: poetry-editor-lead}
+            - {name: WORKER_MAX_CONCURRENT_RUNS, value: "2"}
+          envFrom:
+            - secretRef: {name: poetry-agent-worker-secrets}
+          readinessProbe: {httpGet: {path: /health/ready, port: 8102}}
+          livenessProbe: {httpGet: {path: /health/live, port: 8102}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: poetry-agent-worker
+  namespace: poetry-agent-staging
+spec:
+  selector: {app: poetry-agent-worker}
+  ports: [{port: 8102, targetPort: 8102}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: poetry-domain-mcp
+  namespace: poetry-agent-staging
+spec:
+  replicas: 2
+  selector: {matchLabels: {app: poetry-domain-mcp}}
+  template:
+    metadata: {labels: {app: poetry-domain-mcp}}
+    spec:
+      containers:
+        - name: poetry-domain-mcp
+          image: poetry/poetry-domain-mcp:${IMAGE_TAG}
+          ports: [{containerPort: 8101}]
+          env:
+            - {name: PORT, value: "8101"}
+            - {name: POETRY_AGENT_ACTOR_ROLE, value: CONTENT_EDITOR}
+          envFrom:
+            - configMapRef: {name: poetry-domain-mcp-config}  # POETRY_API_BASE_URL, POETRY_API_TIMEOUT_SECONDS
+            - secretRef: {name: poetry-domain-mcp-secrets}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: poetry-domain-mcp
+  namespace: poetry-agent-staging
+spec:
+  selector: {app: poetry-domain-mcp}
+  ports: [{port: 8101, targetPort: 8101}]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: poetry-agent-bff
+  namespace: poetry-agent-staging
+spec:
+  selector: {app: poetry-agent-bff}
+  ports: [{port: 8100, targetPort: 8100}]

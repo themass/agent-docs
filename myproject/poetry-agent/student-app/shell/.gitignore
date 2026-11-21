@@ -1,0 +1,39 @@
+# 可再生内容:由 `npx cap add/sync` 与 `npm install` 生成。
+node_modules/
+
+# Android:Gradle 与本机 SDK 路径、构建输出
+android/.gradle/
+android/build/
+android/app/build/
+android/capacitor-cordova-android-plugins/
+android/local.properties
+android/.idea/
+android/*.iml
+*.apk
+*.aab
+
+# `cap sync` 每次都会重新拷入的 web 资源与生成配置
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+android/app/src/main/res/xml/config.xml
+
+# iOS:Pods 与 DerivedData、同步生成物(本机未装 Xcode/CocoaPods,尚未生成)
+ios/App/Pods/
+ios/App/build/
+ios/DerivedData/
+ios/App/App/public/
+ios/App/App/capacitor.config.json
+ios/App/App/config.xml
+ios/App/Podfile.lock
+
+# 签名材料与密钥:任何情况都不进仓库
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+keystore.properties
+google-services.json
+GoogleService-Info.plist
+.env
+.env.*

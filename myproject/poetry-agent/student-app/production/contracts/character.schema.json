@@ -1,0 +1,554 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xuexi.local/schemas/character-manifest-1.0.json",
+  "title": "奇境 2D 角色清单 (character manifest)",
+  "description": "一个角色 = 一份 manifest.json + 若干图层/帧/骨骼文件。渲染器(任务 B)只读这份清单,不硬编码任何角色。\n\n约定:\n1. 所有坐标是『画布像素』(canvas.width x canvas.height),原点在左上角。svg-layers 的每个图层 SVG 的 viewBox 都等于整张画布,因此叠放时不需要位置换算。\n2. 图层按 parent 形成树;rig/group 类图层没有文件,只是变换节点。子节点继承父节点变换。变换原点由 pivot 给出(画布坐标)。\n3. 状态(states)是命名的动画片段。tracks 的 keyframes 是 [时间毫秒, 值];prop 取 translateX/translateY(画布像素)、rotate(度,顺时针为正)、scaleX/scaleY/scale(无单位)、opacity(0..1)。\n4. 口型不要求匹配:mouth_mode=none 不动嘴;amplitude 用音频振幅 0..1 驱动 mouth 配置;viseme 预留给将来的口型表(本版占位角色不用)。\n5. 降级:state.fallback_state 指向更简单的状态;degrade.still 是静帧;reduced_motion 时只用 still 或 reduced_motion_state。最终终点永远是文字(角色不可用时,文本照常)。\n6. 演绎声明:没有可靠的诗人画像,所有角色形象一律 depiction.declared_as=DRAMATIZATION,界面需带『演绎』标识。\n7. rights/placeholder:占位角色必须 placeholder.is_placeholder=true 且 not_for_release=true。\n\n8. 播放语义以 reference-player/core.mjs 为唯一参考实现(采样、叠加规则、变换顺序 translate→rotate→scale、状态过渡、fallback、眨眼、振幅嘴);本 schema 只约束格式。两者不一致时以 core.mjs 为准并在 handoff 报告。\n9. 正面视角没有『前倾』:行礼与低头用 translateY + scaleY(压缩)表达,不要靠 rotate 模拟(会读成侧倾)。",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "character_id",
+    "display_name",
+    "renderer",
+    "canvas",
+    "anchors",
+    "mouth_mode",
+    "default_state",
+    "states",
+    "degrade",
+    "depiction",
+    "rights",
+    "placeholder",
+    "budget"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^1\\.[0-9]+$"
+    },
+    "character_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{1,62}$"
+    },
+    "display_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "content_id": {
+      "type": "string",
+      "description": "对应内容底座的人物 id,例如 person-du-fu;占位角色可以不填,但进入 bundle cast 时必须填。"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(-[a-z0-9.]+)?$"
+    },
+    "renderer": {
+      "enum": [
+        "svg-layers",
+        "frames",
+        "lottie",
+        "live2d",
+        "spine"
+      ],
+      "description": "svg-layers: 图层 SVG + tracks(本版占位角色);frames: 序列帧(states[*].frames);lottie/live2d/spine: 由 entry 指向外包交付物,states[*].motion 给出动作名。"
+    },
+    "entry": {
+      "type": "string",
+      "description": "非 svg-layers 渲染器的主入口文件(相对 manifest 所在目录),如 dufu.model3.json / dufu.skel / dufu.lottie.json。"
+    },
+    "canvas": {
+      "type": "object",
+      "required": [
+        "width",
+        "height"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "width": {
+          "type": "integer",
+          "minimum": 64,
+          "maximum": 4096
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 64,
+          "maximum": 4096
+        }
+      }
+    },
+    "anchors": {
+      "type": "object",
+      "description": "命名锚点,画布坐标。必须含 feet(脚底中心,用于贴地与缩放)和 head(头部中心,用于气泡与字幕挂靠)。可加 mouth、speech_bubble 等。",
+      "required": [
+        "feet",
+        "head"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/point"
+      }
+    },
+    "layers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/layer"
+      },
+      "description": "renderer=svg-layers 时必填。图层树。"
+    },
+    "mouth_mode": {
+      "enum": [
+        "none",
+        "amplitude",
+        "viseme"
+      ]
+    },
+    "mouth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "layer",
+        "prop",
+        "closed",
+        "open"
+      ],
+      "description": "mouth_mode=amplitude 时必填:振幅 0..1 线性映射到 layer 的 prop(closed→open)。",
+      "properties": {
+        "layer": {
+          "type": "string"
+        },
+        "prop": {
+          "enum": [
+            "scaleY",
+            "scaleX",
+            "translateY",
+            "opacity"
+          ]
+        },
+        "closed": {
+          "type": "number"
+        },
+        "open": {
+          "type": "number"
+        },
+        "smoothing_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 500
+        }
+      }
+    },
+    "default_state": {
+      "type": "string"
+    },
+    "states": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]{0,31}$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/state"
+      },
+      "description": "命名状态。约定名:idle(待机)、talk(讲话)、listen(倾听)、sorrow(忧伤)、bow(行礼);其余自定。必须含 idle。"
+    },
+    "ambient": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "blink": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "open_layer",
+            "closed_layer",
+            "interval_ms",
+            "closed_ms"
+          ],
+          "properties": {
+            "open_layer": {
+              "type": "string"
+            },
+            "closed_layer": {
+              "type": "string"
+            },
+            "interval_ms": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": "integer",
+                "minimum": 500
+              }
+            },
+            "closed_ms": {
+              "type": "integer",
+              "minimum": 60,
+              "maximum": 400
+            },
+            "suppress_in": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "description": "与状态无关的环境动作(眨眼)。reduced-motion 下关闭。"
+    },
+    "degrade": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "still",
+        "reduced_motion_state",
+        "text_alt"
+      ],
+      "properties": {
+        "still": {
+          "type": "object",
+          "required": [
+            "file"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "file": {
+              "type": "string",
+              "description": "静帧(SVG/PNG/WebP),相对 manifest 目录;动画不可用时用它,它也是 bundle 里 a-<id>-still 资产的内容。"
+            },
+            "width": {
+              "type": "integer"
+            },
+            "height": {
+              "type": "integer"
+            }
+          }
+        },
+        "reduced_motion_state": {
+          "type": "string",
+          "description": "prefers-reduced-motion 时只显示这个状态的第 0 帧。"
+        },
+        "text_alt": {
+          "type": "string",
+          "minLength": 6,
+          "description": "无图时替代的文字描述(同时是无障碍 alt),不得含无依据的外貌史实。"
+        }
+      }
+    },
+    "depiction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "declared_as",
+        "notice"
+      ],
+      "properties": {
+        "declared_as": {
+          "const": "DRAMATIZATION"
+        },
+        "notice": {
+          "type": "string",
+          "minLength": 8,
+          "description": "界面上随角色出现的一句话,例如:这是画师想象的形象,不是诗人的画像。"
+        }
+      }
+    },
+    "rights": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "origin",
+        "license"
+      ],
+      "properties": {
+        "origin": {
+          "type": "string",
+          "minLength": 3
+        },
+        "license": {
+          "type": "string",
+          "minLength": 3
+        },
+        "author": {
+          "type": "string"
+        },
+        "workflow": {
+          "type": "string"
+        },
+        "human_fix": {
+          "type": "boolean"
+        },
+        "attribution_required": {
+          "type": "boolean"
+        },
+        "third_party": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "引入的第三方素材/运行库及许可;没有就空数组,不得省略不写。"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "placeholder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "is_placeholder",
+        "not_for_release"
+      ],
+      "properties": {
+        "is_placeholder": {
+          "type": "boolean"
+        },
+        "not_for_release": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "replace_with_task": {
+          "type": "string",
+          "description": "将来替换它的任务单 asset_id。"
+        }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_bytes"
+      ],
+      "properties": {
+        "max_bytes": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 5242880,
+          "description": "整个角色所有文件之和的上限。前端策略规定单角色包 ≤ 5MB;占位 SVG 角色目标 ≤ 200KB。"
+        },
+        "target_fps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60
+        }
+      }
+    }
+  },
+  "$defs": {
+    "point": {
+      "type": "object",
+      "required": [
+        "x",
+        "y"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      }
+    },
+    "layer": {
+      "type": "object",
+      "required": [
+        "id",
+        "type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,31}$"
+        },
+        "type": {
+          "enum": [
+            "group",
+            "svg",
+            "image"
+          ],
+          "description": "group: 只有变换,无文件;svg/image: 带 file。"
+        },
+        "file": {
+          "type": "string",
+          "description": "相对 manifest 所在目录。svg 图层的 viewBox 必须等于整张画布。"
+        },
+        "parent": {
+          "type": "string",
+          "description": "父图层 id;缺省表示挂在画布根。"
+        },
+        "z": {
+          "type": "integer",
+          "description": "同一父节点下的叠放顺序,大者在上。"
+        },
+        "pivot": {
+          "$ref": "#/$defs/point"
+        },
+        "default_visible": {
+          "type": "boolean"
+        },
+        "role": {
+          "enum": [
+            "body",
+            "head",
+            "hair",
+            "face",
+            "brow",
+            "eyes",
+            "mouth",
+            "accessory",
+            "rig"
+          ]
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "keyframe": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "number"
+      },
+      "description": "[时间毫秒, 值]"
+    },
+    "track": {
+      "type": "object",
+      "required": [
+        "layer",
+        "prop",
+        "keyframes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "layer": {
+          "type": "string"
+        },
+        "prop": {
+          "enum": [
+            "translateX",
+            "translateY",
+            "rotate",
+            "scale",
+            "scaleX",
+            "scaleY",
+            "opacity"
+          ]
+        },
+        "keyframes": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "$ref": "#/$defs/keyframe"
+          }
+        },
+        "easing": {
+          "enum": [
+            "linear",
+            "ease-in-out",
+            "ease-in",
+            "ease-out"
+          ]
+        },
+        "role": {
+          "enum": [
+            "mouth_cycle"
+          ],
+          "description": "mouth_cycle: 无音频时的循环嘴动;有振幅源时渲染器忽略这条轨,改由 mouth 配置驱动。"
+        }
+      }
+    },
+    "state": {
+      "type": "object",
+      "required": [
+        "loop",
+        "fps"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "loop": {
+          "type": "boolean"
+        },
+        "fps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60,
+          "description": "建议采样帧率。手绘风格可用 12–24;渲染器可以更高但不必。"
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 60000
+        },
+        "tracks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/track"
+          }
+        },
+        "show": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "进入此状态时强制可见的图层。"
+        },
+        "hide": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "进入此状态时强制隐藏的图层。"
+        },
+        "frames": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "file",
+              "duration_ms"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "file": {
+                "type": "string"
+              },
+              "duration_ms": {
+                "type": "integer",
+                "minimum": 16
+              }
+            }
+          },
+          "description": "renderer=frames 时的序列帧。"
+        },
+        "motion": {
+          "type": "string",
+          "description": "renderer=live2d/spine/lottie 时的动作/动画名。"
+        },
+        "then": {
+          "type": "string",
+          "description": "非循环状态结束后进入的状态。"
+        },
+        "transition_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000,
+          "description": "从上一状态淡入的时长。"
+        },
+        "fallback_state": {
+          "type": "string",
+          "description": "此状态不可用(资源缺失/低性能)时退到哪个更简单的状态;链最终必须到 idle。"
+        }
+      }
+    }
+  }
+}

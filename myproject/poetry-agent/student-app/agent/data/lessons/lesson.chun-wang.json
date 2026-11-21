@@ -1,0 +1,145 @@
+{
+  "work_id": "work-chun-wang",
+  "status": "DRAFT_FOR_REVIEW",
+  "note": "课程旁路文件：只放教学元数据（要点、关键词、问答触发词、向导措辞），不放任何史实。所有 *_ref 都指向 bundle 里已有的台词 id（{step}/{layer}/{index}）。要点与向导措辞是草稿，待内容负责人与语文老师审定；未审定前不得面向学生发布。",
+  "guide": {
+    "read": "先把诗读一读，读完告诉我，你最想弄清楚哪一句。",
+    "decline": "这一点我们这一课没有讲到，我也不乱说。要不要回头看看已经讲过的部分？",
+    "poet_exit": "这个我说不好。你去看看“这座城”和“这个天下”吧，那里有说得清楚的。",
+    "rephrase": "你想让我再说哪一句？点一下那一句。",
+    "no_annotation": "这一句的字词说明还在整理，先读读上下句。",
+    "ask_why": "读到“{line}”，你想到了什么？",
+    "recite": "放慢一点，一句一句读，逗号处稍停一停。"
+  },
+  "points": [
+    {
+      "id": "p-era",
+      "label": "那时候在打仗",
+      "ask": "那时候，天下是什么样子？",
+      "any_of": [
+        "叛乱",
+        "战乱",
+        "打仗",
+        "战争",
+        "烽火",
+        "安史",
+        "战火",
+        "乱世",
+        "兵荒"
+      ],
+      "supplement_ref": "arrive/WORLD/0"
+    },
+    {
+      "id": "p-place",
+      "label": "他被困在长安",
+      "ask": "他当时在哪里？",
+      "any_of": [
+        "长安",
+        "都城",
+        "困在",
+        "被困",
+        "城里"
+      ],
+      "supplement_ref": "arrive/CITY/0"
+    },
+    {
+      "id": "p-trigger",
+      "label": "春天的景物触动了他",
+      "ask": "是什么让他提笔写下这首诗？",
+      "any_of": [
+        "春天",
+        "草木",
+        "溅泪",
+        "惊心",
+        "花",
+        "鸟",
+        "看见",
+        "看到"
+      ],
+      "supplement_ref": "arrive/SCENE/0"
+    },
+    {
+      "id": "p-home",
+      "label": "想念家人，家书到不了",
+      "ask": "他心里惦记着谁？",
+      "any_of": [
+        "家人",
+        "家书",
+        "想家",
+        "思念",
+        "惦记",
+        "妻子",
+        "音信",
+        "亲人"
+      ],
+      "supplement_ref": "return/PERSON/0"
+    }
+  ],
+  "faq": [
+    {
+      "id": "faq-city",
+      "triggers": [
+        "长安是",
+        "什么地方",
+        "这座城",
+        "都城"
+      ],
+      "answer_ref": "arrive/CITY/0"
+    },
+    {
+      "id": "faq-war",
+      "triggers": [
+        "安史之乱",
+        "为什么打仗",
+        "怎么会变成这样",
+        "战火",
+        "烽火连三月"
+      ],
+      "answer_ref": "arrive/WORLD/0"
+    },
+    {
+      "id": "faq-who",
+      "triggers": [
+        "杜甫是谁",
+        "他是谁",
+        "这个人是谁"
+      ],
+      "answer_ref": "arrive/PERSON/0"
+    },
+    {
+      "id": "faq-scene",
+      "triggers": [
+        "眼前",
+        "山河还在"
+      ],
+      "answer_ref": "arrive/SCENE/0"
+    },
+    {
+      "id": "faq-guopo",
+      "triggers": [
+        "国破"
+      ],
+      "answer_ref": "return/WORLD/0"
+    },
+    {
+      "id": "faq-jiashu",
+      "triggers": [
+        "家书",
+        "抵万金"
+      ],
+      "answer_ref": "return/PERSON/0"
+    }
+  ],
+  "forbidden_entities": [
+    "宰相",
+    "大官",
+    "唐军",
+    "安禄山",
+    "后来",
+    "结局",
+    "收复",
+    "平定",
+    "原话",
+    "谁赢"
+  ]
+}

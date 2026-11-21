@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "work_id", "gaps", "claims", "annotations", "backgrounds", "citation_requests", "unsupported_items", "compile_result"],
+  "properties": {
+    "status": { "const": "DRAFT" },
+    "work_id": { "type": "string", "minLength": 1 },
+    "text_version_id": { "type": ["string", "null"] },
+    "gaps": { "type": "array", "items": { "type": "string" } },
+    "claims": { "type": "array", "items": { "type": "object" } },
+    "annotations": { "type": "array", "items": { "type": "object" } },
+    "backgrounds": { "type": "array", "items": { "type": "object" } },
+    "citation_requests": { "type": "array", "items": { "type": "object" } },
+    "unsupported_items": { "type": "array", "items": { "type": "string" } },
+    "compile_result": {
+      "type": "object",
+      "required": ["verdict", "failures"],
+      "properties": { "verdict": { "enum": ["BLOCKED", "COMPILES", "NOT_RUN"] }, "failures": { "type": "array" } }
+    }
+  }
+}

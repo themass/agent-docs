@@ -1,0 +1,70 @@
+# 平台自有策略(不是 DeerFlow 的配置格式,DeerFlow 不会读取本文件)。
+# 由 content-agent/pipeline/tools/dev/check_profile.py 用来校验 config.yaml、mcp-policy.yaml、
+# extensions_config.json 与 agents/*/config.yaml 是否仍满足这些不变量。
+version: 1
+
+runtime:
+  checkpointing: required
+  event_streaming: required
+  allow_shell_tools: false
+  allow_filesystem_tools: false # 仅允许只读的 read_file 用于加载 skill
+  allow_browser_tools: false
+  allow_web_search: false
+  allow_subagents: false
+  allow_memory: false
+  allow_skill_evolution: false
+
+# DeerFlow 工具白名单(精确名)。config.yaml 的 tools[].name 与 guardrails.allowed_tools 必须落在此集合内。
+allowed_builtin_tools:
+  - read_file
+
+# 任何 allow 列表、skill 的 allowed-tools、Mandate.allowed_tools 都不得包含含有这些子串的名字。
+forbidden_capabilities:
+  - publish
+  - retract
+  - verify
+  - set_verified
+  - delete
+  - apply
+  - execute_sql
+  - sql
+  - update_published
+  - request_compile
+  - create_draft_proposal
+  - bash
+  - shell
+  - write_file
+  - str_replace
+  - web_search
+  - web_fetch
+
+agent_profiles:
+  - name: authoring
+    lead_agent: poetry-editor-lead
+    lead_role: poetry_editor_lead
+    allowed_mcp_servers: [poetry-domain]
+    mcp_installation_ids: [poetry-domain-mcp-v1]
+    default_model: poetry-primary
+    optional_second_model: poetry-fallback # 仅在请求里显式选择时生效,没有自动回退
+    skills:
+      - authoring-orchestrator
+      - poem-gap-analysis
+      - annotation-design
+      - scene-script-draft
+      - compile-triage
+      - content-review
+    task_type_to_skill:
+      GAP_ANALYSIS: poem-gap-analysis
+      ANNOTATION_DRAFT: annotation-design
+      SCRIPT_DRAFT: scene-script-draft
+      COMPILE_TRIAGE: compile-triage
+      CONTENT_REVIEW: content-review
+
+# 禁止出现在 deerflow-gateway 环境里的变量名(compose / k8s 校验用)。
+gateway_forbidden_env:
+  - POETRY_DOMAIN_CONTROL_TOKEN
+  # 评审/应用令牌。DeerFlow 网关一旦拿到它就能批准提案，边界就没了（A-05）。
+  - POETRY_DOMAIN_REVIEW_TOKEN
+  - POETRY_STUDIO_REVIEWER_TOKEN
+  - POETRY_WORKER_TOKEN
+  - POETRY_AGENT_INTERNAL_TOKEN

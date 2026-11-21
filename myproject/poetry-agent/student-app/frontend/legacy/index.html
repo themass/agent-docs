@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>春望 · 奇境预览</title>
+<link rel="stylesheet" href="/public/tokens.css">
+<link rel="stylesheet" href="/legacy/src/app.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">奇境 <span class="sep">/</span> <span id="work">…</span></div>
+  <div class="tools">
+    <label class="switch"><input id="media-off" type="checkbox"><span>关闭图片与动画</span></label>
+    <span id="level-tag" class="tag">L—</span>
+  </div>
+</header>
+
+<div id="gate" class="banner gate" hidden>
+  <strong>底座草稿态 · 仅内部预览</strong>
+  <span id="gate-detail"></span>
+  <em>学生端在这里会被闸门拦住：未发布内容不会渲染。</em>
+</div>
+<div id="degraded" class="banner degrade" hidden>图/动画没加载出来，文字不受影响。</div>
+
+<main id="stage">
+  <section class="text-first">
+    <h1 id="poem-title">春望</h1>
+    <ol id="lines" aria-label="诗文"></ol>
+  </section>
+  <section id="step-body"></section>
+</main>
+
+<nav class="rail" aria-label="五个步骤">
+  <button data-step="read" class="step">读</button>
+  <button data-step="arrive" class="step">到</button>
+  <button data-step="meet" class="step">见</button>
+  <button data-step="return" class="step">回</button>
+  <button data-step="recite" class="step">诵</button>
+  <button id="back" class="ghost">回看上一步</button>
+</nav>
+
+<footer class="notice">
+  <p id="coverage"></p>
+  <p id="unknown" class="soft"></p>
+  <p class="soft">数据来源：<span id="src"></span>（全部来自内容底座，页面不含任何写死的文案）</p>
+</footer>
+
+<script type="module" src="/legacy/src/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+[project]
+name = "poetry-agent-bff"
+version = "0.1.0"
+description = "Poetry Studio task, review and run gateway"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115.0",
+  "httpx>=0.28.0",
+  "pydantic>=2.9.0",
+  "sse-starlette>=2.1.0",
+  "uvicorn[standard]>=0.34.0",
+]
+
+[project.scripts]
+poetry-agent-bff = "agent_bff.main:run"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agent_bff"]

@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "task_id": "a-nar-arrive-world",
+  "delivered_at": "2026-11-06T15:36:39.975Z",
+  "author": "placeholder-generator",
+  "rights": {
+    "origin": "自生成占位(macOS say 合成)",
+    "license": "自有占位,不可上线",
+    "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+    "human_fix": false,
+    "author": "placeholder-generator",
+    "evidence": [
+      "未核实:macOS 系统语音的商用许可;占位不可上线"
+    ],
+    "notes": "占位素材,代码生成,不可上线。"
+  },
+  "placeholder": true,
+  "notes": "占位:让学生端先跑通。正式素材交付后会以同一 asset_id 替换。"
+}

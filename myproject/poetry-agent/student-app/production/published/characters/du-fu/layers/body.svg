@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 768" width="512" height="768" data-layer="body" aria-hidden="true">
+<!-- 占位素材:代码生成的抽象几何形象,不可上线;不依据任何画像,不代表诗人真实外貌。 -->
+<path d="M150 440 Q256 405 362 440 L400 750 L112 750 Z" fill="#46606f" stroke="#1f1e1b" stroke-width="3" stroke-linejoin="round"/>
+<path d="M214 420 L256 520 L298 420 Z" fill="#cbbf9f" stroke="#1f1e1b" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M150 440 Q120 560 132 660 L170 650 Q168 560 190 470 Z" fill="#34495a" stroke="#1f1e1b" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M362 440 Q392 560 380 660 L342 650 Q344 560 322 470 Z" fill="#34495a" stroke="#1f1e1b" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M200 560 Q256 580 312 560" fill="none" stroke="#1f1e1b" stroke-width="5" stroke-linecap="round"/>
+</svg>

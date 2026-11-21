@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xuexi.local/schemas/delivery-1.0.json",
+  "title": "交付说明 delivery.json",
+  "description": "每个 inbox/<task_id>/ 必须带一份。交付人(用户/外包/GPU 流程)填写;入库时 rights 原样进入 registry。缺 rights 的交付一律机检退回。",
+  "type": "object",
+  "required": ["schema_version", "task_id", "delivered_at", "author", "rights"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^1\\.[0-9]+$" },
+    "task_id": { "type": "string" },
+    "delivered_at": { "type": "string" },
+    "author": { "type": "string", "minLength": 2, "description": "交付人/团队/流程名。人工验收人不能与此相同。" },
+    "rights": { "type": "object", "additionalProperties": false, "required": ["origin", "license"],
+      "properties": {
+        "origin": { "type": "string", "minLength": 3, "description": "来源:自绘/外包/真人录音/AI 生成(写明模型与版本)/自生成占位。" },
+        "license": { "type": "string", "minLength": 3 },
+        "workflow": { "type": "string", "description": "提示词/工作流 JSON 路径@hash,或外包合同编号。" },
+        "human_fix": { "type": "boolean" },
+        "author": { "type": "string" },
+        "evidence": { "type": "array", "items": { "type": "string" }, "description": "授权书/同意书/合同的文件名或编号。" },
+        "third_party": { "type": "array", "items": { "type": "string" } },
+        "notes": { "type": "string" } } },
+    "placeholder": { "type": "boolean" },
+    "notes": { "type": "string" }
+  }
+}

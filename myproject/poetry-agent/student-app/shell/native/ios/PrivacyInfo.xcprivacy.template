@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Apple 隐私清单模板(未校验,不代表合规)。生成 iOS 工程后放到 ios/App/App/PrivacyInfo.xcprivacy。
+  这只是起点,三处必须由用户逐项确认后才能提交:
+
+  1. NSPrivacyCollectedDataTypes 现在留空,但应用在家长同意后会上报「匿名设备 id + 学习事件」。
+     真实申报要和 App Store Connect 的「App 隐私」问卷、隐私政策三者一致,由用户/法务填。
+  2. NSPrivacyAccessedAPITypes 只列了 UserDefaults(Capacitor 常用)。真实清单要按最终依赖的
+     实际 API 使用逐项核对(文件时间戳、磁盘空间、启动时间等),不是凭这份模板。
+  3. 第三方 SDK:v1 不引入广告、分析、崩溃上报 SDK,所以没有第三方清单要合并。
+-->
+<plist version="1.0">
+<dict>
+    <key>NSPrivacyTracking</key>
+    <false/>
+    <key>NSPrivacyTrackingDomains</key>
+    <array/>
+    <key>NSPrivacyCollectedDataTypes</key>
+    <array/>
+    <key>NSPrivacyAccessedAPITypes</key>
+    <array>
+        <dict>
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array><string>CA92.1</string></array>
+        </dict>
+    </array>
+</dict>
+</plist>

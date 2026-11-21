@@ -1,0 +1,201 @@
+# DeerFlow v2.2.0 真实配置(config_version 63),由 compose 挂载到 /app/backend/config.yaml(只读)。
+# 格式依据: deploy/upstream/deer-flow-v2.2.0/config.example.yaml 与
+#   backend/packages/harness/deerflow/config/*.py。字段只写上游 schema 里存在的。
+# 约束: 本文件不得出现任何密钥值;凭据只用 `$VAR` 整串引用(app_config.py:644-666,
+#   整串以 `$` 开头才展开,缺失变量会抛 ValueError,所以 compose 必须总是定义 POETRY_LLM_*,哪怕为空串)。
+# 平台自有策略(原先自创的 allow_shell_tools 等)已移到 config/poetry-policy.yaml,由 check_profile.py 使用。
+config_version: 63
+
+log_level: info
+
+# ---------------------------------------------------------------------------
+# Token 与步数上限(与 budgets.yaml 的 authoring.max_tokens / max_turns 对齐,由 check_profile 校验)
+# ---------------------------------------------------------------------------
+token_usage:
+  enabled: true # 记录每次模型调用的 token(config.example.yaml:95)
+
+token_budget:
+  enabled: true # 单 run 硬上限(config.example.yaml:105-111)
+  max_tokens: 200000 # = budgets.yaml authoring.max_tokens
+  warn_threshold: 0.8
+  hard_stop_threshold: 1.0
+
+# 每个 LangGraph super-step 至少一次模型调用或工具节点;max_turns=18 约占 36 步,留出余量。
+recursion_limit: 48
+max_recursion_limit: 64 # 网关不信任客户端传入的更大值(config.example.yaml:121-124)
+
+# ---------------------------------------------------------------------------
+# 模型: OpenAI 兼容网关(明文 http)。两条 models 条目,第一条是默认模型。
+# DeerFlow 2.2.0 没有"主模型失败自动切备用模型"的机制(见报告): 备用模型只是"第二个可选模型",
+# 必须由调用方在请求里显式选择(run 的 context.model_name = poetry-fallback)。
+# ---------------------------------------------------------------------------
+# use 的选择: PatchedChatDeepSeek。网关后端是 DeepSeek 系列模型; DeepSeek 在带工具调用的多轮对话里,
+# 若返回过 reasoning_content,后续 assistant 消息必须回传。ChatOpenAI 会丢弃该字段,PatchedChatDeepSeek
+# 负责回放(patched_deepseek.py:64-79,98-135)。它继承 langchain_deepseek.ChatDeepSeek,端点键是 api_base,
+# 超时键是 timeout(factory.py:304-311, 314-341)。
+# 保守处理 thinking: 不设 supports_thinking / when_thinking_enabled / when_thinking_disabled。
+#   这样 factory 不会向请求体注入 extra_body.thinking,避免该网关不认识该字段而 400
+#   (factory.py:203-248: 无 thinking 模板时 legacy 路径不合并任何 thinking 载荷;
+#    lead_agent/agent.py:1090-1097: 模型不支持 thinking 时降级为非 thinking 并仅打 warning)。
+# context_window 未知,不设(model_config.py:176-187: 未设则不显示百分比,不影响运行)。
+# max_tokens 是单次调用输出上限,取保守值 8192(上游 DeepSeek 示例同值,config.example.yaml:491);
+#   skill 约束单次输出条目数,避免 JSON 被截断。截断的 JSON 会被 worker 以 OUTPUT_REJECTED 拒绝。
+models:
+  - name: poetry-primary
+    display_name: Poetry Primary
+    use: deerflow.models.patched_deepseek:PatchedChatDeepSeek
+    model: $POETRY_LLM_MODEL_PRIMARY
+    api_base: $POETRY_LLM_API_BASE
+    api_key: $POETRY_LLM_API_KEY
+    timeout: 240.0 # 小于 budgets 的 GAP_ANALYSIS 300s 单任务上限的量级,留给重试
+    max_retries: 1 # SDK 内部重试;外层重试由 llm_call 与 worker(budgets.retry)负责
+    max_tokens: 8192
+    supports_thinking: false
+    supports_vision: false
+
+  - name: poetry-fallback
+    display_name: Poetry Fallback
+    use: deerflow.models.patched_deepseek:PatchedChatDeepSeek
+    model: $POETRY_LLM_MODEL_FALLBACK
+    api_base: $POETRY_LLM_API_BASE
+    api_key: $POETRY_LLM_API_KEY
+    timeout: 240.0
+    max_retries: 1
+    max_tokens: 8192
+    supports_thinking: false
+    supports_vision: false
+
+# LLM 调用层面的保护(app_config.py:310-311; config.example.yaml:3459-3510 示例)。
+circuit_breaker:
+  failure_threshold: 3 # = budgets.yaml circuit_breaker.failure_threshold
+  recovery_timeout_sec: 120 # = budgets.yaml circuit_breaker.open_seconds
+
+llm_call:
+  max_concurrent_calls: 2 # = worker 默认 WORKER_MAX_CONCURRENT_RUNS
+  retry_max_attempts: 2
+  retry_base_delay_ms: 2000
+  retry_cap_delay_ms: 8000
+
+# ---------------------------------------------------------------------------
+# 工具: 只留一个只读工具 read_file,用于渐进式加载 skill(prompt.py:934-943 要求模型用 read_file 读
+# SKILL.md)。LocalSandbox 的 read_file 只允许 /mnt/user-data/*、/mnt/skills/*(只读)与配置的挂载路径
+# (sandbox/tools.py:1019-1077),不能读容器里的 /proc、/etc 或环境变量。
+# 不配置 bash / write_file / str_replace / ls / glob / grep / web_search / web_fetch / image_search。
+# 内置工具 present_files / ask_clarification / review_skill_package 等无法从 config 移除
+# (tools/tools.py:33-37,181-215),由下面的 guardrails 白名单拦截。
+# MCP 工具(poetry-domain_*)来自 extensions_config.json,不受 tool_groups 过滤。
+# ---------------------------------------------------------------------------
+tool_groups:
+  - name: file:read
+
+tools:
+  - name: read_file
+    group: file:read
+    use: deerflow.sandbox.tools:read_file_tool
+
+tool_search:
+  enabled: false
+
+# 本地沙箱,且显式禁止宿主 bash(sandbox/security.py:35-45; tools/tools.py:159-161)。
+sandbox:
+  use: deerflow.sandbox.local:LocalSandboxProvider
+  allow_host_bash: false
+
+# ---------------------------------------------------------------------------
+# Guardrails(GUARDRAILS.md 的 Option 1)。AllowlistProvider 只做**精确工具名**匹配
+# (guardrails/builtin.py:27-32),不支持通配符; 因此用 allowed_tools 白名单(未列出一律拒绝),
+# denied_tools 是对"永不存在的能力名"的冗余声明。fail_closed: provider 出错时拒绝调用。
+# 白名单必须与 mcp-policy.yaml 的 poetry_editor_lead.allow(加 read_file)一致,由 check_profile 校验。
+# MCP 工具名 = "<server>_<tool>"(mcp/tools.py:671-673, tool_name_prefix: true)。
+# ---------------------------------------------------------------------------
+guardrails:
+  enabled: true
+  fail_closed: true
+  provider:
+    use: deerflow.guardrails.builtin:AllowlistProvider
+    config:
+      allowed_tools:
+        - read_file
+        - poetry-domain_get_work_snapshot
+        - poetry-domain_get_integrity_gap_report
+      denied_tools:
+        - publish
+        - retract
+        - verify_source
+        - set_verified
+        - delete_content
+        - execute_sql
+        - update_published
+        - poetry-domain_create_draft_proposal
+        - poetry-domain_apply_approved_draft
+        - poetry-domain_request_compile
+        - bash
+        - write_file
+        - str_replace
+        - web_search
+        - web_fetch
+        - task
+
+# ---------------------------------------------------------------------------
+# Skills: 宿主目录 = compose 把 ../agent/deerflow-profile/skills 挂到 /app/skills/public (只读)。
+# 加载器只扫描 <root>/{public,custom,...}/<name>/SKILL.md(skills/storage/local_skill_storage.py:36-39,
+# _iter_skill_files); 直接挂到 /app/skills/<name> 不会被发现。
+# 同时镜像里自带的上游 public skills 被这个挂载遮蔽,模型看不到 deep-research 等无关 skill。
+# 具体可见哪些 skill 还由 agents/poetry-editor-lead/config.yaml 的 skills 白名单与
+# extensions_config.json 的 skills.enabled 决定。
+# ---------------------------------------------------------------------------
+skills:
+  path: /app/skills
+  container_path: /mnt/skills
+  deferred_discovery: false
+
+skill_scan:
+  enabled: true
+
+# ---------------------------------------------------------------------------
+# 不需要且会额外花 token 或扩大能力面的特性,一律关闭
+# ---------------------------------------------------------------------------
+memory:
+  enabled: false # DeerFlow Memory 不是事实库(事实只在 Java poetry_*)
+  injection_enabled: false
+
+title:
+  enabled: false # 否则首轮后多一次标题生成调用
+
+suggestions:
+  enabled: false # 否则每次回答后多一次"追问建议"调用
+
+input_polish:
+  enabled: false
+
+summarization:
+  enabled: false # 单 run 有 token 硬上限与步数上限;摘要会丢失快照细节且多花 token
+
+task_continuity:
+  enabled: false
+
+knowledge_base:
+  enabled: false
+
+skill_evolution:
+  enabled: false # 不允许 agent 自行写 skills/custom
+
+agents_api:
+  enabled: false # 不通过 HTTP 管理 SOUL/USER.md
+
+scheduler:
+  enabled: false
+  tool_enabled: false
+
+mcp_tasks:
+  enabled: false
+
+subagent_batches:
+  enabled: false
+
+# 不启用 DeerFlow 的 RBAC;访问控制靠网关内网隔离 + 内部令牌 + guardrails。
+authorization:
+  enabled: false
+
+pii_redaction:
+  enabled: false

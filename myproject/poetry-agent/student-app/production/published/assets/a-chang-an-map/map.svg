@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 640" width="960" height="640" role="img" aria-label="长安示意图(占位)">
+<!-- 占位素材:代码生成的几何水墨风,不可上线。不依据场景要素表;城郭只是概括轮廓。 -->
+<rect width="960" height="640" fill="#f6f1e7"/>
+<rect x="190" y="110" width="580" height="420" fill="#efe6d3" stroke="#1f1e1b" stroke-width="3"/>
+<rect x="215" y="135" width="530" height="370" fill="none" stroke="#ded6c6" stroke-width="2" stroke-dasharray="10 8"/>
+<text x="480" y="335" text-anchor="middle" font-family="'Songti SC','Noto Serif SC',serif" font-size="56" fill="#1f1e1b">长安</text>
+<text x="480" y="600" text-anchor="middle" font-family="'PingFang SC','Noto Sans SC',sans-serif" font-size="22" fill="#8a857a">示意图,不按比例,不代表真实城郭形制(占位)</text>
+</svg>

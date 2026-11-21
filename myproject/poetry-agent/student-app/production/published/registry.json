@@ -1,0 +1,1676 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-11-11T16:49:33.433Z",
+  "root": "published/",
+  "assets": [
+    {
+      "asset_id": "a-chang-an-map",
+      "kind": "map",
+      "level": "L1",
+      "uri": "assets/a-chang-an-map/map.svg",
+      "hash": "08cb3d000f05a3ca54fcbf8257a2b6a8c72cf3241884788b5cc4e9a5df3192bb",
+      "hash_scheme": "file-sha256",
+      "bytes": 857,
+      "files": [
+        {
+          "path": "assets/a-chang-an-map/map.svg",
+          "sha256": "08cb3d000f05a3ca54fcbf8257a2b6a8c72cf3241884788b5cc4e9a5df3192bb",
+          "bytes": 857,
+          "format": "svg",
+          "role": "entry"
+        }
+      ],
+      "media": {
+        "width": 960,
+        "height": 640
+      },
+      "render": "still",
+      "rights": {
+        "origin": "自生成占位(代码绘制的示意方框,只写『长安』二字)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-scene.mjs",
+        "human_fix": false,
+        "author": "placeholder-generator",
+        "notes": "占位素材,代码生成,不可上线。未使用任何底座地点条目以外的地名。"
+      },
+      "meaning": "让学生知道长安的规模与位置——对应『城春草木深』里的『城』",
+      "fallback_asset_id": "a-chang-an-map-text",
+      "status": "published",
+      "placeholder": {
+        "is_placeholder": true,
+        "not_for_release": true,
+        "reason": "代码生成的占位,为了让学生端先跑通;不可上线",
+        "replace_with_task": "a-chang-an-map"
+      },
+      "depiction": "INTERPRETATION",
+      "task_id": "a-chang-an-map",
+      "used_in": [
+        {
+          "script_id": "qj-chun-wang",
+          "step": "arrive"
+        }
+      ],
+      "published_at": "2026-11-06T15:36:42.422Z",
+      "published_by": "placeholder-pipeline"
+    },
+    {
+      "asset_id": "a-chang-an-map-text",
+      "kind": "subtitle",
+      "level": "L0",
+      "uri": "assets/a-chang-an-map-text/card.txt",
+      "hash": "c09e6d89cdaabc6e3c9c545775296042848adc2f635f11749f5e96ef4980e925",
+      "hash_scheme": "file-sha256",
+      "bytes": 58,
+      "files": [
+        {
+          "path": "assets/a-chang-an-map-text/card.txt",
+          "sha256": "c09e6d89cdaabc6e3c9c545775296042848adc2f635f11749f5e96ef4980e925",
+          "bytes": 58,
+          "format": "txt",
+          "role": "entry"
+        }
+      ],
+      "render": "text-card",
+      "rights": {
+        "origin": "由任务单脚本文本派生(底座/剧本已有文字,未新增史实)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-text.mjs",
+        "human_fix": false,
+        "author": "placeholder-generator",
+        "notes": "占位素材,代码生成,不可上线。"
+      },
+      "meaning": "地图没加载时,用文字告诉学生长安是唐代都城——这是内容底座已有的结论",
+      "fallback_asset_id": null,
+      "status": "published",
+      "placeholder": {
+        "is_placeholder": true,
+        "not_for_release": true,
+        "reason": "代码生成的占位,为了让学生端先跑通;不可上线",
+        "replace_with_task": "a-chang-an-map-text"
+      },
+      "depiction": "FACT",
+      "task_id": "a-chang-an-map-text",
+      "used_in": [
+        {
+          "script_id": "qj-chun-wang",
+          "step": "arrive"
+        }
+      ],
+      "published_at": "2026-11-11T16:49:33.428Z",
+      "published_by": "placeholder-pipeline"
+    },
+    {
+      "asset_id": "a-changan-dusk",
+      "kind": "illustration",
+      "level": "L1",
+      "uri": "assets/a-changan-dusk/parallax.json",
+      "hash": "89f4f3f0b89b26eff46c03ea1aaaf5e7005606e7e71dac7826b52995acb52b3b",
+      "hash_scheme": "files-index-sha256",
+      "bytes": 92123,
+      "files": [
+        {
+          "path": "assets/a-changan-dusk/parallax.json",
+          "sha256": "e37c9119e8415798a981b429a0074bc5528bdf0d283bbd9063e95f39e6aa38d1",
+          "bytes": 959,
+          "format": "json",
+          "role": "entry"
+        },
+        {
+          "path": "assets/a-changan-dusk/layers/far.svg",
+          "sha256": "42177fef7001152afca9212cbac761b6fa54d51e38830a321560aefb9cdcac20",
+          "bytes": 694,
+          "format": "svg",
+          "role": "layer"
+        },
+        {
+          "path": "assets/a-changan-dusk/layers/grass.svg",
+          "sha256": "5c835b1d46267032ffbac98959cd7c136dd99cc05c7fec3b6a41b275416f0224",
+          "bytes": 60657,
+          "format": "svg",
+          "role": "layer"
+        },
+        {
+          "path": "assets/a-changan-dusk/layers/mid.svg",
+          "sha256": "d059f75c322765357f92b7a692dc428103a542aa7a46ac59d09e270fdf0ae227",
+          "bytes": 3533,
+          "format": "svg",
+          "role": "layer"
+        },
+        {
+          "path": "assets/a-changan-dusk/layers/mist.svg",
+          "sha256": "b979c123452db007b4baa3aa2409cc3de41584ef9f1581d70e8fdd205eb2e159",
+          "bytes": 560,
+          "format": "svg",
+          "role": "layer"
+        },
+        {
+          "path": "assets/a-changan-dusk/layers/sky.svg",
+          "sha256": "e7f338163b5206d7a7da50bd15b4a800ecf076162e7d951f593b67cd9ef22b76",
+          "bytes": 556,
+          "format": "svg",
+          "role": "layer"
+        },
+        {
+          "path": "assets/a-changan-dusk/poster.webp",
+          "sha256": "4e5826db91708328cdf4047c81f3b117542746559641122c6443bf71c3cd0ee0",
+          "bytes": 25164,
+          "format": "webp",
+          "role": "poster"
+        }
+      ],
+      "render": "parallax",
+      "rights": {
+        "origin": "自生成占位(代码绘制的几何水墨风 SVG)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-scene.mjs",
+        "human_fix": false,
+        "author": "placeholder-generator",
+        "notes": "占位素材,代码生成,不可上线。无 AI 生成图像,无第三方素材。"
+      },
+      "meaning": "让学生感到“城还在,但已经残破”——对应『国破山河在,城春草木深』",
+      "fallback_asset_id": "a-changan-dusk-text",
+      "status": "published",
+      "placeholder": {
+        "is_placeholder": true,
+        "not_for_release": true,
+        "reason": "代码生成的占位,为了让学生端先跑通;不可上线",
+        "replace_with_task": "a-changan-dusk"
+      },
+      "depiction": "DRAMATIZATION",
+      "task_id": "a-changan-dusk",
+      "used_in": [
+        {
+          "script_id": "qj-chun-wang",
+          "step": "arrive"
+        },
+        {
+          "script_id": "qj-chun-wang",
+          "step": "recite"
+        }
+      ],
+      "published_at": "2026-11-06T15:36:42.420Z",
+      "published_by": "placeholder-pipeline"
+    },
+    {
+      "asset_id": "a-changan-dusk-text",
+      "kind": "subtitle",
+      "level": "L0",
+      "uri": "assets/a-changan-dusk-text/card.txt",
+      "hash": "403df3ba9fa4c9f023a95d0c7ae741c31ddc1bd2583cf95abe6f8b867aaae979",
+      "hash_scheme": "file-sha256",
+      "bytes": 56,
+      "files": [
+        {
+          "path": "assets/a-changan-dusk-text/card.txt",
+          "sha256": "403df3ba9fa4c9f023a95d0c7ae741c31ddc1bd2583cf95abe6f8b867aaae979",
+          "bytes": 56,
+          "format": "txt",
+          "role": "entry"
+        }
+      ],
+      "render": "text-card",
+      "rights": {
+        "origin": "由任务单脚本文本派生(底座/剧本已有文字,未新增史实)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-text.mjs",
+        "human_fix": false,
+        "author": "placeholder-generator",
+        "notes": "占位素材,代码生成,不可上线。"
+      },
+      "meaning": "图没加载时,仍告诉学生此处是春天的长安,城在、草木深——文字永远是降级终点",
+      "fallback_asset_id": null,
+      "status": "published",
+      "placeholder": {
+        "is_placeholder": true,
+        "not_for_release": true,
+        "reason": "代码生成的占位,为了让学生端先跑通;不可上线",
+        "replace_with_task": "a-changan-dusk-text"
+      },
+      "depiction": "INTERPRETATION",
+      "task_id": "a-changan-dusk-text",
+      "used_in": [
+        {
+          "script_id": "qj-chun-wang",
+          "step": "arrive"
+        }
+      ],
+      "published_at": "2026-11-11T16:49:33.422Z",
+      "published_by": "placeholder-pipeline"
+    },
+    {
+      "asset_id": "a-dufu-bust",
+      "kind": "character",
+      "level": "L3",
+      "uri": "characters/du-fu/manifest.json",
+      "hash": "6503122fc5ed3eca56b54ce5399c4661241ef370b3a48065ed930b47cd013b48",
+      "hash_scheme": "files-index-sha256",
+      "bytes": 22666,
+      "files": [
+        {
+          "path": "characters/du-fu/still.svg",
+          "sha256": "8bfaa561612627a156de6a8b677b91766719b8e26a8483a6afec4f3707f7d9ea",
+          "bytes": 2599,
+          "format": "svg",
+          "role": "poster"
+        },
+        {
+          "path": "characters/du-fu/layers/body.svg",
+          "sha256": "c632f863c8cd8774e18f4a429898a96dc28b47f0d6f139f2b80b0395bb34cb49",
+          "bytes": 890,
+          "format": "svg",
+          "role": "layer"
+        },
+        {
+          "path": "characters/du-fu/layers/head.svg",
+          "sha256": "de09a89020af6077ac16962e572e1b9203887a2a70e32709a48f3e88b2fa5353",
+          "bytes": 764,
+          "format": "svg",
+          "role": "layer"
+        },
+        {
+          "path": "characters/du-fu/layers/hair.svg",
+          "sha256": "a4b4d5275b763119e5d8e01af5bd1533252cf4cb8e01a95bb9414569f9d30649",
+          "bytes": 632,
+          "format": "svg",
+          "role": "layer"
+        },
+        {
+          "path": "characters/du-fu/layers/brow_l.svg",
+          "sha256": "23c072d4413b8dd134f0e70f3243f9e9e17991743a0107098cf262e39568abab",
+          "bytes": 363,
+          "format": "svg",
+          "role": "layer"
+        },
+        {
+          "path": "characters/du-fu/layers/brow_r.svg",
+          "sha256": "30584d8340a147250a59019b3a9c3488eb02eb73fdafcbdc08fb44b9b73691dd",
+          "bytes": 363,
+          "format": "svg",
+          "role": "layer"
+        },
+        {
+          "path": "characters/du-fu/layers/eyes_open.svg",
+          "sha256": "7f4a97211555c22773f77555ece4e9183c56cc8261cb11aa806eb6af11540069",
+          "bytes": 547,
+          "format": "svg",
+          "role": "layer"
+        },
+        {
+          "path": "characters/du-fu/layers/eyes_closed.svg",
+          "sha256": "78030b83b877c21b5b5e827960ae8071127251cb4e558f454036faa249c35d16",
+          "bytes": 475,
+          "format": "svg",
+          "role": "layer"
+        },
+        {
+          "path": "characters/du-fu/layers/mouth.svg",
+          "sha256": "ebbabb4933e895fbe65dd29f57b8e2b983442835edde92203a1c9529dac21f79",
+          "bytes": 364,
+          "format": "svg",
+          "role": "layer"
+        },
+        {
+          "path": "characters/du-fu/layers/mouth_open.svg",
+          "sha256": "5899c53a5e9676ee7d3b43e1188b4b1b02c6f77b4c7cea193924cb67f58af6b6",
+          "bytes": 355,
+          "format": "svg",
+          "role": "layer"
+        },
+        {
+          "path": "characters/du-fu/layers/mouth_sorrow.svg",
+          "sha256": "f36cf657154a1136fd32d8a7c610d891d1d37f916ac876ddbbaa50d5defaecd3",
+          "bytes": 371,
+          "format": "svg",
+          "role": "layer"
+        },
+        {
+          "path": "characters/du-fu/manifest.json",
+          "sha256": "ac414e9022a24a271b35279d161344a6ccfca3ab8bdef6631204ac70efd91325",
+          "bytes": 14943,
+          "format": "json",
+          "role": "entry"
+        }
+      ],
+      "media": {
+        "width": 512,
+        "height": 768,
+        "states": [
+          "idle",
+          "talk",
+          "listen",
+          "sorrow",
+          "bow"
+        ],
+        "mouth_mode": "amplitude"
+      },
+      "render": "character-svg-layers",
+      "rights": {
+        "origin": "代码生成的占位素材(tools/gen/gen-character-dufu.mjs)",
+        "license": "own",
+        "workflow": "student-app/production/tools/gen/gen-character-dufu.mjs",
+        "human_fix": false,
+        "author": "production pipeline (自动生成)",
+        "notes": "纯几何图形,无第三方素材,无 AI 生成图像。不依据任何画像或文献描述外貌。"
+      },
+      "meaning": "让学生见到此时此地的诗人,而不是一个通用古人像(杜甫(占位);演绎形象,非画像)",
+      "fallback_asset_id": "a-dufu-still",
+      "status": "published",
+      "placeholder": {
+        "is_placeholder": true,
+        "not_for_release": true,
+        "reason": "为了让学生端渲染、状态切换与降级先跑通;不是最终美术。",
+        "replace_with_task": "a-dufu-bust"
+      },
+      "depiction": "DRAMATIZATION",
+      "used_in": [
+        {
+          "step": "meet"
+        }
+      ]
+    },
+    {
+      "asset_id": "a-dufu-still",
+      "kind": "illustration",
+      "level": "L1",
+      "uri": "characters/du-fu/still.svg",
+      "hash": "8bfaa561612627a156de6a8b677b91766719b8e26a8483a6afec4f3707f7d9ea",
+      "hash_scheme": "file-sha256",
+      "bytes": 2599,
+      "files": [
+        {
+          "path": "characters/du-fu/still.svg",
+          "sha256": "8bfaa561612627a156de6a8b677b91766719b8e26a8483a6afec4f3707f7d9ea",
+          "bytes": 2599,
+          "format": "svg",
+          "role": "entry"
+        }
+      ],
+      "media": {
+        "width": 512,
+        "height": 768
+      },
+      "render": "still",
+      "rights": {
+        "origin": "代码生成的占位素材(tools/gen/gen-character-dufu.mjs)",
+        "license": "own",
+        "workflow": "student-app/production/tools/gen/gen-character-dufu.mjs",
+        "human_fix": false,
+        "author": "production pipeline (自动生成)",
+        "notes": "纯几何图形,无第三方素材,无 AI 生成图像。不依据任何画像或文献描述外貌。"
+      },
+      "meaning": "角色动画不可用时仍保留“有人在场”(杜甫(占位)静帧;演绎形象)",
+      "fallback_asset_id": "a-dufu-text",
+      "status": "published",
+      "placeholder": {
+        "is_placeholder": true,
+        "not_for_release": true,
+        "reason": "为了让学生端渲染、状态切换与降级先跑通;不是最终美术。",
+        "replace_with_task": "a-dufu-bust"
+      },
+      "depiction": "DRAMATIZATION",
+      "used_in": [
+        {
+          "step": "meet"
+        }
+      ]
+    },
+    {
+      "asset_id": "a-dufu-text",
+      "kind": "subtitle",
+      "level": "L0",
+      "uri": "characters/du-fu/alt.txt",
+      "hash": "c09a9972ade5d9d801201c1b2b734b8344131855163623ebc31b5c453e88b3a6",
+      "hash_scheme": "file-sha256",
+      "bytes": 207,
+      "files": [
+        {
+          "path": "characters/du-fu/alt.txt",
+          "sha256": "c09a9972ade5d9d801201c1b2b734b8344131855163623ebc31b5c453e88b3a6",
+          "bytes": 207,
+          "format": "txt",
+          "role": "entry"
+        }
+      ],
+      "render": "text-card",
+      "rights": {
+        "origin": "代码生成的占位素材(tools/gen/gen-character-dufu.mjs)",
+        "license": "own",
+        "workflow": "student-app/production/tools/gen/gen-character-dufu.mjs",
+        "human_fix": false,
+        "author": "production pipeline (自动生成)",
+        "notes": "纯几何图形,无第三方素材,无 AI 生成图像。不依据任何画像或文献描述外貌。"
+      },
+      "meaning": "角色动画和图都不可用时,仍用文字告诉学生此处有人在场(杜甫(占位))",
+      "fallback_asset_id": null,
+      "status": "published",
+      "placeholder": {
+        "is_placeholder": true,
+        "not_for_release": true,
+        "reason": "为了让学生端渲染、状态切换与降级先跑通;不是最终美术。",
+        "replace_with_task": "a-dufu-bust"
+      },
+      "depiction": "DRAMATIZATION",
+      "used_in": [
+        {
+          "step": "meet"
+        }
+      ]
+    },
+    {
+      "asset_id": "a-jys-moonlight",
+      "kind": "illustration",
+      "level": "L1",
+      "uri": "assets/a-jys-moonlight/main.webp",
+      "hash": "c266dc62993def167f0cb6e2de104c0f367d25b974a7d14b35f9c13457d37275",
+      "hash_scheme": "files-index-sha256",
+      "bytes": 5940,
+      "files": [
+        {
+          "path": "assets/a-jys-moonlight/main.webp",
+          "sha256": "f9f84cbb27ec21d480288fcea6761f086833fce9bf7254d773b1fbdfd168a84b",
+          "bytes": 4228,
+          "format": "webp",
+          "role": "entry"
+        },
+        {
+          "path": "assets/a-jys-moonlight/mini.webp",
+          "sha256": "aadeaab73bda96d316d43c985456ac19553ebe620a0dbd994e6f861fb48a42be",
+          "bytes": 1712,
+          "format": "webp",
+          "role": "mini"
+        }
+      ],
+      "media": {
+        "width": 1280,
+        "height": 720
+      },
+      "render": "still",
+      "rights": {
+        "origin": "自生成占位(代码绘制的概括轮廓 SVG,无 AI 图像)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-jing-ye-si-scene.mjs",
+        "human_fix": false,
+        "author": "placeholder-generator",
+        "notes": "占位素材,代码生成,不可上线。不画床、窗、屋、人;不表示季节、时间、地点。"
+      },
+      "meaning": "让学生看见诗里的月光铺在地上、白得像霜——对应『床前明月光,疑是地上霜』",
+      "fallback_asset_id": "a-jys-moonlight-text",
+      "status": "published",
+      "placeholder": {
+        "is_placeholder": true,
+        "not_for_release": true,
+        "reason": "代码生成的占位,为了让学生端先跑通;不可上线",
+        "replace_with_task": "a-jys-moonlight"
+      },
+      "depiction": "DRAMATIZATION",
+      "task_id": "a-jys-moonlight",
+      "used_in": [
+        {
+          "script_id": "qj-jing-ye-si",
+          "step": "arrive"
+        }
+      ],
+      "published_at": "2026-11-07T03:18:37.580Z",
+      "published_by": "placeholder-pipeline"
+    },
+    {
+      "asset_id": "a-jys-moonlight-text",
+      "kind": "subtitle",
+      "level": "L0",
+      "uri": "assets/a-jys-moonlight-text/card.txt",
+      "hash": "60372c1163cc86f0aea75594c041f1397e9b48dfe900cdd3feb847d098e485db",
+      "hash_scheme": "file-sha256",
+      "bytes": 72,
+      "files": [
+        {
+          "path": "assets/a-jys-moonlight-text/card.txt",
+          "sha256": "60372c1163cc86f0aea75594c041f1397e9b48dfe900cdd3feb847d098e485db",
+          "bytes": 72,
+          "format": "txt",
+          "role": "entry"
+        }
+      ],
+      "render": "text-card",
+      "rights": {
+        "origin": "由任务单脚本文本派生(底座/剧本已有文字,未新增史实)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-text.mjs",
+        "human_fix": false,
+        "author": "placeholder-generator",
+        "notes": "占位素材,代码生成,不可上线。"
+      },
+      "meaning": "图没加载时,仍告诉学生诗里写的是地上白白的月光——文字永远是降级终点",
+      "fallback_asset_id": null,
+      "status": "published",
+      "placeholder": {
+        "is_placeholder": true,
+        "not_for_release": true,
+        "reason": "代码生成的占位,为了让学生端先跑通;不可上线",
+        "replace_with_task": "a-jys-moonlight-text"
+      },
+      "depiction": "INTERPRETATION",
+      "task_id": "a-jys-moonlight-text",
+      "used_in": [
+        {
+          "script_id": "qj-jing-ye-si",
+          "step": "arrive"
+        }
+      ],
+      "published_at": "2026-11-07T03:18:37.569Z",
+      "published_by": "placeholder-pipeline"
+    },
+    {
+      "asset_id": "a-jys-recite",
+      "kind": "audio",
+      "level": "L2",
+      "uri": "assets/a-jys-recite/recite.m4a",
+      "hash": "03db86005f70698f21f37acace6f0bdb8fcd5ced2a8f1692a56ee32e6d81302b",
+      "hash_scheme": "files-index-sha256",
+      "bytes": 52963,
+      "files": [
+        {
+          "path": "assets/a-jys-recite/recite.m4a",
+          "sha256": "32c4dbc12d1e2e99698def48893c80277f23f380df1919011ff226c65c87b43e",
+          "bytes": 52894,
+          "format": "m4a",
+          "role": "entry"
+        },
+        {
+          "path": "assets/a-jys-recite/recite.txt",
+          "sha256": "01e95ea87bf8a2ef7c92e786d8ce81c5c2ad3089b7ca7c8537fb6b112b8a193c",
+          "bytes": 69,
+          "format": "txt",
+          "role": "script"
+        }
+      ],
+      "media": {
+        "duration_ms": 6322,
+        "sample_rate": 44100,
+        "channels": 1
+      },
+      "render": "audio",
+      "rights": {
+        "origin": "自生成占位(macOS say 合成,朗读韵律不可信)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-audio.mjs",
+        "human_fix": false,
+        "author": "placeholder-generator",
+        "notes": "占位素材,代码生成,不可上线。;证明材料:未核实:macOS 系统语音的商用许可;占位不可上线"
+      },
+      "meaning": "示范停顿与韵律,学生知道这四句该怎么读出来——对应全诗四句",
+      "fallback_asset_id": "a-jys-recite-subtitle",
+      "status": "published",
+      "placeholder": {
+        "is_placeholder": true,
+        "not_for_release": true,
+        "reason": "代码生成的占位,为了让学生端先跑通;不可上线",
+        "replace_with_task": "a-jys-recite"
+      },
+      "depiction": "FACT",
+      "task_id": "a-jys-recite",
+      "used_in": [
+        {
+          "script_id": "qj-jing-ye-si",
+          "step": "recite"
+        }
+      ],
+      "published_at": "2026-11-07T03:18:37.708Z",
+      "published_by": "placeholder-pipeline"
+    },
+    {
+      "asset_id": "a-jys-recite-subtitle",
+      "kind": "subtitle",
+      "level": "L0",
+      "uri": "assets/a-jys-recite-subtitle/captions.vtt",
+      "hash": "ed4d2ffbf736414eddb68f39dd8dbb3fd68f25d721a4c6cf6b81db710b063dc0",
+      "hash_scheme": "file-sha256",
+      "bytes": 196,
+      "files": [
+        {
+          "path": "assets/a-jys-recite-subtitle/captions.vtt",
+          "sha256": "ed4d2ffbf736414eddb68f39dd8dbb3fd68f25d721a4c6cf6b81db710b063dc0",
+          "bytes": 196,
+          "format": "vtt",
+          "role": "entry"
+        }
+      ],
+      "media": {
+        "cues": 1
+      },
+      "render": "subtitle-track",
+      "rights": {
+        "origin": "由脚本文本派生,时间轴按占位音频时长分配",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-audio.mjs",
+        "human_fix": false,
+        "author": "placeholder-generator",
+        "notes": "占位素材,代码生成,不可上线。"
+      },
+      "meaning": "音频不可用时,文本与断句仍在(也是无障碍与降级必需)",
+      "fallback_asset_id": null,
+      "status": "published",
+      "placeholder": {
+        "is_placeholder": true,
+        "not_for_release": true,
+        "reason": "代码生成的占位,为了让学生端先跑通;不可上线",
+        "replace_with_task": "a-jys-recite-subtitle"
+      },
+      "depiction": "FACT",
+      "task_id": "a-jys-recite-subtitle",
+      "used_in": [
+        {
+          "script_id": "qj-jing-ye-si",
+          "step": "recite"
+        }
+      ],
+      "published_at": "2026-11-07T03:18:37.577Z",
+      "published_by": "placeholder-pipeline"
+    },
+    {
+      "asset_id": "a-nar-arrive-city",
+      "kind": "audio",
+      "level": "L2",
+      "uri": "assets/a-nar-arrive-city/narration.m4a",
+      "hash": "3d6ab1a364b1bd8b168903e04d4476ccb5e49fb7bea470b51afcc18a91b6c6a2",
+      "hash_scheme": "files-index-sha256",
+      "bytes": 26887,
+      "files": [
+        {
+          "path": "assets/a-nar-arrive-city/narration.m4a",
+          "sha256": "d68f62e298c01e18745d0c6395678efbe588427380875c3452c0605b95694d69",
+          "bytes": 26829,
+          "format": "m4a",
+          "role": "entry"
+        },
+        {
+          "path": "assets/a-nar-arrive-city/narration.txt",
+          "sha256": "c09e6d89cdaabc6e3c9c545775296042848adc2f635f11749f5e96ef4980e925",
+          "bytes": 58,
+          "format": "txt",
+          "role": "script"
+        }
+      ],
+      "media": {
+        "duration_ms": 3098,
+        "sample_rate": 22050,
+        "channels": 1
+      },
+      "render": "audio",
+      "rights": {
+        "origin": "自生成占位(macOS say 合成)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false,
+        "author": "placeholder-generator",
+        "notes": "占位素材,代码生成,不可上线。;证明材料:未核实:macOS 系统语音的商用许可;占位不可上线"
+      },
+      "meaning": "让学生听到长安是都城、不是边地小城",
+      "fallback_asset_id": "a-nar-arrive-city-sub",
+      "status": "published",
+      "placeholder": {
+        "is_placeholder": true,
+        "not_for_release": true,
+        "reason": "代码生成的占位,为了让学生端先跑通;不可上线",
+        "replace_with_task": "a-nar-arrive-city"
+      },
+      "depiction": "FACT",
+      "task_id": "a-nar-arrive-city",
+      "used_in": [
+        {
+          "script_id": "qj-chun-wang",
+          "step": "arrive"
+        }
+      ],
+      "published_at": "2026-11-06T15:36:42.587Z",
+      "published_by": "placeholder-pipeline"
+    },
+    {
+      "asset_id": "a-nar-arrive-city-sub",
+      "kind": "subtitle",
+      "level": "L0",
+      "uri": "assets/a-nar-arrive-city-sub/captions.vtt",
+      "hash": "0064cb95b22eea07d0024f2ea4513dbcdb15335b62197eaa690b97d4ec46559f",
+      "hash_scheme": "file-sha256",
+      "bytes": 186,
+      "files": [
+        {
+          "path": "assets/a-nar-arrive-city-sub/captions.vtt",
+          "sha256": "0064cb95b22eea07d0024f2ea4513dbcdb15335b62197eaa690b97d4ec46559f",
+          "bytes": 186,
+          "format": "vtt",
+          "role": "entry"
+        }
+      ],
+      "media": {
+        "cues": 1
+      },
+      "render": "subtitle-track",
+      "rights": {
+        "origin": "由 bundle 台词派生,时间轴按占位音频时长分配",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false,
+        "author": "placeholder-generator",
+        "notes": "占位素材,代码生成,不可上线。"
+      },
+      "meaning": "旁白不可用时,这一层的文字仍完整可读",
+      "fallback_asset_id": null,
+      "status": "published",
+      "placeholder": {
+        "is_placeholder": true,
+        "not_for_release": true,
+        "reason": "代码生成的占位,为了让学生端先跑通;不可上线",
+        "replace_with_task": "a-nar-arrive-city-sub"
+      },
+      "depiction": "FACT",
+      "task_id": "a-nar-arrive-city-sub",
+      "used_in": [
+        {
+          "script_id": "qj-chun-wang",
+          "step": "arrive"
+        }
+      ],
+      "published_at": "2026-11-06T15:36:42.403Z",
+      "published_by": "placeholder-pipeline"
+    },
+    {
+      "asset_id": "a-nar-arrive-person",
+      "kind": "audio",
+      "level": "L2",
+      "uri": "assets/a-nar-arrive-person/narration.m4a",
+      "hash": "fe17ac3a89f3c88d8b70ae48fa8570f250a3769045fb326579f9835e64696459",
+      "hash_scheme": "files-index-sha256",
+      "bytes": 26346,
+      "files": [
+        {
+          "path": "assets/a-nar-arrive-person/narration.m4a",
+          "sha256": "05c832594b6330ca25c84f9779ad569a994761b273af7cb652f903579ecd8212",
+          "bytes": 26303,
+          "format": "m4a",
+          "role": "entry"
+        },
+        {
+          "path": "assets/a-nar-arrive-person/narration.txt",
+          "sha256": "b15e553fc8882ae01c5275313dda6daa7a1b1c94a8e80e2f1e7df000c6ad166b",
+          "bytes": 43,
+          "format": "txt",
+          "role": "script"
+        }
+      ],
+      "media": {
+        "duration_ms": 2987,
+        "sample_rate": 22050,
+        "channels": 1
+      },
+      "render": "audio",
+      "rights": {
+        "origin": "自生成占位(macOS say 合成)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false,
+        "author": "placeholder-generator",
+        "notes": "占位素材,代码生成,不可上线。;证明材料:未核实:macOS 系统语音的商用许可;占位不可上线"
+      },
+      "meaning": "让学生听到诗人当时孤身一人、家人不在身边——对应『白头搔更短』的处境",
+      "fallback_asset_id": "a-nar-arrive-person-sub",
+      "status": "published",
+      "placeholder": {
+        "is_placeholder": true,
+        "not_for_release": true,
+        "reason": "代码生成的占位,为了让学生端先跑通;不可上线",
+        "replace_with_task": "a-nar-arrive-person"
+      },
+      "depiction": "FACT",
+      "task_id": "a-nar-arrive-person",
+      "used_in": [
+        {
+          "script_id": "qj-chun-wang",
+          "step": "arrive"
+        }
+      ],
+      "published_at": "2026-11-06T15:36:42.653Z",
+      "published_by": "placeholder-pipeline"
+    },
+    {
+      "asset_id": "a-nar-arrive-person-sub",
+      "kind": "subtitle",
+      "level": "L0",
+      "uri": "assets/a-nar-arrive-person-sub/captions.vtt",
+      "hash": "cbb66b9aa2ede2c17c7a36b9e017fe6b0b84f73386ff47ac42cb794b53ace925",
+      "hash_scheme": "file-sha256",
+      "bytes": 171,
+      "files": [
+        {
+          "path": "assets/a-nar-arrive-person-sub/captions.vtt",
+          "sha256": "cbb66b9aa2ede2c17c7a36b9e017fe6b0b84f73386ff47ac42cb794b53ace925",
+          "bytes": 171,
+          "format": "vtt",
+          "role": "entry"
+        }
+      ],
+      "media": {
+        "cues": 1
+      },
+      "render": "subtitle-track",
+      "rights": {
+        "origin": "由 bundle 台词派生,时间轴按占位音频时长分配",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false,
+        "author": "placeholder-generator",
+        "notes": "占位素材,代码生成,不可上线。"
+      },
+      "meaning": "旁白不可用时,这一层的文字仍完整可读",
+      "fallback_asset_id": null,
+      "status": "published",
+      "placeholder": {
+        "is_placeholder": true,
+        "not_for_release": true,
+        "reason": "代码生成的占位,为了让学生端先跑通;不可上线",
+        "replace_with_task": "a-nar-arrive-person-sub"
+      },
+      "depiction": "FACT",
+      "task_id": "a-nar-arrive-person-sub",
+      "used_in": [
+        {
+          "script_id": "qj-chun-wang",
+          "step": "arrive"
+        }
+      ],
+      "published_at": "2026-11-06T15:36:42.407Z",
+      "published_by": "placeholder-pipeline"
+    },
+    {
+      "asset_id": "a-nar-arrive-scene",
+      "kind": "audio",
+      "level": "L2",
+      "uri": "assets/a-nar-arrive-scene/narration.m4a",
+      "hash": "ee74b3f3bf4e1363e08e20d16c72bc6e750aade2d2475932373a6a2b20df2a66",
+      "hash_scheme": "files-index-sha256",
+      "bytes": 41309,
+      "files": [
+        {
+          "path": "assets/a-nar-arrive-scene/narration.m4a",
+          "sha256": "531d6ccd96cec1cacdf2048d12250bc7757d33ff5abcf474f1b964c09d567340",
+          "bytes": 41260,
+          "format": "m4a",
+          "role": "entry"
+        },
+        {
+          "path": "assets/a-nar-arrive-scene/narration.txt",
+          "sha256": "8b26777186449086fc04b160e6ca71f2cd0f5747d4f749b864d262a0560a2a8b",
+          "bytes": 49,
+          "format": "txt",
+          "role": "script"
+        }
+      ],
+      "media": {
+        "duration_ms": 4815,
+        "sample_rate": 22050,
+        "channels": 1
+      },
+      "render": "audio",
+      "rights": {
+        "origin": "自生成占位(macOS say 合成)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false,
+        "author": "placeholder-generator",
+        "notes": "占位素材,代码生成,不可上线。;证明材料:未核实:macOS 系统语音的商用许可;占位不可上线"
+      },
+      "meaning": "用声音带学生进入“城还在,但已残破”的眼前一层",
+      "fallback_asset_id": "a-nar-arrive-scene-sub",
+      "status": "published",
+      "placeholder": {
+        "is_placeholder": true,
+        "not_for_release": true,
+        "reason": "代码生成的占位,为了让学生端先跑通;不可上线",
+        "replace_with_task": "a-nar-arrive-scene"
+      },
+      "depiction": "INTERPRETATION",
+      "task_id": "a-nar-arrive-scene",
+      "used_in": [
+        {
+          "script_id": "qj-chun-wang",
+          "step": "arrive"
+        }
+      ],
+      "published_at": "2026-11-06T15:36:42.553Z",
+      "published_by": "placeholder-pipeline"
+    },
+    {
+      "asset_id": "a-nar-arrive-scene-sub",
+      "kind": "subtitle",
+      "level": "L0",
+      "uri": "assets/a-nar-arrive-scene-sub/captions.vtt",
+      "hash": "d4d3d3db5546c6cc1599577ad1e4d139a515cea8a58db57d45d9486361b54b08",
+      "hash_scheme": "file-sha256",
+      "bytes": 177,
+      "files": [
+        {
+          "path": "assets/a-nar-arrive-scene-sub/captions.vtt",
+          "sha256": "d4d3d3db5546c6cc1599577ad1e4d139a515cea8a58db57d45d9486361b54b08",
+          "bytes": 177,
+          "format": "vtt",
+          "role": "entry"
+        }
+      ],
+      "media": {
+        "cues": 1
+      },
+      "render": "subtitle-track",
+      "rights": {
+        "origin": "由 bundle 台词派生,时间轴按占位音频时长分配",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false,
+        "author": "placeholder-generator",
+        "notes": "占位素材,代码生成,不可上线。"
+      },
+      "meaning": "旁白不可用时,这一层的文字仍完整可读",
+      "fallback_asset_id": null,
+      "status": "published",
+      "placeholder": {
+        "is_placeholder": true,
+        "not_for_release": true,
+        "reason": "代码生成的占位,为了让学生端先跑通;不可上线",
+        "replace_with_task": "a-nar-arrive-scene-sub"
+      },
+      "depiction": "INTERPRETATION",
+      "task_id": "a-nar-arrive-scene-sub",
+      "used_in": [
+        {
+          "script_id": "qj-chun-wang",
+          "step": "arrive"
+        }
+      ],
+      "published_at": "2026-11-06T15:36:42.400Z",
+      "published_by": "placeholder-pipeline"
+    },
+    {
+      "asset_id": "a-nar-arrive-world",
+      "kind": "audio",
+      "level": "L2",
+      "uri": "assets/a-nar-arrive-world/narration.m4a",
+      "hash": "77b52aaa5ae51b22ef2143855f2aa6201143754e4d9d55cc760c65df24794be6",
+      "hash_scheme": "files-index-sha256",
+      "bytes": 23980,
+      "files": [
+        {
+          "path": "assets/a-nar-arrive-world/narration.m4a",
+          "sha256": "d0f5564c0aedcf78e566445a92eb40ff8f35043dbbf335e1692dfb750d67e562",
+          "bytes": 23880,
+          "format": "m4a",
+          "role": "entry"
+        },
+        {
+          "path": "assets/a-nar-arrive-world/narration.txt",
+          "sha256": "807d6e40c7fae4c93102b1ece33cef681df5f632edc6be5ab0fb0d990f7214b7",
+          "bytes": 100,
+          "format": "txt",
+          "role": "script"
+        }
+      ],
+      "media": {
+        "duration_ms": 2789,
+        "sample_rate": 22050,
+        "channels": 1
+      },
+      "render": "audio",
+      "rights": {
+        "origin": "自生成占位(macOS say 合成)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false,
+        "author": "placeholder-generator",
+        "notes": "占位素材,代码生成,不可上线。;证明材料:未核实:macOS 系统语音的商用许可;占位不可上线"
+      },
+      "meaning": "让学生听到战事持续、音信不通——对应『烽火连三月,家书抵万金』的处境",
+      "fallback_asset_id": "a-nar-arrive-world-sub",
+      "status": "published",
+      "placeholder": {
+        "is_placeholder": true,
+        "not_for_release": true,
+        "reason": "代码生成的占位,为了让学生端先跑通;不可上线",
+        "replace_with_task": "a-nar-arrive-world"
+      },
+      "depiction": "FACT",
+      "task_id": "a-nar-arrive-world",
+      "used_in": [
+        {
+          "script_id": "qj-chun-wang",
+          "step": "arrive"
+        }
+      ],
+      "published_at": "2026-11-06T15:36:42.620Z",
+      "published_by": "placeholder-pipeline"
+    },
+    {
+      "asset_id": "a-nar-arrive-world-sub",
+      "kind": "subtitle",
+      "level": "L0",
+      "uri": "assets/a-nar-arrive-world-sub/captions.vtt",
+      "hash": "eff52ca51eecb91f07ccccc474f592f84ec70371727cad29ce8ac4b72857b50c",
+      "hash_scheme": "file-sha256",
+      "bytes": 262,
+      "files": [
+        {
+          "path": "assets/a-nar-arrive-world-sub/captions.vtt",
+          "sha256": "eff52ca51eecb91f07ccccc474f592f84ec70371727cad29ce8ac4b72857b50c",
+          "bytes": 262,
+          "format": "vtt",
+          "role": "entry"
+        }
+      ],
+      "media": {
+        "cues": 1
+      },
+      "render": "subtitle-track",
+      "rights": {
+        "origin": "由 bundle 台词派生,时间轴按占位音频时长分配",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false,
+        "author": "placeholder-generator",
+        "notes": "占位素材,代码生成,不可上线。"
+      },
+      "meaning": "旁白不可用时,这一层的文字仍完整可读",
+      "fallback_asset_id": null,
+      "status": "published",
+      "placeholder": {
+        "is_placeholder": true,
+        "not_for_release": true,
+        "reason": "代码生成的占位,为了让学生端先跑通;不可上线",
+        "replace_with_task": "a-nar-arrive-world-sub"
+      },
+      "depiction": "FACT",
+      "task_id": "a-nar-arrive-world-sub",
+      "used_in": [
+        {
+          "script_id": "qj-chun-wang",
+          "step": "arrive"
+        }
+      ],
+      "published_at": "2026-11-06T15:36:42.405Z",
+      "published_by": "placeholder-pipeline"
+    },
+    {
+      "asset_id": "a-nar-meet-dufu",
+      "kind": "audio",
+      "level": "L2",
+      "uri": "assets/a-nar-meet-dufu/narration.m4a",
+      "hash": "0a41200a8321cb3c0830d7b17b364d572d696841b9accf2df3a7ac3ccde2caa1",
+      "hash_scheme": "files-index-sha256",
+      "bytes": 40394,
+      "files": [
+        {
+          "path": "assets/a-nar-meet-dufu/narration.m4a",
+          "sha256": "505729409dd1328f84f6f230349f61c3438ede86b00e62c96446706471a2d9dc",
+          "bytes": 40318,
+          "format": "m4a",
+          "role": "entry"
+        },
+        {
+          "path": "assets/a-nar-meet-dufu/narration.txt",
+          "sha256": "b82733948801380eec6285c35a1feb5c0afe34d71fe665f5640338a9882e3390",
+          "bytes": 76,
+          "format": "txt",
+          "role": "script"
+        }
+      ],
+      "media": {
+        "duration_ms": 4973,
+        "sample_rate": 22050,
+        "channels": 1
+      },
+      "render": "audio",
+      "rights": {
+        "origin": "自生成占位(macOS say 合成)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false,
+        "author": "placeholder-generator",
+        "notes": "占位素材,代码生成,不可上线。;证明材料:未核实:macOS 系统语音的商用许可;占位不可上线"
+      },
+      "meaning": "让学生听到诗人本人的口吻——这是教学演绎,不是史料",
+      "fallback_asset_id": "a-nar-meet-dufu-sub",
+      "status": "published",
+      "placeholder": {
+        "is_placeholder": true,
+        "not_for_release": true,
+        "reason": "代码生成的占位,为了让学生端先跑通;不可上线",
+        "replace_with_task": "a-nar-meet-dufu"
+      },
+      "depiction": "DRAMATIZATION",
+      "task_id": "a-nar-meet-dufu",
+      "used_in": [
+        {
+          "script_id": "qj-chun-wang",
+          "step": "meet"
+        }
+      ],
+      "published_at": "2026-11-06T15:36:42.686Z",
+      "published_by": "placeholder-pipeline"
+    },
+    {
+      "asset_id": "a-nar-meet-dufu-sub",
+      "kind": "subtitle",
+      "level": "L0",
+      "uri": "assets/a-nar-meet-dufu-sub/captions.vtt",
+      "hash": "0ab4a4d3a847fb55d058144fbaaf4db243558cca2a7e00c234c3b4c964a057fd",
+      "hash_scheme": "file-sha256",
+      "bytes": 204,
+      "files": [
+        {
+          "path": "assets/a-nar-meet-dufu-sub/captions.vtt",
+          "sha256": "0ab4a4d3a847fb55d058144fbaaf4db243558cca2a7e00c234c3b4c964a057fd",
+          "bytes": 204,
+          "format": "vtt",
+          "role": "entry"
+        }
+      ],
+      "media": {
+        "cues": 1
+      },
+      "render": "subtitle-track",
+      "rights": {
+        "origin": "由 bundle 台词派生,时间轴按占位音频时长分配",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false,
+        "author": "placeholder-generator",
+        "notes": "占位素材,代码生成,不可上线。"
+      },
+      "meaning": "台词音频不可用时,演绎台词仍以文字带『演绎』角标显示",
+      "fallback_asset_id": null,
+      "status": "published",
+      "placeholder": {
+        "is_placeholder": true,
+        "not_for_release": true,
+        "reason": "代码生成的占位,为了让学生端先跑通;不可上线",
+        "replace_with_task": "a-nar-meet-dufu-sub"
+      },
+      "depiction": "DRAMATIZATION",
+      "task_id": "a-nar-meet-dufu-sub",
+      "used_in": [
+        {
+          "script_id": "qj-chun-wang",
+          "step": "meet"
+        }
+      ],
+      "published_at": "2026-11-06T15:36:42.409Z",
+      "published_by": "placeholder-pipeline"
+    },
+    {
+      "asset_id": "a-nar-return-person",
+      "kind": "audio",
+      "level": "L2",
+      "uri": "assets/a-nar-return-person/narration.m4a",
+      "hash": "491f5a2f35d4b56fa911790ffe331d17fbd21225405d44bad963e63ec609c16a",
+      "hash_scheme": "files-index-sha256",
+      "bytes": 26214,
+      "files": [
+        {
+          "path": "assets/a-nar-return-person/narration.m4a",
+          "sha256": "9c12904d4db2256a8eee7589255c2d35f7700ff1dcc20231f41980cd1feeb7e6",
+          "bytes": 26165,
+          "format": "m4a",
+          "role": "entry"
+        },
+        {
+          "path": "assets/a-nar-return-person/narration.txt",
+          "sha256": "c182563b663845d1362b1c05974b2c3827a796ef0fae585cefdba9816bf7d98d",
+          "bytes": 49,
+          "format": "txt",
+          "role": "script"
+        }
+      ],
+      "media": {
+        "duration_ms": 3082,
+        "sample_rate": 22050,
+        "channels": 1
+      },
+      "render": "audio",
+      "rights": {
+        "origin": "自生成占位(macOS say 合成)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false,
+        "author": "placeholder-generator",
+        "notes": "占位素材,代码生成,不可上线。;证明材料:未核实:macOS 系统语音的商用许可;占位不可上线"
+      },
+      "meaning": "让学生听到『抵万金』为什么有分量,落回第六句",
+      "fallback_asset_id": "a-nar-return-person-sub",
+      "status": "published",
+      "placeholder": {
+        "is_placeholder": true,
+        "not_for_release": true,
+        "reason": "代码生成的占位,为了让学生端先跑通;不可上线",
+        "replace_with_task": "a-nar-return-person"
+      },
+      "depiction": "INTERPRETATION",
+      "task_id": "a-nar-return-person",
+      "used_in": [
+        {
+          "script_id": "qj-chun-wang",
+          "step": "return"
+        }
+      ],
+      "published_at": "2026-11-06T15:36:42.752Z",
+      "published_by": "placeholder-pipeline"
+    },
+    {
+      "asset_id": "a-nar-return-person-sub",
+      "kind": "subtitle",
+      "level": "L0",
+      "uri": "assets/a-nar-return-person-sub/captions.vtt",
+      "hash": "4b2d799cf0d1852f2ebca5f2a3a5eabd204274cd76c837e48500eef23f364fe3",
+      "hash_scheme": "file-sha256",
+      "bytes": 177,
+      "files": [
+        {
+          "path": "assets/a-nar-return-person-sub/captions.vtt",
+          "sha256": "4b2d799cf0d1852f2ebca5f2a3a5eabd204274cd76c837e48500eef23f364fe3",
+          "bytes": 177,
+          "format": "vtt",
+          "role": "entry"
+        }
+      ],
+      "media": {
+        "cues": 1
+      },
+      "render": "subtitle-track",
+      "rights": {
+        "origin": "由 bundle 台词派生,时间轴按占位音频时长分配",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false,
+        "author": "placeholder-generator",
+        "notes": "占位素材,代码生成,不可上线。"
+      },
+      "meaning": "旁白不可用时,这条解释仍以文字呈现",
+      "fallback_asset_id": null,
+      "status": "published",
+      "placeholder": {
+        "is_placeholder": true,
+        "not_for_release": true,
+        "reason": "代码生成的占位,为了让学生端先跑通;不可上线",
+        "replace_with_task": "a-nar-return-person-sub"
+      },
+      "depiction": "INTERPRETATION",
+      "task_id": "a-nar-return-person-sub",
+      "used_in": [
+        {
+          "script_id": "qj-chun-wang",
+          "step": "return"
+        }
+      ],
+      "published_at": "2026-11-06T15:36:42.413Z",
+      "published_by": "placeholder-pipeline"
+    },
+    {
+      "asset_id": "a-nar-return-world",
+      "kind": "audio",
+      "level": "L2",
+      "uri": "assets/a-nar-return-world/narration.m4a",
+      "hash": "c8c2d94cadf44740a51784c941b59a27fd098cf94752c1034db62b72749a5211",
+      "hash_scheme": "files-index-sha256",
+      "bytes": 34620,
+      "files": [
+        {
+          "path": "assets/a-nar-return-world/narration.m4a",
+          "sha256": "6352b5bdbae84e2a668f98bcebab53650c6ac2051c8c96290770f0439f0d92fc",
+          "bytes": 34559,
+          "format": "m4a",
+          "role": "entry"
+        },
+        {
+          "path": "assets/a-nar-return-world/narration.txt",
+          "sha256": "2073f8c44355bf25b240e2fd266efa09e3cd2bfbe81e59e181a6f5cce4ed1dd8",
+          "bytes": 61,
+          "format": "txt",
+          "role": "script"
+        }
+      ],
+      "media": {
+        "duration_ms": 4132,
+        "sample_rate": 22050,
+        "channels": 1
+      },
+      "render": "audio",
+      "rights": {
+        "origin": "自生成占位(macOS say 合成)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false,
+        "author": "placeholder-generator",
+        "notes": "占位素材,代码生成,不可上线。;证明材料:未核实:macOS 系统语音的商用许可;占位不可上线"
+      },
+      "meaning": "让学生听到『国破』是记事不是写景,落回第一句",
+      "fallback_asset_id": "a-nar-return-world-sub",
+      "status": "published",
+      "placeholder": {
+        "is_placeholder": true,
+        "not_for_release": true,
+        "reason": "代码生成的占位,为了让学生端先跑通;不可上线",
+        "replace_with_task": "a-nar-return-world"
+      },
+      "depiction": "INTERPRETATION",
+      "task_id": "a-nar-return-world",
+      "used_in": [
+        {
+          "script_id": "qj-chun-wang",
+          "step": "return"
+        }
+      ],
+      "published_at": "2026-11-06T15:36:42.719Z",
+      "published_by": "placeholder-pipeline"
+    },
+    {
+      "asset_id": "a-nar-return-world-sub",
+      "kind": "subtitle",
+      "level": "L0",
+      "uri": "assets/a-nar-return-world-sub/captions.vtt",
+      "hash": "098a43c988adc047886b568f82e42ef4ca7f64ed1171ead0a8be1a4383a64758",
+      "hash_scheme": "file-sha256",
+      "bytes": 189,
+      "files": [
+        {
+          "path": "assets/a-nar-return-world-sub/captions.vtt",
+          "sha256": "098a43c988adc047886b568f82e42ef4ca7f64ed1171ead0a8be1a4383a64758",
+          "bytes": 189,
+          "format": "vtt",
+          "role": "entry"
+        }
+      ],
+      "media": {
+        "cues": 1
+      },
+      "render": "subtitle-track",
+      "rights": {
+        "origin": "由 bundle 台词派生,时间轴按占位音频时长分配",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false,
+        "author": "placeholder-generator",
+        "notes": "占位素材,代码生成,不可上线。"
+      },
+      "meaning": "旁白不可用时,这条解释仍以文字呈现",
+      "fallback_asset_id": null,
+      "status": "published",
+      "placeholder": {
+        "is_placeholder": true,
+        "not_for_release": true,
+        "reason": "代码生成的占位,为了让学生端先跑通;不可上线",
+        "replace_with_task": "a-nar-return-world-sub"
+      },
+      "depiction": "INTERPRETATION",
+      "task_id": "a-nar-return-world-sub",
+      "used_in": [
+        {
+          "script_id": "qj-chun-wang",
+          "step": "return"
+        }
+      ],
+      "published_at": "2026-11-06T15:36:42.411Z",
+      "published_by": "placeholder-pipeline"
+    },
+    {
+      "asset_id": "a-recite-demo",
+      "kind": "audio",
+      "level": "L2",
+      "uri": "assets/a-recite-demo/recite.m4a",
+      "hash": "cb73856cf6a715d8d7d61fc9c631c60dfaf39f5af6e74895d847d1f2e7333ef1",
+      "hash_scheme": "files-index-sha256",
+      "bytes": 93609,
+      "files": [
+        {
+          "path": "assets/a-recite-demo/recite.m4a",
+          "sha256": "63a8fdee1baf64c14e9869f61c1ff840cb092b960b7ac28e57c03fde2ecc2450",
+          "bytes": 93472,
+          "format": "m4a",
+          "role": "entry"
+        },
+        {
+          "path": "assets/a-recite-demo/recite.txt",
+          "sha256": "2bc03cc5c775c60d4cc9006a7c68835b5e12ee97c74b543e07f7078377a6ab25",
+          "bytes": 137,
+          "format": "txt",
+          "role": "script"
+        }
+      ],
+      "media": {
+        "duration_ms": 13079,
+        "sample_rate": 44100,
+        "channels": 1
+      },
+      "render": "audio",
+      "rights": {
+        "origin": "自生成占位(macOS say 朗读,韵律不可信)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false,
+        "author": "placeholder-generator",
+        "notes": "占位素材,代码生成,不可上线。不是真人诵读。;证明材料:未核实:macOS 系统语音的商用许可;占位不可上线"
+      },
+      "meaning": "示范停顿与韵律,学生知道这句该怎么读出来——对应全诗八句",
+      "fallback_asset_id": "a-recite-demo-subtitle",
+      "status": "published",
+      "placeholder": {
+        "is_placeholder": true,
+        "not_for_release": true,
+        "reason": "代码生成的占位,为了让学生端先跑通;不可上线",
+        "replace_with_task": "a-recite-demo"
+      },
+      "depiction": "FACT",
+      "task_id": "a-recite-demo",
+      "used_in": [
+        {
+          "script_id": "qj-chun-wang",
+          "step": "recite"
+        }
+      ],
+      "published_at": "2026-11-06T15:36:42.520Z",
+      "published_by": "placeholder-pipeline"
+    },
+    {
+      "asset_id": "a-recite-demo-subtitle",
+      "kind": "subtitle",
+      "level": "L0",
+      "uri": "assets/a-recite-demo-subtitle/captions.vtt",
+      "hash": "98fab62e58bc148ca17a64932942120c6f104e70b1077f3864537c0df68c6b7a",
+      "hash_scheme": "file-sha256",
+      "bytes": 298,
+      "files": [
+        {
+          "path": "assets/a-recite-demo-subtitle/captions.vtt",
+          "sha256": "98fab62e58bc148ca17a64932942120c6f104e70b1077f3864537c0df68c6b7a",
+          "bytes": 298,
+          "format": "vtt",
+          "role": "entry"
+        }
+      ],
+      "media": {
+        "cues": 2
+      },
+      "render": "subtitle-track",
+      "rights": {
+        "origin": "由诗句全文派生,时间轴按占位音频时长分配",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false,
+        "author": "placeholder-generator",
+        "notes": "占位素材,代码生成,不可上线。"
+      },
+      "meaning": "音频不可用时,文本与断句仍在(也是无障碍与降级必需)",
+      "fallback_asset_id": null,
+      "status": "published",
+      "placeholder": {
+        "is_placeholder": true,
+        "not_for_release": true,
+        "reason": "代码生成的占位,为了让学生端先跑通;不可上线",
+        "replace_with_task": "a-recite-demo-subtitle"
+      },
+      "depiction": "FACT",
+      "task_id": "a-recite-demo-subtitle",
+      "used_in": [
+        {
+          "script_id": "qj-chun-wang",
+          "step": "recite"
+        }
+      ],
+      "published_at": "2026-11-06T15:36:42.398Z",
+      "published_by": "placeholder-pipeline"
+    },
+    {
+      "asset_id": "a-sfx-birds",
+      "kind": "audio",
+      "level": "L2",
+      "uri": "assets/a-sfx-birds/sfx.m4a",
+      "hash": "9bef2e537eb216b4812b64b2dd077c8a9ae1fbd42c0beb976ad597c6fdc6c910",
+      "hash_scheme": "file-sha256",
+      "bytes": 21963,
+      "files": [
+        {
+          "path": "assets/a-sfx-birds/sfx.m4a",
+          "sha256": "9bef2e537eb216b4812b64b2dd077c8a9ae1fbd42c0beb976ad597c6fdc6c910",
+          "bytes": 21963,
+          "format": "m4a",
+          "role": "entry"
+        }
+      ],
+      "media": {
+        "duration_ms": 6000,
+        "sample_rate": 44100,
+        "channels": 1
+      },
+      "render": "audio",
+      "rights": {
+        "origin": "自生成占位(ffmpeg 合成的几声短促啁啾)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false,
+        "author": "placeholder-generator",
+        "notes": "占位素材,代码生成,不可上线。;证明材料:无第三方素材"
+      },
+      "meaning": "给『恨别鸟惊心』一点环境声,让学生意识到春天的鸟鸣与诗人心境的反差",
+      "fallback_asset_id": "a-sfx-birds-text",
+      "status": "published",
+      "placeholder": {
+        "is_placeholder": true,
+        "not_for_release": true,
+        "reason": "代码生成的占位,为了让学生端先跑通;不可上线",
+        "replace_with_task": "a-sfx-birds"
+      },
+      "depiction": "DRAMATIZATION",
+      "task_id": "a-sfx-birds",
+      "used_in": [
+        {
+          "script_id": "qj-chun-wang",
+          "step": "arrive"
+        }
+      ],
+      "published_at": "2026-11-06T15:36:42.784Z",
+      "published_by": "placeholder-pipeline"
+    },
+    {
+      "asset_id": "a-sfx-birds-text",
+      "kind": "subtitle",
+      "level": "L0",
+      "uri": "assets/a-sfx-birds-text/card.txt",
+      "hash": "8cee6a016959454ac153284e37b6bd5d03b2783ce4543b59a512ae2152efdbc5",
+      "hash_scheme": "file-sha256",
+      "bytes": 44,
+      "files": [
+        {
+          "path": "assets/a-sfx-birds-text/card.txt",
+          "sha256": "8cee6a016959454ac153284e37b6bd5d03b2783ce4543b59a512ae2152efdbc5",
+          "bytes": 44,
+          "format": "txt",
+          "role": "entry"
+        }
+      ],
+      "render": "text-card",
+      "rights": {
+        "origin": "由任务单脚本文本派生(底座/剧本已有文字,未新增史实)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-text.mjs",
+        "human_fix": false,
+        "author": "placeholder-generator",
+        "notes": "占位素材,代码生成,不可上线。"
+      },
+      "meaning": "音效不可用时,用文字提醒学生诗里写到了鸟——不影响理解",
+      "fallback_asset_id": null,
+      "status": "published",
+      "placeholder": {
+        "is_placeholder": true,
+        "not_for_release": true,
+        "reason": "代码生成的占位,为了让学生端先跑通;不可上线",
+        "replace_with_task": "a-sfx-birds-text"
+      },
+      "depiction": "INTERPRETATION",
+      "task_id": "a-sfx-birds-text",
+      "used_in": [
+        {
+          "script_id": "qj-chun-wang",
+          "step": "arrive"
+        }
+      ],
+      "published_at": "2026-11-11T16:49:33.431Z",
+      "published_by": "placeholder-pipeline"
+    },
+    {
+      "asset_id": "voice-dufu-1",
+      "kind": "voice",
+      "level": "L2",
+      "uri": "assets/voice-dufu-1/voice.json",
+      "hash": "e4e46f218ea4ffe5be665d85882488af7733649e906136d2d562c7e4628266d8",
+      "hash_scheme": "files-index-sha256",
+      "bytes": 40374,
+      "files": [
+        {
+          "path": "assets/voice-dufu-1/voice.json",
+          "sha256": "a0f4af5f4a474c855c775b91917be4ae49bb0a8dada06e6d951fb79dacf12b51",
+          "bytes": 444,
+          "format": "json",
+          "role": "entry"
+        },
+        {
+          "path": "assets/voice-dufu-1/sample.m4a",
+          "sha256": "804a680c7699df5a3e252a927f7ab53b8bff6b74a9e2f3bc840145bcd4c4aac3",
+          "bytes": 39930,
+          "format": "m4a",
+          "role": "sample"
+        }
+      ],
+      "render": "audio",
+      "rights": {
+        "origin": "自生成占位(macOS say 合成)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false,
+        "author": "placeholder-generator",
+        "notes": "占位素材,代码生成,不可上线。;证明材料:未核实:macOS 系统语音的商用许可;占位不可上线"
+      },
+      "meaning": "让“杜甫”开口时有稳定的音色身份,而不是每次换一种声音",
+      "fallback_asset_id": "a-recite-demo-subtitle",
+      "status": "published",
+      "placeholder": {
+        "is_placeholder": true,
+        "not_for_release": true,
+        "reason": "代码生成的占位,为了让学生端先跑通;不可上线",
+        "replace_with_task": "voice-dufu-1"
+      },
+      "depiction": "DRAMATIZATION",
+      "task_id": "voice-dufu-1",
+      "used_in": [
+        {
+          "script_id": "qj-chun-wang",
+          "step": "meet"
+        }
+      ],
+      "published_at": "2026-11-06T15:36:42.486Z",
+      "published_by": "placeholder-pipeline"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "@xuexi/web",
+  "private": true,
+  "type": "module",
+  "description": "学生端前端：零依赖 ES 模块。构建 = 用 Node 自带的类型擦除处理共享内核，没有 node_modules。",
+  "scripts": {
+    "build": "node build.mjs",
+    "build:web": "node build.mjs --web",
+    "serve": "node serve.mjs",
+    "check": "node scripts/check.mjs",
+    "test": "node --test tests/"
+  }
+}

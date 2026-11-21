@@ -1,0 +1,496 @@
+{
+  "schema_version": "1.0",
+  "poem": "jing-ye-si",
+  "title": "静夜思(李白,mock)",
+  "generated_by": "tools/prod.mjs gen",
+  "tasks": [
+    {
+      "task_id": "a-jys-moonlight",
+      "poem": "jing-ye-si",
+      "type": "scene-illustration",
+      "title": "月光(场景插画,概括轮廓)",
+      "asset_id": "a-jys-moonlight",
+      "kind": "illustration",
+      "level": "L1",
+      "render": "still",
+      "registry": true,
+      "priority": "P0",
+      "usage": {
+        "steps": [
+          "arrive"
+        ],
+        "layers": [
+          "SCENE"
+        ],
+        "line_seqs": [
+          1,
+          2
+        ],
+        "lines_text": [
+          "床前明月光",
+          "疑是地上霜"
+        ],
+        "bundle_refs": [
+          "steps[1].layers[0].assets"
+        ],
+        "purpose": "让学生看见诗里的月光铺在地上、白得像霜——对应『床前明月光,疑是地上霜』"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "main.webp",
+          "formats": [
+            "webp"
+          ],
+          "required": true,
+          "constraints": {
+            "min_width": 1280,
+            "min_height": 720,
+            "aspect": "16:9",
+            "max_bytes": 450000
+          }
+        },
+        {
+          "role": "mini",
+          "filename": "mini.webp",
+          "formats": [
+            "webp"
+          ],
+          "required": true,
+          "constraints": {
+            "width": 640,
+            "height": 360,
+            "max_bytes": 60000
+          },
+          "note": "弱网用的小图;同一资产的变体文件,不是另一个素材。"
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license"
+        ],
+        "allowed_origins": [
+          "自绘",
+          "外包绘制",
+          "AI 生成(须写明模型与版本,且经人工修复)",
+          "自生成占位"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "外包:合同编号;AI 生成:工作流 JSON@hash;自绘:作者声明"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/a-jys-moonlight/ 含 delivery.json(来源、授权、交付人)",
+          "entry:main.webp(webp) 必需;min_width=1280, min_height=720, aspect=16:9, max_bytes=450000",
+          "mini:mini.webp(webp) 必需;width=640, height=360, max_bytes=60000"
+        ],
+        "human": [
+          "画面传达的是 meaning 里写的那一种感受,而不是别的",
+          "没有出现创作说明『禁止出现』清单里的任何物件",
+          "没有任何器物/服饰/建筑细节是创作说明没有依据却画出来的",
+          "底部留白足够叠字幕",
+          "在 iPad 竖屏和横屏下裁切后主体仍在",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用",
+          "已确认界面会带『演绎』标识,素材本身不冒充史料"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": "a-jys-moonlight-text",
+        "note": "降级目标类型:text-card"
+      },
+      "brief": {
+        "creative_notes": "夜空、一轮月、地面上一片淡淡的白光。只画诗句字面上有的东西:月和地上的白。不画床、窗、屋和人;不指明季节与天气。画面下方四分之一保持安静,方便叠字幕。月亮用概括的圆表示,不是在断言月相。",
+        "style": [
+          "水墨/淡彩风格,与 docs/design/tokens.css 的纸色(--paper #f6f1e7)和墨色(--ink #1f1e1b)协调",
+          "画面留白:底部 1/4 区域要能叠字幕而不遮主体",
+          "不得出现可辨认的真实人物面部",
+          "不得出现文字、印章、落款(文字由前端排印)"
+        ],
+        "grounding": "诗句『床前明月光,疑是地上霜』的字面意象(月光、地上、霜)。创作时间、地点、『床』的所指均无可靠定论,因此画面不承载这些信息。",
+        "forbidden_elements": [
+          "指明创作地点或创作年份(不可考,不展示)",
+          "画出床、窗、屋宇、家具、人物或人物的剪影",
+          "给月亮标注具体月相、季节、天气作为事实",
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "把演绎当作史实呈现:李白当时的处境、心情、动作一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹",
+          "画出床或任何家具",
+          "画出窗、门、屋顶、院落",
+          "画出人物或剪影",
+          "画出具体的季节标志(落叶、积雪、花)"
+        ],
+        "depiction": "DRAMATIZATION",
+        "references": []
+      },
+      "placeholder_plan": {
+        "strategy": "generated-svg",
+        "generator": "tools/gen/gen-jing-ye-si-scene.mjs"
+      },
+      "source": {
+        "demand": "tasks/jing-ye-si/demand.json",
+        "bundle": "tasks/jing-ye-si/script.mock.json"
+      },
+      "dispatch_hold": "《静夜思》的场景要素表不存在(与《春望》同样缺失,且这首诗更特殊:诗里只有月光、地上的白、抬头与低头)。尤其『床』指什么(卧具、坐具还是井栏)学界有不同说法,没有定论前,画面里不得出现任何床、窗、屋、家具;时间、地点、季节、天气也不得指明。"
+    },
+    {
+      "task_id": "a-jys-moonlight-text",
+      "poem": "jing-ye-si",
+      "type": "text-card",
+      "title": "月光(文字卡)",
+      "asset_id": "a-jys-moonlight-text",
+      "kind": "subtitle",
+      "level": "L0",
+      "render": "text-card",
+      "registry": true,
+      "priority": "P0",
+      "usage": {
+        "steps": [
+          "arrive"
+        ],
+        "layers": [
+          "SCENE"
+        ],
+        "line_seqs": [
+          1,
+          2
+        ],
+        "lines_text": [
+          "床前明月光",
+          "疑是地上霜"
+        ],
+        "bundle_refs": [
+          "assets.a-jys-moonlight.fallback"
+        ],
+        "purpose": "图没加载时,仍告诉学生诗里写的是地上白白的月光——文字永远是降级终点"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "card.txt",
+          "formats": [
+            "txt"
+          ],
+          "required": true,
+          "constraints": {
+            "max_bytes": 4000
+          }
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license"
+        ],
+        "allowed_origins": [
+          "由底座/剧本文本派生",
+          "自生成占位"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "外包:合同编号;AI 生成:工作流 JSON@hash;自绘:作者声明"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/a-jys-moonlight-text/ 含 delivery.json(来源、授权、交付人)",
+          "entry:card.txt(txt) 必需;max_bytes=4000",
+          "文字类交付物(字幕/文字卡/脚本)与任务单 brief.script_text 逐字一致(忽略空白)"
+        ],
+        "human": [
+          "不含无依据的史实",
+          "没有图也能读懂",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": null,
+        "note": "降级终点或不参与降级"
+      },
+      "brief": {
+        "creative_notes": "只复述诗句本身的画面(月光、地上的白、像霜),不添加时间、地点、天气。",
+        "style": [
+          "一到三句话,说清这里原本是什么图/声,学生仍能读懂",
+          "来自内容底座或剧本的文字,不另写史实"
+        ],
+        "grounding": "诗句『疑是地上霜』的字面比喻;台词在剧本骨架里,文字取自那里。",
+        "forbidden_elements": [
+          "指明创作地点或创作年份(不可考,不展示)",
+          "画出床、窗、屋宇、家具、人物或人物的剪影",
+          "给月亮标注具体月相、季节、天气作为事实",
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "把演绎当作史实呈现:李白当时的处境、心情、动作一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹"
+        ],
+        "depiction": "INTERPRETATION",
+        "references": [],
+        "script_text": "月光洒在地上,白白的一片,诗里说它“疑是地上霜”。",
+        "script_text_sha256": "4fe95fc539435d4b6784eb62defa1db2aea9828883ffd7fb09a7cfcd24090e7c"
+      },
+      "placeholder_plan": {
+        "strategy": "generated-text",
+        "generator": "tools/gen/gen-text.mjs"
+      },
+      "source": {
+        "demand": "tasks/jing-ye-si/demand.json",
+        "bundle": "tasks/jing-ye-si/script.mock.json",
+        "text_from": "steps[1].layers[0].lines[0].text"
+      },
+      "companion_of": "a-jys-moonlight"
+    },
+    {
+      "task_id": "a-jys-recite",
+      "poem": "jing-ye-si",
+      "type": "recitation",
+      "title": "《静夜思》诵读示范(真人)",
+      "asset_id": "a-jys-recite",
+      "kind": "audio",
+      "level": "L2",
+      "render": "audio",
+      "registry": true,
+      "priority": "P0",
+      "usage": {
+        "steps": [
+          "recite"
+        ],
+        "layers": [
+          "SCENE"
+        ],
+        "line_seqs": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "lines_text": [
+          "床前明月光",
+          "疑是地上霜",
+          "举头望明月",
+          "低头思故乡"
+        ],
+        "bundle_refs": [
+          "steps[3].demo_audio"
+        ],
+        "purpose": "示范停顿与韵律,学生知道这四句该怎么读出来——对应全诗四句"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "recite.m4a",
+          "formats": [
+            "m4a"
+          ],
+          "required": true,
+          "constraints": {
+            "min_duration_ms": 4000,
+            "max_duration_ms": 30000,
+            "min_sample_rate": 44100,
+            "max_bytes": 900000
+          }
+        },
+        {
+          "role": "script",
+          "filename": "recite.txt",
+          "formats": [
+            "txt"
+          ],
+          "required": true,
+          "note": "诵读所依据的原文逐句(UTF-8),用来人工核对读错字。"
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license",
+          "evidence"
+        ],
+        "allowed_origins": [
+          "真人录音(须附朗读人授权)",
+          "授权合成音(须写明模型、版本与授权范围)",
+          "自生成占位"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "真人:朗读人书面授权/同意书编号;合成音:服务条款或授权书中覆盖商用的条款"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/a-jys-recite/ 含 delivery.json(来源、授权、交付人)",
+          "entry:recite.m4a(m4a) 必需;min_duration_ms=4000, max_duration_ms=30000, min_sample_rate=44100, max_bytes=900000",
+          "script:recite.txt(txt) 必需",
+          "文字类交付物(字幕/文字卡/脚本)与任务单 brief.script_text 逐字一致(忽略空白)"
+        ],
+        "human": [
+          "逐字对照 recite.txt,无读错字、多音字读音与课本注音一致(字音待纸质课本核对)",
+          "停顿和断句合理",
+          "无明显噪音/爆音/削波",
+          "朗读人的授权声明已收到",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": "a-jys-recite-subtitle",
+        "note": "降级目标类型:subtitle"
+      },
+      "brief": {
+        "creative_notes": "真人诵读,语速适合学生跟读,不加配乐。全诗只有四句,总时长比《春望》短得多,故时长下限放宽到 4 秒。TTS 读古诗韵律不合格,不得作正式版。",
+        "style": [
+          "真人诵读,语速适合学生跟读;小学/初中可各一版(各自一张任务单)",
+          "停顿体现四句小诗的节奏;不加配乐",
+          "录音环境安静,无削波"
+        ],
+        "grounding": "诗句全文(mock 的一种版本,待核)。",
+        "forbidden_elements": [
+          "指明创作地点或创作年份(不可考,不展示)",
+          "画出床、窗、屋宇、家具、人物或人物的剪影",
+          "给月亮标注具体月相、季节、天气作为事实",
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "把演绎当作史实呈现:李白当时的处境、心情、动作一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹"
+        ],
+        "depiction": "FACT",
+        "references": [],
+        "script_text": "床前明月光,疑是地上霜。举头望明月,低头思故乡。",
+        "script_text_sha256": "56d4045cfc013150d79d22ad95365004bd0cac5473811b759071dae01f89492d"
+      },
+      "placeholder_plan": {
+        "strategy": "generated-audio",
+        "generator": "tools/gen/gen-audio.mjs",
+        "note": "占位:macOS say 朗读,韵律不可信,不可上线"
+      },
+      "source": {
+        "demand": "tasks/jing-ye-si/demand.json",
+        "bundle": "tasks/jing-ye-si/script.mock.json"
+      },
+      "dispatch_hold": "诗句文本有多个流传版本,课本采用哪一版需要内容负责人对照纸质课本确认。确认前不得派发真人诵读,字幕和文字卡也只能暂用 mock 的一种版本。"
+    },
+    {
+      "task_id": "a-jys-recite-subtitle",
+      "poem": "jing-ye-si",
+      "type": "subtitle",
+      "title": "诵读字幕(WebVTT)",
+      "asset_id": "a-jys-recite-subtitle",
+      "kind": "subtitle",
+      "level": "L0",
+      "render": "subtitle-track",
+      "registry": true,
+      "priority": "P0",
+      "usage": {
+        "steps": [
+          "recite"
+        ],
+        "layers": [
+          "SCENE"
+        ],
+        "line_seqs": [
+          1,
+          2,
+          3,
+          4
+        ],
+        "lines_text": [
+          "床前明月光",
+          "疑是地上霜",
+          "举头望明月",
+          "低头思故乡"
+        ],
+        "bundle_refs": [
+          "assets.a-jys-recite.fallback"
+        ],
+        "purpose": "音频不可用时,文本与断句仍在(也是无障碍与降级必需)"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "captions.vtt",
+          "formats": [
+            "vtt"
+          ],
+          "required": true,
+          "constraints": {
+            "vtt_monotonic": true,
+            "max_bytes": 20000
+          }
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license"
+        ],
+        "allowed_origins": [
+          "由底座/剧本文本派生",
+          "自生成占位"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "外包:合同编号;AI 生成:工作流 JSON@hash;自绘:作者声明"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/a-jys-recite-subtitle/ 含 delivery.json(来源、授权、交付人)",
+          "entry:captions.vtt(vtt) 必需;vtt_monotonic=true, max_bytes=20000",
+          "文字类交付物(字幕/文字卡/脚本)与任务单 brief.script_text 逐字一致(忽略空白)"
+        ],
+        "human": [
+          "文字与音频一致",
+          "断句合理",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": null,
+        "note": "降级终点或不参与降级"
+      },
+      "brief": {
+        "creative_notes": "逐句字幕,时间轴依据真实录音的停顿;文字与 recite.txt 逐字一致。",
+        "style": [
+          "字幕文本必须与对应音频的脚本逐字一致",
+          "每条 ≤ 34 字(DESIGN.md 版心),时间递增不重叠"
+        ],
+        "grounding": "诗句全文。时间轴只能在真录音交付后确定。",
+        "forbidden_elements": [
+          "指明创作地点或创作年份(不可考,不展示)",
+          "画出床、窗、屋宇、家具、人物或人物的剪影",
+          "给月亮标注具体月相、季节、天气作为事实",
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "把演绎当作史实呈现:李白当时的处境、心情、动作一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹"
+        ],
+        "depiction": "FACT",
+        "references": [],
+        "script_text": "床前明月光,疑是地上霜。举头望明月,低头思故乡。",
+        "script_text_sha256": "56d4045cfc013150d79d22ad95365004bd0cac5473811b759071dae01f89492d"
+      },
+      "placeholder_plan": {
+        "strategy": "generated-vtt",
+        "generator": "tools/gen/gen-audio.mjs",
+        "note": "占位:时间轴按占位音频的实际时长均分"
+      },
+      "source": {
+        "demand": "tasks/jing-ye-si/demand.json",
+        "bundle": "tasks/jing-ye-si/script.mock.json"
+      },
+      "companion_of": "a-jys-recite",
+      "depends_on": [
+        "a-jys-recite"
+      ]
+    }
+  ]
+}

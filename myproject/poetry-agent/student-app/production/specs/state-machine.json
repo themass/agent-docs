@@ -1,0 +1,32 @@
+{
+  "version": "1.0",
+  "description": "素材任务状态机。状态保存在 tasks/<poem>/state.json(动态),规格保存在 tasks/<poem>/tasks.json(重新生成不会冲掉状态)。命令: node tools/prod.mjs state <poem> <task_id> <to_state> --by <谁> [--note ...]",
+  "states": {
+    "TODO": "任务单已建,尚无人领取。可能已有占位素材(见 state.placeholder),但任务本身未完成。",
+    "DISPATCHED": "已派发给用户/外包/GPU 流程;必须记录 assignee。",
+    "DELIVERED": "交付物已落到 inbox/<task_id>/ 并附 delivery.json(来源、授权、工作流)。",
+    "AUTO_PASSED": "机检全部通过(tools/prod.mjs check)。机检不通过不会进入此状态,而是自动 REJECTED。",
+    "HUMAN_ACCEPTED": "人工验收通过(逐条勾选 acceptance.human)。验收人必须记录。",
+    "PUBLISHED": "已入库:文件进入 published/,登记进 registry.json,hash 固定。",
+    "REJECTED": "退回。必须写明原因;回到 DISPATCHED 重做。"
+  },
+  "transitions": [
+    { "from": "TODO", "to": "DISPATCHED", "requires": ["assignee"] },
+    { "from": "DISPATCHED", "to": "DELIVERED", "requires": ["delivery.json 存在"] },
+    { "from": "DELIVERED", "to": "AUTO_PASSED", "requires": ["机检 0 错误(由 check 命令自动写入)"] },
+    { "from": "DELIVERED", "to": "REJECTED", "requires": ["note(机检失败原因由 check 命令自动写入)"] },
+    { "from": "AUTO_PASSED", "to": "HUMAN_ACCEPTED", "requires": ["by(验收人)", "note"] },
+    { "from": "AUTO_PASSED", "to": "REJECTED", "requires": ["note"] },
+    { "from": "HUMAN_ACCEPTED", "to": "PUBLISHED", "requires": ["publish 命令自动完成"] },
+    { "from": "HUMAN_ACCEPTED", "to": "REJECTED", "requires": ["note"] },
+    { "from": "PUBLISHED", "to": "REJECTED", "requires": ["note(撤回;registry 里该项改回 draft 并从 bundle 引用中移除)"] },
+    { "from": "REJECTED", "to": "DISPATCHED", "requires": ["assignee"] },
+    { "from": "REJECTED", "to": "TODO", "requires": ["note(取消派发)"] }
+  ],
+  "rules": [
+    "任何状态都不能跳级:不允许 TODO 直接到 PUBLISHED。",
+    "机检不通过的交付物永远到不了人工验收。",
+    "人工验收的 by 不能与交付人(delivery.json 的 author)相同。",
+    "占位素材(代码生成)不走这条状态机的 PUBLISHED:它们以 placeholder.not_for_release=true 登记,任务保持 TODO,直到真素材交付。"
+  ]
+}

@@ -1,0 +1,183 @@
+name: poetry-agent-platform
+
+# 网络分区(A-contract §14):
+#   poetry-agent-internal  internal: true,服务之间互通,没有默认路由,不能出网。
+#   poetry-agent-egress    普通 bridge,只加给**必须出网**的服务:
+#       - deerflow-gateway  → 模型网关 POETRY_LLM_API_BASE(明文 http,在容器外)
+#       - poetry-domain-mcp → Java Poetry API(宿主机上的 host.docker.internal)
+#       - agent-bff         → Java studio 人类写入口(同一个 Java API),并且要向宿主机发布 8100 给 Studio
+#   agent-worker 与 redis 只在 internal 网络,不出网。
+# 令牌切分(谁持有什么,见 docs/handoff/A-parts/S5.md):
+#   gateway: POETRY_LLM_*、POETRY_DOMAIN_MCP_TOKEN、DEER_FLOW_*(没有 control / reviewer / worker 令牌)
+#   mcp:     POETRY_AGENT_INTERNAL_TOKEN、MCP_INTERNAL_TOKEN(=DOMAIN_MCP_TOKEN)、POETRY_DOMAIN_CONTROL_TOKEN、POETRY_DOMAIN_REVIEW_TOKEN
+#   worker:  POETRY_DOMAIN_CONTROL_TOKEN、POETRY_WORKER_TOKEN、DEERFLOW_GATEWAY_TOKEN
+#            (无模型密钥、无 reviewer 令牌、**无 POETRY_DOMAIN_REVIEW_TOKEN**——worker 不能批准自己的提案,A-05;check_profile 会拦)
+#   bff:     POETRY_DOMAIN_CONTROL_TOKEN、POETRY_DOMAIN_REVIEW_TOKEN、POETRY_STUDIO_REVIEWER_TOKEN、POETRY_WORKER_TOKEN(无 DEERFLOW_* 网关设置)
+
+services:
+  agent-bff:
+    build:
+      context: ..
+      dockerfile: agent/agent-bff/Dockerfile
+    environment:
+      PORT: 8100
+      # BFF 不再访问网关;DEERFLOW_ENABLED 只用于给 run 标 DEERFLOW / STUB。
+      DEERFLOW_ENABLED: ${DEERFLOW_ENABLED:-false}
+      POETRY_AGENT_PROFILE_ROOT: /profile
+      POETRY_DOMAIN_CONTROL_URL: http://poetry-domain-mcp:8101
+      POETRY_DOMAIN_CONTROL_TOKEN: ${POETRY_DOMAIN_CONTROL_TOKEN:?set POETRY_DOMAIN_CONTROL_TOKEN in deploy/.env}
+      # 评审/应用专用。worker 不持有它，所以 agent 无法批准自己产出的提案（A-05）。
+      POETRY_DOMAIN_REVIEW_TOKEN: ${POETRY_DOMAIN_REVIEW_TOKEN:?set POETRY_DOMAIN_REVIEW_TOKEN in deploy/.env}
+      # 人类写入口直连 Java(D1),使用独立的 reviewer 令牌。
+      POETRY_API_BASE_URL: ${POETRY_API_BASE_URL}
+      POETRY_API_TIMEOUT_SECONDS: ${POETRY_API_TIMEOUT_SECONDS:-15}
+      POETRY_STUDIO_REVIEWER_TOKEN: ${POETRY_STUDIO_REVIEWER_TOKEN:?set POETRY_STUDIO_REVIEWER_TOKEN in deploy/.env}
+      POETRY_WORKER_URL: http://agent-worker:8102
+      POETRY_WORKER_TOKEN: ${POETRY_WORKER_TOKEN:?set POETRY_WORKER_TOKEN in deploy/.env}
+      POETRY_STUDIO_ORIGINS: ${POETRY_STUDIO_ORIGINS:-http://localhost:5190,http://127.0.0.1:5190}
+      # Studio 登录: 默认必须登录。账号文件在命名卷里(口令只以 scrypt 哈希保存),用 docker compose exec 创建,见 docs/handoff/A.md。
+      POETRY_STUDIO_AUTH: ${POETRY_STUDIO_AUTH:-required}
+      POETRY_STUDIO_USERS_FILE: /studio-auth/users.json
+      POETRY_STUDIO_SESSION_SECRET: ${POETRY_STUDIO_SESSION_SECRET:?set POETRY_STUDIO_SESSION_SECRET in deploy/.env}
+      # POETRY_BUNDLE_DIR(可选): 需要同时挂载 bundle 目录,默认不启用,见 S5 报告。
+    volumes:
+      - ../agent/deerflow-profile:/profile:ro
+      - studio-auth:/studio-auth
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # Linux 需要; Docker Desktop 自带
+    ports:
+      - "${AGENT_BIND_HOST:-127.0.0.1}:${AGENT_BFF_PORT:-8100}:8100"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8100/health/ready')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [poetry-agent-internal, poetry-agent-egress]
+
+  agent-worker:
+    build:
+      context: ..
+      dockerfile: agent/agent-worker/Dockerfile # 由 S3 维护
+    environment:
+      PORT: 8102
+      POETRY_AGENT_PROFILE_ROOT: /profile
+      POETRY_DOMAIN_CONTROL_URL: http://poetry-domain-mcp:8101
+      POETRY_DOMAIN_CONTROL_TOKEN: ${POETRY_DOMAIN_CONTROL_TOKEN:?set POETRY_DOMAIN_CONTROL_TOKEN in deploy/.env}
+      POETRY_WORKER_TOKEN: ${POETRY_WORKER_TOKEN:?set POETRY_WORKER_TOKEN in deploy/.env}
+      DEERFLOW_ENABLED: ${DEERFLOW_ENABLED:-false}
+      DEERFLOW_GATEWAY_URL: ${DEERFLOW_GATEWAY_URL:-http://deerflow-gateway:8001}
+      # 网关的内部认证令牌就是网关的 DEER_FLOW_INTERNAL_AUTH_TOKEN(请求头 X-DeerFlow-Internal-Token),
+      # 未单独设置 DEERFLOW_GATEWAY_TOKEN 时沿用它。见 S5 报告"网关认证"。
+      DEERFLOW_GATEWAY_TOKEN: ${DEERFLOW_GATEWAY_TOKEN:-${DEER_FLOW_INTERNAL_AUTH_TOKEN:-}}
+      DEERFLOW_ASSISTANT_ID: ${DEERFLOW_ASSISTANT_ID:-poetry-editor-lead}
+      WORKER_MAX_CONCURRENT_RUNS: ${WORKER_MAX_CONCURRENT_RUNS:-2}
+    volumes:
+      - ../agent/deerflow-profile:/profile:ro
+    depends_on:
+      poetry-domain-mcp:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8102/health/live', timeout=3)"]
+      interval: 5s
+      timeout: 4s
+      retries: 10
+    # 不发布端口: worker 只在 internal 网络,由 BFF 通过 http://agent-worker:8102 访问。
+    networks: [poetry-agent-internal]
+
+  poetry-domain-mcp:
+    build:
+      context: ..
+      dockerfile: agent/poetry-domain-mcp/Dockerfile
+    environment:
+      PORT: 8101
+      POETRY_API_BASE_URL: ${POETRY_API_BASE_URL}
+      POETRY_API_TIMEOUT_SECONDS: ${POETRY_API_TIMEOUT_SECONDS:-15}
+      POETRY_AGENT_INTERNAL_TOKEN: ${POETRY_AGENT_INTERNAL_TOKEN}
+      MCP_INTERNAL_TOKEN: ${POETRY_DOMAIN_MCP_TOKEN}
+      POETRY_DOMAIN_CONTROL_TOKEN: ${POETRY_DOMAIN_CONTROL_TOKEN:?set POETRY_DOMAIN_CONTROL_TOKEN in deploy/.env}
+      POETRY_DOMAIN_REVIEW_TOKEN: ${POETRY_DOMAIN_REVIEW_TOKEN:?set POETRY_DOMAIN_REVIEW_TOKEN in deploy/.env}
+      POETRY_AGENT_ACTOR_ROLE: ${POETRY_AGENT_ACTOR_ROLE:-CONTENT_EDITOR}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # No "ports:" on purpose: the control bridge (/internal/*, which can apply DRAFT content) must never be
+    # reachable from the host or the LAN. Only services on the internal network talk to it (review item A-18).
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8101), 2).close()"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    networks: [poetry-agent-internal, poetry-agent-egress]
+
+  # DeerFlow v2.2.0 is built from the official release checkout. The upstream project does not
+  # publish a supported single Gateway image tag, so we pin source and build the official backend Dockerfile.
+  deerflow-gateway:
+    build:
+      context: ${DEERFLOW_SOURCE_DIR:?run scripts/bootstrap-deerflow-runtime.sh first}
+      dockerfile: backend/Dockerfile
+    profiles: ["deerflow"]
+    command: sh -c "cd backend && PYTHONPATH=. exec uv run --no-sync uvicorn app.gateway.app:app --host 0.0.0.0 --port 8001 --workers 1 --timeout-graceful-shutdown 10"
+    working_dir: /app
+    init: true
+    environment:
+      CI: "true"
+      DEER_FLOW_PROJECT_ROOT: /app
+      DEER_FLOW_HOME: /app/backend/.deer-flow
+      DEER_FLOW_CONFIG_PATH: /app/backend/config.yaml
+      DEER_FLOW_EXTENSIONS_CONFIG_PATH: /app/backend/extensions_config.json
+      DEER_FLOW_STREAM_BRIDGE_REDIS_URL: redis://redis:6379/0
+      DEER_FLOW_INTERNAL_AUTH_TOKEN: ${DEER_FLOW_INTERNAL_AUTH_TOKEN}
+      DEER_FLOW_CREDENTIALS_KEY: ${DEER_FLOW_CREDENTIALS_KEY:-}
+      # 模型网关。config.yaml 用 $VAR 整串引用,变量缺失会让配置加载失败,所以总是定义(可为空串)。
+      POETRY_LLM_API_BASE: ${POETRY_LLM_API_BASE:-}
+      POETRY_LLM_API_KEY: ${POETRY_LLM_API_KEY:-}
+      POETRY_LLM_MODEL_PRIMARY: ${POETRY_LLM_MODEL_PRIMARY:-}
+      POETRY_LLM_MODEL_FALLBACK: ${POETRY_LLM_MODEL_FALLBACK:-}
+      # DeerFlow 只展开整串 $VAR(extensions_config.py:566-587),"Bearer $TOKEN" 不会展开,
+      # 所以在这里拼好完整的请求头值,extensions_config.json 里写 "$POETRY_DOMAIN_MCP_AUTHORIZATION"。
+      POETRY_DOMAIN_MCP_TOKEN: ${POETRY_DOMAIN_MCP_TOKEN}
+      POETRY_DOMAIN_MCP_AUTHORIZATION: Bearer ${POETRY_DOMAIN_MCP_TOKEN}
+      NO_PROXY: localhost,127.0.0.1,poetry-domain-mcp,deerflow-gateway,redis
+      no_proxy: localhost,127.0.0.1,poetry-domain-mcp,deerflow-gateway,redis
+    volumes:
+      - ../agent/deerflow-profile/config/config.yaml:/app/backend/config.yaml:ro
+      - ../agent/deerflow-profile/config/extensions_config.json:/app/backend/extensions_config.json:ro
+      # 加载器只扫描 <skills 根>/{public,custom,...}/<name>/SKILL.md,所以挂到 public/ 下
+      # (同时遮蔽镜像自带的上游 public skills)。
+      - ../agent/deerflow-profile/skills:/app/skills/public:ro
+      - ../agent/deerflow-profile/agents:/app/backend/.deer-flow/agents:ro
+      - deerflow-runtime:/app/backend/.deer-flow
+    depends_on:
+      poetry-domain-mcp:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; r=urllib.request.urlopen('http://127.0.0.1:8001/health/ready', timeout=5); raise SystemExit(0 if r.status == 200 else 1)"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    networks: [poetry-agent-internal, poetry-agent-egress]
+
+  redis:
+    image: redis:7-alpine
+    profiles: ["deerflow"]
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - redis-data:/data
+    networks: [poetry-agent-internal]
+
+networks:
+  poetry-agent-internal:
+    internal: true
+  poetry-agent-egress: {}
+
+volumes:
+  studio-auth:
+  redis-data:
+  deerflow-runtime:

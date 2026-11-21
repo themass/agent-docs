@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DraftProposal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "summary",
+    "changes",
+    "unknowns",
+    "human_review_question"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "status": {
+      "const": "DRAFT"
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "changes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 50,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "change_type",
+          "body",
+          "classification",
+          "evidence_refs"
+        ],
+        "properties": {
+          "change_type": {
+            "enum": [
+              "GAP_REPORT",
+              "ANNOTATION",
+              "BACKGROUND",
+              "CLAIM",
+              "SCRIPT"
+            ]
+          },
+          "target_ref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 256
+          },
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8000
+          },
+          "classification": {
+            "enum": [
+              "DRAFT",
+              "INTERPRETATION",
+              "UNKNOWN"
+            ]
+          },
+          "evidence_refs": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "string"
+            }
+          },
+          "draft_payload": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "operation",
+                  "id",
+                  "version_id",
+                  "line_seq",
+                  "annotation_kind",
+                  "audience",
+                  "content",
+                  "claim_id",
+                  "claim_value",
+                  "certainty"
+                ],
+                "properties": {
+                  "operation": {
+                    "const": "CREATE_ANNOTATION"
+                  },
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z][A-Za-z0-9_-]{1,63}$"
+                  },
+                  "version_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z][A-Za-z0-9_-]{1,63}$"
+                  },
+                  "line_seq": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "annotation_kind": {
+                    "enum": [
+                      "WORD",
+                      "PHRASE",
+                      "ALLUSION",
+                      "IMAGE",
+                      "RHYME",
+                      "OTHER"
+                    ]
+                  },
+                  "audience": {
+                    "enum": [
+                      "PRIMARY",
+                      "JUNIOR",
+                      "SENIOR"
+                    ]
+                  },
+                  "content": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 8000
+                  },
+                  "claim_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z][A-Za-z0-9_-]{1,63}$"
+                  },
+                  "claim_value": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 8000
+                  },
+                  "certainty": {
+                    "enum": [
+                      "KNOWN",
+                      "LIKELY",
+                      "DISPUTED",
+                      "UNKNOWN"
+                    ]
+                  },
+                  "source_id": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "pattern": "^[A-Za-z][A-Za-z0-9_-]{1,63}$"
+                  },
+                  "locator": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 1000
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    "unknowns": {
+      "type": "array",
+      "maxItems": 50,
+      "items": {
+        "type": "string"
+      }
+    },
+    "human_review_question": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    }
+  }
+}

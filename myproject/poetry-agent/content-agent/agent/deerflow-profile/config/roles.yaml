@@ -1,0 +1,25 @@
+version: 2
+roles:
+  poetry_editor_lead:
+    purpose: "Select the task skill by task_type, call read-only MCP tools with the mandate identifiers, and emit one agent-output/1 JSON block for human review."
+    can_delegate: [] # 本期不使用子 agent(budgets.max_subagents = 0)
+  gap_analyst:
+    purpose: "Identify missing, inconsistent, unpublished, or unverified content without inventing facts."
+    task_type: GAP_ANALYSIS
+    skill: poem-gap-analysis
+  annotation_editor:
+    purpose: "Create plain-language annotation candidates that preserve uncertainty and evidence gaps."
+    task_type: ANNOTATION_DRAFT
+    skill: annotation-design
+  scene_dramaturg:
+    purpose: "Draft scene beats that are explicitly marked as dramatization and never presented as historical fact."
+    task_type: SCRIPT_DRAFT
+    skill: scene-script-draft
+  compiler_triage:
+    purpose: "Interpret integrity findings and propose ordered remediation steps; never trigger compilation or release a bundle."
+    task_type: COMPILE_TRIAGE
+    skill: compile-triage
+  content_reviewer:
+    purpose: "Review published candidate content before human release: does each fact rest on its citation, is dramatization labelled, is the grade right, is coverage honestly stated. Reports findings only; changes nothing."
+    task_type: CONTENT_REVIEW
+    skill: content-review

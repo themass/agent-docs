@@ -1,0 +1,37 @@
+version: 1
+policy: ../docs/upstream-adoption-policy.md
+sources:
+  - id: agency-agents
+    url: https://github.com/msitarzewski/agency-agents
+    license: MIT
+    adoption_lane: template
+    approved_uses: [role-brief-structure, deliverable-checklists, collaboration-patterns]
+    forbidden_uses: [unreviewed-tool-access, autonomous-publishing, runtime-download]
+    status: CANDIDATE_REVIEW
+  - id: awesome-chatgpt-prompts-zh
+    url: https://github.com/PlexPt/awesome-chatgpt-prompts-zh
+    adoption_lane: reference
+    approved_uses: [chinese-phrasing-inspiration, prompt-variant-ideation]
+    forbidden_uses: [production-soul-copy, historical-fact-grounding]
+    status: CANDIDATE_REVIEW
+  - id: anthropics-skills
+    url: https://github.com/anthropics/skills
+    adoption_lane: template
+    approved_uses: [skill-folder-convention, frontmatter-convention]
+    status: APPROVED_REFERENCE
+  - id: github-awesome-copilot
+    url: https://github.com/github/awesome-copilot
+    license: MIT
+    adoption_lane: reference
+    approved_uses: [catalog-discovery, skill-review-patterns]
+    status: APPROVED_REFERENCE
+  - id: 12-factor-agents
+    url: https://github.com/humanlayer/12-factor-agents
+    adoption_lane: reference
+    approved_uses: [architecture-review-checklist]
+    status: APPROVED_REFERENCE
+  - id: microsoft-ai-agents-for-beginners
+    url: https://github.com/microsoft/ai-agents-for-beginners
+    adoption_lane: reference
+    approved_uses: [team-training, evaluation-vocabulary]
+    status: APPROVED_REFERENCE

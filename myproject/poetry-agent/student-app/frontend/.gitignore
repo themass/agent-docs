@@ -1,0 +1,3 @@
+# 由 build.mjs 从 student-app/runtime/ 生成，永不手改、不进版本库（架构规则 A1）。
+src/kernel/
+src/platform-web/

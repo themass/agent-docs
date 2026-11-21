@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "task_id": "a-chang-an-map",
+  "delivered_at": "2026-11-06T15:36:36.040Z",
+  "author": "placeholder-generator",
+  "rights": {
+    "origin": "自生成占位(代码绘制的示意方框,只写『长安』二字)",
+    "license": "自有占位,不可上线",
+    "workflow": "tools/gen/gen-chun-wang-scene.mjs",
+    "human_fix": false,
+    "author": "placeholder-generator",
+    "evidence": [],
+    "notes": "占位素材,代码生成,不可上线。未使用任何底座地点条目以外的地名。"
+  },
+  "placeholder": true,
+  "notes": "占位:让学生端先跑通。正式素材交付后会以同一 asset_id 替换。"
+}

@@ -1,0 +1,40 @@
+{
+  "poem": "jing-ye-si",
+  "tasks": {
+    "a-jys-moonlight": {
+      "state": "TODO",
+      "assignee": null,
+      "history": [],
+      "placeholder": {
+        "registered_at": "2026-11-07T03:18:37.586Z"
+      }
+    },
+    "a-jys-moonlight-text": {
+      "state": "TODO",
+      "assignee": null,
+      "history": [],
+      "script_sha256": "4fe95fc539435d4b6784eb62defa1db2aea9828883ffd7fb09a7cfcd24090e7c",
+      "placeholder": {
+        "registered_at": "2026-11-07T03:18:37.576Z"
+      }
+    },
+    "a-jys-recite": {
+      "state": "TODO",
+      "assignee": null,
+      "history": [],
+      "script_sha256": "56d4045cfc013150d79d22ad95365004bd0cac5473811b759071dae01f89492d",
+      "placeholder": {
+        "registered_at": "2026-11-07T03:18:37.710Z"
+      }
+    },
+    "a-jys-recite-subtitle": {
+      "state": "TODO",
+      "assignee": null,
+      "history": [],
+      "script_sha256": "56d4045cfc013150d79d22ad95365004bd0cac5473811b759071dae01f89492d",
+      "placeholder": {
+        "registered_at": "2026-11-07T03:18:37.579Z"
+      }
+    }
+  }
+}

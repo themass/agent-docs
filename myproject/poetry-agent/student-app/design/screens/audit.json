@@ -1,0 +1,4080 @@
+[
+ {
+  "file": "01-home-first-run.phone.png",
+  "id": "home-first-run",
+  "vp": "phone",
+  "look": "首次进入的数据说明；不记录前不产生任何事件",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "我的时空",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "01-home-first-run.ipad-p.png",
+  "id": "home-first-run",
+  "vp": "ipad-p",
+  "look": "首次进入的数据说明；不记录前不产生任何事件",
+  "audit": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "title": "我的时空",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "02-home.phone.png",
+  "id": "home",
+  "vp": "phone",
+  "look": "一首诗当主角（接着上次），下面两个小门；家长入口在右上角；没有分数/打卡",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "我的时空",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "02-home.ipad-p.png",
+  "id": "home",
+  "vp": "ipad-p",
+  "look": "一首诗当主角（接着上次），下面两个小门；家长入口在右上角；没有分数/打卡",
+  "audit": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "title": "我的时空",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "02-home.ipad-l.png",
+  "id": "home",
+  "vp": "ipad-l",
+  "look": "一首诗当主角（接着上次），下面两个小门；家长入口在右上角；没有分数/打卡",
+  "audit": {
+   "viewport": [
+    1024,
+    768
+   ],
+   "title": "我的时空",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "03-home-api-down.phone.png",
+  "id": "home-api-down",
+  "vp": "phone",
+  "look": "接口全断时首页仍能用，两个入口还在",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "我的时空",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 0,
+   "banners": []
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": "599 /api/student/v1/config; 599 /api/student/v1/works"
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "04-timeline-find.phone.png",
+  "id": "timeline-find",
+  "vp": "phone",
+  "look": "找诗：朝代/事件/作品；空白是虚线“还没有整理”；窄屏是列表",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "找一首诗",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "04-timeline-find.ipad-p.png",
+  "id": "timeline-find",
+  "vp": "ipad-p",
+  "look": "找诗：朝代/事件/作品；空白是虚线“还没有整理”；窄屏是列表",
+  "audit": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "title": "找一首诗",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 1,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "04-timeline-find.ipad-l.png",
+  "id": "timeline-find",
+  "vp": "ipad-l",
+  "look": "找诗：朝代/事件/作品；空白是虚线“还没有整理”；窄屏是列表",
+  "audit": {
+   "viewport": [
+    1024,
+    768
+   ],
+   "title": "找一首诗",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 1,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "05-timeline-find-selected.phone.png",
+  "id": "timeline-find-selected",
+  "vp": "phone",
+  "look": "选中《春望》：其余变淡、出摘要和“读这首诗”",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "找一首诗",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "05-timeline-find-selected.ipad-p.png",
+  "id": "timeline-find-selected",
+  "vp": "ipad-p",
+  "look": "选中《春望》：其余变淡、出摘要和“读这首诗”",
+  "audit": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "title": "找一首诗",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 1,
+   "contrast": [],
+   "dimmed": 1,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "06-timeline-find-zoomout.ipad-p.png",
+  "id": "timeline-find-zoomout",
+  "vp": "ipad-p",
+  "look": "缩小一级到“分期”",
+  "audit": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "title": "找一首诗",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 1,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "07-timeline-overview.phone.png",
+  "id": "timeline-overview",
+  "vp": "phone",
+  "look": "全貌：朝代层/诗人密度/主题线；未整理的是虚线",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "看看全貌",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "07-timeline-overview.ipad-p.png",
+  "id": "timeline-overview",
+  "vp": "ipad-p",
+  "look": "全貌：朝代层/诗人密度/主题线；未整理的是虚线",
+  "audit": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "title": "看看全貌",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "07-timeline-overview.ipad-l.png",
+  "id": "timeline-overview",
+  "vp": "ipad-l",
+  "look": "全貌：朝代层/诗人密度/主题线；未整理的是虚线",
+  "audit": {
+   "viewport": [
+    1024,
+    768
+   ],
+   "title": "看看全貌",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "08-timeline-overview-theme.phone.png",
+  "id": "timeline-overview-theme",
+  "vp": "phone",
+  "look": "点主题线：高亮并列出成员",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "看看全貌",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "08-timeline-overview-theme.ipad-p.png",
+  "id": "timeline-overview-theme",
+  "vp": "ipad-p",
+  "look": "点主题线：高亮并列出成员",
+  "audit": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "title": "看看全貌",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "09-poem.phone.png",
+  "id": "poem",
+  "vp": "phone",
+  "look": "原文→进入那一年→注释→情境对照→出处→覆盖声明；两说并存",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "春望",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "09-poem.ipad-p.png",
+  "id": "poem",
+  "vp": "ipad-p",
+  "look": "原文→进入那一年→注释→情境对照→出处→覆盖声明；两说并存",
+  "audit": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "title": "春望",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "09-poem.ipad-l.png",
+  "id": "poem",
+  "vp": "ipad-l",
+  "look": "原文→进入那一年→注释→情境对照→出处→覆盖声明；两说并存",
+  "audit": {
+   "viewport": [
+    1024,
+    768
+   ],
+   "title": "春望",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "10-poem-line-tapped.phone.png",
+  "id": "poem-line-tapped",
+  "vp": "phone",
+  "look": "点第 5 句出注释；点“↳ 对应”高亮句子",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "春望",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "10-poem-line-tapped.ipad-p.png",
+  "id": "poem-line-tapped",
+  "vp": "ipad-p",
+  "look": "点第 5 句出注释；点“↳ 对应”高亮句子",
+  "audit": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "title": "春望",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "11-poem-api-down.phone.png",
+  "id": "poem-api-down",
+  "vp": "phone",
+  "look": "诗词页取不到时的说明",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "这首诗还没准备好",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 0,
+   "banners": []
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": "599 /api/student/v1/config; 599 /api/student/v1/works/work-chun-wang/pack; 599 /api/student/v1/works/work-chun-wang/lesson"
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "12-lesson-read.phone.png",
+  "id": "lesson-read",
+  "vp": "phone",
+  "look": "读：点一句出字词说明",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "12-lesson-read.ipad-p.png",
+  "id": "lesson-read",
+  "vp": "ipad-p",
+  "look": "读：点一句出字词说明",
+  "audit": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "13-lesson-arrive-situation.phone.png",
+  "id": "lesson-arrive-situation",
+  "vp": "phone",
+  "look": "到：先一句处境（演绎标记）+「先看哪儿？」四个指路；四层先不展开",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 5,
+    "frames": 2,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 4,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "situation shown before the layers",
+    "ok": true,
+    "detail": "shown"
+   },
+   {
+    "name": "layers start hidden",
+    "ok": true,
+    "detail": "hidden=4"
+   }
+  ]
+ },
+ {
+  "file": "13-lesson-arrive-situation.ipad-p.png",
+  "id": "lesson-arrive-situation",
+  "vp": "ipad-p",
+  "look": "到：先一句处境（演绎标记）+「先看哪儿？」四个指路；四层先不展开",
+  "audit": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 5,
+    "frames": 2,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 4,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "situation shown before the layers",
+    "ok": true,
+    "detail": "shown"
+   },
+   {
+    "name": "layers start hidden",
+    "ok": true,
+    "detail": "hidden=4"
+   }
+  ]
+ },
+ {
+  "file": "13-lesson-arrive-situation.ipad-l.png",
+  "id": "lesson-arrive-situation",
+  "vp": "ipad-l",
+  "look": "到：先一句处境（演绎标记）+「先看哪儿？」四个指路；四层先不展开",
+  "audit": {
+   "viewport": [
+    1024,
+    768
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 5,
+    "frames": 2,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 4,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "situation shown before the layers",
+    "ok": true,
+    "detail": "shown"
+   },
+   {
+    "name": "layers start hidden",
+    "ok": true,
+    "detail": "hidden=4"
+   }
+  ]
+ },
+ {
+  "file": "14-lesson-arrive-ask.phone.png",
+  "id": "lesson-arrive-ask",
+  "vp": "phone",
+  "look": "到：自己问一句“他为什么被困在长安”，回答是带标记的气泡；问题只发给 /agent/v1/turn",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 5,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 5,
+    "frames": 2,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 4,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "learner text only reaches /agent/v1/turn",
+    "ok": true,
+    "detail": "1 turn call(s)"
+   }
+  ]
+ },
+ {
+  "file": "14-lesson-arrive-ask.ipad-p.png",
+  "id": "lesson-arrive-ask",
+  "vp": "ipad-p",
+  "look": "到：自己问一句“他为什么被困在长安”，回答是带标记的气泡；问题只发给 /agent/v1/turn",
+  "audit": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 5,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 5,
+    "frames": 2,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 4,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "learner text only reaches /agent/v1/turn",
+    "ok": true,
+    "detail": "1 turn call(s)"
+   }
+  ]
+ },
+ {
+  "file": "15-lesson-arrive-ask-uncovered.phone.png",
+  "id": "lesson-arrive-ask-uncovered",
+  "vp": "phone",
+  "look": "到：问一句课里没讲的“杜甫后来当了宰相吗”，老实说没讲到，不猜",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 5,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 5,
+    "frames": 2,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 4,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "16-lesson-arrive.phone.png",
+  "id": "lesson-arrive",
+  "vp": "phone",
+  "look": "到：四层展开；视差场景、地图；“换个说法”的脚本回答",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 6,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 5,
+    "frames": 2,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 4,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "16-lesson-arrive.ipad-p.png",
+  "id": "lesson-arrive",
+  "vp": "ipad-p",
+  "look": "到：四层展开；视差场景、地图；“换个说法”的脚本回答",
+  "audit": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 6,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 5,
+    "frames": 2,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 4,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "16-lesson-arrive.ipad-l.png",
+  "id": "lesson-arrive",
+  "vp": "ipad-l",
+  "look": "到：四层展开；视差场景、地图；“换个说法”的脚本回答",
+  "audit": {
+   "viewport": [
+    1024,
+    768
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 6,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 5,
+    "frames": 2,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 4,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "17-lesson-arrive-narration.ipad-p.png",
+  "id": "lesson-arrive-narration",
+  "vp": "ipad-p",
+  "look": "“听”按钮 + 占位配音标记；真点击后请求了 m4a",
+  "audit": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 5,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 5,
+    "frames": 2,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 4,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "requested /a-nar-arrive-scene\\/narration\\.m4a/",
+    "ok": true,
+    "detail": "206"
+   }
+  ]
+ },
+ {
+  "file": "18-lesson-arrive-audio-blocked.phone.png",
+  "id": "lesson-arrive-audio-blocked",
+  "vp": "phone",
+  "look": "自动播放被拦(非真实点击)：按钮旁出现“字幕”提示",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 5,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 5,
+    "frames": 2,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 4,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "blocked play shows the caption note",
+    "ok": true,
+    "detail": "声音没放出来，上面的文字就是字幕。"
+   }
+  ]
+ },
+ {
+  "file": "19-lesson-meet.phone.png",
+  "id": "lesson-meet",
+  "vp": "phone",
+  "look": "见：动画角色、角色扮演标记、演绎标记、“这是画师想象的”",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": true,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 1,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "19-lesson-meet.ipad-p.png",
+  "id": "lesson-meet",
+  "vp": "ipad-p",
+  "look": "见：动画角色、角色扮演标记、演绎标记、“这是画师想象的”",
+  "audit": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": true,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 1,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "19-lesson-meet.ipad-l.png",
+  "id": "lesson-meet",
+  "vp": "ipad-l",
+  "look": "见：动画角色、角色扮演标记、演绎标记、“这是画师想象的”",
+  "audit": {
+   "viewport": [
+    1024,
+    768
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": true,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 1,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "20-lesson-return.phone.png",
+  "id": "lesson-return",
+  "vp": "phone",
+  "look": "回：选第 5 句，出对应背景与脚本回答",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 1,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "20-lesson-return.ipad-p.png",
+  "id": "lesson-return",
+  "vp": "ipad-p",
+  "look": "回：选第 5 句，出对应背景与脚本回答",
+  "audit": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 1,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "21-lesson-recite.phone.png",
+  "id": "lesson-recite",
+  "vp": "phone",
+  "look": "诵：示范、跟读、复述与补讲（只说缺哪一点，没有分数）",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "learner text only reaches /agent/v1/turn",
+    "ok": true,
+    "detail": "1 turn call(s)"
+   }
+  ]
+ },
+ {
+  "file": "21-lesson-recite.ipad-p.png",
+  "id": "lesson-recite",
+  "vp": "ipad-p",
+  "look": "诵：示范、跟读、复述与补讲（只说缺哪一点，没有分数）",
+  "audit": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "learner text only reaches /agent/v1/turn",
+    "ok": true,
+    "detail": "1 turn call(s)"
+   }
+  ]
+ },
+ {
+  "file": "21-lesson-recite.ipad-l.png",
+  "id": "lesson-recite",
+  "vp": "ipad-l",
+  "look": "诵：示范、跟读、复述与补讲（只说缺哪一点，没有分数）",
+  "audit": {
+   "viewport": [
+    1024,
+    768
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "learner text only reaches /agent/v1/turn",
+    "ok": true,
+    "detail": "1 turn call(s)"
+   }
+  ]
+ },
+ {
+  "file": "22-lesson-recite-audio.ipad-p.png",
+  "id": "lesson-recite-audio",
+  "vp": "ipad-p",
+  "look": "真点击“听一遍示范”后请求了示范 m4a",
+  "audit": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "requested /a-recite-demo\\/recite\\.m4a/",
+    "ok": true,
+    "detail": "206"
+   }
+  ]
+ },
+ {
+  "file": "23-lesson-recite-consented.phone.png",
+  "id": "lesson-recite-consented",
+  "vp": "phone",
+  "look": "同意后：事件与缺口上报，不含学生文字",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "learner text only reaches /agent/v1/turn",
+    "ok": true,
+    "detail": "1 turn call(s)"
+   },
+   {
+    "name": "events pass the whitelist, gap reports hold point ids only",
+    "ok": true,
+    "detail": "1 event batch(es), 1 gap report(s)"
+   }
+  ]
+ },
+ {
+  "file": "24-lesson-meet-media-off.phone.png",
+  "id": "lesson-meet-media-off",
+  "vp": "phone",
+  "look": "关闭图片与动画：名牌/文字，提示条",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": true,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "24-lesson-meet-media-off.ipad-p.png",
+  "id": "lesson-meet-media-off",
+  "vp": "ipad-p",
+  "look": "关闭图片与动画：名牌/文字，提示条",
+  "audit": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": true,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "25-lesson-meet-reduced-motion.phone.png",
+  "id": "lesson-meet-reduced-motion",
+  "vp": "phone",
+  "look": "减少动效：换成静帧，不再有动画",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 1,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": true,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 1,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "25-lesson-meet-reduced-motion.ipad-p.png",
+  "id": "lesson-meet-reduced-motion",
+  "vp": "ipad-p",
+  "look": "减少动效：换成静帧，不再有动画",
+  "audit": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 1,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": true,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 1,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "26-lesson-meet-weak-network.phone.png",
+  "id": "lesson-meet-weak-network",
+  "vp": "phone",
+  "look": "弱网(数据节省)：静帧",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 1,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": true,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "26-lesson-meet-weak-network.ipad-p.png",
+  "id": "lesson-meet-weak-network",
+  "vp": "ipad-p",
+  "look": "弱网(数据节省)：静帧",
+  "audit": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 1,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": true,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "27-lesson-meet-low-memory.phone.png",
+  "id": "lesson-meet-low-memory",
+  "vp": "phone",
+  "look": "低内存：静帧",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 1,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": true,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "28-lesson-meet-asset-missing.phone.png",
+  "id": "lesson-meet-asset-missing",
+  "vp": "phone",
+  "look": "角色清单 404：静帧→名牌的降级，台词文字仍在",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 1,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": true,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 1,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "28-lesson-meet-asset-missing.ipad-p.png",
+  "id": "lesson-meet-asset-missing",
+  "vp": "ipad-p",
+  "look": "角色清单 404：静帧→名牌的降级，台词文字仍在",
+  "audit": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 1,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": true,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 1,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "29-lesson-arrive-media-off.phone.png",
+  "id": "lesson-arrive-media-off",
+  "vp": "phone",
+  "look": "关图：每层都是文字卡，没有“听”按钮",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 2,
+    "missingFrames": 2
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "29-lesson-arrive-media-off.ipad-p.png",
+  "id": "lesson-arrive-media-off",
+  "vp": "ipad-p",
+  "look": "关图：每层都是文字卡，没有“听”按钮",
+  "audit": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 2,
+    "missingFrames": 2
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "30-lesson-arrive-reduced-motion.phone.png",
+  "id": "lesson-arrive-reduced-motion",
+  "vp": "phone",
+  "look": "减少动效：视差静止",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 6,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 5,
+    "frames": 2,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 4,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "31-lesson-arrive-weak-network.phone.png",
+  "id": "lesson-arrive-weak-network",
+  "vp": "phone",
+  "look": "弱网：无配音按钮，字幕即台词",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 6,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 5,
+    "frames": 2,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "31-lesson-arrive-weak-network.ipad-p.png",
+  "id": "lesson-arrive-weak-network",
+  "vp": "ipad-p",
+  "look": "弱网：无配音按钮，字幕即台词",
+  "audit": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 6,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 5,
+    "frames": 2,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "32-lesson-arrive-asset-missing.phone.png",
+  "id": "lesson-arrive-asset-missing",
+  "vp": "phone",
+  "look": "场景 404：“图没加载出来，文字不受影响”",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 1,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 3,
+    "missingFrames": 2
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 4,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "32-lesson-arrive-asset-missing.ipad-p.png",
+  "id": "lesson-arrive-asset-missing",
+  "vp": "ipad-p",
+  "look": "场景 404：“图没加载出来，文字不受影响”",
+  "audit": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 1,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 3,
+    "missingFrames": 2
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 4,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "33-lesson-recite-media-off.phone.png",
+  "id": "lesson-recite-media-off",
+  "vp": "phone",
+  "look": "关图：没有示范音频，给出照着读的提示",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "34-parent-gate.phone.png",
+  "id": "parent-gate",
+  "vp": "phone",
+  "look": "家长闸门(防误触，不是验证)",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "家长",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "34-parent-gate.ipad-p.png",
+  "id": "parent-gate",
+  "vp": "ipad-p",
+  "look": "家长闸门(防误触，不是验证)",
+  "audit": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "title": "家长",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "35-parent-open.phone.png",
+  "id": "parent-open",
+  "vp": "phone",
+  "look": "数据说明与两个删除按钮；没有报表/付费",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "家长",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "35-parent-open.ipad-p.png",
+  "id": "parent-open",
+  "vp": "ipad-p",
+  "look": "数据说明与两个删除按钮；没有报表/付费",
+  "audit": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "title": "家长",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "36-settings.phone.png",
+  "id": "settings",
+  "vp": "phone",
+  "look": "关图、拼音、字号",
+  "audit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "title": "设置",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "55px",
+    "bodyPadBottom": "34px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ },
+ {
+  "file": "36-settings.ipad-p.png",
+  "id": "settings",
+  "vp": "ipad-p",
+  "look": "关图、拼音、字号",
+  "audit": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "title": "设置",
+   "hOverflow": false,
+   "small": [],
+   "noName": [],
+   "clipped": [],
+   "ellipsis": 0,
+   "contrast": [],
+   "dimmed": 0,
+   "minFont": 13,
+   "images": {
+    "total": 0,
+    "failed": []
+   },
+   "stage": {
+    "svg": false,
+    "img": false,
+    "seal": false,
+    "parallax": 0,
+    "frames": 0,
+    "missingFrames": 0
+   },
+   "safe": {
+    "topbarPadTop": "8px",
+    "bodyPadBottom": "0px"
+   },
+   "voiceButtons": 0,
+   "banners": [
+    "演示数据：文字来自内容底座的草稿，图片、人物和声音都是占位示意。都还没有发布，也"
+   ]
+  },
+  "checks": [
+   {
+    "name": "no console errors",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "no unexpected failed requests",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "name": "every scripted step found its element",
+    "ok": true,
+    "detail": ""
+   }
+  ]
+ }
+]

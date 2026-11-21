@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xuexi.local/schemas/voice-profile-1.0.json",
+  "title": "角色音色档案 voice.json",
+  "description": "bundle.cast[].voice_id 指向的资产。音色一经确定不得每次更换,所以要记录可复现所需的一切。",
+  "type": "object",
+  "required": ["schema_version", "voice_id", "provider", "model", "version", "license_scope", "cloning_allowed", "language", "sample"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^1\\.[0-9]+$" },
+    "voice_id": { "type": "string" },
+    "provider": { "type": "string", "minLength": 2 },
+    "model": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "minLength": 1 },
+    "params": { "type": "object", "additionalProperties": true },
+    "language": { "type": "string" },
+    "license_scope": { "type": "string", "minLength": 6, "description": "授权范围原文摘要;商用/网页/App/二次分发是否覆盖。" },
+    "cloning_allowed": { "type": "boolean" },
+    "source_speaker_consent": { "type": "string", "description": "真人音色/克隆训练语料的授权声明编号;合成音写 n/a。" },
+    "sample": { "type": "string", "description": "试听文件名(同一交付目录内)。" },
+    "placeholder": { "type": "boolean" }
+  }
+}

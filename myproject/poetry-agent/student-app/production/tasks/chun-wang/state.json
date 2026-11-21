@@ -1,0 +1,234 @@
+{
+  "poem": "chun-wang",
+  "tasks": {
+    "a-changan-dusk": {
+      "state": "TODO",
+      "assignee": null,
+      "history": [],
+      "placeholder": {
+        "registered_at": "2026-11-06T15:36:42.422Z"
+      }
+    },
+    "a-changan-dusk-text": {
+      "state": "TODO",
+      "assignee": null,
+      "history": [],
+      "script_sha256": "e103a199f09b9aedbc9091ba2c1d0d772e5d3d7c89dbe901d950b6e58334689f",
+      "placeholder": {
+        "registered_at": "2026-11-11T16:49:33.427Z"
+      }
+    },
+    "a-chang-an-map": {
+      "state": "TODO",
+      "assignee": null,
+      "history": [],
+      "placeholder": {
+        "registered_at": "2026-11-06T15:36:42.424Z"
+      }
+    },
+    "a-chang-an-map-text": {
+      "state": "TODO",
+      "assignee": null,
+      "history": [],
+      "script_sha256": "ac2ea2878fb676d9d544f7811b0d586c419a60323a112ce665cbbfa62d6a6e20",
+      "placeholder": {
+        "registered_at": "2026-11-11T16:49:33.431Z"
+      }
+    },
+    "a-dufu-bust": {
+      "state": "TODO",
+      "assignee": null,
+      "history": []
+    },
+    "a-dufu-still": {
+      "state": "TODO",
+      "assignee": null,
+      "history": []
+    },
+    "a-dufu-text": {
+      "state": "TODO",
+      "assignee": null,
+      "history": [],
+      "script_sha256": "b0558890678951b739416a52a8f945d3a78dac97ca0019266ece5f19cfdf82c6"
+    },
+    "voice-dufu-1": {
+      "state": "TODO",
+      "assignee": null,
+      "history": [],
+      "placeholder": {
+        "registered_at": "2026-11-06T15:36:42.488Z"
+      }
+    },
+    "a-recite-demo": {
+      "state": "TODO",
+      "assignee": null,
+      "history": [],
+      "script_sha256": "0742c63d42f18c796cb5bcc32421166c74e6b7b45dd9584744eea1e652c62b05",
+      "placeholder": {
+        "registered_at": "2026-11-06T15:36:42.521Z"
+      }
+    },
+    "a-recite-demo-subtitle": {
+      "state": "TODO",
+      "assignee": null,
+      "history": [],
+      "script_sha256": "0742c63d42f18c796cb5bcc32421166c74e6b7b45dd9584744eea1e652c62b05",
+      "placeholder": {
+        "registered_at": "2026-11-06T15:36:42.400Z"
+      }
+    },
+    "a-nar-arrive-scene": {
+      "state": "TODO",
+      "assignee": null,
+      "history": [],
+      "script_sha256": "d8da1e1073df21ce9d11182a3e51c90d905e710bb8694d8fb5c1f0be02e00c82",
+      "placeholder": {
+        "registered_at": "2026-11-06T15:36:42.554Z"
+      }
+    },
+    "a-nar-arrive-scene-sub": {
+      "state": "TODO",
+      "assignee": null,
+      "history": [],
+      "script_sha256": "d8da1e1073df21ce9d11182a3e51c90d905e710bb8694d8fb5c1f0be02e00c82",
+      "placeholder": {
+        "registered_at": "2026-11-06T15:36:42.402Z"
+      }
+    },
+    "a-nar-arrive-city": {
+      "state": "TODO",
+      "assignee": null,
+      "history": [],
+      "script_sha256": "ac2ea2878fb676d9d544f7811b0d586c419a60323a112ce665cbbfa62d6a6e20",
+      "placeholder": {
+        "registered_at": "2026-11-06T15:36:42.588Z"
+      }
+    },
+    "a-nar-arrive-city-sub": {
+      "state": "TODO",
+      "assignee": null,
+      "history": [],
+      "script_sha256": "ac2ea2878fb676d9d544f7811b0d586c419a60323a112ce665cbbfa62d6a6e20",
+      "placeholder": {
+        "registered_at": "2026-11-06T15:36:42.404Z"
+      }
+    },
+    "a-nar-arrive-world": {
+      "state": "TODO",
+      "assignee": null,
+      "history": [],
+      "script_sha256": "9a43014337f0a606e4a8c5661de9337291b9a98e9af58ded99288108503c55d7",
+      "placeholder": {
+        "registered_at": "2026-11-06T15:36:42.621Z"
+      }
+    },
+    "a-nar-arrive-world-sub": {
+      "state": "TODO",
+      "assignee": null,
+      "history": [],
+      "script_sha256": "9a43014337f0a606e4a8c5661de9337291b9a98e9af58ded99288108503c55d7",
+      "placeholder": {
+        "registered_at": "2026-11-06T15:36:42.406Z"
+      }
+    },
+    "a-nar-arrive-person": {
+      "state": "TODO",
+      "assignee": null,
+      "history": [],
+      "script_sha256": "7939f34b5d79f84637b85434dab05f29a49432d2b971da5bb0c04020a161d86b",
+      "placeholder": {
+        "registered_at": "2026-11-06T15:36:42.655Z"
+      }
+    },
+    "a-nar-arrive-person-sub": {
+      "state": "TODO",
+      "assignee": null,
+      "history": [],
+      "script_sha256": "7939f34b5d79f84637b85434dab05f29a49432d2b971da5bb0c04020a161d86b",
+      "placeholder": {
+        "registered_at": "2026-11-06T15:36:42.409Z"
+      }
+    },
+    "a-nar-meet-dufu": {
+      "state": "TODO",
+      "assignee": null,
+      "history": [],
+      "script_sha256": "acb8a2ec348e10c916ff67e5e6c5c1f94e4a66ceb2245970ce8828883ec20ade",
+      "placeholder": {
+        "registered_at": "2026-11-06T15:36:42.688Z"
+      }
+    },
+    "a-nar-meet-dufu-sub": {
+      "state": "TODO",
+      "assignee": null,
+      "history": [],
+      "script_sha256": "acb8a2ec348e10c916ff67e5e6c5c1f94e4a66ceb2245970ce8828883ec20ade",
+      "placeholder": {
+        "registered_at": "2026-11-06T15:36:42.411Z"
+      }
+    },
+    "a-nar-return-world": {
+      "state": "TODO",
+      "assignee": null,
+      "history": [],
+      "script_sha256": "833e0a3d91301f08e9dbe7fc19dca46ea5b5db30827be52b679f5ae46ad81b39",
+      "placeholder": {
+        "registered_at": "2026-11-06T15:36:42.721Z"
+      }
+    },
+    "a-nar-return-world-sub": {
+      "state": "TODO",
+      "assignee": null,
+      "history": [],
+      "script_sha256": "833e0a3d91301f08e9dbe7fc19dca46ea5b5db30827be52b679f5ae46ad81b39",
+      "placeholder": {
+        "registered_at": "2026-11-06T15:36:42.413Z"
+      }
+    },
+    "a-nar-return-person": {
+      "state": "TODO",
+      "assignee": null,
+      "history": [],
+      "script_sha256": "667a4150d7e5f60a5774c370ac6cdb32692855e64f4bb0d51666bea30212fbe7",
+      "placeholder": {
+        "registered_at": "2026-11-06T15:36:42.754Z"
+      }
+    },
+    "a-nar-return-person-sub": {
+      "state": "TODO",
+      "assignee": null,
+      "history": [],
+      "script_sha256": "667a4150d7e5f60a5774c370ac6cdb32692855e64f4bb0d51666bea30212fbe7",
+      "placeholder": {
+        "registered_at": "2026-11-06T15:36:42.415Z"
+      }
+    },
+    "a-sfx-birds": {
+      "state": "TODO",
+      "assignee": null,
+      "history": [],
+      "placeholder": {
+        "registered_at": "2026-11-06T15:36:42.786Z"
+      }
+    },
+    "a-sfx-birds-text": {
+      "state": "TODO",
+      "assignee": null,
+      "history": [],
+      "script_sha256": "5a0c1d44dd069e54d36a8a465588f19e0b6754055703f67da0a41d641da044a0",
+      "placeholder": {
+        "registered_at": "2026-11-11T16:49:33.433Z"
+      }
+    },
+    "res-font-poem-serif": {
+      "state": "TODO",
+      "assignee": null,
+      "history": []
+    },
+    "res-font-calligraphy": {
+      "state": "TODO",
+      "assignee": null,
+      "history": []
+    }
+  }
+}

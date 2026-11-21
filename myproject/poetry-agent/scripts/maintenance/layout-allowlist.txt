@@ -1,0 +1,37 @@
+# 平台目录白名单。格式：<相对路径>  一行一个；以 # 开头为注释。
+# `make check-layout` 会检查：以下每一层之外不得出现未登记的条目。
+# 新增顶层目录前，先在这里登记并写明用途（并行开发的多个任务各自登记自己的目录）。
+
+# ---- 平台根 ----
+[platform]
+.git
+.gitignore
+.local-db-backups     # 数据库迁移脚本的本地备份（git 忽略）
+.venv                 # uv 虚拟环境（git 忽略）
+.pytest_cache         # pytest 缓存（git 忽略）
+Makefile
+README.md
+content-agent
+docs
+pyproject.toml
+scripts
+student-app
+uv.lock
+
+# ---- content-agent ----
+[content-agent]
+.dockerignore         # docker build context 的根在这里，必须与 Dockerfile 的 context 同级
+agent
+deploy
+frontend
+pipeline
+
+# ---- student-app ----
+[student-app]
+README.md
+agent
+frontend
+runtime
+production            # 素材任务体系与 2D 角色（任务 C 创建）
+design                # 学生端设计文档（任务 B 创建）
+shell                 # 移动壳(Capacitor)骨架与原生能力桩（任务 F 创建）

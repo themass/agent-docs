@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xuexi.local/schemas/parallax-manifest-1.0.json",
+  "title": "视差分层清单 parallax.json",
+  "description": "一个场景的分层。层从远到近排列;depth=0 不随视差移动,1 移动最多(max_shift_pct 个画布宽度百分比)。poster 是所有层合成的静帧,reduced-motion / 弱网时单独使用。每个 svg 层的 viewBox 必须等于画布。",
+  "type": "object",
+  "required": ["schema_version", "canvas", "max_shift_pct", "layers", "poster"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^1\\.[0-9]+$" },
+    "canvas": { "type": "object", "required": ["width", "height"], "additionalProperties": false,
+      "properties": { "width": { "type": "integer", "minimum": 320 }, "height": { "type": "integer", "minimum": 180 } } },
+    "max_shift_pct": { "type": "number", "minimum": 0, "maximum": 3 },
+    "layers": { "type": "array", "minItems": 3, "maxItems": 6, "items": { "type": "object", "required": ["id", "file", "depth", "role"], "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,31}$" },
+        "file": { "type": "string" },
+        "depth": { "type": "number", "minimum": 0, "maximum": 1 },
+        "role": { "enum": ["sky", "far", "mid", "near", "overlay"] },
+        "drift": { "type": "object", "additionalProperties": false, "description": "可选的缓慢漂移(云、薄雾),不依赖滚动/陀螺仪。",
+          "properties": { "x_pct_per_min": { "type": "number" }, "loop_s": { "type": "number", "minimum": 5 } } },
+        "note": { "type": "string" } } } },
+    "poster": { "type": "string" },
+    "depiction": { "enum": ["FACT", "INTERPRETATION", "DRAMATIZATION"] },
+    "alt_text": { "type": "string", "minLength": 6 }
+  }
+}

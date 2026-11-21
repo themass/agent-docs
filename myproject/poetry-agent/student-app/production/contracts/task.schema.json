@@ -1,0 +1,373 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xuexi.local/schemas/asset-task-1.0.json",
+  "title": "素材任务单",
+  "description": "tasks/<poem>/tasks.json 的一项。机器可读;人读版由 tools/prod.mjs gen 同时生成 tasks/<poem>/<task_id>.md。动态状态不放在这里,在 state.json。",
+  "type": "object",
+  "required": [
+    "task_id",
+    "poem",
+    "type",
+    "title",
+    "asset_id",
+    "kind",
+    "level",
+    "render",
+    "registry",
+    "priority",
+    "usage",
+    "deliverables",
+    "rights_requirements",
+    "acceptance",
+    "fallback",
+    "brief",
+    "placeholder_plan"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$"
+    },
+    "poem": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "type": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 2
+    },
+    "asset_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$",
+      "description": "交付后在 registry 里的 id,必须与 bundle.assets 的键一致。字体等非登记资源写资源 id。"
+    },
+    "kind": {
+      "enum": [
+        "illustration",
+        "map",
+        "character",
+        "audio",
+        "voice",
+        "subtitle",
+        "video",
+        null
+      ]
+    },
+    "level": {
+      "enum": [
+        "L0",
+        "L1",
+        "L2",
+        "L3",
+        "L4",
+        null
+      ]
+    },
+    "render": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "registry": {
+      "type": "boolean",
+      "description": "false=不进 poetry_asset(如字体),只进 published/resources.json。"
+    },
+    "priority": {
+      "enum": [
+        "P0",
+        "P1",
+        "P2"
+      ],
+      "description": "P0=没有它五步走不通或违背降级底线;P1=体验关键;P2=锦上添花。"
+    },
+    "usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "steps",
+        "purpose"
+      ],
+      "properties": {
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "enum": [
+              "read",
+              "arrive",
+              "meet",
+              "return",
+              "recite",
+              "all"
+            ]
+          }
+        },
+        "layers": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "SCENE",
+              "CITY",
+              "WORLD",
+              "PERSON"
+            ]
+          }
+        },
+        "line_seqs": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "lines_text": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "对应诗句原文(来自 bundle/剧本,不另写)。"
+        },
+        "bundle_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "bundle 里引用它的位置,如 steps[1].layers[0].assets 或 cast[0].avatar_asset。"
+        },
+        "purpose": {
+          "type": "string",
+          "minLength": 8,
+          "description": "= registry.meaning:说清它帮学生弄懂哪一句。"
+        }
+      }
+    },
+    "deliverables": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "role",
+          "filename",
+          "formats",
+          "required"
+        ],
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "formats": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "min_count": {
+            "type": "integer"
+          },
+          "max_count": {
+            "type": "integer"
+          },
+          "constraints": {
+            "type": "object"
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "rights_requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "must_provide",
+        "allowed_origins",
+        "forbidden"
+      ],
+      "properties": {
+        "must_provide": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "delivery.json 必须填写的 rights 字段。"
+        },
+        "allowed_origins": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "forbidden": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "evidence": {
+          "type": "string",
+          "description": "需要提交的证明(授权书、录音同意书、工作流文件)。"
+        }
+      }
+    },
+    "acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "auto",
+        "human"
+      ],
+      "properties": {
+        "auto": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "机检项的人读说明;实际检查由 tools/lib/checks.mjs 按 deliverables.constraints 执行。"
+        },
+        "human": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "fallback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fallback_asset_id"
+      ],
+      "properties": {
+        "fallback_asset_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "L0 为 null。其余必须是严格更低一级的任务/素材 id。"
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "brief": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "creative_notes",
+        "grounding",
+        "forbidden_elements",
+        "depiction"
+      ],
+      "properties": {
+        "creative_notes": {
+          "type": "string",
+          "minLength": 8,
+          "description": "创作说明/提示词思路。"
+        },
+        "style": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "grounding": {
+          "type": "string",
+          "description": "依据:对照诗句、剧本 lines、场景要素表中的哪些条目。依据不足的写『待场景要素表』,不得编造。"
+        },
+        "forbidden_elements": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "depiction": {
+          "enum": [
+            "FACT",
+            "INTERPRETATION",
+            "DRAMATIZATION"
+          ],
+          "description": "器物/服饰/建筑/人物形象默认 DRAMATIZATION,界面需带演绎标识。"
+        },
+        "references": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "script_text": {
+          "type": "string",
+          "description": "音频/字幕类:要念/显示的逐字文本(来自 bundle)。"
+        },
+        "script_text_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "gen 记录的文本指纹;bundle 文本变了会提示任务单过期。"
+        }
+      }
+    },
+    "placeholder_plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "strategy"
+      ],
+      "properties": {
+        "strategy": {
+          "enum": [
+            "none",
+            "generated-svg",
+            "generated-audio",
+            "generated-text",
+            "generated-vtt",
+            "existing"
+          ],
+          "description": "none=没有占位,前端走降级。"
+        },
+        "generator": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "任务从哪个 demand/bundle 推导而来。"
+    },
+    "dispatch_hold": {
+      "type": "string",
+      "description": "非空=暂不可派发,写明原因(例如依据未定稿)。gen 会在任务单和进度报告里醒目标出。"
+    },
+    "companion_of": {
+      "type": "string",
+      "description": "本任务是哪个任务的降级伴生(L0 文字/字幕)。"
+    },
+    "depends_on": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "必须先交付的任务 id(如字幕依赖音频时间轴)。"
+    }
+  }
+}

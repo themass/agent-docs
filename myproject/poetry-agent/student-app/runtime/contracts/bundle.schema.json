@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xuexi.local/schemas/scene-bundle-1.0.json",
+  "title": "奇境 scene bundle",
+  "type": "object",
+  "required": ["schema_version", "script_id", "script_version", "work_id", "text_version_id",
+               "audiences", "coverage_notice", "steps", "assets"],
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^1\\.[0-9]+$" },
+    "bundle_hash": { "type": "string", "pattern": "^[a-f0-9]{12,64}$" },
+    "script_id": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_-]{1,63}$" },
+    "script_version": { "type": "string" },
+    "work_id": { "type": "string" },
+    "text_version_id": { "type": "string" },
+    "audiences": { "type": "array", "minItems": 1, "items": { "enum": ["PRIMARY", "JUNIOR", "SENIOR"] } },
+    "coverage_notice": { "type": "string", "minLength": 12 },
+    "unknown_dates_notice": { "type": "string" },
+    "cast": { "type": "array", "items": { "type": "object",
+      "required": ["content_id"], "properties": {
+        "content_id": {"type": "string"}, "voice_id": {"type": "string"}, "avatar_asset": {"type": "string"} } } },
+    "steps": { "type": "array", "minItems": 1, "items": { "type": "object",
+      "required": ["step", "skip_allowed", "back_allowed"],
+      "properties": {
+        "step": { "enum": ["read", "arrive", "meet", "return", "recite"] },
+        "skip_allowed": { "type": "boolean" },
+        "back_allowed": { "type": "boolean" },
+        "situation": { "type": "object",
+          "description": "只用于 arrive：在四层并列之前先给一句处境，并把「先看哪里」交给学生。没有它时页面退回原来的四张卡片，不是错误。",
+          "required": ["text", "kind", "choices"],
+          "properties": {
+            "text": { "type": "string", "minLength": 8 },
+            "kind": { "enum": ["FACT", "INTERPRETATION", "DRAMATIZATION"] },
+            "basis": { "type": ["object", "null"], "properties": {
+              "claim_id": { "type": "string" }, "source_id": { "type": "string" }, "locator": { "type": "string" } } },
+            "badge": { "type": "string" },
+            "choices": { "type": "array", "minItems": 1, "maxItems": 4, "items": { "type": "object",
+              "required": ["layer", "label"],
+              "properties": {
+                "layer": { "enum": ["SCENE", "CITY", "WORLD", "PERSON"] },
+                "label": { "type": "string", "minLength": 2, "maxLength": 12 } } } } } },
+        "layers": { "type": "array", "items": { "type": "object",
+          "required": ["layer", "bg_id"], "properties": {
+            "layer": { "enum": ["SCENE", "CITY", "WORLD", "PERSON"] },
+            "bg_id": { "type": "string" },
+            "assets": { "type": "array", "items": { "type": "string" } },
+            "places": { "type": "array", "items": { "type": "string" } },
+            "events": { "type": "array", "items": { "type": "string" } },
+            "experience": { "type": "array", "items": { "type": "string" } },
+            "lines": { "type": "array", "items": { "type": "object",
+              "required": ["text", "kind"],
+              "properties": {
+                "text": {"type": "string", "minLength": 1},
+                "kind": {"enum": ["FACT", "INTERPRETATION", "DRAMATIZATION"]},
+                "basis": {"type": ["object", "null"], "properties": {
+                  "claim_id": {"type": "string"}, "source_id": {"type": "string"}, "locator": {"type": "string"} } },
+                "badge": {"type": "string"} } } } } } } } } },
+    "assets": { "type": "object", "additionalProperties": { "type": "object",
+      "required": ["kind", "level", "fallback", "rights", "meaning"],
+      "properties": {
+        "kind": { "enum": ["illustration", "map", "character", "audio", "voice", "subtitle", "video"] },
+        "level": { "enum": ["L0", "L1", "L2", "L3", "L4"] },
+        "hash": { "type": "string", "pattern": "^[a-f0-9]{12,64}$" },
+        "files": { "type": "object" },
+        "fallback": { "type": "array", "minItems": 0, "items": { "type": "string" } },
+        "rights": { "type": "object", "required": ["origin", "license"],
+          "properties": { "origin": {"type": "string", "minLength": 3}, "license": {"type": "string", "minLength": 3},
+                          "workflow": {"type": "string"}, "human_fix": {"type": "boolean"} } },
+        "meaning": { "type": "string", "minLength": 8 } } } }
+  }
+}

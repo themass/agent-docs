@@ -1,0 +1,3258 @@
+[
+  {
+    "seq": 1,
+    "title": "在嶽詠蟬",
+    "author": "駱賓王",
+    "quantangshi_volume": "卷七十八",
+    "author_on_page": true,
+    "ws_variants": [
+      {
+        "page": "全唐詩/卷078",
+        "detail": "前 29 字一致后分叉（沉≠正文 沈）"
+      }
+    ],
+    "ws": "WS_VARIANT"
+  },
+  {
+    "seq": 2,
+    "title": "登幽州臺歌",
+    "author": "陳子昂",
+    "quantangshi_volume": "卷八十三",
+    "author_on_page": true,
+    "transclude_children": 1,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 3,
+    "title": "經鄒魯祭孔子而歎之",
+    "author": "明皇帝",
+    "quantangshi_volume": "卷三",
+    "author_on_page": false,
+    "transclude_children": 1,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 4,
+    "title": "鼓吹曲辭 將進酒",
+    "author": "李白",
+    "quantangshi_volume": "卷一十七",
+    "author_on_page": false,
+    "ws_variants": [
+      {
+        "page": "全唐詩/卷017",
+        "detail": "前 60 字一致后分叉（複≠正文 復）"
+      }
+    ],
+    "ws": "WS_VARIANT"
+  },
+  {
+    "seq": 5,
+    "title": "橫吹曲辭 出塞 一",
+    "author": "王昌齡",
+    "quantangshi_volume": "卷一十八",
+    "author_on_page": false,
+    "ws_page": "全唐詩/卷018",
+    "ws_anchor": "==橫吹曲辭出塞==",
+    "ws": "WS_RAW_EXACT"
+  },
+  {
+    "seq": 6,
+    "title": "橫吹曲辭 出塞",
+    "author": "王之渙",
+    "quantangshi_volume": "卷一十八",
+    "author_on_page": false,
+    "ws_variants": [
+      {
+        "page": "全唐詩/卷018",
+        "detail": "前 22 字一致后分叉（光≠正文 風）"
+      }
+    ],
+    "ws": "WS_VARIANT"
+  },
+  {
+    "seq": 7,
+    "title": "橫吹曲辭 關山月",
+    "author": "李白",
+    "quantangshi_volume": "卷一十八",
+    "author_on_page": false,
+    "ws_variants": [
+      {
+        "page": "全唐詩/卷018",
+        "detail": "前 55 字一致后分叉（嘆≠正文 歎）"
+      }
+    ],
+    "ws": "WS_VARIANT"
+  },
+  {
+    "seq": 8,
+    "title": "新嫁娘詞三首 三",
+    "author": "王建",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 9,
+    "title": "故行宮",
+    "author": "王建",
+    "quantangshi_volume": "卷三百零一",
+    "author_on_page": false,
+    "ws_page": "全唐詩/卷301",
+    "ws_anchor": "卷301_23故行宮王建",
+    "ws": "WS_RAW_EXACT"
+  },
+  {
+    "seq": 10,
+    "title": "錦瑟",
+    "author": "李商隱",
+    "quantangshi_volume": "卷五百三十九",
+    "author_on_page": true,
+    "transclude_children": 24,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 11,
+    "title": "蟬",
+    "author": "李商隱",
+    "quantangshi_volume": "卷五百三十九",
+    "author_on_page": true,
+    "transclude_children": 23,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 12,
+    "title": "樂遊原",
+    "author": "李商隱",
+    "quantangshi_volume": "卷五百三十九",
+    "author_on_page": true,
+    "transclude_children": 24,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 13,
+    "title": "夜雨寄北",
+    "author": "李商隱",
+    "quantangshi_volume": "卷五百三十九",
+    "author_on_page": true,
+    "transclude_children": 24,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 14,
+    "title": "韓碑",
+    "author": "李商隱",
+    "quantangshi_volume": "卷五百三十九",
+    "author_on_page": true,
+    "transclude_children": 24,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 15,
+    "title": "風雨",
+    "author": "李商隱",
+    "quantangshi_volume": "卷五百三十九",
+    "author_on_page": true,
+    "transclude_children": 23,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 16,
+    "title": "寄令狐郎中",
+    "author": "李商隱",
+    "quantangshi_volume": "卷五百三十九",
+    "author_on_page": true,
+    "ws_page": "全唐詩/卷539",
+    "ws_anchor": "==寄令狐郎中==",
+    "ws": "WS_RAW_EXACT"
+  },
+  {
+    "seq": 17,
+    "title": "隋宮",
+    "author": "李商隱",
+    "quantangshi_volume": "卷五百三十九",
+    "author_on_page": true,
+    "ws_variants": [
+      {
+        "page": "全唐詩/卷539",
+        "detail": "前 28 字一致后分叉（於≠正文 于）"
+      }
+    ],
+    "ws": "WS_VARIANT"
+  },
+  {
+    "seq": 18,
+    "title": "籌筆驛",
+    "author": "李商隱",
+    "quantangshi_volume": "卷五百三十九",
+    "author_on_page": true,
+    "transclude_children": 23,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 19,
+    "title": "無題二首 一",
+    "author": "李商隱",
+    "quantangshi_volume": "卷五百三十九",
+    "author_on_page": true,
+    "transclude_children": 24,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 20,
+    "title": "無題四首 一",
+    "author": "李商隱",
+    "quantangshi_volume": "卷五百三十九",
+    "author_on_page": true,
+    "ws_page": "全唐詩/卷539",
+    "ws_anchor": "==無題四首_來是空言去絕蹤|無題四首==",
+    "ws": "WS_FOLD_EXACT",
+    "ws_fold_chars": "踪/蹤"
+  },
+  {
+    "seq": 21,
+    "title": "無題四首 二",
+    "author": "李商隱",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 22,
+    "title": "隋宮",
+    "author": "李商隱",
+    "quantangshi_volume": "卷五百三十九",
+    "author_on_page": true,
+    "ws_page": "全唐詩/卷539",
+    "ws_anchor": "==隋宮==",
+    "ws": "WS_RAW_EXACT"
+  },
+  {
+    "seq": 23,
+    "title": "落花",
+    "author": "李商隱",
+    "quantangshi_volume": "卷五百三十九",
+    "author_on_page": true,
+    "ws_variants": [
+      {
+        "page": "全唐詩/卷539",
+        "detail": "前 29 字一致后分叉（芳≠正文 歸）"
+      }
+    ],
+    "ws": "WS_VARIANT"
+  },
+  {
+    "seq": 24,
+    "title": "爲有",
+    "author": "李商隱",
+    "quantangshi_volume": "卷五百三十九",
+    "author_on_page": true,
+    "ws_page": "全唐詩/卷539",
+    "ws_anchor": "==為有==",
+    "ws": "WS_FOLD_EXACT",
+    "ws_fold_chars": "壻/婿"
+  },
+  {
+    "seq": 25,
+    "title": "無題",
+    "author": "李商隱",
+    "quantangshi_volume": "卷五百三十九",
+    "author_on_page": true,
+    "ws_page": "全唐詩/卷539",
+    "ws_anchor": "==無題_相見時難別亦難|無題==",
+    "ws": "WS_FOLD_EXACT",
+    "ws_fold_chars": "爲/為"
+  },
+  {
+    "seq": 26,
+    "title": "瑤池",
+    "author": "李商隱",
+    "quantangshi_volume": "卷五百三十九",
+    "author_on_page": true,
+    "ws_page": "全唐詩/卷539",
+    "ws_anchor": "==瑤池==",
+    "ws": "WS_RAW_EXACT"
+  },
+  {
+    "seq": 27,
+    "title": "春雨",
+    "author": "李商隱",
+    "quantangshi_volume": "卷五百四十",
+    "author_on_page": true,
+    "ws_variants": [
+      {
+        "page": "全唐詩/卷540",
+        "detail": "前 45 字一致后分叉（劄≠正文 札）"
+      }
+    ],
+    "ws": "WS_VARIANT"
+  },
+  {
+    "seq": 28,
+    "title": "常娥",
+    "author": "李商隱",
+    "quantangshi_volume": "卷五百四十",
+    "author_on_page": true,
+    "ws_page": "全唐詩/卷540",
+    "ws_anchor": "==常娥==",
+    "ws": "WS_RAW_EXACT"
+  },
+  {
+    "seq": 29,
+    "title": "無題二首 一",
+    "author": "李商隱",
+    "quantangshi_volume": "卷五百四十",
+    "author_on_page": true,
+    "ws_page": "全唐詩/卷540",
+    "ws_anchor": "==無題二首==",
+    "ws": "WS_RAW_EXACT"
+  },
+  {
+    "seq": 30,
+    "title": "無題二首 二",
+    "author": "李商隱",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 31,
+    "title": "賈生",
+    "author": "李商隱",
+    "quantangshi_volume": "卷五百四十",
+    "author_on_page": true,
+    "ws_page": "全唐詩/卷540",
+    "ws_anchor": "==賈生==",
+    "ws": "WS_RAW_EXACT"
+  },
+  {
+    "seq": 32,
+    "title": "涼思",
+    "author": "李商隱",
+    "quantangshi_volume": "卷五百四十",
+    "author_on_page": true,
+    "ws_page": "全唐詩/卷540",
+    "ws_anchor": "==涼思==",
+    "ws": "WS_RAW_EXACT"
+  },
+  {
+    "seq": 33,
+    "title": "北青蘿",
+    "author": "李商隱",
+    "quantangshi_volume": "卷五百四十一",
+    "author_on_page": true,
+    "transclude_children": 20,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 34,
+    "title": "赤壁",
+    "author": "李商隱",
+    "quantangshi_volume": "卷五百二十三",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 35,
+    "title": "章臺夜思",
+    "author": "韋莊",
+    "quantangshi_volume": "卷六百九十五",
+    "author_on_page": false,
+    "ws_variants": [
+      {
+        "page": "全唐詩/卷695",
+        "detail": "前 23 字一致后分叉（-≠正文 云）"
+      }
+    ],
+    "ws": "WS_VARIANT"
+  },
+  {
+    "seq": 36,
+    "title": "金陵圖",
+    "author": "韋莊",
+    "quantangshi_volume": "卷六百九十七",
+    "author_on_page": false,
+    "ws_page": "全唐詩/卷697",
+    "ws_anchor": "===金陵圖===",
+    "ws": "WS_RAW_EXACT"
+  },
+  {
+    "seq": 37,
+    "title": "臺城",
+    "author": "韋莊",
+    "quantangshi_volume": "卷六百九十七",
+    "author_on_page": false,
+    "ws_page": "全唐詩/卷697",
+    "ws_anchor": "===台城===",
+    "ws": "WS_RAW_EXACT"
+  },
+  {
+    "seq": 38,
+    "title": "宮詞",
+    "author": "薛逢",
+    "quantangshi_volume": "卷五百四十八",
+    "author_on_page": true,
+    "transclude_children": 11,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 39,
+    "title": "楚江懷古三首 一",
+    "author": "馬戴",
+    "quantangshi_volume": "卷五百五十五",
+    "author_on_page": false,
+    "ws_variants": [
+      {
+        "page": "全唐詩/卷555",
+        "detail": "前 26 字一致后分叉（夾≠正文 山）"
+      }
+    ],
+    "ws": "WS_VARIANT"
+  },
+  {
+    "seq": 40,
+    "title": "灞上秋居",
+    "author": "馬戴",
+    "quantangshi_volume": "卷五百五十五",
+    "author_on_page": false,
+    "ws_page": "全唐詩/卷555",
+    "ws_anchor": "===灞上秋居===",
+    "ws": "WS_FOLD_EXACT",
+    "ws_fold_chars": "隣/鄰、鴈/雁"
+  },
+  {
+    "seq": 41,
+    "title": "馬嵬坡",
+    "author": "鄭畋",
+    "quantangshi_volume": "卷五百五十七",
+    "author_on_page": false,
+    "ws_page": "全唐詩/卷557",
+    "ws_anchor": "===馬嵬坡===",
+    "ws": "WS_RAW_EXACT"
+  },
+  {
+    "seq": 42,
+    "title": "沒蕃故人",
+    "author": "張籍",
+    "quantangshi_volume": "卷三百八十四",
+    "author_on_page": true,
+    "transclude_children": 18,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 43,
+    "title": "春怨",
+    "author": "金昌緒",
+    "quantangshi_volume": "卷七百六十八",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 44,
+    "title": "遣悲懷三首 一",
+    "author": "元稹",
+    "quantangshi_volume": "卷四百零四",
+    "local_snapshot": "not_fetched",
+    "ws": "NOT_FETCHED"
+  },
+  {
+    "seq": 45,
+    "title": "遣悲懷三首 二",
+    "author": "元稹",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 46,
+    "title": "遣悲懷三首 三",
+    "author": "元稹",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 47,
+    "title": "行宮",
+    "author": "元稹",
+    "quantangshi_volume": "卷三百零一",
+    "author_on_page": false,
+    "ws_page": "全唐詩/卷301",
+    "ws_anchor": "卷301_23故行宮王建",
+    "ws": "WS_RAW_EXACT"
+  },
+  {
+    "seq": 48,
+    "title": "哥舒歌",
+    "author": "西鄙人",
+    "quantangshi_volume": "卷七百八十四",
+    "author_on_page": false,
+    "ws_page": "全唐詩/卷784",
+    "ws_anchor": "==西鄙人====",
+    "ws": "WS_RAW_EXACT"
+  },
+  {
+    "seq": 49,
+    "title": "雜詩 十三",
+    "author": "無名氏",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 50,
+    "title": "雜詩三首 三",
+    "author": "沈佺期",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 51,
+    "title": "古意呈補闕喬知之",
+    "author": "沈佺期",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 52,
+    "title": "次北固山下",
+    "author": "王灣",
+    "quantangshi_volume": "卷一百一十五",
+    "author_on_page": true,
+    "transclude_children": 2,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 53,
+    "title": "桃花谿",
+    "author": "張旭",
+    "quantangshi_volume": "卷一百一十七",
+    "author_on_page": true,
+    "transclude_children": 2,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 54,
+    "title": "送別",
+    "author": "王維",
+    "quantangshi_volume": "卷一百二十五",
+    "author_on_page": true,
+    "transclude_children": 8,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 55,
+    "title": "送綦毋潛落第還鄉",
+    "author": "王維",
+    "quantangshi_volume": "卷一百二十五",
+    "author_on_page": true,
+    "transclude_children": 7,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 56,
+    "title": "青谿",
+    "author": "王維",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 57,
+    "title": "渭川田家",
+    "author": "王維",
+    "quantangshi_volume": "卷一百二十五",
+    "author_on_page": true,
+    "transclude_children": 7,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 58,
+    "title": "西施詠",
+    "author": "王維",
+    "quantangshi_volume": "卷一百二十五",
+    "author_on_page": true,
+    "transclude_children": 7,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 59,
+    "title": "老將行",
+    "author": "王維",
+    "quantangshi_volume": "卷一百二十五",
+    "author_on_page": true,
+    "transclude_children": 6,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 60,
+    "title": "桃源行",
+    "author": "王維",
+    "quantangshi_volume": "卷一百二十五",
+    "author_on_page": true,
+    "transclude_children": 6,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 61,
+    "title": "洛陽女兒行",
+    "author": "王維",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 62,
+    "title": "輞川閑居贈裴秀才迪",
+    "author": "王維",
+    "quantangshi_volume": "卷一百二十六",
+    "author_on_page": true,
+    "transclude_children": 6,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 63,
+    "title": "酬張少府",
+    "author": "王維",
+    "quantangshi_volume": "卷一百二十六",
+    "author_on_page": true,
+    "transclude_children": 6,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 64,
+    "title": "送梓州李使君",
+    "author": "王維",
+    "quantangshi_volume": "卷一百二十六",
+    "author_on_page": true,
+    "transclude_children": 6,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 65,
+    "title": "玉臺體十二首 十一",
+    "author": "權德輿",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 66,
+    "title": "山石",
+    "author": "韓愈",
+    "quantangshi_volume": "卷三百三十八",
+    "author_on_page": false,
+    "ws_variants": [
+      {
+        "page": "全唐詩/卷338",
+        "detail": "前 55 字一致后分叉（饑≠正文 飢）"
+      }
+    ],
+    "ws": "WS_VARIANT"
+  },
+  {
+    "seq": 67,
+    "title": "八月十五夜贈張功曹",
+    "author": "韓愈",
+    "quantangshi_volume": "卷三百三十八",
+    "author_on_page": false,
+    "ws_variants": [
+      {
+        "page": "全唐詩/卷338",
+        "detail": "前 88 字一致后分叉（捶≠正文 搥）"
+      }
+    ],
+    "ws": "WS_VARIANT"
+  },
+  {
+    "seq": 68,
+    "title": "謁衡嶽廟遂宿嶽寺題門樓",
+    "author": "韓愈",
+    "quantangshi_volume": "卷三百三十八",
+    "author_on_page": false,
+    "ws_variants": [
+      {
+        "page": "全唐詩/卷338",
+        "detail": "前 161 字一致后分叉（雲≠正文 云）"
+      }
+    ],
+    "ws": "WS_VARIANT"
+  },
+  {
+    "seq": 69,
+    "title": "已涼",
+    "author": "韓偓",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 70,
+    "title": "春宮怨",
+    "author": "杜荀鶴",
+    "quantangshi_volume": "卷六百七十三",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 71,
+    "title": "近試上張籍水部",
+    "author": "朱慶餘",
+    "quantangshi_volume": "卷五百一十五",
+    "author_on_page": true,
+    "transclude_children": 15,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 72,
+    "title": "將赴吳興登樂遊原一絕",
+    "author": "杜牧",
+    "quantangshi_volume": "卷五百二十一",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 73,
+    "title": "赤壁",
+    "author": "杜牧",
+    "quantangshi_volume": "卷五百二十三",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 74,
+    "title": "泊秦淮",
+    "author": "杜牧",
+    "quantangshi_volume": "卷五百二十三",
+    "author_on_page": false,
+    "ws_page": "全唐詩/卷523",
+    "ws_anchor": "===泊秦淮===",
+    "ws": "WS_RAW_EXACT"
+  },
+  {
+    "seq": 75,
+    "title": "贈別二首 一",
+    "author": "杜牧",
+    "quantangshi_volume": "卷五百二十三",
+    "author_on_page": false,
+    "ws_variants": [
+      {
+        "page": "全唐詩/卷523",
+        "detail": "前 17 字一致后分叉（裡≠正文 里）"
+      }
+    ],
+    "ws": "WS_VARIANT"
+  },
+  {
+    "seq": 76,
+    "title": "贈別二首 二",
+    "author": "杜牧",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 77,
+    "title": "遣懷",
+    "author": "杜牧",
+    "quantangshi_volume": "卷五百二十四",
+    "author_on_page": true,
+    "transclude_children": 1,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 78,
+    "title": "秋夕",
+    "author": "杜牧",
+    "quantangshi_volume": "卷五百二十四",
+    "author_on_page": true,
+    "transclude_children": 1,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 79,
+    "title": "金谷園",
+    "author": "杜牧",
+    "quantangshi_volume": "卷五百二十五",
+    "author_on_page": false,
+    "ws_page": "全唐詩/卷525",
+    "ws_anchor": "===金谷園===",
+    "ws": "WS_RAW_EXACT"
+  },
+  {
+    "seq": 80,
+    "title": "旅宿",
+    "author": "杜牧",
+    "quantangshi_volume": "卷五百二十五",
+    "author_on_page": false,
+    "ws_variants": [
+      {
+        "page": "全唐詩/卷525",
+        "detail": "前 28 字一致后分叉（來≠正文 隔）"
+      }
+    ],
+    "ws": "WS_VARIANT"
+  },
+  {
+    "seq": 81,
+    "title": "早秋三首 一",
+    "author": "許渾",
+    "quantangshi_volume": "卷五百二十八",
+    "author_on_page": false,
+    "ws_variants": [
+      {
+        "page": "全唐詩/卷528",
+        "detail": "前 12 字一致后分叉（玉≠正文 委）"
+      }
+    ],
+    "ws": "WS_VARIANT"
+  },
+  {
+    "seq": 82,
+    "title": "秋日赴闕題潼關驛樓",
+    "author": "許渾",
+    "quantangshi_volume": "卷五百二十九",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 83,
+    "title": "寄人 一",
+    "author": "張泌",
+    "quantangshi_volume": "卷七百四十二",
+    "local_snapshot": "not_fetched",
+    "ws": "NOT_FETCHED"
+  },
+  {
+    "seq": 84,
+    "title": "隴西行四首 二",
+    "author": "陳陶",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 85,
+    "title": "頌古三十二首  其二三",
+    "author": "釋明辯",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 86,
+    "title": "後宮詞",
+    "author": "白居易",
+    "quantangshi_volume": "卷四百四十一",
+    "author_on_page": true,
+    "transclude_children": 10,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 87,
+    "title": "喜見外弟又言別",
+    "author": "李益",
+    "quantangshi_volume": "卷二百八十三",
+    "author_on_page": true,
+    "transclude_children": 18,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 88,
+    "title": "江南詞",
+    "author": "李益",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 89,
+    "title": "夜上受降城聞笛",
+    "author": "李益",
+    "quantangshi_volume": "卷二百八十三",
+    "author_on_page": true,
+    "transclude_children": 19,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 90,
+    "title": "聽箏",
+    "author": "李端",
+    "quantangshi_volume": "卷二百八十六",
+    "author_on_page": true,
+    "transclude_children": 8,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 91,
+    "title": "賊平後送人北歸",
+    "author": "司空曙",
+    "quantangshi_volume": "卷二百九十二",
+    "author_on_page": true,
+    "transclude_children": 14,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 92,
+    "title": "雲陽館與韓紳宿別",
+    "author": "司空曙",
+    "quantangshi_volume": "卷二百九十二",
+    "author_on_page": true,
+    "transclude_children": 14,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 93,
+    "title": "喜外弟盧綸見宿",
+    "author": "司空曙",
+    "quantangshi_volume": "卷二百九十三",
+    "author_on_page": true,
+    "transclude_children": 18,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 94,
+    "title": "聽彈琴",
+    "author": "劉長卿",
+    "quantangshi_volume": "卷一百四十七",
+    "author_on_page": true,
+    "transclude_children": 6,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 95,
+    "title": "送方外上人",
+    "author": "劉長卿",
+    "quantangshi_volume": "卷一百四十七",
+    "author_on_page": true,
+    "transclude_children": 7,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 96,
+    "title": "送靈澈上人",
+    "author": "劉長卿",
+    "quantangshi_volume": "卷一百四十七",
+    "author_on_page": true,
+    "transclude_children": 7,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 97,
+    "title": "新年作",
+    "author": "劉長卿",
+    "quantangshi_volume": "卷五十三",
+    "author_on_page": false,
+    "transclude_children": 1,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 98,
+    "title": "秋日登吳公臺上寺遠眺寺即陳將吳明徹戰場",
+    "author": "劉長卿",
+    "quantangshi_volume": "卷一百四十七",
+    "author_on_page": true,
+    "transclude_children": 6,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 99,
+    "title": "尋南溪常山道人隱居",
+    "author": "劉長卿",
+    "quantangshi_volume": "卷一百四十八",
+    "author_on_page": true,
+    "transclude_children": 6,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 100,
+    "title": "餞別王十一南遊",
+    "author": "劉長卿",
+    "quantangshi_volume": "卷一百四十八",
+    "author_on_page": true,
+    "transclude_children": 6,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 101,
+    "title": "江州重別薛六柳八二員外",
+    "author": "劉長卿",
+    "quantangshi_volume": "卷一百五十一",
+    "author_on_page": true,
+    "transclude_children": 7,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 102,
+    "title": "長沙過賈誼宅",
+    "author": "劉長卿",
+    "quantangshi_volume": "卷一百五十一",
+    "author_on_page": true,
+    "transclude_children": 7,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 103,
+    "title": "自夏口至鸚鵡洲夕望岳陽寄源中丞",
+    "author": "劉長卿",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 104,
+    "title": "賦得",
+    "author": "劉長卿",
+    "quantangshi_volume": "卷一百五十一",
+    "author_on_page": true,
+    "transclude_children": 7,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 105,
+    "title": "九日登望仙臺呈劉明府容",
+    "author": "崔曙",
+    "quantangshi_volume": "卷一百五十五",
+    "local_snapshot": "not_fetched",
+    "ws": "NOT_FETCHED"
+  },
+  {
+    "seq": 106,
+    "title": "涼州詞二首 一",
+    "author": "王翰",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 107,
+    "title": "秋登蘭山寄張五",
+    "author": "孟浩然",
+    "quantangshi_volume": "卷一百五十九",
+    "author_on_page": true,
+    "transclude_children": 2,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 108,
+    "title": "夏日南亭懷辛大",
+    "author": "孟浩然",
+    "quantangshi_volume": "卷一百五十九",
+    "author_on_page": true,
+    "transclude_children": 2,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 109,
+    "title": "宿業師山房期丁大不至",
+    "author": "孟浩然",
+    "quantangshi_volume": "卷一百五十九",
+    "author_on_page": true,
+    "transclude_children": 2,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 110,
+    "title": "夜歸鹿門山歌",
+    "author": "孟浩然",
+    "quantangshi_volume": "卷一百五十九",
+    "author_on_page": true,
+    "transclude_children": 2,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 111,
+    "title": "望洞庭湖贈張丞相",
+    "author": "孟浩然",
+    "quantangshi_volume": "卷一百六十",
+    "author_on_page": true,
+    "transclude_children": 13,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 112,
+    "title": "秦中感秋寄遠上人",
+    "author": "孟浩然",
+    "quantangshi_volume": "卷一百六十",
+    "author_on_page": true,
+    "transclude_children": 13,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 113,
+    "title": "宿桐廬江寄廣陵舊遊",
+    "author": "孟浩然",
+    "quantangshi_volume": "卷一百六十",
+    "author_on_page": true,
+    "transclude_children": 13,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 114,
+    "title": "早寒江上有懷",
+    "author": "孟浩然",
+    "quantangshi_volume": "卷一百六十",
+    "author_on_page": true,
+    "transclude_children": 13,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 115,
+    "title": "留別王侍御維",
+    "author": "孟浩然",
+    "quantangshi_volume": "卷一百六十",
+    "author_on_page": true,
+    "transclude_children": 13,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 116,
+    "title": "清明日宴梅道士房",
+    "author": "孟浩然",
+    "quantangshi_volume": "卷一百六十",
+    "author_on_page": true,
+    "transclude_children": 13,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 117,
+    "title": "與諸子登峴山",
+    "author": "孟浩然",
+    "quantangshi_volume": "卷一百六十",
+    "author_on_page": true,
+    "transclude_children": 13,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 118,
+    "title": "過故人莊",
+    "author": "孟浩然",
+    "quantangshi_volume": "卷一百六十",
+    "author_on_page": true,
+    "transclude_children": 13,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 119,
+    "title": "歲暮歸南山",
+    "author": "孟浩然",
+    "quantangshi_volume": "卷一百六十",
+    "author_on_page": true,
+    "transclude_children": 13,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 120,
+    "title": "歲除夜有懷",
+    "author": "孟浩然",
+    "quantangshi_volume": "卷一百六十",
+    "author_on_page": true,
+    "transclude_children": 13,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 121,
+    "title": "春曉",
+    "author": "孟浩然",
+    "quantangshi_volume": "卷一百六十",
+    "author_on_page": true,
+    "transclude_children": 12,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 122,
+    "title": "宿建德江",
+    "author": "孟浩然",
+    "quantangshi_volume": "卷一百六十",
+    "author_on_page": true,
+    "transclude_children": 13,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 123,
+    "title": "蜀道難",
+    "author": "李白",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 124,
+    "title": "將進酒",
+    "author": "李白",
+    "quantangshi_volume": "卷一十七",
+    "author_on_page": false,
+    "ws_variants": [
+      {
+        "page": "全唐詩/卷017",
+        "detail": "前 60 字一致后分叉（複≠正文 復）"
+      }
+    ],
+    "ws": "WS_VARIANT"
+  },
+  {
+    "seq": 125,
+    "title": "春宮怨",
+    "author": "杜荀鶴",
+    "quantangshi_volume": "卷六百七十三",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 126,
+    "title": "客夜與故人偶集",
+    "author": "戴叔倫",
+    "quantangshi_volume": "卷二百七十三",
+    "author_on_page": true,
+    "transclude_children": 29,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 127,
+    "title": "和張僕射塞下曲 一",
+    "author": "盧綸",
+    "quantangshi_volume": "卷二百七十八",
+    "author_on_page": true,
+    "transclude_children": 2,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 128,
+    "title": "和張僕射塞下曲 二",
+    "author": "盧綸",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 129,
+    "title": "和張僕射塞下曲 三",
+    "author": "盧綸",
+    "quantangshi_volume": "卷二百三十九",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 130,
+    "title": "和張僕射塞下曲 四",
+    "author": "盧綸",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 131,
+    "title": "晚次鄂州",
+    "author": "盧綸",
+    "quantangshi_volume": "卷二百七十九",
+    "author_on_page": true,
+    "transclude_children": 1,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 132,
+    "title": "李端公",
+    "author": "盧綸",
+    "quantangshi_volume": "卷二百八十",
+    "author_on_page": true,
+    "transclude_children": 8,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 133,
+    "title": "過香積寺",
+    "author": "王維",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 134,
+    "title": "山居秋暝",
+    "author": "王維",
+    "quantangshi_volume": "卷一百二十六",
+    "author_on_page": true,
+    "transclude_children": 6,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 135,
+    "title": "終南別業",
+    "author": "王維",
+    "quantangshi_volume": "卷一百二十六",
+    "author_on_page": true,
+    "transclude_children": 6,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 136,
+    "title": "歸嵩山作",
+    "author": "王維",
+    "quantangshi_volume": "卷一百二十六",
+    "author_on_page": true,
+    "transclude_children": 6,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 137,
+    "title": "終南山",
+    "author": "王維",
+    "quantangshi_volume": "卷一百二十六",
+    "author_on_page": true,
+    "transclude_children": 5,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 138,
+    "title": "漢江臨汎",
+    "author": "王維",
+    "quantangshi_volume": "卷一百二十六",
+    "author_on_page": true,
+    "transclude_children": 6,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 139,
+    "title": "奉和聖製從蓬萊向興慶閣道中留春雨中春望之作應制",
+    "author": "王維",
+    "quantangshi_volume": "卷一百二十八",
+    "author_on_page": true,
+    "transclude_children": 29,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 140,
+    "title": "和賈舍人早朝大明宮之作",
+    "author": "王維",
+    "quantangshi_volume": "卷一百二十八",
+    "author_on_page": true,
+    "transclude_children": 30,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 141,
+    "title": "酬郭給事",
+    "author": "王維",
+    "quantangshi_volume": "卷一百二十八",
+    "author_on_page": true,
+    "transclude_children": 30,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 142,
+    "title": "積雨輞川莊作",
+    "author": "王維",
+    "quantangshi_volume": "卷一百二十八",
+    "author_on_page": true,
+    "transclude_children": 30,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 143,
+    "title": "輞川集 鹿柴",
+    "author": "王維",
+    "quantangshi_volume": "卷一百二十八",
+    "author_on_page": true,
+    "transclude_children": 29,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 144,
+    "title": "輞川集 竹里館",
+    "author": "王維",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 145,
+    "title": "送別",
+    "author": "王維",
+    "quantangshi_volume": "卷一百二十八",
+    "author_on_page": true,
+    "transclude_children": 30,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 146,
+    "title": "雜詩三首 二",
+    "author": "王維",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 147,
+    "title": "相思",
+    "author": "王維",
+    "quantangshi_volume": "卷一百二十八",
+    "author_on_page": true,
+    "transclude_children": 30,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 148,
+    "title": "九月九日憶山東兄弟",
+    "author": "王維",
+    "quantangshi_volume": "卷一百二十八",
+    "author_on_page": true,
+    "transclude_children": 30,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 149,
+    "title": "渭城曲",
+    "author": "王維",
+    "quantangshi_volume": "卷一百二十八",
+    "author_on_page": true,
+    "transclude_children": 30,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 150,
+    "title": "崔九欲往南山馬上口號與別",
+    "author": "裴迪",
+    "quantangshi_volume": "卷一百二十九",
+    "author_on_page": true,
+    "transclude_children": 24,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 151,
+    "title": "尋西山隱者不遇",
+    "author": "丘爲",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 152,
+    "title": "黃鶴樓",
+    "author": "崔顥",
+    "quantangshi_volume": "卷一百三十",
+    "local_snapshot": "not_fetched",
+    "ws": "NOT_FETCHED"
+  },
+  {
+    "seq": 153,
+    "title": "行經華陰",
+    "author": "崔顥",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 154,
+    "title": "長干曲四首 一",
+    "author": "崔顥",
+    "quantangshi_volume": "卷一百三十",
+    "local_snapshot": "not_fetched",
+    "ws": "NOT_FETCHED"
+  },
+  {
+    "seq": 155,
+    "title": "長干曲四首 二",
+    "author": "崔顥",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 156,
+    "title": "望薊門",
+    "author": "祖詠",
+    "quantangshi_volume": "卷一百三十一",
+    "local_snapshot": "not_fetched",
+    "ws": "NOT_FETCHED"
+  },
+  {
+    "seq": 157,
+    "title": "終南望餘雪",
+    "author": "祖詠",
+    "quantangshi_volume": "卷一百三十一",
+    "local_snapshot": "not_fetched",
+    "ws": "NOT_FETCHED"
+  },
+  {
+    "seq": 158,
+    "title": "古從軍行",
+    "author": "李頎",
+    "quantangshi_volume": "卷一百三十三",
+    "local_snapshot": "not_fetched",
+    "ws": "NOT_FETCHED"
+  },
+  {
+    "seq": 159,
+    "title": "琴歌",
+    "author": "李頎",
+    "quantangshi_volume": "卷一百三十三",
+    "local_snapshot": "not_fetched",
+    "ws": "NOT_FETCHED"
+  },
+  {
+    "seq": 160,
+    "title": "送陳章甫",
+    "author": "李頎",
+    "quantangshi_volume": "卷一百三十三",
+    "local_snapshot": "not_fetched",
+    "ws": "NOT_FETCHED"
+  },
+  {
+    "seq": 161,
+    "title": "聽安萬善吹觱篥歌",
+    "author": "李頎",
+    "quantangshi_volume": "卷一百三十三",
+    "local_snapshot": "not_fetched",
+    "ws": "NOT_FETCHED"
+  },
+  {
+    "seq": 162,
+    "title": "古意",
+    "author": "李頎",
+    "quantangshi_volume": "卷一百三十三",
+    "local_snapshot": "not_fetched",
+    "ws": "NOT_FETCHED"
+  },
+  {
+    "seq": 163,
+    "title": "聽董大彈胡笳聲兼寄語弄房給事",
+    "author": "李頎",
+    "quantangshi_volume": "卷一百三十三",
+    "local_snapshot": "not_fetched",
+    "ws": "NOT_FETCHED"
+  },
+  {
+    "seq": 164,
+    "title": "送魏萬之京",
+    "author": "李頎",
+    "quantangshi_volume": "卷一百三十四",
+    "author_on_page": true,
+    "transclude_children": 2,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 165,
+    "title": "春泛若耶溪",
+    "author": "綦毋潛",
+    "quantangshi_volume": "卷一百三十五",
+    "local_snapshot": "not_fetched",
+    "ws": "NOT_FETCHED"
+  },
+  {
+    "seq": 166,
+    "title": "塞下曲四首 一",
+    "author": "王昌齡",
+    "quantangshi_volume": "卷一百四十",
+    "author_on_page": true,
+    "transclude_children": 6,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 167,
+    "title": "塞下曲四首 二",
+    "author": "王昌齡",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 168,
+    "title": "同從弟銷南齋玩月憶山陰崔少府",
+    "author": "王昌齡",
+    "quantangshi_volume": "卷一百四十",
+    "author_on_page": true,
+    "transclude_children": 6,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 169,
+    "title": "出塞二首 一",
+    "author": "王昌齡",
+    "quantangshi_volume": "卷一十八",
+    "author_on_page": false,
+    "ws_page": "全唐詩/卷018",
+    "ws_anchor": "==橫吹曲辭出塞==",
+    "ws": "WS_RAW_EXACT"
+  },
+  {
+    "seq": 170,
+    "title": "春宮曲",
+    "author": "王昌齡",
+    "quantangshi_volume": "卷一百四十三",
+    "author_on_page": true,
+    "transclude_children": 6,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 171,
+    "title": "閨怨",
+    "author": "王昌齡",
+    "quantangshi_volume": "卷一百四十三",
+    "author_on_page": true,
+    "transclude_children": 5,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 172,
+    "title": "芙蓉樓送辛漸二首 一",
+    "author": "王昌齡",
+    "quantangshi_volume": "卷一百四十三",
+    "author_on_page": true,
+    "transclude_children": 6,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 173,
+    "title": "宿王昌齡隱居",
+    "author": "常建",
+    "quantangshi_volume": "卷一百四十四",
+    "author_on_page": true,
+    "transclude_children": 5,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 174,
+    "title": "清平調 一",
+    "author": "李白",
+    "quantangshi_volume": "卷二十七",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 175,
+    "title": "清平調 二",
+    "author": "李白",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 176,
+    "title": "清平調 三",
+    "author": "李白",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 177,
+    "title": "還鄉偶書  其二",
+    "author": "黄拱",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 178,
+    "title": "長恨歌",
+    "author": "白居易",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 179,
+    "title": "琵琶引",
+    "author": "白居易",
+    "quantangshi_volume": "卷四百三十五",
+    "local_snapshot": "not_fetched",
+    "ws": "NOT_FETCHED"
+  },
+  {
+    "seq": 180,
+    "title": "賦得古原草送別",
+    "author": "白居易",
+    "quantangshi_volume": "卷四百三十六",
+    "author_on_page": true,
+    "transclude_children": 3,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 181,
+    "title": "自河南經亂關內阻饑兄弟離散各在一處因望月有感聊書所懷寄上浮梁大兄於潛七兄烏江十五兄兼示符離及下邽弟妹",
+    "author": "白居易",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 182,
+    "title": "問劉十九",
+    "author": "白居易",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 183,
+    "title": "尋隱者不遇",
+    "author": "賈島",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 184,
+    "title": "利州南渡",
+    "author": "溫庭筠",
+    "quantangshi_volume": "卷五百七十八",
+    "author_on_page": true,
+    "transclude_children": 7,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 185,
+    "title": "瑤瑟怨",
+    "author": "溫庭筠",
+    "quantangshi_volume": "卷五百七十九",
+    "author_on_page": false,
+    "ws_variants": [
+      {
+        "page": "全唐詩/卷579",
+        "detail": "前 16 字一致后分叉（瀟≠正文 遠）"
+      }
+    ],
+    "ws": "WS_VARIANT"
+  },
+  {
+    "seq": 186,
+    "title": "送人東遊",
+    "author": "溫庭筠",
+    "quantangshi_volume": "卷五百八十一",
+    "author_on_page": false,
+    "ws_page": "全唐詩/卷581",
+    "ws_anchor": "===送人東===",
+    "ws": "WS_RAW_EXACT"
+  },
+  {
+    "seq": 187,
+    "title": "蘇武廟",
+    "author": "溫庭筠",
+    "quantangshi_volume": "卷五百八十二",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 188,
+    "title": "渡漢江",
+    "author": "李頻",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 189,
+    "title": "貧女",
+    "author": "秦韜玉",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 190,
+    "title": "春宮怨",
+    "author": "周朴",
+    "quantangshi_volume": "卷六百七十三",
+    "author_on_page": true,
+    "transclude_children": 9,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 191,
+    "title": "孤鴈 二",
+    "author": "崔塗",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 192,
+    "title": "巴山道中除夜書懷",
+    "author": "崔塗",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 193,
+    "title": "宮詞二首 一",
+    "author": "張祜",
+    "quantangshi_volume": "卷五百一十一",
+    "author_on_page": false,
+    "ws_page": "全唐詩/卷511",
+    "ws_anchor": "===宮詞二首===",
+    "ws": "WS_RAW_EXACT"
+  },
+  {
+    "seq": 194,
+    "title": "贈內人",
+    "author": "張祜",
+    "quantangshi_volume": "卷五百一十一",
+    "author_on_page": false,
+    "ws_variants": [
+      {
+        "page": "全唐詩/卷511",
+        "detail": "前 12 字一致后分叉（窠≠正文 燕）"
+      }
+    ],
+    "ws": "WS_VARIANT"
+  },
+  {
+    "seq": 195,
+    "title": "集靈臺二首 一",
+    "author": "張祜",
+    "quantangshi_volume": "卷五百一十一",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 196,
+    "title": "集靈臺二首 二",
+    "author": "張祜",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 197,
+    "title": "題金陵渡",
+    "author": "張祜",
+    "quantangshi_volume": "卷五百一十一",
+    "author_on_page": false,
+    "ws_page": "全唐詩/卷511",
+    "ws_anchor": "===延年不語望三星莫說夫人上涕零爭奈世間惆悵在甘泉宮夜看圖形===",
+    "ws": "WS_RAW_EXACT"
+  },
+  {
+    "seq": 198,
+    "title": "宮詞",
+    "author": "朱慶餘",
+    "quantangshi_volume": "卷五百一十四",
+    "author_on_page": false,
+    "ws_page": "全唐詩/卷514",
+    "ws_anchor": "===石抱龍堂蘚石乾山遮白日寺門寒長松瀑布饒奇狀曾有僊人駐鶴看===",
+    "ws": "WS_RAW_EXACT"
+  },
+  {
+    "seq": 199,
+    "title": "石鼓歌",
+    "author": "韓愈",
+    "quantangshi_volume": "卷三百四十",
+    "author_on_page": false,
+    "ws_variants": [
+      {
+        "page": "全唐詩/卷340",
+        "detail": "前 56 字一致后分叉（搜≠正文 蒐）"
+      }
+    ],
+    "ws": "WS_VARIANT"
+  },
+  {
+    "seq": 200,
+    "title": "秋夜曲",
+    "author": "王涯",
+    "quantangshi_volume": "卷二十六",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 201,
+    "title": "晨詣超師院讀禪經",
+    "author": "柳宗元",
+    "quantangshi_volume": "卷三百五十一",
+    "author_on_page": false,
+    "transclude_children": 1,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 202,
+    "title": "登柳州城樓寄漳汀封連四州",
+    "author": "柳宗元",
+    "quantangshi_volume": "卷三百五十一",
+    "author_on_page": false,
+    "transclude_children": 1,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 203,
+    "title": "溪居",
+    "author": "柳宗元",
+    "quantangshi_volume": "卷三百五十二",
+    "author_on_page": false,
+    "transclude_children": 1,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 204,
+    "title": "江雪",
+    "author": "柳宗元",
+    "quantangshi_volume": "卷三百五十二",
+    "author_on_page": false,
+    "transclude_children": 1,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 205,
+    "title": "漁翁",
+    "author": "柳宗元",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 206,
+    "title": "蜀先主廟",
+    "author": "劉禹錫",
+    "quantangshi_volume": "卷三百五十七",
+    "local_snapshot": "not_fetched",
+    "ws": "NOT_FETCHED"
+  },
+  {
+    "seq": 207,
+    "title": "月夜",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二百二十四",
+    "author_on_page": false,
+    "ws_page": "全唐詩/卷224",
+    "ws_anchor": "==月夜==",
+    "ws": "WS_RAW_EXACT"
+  },
+  {
+    "seq": 208,
+    "title": "春望",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二百二十四",
+    "author_on_page": false,
+    "ws_page": "全唐詩/卷224",
+    "ws_anchor": "==春望==",
+    "ws": "WS_RAW_EXACT"
+  },
+  {
+    "seq": 209,
+    "title": "春宿左省",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二百二十五",
+    "author_on_page": false,
+    "ws_page": "全唐詩/卷225",
+    "ws_anchor": "==春宿左省==",
+    "ws": "WS_RAW_EXACT"
+  },
+  {
+    "seq": 210,
+    "title": "至德二載甫自京金光門出問道歸鳳翔乾元初從左拾遺移華州掾與親故別因出此門有悲往事",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二百二十五",
+    "author_on_page": false,
+    "ws_page": "全唐詩/卷225",
+    "ws_anchor": "==因許八奉寄江甯旻上人==",
+    "ws": "WS_RAW_EXACT"
+  },
+  {
+    "seq": 211,
+    "title": "月夜憶舍弟",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二百二十五",
+    "author_on_page": false,
+    "ws_page": "全唐詩/卷225",
+    "ws_anchor": "==月夜憶舍弟==",
+    "ws": "WS_FOLD_EXACT",
+    "ws_fold_chars": "鄉/鄕"
+  },
+  {
+    "seq": 212,
+    "title": "天末憶李白",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二百二十五",
+    "author_on_page": false,
+    "ws_variants": [
+      {
+        "page": "全唐詩/卷225",
+        "detail": "前 38 字一致后分叉（汨≠正文 汩）"
+      }
+    ],
+    "ws": "WS_VARIANT"
+  },
+  {
+    "seq": 213,
+    "title": "蜀相",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二百二十六",
+    "author_on_page": true,
+    "ws_variants": [
+      {
+        "page": "全唐詩/卷226",
+        "detail": "前 15 字一致后分叉（階≠正文 堦）"
+      }
+    ],
+    "ws": "WS_VARIANT"
+  },
+  {
+    "seq": 214,
+    "title": "客至",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二百二十六",
+    "author_on_page": true,
+    "ws_page": "全唐詩/卷226",
+    "ws_anchor": "==客至喜崔明府相過==",
+    "ws": "WS_FOLD_EXACT",
+    "ws_fold_chars": "桮/杯"
+  },
+  {
+    "seq": 215,
+    "title": "野望",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二百二十七",
+    "author_on_page": true,
+    "ws_page": "全唐詩/卷227",
+    "ws_anchor": "==野望杜甫|野望==",
+    "ws": "WS_FOLD_EXACT",
+    "ws_fold_chars": "荅/答"
+  },
+  {
+    "seq": 216,
+    "title": "奉濟驛重送嚴公四韻",
+    "author": "杜甫",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 217,
+    "title": "聞官軍收河南河北",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二百二十七",
+    "author_on_page": true,
+    "transclude_children": 5,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 218,
+    "title": "登高",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二百二十七",
+    "author_on_page": true,
+    "transclude_children": 5,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 219,
+    "title": "別房太尉墓",
+    "author": "杜甫",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 220,
+    "title": "登樓",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二百二十八",
+    "author_on_page": true,
+    "ws_page": "全唐詩/卷228",
+    "ws_anchor": "==登樓杜甫|登樓==",
+    "ws": "WS_RAW_EXACT"
+  },
+  {
+    "seq": 221,
+    "title": "宿府",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二百二十八",
+    "author_on_page": true,
+    "ws_page": "全唐詩/卷228",
+    "ws_anchor": "==宿府==",
+    "ws": "WS_FOLD_EXACT",
+    "ws_fold_chars": "栖/棲"
+  },
+  {
+    "seq": 222,
+    "title": "旅夜書懷",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二百二十九",
+    "author_on_page": true,
+    "transclude_children": 4,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 223,
+    "title": "閣夜",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二百二十九",
+    "author_on_page": true,
+    "transclude_children": 4,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 224,
+    "title": "八陣圖",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二百二十九",
+    "author_on_page": true,
+    "transclude_children": 4,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 225,
+    "title": "詠懷古跡五首 一",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二百三十",
+    "author_on_page": true,
+    "ws_variants": [
+      {
+        "page": "全唐詩/卷230",
+        "detail": "前 37 字一致后分叉（哀≠正文 衰）"
+      }
+    ],
+    "ws": "WS_VARIANT"
+  },
+  {
+    "seq": 226,
+    "title": "詠懷古跡五首 二",
+    "author": "杜甫",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 227,
+    "title": "詠懷古跡五首 三",
+    "author": "杜甫",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 228,
+    "title": "詠懷古跡五首 四",
+    "author": "杜甫",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 229,
+    "title": "詠懷古跡五首 五",
+    "author": "杜甫",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 230,
+    "title": "江南逢李龜年",
+    "author": "杜甫",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 231,
+    "title": "登岳陽樓",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二百三十三",
+    "author_on_page": true,
+    "transclude_children": 4,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 232,
+    "title": "虢國夫人",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二百三十四",
+    "author_on_page": true,
+    "transclude_children": 6,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 233,
+    "title": "望月懷遠",
+    "author": "張九齡",
+    "quantangshi_volume": "卷四十八",
+    "author_on_page": true,
+    "transclude_children": 9,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 234,
+    "title": "題大庾嶺北驛",
+    "author": "宋之問",
+    "quantangshi_volume": "卷五十二",
+    "author_on_page": true,
+    "transclude_children": 20,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 235,
+    "title": "渡漢江",
+    "author": "宋之問",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 236,
+    "title": "新年作",
+    "author": "宋之問",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 237,
+    "title": "杜少府之任蜀州",
+    "author": "王勃",
+    "quantangshi_volume": "卷五十六",
+    "author_on_page": true,
+    "transclude_children": 6,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 238,
+    "title": "和晉陵陸丞早春遊望",
+    "author": "杜審言",
+    "quantangshi_volume": "卷六十二",
+    "author_on_page": true,
+    "transclude_children": 7,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 239,
+    "title": "登樓",
+    "author": "朱斌",
+    "quantangshi_volume": "卷二百五十三",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 240,
+    "title": "送李少府貶峽中王少府貶長沙",
+    "author": "高適",
+    "quantangshi_volume": "卷二百一十四",
+    "author_on_page": true,
+    "transclude_children": 5,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 241,
+    "title": "望嶽",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二百一十六",
+    "author_on_page": true,
+    "transclude_children": 2,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 242,
+    "title": "兵車行",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二百一十六",
+    "author_on_page": true,
+    "transclude_children": 2,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 243,
+    "title": "贈衛八處士",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二百一十六",
+    "author_on_page": true,
+    "transclude_children": 2,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 244,
+    "title": "麗人行",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二十五",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 245,
+    "title": "哀江頭",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二百一十六",
+    "author_on_page": true,
+    "transclude_children": 2,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 246,
+    "title": "哀王孫",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二百一十六",
+    "author_on_page": true,
+    "transclude_children": 2,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 247,
+    "title": "佳人",
+    "author": "杜甫",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 248,
+    "title": "夢李白二首 一",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二百一十八",
+    "author_on_page": false,
+    "ws_page": "全唐詩/卷218",
+    "ws_anchor": "==夢李白二首==",
+    "ws": "WS_RAW_EXACT"
+  },
+  {
+    "seq": 249,
+    "title": "夢李白二首 二",
+    "author": "杜甫",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 250,
+    "title": "韋諷錄事宅觀曹將軍畫馬圖",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二百二十",
+    "author_on_page": false,
+    "ws_variants": [
+      {
+        "page": "全唐詩/卷220",
+        "detail": "前 25 字一致后分叉（眞≠正文 真）"
+      }
+    ],
+    "ws": "WS_VARIANT"
+  },
+  {
+    "seq": 251,
+    "title": "丹青引贈曹將軍霸",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二百二十",
+    "author_on_page": false,
+    "ws_variants": [
+      {
+        "page": "全唐詩/卷220",
+        "detail": "前 32 字一致后分叉（衞≠正文 衛）"
+      }
+    ],
+    "ws": "WS_VARIANT"
+  },
+  {
+    "seq": 252,
+    "title": "寄韓諫議",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二百二十",
+    "author_on_page": false,
+    "ws_page": "全唐詩/卷220",
+    "ws_anchor": "==寄韓諫議==",
+    "ws": "WS_RAW_EXACT"
+  },
+  {
+    "seq": 253,
+    "title": "古柏行",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二百二十一",
+    "author_on_page": false,
+    "ws_variants": [
+      {
+        "page": "全唐詩/卷221",
+        "detail": "前 135 字一致后分叉（翦≠正文 剪）"
+      }
+    ],
+    "ws": "WS_VARIANT"
+  },
+  {
+    "seq": 254,
+    "title": "觀公孫大娘弟子舞劒器行",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二百二十二",
+    "author_on_page": false,
+    "ws_variants": [
+      {
+        "page": "全唐詩/卷222",
+        "detail": "前 62 字一致后分叉（寞≠正文 莫）"
+      }
+    ],
+    "ws": "WS_VARIANT"
+  },
+  {
+    "seq": 255,
+    "title": "寄人二首  其一",
+    "author": "張佖",
+    "quantangshi_volume": "卷七百四十二",
+    "local_snapshot": "not_fetched",
+    "ws": "NOT_FETCHED"
+  },
+  {
+    "seq": 256,
+    "title": "雜曲歌辭 蓋羅縫 一",
+    "author": "不詳",
+    "quantangshi_volume": "卷二十七",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 257,
+    "title": "雜曲歌辭 婆羅門",
+    "author": "楊敬述進",
+    "quantangshi_volume": "卷二十七",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 258,
+    "title": "雜曲歌辭 清平調 一",
+    "author": "李白",
+    "quantangshi_volume": "卷二十七",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 259,
+    "title": "雜曲歌辭 清平調 二",
+    "author": "李白",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 260,
+    "title": "雜曲歌辭 清平調 三",
+    "author": "李白",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 261,
+    "title": "雜曲歌辭 渭城曲",
+    "author": "王維",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 262,
+    "title": "雜曲歌辭 金縷衣",
+    "author": "不詳",
+    "quantangshi_volume": "卷二十八",
+    "author_on_page": false,
+    "ws_page": "全唐詩/卷028",
+    "ws_anchor": "==雜曲歌辭金縷衣==",
+    "ws": "WS_RAW_EXACT"
+  },
+  {
+    "seq": 263,
+    "title": "感遇十二首 一",
+    "author": "張九齡",
+    "quantangshi_volume": "卷四十七",
+    "author_on_page": true,
+    "transclude_children": 5,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 264,
+    "title": "感遇十二首 二",
+    "author": "張九齡",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 265,
+    "title": "感遇十二首 四",
+    "author": "張九齡",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 266,
+    "title": "感遇十二首 七",
+    "author": "張九齡",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 267,
+    "title": "尋陸鴻漸不遇",
+    "author": "皎然",
+    "quantangshi_volume": "卷八百一十五",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 268,
+    "title": "西塞山懷古",
+    "author": "劉禹錫",
+    "quantangshi_volume": "卷三百五十九",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 269,
+    "title": "金陵五題 烏衣巷",
+    "author": "劉禹錫",
+    "quantangshi_volume": "卷三百六十五",
+    "author_on_page": true,
+    "transclude_children": 9,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 270,
+    "title": "和樂天春詞",
+    "author": "劉禹錫",
+    "quantangshi_volume": "卷三百六十五",
+    "author_on_page": true,
+    "transclude_children": 9,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 271,
+    "title": "列女操",
+    "author": "孟郊",
+    "quantangshi_volume": "卷二十三",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 272,
+    "title": "遊子吟",
+    "author": "孟郊",
+    "quantangshi_volume": "卷二十五",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 273,
+    "title": "度南澗",
+    "author": "蔡襄",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 274,
+    "title": "谷口書齋寄楊補闕",
+    "author": "錢起",
+    "quantangshi_volume": "卷二百三十七",
+    "author_on_page": true,
+    "transclude_children": 6,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 275,
+    "title": "送僧歸日本",
+    "author": "錢起",
+    "quantangshi_volume": "卷二百三十七",
+    "author_on_page": true,
+    "transclude_children": 6,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 276,
+    "title": "贈闕下裴舍人",
+    "author": "錢起",
+    "quantangshi_volume": "卷二百三十九",
+    "author_on_page": true,
+    "transclude_children": 9,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 277,
+    "title": "和張僕射塞下曲",
+    "author": "錢起",
+    "quantangshi_volume": "卷二百三十九",
+    "author_on_page": true,
+    "transclude_children": 8,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 278,
+    "title": "賊退示官吏",
+    "author": "元結",
+    "quantangshi_volume": "卷二百四十一",
+    "author_on_page": false,
+    "transclude_children": 1,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 279,
+    "title": "石魚湖上醉歌",
+    "author": "元結",
+    "quantangshi_volume": "卷二百四十一",
+    "author_on_page": false,
+    "transclude_children": 1,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 280,
+    "title": "楓橋夜泊",
+    "author": "張繼",
+    "quantangshi_volume": "卷二百四十二",
+    "author_on_page": true,
+    "transclude_children": 12,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 281,
+    "title": "酬程延秋夜即事見贈",
+    "author": "韓翃",
+    "quantangshi_volume": "卷二百四十四",
+    "author_on_page": true,
+    "transclude_children": 4,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 282,
+    "title": "同題仙游觀",
+    "author": "韓翃",
+    "quantangshi_volume": "卷二百四十五",
+    "author_on_page": true,
+    "transclude_children": 6,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 283,
+    "title": "寒食",
+    "author": "韓翃",
+    "quantangshi_volume": "卷二百四十五",
+    "author_on_page": true,
+    "transclude_children": 5,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 284,
+    "title": "寄李儋元錫",
+    "author": "韋應物",
+    "quantangshi_volume": "卷一百八十八",
+    "author_on_page": true,
+    "transclude_children": 2,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 285,
+    "title": "寄全椒山中道士",
+    "author": "韋應物",
+    "quantangshi_volume": "卷一百八十八",
+    "author_on_page": true,
+    "transclude_children": 2,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 286,
+    "title": "秋夜寄丘二十二員外",
+    "author": "韋應物",
+    "quantangshi_volume": "卷一百八十八",
+    "author_on_page": true,
+    "transclude_children": 2,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 287,
+    "title": "賦得暮雨送李胄",
+    "author": "韋應物",
+    "quantangshi_volume": "卷一百八十九",
+    "author_on_page": false,
+    "transclude_children": 1,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 288,
+    "title": "送楊氏女",
+    "author": "韋應物",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 289,
+    "title": "長安遇馮著",
+    "author": "韋應物",
+    "quantangshi_volume": "卷一百九十",
+    "author_on_page": false,
+    "transclude_children": 1,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 290,
+    "title": "夕次盱眙縣",
+    "author": "韋應物",
+    "quantangshi_volume": "卷一百九十一",
+    "author_on_page": true,
+    "transclude_children": 10,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 291,
+    "title": "東郊",
+    "author": "韋應物",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 292,
+    "title": "滁州西澗",
+    "author": "韋應物",
+    "quantangshi_volume": "卷一百九十三",
+    "author_on_page": true,
+    "transclude_children": 12,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 293,
+    "title": "和晉陵陸丞早春遊望",
+    "author": "韋應物",
+    "quantangshi_volume": "卷一百九十五",
+    "local_snapshot": "not_fetched",
+    "ws": "NOT_FETCHED"
+  },
+  {
+    "seq": 294,
+    "title": "與高適薛據慈恩寺浮圖",
+    "author": "岑參",
+    "quantangshi_volume": "卷一百九十八",
+    "author_on_page": true,
+    "transclude_children": 3,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 295,
+    "title": "白雪歌送武判官歸京",
+    "author": "岑參",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 296,
+    "title": "輪臺歌奉送封大夫出師西征",
+    "author": "岑參",
+    "quantangshi_volume": "卷一百九十九",
+    "author_on_page": true,
+    "transclude_children": 2,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 297,
+    "title": "走馬川行奉送出師西征",
+    "author": "岑參",
+    "quantangshi_volume": "卷一百九十九",
+    "author_on_page": true,
+    "transclude_children": 2,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 298,
+    "title": "寄左省杜拾遺",
+    "author": "岑參",
+    "quantangshi_volume": "卷二百",
+    "author_on_page": true,
+    "transclude_children": 6,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 299,
+    "title": "奉和中書舍人賈至早朝大明宮",
+    "author": "岑參",
+    "quantangshi_volume": "卷二百零一",
+    "author_on_page": true,
+    "transclude_children": 6,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 300,
+    "title": "逢入京使",
+    "author": "岑參",
+    "quantangshi_volume": "卷二百零一",
+    "author_on_page": true,
+    "transclude_children": 6,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 301,
+    "title": "訪羊尊師",
+    "author": "孫革",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 302,
+    "title": "書邊事",
+    "author": "張喬",
+    "quantangshi_volume": "卷六百三十八",
+    "author_on_page": false,
+    "ws_variants": [
+      {
+        "page": "全唐詩/卷638",
+        "detail": "前 21 字一致后分叉（無≠正文 漢）"
+      }
+    ],
+    "ws": "WS_VARIANT"
+  },
+  {
+    "seq": 303,
+    "title": "行路難三首 一",
+    "author": "李白",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 304,
+    "title": "行路難三首 二",
+    "author": "李白",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 305,
+    "title": "行路難三首 三",
+    "author": "李白",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 306,
+    "title": "長相思",
+    "author": "李白",
+    "quantangshi_volume": "卷二十五",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 307,
+    "title": "關山月",
+    "author": "李白",
+    "quantangshi_volume": "卷一十八",
+    "author_on_page": false,
+    "ws_variants": [
+      {
+        "page": "全唐詩/卷018",
+        "detail": "前 55 字一致后分叉（嘆≠正文 歎）"
+      }
+    ],
+    "ws": "WS_VARIANT"
+  },
+  {
+    "seq": 308,
+    "title": "玉階怨",
+    "author": "李白",
+    "quantangshi_volume": "卷一百六十四",
+    "author_on_page": true,
+    "transclude_children": 13,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 309,
+    "title": "清平調詞三首 一",
+    "author": "李白",
+    "quantangshi_volume": "卷二十七",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 310,
+    "title": "清平調詞三首 二",
+    "author": "李白",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 311,
+    "title": "靜夜思",
+    "author": "李白",
+    "quantangshi_volume": "卷一百六十五",
+    "author_on_page": true,
+    "transclude_children": 19,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 312,
+    "title": "春思",
+    "author": "李白",
+    "quantangshi_volume": "卷一百六十五",
+    "author_on_page": true,
+    "transclude_children": 18,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 313,
+    "title": "子夜吳歌 春歌",
+    "author": "李白",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 314,
+    "title": "子夜吳歌 夏歌",
+    "author": "李白",
+    "quantangshi_volume": "卷二十一",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 315,
+    "title": "子夜吳歌 秋歌",
+    "author": "李白",
+    "quantangshi_volume": "卷二十一",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 316,
+    "title": "子夜吳歌 冬歌",
+    "author": "李白",
+    "quantangshi_volume": "卷二十一",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 317,
+    "title": "贈孟浩然",
+    "author": "李白",
+    "quantangshi_volume": "卷一百六十八",
+    "author_on_page": false,
+    "transclude_children": 1,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 318,
+    "title": "廬山謠寄盧侍御虛舟",
+    "author": "李白",
+    "quantangshi_volume": "卷一百七十三",
+    "local_snapshot": "not_fetched",
+    "ws": "NOT_FETCHED"
+  },
+  {
+    "seq": 319,
+    "title": "夢遊天姥吟留別",
+    "author": "李白",
+    "quantangshi_volume": "卷一百七十四",
+    "local_snapshot": "not_fetched",
+    "ws": "NOT_FETCHED"
+  },
+  {
+    "seq": 320,
+    "title": "金陵酒肆留別",
+    "author": "李白",
+    "quantangshi_volume": "卷一百七十四",
+    "local_snapshot": "not_fetched",
+    "ws": "NOT_FETCHED"
+  },
+  {
+    "seq": 321,
+    "title": "黃鶴樓送孟浩然之廣陵",
+    "author": "李白",
+    "quantangshi_volume": "卷一百七十四",
+    "local_snapshot": "not_fetched",
+    "ws": "NOT_FETCHED"
+  },
+  {
+    "seq": 322,
+    "title": "渡荆門送別",
+    "author": "李白",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 323,
+    "title": "送友人",
+    "author": "李白",
+    "quantangshi_volume": "卷一百七十七",
+    "local_snapshot": "not_fetched",
+    "ws": "NOT_FETCHED"
+  },
+  {
+    "seq": 324,
+    "title": "宣州謝朓樓餞別校書叔雲",
+    "author": "李白",
+    "quantangshi_volume": "卷一百七十七",
+    "local_snapshot": "not_fetched",
+    "ws": "NOT_FETCHED"
+  },
+  {
+    "seq": 325,
+    "title": "下終南山過斛斯山人宿置酒",
+    "author": "李白",
+    "quantangshi_volume": "卷一百七十九",
+    "author_on_page": true,
+    "transclude_children": 3,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 326,
+    "title": "登金陵鳳凰臺",
+    "author": "李白",
+    "quantangshi_volume": "卷一百八十",
+    "local_snapshot": "not_fetched",
+    "ws": "NOT_FETCHED"
+  },
+  {
+    "seq": 327,
+    "title": "早發白帝城",
+    "author": "李白",
+    "quantangshi_volume": "卷一百八十一",
+    "author_on_page": true,
+    "transclude_children": 3,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 328,
+    "title": "夜泊牛渚懷古",
+    "author": "李白",
+    "quantangshi_volume": "卷一百八十一",
+    "author_on_page": true,
+    "transclude_children": 3,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 329,
+    "title": "月下獨酌四首 一",
+    "author": "李白",
+    "quantangshi_volume": "卷一百八十二",
+    "author_on_page": true,
+    "transclude_children": 6,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 330,
+    "title": "聽蜀僧濬彈琴",
+    "author": "李白",
+    "quantangshi_volume": "卷一百八十三",
+    "author_on_page": true,
+    "transclude_children": 1,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 331,
+    "title": "怨情",
+    "author": "李白",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 332,
+    "title": "淮上喜會梁川故人",
+    "author": "韋應物",
+    "quantangshi_volume": "卷一百八十六",
+    "author_on_page": true,
+    "transclude_children": 1,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 333,
+    "title": "郡齋雨中與諸文士燕集",
+    "author": "韋應物",
+    "quantangshi_volume": "卷一百八十六",
+    "author_on_page": true,
+    "transclude_children": 1,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 334,
+    "title": "初發揚子寄元大校書",
+    "author": "韋應物",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 335,
+    "title": "相和歌辭 江南曲",
+    "author": "李益",
+    "quantangshi_volume": "卷一十九",
+    "author_on_page": false,
+    "ws_page": "全唐詩/卷019",
+    "ws_anchor": "==相和歌辭江南曲==",
+    "ws": "WS_RAW_EXACT"
+  },
+  {
+    "seq": 336,
+    "title": "相和歌辭 燕歌行",
+    "author": "高適",
+    "quantangshi_volume": "卷一十九",
+    "author_on_page": false,
+    "ws_variants": [
+      {
+        "page": "全唐詩/卷019",
+        "detail": "前 66 字一致后分叉（陵≠正文 凌）"
+      }
+    ],
+    "ws": "WS_VARIANT"
+  },
+  {
+    "seq": 337,
+    "title": "相和歌辭 從軍行",
+    "author": "李頎",
+    "quantangshi_volume": "卷一十九",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 338,
+    "title": "相和歌辭 蜀道難",
+    "author": "李白",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 339,
+    "title": "相和歌辭 長信怨 二",
+    "author": "王昌齡",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 340,
+    "title": "相和歌辭 玉階怨",
+    "author": "李白",
+    "quantangshi_volume": "卷二十",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 341,
+    "title": "相和歌辭 子夜四時歌四首 春歌",
+    "author": "李白",
+    "quantangshi_volume": "卷二十一",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 342,
+    "title": "相和歌辭 子夜四時歌四首 夏歌",
+    "author": "李白",
+    "quantangshi_volume": "卷二十一",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 343,
+    "title": "相和歌辭 子夜四時歌四首 秋歌",
+    "author": "李白",
+    "quantangshi_volume": "卷二十一",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 344,
+    "title": "相和歌辭 子夜四時歌四首 冬歌",
+    "author": "李白",
+    "quantangshi_volume": "卷二十一",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 345,
+    "title": "琴曲歌辭 列女操",
+    "author": "孟郊",
+    "quantangshi_volume": "卷二十三",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 346,
+    "title": "雜曲歌辭 遊子吟",
+    "author": "孟郊",
+    "quantangshi_volume": "卷二十五",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 347,
+    "title": "雜曲歌辭 麗人行",
+    "author": "杜甫",
+    "quantangshi_volume": "卷二十五",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 348,
+    "title": "雜曲歌辭 長相思三首 一",
+    "author": "李白",
+    "quantangshi_volume": "卷二十五",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 349,
+    "title": "雜曲歌辭 長相思三首 二",
+    "author": "李白",
+    "quantangshi_volume": "卷一百六十五",
+    "author_on_page": true,
+    "transclude_children": 18,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 350,
+    "title": "雜曲歌辭 行路難三首 一",
+    "author": "李白",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 351,
+    "title": "雜曲歌辭 行路難三首 二",
+    "author": "李白",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 352,
+    "title": "雜曲歌辭 行路難三首 三",
+    "author": "李白",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 353,
+    "title": "雜曲歌辭 長干曲四首 一",
+    "author": "崔顥",
+    "quantangshi_volume": "卷二十六",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 354,
+    "title": "雜曲歌辭 長干曲四首 二",
+    "author": "崔顥",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 355,
+    "title": "雜曲歌辭 長干行二首 一",
+    "author": "李白",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 356,
+    "title": "雜曲歌辭 獨不見",
+    "author": "沈佺期",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 357,
+    "title": "雜曲歌辭 秋夜曲",
+    "author": "王涯",
+    "quantangshi_volume": "卷二十六",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 358,
+    "title": "春思",
+    "author": "皇甫冉",
+    "quantangshi_volume": "卷一百五十一",
+    "author_on_page": false,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 359,
+    "title": "夜月",
+    "author": "劉方平",
+    "quantangshi_volume": "卷二百五十一",
+    "local_snapshot": "not_fetched",
+    "ws": "NOT_FETCHED"
+  },
+  {
+    "seq": 360,
+    "title": "春怨",
+    "author": "劉方平",
+    "quantangshi_volume": "卷二百五十一",
+    "local_snapshot": "not_fetched",
+    "ws": "NOT_FETCHED"
+  },
+  {
+    "seq": 361,
+    "title": "登鸛雀樓",
+    "author": "王之渙",
+    "quantangshi_volume": "卷二百五十三",
+    "author_on_page": true,
+    "transclude_children": 2,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 362,
+    "title": "涼州詞二首 一",
+    "author": "王之渙",
+    "quantangshi_volume": "卷二百五十三",
+    "author_on_page": true,
+    "transclude_children": 2,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 363,
+    "title": "闕題",
+    "author": "劉眘虛",
+    "quantangshi_volume": "卷二百五十六",
+    "local_snapshot": "not_fetched",
+    "ws": "NOT_FETCHED"
+  },
+  {
+    "seq": 364,
+    "title": "征怨",
+    "author": "柳中庸",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  },
+  {
+    "seq": 365,
+    "title": "送李端",
+    "author": "嚴維",
+    "quantangshi_volume": "卷二百六十三",
+    "author_on_page": true,
+    "transclude_children": 10,
+    "ws": "TRANSCLUDE"
+  },
+  {
+    "seq": 366,
+    "title": "宮詞五首 二",
+    "author": "顧況",
+    "quantangshi_volume": null,
+    "ws": "WS_MISS"
+  }
+]

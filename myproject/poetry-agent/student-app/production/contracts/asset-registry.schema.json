@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xuexi.local/schemas/asset-registry-1.0.json",
+  "title": "奇境 素材登记簿 (asset registry)",
+  "description": "published/registry.json 的格式。每一项都必须能原样被 Java PoetryMediaService.createAsset 接受(vvv-poetry,只读对照):\n- asset_id: 小写,≤64 字符,[a-z0-9._-],首字符字母数字。\n- kind ∈ {illustration, map, character, audio, voice, subtitle, video};level ∈ {L0..L4}(没有 L1.5)。\n- uri: 对象存储键(不是签名 URL),非空且 ≤500 字符。\n- hash: 12–64 位小写十六进制,且全库唯一(Java: hashTaken)。单文件素材=文件 sha256;多文件素材=文件索引的 sha256(见 hash_scheme)。\n- bytes ≥ 0。meaning 去空白后 ≥ 8 字:说清它帮学生弄懂哪一句。\n- rights.origin / rights.license 非空;rights.workflow → Java workflow_ref;rights.human_fix → human_fix。\n- level=L0 不得有 fallback_asset_id;其余必须有,且指向『严格更低一级』的已存在素材,不得指向自己,链不得成环,最终到达 L0。\n本文件还约定了跨项检查(fallback 存在/降层/无环/hash 唯一),由 tools/registry-check.mjs 执行。\n\n与 bundle 的对应(tools/bundle-refs.mjs 生成):registry.kind/level 原样进入 bundle.assets[id];L0 素材在 bundle 里写 fallback:[\"L0-text\"](编译规则 R4 的终点);其余 fallback:[fallback_asset_id]。bundle.files 由 files[] 折叠成 {格式: 路径}。",
+  "type": "object",
+  "required": ["schema_version", "generated_at", "assets"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "pattern": "^1\\.[0-9]+$" },
+    "generated_at": { "type": "string", "description": "ISO 8601,由 tools/registry-build.mjs 写入。" },
+    "root": { "type": "string", "description": "uri 的相对根,固定为 published/。" },
+    "assets": { "type": "array", "items": { "$ref": "#/$defs/asset" } }
+  },
+  "$defs": {
+    "asset": {
+      "type": "object",
+      "required": ["asset_id", "kind", "level", "uri", "hash", "hash_scheme", "bytes", "files", "rights", "meaning", "fallback_asset_id", "status", "placeholder"],
+      "additionalProperties": false,
+      "properties": {
+        "asset_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$" },
+        "kind": { "enum": ["illustration", "map", "character", "audio", "voice", "subtitle", "video"] },
+        "level": { "enum": ["L0", "L1", "L2", "L3", "L4"] },
+        "uri": { "type": "string", "minLength": 1, "maxLength": 500, "description": "主入口文件的对象键,相对 published/。多文件素材指向入口(manifest / 视差清单 / 播放清单)。" },
+        "hash": { "type": "string", "pattern": "^[a-f0-9]{12,64}$" },
+        "hash_scheme": { "enum": ["file-sha256", "files-index-sha256"],
+          "description": "file-sha256: 单文件内容的 sha256。files-index-sha256: 把 files[] 按 path 排序,逐行 \"<path>\\t<sha256>\\n\" 拼接后取 sha256。" },
+        "bytes": { "type": "integer", "minimum": 0, "description": "所有文件字节之和。" },
+        "files": { "type": "array", "minItems": 1, "items": { "type": "object", "additionalProperties": false,
+          "required": ["path", "sha256", "bytes"],
+          "properties": {
+            "path": { "type": "string" }, "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+            "bytes": { "type": "integer", "minimum": 0 },
+            "format": { "type": "string", "description": "svg / webp / png / wav / m4a / vtt / json / txt ...(进入 bundle.files 的键)" },
+            "role": { "type": "string", "description": "entry / layer / frame / poster / subtitle ..." } } } },
+        "media": { "type": "object", "additionalProperties": true,
+          "description": "机检提取的事实:width/height/duration_ms/fps/channels/sample_rate 等;只写测量到的,不写希望的。" },
+        "render": { "enum": ["still", "parallax", "character-svg-layers", "audio", "subtitle-track", "text-card"],
+                    "description": "前端该用什么方式呈现。视差不单列 kind(Java 词表没有 parallax),用 illustration + render=parallax。" },
+        "rights": { "type": "object", "additionalProperties": false, "required": ["origin", "license"],
+          "properties": {
+            "origin": { "type": "string", "minLength": 3 },
+            "license": { "type": "string", "minLength": 3 },
+            "workflow": { "type": "string", "description": "提示词/工作流文件@hash;人工作画/录音写交付单号。→ Java workflow_ref" },
+            "human_fix": { "type": "boolean" },
+            "author": { "type": "string" },
+            "notes": { "type": "string" } } },
+        "meaning": { "type": "string", "minLength": 8, "description": "说清它帮学生弄懂哪一句、哪个处境。写不出来就不该存在。" },
+        "fallback_asset_id": { "type": ["string", "null"], "description": "L0 必须为 null;其余必须是严格更低一级、已登记的素材。" },
+        "status": { "enum": ["published", "draft"], "description": "registry.json 里只收 published;draft 仅用于本地预览。" },
+        "placeholder": { "type": "object", "additionalProperties": false, "required": ["is_placeholder", "not_for_release"],
+          "properties": {
+            "is_placeholder": { "type": "boolean" },
+            "not_for_release": { "type": "boolean", "description": "true = 代码生成的占位,不可上线;发布闸门会拒绝带此标记的素材进入 production 渠道。" },
+            "reason": { "type": "string" },
+            "replace_with_task": { "type": "string" } } },
+        "depiction": { "enum": ["FACT", "INTERPRETATION", "DRAMATIZATION"], "description": "素材性质:人物形象、场景插画一律 DRAMATIZATION,除非有可核对的史料依据。" },
+        "task_id": { "type": "string", "description": "来源任务单 id(tasks/ 下)。" },
+        "used_in": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["step"],
+          "properties": { "script_id": { "type": "string" },
+                          "step": { "enum": ["read", "arrive", "meet", "return", "recite"] },
+                          "line_seq": { "type": "integer", "minimum": 1 } } },
+          "description": "对应 poetry_script_asset(script_id, version, asset_id, step)。" },
+        "published_at": { "type": "string" },
+        "published_by": { "type": "string" }
+      }
+    }
+  }
+}

@@ -1,0 +1,148 @@
+{
+  "workId": "work-chun-wang",
+  "title": "春望",
+  "authors": [
+    {
+      "personId": "person-du-fu",
+      "name": "杜甫",
+      "attribution": "ACCEPTED"
+    }
+  ],
+  "textVersionId": "text-chun-wang-draft",
+  "lines": [
+    {
+      "seq": 1,
+      "text": "国破山河在，",
+      "pinyin": null
+    },
+    {
+      "seq": 2,
+      "text": "城春草木深。",
+      "pinyin": null
+    },
+    {
+      "seq": 3,
+      "text": "感时花溅泪，",
+      "pinyin": null
+    },
+    {
+      "seq": 4,
+      "text": "恨别鸟惊心。",
+      "pinyin": null
+    },
+    {
+      "seq": 5,
+      "text": "烽火连三月，",
+      "pinyin": null
+    },
+    {
+      "seq": 6,
+      "text": "家书抵万金。",
+      "pinyin": null
+    },
+    {
+      "seq": 7,
+      "text": "白头搔更短，",
+      "pinyin": null
+    },
+    {
+      "seq": 8,
+      "text": "浑欲不胜簪。",
+      "pinyin": null
+    }
+  ],
+  "annotations": [
+    {
+      "id": "ann-chun-wang-shanhe",
+      "lineSeq": 1,
+      "kind": "WORD",
+      "text": "山河：山和河，指大地山川。"
+    },
+    {
+      "id": "ann-chun-wang-fenghuo",
+      "lineSeq": 5,
+      "kind": "WORD",
+      "text": "烽火：战火，这里指战事。"
+    }
+  ],
+  "backgrounds": [
+    {
+      "id": "bg-chun-wang-city",
+      "layer": "CITY",
+      "body": "叛军攻下长安之后，杜甫被困在这座城里。",
+      "claimId": null
+    },
+    {
+      "id": "bg-chun-wang-person",
+      "layer": "PERSON",
+      "body": "他被困在长安，家人留在鄜州。",
+      "claimId": null
+    },
+    {
+      "id": "bg-chun-wang-scene",
+      "layer": "SCENE",
+      "body": "山河还在，城里的草木在春天长得很深。",
+      "claimId": null
+    },
+    {
+      "id": "bg-chun-wang-world",
+      "layer": "WORLD",
+      "body": "诗里说“烽火连三月，家书抵万金”：战火不停，一封家信比万金还难得。",
+      "claimId": null
+    }
+  ],
+  "relations": [
+    {
+      "backgroundId": "bg-chun-wang-city",
+      "lineSeq": 1
+    },
+    {
+      "backgroundId": "bg-chun-wang-scene",
+      "lineSeq": 1
+    },
+    {
+      "backgroundId": "bg-chun-wang-city",
+      "lineSeq": 2
+    },
+    {
+      "backgroundId": "bg-chun-wang-scene",
+      "lineSeq": 2
+    },
+    {
+      "backgroundId": "bg-chun-wang-world",
+      "lineSeq": 5
+    },
+    {
+      "backgroundId": "bg-chun-wang-world",
+      "lineSeq": 6
+    },
+    {
+      "backgroundId": "bg-chun-wang-person",
+      "lineSeq": 7
+    },
+    {
+      "backgroundId": "bg-chun-wang-person",
+      "lineSeq": 8
+    }
+  ],
+  "writtenAt": [
+    {
+      "claimId": "claim-chun-wang-time-757",
+      "propertyKey": "time.span",
+      "text": "757 年",
+      "certainty": "LIKELY",
+      "selected": true
+    },
+    {
+      "claimId": "claim-chun-wang-time-758",
+      "propertyKey": "time.span",
+      "text": "758 年",
+      "certainty": "LIKELY",
+      "selected": false
+    }
+  ],
+  "coverageNotice": "本轮只整理了部分内容；没有出现在这里的，只代表当前还没有收录，不代表历史上没有。",
+  "warnings": [
+    "演示数据：来自内容底座的草稿导出，尚未发布"
+  ]
+}

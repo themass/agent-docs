@@ -1,0 +1,25 @@
+# A-contract §12 (version 2)。worker 读取;缺文件或缺字段时 worker 用保守默认值并发 STEP{budget_defaults}。
+# per_task_type 覆盖同名顶层字段。
+# 与 config.yaml 的对应关系(check_profile 校验):
+#   max_tokens          == token_budget.max_tokens
+#   max_turns * 2       <= recursion_limit
+#   circuit_breaker     == circuit_breaker.{failure_threshold, recovery_timeout_sec}
+version: 2
+profiles:
+  authoring:
+    max_turns: 18
+    max_subagents: 0
+    max_tool_calls: 24
+    max_wall_seconds: 900
+    max_output_chars: 60000
+    max_tokens: 200000
+    require_human_review_before_apply: true
+    retry: {max_attempts: 3, backoff_seconds: [2, 5, 15]}
+    circuit_breaker: {failure_threshold: 3, open_seconds: 120}
+    per_task_type:
+      GAP_ANALYSIS: {max_wall_seconds: 300}
+      ANNOTATION_DRAFT: {max_wall_seconds: 600}
+      SCRIPT_DRAFT: {max_wall_seconds: 900}
+      COMPILE_TRIAGE: {max_wall_seconds: 300}
+      # 审核要逐条看已发布内容，比缺口分析耗时；仍明显短于剧本草稿。
+      CONTENT_REVIEW: {max_wall_seconds: 600}

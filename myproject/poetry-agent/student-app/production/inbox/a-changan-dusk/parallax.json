@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0",
+  "canvas": {
+    "width": 1280,
+    "height": 720
+  },
+  "max_shift_pct": 2,
+  "layers": [
+    {
+      "id": "sky",
+      "file": "layers/sky.svg",
+      "depth": 0,
+      "role": "sky"
+    },
+    {
+      "id": "far",
+      "file": "layers/far.svg",
+      "depth": 0.15,
+      "role": "far"
+    },
+    {
+      "id": "mid",
+      "file": "layers/mid.svg",
+      "depth": 0.4,
+      "role": "mid",
+      "note": "概括的城郭轮廓,无细节"
+    },
+    {
+      "id": "mist",
+      "file": "layers/mist.svg",
+      "depth": 0.55,
+      "role": "overlay",
+      "drift": {
+        "x_pct_per_min": 2,
+        "loop_s": 60
+      }
+    },
+    {
+      "id": "grass",
+      "file": "layers/grass.svg",
+      "depth": 0.9,
+      "role": "near"
+    }
+  ],
+  "poster": "poster.webp",
+  "depiction": "DRAMATIZATION",
+  "alt_text": "春天的长安城示意图(占位):远处有山,中间是低矮的城郭轮廓,近处草木很深。"
+}

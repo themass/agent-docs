@@ -1,0 +1,111 @@
+{
+  "schema_version": "1.0",
+  "poem": "jing-ye-si",
+  "script_id": "qj-jing-ye-si",
+  "generated_at": "2026-11-07T03:18:49.132Z",
+  "uri_root": "published/",
+  "assets": {
+    "a-jys-moonlight": {
+      "kind": "illustration",
+      "level": "L1",
+      "hash": "c266dc62993def167f0cb6e2de104c0f367d25b974a7d14b35f9c13457d37275",
+      "files": {
+        "webp": "assets/a-jys-moonlight/main.webp",
+        "mini": "assets/a-jys-moonlight/mini.webp"
+      },
+      "fallback": [
+        "a-jys-moonlight-text"
+      ],
+      "rights": {
+        "origin": "自生成占位(代码绘制的概括轮廓 SVG,无 AI 图像)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-jing-ye-si-scene.mjs",
+        "human_fix": false
+      },
+      "meaning": "让学生看见诗里的月光铺在地上、白得像霜——对应『床前明月光,疑是地上霜』",
+      "render": "still",
+      "placeholder": true
+    },
+    "a-jys-moonlight-text": {
+      "kind": "subtitle",
+      "level": "L0",
+      "hash": "60372c1163cc86f0aea75594c041f1397e9b48dfe900cdd3feb847d098e485db",
+      "files": {
+        "txt": "assets/a-jys-moonlight-text/card.txt"
+      },
+      "fallback": [
+        "L0-text"
+      ],
+      "rights": {
+        "origin": "由任务单脚本文本派生(底座/剧本已有文字,未新增史实)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-text.mjs",
+        "human_fix": false
+      },
+      "meaning": "图没加载时,仍告诉学生诗里写的是地上白白的月光——文字永远是降级终点",
+      "render": "text-card",
+      "placeholder": true
+    },
+    "a-jys-recite": {
+      "kind": "audio",
+      "level": "L2",
+      "hash": "03db86005f70698f21f37acace6f0bdb8fcd5ced2a8f1692a56ee32e6d81302b",
+      "files": {
+        "m4a": "assets/a-jys-recite/recite.m4a"
+      },
+      "fallback": [
+        "a-jys-recite-subtitle"
+      ],
+      "rights": {
+        "origin": "自生成占位(macOS say 合成,朗读韵律不可信)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-audio.mjs",
+        "human_fix": false
+      },
+      "meaning": "示范停顿与韵律,学生知道这四句该怎么读出来——对应全诗四句",
+      "render": "audio",
+      "placeholder": true
+    },
+    "a-jys-recite-subtitle": {
+      "kind": "subtitle",
+      "level": "L0",
+      "hash": "ed4d2ffbf736414eddb68f39dd8dbb3fd68f25d721a4c6cf6b81db710b063dc0",
+      "files": {
+        "vtt": "assets/a-jys-recite-subtitle/captions.vtt"
+      },
+      "fallback": [
+        "L0-text"
+      ],
+      "rights": {
+        "origin": "由脚本文本派生,时间轴按占位音频时长分配",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-audio.mjs",
+        "human_fix": false
+      },
+      "meaning": "音频不可用时,文本与断句仍在(也是无障碍与降级必需)",
+      "render": "subtitle-track",
+      "placeholder": true
+    }
+  },
+  "usage": {
+    "a-jys-moonlight": [
+      "steps[1].layers[0].assets"
+    ],
+    "a-jys-moonlight-text": [
+      "assets.a-jys-moonlight.fallback"
+    ],
+    "a-jys-recite": [
+      "steps[3].demo_audio"
+    ],
+    "a-jys-recite-subtitle": [
+      "assets.a-jys-recite.fallback"
+    ]
+  },
+  "missing": [],
+  "placeholders": [
+    "a-jys-moonlight",
+    "a-jys-moonlight-text",
+    "a-jys-recite",
+    "a-jys-recite-subtitle"
+  ]
+}

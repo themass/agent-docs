@@ -1,0 +1,155 @@
+{
+  "work_id": "work-chun-wang",
+  "text_version_id": "text-chun-wang-draft",
+  "lines": [
+    {
+      "seq": 1,
+      "text": "国破山河在，"
+    },
+    {
+      "seq": 2,
+      "text": "城春草木深。"
+    },
+    {
+      "seq": 3,
+      "text": "感时花溅泪，"
+    },
+    {
+      "seq": 4,
+      "text": "恨别鸟惊心。"
+    },
+    {
+      "seq": 5,
+      "text": "烽火连三月，"
+    },
+    {
+      "seq": 6,
+      "text": "家书抵万金。"
+    },
+    {
+      "seq": 7,
+      "text": "白头搔更短，"
+    },
+    {
+      "seq": 8,
+      "text": "浑欲不胜簪。"
+    }
+  ],
+  "annotations": [
+    {
+      "lineSeq": 1,
+      "kind": "WORD",
+      "audience": "PRIMARY",
+      "id": "ann-chun-wang-shanhe",
+      "text": "山河：山和河，指大地山川。"
+    },
+    {
+      "lineSeq": 5,
+      "kind": "WORD",
+      "audience": "JUNIOR",
+      "id": "ann-chun-wang-fenghuo",
+      "text": "烽火：战火，这里指战事。"
+    }
+  ],
+  "backgrounds": [
+    {
+      "layer": "CITY",
+      "id": "bg-chun-wang-city",
+      "body": "叛军攻下长安之后，杜甫被困在这座城里。"
+    },
+    {
+      "layer": "PERSON",
+      "id": "bg-chun-wang-person",
+      "body": "他被困在长安，家人留在鄜州。"
+    },
+    {
+      "layer": "SCENE",
+      "id": "bg-chun-wang-scene",
+      "body": "山河还在，城里的草木在春天长得很深。"
+    },
+    {
+      "layer": "WORLD",
+      "id": "bg-chun-wang-world",
+      "body": "诗里说“烽火连三月，家书抵万金”：战火不停，一封家信比万金还难得。"
+    }
+  ],
+  "relations": [
+    {
+      "backgroundId": "bg-chun-wang-city",
+      "versionId": "text-chun-wang-draft",
+      "lineSeq": 1
+    },
+    {
+      "backgroundId": "bg-chun-wang-scene",
+      "versionId": "text-chun-wang-draft",
+      "lineSeq": 1
+    },
+    {
+      "backgroundId": "bg-chun-wang-city",
+      "versionId": "text-chun-wang-draft",
+      "lineSeq": 2
+    },
+    {
+      "backgroundId": "bg-chun-wang-scene",
+      "versionId": "text-chun-wang-draft",
+      "lineSeq": 2
+    },
+    {
+      "backgroundId": "bg-chun-wang-world",
+      "versionId": "text-chun-wang-draft",
+      "lineSeq": 5
+    },
+    {
+      "backgroundId": "bg-chun-wang-world",
+      "versionId": "text-chun-wang-draft",
+      "lineSeq": 6
+    },
+    {
+      "backgroundId": "bg-chun-wang-person",
+      "versionId": "text-chun-wang-draft",
+      "lineSeq": 7
+    },
+    {
+      "backgroundId": "bg-chun-wang-person",
+      "versionId": "text-chun-wang-draft",
+      "lineSeq": 8
+    }
+  ],
+  "coverage": [
+    {
+      "id": "cov-event-750-770",
+      "entityType": "EVENT",
+      "fromYear": 750,
+      "toYear": 770,
+      "kind": "PLANNED",
+      "status": "DRAFT"
+    },
+    {
+      "id": "cov-person-700-780",
+      "entityType": "PERSON",
+      "fromYear": 700,
+      "toYear": 780,
+      "kind": "PARTIAL",
+      "status": "PUBLISHED"
+    },
+    {
+      "id": "cov-work-755-760",
+      "entityType": "WORK",
+      "fromYear": 755,
+      "toYear": 760,
+      "kind": "PARTIAL",
+      "status": "PUBLISHED"
+    }
+  ],
+  "status": {
+    "content:event-anshi-rebellion": "DRAFT",
+    "content:event-chang-an-capture": "DRAFT",
+    "content:exp-du-fu-chang-an-757": "DRAFT",
+    "content:person-du-fu": "DRAFT",
+    "content:place-chang-an": "DRAFT",
+    "content:theme-anshi-rebellion": "DRAFT",
+    "content:work-chun-wang": "DRAFT",
+    "text_version:text-chun-wang-draft": "DRAFT"
+  },
+  "fetched_at": "2026-11-06T07:56:06.143Z"
+}

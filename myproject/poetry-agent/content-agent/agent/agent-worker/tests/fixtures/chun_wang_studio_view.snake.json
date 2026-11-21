@@ -1,0 +1,542 @@
+{
+ "work": {
+  "id": "work-chun-wang",
+  "entity_type": "WORK",
+  "slug": "chun-wang",
+  "title": "春望",
+  "summary": "待核查：作者归属、文本版本、写作时地与解释依据。",
+  "start_year": 757,
+  "end_year": 757,
+  "time_precision": "EXACT",
+  "status": "DRAFT",
+  "revision": 1,
+  "reviewed_by": null
+ },
+ "work_info": {
+  "id": "work-chun-wang",
+  "genre": null,
+  "dynasty_id": "dynasty-tang",
+  "creation_place_id": null
+ },
+ "versions": [
+  {
+   "id": "text-chun-wang-draft",
+   "work_id": "work-chun-wang",
+   "version_code": "draft-simplified-001",
+   "label": "简体录入草稿（非教材核定版）",
+   "script": "SIMPLIFIED",
+   "source_id": "source-chun-wang-candidate",
+   "source_locator": "全诗；待逐字核对",
+   "status": "DRAFT"
+  }
+ ],
+ "lines": [
+  {
+   "version_id": "text-chun-wang-draft",
+   "line_seq": 1,
+   "content": "国破山河在，",
+   "pinyin": null
+  },
+  {
+   "version_id": "text-chun-wang-draft",
+   "line_seq": 2,
+   "content": "城春草木深。",
+   "pinyin": null
+  },
+  {
+   "version_id": "text-chun-wang-draft",
+   "line_seq": 3,
+   "content": "感时花溅泪，",
+   "pinyin": null
+  },
+  {
+   "version_id": "text-chun-wang-draft",
+   "line_seq": 4,
+   "content": "恨别鸟惊心。",
+   "pinyin": null
+  },
+  {
+   "version_id": "text-chun-wang-draft",
+   "line_seq": 5,
+   "content": "烽火连三月，",
+   "pinyin": null
+  },
+  {
+   "version_id": "text-chun-wang-draft",
+   "line_seq": 6,
+   "content": "家书抵万金。",
+   "pinyin": null
+  },
+  {
+   "version_id": "text-chun-wang-draft",
+   "line_seq": 7,
+   "content": "白头搔更短，",
+   "pinyin": null
+  },
+  {
+   "version_id": "text-chun-wang-draft",
+   "line_seq": 8,
+   "content": "浑欲不胜簪。",
+   "pinyin": null
+  }
+ ],
+ "claims": [
+  {
+   "id": "claim-chun-wang-author",
+   "subject_id": "work-chun-wang",
+   "property_key": "authorship",
+   "value_text": "杜甫",
+   "claim_kind": "FACT",
+   "certainty": "UNKNOWN",
+   "status": "DRAFT"
+  },
+  {
+   "id": "claim-chun-wang-time-757",
+   "subject_id": "work-chun-wang",
+   "property_key": "time.span",
+   "value_text": "757..757 (EXACT) 说一：至德二载春困居长安时作",
+   "claim_kind": "FACT",
+   "certainty": "DISPUTED",
+   "status": "DRAFT"
+  },
+  {
+   "id": "claim-chun-wang-time-758",
+   "subject_id": "work-chun-wang",
+   "property_key": "time.span",
+   "value_text": "758..758 (EXACT) 说二：至德元载说，另有年谱系于此年",
+   "claim_kind": "FACT",
+   "certainty": "DISPUTED",
+   "status": "DRAFT"
+  },
+  {
+   "id": "claim-ann-shanhe",
+   "subject_id": "work-chun-wang",
+   "property_key": "note.word.1",
+   "value_text": "山河：指长安一带的山川。",
+   "claim_kind": "INTERPRETATION",
+   "certainty": "LIKELY",
+   "status": "DRAFT"
+  },
+  {
+   "id": "claim-ann-fenghuo",
+   "subject_id": "work-chun-wang",
+   "property_key": "note.word.5",
+   "value_text": "烽火：战火，借指持续的战事。",
+   "claim_kind": "INTERPRETATION",
+   "certainty": "LIKELY",
+   "status": "DRAFT"
+  },
+  {
+   "id": "claim-bg-scene",
+   "subject_id": "bg-chun-wang-scene",
+   "property_key": "reading",
+   "value_text": "以\"城在而山河在\"反衬物是人非。",
+   "claim_kind": "INTERPRETATION",
+   "certainty": "LIKELY",
+   "status": "DRAFT"
+  },
+  {
+   "id": "claim-bg-city",
+   "subject_id": "bg-chun-wang-city",
+   "property_key": "context",
+   "value_text": "沦陷中的京城作为处境层。",
+   "claim_kind": "INTERPRETATION",
+   "certainty": "DISPUTED",
+   "status": "DRAFT"
+  },
+  {
+   "id": "claim-bg-world",
+   "subject_id": "bg-chun-wang-world",
+   "property_key": "context",
+   "value_text": "长期战事与音信断绝构成天下层。",
+   "claim_kind": "INTERPRETATION",
+   "certainty": "DISPUTED",
+   "status": "DRAFT"
+  },
+  {
+   "id": "claim-bg-person",
+   "subject_id": "bg-chun-wang-person",
+   "property_key": "context",
+   "value_text": "困居长安、家人离散构成个人处境层。",
+   "claim_kind": "INTERPRETATION",
+   "certainty": "DISPUTED",
+   "status": "DRAFT"
+  },
+  {
+   "id": "claim-anshi-time",
+   "subject_id": "event-anshi-rebellion",
+   "property_key": "time.span",
+   "value_text": "755..763 (RANGE)",
+   "claim_kind": "FACT",
+   "certainty": "KNOWN",
+   "status": "DRAFT"
+  },
+  {
+   "id": "claim-tang-time",
+   "subject_id": "dynasty-tang",
+   "property_key": "time.span",
+   "value_text": "618..907 (RANGE)",
+   "claim_kind": "FACT",
+   "certainty": "KNOWN",
+   "status": "DRAFT"
+  },
+  {
+   "id": "claim-theme-anshi-time",
+   "subject_id": "theme-anshi-rebellion",
+   "property_key": "time.span",
+   "value_text": "755..763 (RANGE)",
+   "claim_kind": "FACT",
+   "certainty": "KNOWN",
+   "status": "DRAFT"
+  },
+  {
+   "id": "claim-dufu-time",
+   "subject_id": "person-du-fu",
+   "property_key": "time.span",
+   "value_text": "712..770 (APPROXIMATE)",
+   "claim_kind": "FACT",
+   "certainty": "LIKELY",
+   "status": "DRAFT"
+  },
+  {
+   "id": "claim-chang-an-capture-time",
+   "subject_id": "event-chang-an-capture",
+   "property_key": "time.span",
+   "value_text": "756..756 (EXACT)",
+   "claim_kind": "FACT",
+   "certainty": "LIKELY",
+   "status": "DRAFT"
+  },
+  {
+   "id": "claim-exp-757-time",
+   "subject_id": "exp-du-fu-chang-an-757",
+   "property_key": "time.span",
+   "value_text": "757..757 (EXACT)",
+   "claim_kind": "FACT",
+   "certainty": "DISPUTED",
+   "status": "DRAFT"
+  }
+ ],
+ "citations": [
+  {
+   "claim_id": "claim-chun-wang-author",
+   "source_id": "source-chun-wang-candidate",
+   "locator": "待人工核对标题与作者署名",
+   "evidence_excerpt": null,
+   "verification_status": "PENDING"
+  },
+  {
+   "claim_id": "claim-chun-wang-time-757",
+   "source_id": "source-dufu-nianpu-candidate",
+   "locator": "待人工核对：系年于至德二载的年谱与页码",
+   "evidence_excerpt": null,
+   "verification_status": "PENDING"
+  },
+  {
+   "claim_id": "claim-chun-wang-time-758",
+   "source_id": "source-dufu-nianpu-candidate",
+   "locator": "待人工核对：系年于至德元载的年谱与页码",
+   "evidence_excerpt": null,
+   "verification_status": "PENDING"
+  },
+  {
+   "claim_id": "claim-ann-shanhe",
+   "source_id": "source-dufu-nianpu-candidate",
+   "locator": "待指定注本与页码",
+   "evidence_excerpt": null,
+   "verification_status": "PENDING"
+  },
+  {
+   "claim_id": "claim-ann-fenghuo",
+   "source_id": "source-dufu-nianpu-candidate",
+   "locator": "待指定注本与页码",
+   "evidence_excerpt": null,
+   "verification_status": "PENDING"
+  },
+  {
+   "claim_id": "claim-bg-scene",
+   "source_id": "source-dufu-nianpu-candidate",
+   "locator": "待人工核对：解诗依据（注本/研究）",
+   "evidence_excerpt": null,
+   "verification_status": "PENDING"
+  },
+  {
+   "claim_id": "claim-bg-city",
+   "source_id": "source-anshi-candidate",
+   "locator": "待人工核对：城况记载卷次",
+   "evidence_excerpt": null,
+   "verification_status": "PENDING"
+  },
+  {
+   "claim_id": "claim-bg-world",
+   "source_id": "source-anshi-candidate",
+   "locator": "待人工核对：战事时长与交通阻断记载",
+   "evidence_excerpt": null,
+   "verification_status": "PENDING"
+  },
+  {
+   "claim_id": "claim-bg-person",
+   "source_id": "source-dufu-zhuan-candidate",
+   "locator": "待人工核对：本传相关原文",
+   "evidence_excerpt": null,
+   "verification_status": "PENDING"
+  },
+  {
+   "claim_id": "claim-anshi-time",
+   "source_id": "source-anshi-candidate",
+   "locator": "待人工核对：通鉴卷次与起止表述",
+   "evidence_excerpt": null,
+   "verification_status": "PENDING"
+  },
+  {
+   "claim_id": "claim-dufu-time",
+   "source_id": "source-dufu-zhuan-candidate",
+   "locator": "待人工核对：杜甫传本传原文",
+   "evidence_excerpt": null,
+   "verification_status": "PENDING"
+  },
+  {
+   "claim_id": "claim-chang-an-capture-time",
+   "source_id": "source-anshi-candidate",
+   "locator": "待人工核对：通鉴纪事年月",
+   "evidence_excerpt": null,
+   "verification_status": "PENDING"
+  },
+  {
+   "claim_id": "claim-exp-757-time",
+   "source_id": "source-dufu-nianpu-candidate",
+   "locator": "待人工核对：年谱系年",
+   "evidence_excerpt": null,
+   "verification_status": "PENDING"
+  }
+ ],
+ "backgrounds": [
+  {
+   "id": "bg-chun-wang-scene",
+   "work_id": "work-chun-wang",
+   "layer": "SCENE",
+   "audience": "PRIMARY",
+   "body_text": "城还在，山和河也还在，可它已经不是从前的样子。（草稿：以景物反衬，措辞待复核）",
+   "claim_id": "claim-bg-scene"
+  },
+  {
+   "id": "bg-chun-wang-city",
+   "work_id": "work-chun-wang",
+   "layer": "CITY",
+   "audience": "JUNIOR",
+   "body_text": "长安是帝国的心脏。（草稿：城市作为处境，需核对城况史源）",
+   "claim_id": "claim-bg-city"
+  },
+  {
+   "id": "bg-chun-wang-world",
+   "work_id": "work-chun-wang",
+   "layer": "WORLD",
+   "audience": "SENIOR",
+   "body_text": "这场战事从755年打到763年（通行纪年，待核）。（草稿）",
+   "claim_id": "claim-bg-world"
+  },
+  {
+   "id": "bg-chun-wang-person",
+   "work_id": "work-chun-wang",
+   "layer": "PERSON",
+   "audience": "JUNIOR",
+   "body_text": "写这首诗时杜甫正困在长安一带。（草稿：具体年份与官职待年谱核对）",
+   "claim_id": "claim-bg-person"
+  }
+ ],
+ "annotations": [
+  {
+   "id": "ann-chun-wang-shanhe",
+   "version_id": "text-chun-wang-draft",
+   "line_seq": 1,
+   "annotation_kind": "WORD",
+   "audience": "PRIMARY",
+   "content": "山河：指长安一带的山川。（措辞待与权威注本核对）",
+   "claim_id": "claim-ann-shanhe"
+  },
+  {
+   "id": "ann-chun-wang-fenghuo",
+   "version_id": "text-chun-wang-draft",
+   "line_seq": 5,
+   "annotation_kind": "WORD",
+   "audience": "JUNIOR",
+   "content": "烽火：战火，这里指持续未平的战事。（措辞待核）",
+   "claim_id": "claim-ann-fenghuo"
+  }
+ ],
+ "sources": [
+  {
+   "id": "source-chun-wang-candidate",
+   "title": "《春望》公开文本核查入口（待核对版本）",
+   "author": null,
+   "edition": null,
+   "url": "https://zh.wikisource.org/wiki/春望",
+   "rights_note": "仅作待核查入口；需另行核对底本、版本及使用条件。",
+   "source_kind": null,
+   "reliability": null,
+   "verification_status": "PENDING"
+  },
+  {
+   "id": "source-anshi-candidate",
+   "title": "《资治通鉴》唐纪（安史之乱相关段落）",
+   "author": "司马光",
+   "edition": "版本待定：需指定通行本与卷次",
+   "url": null,
+   "rights_note": "正史类候选来源。",
+   "source_kind": "OFFICIAL_HISTORY",
+   "reliability": "HIGH",
+   "verification_status": "PENDING"
+  },
+  {
+   "id": "source-dufu-zhuan-candidate",
+   "title": "《新唐书·杜甫传》",
+   "author": "欧阳修 等",
+   "edition": "版本待定",
+   "url": null,
+   "rights_note": "正史类候选来源；用于生平与官职，需逐条核对原文。",
+   "source_kind": "OFFICIAL_HISTORY",
+   "reliability": "HIGH",
+   "verification_status": "PENDING"
+  },
+  {
+   "id": "source-dufu-nianpu-candidate",
+   "title": "杜甫年谱类来源（待指定具体年谱与版本）",
+   "author": "待指定",
+   "edition": "待指定",
+   "url": null,
+   "rights_note": "年谱类候选来源。",
+   "source_kind": "YEAR_BOOK",
+   "reliability": "MEDIUM",
+   "verification_status": "PENDING"
+  }
+ ],
+ "background_lines": [
+  {
+   "background_id": "bg-chun-wang-scene",
+   "version_id": "text-chun-wang-draft",
+   "line_seq": 1
+  },
+  {
+   "background_id": "bg-chun-wang-scene",
+   "version_id": "text-chun-wang-draft",
+   "line_seq": 2
+  },
+  {
+   "background_id": "bg-chun-wang-city",
+   "version_id": "text-chun-wang-draft",
+   "line_seq": 1
+  },
+  {
+   "background_id": "bg-chun-wang-city",
+   "version_id": "text-chun-wang-draft",
+   "line_seq": 2
+  },
+  {
+   "background_id": "bg-chun-wang-world",
+   "version_id": "text-chun-wang-draft",
+   "line_seq": 5
+  },
+  {
+   "background_id": "bg-chun-wang-world",
+   "version_id": "text-chun-wang-draft",
+   "line_seq": 6
+  },
+  {
+   "background_id": "bg-chun-wang-person",
+   "version_id": "text-chun-wang-draft",
+   "line_seq": 7
+  },
+  {
+   "background_id": "bg-chun-wang-person",
+   "version_id": "text-chun-wang-draft",
+   "line_seq": 8
+  }
+ ],
+ "claim_status_by_id": {
+  "claim-chun-wang-author": "DRAFT",
+  "claim-chun-wang-time-757": "DRAFT",
+  "claim-chun-wang-time-758": "DRAFT",
+  "claim-ann-shanhe": "DRAFT",
+  "claim-ann-fenghuo": "DRAFT",
+  "claim-bg-scene": "DRAFT",
+  "claim-bg-city": "DRAFT",
+  "claim-bg-world": "DRAFT",
+  "claim-bg-person": "DRAFT",
+  "claim-anshi-time": "DRAFT",
+  "claim-tang-time": "DRAFT",
+  "claim-theme-anshi-time": "DRAFT",
+  "claim-dufu-time": "DRAFT",
+  "claim-chang-an-capture-time": "DRAFT",
+  "claim-exp-757-time": "DRAFT"
+ },
+ "content_status_by_id": {
+  "work-chun-wang": "DRAFT",
+  "bg-chun-wang-scene": "DRAFT",
+  "bg-chun-wang-city": "DRAFT",
+  "bg-chun-wang-world": "DRAFT",
+  "bg-chun-wang-person": "DRAFT"
+ },
+ "version_status_by_id": {
+  "text-chun-wang-draft": "DRAFT"
+ },
+ "source_verification_by_id": {
+  "source-chun-wang-candidate": "PENDING",
+  "source-anshi-candidate": "PENDING",
+  "source-dufu-zhuan-candidate": "PENDING",
+  "source-dufu-nianpu-candidate": "PENDING"
+ },
+ "coverage_rows": [
+  {
+   "id": "cov-work-755-760",
+   "entity_type": "WORK",
+   "from_year": 755,
+   "to_year": 760,
+   "coverage_kind": "PARTIAL",
+   "status": "PUBLISHED",
+   "note": "当前只录入极小样本；空白只代表尚未覆盖。"
+  },
+  {
+   "id": "cov-person-700-780",
+   "entity_type": "PERSON",
+   "from_year": 700,
+   "to_year": 780,
+   "coverage_kind": "PARTIAL",
+   "status": "PUBLISHED",
+   "note": "唐代诗人只录入个位数。"
+  },
+  {
+   "id": "cov-event-750-770",
+   "entity_type": "EVENT",
+   "from_year": 750,
+   "to_year": 770,
+   "coverage_kind": "PLANNED",
+   "status": "DRAFT",
+   "note": "事件层待补。"
+  }
+ ],
+ "gap_report": {
+  "work_id": "work-chun-wang",
+  "gaps": [
+   {
+    "code": "CLAIM_VERIFIED_CITATION_MISSING",
+    "severity": "HIGH",
+    "message": "有 15 条 Claim 缺少已核验且带 locator 的出处。",
+    "target_ref": "work-chun-wang"
+   },
+   {
+    "code": "TEXT_SOURCE_NOT_VERIFIED",
+    "severity": "HIGH",
+    "message": "有 1 个文本定本来源仍非 VERIFIED。",
+    "target_ref": "work-chun-wang"
+   },
+   {
+    "code": "ANNOTATION_COVERAGE_LOW",
+    "severity": "MEDIUM",
+    "message": "当前注释少于 4 条。",
+    "target_ref": "work-chun-wang"
+   }
+  ],
+  "audit_checks": 106,
+  "audit_non_zero": []
+ }
+}

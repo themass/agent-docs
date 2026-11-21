@@ -1,0 +1,83 @@
+{
+  "published_ids": [
+    "cov-person-700-780",
+    "cov-work-755-760"
+  ],
+  "draft_ids": [
+    "ann-chun-wang-fenghuo",
+    "ann-chun-wang-shanhe",
+    "bg-chun-wang-city",
+    "bg-chun-wang-person",
+    "bg-chun-wang-scene",
+    "bg-chun-wang-world",
+    "claim-ann-fenghuo",
+    "claim-ann-shanhe",
+    "claim-anshi-time",
+    "claim-bg-city",
+    "claim-bg-person",
+    "claim-bg-scene",
+    "claim-bg-world",
+    "claim-chang-an-capture-time",
+    "claim-chun-wang-author",
+    "claim-chun-wang-time-757",
+    "claim-chun-wang-time-758",
+    "claim-dufu-time",
+    "claim-exp-757-time",
+    "claim-tang-time",
+    "claim-theme-anshi-time",
+    "dynasty-tang",
+    "event-anshi-rebellion",
+    "event-chang-an-capture",
+    "exp-du-fu-chang-an-757",
+    "person-du-fu",
+    "place-chang-an",
+    "text-chun-wang-draft",
+    "theme-anshi-rebellion",
+    "work-chun-wang"
+  ],
+  "lines": [
+    {
+      "version_id": "text-chun-wang-draft",
+      "line_seq": 1
+    },
+    {
+      "version_id": "text-chun-wang-draft",
+      "line_seq": 2
+    },
+    {
+      "version_id": "text-chun-wang-draft",
+      "line_seq": 3
+    },
+    {
+      "version_id": "text-chun-wang-draft",
+      "line_seq": 4
+    },
+    {
+      "version_id": "text-chun-wang-draft",
+      "line_seq": 5
+    },
+    {
+      "version_id": "text-chun-wang-draft",
+      "line_seq": 6
+    },
+    {
+      "version_id": "text-chun-wang-draft",
+      "line_seq": 7
+    },
+    {
+      "version_id": "text-chun-wang-draft",
+      "line_seq": 8
+    }
+  ],
+  "cited_claim_ids": [],
+  "unknown_date_ids": [
+    "exp-du-fu-chang-an-757",
+    "work-chun-wang"
+  ],
+  "background_line_counts": {
+    "bg-chun-wang-city": 2,
+    "bg-chun-wang-person": 2,
+    "bg-chun-wang-scene": 2,
+    "bg-chun-wang-world": 2
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "mock": true,
+  "mock_note": "mock 剧本骨架,不是审定的课程。状态:草稿/待核。assets 故意留空:素材引用由 bundle-refs 从登记簿生成后合并(见 prod.mjs compile-check)。没有『见』一步:这首诗没有可靠的『此时此地』可供见到诗人,不替它编一个。",
+  "status": "草稿/待核",
+  "schema_version": "1.0",
+  "script_id": "qj-jing-ye-si",
+  "script_version": "0.0.1-mock",
+  "work_id": "work-jys",
+  "text_version_id": "text-jys-draft",
+  "audiences": ["PRIMARY", "JUNIOR"],
+  "glossary_bindings": true,
+  "coverage_notice": "本轮只整理这首诗的字面意思和意象。这首诗的创作时间与地点没有可靠的定论,因此不展示创作背景;没有展示,不代表没有背景。",
+  "unknown_dates_notice": "《静夜思》的创作时间和地点不可考,本包不指明。诗句另有不同的流传文本,本包只用其中一种,采用哪个版本待核。",
+  "annotation_ids": [],
+  "cast": [],
+  "steps": [
+    { "step": "read", "skip_allowed": true, "back_allowed": true },
+    { "step": "arrive", "skip_allowed": true, "back_allowed": true, "layers": [
+      { "layer": "SCENE", "bg_id": "bg-jys-scene", "line_seqs": [1, 2], "assets": ["a-jys-moonlight"],
+        "lines": [{ "text": "月光洒在地上,白白的一片,诗里说它“疑是地上霜”。", "kind": "INTERPRETATION",
+                    "basis": { "claim_id": "claim-jys-simile" } }] }
+    ] },
+    { "step": "return", "skip_allowed": true, "back_allowed": true, "layers": [
+      { "layer": "SCENE", "bg_id": "bg-jys-scene", "line_seqs": [3, 4],
+        "lines": [{ "text": "先抬头看月亮,再低头想起家乡:这两句里,动作的变化连着心里的变化。", "kind": "INTERPRETATION",
+                    "basis": { "claim_id": "claim-jys-turn" } }] }
+    ], "text_side": { "annotations": [] } },
+    { "step": "recite", "skip_allowed": true, "back_allowed": true, "demo_audio": "a-jys-recite",
+      "learner_recording": { "policy": "local_only", "upload": false },
+      "agent_help": { "mode": "guided", "actions": ["rephrase", "hint", "ask_why"] },
+      "layers": [
+        { "layer": "SCENE", "bg_id": "bg-jys-scene", "line_seqs": [1, 2, 3, 4], "assets": ["a-jys-recite"] }
+      ] }
+  ],
+  "assets": {}
+}

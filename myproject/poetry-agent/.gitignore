@@ -1,0 +1,35 @@
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.dist/
+build/
+dist/
+coverage.xml
+htmlcov/
+.DS_Store
+runtime-data/
+
+.local-db-backups/
+# Official DeerFlow source checkout is deployment material; provenance is tracked in content-agent/deploy/upstream/deerflow.lock.
+content-agent/deploy/upstream/deer-flow-v*/
+
+# --- project layout (2026-11-06) ---
+node_modules/
+**/node_modules/
+# generated: compiled bundles and the web build output are reproducible from source
+content-agent/pipeline/dist/
+student-app/frontend/dist/
+# local env files with real credentials; only .env.example is tracked
+content-agent/deploy/.env
+content-agent/deploy/.env.*
+!content-agent/deploy/.env.example
+content-agent/frontend/dist/
+
+# 本地离线演示的 pid 与日志 (任务 A / S2)
+content-agent/deploy/dev-mock/.run/

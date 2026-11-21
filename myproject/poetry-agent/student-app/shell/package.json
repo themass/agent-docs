@@ -1,0 +1,27 @@
+{
+  "name": "@xuexi/student-shell",
+  "version": "0.1.0",
+  "private": true,
+  "description": "诗词时空学生端的 Capacitor 移动壳(Android/iOS)。壳 = 原生能力 + 同一份 Web 场景运行时;不复制前端文件,webDir 指向 make student-web 的输出。",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "prepare:web": "node scripts/prepare-web.mjs",
+    "sync:android": "npm run prepare:web && cap sync android",
+    "sync:ios": "npm run prepare:web && cap sync ios",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "check": "node scripts/check-shell.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.6.0",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.6.0",
+    "@capacitor/ios": "8.6.0",
+    "@capacitor/share": "8.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.6.0",
+    "typescript": "5.9.3"
+  }
+}

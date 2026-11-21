@@ -1,0 +1,11 @@
+/* 「我想问」输入框。自成一个文件，由 ui/ask-box.js 首次渲染时挂载一次。 */
+.ask { margin: var(--s3) 0; }
+.ask-box { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
+.ask-input {
+  flex: 1 1 14rem; min-height: 44px; padding: 0 var(--s3); box-sizing: border-box;
+  font: inherit; color: inherit; background: var(--paper-raised);
+  border: 1px solid var(--ink-faint); border-radius: var(--r2);
+}
+.ask-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ask-box .btn { flex: none; }
+.ask-answer:empty { display: none; }

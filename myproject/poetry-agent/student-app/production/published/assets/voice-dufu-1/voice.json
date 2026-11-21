@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "voice_id": "voice-dufu-1",
+  "provider": "Apple macOS say(系统自带语音)",
+  "model": "Grandpa (中文（中国大陆）)",
+  "version": "macOS 26.6.2",
+  "params": {
+    "rate_wpm": 170
+  },
+  "language": "zh-CN",
+  "license_scope": "占位:系统语音的商用授权未核实,不可上线",
+  "cloning_allowed": false,
+  "source_speaker_consent": "n/a",
+  "sample": "sample.m4a",
+  "placeholder": true
+}

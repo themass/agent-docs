@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "task_id": "a-jys-moonlight-text",
+  "delivered_at": "2026-11-07T03:18:19.920Z",
+  "author": "placeholder-generator",
+  "rights": {
+    "origin": "由任务单脚本文本派生(底座/剧本已有文字,未新增史实)",
+    "license": "自有占位,不可上线",
+    "workflow": "tools/gen/gen-text.mjs",
+    "human_fix": false,
+    "author": "placeholder-generator",
+    "evidence": [],
+    "notes": "占位素材,代码生成,不可上线。"
+  },
+  "placeholder": true,
+  "notes": "占位:让学生端先跑通。正式素材交付后会以同一 asset_id 替换。"
+}

@@ -1,0 +1,658 @@
+{
+  "schema_version": "1.0",
+  "poem": "chun-wang",
+  "script_id": "qj-chun-wang",
+  "generated_at": "2026-11-06T15:47:24.414Z",
+  "uri_root": "published/",
+  "assets": {
+    "a-changan-dusk": {
+      "kind": "illustration",
+      "level": "L1",
+      "hash": "89f4f3f0b89b26eff46c03ea1aaaf5e7005606e7e71dac7826b52995acb52b3b",
+      "files": {
+        "json": "assets/a-changan-dusk/parallax.json",
+        "poster": "assets/a-changan-dusk/poster.webp",
+        "layers": [
+          "assets/a-changan-dusk/layers/far.svg",
+          "assets/a-changan-dusk/layers/grass.svg",
+          "assets/a-changan-dusk/layers/mid.svg",
+          "assets/a-changan-dusk/layers/mist.svg",
+          "assets/a-changan-dusk/layers/sky.svg"
+        ]
+      },
+      "fallback": [
+        "a-changan-dusk-text"
+      ],
+      "rights": {
+        "origin": "自生成占位(代码绘制的几何水墨风 SVG)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-scene.mjs",
+        "human_fix": false
+      },
+      "meaning": "让学生感到“城还在,但已经残破”——对应『国破山河在,城春草木深』",
+      "render": "parallax",
+      "placeholder": true
+    },
+    "a-changan-dusk-text": {
+      "kind": "subtitle",
+      "level": "L0",
+      "hash": "403df3ba9fa4c9f023a95d0c7ae741c31ddc1bd2583cf95abe6f8b867aaae979",
+      "files": {
+        "txt": "assets/a-changan-dusk-text/card.txt"
+      },
+      "fallback": [
+        "L0-text"
+      ],
+      "rights": {
+        "origin": "由任务单脚本文本派生(底座/剧本已有文字,未新增史实)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-text.mjs",
+        "human_fix": false
+      },
+      "meaning": "图没加载时,仍告诉学生此处是春天的长安,城在、草木深——文字永远是降级终点",
+      "render": "text-card",
+      "placeholder": true
+    },
+    "a-chang-an-map": {
+      "kind": "map",
+      "level": "L1",
+      "hash": "08cb3d000f05a3ca54fcbf8257a2b6a8c72cf3241884788b5cc4e9a5df3192bb",
+      "files": {
+        "svg": "assets/a-chang-an-map/map.svg"
+      },
+      "fallback": [
+        "a-chang-an-map-text"
+      ],
+      "rights": {
+        "origin": "自生成占位(代码绘制的示意方框,只写『长安』二字)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-scene.mjs",
+        "human_fix": false
+      },
+      "meaning": "让学生知道长安的规模与位置——对应『城春草木深』里的『城』",
+      "render": "still",
+      "placeholder": true
+    },
+    "a-chang-an-map-text": {
+      "kind": "subtitle",
+      "level": "L0",
+      "hash": "631f52a50c02501a7ed39aeb7764173b15a2e004b3443bab4a5dec411512e2e7",
+      "files": {
+        "txt": "assets/a-chang-an-map-text/card.txt"
+      },
+      "fallback": [
+        "L0-text"
+      ],
+      "rights": {
+        "origin": "由任务单脚本文本派生(底座/剧本已有文字,未新增史实)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-text.mjs",
+        "human_fix": false
+      },
+      "meaning": "地图没加载时,用文字告诉学生长安是唐代都城——这是内容底座已有的结论",
+      "render": "text-card",
+      "placeholder": true
+    },
+    "a-dufu-bust": {
+      "kind": "character",
+      "level": "L3",
+      "hash": "6503122fc5ed3eca56b54ce5399c4661241ef370b3a48065ed930b47cd013b48",
+      "files": {
+        "poster": "characters/du-fu/still.svg",
+        "json": "characters/du-fu/manifest.json",
+        "layers": [
+          "characters/du-fu/layers/body.svg",
+          "characters/du-fu/layers/head.svg",
+          "characters/du-fu/layers/hair.svg",
+          "characters/du-fu/layers/brow_l.svg",
+          "characters/du-fu/layers/brow_r.svg",
+          "characters/du-fu/layers/eyes_open.svg",
+          "characters/du-fu/layers/eyes_closed.svg",
+          "characters/du-fu/layers/mouth.svg",
+          "characters/du-fu/layers/mouth_open.svg",
+          "characters/du-fu/layers/mouth_sorrow.svg"
+        ]
+      },
+      "fallback": [
+        "a-dufu-still"
+      ],
+      "rights": {
+        "origin": "代码生成的占位素材(tools/gen/gen-character-dufu.mjs)",
+        "license": "own",
+        "workflow": "student-app/production/tools/gen/gen-character-dufu.mjs",
+        "human_fix": false
+      },
+      "meaning": "让学生见到此时此地的诗人,而不是一个通用古人像(杜甫(占位);演绎形象,非画像)",
+      "render": "character-svg-layers",
+      "placeholder": true
+    },
+    "a-dufu-still": {
+      "kind": "illustration",
+      "level": "L1",
+      "hash": "8bfaa561612627a156de6a8b677b91766719b8e26a8483a6afec4f3707f7d9ea",
+      "files": {
+        "svg": "characters/du-fu/still.svg"
+      },
+      "fallback": [
+        "a-dufu-text"
+      ],
+      "rights": {
+        "origin": "代码生成的占位素材(tools/gen/gen-character-dufu.mjs)",
+        "license": "own",
+        "workflow": "student-app/production/tools/gen/gen-character-dufu.mjs",
+        "human_fix": false
+      },
+      "meaning": "角色动画不可用时仍保留“有人在场”(杜甫(占位)静帧;演绎形象)",
+      "render": "still",
+      "placeholder": true
+    },
+    "a-dufu-text": {
+      "kind": "subtitle",
+      "level": "L0",
+      "hash": "c09a9972ade5d9d801201c1b2b734b8344131855163623ebc31b5c453e88b3a6",
+      "files": {
+        "txt": "characters/du-fu/alt.txt"
+      },
+      "fallback": [
+        "L0-text"
+      ],
+      "rights": {
+        "origin": "代码生成的占位素材(tools/gen/gen-character-dufu.mjs)",
+        "license": "own",
+        "workflow": "student-app/production/tools/gen/gen-character-dufu.mjs",
+        "human_fix": false
+      },
+      "meaning": "角色动画和图都不可用时,仍用文字告诉学生此处有人在场(杜甫(占位))",
+      "render": "text-card",
+      "placeholder": true
+    },
+    "voice-dufu-1": {
+      "kind": "voice",
+      "level": "L2",
+      "hash": "e4e46f218ea4ffe5be665d85882488af7733649e906136d2d562c7e4628266d8",
+      "files": {
+        "json": "assets/voice-dufu-1/voice.json",
+        "sample": "assets/voice-dufu-1/sample.m4a"
+      },
+      "fallback": [
+        "a-recite-demo-subtitle"
+      ],
+      "rights": {
+        "origin": "自生成占位(macOS say 合成)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false
+      },
+      "meaning": "让“杜甫”开口时有稳定的音色身份,而不是每次换一种声音",
+      "render": "audio",
+      "placeholder": true
+    },
+    "a-recite-demo": {
+      "kind": "audio",
+      "level": "L2",
+      "hash": "cb73856cf6a715d8d7d61fc9c631c60dfaf39f5af6e74895d847d1f2e7333ef1",
+      "files": {
+        "m4a": "assets/a-recite-demo/recite.m4a"
+      },
+      "fallback": [
+        "a-recite-demo-subtitle"
+      ],
+      "rights": {
+        "origin": "自生成占位(macOS say 朗读,韵律不可信)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false
+      },
+      "meaning": "示范停顿与韵律,学生知道这句该怎么读出来——对应全诗八句",
+      "render": "audio",
+      "placeholder": true
+    },
+    "a-recite-demo-subtitle": {
+      "kind": "subtitle",
+      "level": "L0",
+      "hash": "98fab62e58bc148ca17a64932942120c6f104e70b1077f3864537c0df68c6b7a",
+      "files": {
+        "vtt": "assets/a-recite-demo-subtitle/captions.vtt"
+      },
+      "fallback": [
+        "L0-text"
+      ],
+      "rights": {
+        "origin": "由诗句全文派生,时间轴按占位音频时长分配",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false
+      },
+      "meaning": "音频不可用时,文本与断句仍在(也是无障碍与降级必需)",
+      "render": "subtitle-track",
+      "placeholder": true
+    },
+    "a-nar-arrive-scene": {
+      "kind": "audio",
+      "level": "L2",
+      "hash": "7d9a047105824bcf2894505326c2baf51a32d23830a55212a2eeaade689218cb",
+      "files": {
+        "m4a": "assets/a-nar-arrive-scene/narration.m4a"
+      },
+      "fallback": [
+        "a-nar-arrive-scene-sub"
+      ],
+      "rights": {
+        "origin": "自生成占位(macOS say 合成)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false
+      },
+      "meaning": "用声音带学生进入“城还在,但已残破”的眼前一层",
+      "render": "audio",
+      "placeholder": true
+    },
+    "a-nar-arrive-scene-sub": {
+      "kind": "subtitle",
+      "level": "L0",
+      "hash": "f62259b1e236e0528e88beb55e27099ceb046e5fb8549e5a3098dd2c2b72085b",
+      "files": {
+        "vtt": "assets/a-nar-arrive-scene-sub/captions.vtt"
+      },
+      "fallback": [
+        "L0-text"
+      ],
+      "rights": {
+        "origin": "由 bundle 台词派生,时间轴按占位音频时长分配",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false
+      },
+      "meaning": "旁白不可用时,这一层的文字仍完整可读",
+      "render": "subtitle-track",
+      "placeholder": true
+    },
+    "a-nar-arrive-city": {
+      "kind": "audio",
+      "level": "L2",
+      "hash": "95f7cba1ba400efceb94bd60ba5275656528071bfdab5046630cbde08c9f18c8",
+      "files": {
+        "m4a": "assets/a-nar-arrive-city/narration.m4a"
+      },
+      "fallback": [
+        "a-nar-arrive-city-sub"
+      ],
+      "rights": {
+        "origin": "自生成占位(macOS say 合成)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false
+      },
+      "meaning": "让学生听到长安是都城、不是边地小城",
+      "render": "audio",
+      "placeholder": true
+    },
+    "a-nar-arrive-city-sub": {
+      "kind": "subtitle",
+      "level": "L0",
+      "hash": "c5253ae3cf407c12061de7f855df5eaa0f833e73a65148972c1399cd4d90dad5",
+      "files": {
+        "vtt": "assets/a-nar-arrive-city-sub/captions.vtt"
+      },
+      "fallback": [
+        "L0-text"
+      ],
+      "rights": {
+        "origin": "由 bundle 台词派生,时间轴按占位音频时长分配",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false
+      },
+      "meaning": "旁白不可用时,这一层的文字仍完整可读",
+      "render": "subtitle-track",
+      "placeholder": true
+    },
+    "a-nar-arrive-world": {
+      "kind": "audio",
+      "level": "L2",
+      "hash": "6dfeca147edfb615a161b4262d21bedb9b9dbbe3dde03fb846abba6ef69606ad",
+      "files": {
+        "m4a": "assets/a-nar-arrive-world/narration.m4a"
+      },
+      "fallback": [
+        "a-nar-arrive-world-sub"
+      ],
+      "rights": {
+        "origin": "自生成占位(macOS say 合成)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false
+      },
+      "meaning": "让学生听到战事持续、音信不通——对应『烽火连三月,家书抵万金』的处境",
+      "render": "audio",
+      "placeholder": true
+    },
+    "a-nar-arrive-world-sub": {
+      "kind": "subtitle",
+      "level": "L0",
+      "hash": "ec0743b19a673f27ccc763a808d35f8f29d89cc56fb69bbcf68538207917acec",
+      "files": {
+        "vtt": "assets/a-nar-arrive-world-sub/captions.vtt"
+      },
+      "fallback": [
+        "L0-text"
+      ],
+      "rights": {
+        "origin": "由 bundle 台词派生,时间轴按占位音频时长分配",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false
+      },
+      "meaning": "旁白不可用时,这一层的文字仍完整可读",
+      "render": "subtitle-track",
+      "placeholder": true
+    },
+    "a-nar-arrive-person": {
+      "kind": "audio",
+      "level": "L2",
+      "hash": "114524d63c3e975a5314b99da3b89ebdbd30a17ad3f7d1c72e4a7c0dea4b85d2",
+      "files": {
+        "m4a": "assets/a-nar-arrive-person/narration.m4a"
+      },
+      "fallback": [
+        "a-nar-arrive-person-sub"
+      ],
+      "rights": {
+        "origin": "自生成占位(macOS say 合成)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false
+      },
+      "meaning": "让学生听到诗人当时孤身一人、家人不在身边——对应『白头搔更短』的处境",
+      "render": "audio",
+      "placeholder": true
+    },
+    "a-nar-arrive-person-sub": {
+      "kind": "subtitle",
+      "level": "L0",
+      "hash": "c04f1ec8770b132540819b946d7ec5a6d58f9ef039e4592499d3e54d861b9c50",
+      "files": {
+        "vtt": "assets/a-nar-arrive-person-sub/captions.vtt"
+      },
+      "fallback": [
+        "L0-text"
+      ],
+      "rights": {
+        "origin": "由 bundle 台词派生,时间轴按占位音频时长分配",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false
+      },
+      "meaning": "旁白不可用时,这一层的文字仍完整可读",
+      "render": "subtitle-track",
+      "placeholder": true
+    },
+    "a-nar-meet-dufu": {
+      "kind": "audio",
+      "level": "L2",
+      "hash": "087af268908b5c895a84abd1b93ef377b8c7d1bef2957b2abd2faecb99cdb663",
+      "files": {
+        "m4a": "assets/a-nar-meet-dufu/narration.m4a"
+      },
+      "fallback": [
+        "a-nar-meet-dufu-sub"
+      ],
+      "rights": {
+        "origin": "自生成占位(macOS say 合成)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false
+      },
+      "meaning": "让学生听到诗人本人的口吻——这是教学演绎,不是史料",
+      "render": "audio",
+      "placeholder": true
+    },
+    "a-nar-meet-dufu-sub": {
+      "kind": "subtitle",
+      "level": "L0",
+      "hash": "2a6209afd21d73cc03731a1d525db9fb60926c085beaefa09a31f1a40c96ca2c",
+      "files": {
+        "vtt": "assets/a-nar-meet-dufu-sub/captions.vtt"
+      },
+      "fallback": [
+        "L0-text"
+      ],
+      "rights": {
+        "origin": "由 bundle 台词派生,时间轴按占位音频时长分配",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false
+      },
+      "meaning": "台词音频不可用时,演绎台词仍以文字带『演绎』角标显示",
+      "render": "subtitle-track",
+      "placeholder": true
+    },
+    "a-nar-return-world": {
+      "kind": "audio",
+      "level": "L2",
+      "hash": "c8c2d94cadf44740a51784c941b59a27fd098cf94752c1034db62b72749a5211",
+      "files": {
+        "m4a": "assets/a-nar-return-world/narration.m4a"
+      },
+      "fallback": [
+        "a-nar-return-world-sub"
+      ],
+      "rights": {
+        "origin": "自生成占位(macOS say 合成)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false
+      },
+      "meaning": "让学生听到『国破』是记事不是写景,落回第一句",
+      "render": "audio",
+      "placeholder": true
+    },
+    "a-nar-return-world-sub": {
+      "kind": "subtitle",
+      "level": "L0",
+      "hash": "a6cfa4d07e6484ad0a7200135d1cae52a952853bff5ba4ccdde71ff65d69ae47",
+      "files": {
+        "vtt": "assets/a-nar-return-world-sub/captions.vtt"
+      },
+      "fallback": [
+        "L0-text"
+      ],
+      "rights": {
+        "origin": "由 bundle 台词派生,时间轴按占位音频时长分配",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false
+      },
+      "meaning": "旁白不可用时,这条解释仍以文字呈现",
+      "render": "subtitle-track",
+      "placeholder": true
+    },
+    "a-nar-return-person": {
+      "kind": "audio",
+      "level": "L2",
+      "hash": "491f5a2f35d4b56fa911790ffe331d17fbd21225405d44bad963e63ec609c16a",
+      "files": {
+        "m4a": "assets/a-nar-return-person/narration.m4a"
+      },
+      "fallback": [
+        "a-nar-return-person-sub"
+      ],
+      "rights": {
+        "origin": "自生成占位(macOS say 合成)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false
+      },
+      "meaning": "让学生听到『抵万金』为什么有分量,落回第六句",
+      "render": "audio",
+      "placeholder": true
+    },
+    "a-nar-return-person-sub": {
+      "kind": "subtitle",
+      "level": "L0",
+      "hash": "d8e6b59f7fd11f87ba2da044e054b68ec843ef56a9539ba26da76b2301cb8a01",
+      "files": {
+        "vtt": "assets/a-nar-return-person-sub/captions.vtt"
+      },
+      "fallback": [
+        "L0-text"
+      ],
+      "rights": {
+        "origin": "由 bundle 台词派生,时间轴按占位音频时长分配",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false
+      },
+      "meaning": "旁白不可用时,这条解释仍以文字呈现",
+      "render": "subtitle-track",
+      "placeholder": true
+    },
+    "a-sfx-birds": {
+      "kind": "audio",
+      "level": "L2",
+      "hash": "9bef2e537eb216b4812b64b2dd077c8a9ae1fbd42c0beb976ad597c6fdc6c910",
+      "files": {
+        "m4a": "assets/a-sfx-birds/sfx.m4a"
+      },
+      "fallback": [
+        "a-sfx-birds-text"
+      ],
+      "rights": {
+        "origin": "自生成占位(ffmpeg 合成的几声短促啁啾)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-audio.mjs",
+        "human_fix": false
+      },
+      "meaning": "给『恨别鸟惊心』一点环境声,让学生意识到春天的鸟鸣与诗人心境的反差",
+      "render": "audio",
+      "placeholder": true
+    },
+    "a-sfx-birds-text": {
+      "kind": "subtitle",
+      "level": "L0",
+      "hash": "8cee6a016959454ac153284e37b6bd5d03b2783ce4543b59a512ae2152efdbc5",
+      "files": {
+        "txt": "assets/a-sfx-birds-text/card.txt"
+      },
+      "fallback": [
+        "L0-text"
+      ],
+      "rights": {
+        "origin": "由任务单脚本文本派生(底座/剧本已有文字,未新增史实)",
+        "license": "自有占位,不可上线",
+        "workflow": "tools/gen/gen-chun-wang-text.mjs",
+        "human_fix": false
+      },
+      "meaning": "音效不可用时,用文字提醒学生诗里写到了鸟——不影响理解",
+      "render": "text-card",
+      "placeholder": true
+    }
+  },
+  "usage": {
+    "a-changan-dusk": [
+      "steps[1].layers[0].assets",
+      "steps[4].layers[0].assets"
+    ],
+    "a-changan-dusk-text": [
+      "assets.a-changan-dusk.fallback"
+    ],
+    "a-chang-an-map": [
+      "steps[1].layers[1].assets"
+    ],
+    "a-chang-an-map-text": [
+      "assets.a-chang-an-map.fallback"
+    ],
+    "a-dufu-bust": [
+      "cast[0].avatar_asset",
+      "steps[2].roleplay.layers[0].assets"
+    ],
+    "a-dufu-still": [
+      "assets.a-dufu-bust.fallback"
+    ],
+    "a-dufu-text": [
+      "assets.a-dufu-still.fallback"
+    ],
+    "voice-dufu-1": [
+      "cast[0].voice_id"
+    ],
+    "a-recite-demo": [
+      "steps[4].demo_audio"
+    ],
+    "a-recite-demo-subtitle": [
+      "assets.a-recite-demo.fallback"
+    ],
+    "a-nar-arrive-scene": [
+      "steps[1].layers[0].lines[0]"
+    ],
+    "a-nar-arrive-scene-sub": [
+      "assets.a-nar-arrive-scene.fallback"
+    ],
+    "a-nar-arrive-city": [
+      "steps[1].layers[1].lines[0]"
+    ],
+    "a-nar-arrive-city-sub": [
+      "assets.a-nar-arrive-city.fallback"
+    ],
+    "a-nar-arrive-world": [
+      "steps[1].layers[2].lines[0]"
+    ],
+    "a-nar-arrive-world-sub": [
+      "assets.a-nar-arrive-world.fallback"
+    ],
+    "a-nar-arrive-person": [
+      "steps[1].layers[3].lines[0]"
+    ],
+    "a-nar-arrive-person-sub": [
+      "assets.a-nar-arrive-person.fallback"
+    ],
+    "a-nar-meet-dufu": [
+      "steps[2].roleplay.layers[0].lines[0]"
+    ],
+    "a-nar-meet-dufu-sub": [
+      "assets.a-nar-meet-dufu.fallback"
+    ],
+    "a-nar-return-world": [
+      "steps[3].layers[0].lines[0]"
+    ],
+    "a-nar-return-world-sub": [
+      "assets.a-nar-return-world.fallback"
+    ],
+    "a-nar-return-person": [
+      "steps[3].layers[1].lines[0]"
+    ],
+    "a-nar-return-person-sub": [
+      "assets.a-nar-return-person.fallback"
+    ],
+    "a-sfx-birds": [],
+    "a-sfx-birds-text": []
+  },
+  "missing": [],
+  "placeholders": [
+    "a-changan-dusk",
+    "a-changan-dusk-text",
+    "a-chang-an-map",
+    "a-chang-an-map-text",
+    "a-dufu-bust",
+    "a-dufu-still",
+    "a-dufu-text",
+    "voice-dufu-1",
+    "a-recite-demo",
+    "a-recite-demo-subtitle",
+    "a-nar-arrive-scene",
+    "a-nar-arrive-scene-sub",
+    "a-nar-arrive-city",
+    "a-nar-arrive-city-sub",
+    "a-nar-arrive-world",
+    "a-nar-arrive-world-sub",
+    "a-nar-arrive-person",
+    "a-nar-arrive-person-sub",
+    "a-nar-meet-dufu",
+    "a-nar-meet-dufu-sub",
+    "a-nar-return-world",
+    "a-nar-return-world-sub",
+    "a-nar-return-person",
+    "a-nar-return-person-sub",
+    "a-sfx-birds",
+    "a-sfx-birds-text"
+  ]
+}

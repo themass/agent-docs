@@ -1,0 +1,3308 @@
+{
+  "schema_version": "1.0",
+  "poem": "chun-wang",
+  "title": "春望(杜甫)",
+  "generated_by": "tools/prod.mjs gen",
+  "tasks": [
+    {
+      "task_id": "a-changan-dusk",
+      "poem": "chun-wang",
+      "type": "parallax-scene",
+      "title": "春日长安(视差场景)",
+      "asset_id": "a-changan-dusk",
+      "kind": "illustration",
+      "level": "L1",
+      "render": "parallax",
+      "registry": true,
+      "priority": "P0",
+      "usage": {
+        "steps": [
+          "arrive",
+          "recite"
+        ],
+        "layers": [
+          "SCENE"
+        ],
+        "line_seqs": [
+          1,
+          2
+        ],
+        "lines_text": [
+          "国破山河在",
+          "城春草木深"
+        ],
+        "bundle_refs": [
+          "steps[1].layers[0].assets",
+          "steps[4].layers[0].assets"
+        ],
+        "purpose": "让学生感到“城还在,但已经残破”——对应『国破山河在,城春草木深』"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "parallax.json",
+          "formats": [
+            "json"
+          ],
+          "required": true,
+          "constraints": {
+            "json_schema": "parallax-manifest",
+            "max_bytes": 8000
+          }
+        },
+        {
+          "role": "layer",
+          "filename": "layers/*",
+          "formats": [
+            "svg",
+            "png",
+            "webp"
+          ],
+          "required": true,
+          "min_count": 3,
+          "max_count": 6,
+          "constraints": {
+            "max_bytes": 350000,
+            "alpha": true,
+            "svg_viewbox_equals_canvas": true,
+            "no_script": true
+          }
+        },
+        {
+          "role": "poster",
+          "filename": "poster.webp",
+          "formats": [
+            "webp"
+          ],
+          "required": true,
+          "constraints": {
+            "min_width": 1280,
+            "min_height": 720,
+            "aspect": "16:9",
+            "max_bytes": 450000
+          },
+          "note": "所有层合成的静帧,弱网/减少动效时使用。"
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license"
+        ],
+        "allowed_origins": [
+          "自绘",
+          "外包绘制",
+          "AI 生成(须写明模型与版本,且经人工修复)",
+          "自生成占位"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "外包:合同编号;AI 生成:工作流 JSON@hash;自绘:作者声明"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/a-changan-dusk/ 含 delivery.json(来源、授权、交付人)",
+          "entry:parallax.json(json) 必需;json_schema=parallax-manifest, max_bytes=8000",
+          "layer:layers/*(svg/png/webp) 必需,至少 3 个,至多 6 个;max_bytes=350000, alpha=true, svg_viewbox_equals_canvas=true, no_script=true",
+          "poster:poster.webp(webp) 必需;min_width=1280, min_height=720, aspect=16:9, max_bytes=450000"
+        ],
+        "human": [
+          "拼合后与 poster 一致",
+          "移动时无『纸片感』:远近层级合理",
+          "每一层单独看都不含禁止出现的物件",
+          "减少动效模式下 poster 单独可用",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用",
+          "已确认界面会带『演绎』标识,素材本身不冒充史料"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": "a-changan-dusk-text",
+        "note": "降级目标类型:text-card"
+      },
+      "brief": {
+        "creative_notes": "春天的长安城,远处有山,中景是城郭的概括轮廓,近景是长得很深的草木。画面重点是落差:城还在,但静;草木很盛,人很少。色调取淡墨与宣纸底,少量青绿;不要鲜艳。分 4–5 层(天空/远山/城郭/草木/近草),便于视差。",
+        "style": [
+          "层从远到近:天空/远山/中景(城郭)/近景(草木),每层透明背景",
+          "层间相对位移由 parallax.json 的 depth(0=不动,1=最大)给出,不超过 ±3% 画布宽度",
+          "同风格同色板,层与层拼合后无明显接缝"
+        ],
+        "grounding": "诗句『国破山河在,城春草木深』(山河、城、春、草木);bundle SCENE 层台词『城还在,但城门和城墙像是烧过又重新修过』属 INTERPRETATION,依据 claim-bg-scene 尚未核查。『烧过又修过』的具体痕迹没有场景要素表依据,画面不得具体描绘,只用概括的残旧感。",
+        "forbidden_elements": [
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "可辨认的真实人物面部或肖像",
+          "任何没有场景要素表依据的服饰、兵器、旗帜、器物、建筑形制细节(城墙/城门只画概括轮廓)",
+          "把演绎当作史实呈现:天气、动作、心理、对白一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹",
+          "画出人物",
+          "画出战争场面、尸体、血迹、武器、旗帜",
+          "写实的建筑纹样"
+        ],
+        "depiction": "DRAMATIZATION",
+        "references": []
+      },
+      "placeholder_plan": {
+        "strategy": "generated-svg",
+        "generator": "tools/gen/gen-chun-wang-scene.mjs"
+      },
+      "source": {
+        "demand": "tasks/chun-wang/demand.json",
+        "bundle": "../runtime/contracts/sample.chun-wang.json"
+      },
+      "dispatch_hold": "《春望》的场景要素表(地点、季节、时段、天气、可见物件、禁止出现项)尚未建立:查遍 docs/ 与 content-agent/ 只有设计文档提到它,没有数据。器物、服饰、建筑细节没有依据,不得派发给绘制方。建立后解除。"
+    },
+    {
+      "task_id": "a-changan-dusk-text",
+      "poem": "chun-wang",
+      "type": "text-card",
+      "title": "春日长安(文字卡)",
+      "asset_id": "a-changan-dusk-text",
+      "kind": "subtitle",
+      "level": "L0",
+      "render": "text-card",
+      "registry": true,
+      "priority": "P0",
+      "usage": {
+        "steps": [
+          "arrive"
+        ],
+        "layers": [
+          "SCENE"
+        ],
+        "line_seqs": [
+          1,
+          2
+        ],
+        "lines_text": [
+          "国破山河在",
+          "城春草木深"
+        ],
+        "bundle_refs": [
+          "assets.a-changan-dusk.fallback"
+        ],
+        "purpose": "图没加载时,仍告诉学生此处是春天的长安,城在、草木深——文字永远是降级终点"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "card.txt",
+          "formats": [
+            "txt"
+          ],
+          "required": true,
+          "constraints": {
+            "max_bytes": 4000
+          }
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license"
+        ],
+        "allowed_origins": [
+          "由底座/剧本文本派生",
+          "自生成占位"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "外包:合同编号;AI 生成:工作流 JSON@hash;自绘:作者声明"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/a-changan-dusk-text/ 含 delivery.json(来源、授权、交付人)",
+          "entry:card.txt(txt) 必需;max_bytes=4000",
+          "文字类交付物(字幕/文字卡/脚本)与任务单 brief.script_text 逐字一致(忽略空白)"
+        ],
+        "human": [
+          "不含无依据的史实",
+          "没有图也能读懂",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": null,
+        "note": "降级终点或不参与降级"
+      },
+      "brief": {
+        "creative_notes": "一到两句话,只复述诗句本身的画面(城、春、草木),不添加天气、人物动作、具体建筑。",
+        "style": [
+          "一到三句话,说清这里原本是什么图/声,学生仍能读懂",
+          "来自内容底座或剧本的文字,不另写史实"
+        ],
+        "grounding": "仅取诗句『城春草木深』的字面意思。",
+        "forbidden_elements": [
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "可辨认的真实人物面部或肖像",
+          "任何没有场景要素表依据的服饰、兵器、旗帜、器物、建筑形制细节(城墙/城门只画概括轮廓)",
+          "把演绎当作史实呈现:天气、动作、心理、对白一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹"
+        ],
+        "depiction": "INTERPRETATION",
+        "references": [],
+        "script_text": "春天的长安。城还在,草木已经长得很深。",
+        "script_text_sha256": "e103a199f09b9aedbc9091ba2c1d0d772e5d3d7c89dbe901d950b6e58334689f"
+      },
+      "placeholder_plan": {
+        "strategy": "generated-text",
+        "generator": "tools/gen/gen-chun-wang-text.mjs"
+      },
+      "source": {
+        "demand": "tasks/chun-wang/demand.json",
+        "bundle": "../runtime/contracts/sample.chun-wang.json"
+      },
+      "companion_of": "a-changan-dusk"
+    },
+    {
+      "task_id": "a-chang-an-map",
+      "poem": "chun-wang",
+      "type": "map",
+      "title": "长安示意地图",
+      "asset_id": "a-chang-an-map",
+      "kind": "map",
+      "level": "L1",
+      "render": "still",
+      "registry": true,
+      "priority": "P1",
+      "usage": {
+        "steps": [
+          "arrive"
+        ],
+        "layers": [
+          "CITY"
+        ],
+        "line_seqs": [
+          1,
+          2
+        ],
+        "lines_text": [
+          "国破山河在",
+          "城春草木深"
+        ],
+        "bundle_refs": [
+          "steps[1].layers[1].assets"
+        ],
+        "purpose": "让学生知道长安的规模与位置——对应『城春草木深』里的『城』"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "map.svg",
+          "formats": [
+            "svg"
+          ],
+          "required": true,
+          "constraints": {
+            "max_bytes": 120000,
+            "no_script": true
+          }
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license"
+        ],
+        "allowed_origins": [
+          "自绘",
+          "外包绘制",
+          "自生成占位"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "外包:合同编号;AI 生成:工作流 JSON@hash;自绘:作者声明"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/a-chang-an-map/ 含 delivery.json(来源、授权、交付人)",
+          "entry:map.svg(svg) 必需;max_bytes=120000, no_script=true"
+        ],
+        "human": [
+          "每个标注的地名都能在底座地点条目里找到",
+          "写明『示意图』",
+          "没有凭空添加的城门、坊市、宫殿名",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": "a-chang-an-map-text",
+        "note": "降级目标类型:text-card"
+      },
+      "brief": {
+        "creative_notes": "示意图而非考据复原:一个城郭方框、注明『长安』,标出内容底座已发布的相关地点(待 place-chang-an 发布后取其关联地点)。图上写明『示意图,不按比例』。",
+        "style": [
+          "地图是『示意』,必须在图上或图注写明『示意图,不按比例』",
+          "地名、方位只能来自内容底座已发布的地点条目,不得自行添加",
+          "文字用 font-family 的系统回退链,不嵌入未授权字体"
+        ],
+        "grounding": "bundle CITY 层台词『这是帝国都城,不是边地小城』(FACT,claim-bg-city 未核查);place-chang-an 目前是草稿。不得添加底座没有的城门、坊市、宫殿名。",
+        "forbidden_elements": [
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "可辨认的真实人物面部或肖像",
+          "任何没有场景要素表依据的服饰、兵器、旗帜、器物、建筑形制细节(城墙/城门只画概括轮廓)",
+          "把演绎当作史实呈现:天气、动作、心理、对白一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹",
+          "自行添加底座没有的地名",
+          "把示意图画成精确复原图"
+        ],
+        "depiction": "INTERPRETATION",
+        "references": []
+      },
+      "placeholder_plan": {
+        "strategy": "generated-svg",
+        "generator": "tools/gen/gen-chun-wang-scene.mjs"
+      },
+      "source": {
+        "demand": "tasks/chun-wang/demand.json",
+        "bundle": "../runtime/contracts/sample.chun-wang.json"
+      },
+      "dispatch_hold": "《春望》的场景要素表(地点、季节、时段、天气、可见物件、禁止出现项)尚未建立:查遍 docs/ 与 content-agent/ 只有设计文档提到它,没有数据。器物、服饰、建筑细节没有依据,不得派发给绘制方。建立后解除。"
+    },
+    {
+      "task_id": "a-chang-an-map-text",
+      "poem": "chun-wang",
+      "type": "text-card",
+      "title": "长安示意地图(文字卡)",
+      "asset_id": "a-chang-an-map-text",
+      "kind": "subtitle",
+      "level": "L0",
+      "render": "text-card",
+      "registry": true,
+      "priority": "P0",
+      "usage": {
+        "steps": [
+          "arrive"
+        ],
+        "layers": [
+          "CITY"
+        ],
+        "line_seqs": [
+          1,
+          2
+        ],
+        "lines_text": [
+          "国破山河在",
+          "城春草木深"
+        ],
+        "bundle_refs": [
+          "assets.a-chang-an-map.fallback"
+        ],
+        "purpose": "地图没加载时,用文字告诉学生长安是唐代都城——这是内容底座已有的结论"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "card.txt",
+          "formats": [
+            "txt"
+          ],
+          "required": true,
+          "constraints": {
+            "max_bytes": 4000
+          }
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license"
+        ],
+        "allowed_origins": [
+          "由底座/剧本文本派生",
+          "自生成占位"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "外包:合同编号;AI 生成:工作流 JSON@hash;自绘:作者声明"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/a-chang-an-map-text/ 含 delivery.json(来源、授权、交付人)",
+          "entry:card.txt(txt) 必需;max_bytes=4000",
+          "文字类交付物(字幕/文字卡/脚本)与任务单 brief.script_text 逐字一致(忽略空白)"
+        ],
+        "human": [
+          "不含无依据的史实",
+          "没有图也能读懂",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": null,
+        "note": "降级终点或不参与降级"
+      },
+      "brief": {
+        "creative_notes": "只写 bundle CITY 层已有结论,不增加数字(人口数字待核)。",
+        "style": [
+          "一到三句话,说清这里原本是什么图/声,学生仍能读懂",
+          "来自内容底座或剧本的文字,不另写史实"
+        ],
+        "grounding": "bundle CITY 层台词『这是帝国都城,不是边地小城。』",
+        "forbidden_elements": [
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "可辨认的真实人物面部或肖像",
+          "任何没有场景要素表依据的服饰、兵器、旗帜、器物、建筑形制细节(城墙/城门只画概括轮廓)",
+          "把演绎当作史实呈现:天气、动作、心理、对白一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹"
+        ],
+        "depiction": "FACT",
+        "references": [],
+        "script_text": "叛军攻下长安之后，杜甫被困在这座城里。",
+        "script_text_sha256": "ac2ea2878fb676d9d544f7811b0d586c419a60323a112ce665cbbfa62d6a6e20"
+      },
+      "placeholder_plan": {
+        "strategy": "generated-text",
+        "generator": "tools/gen/gen-chun-wang-text.mjs"
+      },
+      "source": {
+        "demand": "tasks/chun-wang/demand.json",
+        "bundle": "../runtime/contracts/sample.chun-wang.json",
+        "text_from": "steps[1].layers[1].lines[0].text"
+      },
+      "companion_of": "a-chang-an-map"
+    },
+    {
+      "task_id": "a-dufu-bust",
+      "poem": "chun-wang",
+      "type": "character",
+      "title": "杜甫角色(正式版,替换占位)",
+      "asset_id": "a-dufu-bust",
+      "kind": "character",
+      "level": "L3",
+      "render": "character-svg-layers",
+      "registry": true,
+      "priority": "P1",
+      "usage": {
+        "steps": [
+          "meet"
+        ],
+        "layers": [
+          "PERSON"
+        ],
+        "line_seqs": [
+          7,
+          8
+        ],
+        "lines_text": [
+          "白头搔更短",
+          "浑欲不胜簪"
+        ],
+        "bundle_refs": [
+          "cast[0].avatar_asset",
+          "steps[2].roleplay.layers[0].assets"
+        ],
+        "purpose": "让学生见到此时此地的诗人,而不是一个通用古人像"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "manifest.json",
+          "formats": [
+            "json"
+          ],
+          "required": true,
+          "constraints": {
+            "json_schema": "character",
+            "max_bytes": 60000
+          }
+        },
+        {
+          "role": "layer",
+          "filename": "layers/*",
+          "formats": [
+            "svg",
+            "png",
+            "webp",
+            "moc3",
+            "json",
+            "skel",
+            "atlas"
+          ],
+          "required": false
+        },
+        {
+          "role": "poster",
+          "filename": "still.*",
+          "formats": [
+            "svg",
+            "png",
+            "webp"
+          ],
+          "required": true,
+          "constraints": {
+            "max_bytes": 400000
+          }
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license"
+        ],
+        "allowed_origins": [
+          "自绘",
+          "外包制作",
+          "AI 辅助(须写明且经人工修复)",
+          "自生成占位"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "外包:合同编号;AI 生成:工作流 JSON@hash;自绘:作者声明"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/a-dufu-bust/ 含 delivery.json(来源、授权、交付人)",
+          "entry:manifest.json(json) 必需;json_schema=character, max_bytes=60000",
+          "layer:layers/*(svg/png/webp/moc3/json/skel/atlas) 可选",
+          "poster:still.*(svg/png/webp) 必需;max_bytes=400000"
+        ],
+        "human": [
+          "四个状态都能播放,切换无跳变",
+          "说话时不要求口型对齐,但动作不得诡异",
+          "形象没有无依据的服饰/器物细节(对照场景要素表)",
+          "manifest.rights 写明来源与第三方运行库许可",
+          "包体 ≤ budget.max_bytes",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用",
+          "已确认界面会带『演绎』标识,素材本身不冒充史料"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": "a-dufu-still",
+        "note": "降级目标类型:character-still"
+      },
+      "brief": {
+        "creative_notes": "按角色 bible 绘制(见 design/2d-character.md 的模板;bible 需用户先定稿并提供风格参考)。必须含 idle/talk/sorrow/bow,可有 listen。形象为演绎,界面带标识。外包可选 Live2D / Spine / Lottie / 分层 SVG(许可条款待核实,见 2d-character.md)。",
+        "style": [
+          "风格与角色 bible 一致(见 design/2d-character.md 模板)",
+          "形象一律标识为演绎(manifest.depiction)",
+          "必须含 idle/talk/sorrow/bow 四个状态,可有 listen"
+        ],
+        "grounding": "没有可靠的诗人画像可依据。年龄:写『四十多岁』,不写精确岁数(OQ-06,2026-11-11 已定)。角色不得被刻画成确切年龄。服饰须等场景要素表。",
+        "forbidden_elements": [
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "可辨认的真实人物面部或肖像",
+          "任何没有场景要素表依据的服饰、兵器、旗帜、器物、建筑形制细节(城墙/城门只画概括轮廓)",
+          "把演绎当作史实呈现:天气、动作、心理、对白一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹",
+          "依据网上流传的杜甫画像描摹(版权与史实均不明)",
+          "在没有场景要素表的情况下画官服品级"
+        ],
+        "depiction": "DRAMATIZATION",
+        "references": []
+      },
+      "placeholder_plan": {
+        "strategy": "existing",
+        "note": "占位已由里程碑 1 生成并登记(published/characters/du-fu)"
+      },
+      "source": {
+        "demand": "tasks/chun-wang/demand.json",
+        "bundle": "../runtime/contracts/sample.chun-wang.json"
+      }
+    },
+    {
+      "task_id": "a-dufu-still",
+      "poem": "chun-wang",
+      "type": "character-still",
+      "title": "杜甫静帧(正式版)",
+      "asset_id": "a-dufu-still",
+      "kind": "illustration",
+      "level": "L1",
+      "render": "still",
+      "registry": true,
+      "priority": "P1",
+      "usage": {
+        "steps": [
+          "meet"
+        ],
+        "layers": [
+          "PERSON"
+        ],
+        "line_seqs": [
+          7,
+          8
+        ],
+        "lines_text": [
+          "白头搔更短",
+          "浑欲不胜簪"
+        ],
+        "bundle_refs": [
+          "assets.a-dufu-bust.fallback"
+        ],
+        "purpose": "角色动画不可用时仍保留“有人在场”"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "still.*",
+          "formats": [
+            "svg",
+            "png",
+            "webp"
+          ],
+          "required": true,
+          "constraints": {
+            "max_bytes": 400000
+          }
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license"
+        ],
+        "allowed_origins": [
+          "自绘",
+          "外包绘制",
+          "AI 生成(须写明模型与版本,且经人工修复)",
+          "自生成占位"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "外包:合同编号;AI 生成:工作流 JSON@hash;自绘:作者声明"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/a-dufu-still/ 含 delivery.json(来源、授权、交付人)",
+          "entry:still.*(svg/png/webp) 必需;max_bytes=400000"
+        ],
+        "human": [
+          "与动画角色是同一个形象",
+          "背景透明",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用",
+          "已确认界面会带『演绎』标识,素材本身不冒充史料"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": "a-dufu-text",
+        "note": "降级目标类型:text-card"
+      },
+      "brief": {
+        "creative_notes": "与动画角色同一形象的静帧,背景透明。",
+        "style": [
+          "与角色包同一形象",
+          "背景透明"
+        ],
+        "grounding": "同 a-dufu-bust。",
+        "forbidden_elements": [
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "可辨认的真实人物面部或肖像",
+          "任何没有场景要素表依据的服饰、兵器、旗帜、器物、建筑形制细节(城墙/城门只画概括轮廓)",
+          "把演绎当作史实呈现:天气、动作、心理、对白一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹"
+        ],
+        "depiction": "DRAMATIZATION",
+        "references": []
+      },
+      "placeholder_plan": {
+        "strategy": "existing"
+      },
+      "source": {
+        "demand": "tasks/chun-wang/demand.json",
+        "bundle": "../runtime/contracts/sample.chun-wang.json"
+      },
+      "companion_of": "a-dufu-bust"
+    },
+    {
+      "task_id": "a-dufu-text",
+      "poem": "chun-wang",
+      "type": "text-card",
+      "title": "杜甫在场(文字卡)",
+      "asset_id": "a-dufu-text",
+      "kind": "subtitle",
+      "level": "L0",
+      "render": "text-card",
+      "registry": true,
+      "priority": "P0",
+      "usage": {
+        "steps": [
+          "meet"
+        ],
+        "layers": [
+          "PERSON"
+        ],
+        "line_seqs": [
+          7,
+          8
+        ],
+        "lines_text": [
+          "白头搔更短",
+          "浑欲不胜簪"
+        ],
+        "bundle_refs": [
+          "assets.a-dufu-still.fallback"
+        ],
+        "purpose": "角色和图都不可用时,仍用文字告诉学生此处有人在场"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "card.txt",
+          "formats": [
+            "txt"
+          ],
+          "required": true,
+          "constraints": {
+            "max_bytes": 4000
+          }
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license"
+        ],
+        "allowed_origins": [
+          "由底座/剧本文本派生",
+          "自生成占位"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "外包:合同编号;AI 生成:工作流 JSON@hash;自绘:作者声明"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/a-dufu-text/ 含 delivery.json(来源、授权、交付人)",
+          "entry:card.txt(txt) 必需;max_bytes=4000",
+          "文字类交付物(字幕/文字卡/脚本)与任务单 brief.script_text 逐字一致(忽略空白)"
+        ],
+        "human": [
+          "不含无依据的史实",
+          "没有图也能读懂",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用",
+          "已确认界面会带『演绎』标识,素材本身不冒充史料"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": null,
+        "note": "降级终点或不参与降级"
+      },
+      "brief": {
+        "creative_notes": "一句话说明:接下来的话是教学演绎,由『杜甫』的角色说出,不是史料。",
+        "style": [
+          "一到三句话,说清这里原本是什么图/声,学生仍能读懂",
+          "来自内容底座或剧本的文字,不另写史实"
+        ],
+        "grounding": "演绎声明规则(DESIGN.md §4)。",
+        "forbidden_elements": [
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "可辨认的真实人物面部或肖像",
+          "任何没有场景要素表依据的服饰、兵器、旗帜、器物、建筑形制细节(城墙/城门只画概括轮廓)",
+          "把演绎当作史实呈现:天气、动作、心理、对白一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹"
+        ],
+        "depiction": "DRAMATIZATION",
+        "references": [],
+        "script_text": "接下来是杜甫的角色在说话。这是教学演绎,不是史料。",
+        "script_text_sha256": "b0558890678951b739416a52a8f945d3a78dac97ca0019266ece5f19cfdf82c6"
+      },
+      "placeholder_plan": {
+        "strategy": "existing"
+      },
+      "source": {
+        "demand": "tasks/chun-wang/demand.json",
+        "bundle": "../runtime/contracts/sample.chun-wang.json"
+      },
+      "companion_of": "a-dufu-bust"
+    },
+    {
+      "task_id": "voice-dufu-1",
+      "poem": "chun-wang",
+      "type": "voice-profile",
+      "title": "杜甫音色档案",
+      "asset_id": "voice-dufu-1",
+      "kind": "voice",
+      "level": "L2",
+      "render": "audio",
+      "registry": true,
+      "priority": "P1",
+      "usage": {
+        "steps": [
+          "meet"
+        ],
+        "layers": [
+          "PERSON"
+        ],
+        "line_seqs": [
+          7,
+          8
+        ],
+        "lines_text": [
+          "白头搔更短",
+          "浑欲不胜簪"
+        ],
+        "bundle_refs": [
+          "cast[0].voice_id"
+        ],
+        "purpose": "让“杜甫”开口时有稳定的音色身份,而不是每次换一种声音"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "voice.json",
+          "formats": [
+            "json"
+          ],
+          "required": true,
+          "constraints": {
+            "max_bytes": 6000
+          }
+        },
+        {
+          "role": "sample",
+          "filename": "sample.m4a",
+          "formats": [
+            "m4a"
+          ],
+          "required": true,
+          "constraints": {
+            "min_duration_ms": 3000,
+            "max_duration_ms": 20000,
+            "min_sample_rate": 22050,
+            "max_bytes": 300000
+          }
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license",
+          "evidence"
+        ],
+        "allowed_origins": [
+          "授权合成音(须写明模型、版本与授权范围)",
+          "真人音色(须附书面授权)",
+          "自生成占位"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "真人:朗读人书面授权/同意书编号;合成音:服务条款或授权书中覆盖商用的条款"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/voice-dufu-1/ 含 delivery.json(来源、授权、交付人)",
+          "entry:voice.json(json) 必需;max_bytes=6000",
+          "sample:sample.m4a(m4a) 必需;min_duration_ms=3000, max_duration_ms=20000, min_sample_rate=22050, max_bytes=300000"
+        ],
+        "human": [
+          "授权范围写明商用",
+          "试听与角色气质相符",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用",
+          "已确认界面会带『演绎』标识,素材本身不冒充史料"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": "a-recite-demo-subtitle",
+        "note": "降级目标类型:subtitle"
+      },
+      "brief": {
+        "creative_notes": "确定一个音色(真人或授权合成),成年男声,语速偏缓,语气克制,不夸张。若用合成音,需记录模型、版本、参数以便复现,并确认授权覆盖商用。若克隆真人,需该真人的书面授权。",
+        "style": [
+          "voice.json 写明:提供者/模型/版本/参数、授权范围、是否允许克隆",
+          "音色一经确定不得每次更换"
+        ],
+        "grounding": "产品规则:角色音色需稳定(architecture §2.3)。无史料依据其嗓音,故为演绎。",
+        "forbidden_elements": [
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "可辨认的真实人物面部或肖像",
+          "任何没有场景要素表依据的服饰、兵器、旗帜、器物、建筑形制细节(城墙/城门只画概括轮廓)",
+          "把演绎当作史实呈现:天气、动作、心理、对白一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹"
+        ],
+        "depiction": "DRAMATIZATION",
+        "references": []
+      },
+      "placeholder_plan": {
+        "strategy": "generated-audio",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs",
+        "note": "占位:macOS say 合成,不可上线,授权未核实"
+      },
+      "source": {
+        "demand": "tasks/chun-wang/demand.json",
+        "bundle": "../runtime/contracts/sample.chun-wang.json"
+      }
+    },
+    {
+      "task_id": "a-recite-demo",
+      "poem": "chun-wang",
+      "type": "recitation",
+      "title": "《春望》诵读示范(真人)",
+      "asset_id": "a-recite-demo",
+      "kind": "audio",
+      "level": "L2",
+      "render": "audio",
+      "registry": true,
+      "priority": "P0",
+      "usage": {
+        "steps": [
+          "recite"
+        ],
+        "layers": [
+          "SCENE"
+        ],
+        "line_seqs": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "lines_text": [
+          "国破山河在",
+          "城春草木深",
+          "感时花溅泪",
+          "恨别鸟惊心",
+          "烽火连三月",
+          "家书抵万金",
+          "白头搔更短",
+          "浑欲不胜簪"
+        ],
+        "bundle_refs": [
+          "steps[4].demo_audio"
+        ],
+        "purpose": "示范停顿与韵律,学生知道这句该怎么读出来——对应全诗八句"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "recite.m4a",
+          "formats": [
+            "m4a"
+          ],
+          "required": true,
+          "constraints": {
+            "min_duration_ms": 10000,
+            "max_duration_ms": 60000,
+            "min_sample_rate": 44100,
+            "max_bytes": 900000
+          }
+        },
+        {
+          "role": "script",
+          "filename": "recite.txt",
+          "formats": [
+            "txt"
+          ],
+          "required": true,
+          "note": "诵读所依据的原文逐句(UTF-8),用来人工核对读错字。"
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license",
+          "evidence"
+        ],
+        "allowed_origins": [
+          "真人录音(须附朗读人授权)",
+          "授权合成音(须写明模型、版本与授权范围)",
+          "自生成占位"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "真人:朗读人书面授权/同意书编号;合成音:服务条款或授权书中覆盖商用的条款"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/a-recite-demo/ 含 delivery.json(来源、授权、交付人)",
+          "entry:recite.m4a(m4a) 必需;min_duration_ms=10000, max_duration_ms=60000, min_sample_rate=44100, max_bytes=900000",
+          "script:recite.txt(txt) 必需",
+          "文字类交付物(字幕/文字卡/脚本)与任务单 brief.script_text 逐字一致(忽略空白)"
+        ],
+        "human": [
+          "逐字对照 recite.txt,无读错字、多音字读音与课本注音一致(『胜』shèng 等,待纸质课本核对)",
+          "停顿和断句合理",
+          "无明显噪音/爆音/削波",
+          "朗读人的授权声明已收到",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": "a-recite-demo-subtitle",
+        "note": "降级目标类型:subtitle"
+      },
+      "brief": {
+        "creative_notes": "真人诵读,律诗节奏,语速适合学生跟读,不加配乐。需要小学版与初中版时各开一张任务单(本单为通用版,若分版请复制)。TTS 读古诗韵律不合格(architecture §2.3),不得用 TTS 作正式版。",
+        "style": [
+          "真人诵读,语速适合学生跟读;小学/初中可各一版(各自一张任务单)",
+          "停顿体现律诗的节奏;不加配乐",
+          "录音环境安静,无削波"
+        ],
+        "grounding": "诗句全文;字音与停顿须与纸质课本核对后再派发。",
+        "forbidden_elements": [
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "可辨认的真实人物面部或肖像",
+          "任何没有场景要素表依据的服饰、兵器、旗帜、器物、建筑形制细节(城墙/城门只画概括轮廓)",
+          "把演绎当作史实呈现:天气、动作、心理、对白一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹"
+        ],
+        "depiction": "FACT",
+        "references": [],
+        "script_text": "国破山河在,城春草木深。感时花溅泪,恨别鸟惊心。烽火连三月,家书抵万金。白头搔更短,浑欲不胜簪。",
+        "script_text_sha256": "0742c63d42f18c796cb5bcc32421166c74e6b7b45dd9584744eea1e652c62b05"
+      },
+      "placeholder_plan": {
+        "strategy": "generated-audio",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs",
+        "note": "占位:macOS say 朗读,韵律不可信,不可上线"
+      },
+      "source": {
+        "demand": "tasks/chun-wang/demand.json",
+        "bundle": "../runtime/contracts/sample.chun-wang.json"
+      },
+      "dispatch_hold": "课本版原文、字音(尤其『胜』shèng)、停顿尚未与纸质课本核对(chun-wang-sample-spec §5/§8.4)。核对前不得派发真人诵读。"
+    },
+    {
+      "task_id": "a-recite-demo-subtitle",
+      "poem": "chun-wang",
+      "type": "subtitle",
+      "title": "诵读字幕(WebVTT)",
+      "asset_id": "a-recite-demo-subtitle",
+      "kind": "subtitle",
+      "level": "L0",
+      "render": "subtitle-track",
+      "registry": true,
+      "priority": "P0",
+      "usage": {
+        "steps": [
+          "recite"
+        ],
+        "layers": [
+          "SCENE"
+        ],
+        "line_seqs": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "lines_text": [
+          "国破山河在",
+          "城春草木深",
+          "感时花溅泪",
+          "恨别鸟惊心",
+          "烽火连三月",
+          "家书抵万金",
+          "白头搔更短",
+          "浑欲不胜簪"
+        ],
+        "bundle_refs": [
+          "assets.a-recite-demo.fallback"
+        ],
+        "purpose": "音频不可用时,文本与断句仍在(也是无障碍与降级必需)"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "captions.vtt",
+          "formats": [
+            "vtt"
+          ],
+          "required": true,
+          "constraints": {
+            "vtt_monotonic": true,
+            "max_bytes": 20000
+          }
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license"
+        ],
+        "allowed_origins": [
+          "由底座/剧本文本派生",
+          "自生成占位"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "外包:合同编号;AI 生成:工作流 JSON@hash;自绘:作者声明"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/a-recite-demo-subtitle/ 含 delivery.json(来源、授权、交付人)",
+          "entry:captions.vtt(vtt) 必需;vtt_monotonic=true, max_bytes=20000",
+          "文字类交付物(字幕/文字卡/脚本)与任务单 brief.script_text 逐字一致(忽略空白)"
+        ],
+        "human": [
+          "文字与音频一致",
+          "断句合理",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": null,
+        "note": "降级终点或不参与降级"
+      },
+      "brief": {
+        "creative_notes": "逐句字幕,时间轴依据真实录音的停顿;文字与 recite.txt 逐字一致。",
+        "style": [
+          "字幕文本必须与对应音频的脚本逐字一致",
+          "每条 ≤ 34 字(DESIGN.md 版心),时间递增不重叠"
+        ],
+        "grounding": "诗句全文。时间轴只能在真录音交付后确定。",
+        "forbidden_elements": [
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "可辨认的真实人物面部或肖像",
+          "任何没有场景要素表依据的服饰、兵器、旗帜、器物、建筑形制细节(城墙/城门只画概括轮廓)",
+          "把演绎当作史实呈现:天气、动作、心理、对白一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹"
+        ],
+        "depiction": "FACT",
+        "references": [],
+        "script_text": "国破山河在,城春草木深。感时花溅泪,恨别鸟惊心。烽火连三月,家书抵万金。白头搔更短,浑欲不胜簪。",
+        "script_text_sha256": "0742c63d42f18c796cb5bcc32421166c74e6b7b45dd9584744eea1e652c62b05"
+      },
+      "placeholder_plan": {
+        "strategy": "generated-vtt",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs",
+        "note": "占位:时间轴按占位音频的实际时长均分"
+      },
+      "source": {
+        "demand": "tasks/chun-wang/demand.json",
+        "bundle": "../runtime/contracts/sample.chun-wang.json"
+      },
+      "companion_of": "a-recite-demo",
+      "depends_on": [
+        "a-recite-demo"
+      ]
+    },
+    {
+      "task_id": "a-nar-arrive-scene",
+      "poem": "chun-wang",
+      "type": "narration",
+      "title": "旁白:眼前(SCENE)",
+      "asset_id": "a-nar-arrive-scene",
+      "kind": "audio",
+      "level": "L2",
+      "render": "audio",
+      "registry": true,
+      "priority": "P1",
+      "usage": {
+        "steps": [
+          "arrive"
+        ],
+        "layers": [
+          "SCENE"
+        ],
+        "line_seqs": [
+          1,
+          2
+        ],
+        "lines_text": [
+          "国破山河在",
+          "城春草木深"
+        ],
+        "bundle_refs": [
+          "steps[1].layers[0].lines[0]"
+        ],
+        "purpose": "用声音带学生进入“城还在,但已残破”的眼前一层"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "narration.m4a",
+          "formats": [
+            "m4a"
+          ],
+          "required": true,
+          "constraints": {
+            "min_duration_ms": 1500,
+            "max_duration_ms": 30000,
+            "min_sample_rate": 22050,
+            "max_bytes": 400000
+          }
+        },
+        {
+          "role": "script",
+          "filename": "narration.txt",
+          "formats": [
+            "txt"
+          ],
+          "required": true
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license",
+          "evidence"
+        ],
+        "allowed_origins": [
+          "真人录音(须附朗读人授权)",
+          "授权合成音(须写明模型、版本与授权范围)",
+          "自生成占位"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "真人:朗读人书面授权/同意书编号;合成音:服务条款或授权书中覆盖商用的条款"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/a-nar-arrive-scene/ 含 delivery.json(来源、授权、交付人)",
+          "entry:narration.m4a(m4a) 必需;min_duration_ms=1500, max_duration_ms=30000, min_sample_rate=22050, max_bytes=400000",
+          "script:narration.txt(txt) 必需",
+          "文字类交付物(字幕/文字卡/脚本)与任务单 brief.script_text 逐字一致(忽略空白)"
+        ],
+        "human": [
+          "与 narration.txt 逐字一致",
+          "音色符合 voice-profile",
+          "音量与诵读示范一致(±3dB)",
+          "无明显合成痕迹或爆音",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": "a-nar-arrive-scene-sub",
+        "note": "降级目标类型:subtitle"
+      },
+      "brief": {
+        "creative_notes": "旁白音色,平实、不渲染。逐字念脚本文本。",
+        "style": [
+          "逐字念 narration.txt,不增删;文本来自 bundle 的 lines,改文案必须先改剧本",
+          "『演绎』台词必须由角色音色念出,旁白不得念演绎台词",
+          "语气平实,不用评价性形容词(悲惨/伟大/不朽)"
+        ],
+        "grounding": "bundle 台词,kind=INTERPRETATION,basis=claim-bg-scene(未核查)。",
+        "forbidden_elements": [
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "可辨认的真实人物面部或肖像",
+          "任何没有场景要素表依据的服饰、兵器、旗帜、器物、建筑形制细节(城墙/城门只画概括轮廓)",
+          "把演绎当作史实呈现:天气、动作、心理、对白一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹"
+        ],
+        "depiction": "INTERPRETATION",
+        "references": [],
+        "script_text": "山河还在，城里的草木却长得很深。",
+        "script_text_sha256": "d8da1e1073df21ce9d11182a3e51c90d905e710bb8694d8fb5c1f0be02e00c82"
+      },
+      "placeholder_plan": {
+        "strategy": "generated-audio",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs"
+      },
+      "source": {
+        "demand": "tasks/chun-wang/demand.json",
+        "bundle": "../runtime/contracts/sample.chun-wang.json",
+        "text_from": "steps[1].layers[0].lines[0].text"
+      },
+      "dispatch_hold": "bundle 里的台词依据的 claim 尚无可核查引文(facts.chun-wang.json 的 cited_claim_ids 为空,草稿状态)。文案定稿前不得派发录音。"
+    },
+    {
+      "task_id": "a-nar-arrive-scene-sub",
+      "poem": "chun-wang",
+      "type": "subtitle",
+      "title": "字幕:眼前(SCENE)",
+      "asset_id": "a-nar-arrive-scene-sub",
+      "kind": "subtitle",
+      "level": "L0",
+      "render": "subtitle-track",
+      "registry": true,
+      "priority": "P0",
+      "usage": {
+        "steps": [
+          "arrive"
+        ],
+        "layers": [
+          "SCENE"
+        ],
+        "line_seqs": [
+          1,
+          2
+        ],
+        "lines_text": [
+          "国破山河在",
+          "城春草木深"
+        ],
+        "bundle_refs": [
+          "assets.a-nar-arrive-scene.fallback"
+        ],
+        "purpose": "旁白不可用时,这一层的文字仍完整可读"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "captions.vtt",
+          "formats": [
+            "vtt"
+          ],
+          "required": true,
+          "constraints": {
+            "vtt_monotonic": true,
+            "max_bytes": 20000
+          }
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license"
+        ],
+        "allowed_origins": [
+          "由底座/剧本文本派生",
+          "自生成占位"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "外包:合同编号;AI 生成:工作流 JSON@hash;自绘:作者声明"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/a-nar-arrive-scene-sub/ 含 delivery.json(来源、授权、交付人)",
+          "entry:captions.vtt(vtt) 必需;vtt_monotonic=true, max_bytes=20000",
+          "文字类交付物(字幕/文字卡/脚本)与任务单 brief.script_text 逐字一致(忽略空白)"
+        ],
+        "human": [
+          "文字与音频一致",
+          "断句合理",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": null,
+        "note": "降级终点或不参与降级"
+      },
+      "brief": {
+        "creative_notes": "一条字幕,时间轴依据旁白实际时长。",
+        "style": [
+          "字幕文本必须与对应音频的脚本逐字一致",
+          "每条 ≤ 34 字(DESIGN.md 版心),时间递增不重叠"
+        ],
+        "grounding": "同 a-nar-arrive-scene。",
+        "forbidden_elements": [
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "可辨认的真实人物面部或肖像",
+          "任何没有场景要素表依据的服饰、兵器、旗帜、器物、建筑形制细节(城墙/城门只画概括轮廓)",
+          "把演绎当作史实呈现:天气、动作、心理、对白一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹"
+        ],
+        "depiction": "INTERPRETATION",
+        "references": [],
+        "script_text": "山河还在，城里的草木却长得很深。",
+        "script_text_sha256": "d8da1e1073df21ce9d11182a3e51c90d905e710bb8694d8fb5c1f0be02e00c82"
+      },
+      "placeholder_plan": {
+        "strategy": "generated-vtt",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs"
+      },
+      "source": {
+        "demand": "tasks/chun-wang/demand.json",
+        "bundle": "../runtime/contracts/sample.chun-wang.json",
+        "text_from": "steps[1].layers[0].lines[0].text"
+      },
+      "companion_of": "a-nar-arrive-scene",
+      "depends_on": [
+        "a-nar-arrive-scene"
+      ]
+    },
+    {
+      "task_id": "a-nar-arrive-city",
+      "poem": "chun-wang",
+      "type": "narration",
+      "title": "旁白:这座城(CITY)",
+      "asset_id": "a-nar-arrive-city",
+      "kind": "audio",
+      "level": "L2",
+      "render": "audio",
+      "registry": true,
+      "priority": "P1",
+      "usage": {
+        "steps": [
+          "arrive"
+        ],
+        "layers": [
+          "CITY"
+        ],
+        "line_seqs": [
+          1,
+          2
+        ],
+        "lines_text": [
+          "国破山河在",
+          "城春草木深"
+        ],
+        "bundle_refs": [
+          "steps[1].layers[1].lines[0]"
+        ],
+        "purpose": "让学生听到长安是都城、不是边地小城"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "narration.m4a",
+          "formats": [
+            "m4a"
+          ],
+          "required": true,
+          "constraints": {
+            "min_duration_ms": 1500,
+            "max_duration_ms": 30000,
+            "min_sample_rate": 22050,
+            "max_bytes": 400000
+          }
+        },
+        {
+          "role": "script",
+          "filename": "narration.txt",
+          "formats": [
+            "txt"
+          ],
+          "required": true
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license",
+          "evidence"
+        ],
+        "allowed_origins": [
+          "真人录音(须附朗读人授权)",
+          "授权合成音(须写明模型、版本与授权范围)",
+          "自生成占位"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "真人:朗读人书面授权/同意书编号;合成音:服务条款或授权书中覆盖商用的条款"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/a-nar-arrive-city/ 含 delivery.json(来源、授权、交付人)",
+          "entry:narration.m4a(m4a) 必需;min_duration_ms=1500, max_duration_ms=30000, min_sample_rate=22050, max_bytes=400000",
+          "script:narration.txt(txt) 必需",
+          "文字类交付物(字幕/文字卡/脚本)与任务单 brief.script_text 逐字一致(忽略空白)"
+        ],
+        "human": [
+          "与 narration.txt 逐字一致",
+          "音色符合 voice-profile",
+          "音量与诵读示范一致(±3dB)",
+          "无明显合成痕迹或爆音",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": "a-nar-arrive-city-sub",
+        "note": "降级目标类型:subtitle"
+      },
+      "brief": {
+        "creative_notes": "旁白音色,平实。",
+        "style": [
+          "逐字念 narration.txt,不增删;文本来自 bundle 的 lines,改文案必须先改剧本",
+          "『演绎』台词必须由角色音色念出,旁白不得念演绎台词",
+          "语气平实,不用评价性形容词(悲惨/伟大/不朽)"
+        ],
+        "grounding": "bundle 台词,kind=FACT,basis=claim-bg-city(未核查)。",
+        "forbidden_elements": [
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "可辨认的真实人物面部或肖像",
+          "任何没有场景要素表依据的服饰、兵器、旗帜、器物、建筑形制细节(城墙/城门只画概括轮廓)",
+          "把演绎当作史实呈现:天气、动作、心理、对白一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹"
+        ],
+        "depiction": "FACT",
+        "references": [],
+        "script_text": "叛军攻下长安之后，杜甫被困在这座城里。",
+        "script_text_sha256": "ac2ea2878fb676d9d544f7811b0d586c419a60323a112ce665cbbfa62d6a6e20"
+      },
+      "placeholder_plan": {
+        "strategy": "generated-audio",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs"
+      },
+      "source": {
+        "demand": "tasks/chun-wang/demand.json",
+        "bundle": "../runtime/contracts/sample.chun-wang.json",
+        "text_from": "steps[1].layers[1].lines[0].text"
+      },
+      "dispatch_hold": "bundle 里的台词依据的 claim 尚无可核查引文(facts.chun-wang.json 的 cited_claim_ids 为空,草稿状态)。文案定稿前不得派发录音。"
+    },
+    {
+      "task_id": "a-nar-arrive-city-sub",
+      "poem": "chun-wang",
+      "type": "subtitle",
+      "title": "字幕:这座城(CITY)",
+      "asset_id": "a-nar-arrive-city-sub",
+      "kind": "subtitle",
+      "level": "L0",
+      "render": "subtitle-track",
+      "registry": true,
+      "priority": "P0",
+      "usage": {
+        "steps": [
+          "arrive"
+        ],
+        "layers": [
+          "CITY"
+        ],
+        "line_seqs": [
+          1,
+          2
+        ],
+        "lines_text": [
+          "国破山河在",
+          "城春草木深"
+        ],
+        "bundle_refs": [
+          "assets.a-nar-arrive-city.fallback"
+        ],
+        "purpose": "旁白不可用时,这一层的文字仍完整可读"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "captions.vtt",
+          "formats": [
+            "vtt"
+          ],
+          "required": true,
+          "constraints": {
+            "vtt_monotonic": true,
+            "max_bytes": 20000
+          }
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license"
+        ],
+        "allowed_origins": [
+          "由底座/剧本文本派生",
+          "自生成占位"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "外包:合同编号;AI 生成:工作流 JSON@hash;自绘:作者声明"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/a-nar-arrive-city-sub/ 含 delivery.json(来源、授权、交付人)",
+          "entry:captions.vtt(vtt) 必需;vtt_monotonic=true, max_bytes=20000",
+          "文字类交付物(字幕/文字卡/脚本)与任务单 brief.script_text 逐字一致(忽略空白)"
+        ],
+        "human": [
+          "文字与音频一致",
+          "断句合理",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": null,
+        "note": "降级终点或不参与降级"
+      },
+      "brief": {
+        "creative_notes": "一条字幕,文字与对应音频脚本逐字一致,时间轴依据音频实际时长。",
+        "style": [
+          "字幕文本必须与对应音频的脚本逐字一致",
+          "每条 ≤ 34 字(DESIGN.md 版心),时间递增不重叠"
+        ],
+        "grounding": "同 a-nar-arrive-city。",
+        "forbidden_elements": [
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "可辨认的真实人物面部或肖像",
+          "任何没有场景要素表依据的服饰、兵器、旗帜、器物、建筑形制细节(城墙/城门只画概括轮廓)",
+          "把演绎当作史实呈现:天气、动作、心理、对白一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹"
+        ],
+        "depiction": "FACT",
+        "references": [],
+        "script_text": "叛军攻下长安之后，杜甫被困在这座城里。",
+        "script_text_sha256": "ac2ea2878fb676d9d544f7811b0d586c419a60323a112ce665cbbfa62d6a6e20"
+      },
+      "placeholder_plan": {
+        "strategy": "generated-vtt",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs"
+      },
+      "source": {
+        "demand": "tasks/chun-wang/demand.json",
+        "bundle": "../runtime/contracts/sample.chun-wang.json",
+        "text_from": "steps[1].layers[1].lines[0].text"
+      },
+      "companion_of": "a-nar-arrive-city",
+      "depends_on": [
+        "a-nar-arrive-city"
+      ]
+    },
+    {
+      "task_id": "a-nar-arrive-world",
+      "poem": "chun-wang",
+      "type": "narration",
+      "title": "旁白:这个天下(WORLD)",
+      "asset_id": "a-nar-arrive-world",
+      "kind": "audio",
+      "level": "L2",
+      "render": "audio",
+      "registry": true,
+      "priority": "P1",
+      "usage": {
+        "steps": [
+          "arrive"
+        ],
+        "layers": [
+          "WORLD"
+        ],
+        "line_seqs": [
+          5,
+          6
+        ],
+        "lines_text": [
+          "烽火连三月",
+          "家书抵万金"
+        ],
+        "bundle_refs": [
+          "steps[1].layers[2].lines[0]"
+        ],
+        "purpose": "让学生听到战事持续、音信不通——对应『烽火连三月,家书抵万金』的处境"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "narration.m4a",
+          "formats": [
+            "m4a"
+          ],
+          "required": true,
+          "constraints": {
+            "min_duration_ms": 1500,
+            "max_duration_ms": 30000,
+            "min_sample_rate": 22050,
+            "max_bytes": 400000
+          }
+        },
+        {
+          "role": "script",
+          "filename": "narration.txt",
+          "formats": [
+            "txt"
+          ],
+          "required": true
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license",
+          "evidence"
+        ],
+        "allowed_origins": [
+          "真人录音(须附朗读人授权)",
+          "授权合成音(须写明模型、版本与授权范围)",
+          "自生成占位"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "真人:朗读人书面授权/同意书编号;合成音:服务条款或授权书中覆盖商用的条款"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/a-nar-arrive-world/ 含 delivery.json(来源、授权、交付人)",
+          "entry:narration.m4a(m4a) 必需;min_duration_ms=1500, max_duration_ms=30000, min_sample_rate=22050, max_bytes=400000",
+          "script:narration.txt(txt) 必需",
+          "文字类交付物(字幕/文字卡/脚本)与任务单 brief.script_text 逐字一致(忽略空白)"
+        ],
+        "human": [
+          "与 narration.txt 逐字一致",
+          "音色符合 voice-profile",
+          "音量与诵读示范一致(±3dB)",
+          "无明显合成痕迹或爆音",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": "a-nar-arrive-world-sub",
+        "note": "降级目标类型:subtitle"
+      },
+      "brief": {
+        "creative_notes": "旁白音色,平实。『第三年』『驿路断了』须与 claim-bg-world 核对。",
+        "style": [
+          "逐字念 narration.txt,不增删;文本来自 bundle 的 lines,改文案必须先改剧本",
+          "『演绎』台词必须由角色音色念出,旁白不得念演绎台词",
+          "语气平实,不用评价性形容词(悲惨/伟大/不朽)"
+        ],
+        "grounding": "bundle 台词,kind=FACT,basis=claim-bg-world(未核查);时间口径两说并存,见 bundle.unknown_dates_notice。",
+        "forbidden_elements": [
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "可辨认的真实人物面部或肖像",
+          "任何没有场景要素表依据的服饰、兵器、旗帜、器物、建筑形制细节(城墙/城门只画概括轮廓)",
+          "把演绎当作史实呈现:天气、动作、心理、对白一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹"
+        ],
+        "depiction": "FACT",
+        "references": [],
+        "script_text": "诗里说“烽火连三月，家书抵万金”：战火不停，一封家信比万金还难得。",
+        "script_text_sha256": "9a43014337f0a606e4a8c5661de9337291b9a98e9af58ded99288108503c55d7"
+      },
+      "placeholder_plan": {
+        "strategy": "generated-audio",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs"
+      },
+      "source": {
+        "demand": "tasks/chun-wang/demand.json",
+        "bundle": "../runtime/contracts/sample.chun-wang.json",
+        "text_from": "steps[1].layers[2].lines[0].text"
+      },
+      "dispatch_hold": "bundle 里的台词依据的 claim 尚无可核查引文(facts.chun-wang.json 的 cited_claim_ids 为空,草稿状态)。文案定稿前不得派发录音。"
+    },
+    {
+      "task_id": "a-nar-arrive-world-sub",
+      "poem": "chun-wang",
+      "type": "subtitle",
+      "title": "字幕:这个天下(WORLD)",
+      "asset_id": "a-nar-arrive-world-sub",
+      "kind": "subtitle",
+      "level": "L0",
+      "render": "subtitle-track",
+      "registry": true,
+      "priority": "P0",
+      "usage": {
+        "steps": [
+          "arrive"
+        ],
+        "layers": [
+          "WORLD"
+        ],
+        "line_seqs": [
+          5,
+          6
+        ],
+        "lines_text": [
+          "烽火连三月",
+          "家书抵万金"
+        ],
+        "bundle_refs": [
+          "assets.a-nar-arrive-world.fallback"
+        ],
+        "purpose": "旁白不可用时,这一层的文字仍完整可读"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "captions.vtt",
+          "formats": [
+            "vtt"
+          ],
+          "required": true,
+          "constraints": {
+            "vtt_monotonic": true,
+            "max_bytes": 20000
+          }
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license"
+        ],
+        "allowed_origins": [
+          "由底座/剧本文本派生",
+          "自生成占位"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "外包:合同编号;AI 生成:工作流 JSON@hash;自绘:作者声明"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/a-nar-arrive-world-sub/ 含 delivery.json(来源、授权、交付人)",
+          "entry:captions.vtt(vtt) 必需;vtt_monotonic=true, max_bytes=20000",
+          "文字类交付物(字幕/文字卡/脚本)与任务单 brief.script_text 逐字一致(忽略空白)"
+        ],
+        "human": [
+          "文字与音频一致",
+          "断句合理",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": null,
+        "note": "降级终点或不参与降级"
+      },
+      "brief": {
+        "creative_notes": "一条字幕,文字与对应音频脚本逐字一致,时间轴依据音频实际时长。",
+        "style": [
+          "字幕文本必须与对应音频的脚本逐字一致",
+          "每条 ≤ 34 字(DESIGN.md 版心),时间递增不重叠"
+        ],
+        "grounding": "同 a-nar-arrive-world。",
+        "forbidden_elements": [
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "可辨认的真实人物面部或肖像",
+          "任何没有场景要素表依据的服饰、兵器、旗帜、器物、建筑形制细节(城墙/城门只画概括轮廓)",
+          "把演绎当作史实呈现:天气、动作、心理、对白一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹"
+        ],
+        "depiction": "FACT",
+        "references": [],
+        "script_text": "诗里说“烽火连三月，家书抵万金”：战火不停，一封家信比万金还难得。",
+        "script_text_sha256": "9a43014337f0a606e4a8c5661de9337291b9a98e9af58ded99288108503c55d7"
+      },
+      "placeholder_plan": {
+        "strategy": "generated-vtt",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs"
+      },
+      "source": {
+        "demand": "tasks/chun-wang/demand.json",
+        "bundle": "../runtime/contracts/sample.chun-wang.json",
+        "text_from": "steps[1].layers[2].lines[0].text"
+      },
+      "companion_of": "a-nar-arrive-world",
+      "depends_on": [
+        "a-nar-arrive-world"
+      ]
+    },
+    {
+      "task_id": "a-nar-arrive-person",
+      "poem": "chun-wang",
+      "type": "narration",
+      "title": "旁白:这个人(PERSON)",
+      "asset_id": "a-nar-arrive-person",
+      "kind": "audio",
+      "level": "L2",
+      "render": "audio",
+      "registry": true,
+      "priority": "P1",
+      "usage": {
+        "steps": [
+          "arrive"
+        ],
+        "layers": [
+          "PERSON"
+        ],
+        "line_seqs": [
+          7,
+          8
+        ],
+        "lines_text": [
+          "白头搔更短",
+          "浑欲不胜簪"
+        ],
+        "bundle_refs": [
+          "steps[1].layers[3].lines[0]"
+        ],
+        "purpose": "让学生听到诗人当时孤身一人、家人不在身边——对应『白头搔更短』的处境"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "narration.m4a",
+          "formats": [
+            "m4a"
+          ],
+          "required": true,
+          "constraints": {
+            "min_duration_ms": 1500,
+            "max_duration_ms": 30000,
+            "min_sample_rate": 22050,
+            "max_bytes": 400000
+          }
+        },
+        {
+          "role": "script",
+          "filename": "narration.txt",
+          "formats": [
+            "txt"
+          ],
+          "required": true
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license",
+          "evidence"
+        ],
+        "allowed_origins": [
+          "真人录音(须附朗读人授权)",
+          "授权合成音(须写明模型、版本与授权范围)",
+          "自生成占位"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "真人:朗读人书面授权/同意书编号;合成音:服务条款或授权书中覆盖商用的条款"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/a-nar-arrive-person/ 含 delivery.json(来源、授权、交付人)",
+          "entry:narration.m4a(m4a) 必需;min_duration_ms=1500, max_duration_ms=30000, min_sample_rate=22050, max_bytes=400000",
+          "script:narration.txt(txt) 必需",
+          "文字类交付物(字幕/文字卡/脚本)与任务单 brief.script_text 逐字一致(忽略空白)"
+        ],
+        "human": [
+          "与 narration.txt 逐字一致",
+          "音色符合 voice-profile",
+          "音量与诵读示范一致(±3dB)",
+          "无明显合成痕迹或爆音",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": "a-nar-arrive-person-sub",
+        "note": "降级目标类型:subtitle"
+      },
+      "brief": {
+        "creative_notes": "旁白音色,平实。",
+        "style": [
+          "逐字念 narration.txt,不增删;文本来自 bundle 的 lines,改文案必须先改剧本",
+          "『演绎』台词必须由角色音色念出,旁白不得念演绎台词",
+          "语气平实,不用评价性形容词(悲惨/伟大/不朽)"
+        ],
+        "grounding": "bundle 台词,kind=FACT,basis=claim-bg-person(未核查)。2026-11-11 已定(OQ-06):台词写『四十多岁』,精确岁数无确证,不写进台词;出处区另标「年岁无确证」。",
+        "forbidden_elements": [
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "可辨认的真实人物面部或肖像",
+          "任何没有场景要素表依据的服饰、兵器、旗帜、器物、建筑形制细节(城墙/城门只画概括轮廓)",
+          "把演绎当作史实呈现:天气、动作、心理、对白一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹"
+        ],
+        "depiction": "FACT",
+        "references": [],
+        "script_text": "他被困在长安，家人留在鄜州。",
+        "script_text_sha256": "7939f34b5d79f84637b85434dab05f29a49432d2b971da5bb0c04020a161d86b"
+      },
+      "placeholder_plan": {
+        "strategy": "generated-audio",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs"
+      },
+      "source": {
+        "demand": "tasks/chun-wang/demand.json",
+        "bundle": "../runtime/contracts/sample.chun-wang.json",
+        "text_from": "steps[1].layers[3].lines[0].text"
+      },
+      "dispatch_hold": "bundle 里的台词依据的 claim 尚无可核查引文(facts.chun-wang.json 的 cited_claim_ids 为空,草稿状态)。文案定稿前不得派发录音。"
+    },
+    {
+      "task_id": "a-nar-arrive-person-sub",
+      "poem": "chun-wang",
+      "type": "subtitle",
+      "title": "字幕:这个人(PERSON)",
+      "asset_id": "a-nar-arrive-person-sub",
+      "kind": "subtitle",
+      "level": "L0",
+      "render": "subtitle-track",
+      "registry": true,
+      "priority": "P0",
+      "usage": {
+        "steps": [
+          "arrive"
+        ],
+        "layers": [
+          "PERSON"
+        ],
+        "line_seqs": [
+          7,
+          8
+        ],
+        "lines_text": [
+          "白头搔更短",
+          "浑欲不胜簪"
+        ],
+        "bundle_refs": [
+          "assets.a-nar-arrive-person.fallback"
+        ],
+        "purpose": "旁白不可用时,这一层的文字仍完整可读"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "captions.vtt",
+          "formats": [
+            "vtt"
+          ],
+          "required": true,
+          "constraints": {
+            "vtt_monotonic": true,
+            "max_bytes": 20000
+          }
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license"
+        ],
+        "allowed_origins": [
+          "由底座/剧本文本派生",
+          "自生成占位"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "外包:合同编号;AI 生成:工作流 JSON@hash;自绘:作者声明"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/a-nar-arrive-person-sub/ 含 delivery.json(来源、授权、交付人)",
+          "entry:captions.vtt(vtt) 必需;vtt_monotonic=true, max_bytes=20000",
+          "文字类交付物(字幕/文字卡/脚本)与任务单 brief.script_text 逐字一致(忽略空白)"
+        ],
+        "human": [
+          "文字与音频一致",
+          "断句合理",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": null,
+        "note": "降级终点或不参与降级"
+      },
+      "brief": {
+        "creative_notes": "一条字幕,文字与对应音频脚本逐字一致,时间轴依据音频实际时长。",
+        "style": [
+          "字幕文本必须与对应音频的脚本逐字一致",
+          "每条 ≤ 34 字(DESIGN.md 版心),时间递增不重叠"
+        ],
+        "grounding": "同 a-nar-arrive-person。",
+        "forbidden_elements": [
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "可辨认的真实人物面部或肖像",
+          "任何没有场景要素表依据的服饰、兵器、旗帜、器物、建筑形制细节(城墙/城门只画概括轮廓)",
+          "把演绎当作史实呈现:天气、动作、心理、对白一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹"
+        ],
+        "depiction": "FACT",
+        "references": [],
+        "script_text": "他被困在长安，家人留在鄜州。",
+        "script_text_sha256": "7939f34b5d79f84637b85434dab05f29a49432d2b971da5bb0c04020a161d86b"
+      },
+      "placeholder_plan": {
+        "strategy": "generated-vtt",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs"
+      },
+      "source": {
+        "demand": "tasks/chun-wang/demand.json",
+        "bundle": "../runtime/contracts/sample.chun-wang.json",
+        "text_from": "steps[1].layers[3].lines[0].text"
+      },
+      "companion_of": "a-nar-arrive-person",
+      "depends_on": [
+        "a-nar-arrive-person"
+      ]
+    },
+    {
+      "task_id": "a-nar-meet-dufu",
+      "poem": "chun-wang",
+      "type": "narration",
+      "title": "杜甫台词(见)",
+      "asset_id": "a-nar-meet-dufu",
+      "kind": "audio",
+      "level": "L2",
+      "render": "audio",
+      "registry": true,
+      "priority": "P1",
+      "usage": {
+        "steps": [
+          "meet"
+        ],
+        "layers": [
+          "PERSON"
+        ],
+        "line_seqs": [
+          7,
+          8
+        ],
+        "lines_text": [
+          "白头搔更短",
+          "浑欲不胜簪"
+        ],
+        "bundle_refs": [
+          "steps[2].roleplay.layers[0].lines[0]"
+        ],
+        "purpose": "让学生听到诗人本人的口吻——这是教学演绎,不是史料"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "narration.m4a",
+          "formats": [
+            "m4a"
+          ],
+          "required": true,
+          "constraints": {
+            "min_duration_ms": 1500,
+            "max_duration_ms": 30000,
+            "min_sample_rate": 22050,
+            "max_bytes": 400000
+          }
+        },
+        {
+          "role": "script",
+          "filename": "narration.txt",
+          "formats": [
+            "txt"
+          ],
+          "required": true
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license",
+          "evidence"
+        ],
+        "allowed_origins": [
+          "真人录音(须附朗读人授权)",
+          "授权合成音(须写明模型、版本与授权范围)",
+          "自生成占位"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "真人:朗读人书面授权/同意书编号;合成音:服务条款或授权书中覆盖商用的条款"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/a-nar-meet-dufu/ 含 delivery.json(来源、授权、交付人)",
+          "entry:narration.m4a(m4a) 必需;min_duration_ms=1500, max_duration_ms=30000, min_sample_rate=22050, max_bytes=400000",
+          "script:narration.txt(txt) 必需",
+          "文字类交付物(字幕/文字卡/脚本)与任务单 brief.script_text 逐字一致(忽略空白)"
+        ],
+        "human": [
+          "与 narration.txt 逐字一致",
+          "音色符合 voice-profile",
+          "音量与诵读示范一致(±3dB)",
+          "无明显合成痕迹或爆音",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用",
+          "已确认界面会带『演绎』标识,素材本身不冒充史料"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": "a-nar-meet-dufu-sub",
+        "note": "降级目标类型:subtitle"
+      },
+      "brief": {
+        "creative_notes": "必须用 voice-dufu-1 的音色。语气克制。演绎台词必须由角色音色念出,旁白音色不得念。",
+        "style": [
+          "逐字念 narration.txt,不增删;文本来自 bundle 的 lines,改文案必须先改剧本",
+          "『演绎』台词必须由角色音色念出,旁白不得念演绎台词",
+          "语气平实,不用评价性形容词(悲惨/伟大/不朽)"
+        ],
+        "grounding": "bundle 台词 kind=DRAMATIZATION,basis=null,界面带『这是教学演绎,不是史料』。台词里『草长得比城墙还高』是编写者的演绎,没有史料依据,不得在任何地方当作事实使用。",
+        "forbidden_elements": [
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "可辨认的真实人物面部或肖像",
+          "任何没有场景要素表依据的服饰、兵器、旗帜、器物、建筑形制细节(城墙/城门只画概括轮廓)",
+          "把演绎当作史实呈现:天气、动作、心理、对白一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹"
+        ],
+        "depiction": "DRAMATIZATION",
+        "references": [],
+        "script_text": "城里的春天照常来了，我的白发却短得几乎插不住簪子。",
+        "script_text_sha256": "acb8a2ec348e10c916ff67e5e6c5c1f94e4a66ceb2245970ce8828883ec20ade"
+      },
+      "placeholder_plan": {
+        "strategy": "generated-audio",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs"
+      },
+      "source": {
+        "demand": "tasks/chun-wang/demand.json",
+        "bundle": "../runtime/contracts/sample.chun-wang.json",
+        "text_from": "steps[2].roleplay.layers[0].lines[0].text"
+      },
+      "dispatch_hold": "bundle 里的台词依据的 claim 尚无可核查引文(facts.chun-wang.json 的 cited_claim_ids 为空,草稿状态)。文案定稿前不得派发录音。",
+      "depends_on": [
+        "voice-dufu-1"
+      ]
+    },
+    {
+      "task_id": "a-nar-meet-dufu-sub",
+      "poem": "chun-wang",
+      "type": "subtitle",
+      "title": "字幕:杜甫台词(见)",
+      "asset_id": "a-nar-meet-dufu-sub",
+      "kind": "subtitle",
+      "level": "L0",
+      "render": "subtitle-track",
+      "registry": true,
+      "priority": "P0",
+      "usage": {
+        "steps": [
+          "meet"
+        ],
+        "layers": [
+          "PERSON"
+        ],
+        "line_seqs": [
+          7,
+          8
+        ],
+        "lines_text": [
+          "白头搔更短",
+          "浑欲不胜簪"
+        ],
+        "bundle_refs": [
+          "assets.a-nar-meet-dufu.fallback"
+        ],
+        "purpose": "台词音频不可用时,演绎台词仍以文字带『演绎』角标显示"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "captions.vtt",
+          "formats": [
+            "vtt"
+          ],
+          "required": true,
+          "constraints": {
+            "vtt_monotonic": true,
+            "max_bytes": 20000
+          }
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license"
+        ],
+        "allowed_origins": [
+          "由底座/剧本文本派生",
+          "自生成占位"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "外包:合同编号;AI 生成:工作流 JSON@hash;自绘:作者声明"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/a-nar-meet-dufu-sub/ 含 delivery.json(来源、授权、交付人)",
+          "entry:captions.vtt(vtt) 必需;vtt_monotonic=true, max_bytes=20000",
+          "文字类交付物(字幕/文字卡/脚本)与任务单 brief.script_text 逐字一致(忽略空白)"
+        ],
+        "human": [
+          "文字与音频一致",
+          "断句合理",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用",
+          "已确认界面会带『演绎』标识,素材本身不冒充史料"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": null,
+        "note": "降级终点或不参与降级"
+      },
+      "brief": {
+        "creative_notes": "一条字幕;界面负责角标。",
+        "style": [
+          "字幕文本必须与对应音频的脚本逐字一致",
+          "每条 ≤ 34 字(DESIGN.md 版心),时间递增不重叠"
+        ],
+        "grounding": "同 a-nar-meet-dufu。",
+        "forbidden_elements": [
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "可辨认的真实人物面部或肖像",
+          "任何没有场景要素表依据的服饰、兵器、旗帜、器物、建筑形制细节(城墙/城门只画概括轮廓)",
+          "把演绎当作史实呈现:天气、动作、心理、对白一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹"
+        ],
+        "depiction": "DRAMATIZATION",
+        "references": [],
+        "script_text": "城里的春天照常来了，我的白发却短得几乎插不住簪子。",
+        "script_text_sha256": "acb8a2ec348e10c916ff67e5e6c5c1f94e4a66ceb2245970ce8828883ec20ade"
+      },
+      "placeholder_plan": {
+        "strategy": "generated-vtt",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs"
+      },
+      "source": {
+        "demand": "tasks/chun-wang/demand.json",
+        "bundle": "../runtime/contracts/sample.chun-wang.json",
+        "text_from": "steps[2].roleplay.layers[0].lines[0].text"
+      },
+      "companion_of": "a-nar-meet-dufu",
+      "depends_on": [
+        "a-nar-meet-dufu"
+      ]
+    },
+    {
+      "task_id": "a-nar-return-world",
+      "poem": "chun-wang",
+      "type": "narration",
+      "title": "旁白:回——国破(WORLD)",
+      "asset_id": "a-nar-return-world",
+      "kind": "audio",
+      "level": "L2",
+      "render": "audio",
+      "registry": true,
+      "priority": "P1",
+      "usage": {
+        "steps": [
+          "return"
+        ],
+        "layers": [
+          "WORLD"
+        ],
+        "line_seqs": [
+          1
+        ],
+        "lines_text": [
+          "国破山河在"
+        ],
+        "bundle_refs": [
+          "steps[3].layers[0].lines[0]"
+        ],
+        "purpose": "让学生听到『国破』是记事不是写景,落回第一句"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "narration.m4a",
+          "formats": [
+            "m4a"
+          ],
+          "required": true,
+          "constraints": {
+            "min_duration_ms": 1500,
+            "max_duration_ms": 30000,
+            "min_sample_rate": 22050,
+            "max_bytes": 400000
+          }
+        },
+        {
+          "role": "script",
+          "filename": "narration.txt",
+          "formats": [
+            "txt"
+          ],
+          "required": true
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license",
+          "evidence"
+        ],
+        "allowed_origins": [
+          "真人录音(须附朗读人授权)",
+          "授权合成音(须写明模型、版本与授权范围)",
+          "自生成占位"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "真人:朗读人书面授权/同意书编号;合成音:服务条款或授权书中覆盖商用的条款"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/a-nar-return-world/ 含 delivery.json(来源、授权、交付人)",
+          "entry:narration.m4a(m4a) 必需;min_duration_ms=1500, max_duration_ms=30000, min_sample_rate=22050, max_bytes=400000",
+          "script:narration.txt(txt) 必需",
+          "文字类交付物(字幕/文字卡/脚本)与任务单 brief.script_text 逐字一致(忽略空白)"
+        ],
+        "human": [
+          "与 narration.txt 逐字一致",
+          "音色符合 voice-profile",
+          "音量与诵读示范一致(±3dB)",
+          "无明显合成痕迹或爆音",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": "a-nar-return-world-sub",
+        "note": "降级目标类型:subtitle"
+      },
+      "brief": {
+        "creative_notes": "旁白音色。这是解释,不是史实。",
+        "style": [
+          "逐字念 narration.txt,不增删;文本来自 bundle 的 lines,改文案必须先改剧本",
+          "『演绎』台词必须由角色音色念出,旁白不得念演绎台词",
+          "语气平实,不用评价性形容词(悲惨/伟大/不朽)"
+        ],
+        "grounding": "bundle 台词 kind=INTERPRETATION,basis=claim-bg-world。",
+        "forbidden_elements": [
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "可辨认的真实人物面部或肖像",
+          "任何没有场景要素表依据的服饰、兵器、旗帜、器物、建筑形制细节(城墙/城门只画概括轮廓)",
+          "把演绎当作史实呈现:天气、动作、心理、对白一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹"
+        ],
+        "depiction": "INTERPRETATION",
+        "references": [],
+        "script_text": "“国破”是记事，不是写景：力量来自落差。",
+        "script_text_sha256": "833e0a3d91301f08e9dbe7fc19dca46ea5b5db30827be52b679f5ae46ad81b39"
+      },
+      "placeholder_plan": {
+        "strategy": "generated-audio",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs"
+      },
+      "source": {
+        "demand": "tasks/chun-wang/demand.json",
+        "bundle": "../runtime/contracts/sample.chun-wang.json",
+        "text_from": "steps[3].layers[0].lines[0].text"
+      },
+      "dispatch_hold": "bundle 里的台词依据的 claim 尚无可核查引文(facts.chun-wang.json 的 cited_claim_ids 为空,草稿状态)。文案定稿前不得派发录音。"
+    },
+    {
+      "task_id": "a-nar-return-world-sub",
+      "poem": "chun-wang",
+      "type": "subtitle",
+      "title": "字幕:回——国破(WORLD)",
+      "asset_id": "a-nar-return-world-sub",
+      "kind": "subtitle",
+      "level": "L0",
+      "render": "subtitle-track",
+      "registry": true,
+      "priority": "P0",
+      "usage": {
+        "steps": [
+          "return"
+        ],
+        "layers": [
+          "WORLD"
+        ],
+        "line_seqs": [
+          1
+        ],
+        "lines_text": [
+          "国破山河在"
+        ],
+        "bundle_refs": [
+          "assets.a-nar-return-world.fallback"
+        ],
+        "purpose": "旁白不可用时,这条解释仍以文字呈现"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "captions.vtt",
+          "formats": [
+            "vtt"
+          ],
+          "required": true,
+          "constraints": {
+            "vtt_monotonic": true,
+            "max_bytes": 20000
+          }
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license"
+        ],
+        "allowed_origins": [
+          "由底座/剧本文本派生",
+          "自生成占位"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "外包:合同编号;AI 生成:工作流 JSON@hash;自绘:作者声明"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/a-nar-return-world-sub/ 含 delivery.json(来源、授权、交付人)",
+          "entry:captions.vtt(vtt) 必需;vtt_monotonic=true, max_bytes=20000",
+          "文字类交付物(字幕/文字卡/脚本)与任务单 brief.script_text 逐字一致(忽略空白)"
+        ],
+        "human": [
+          "文字与音频一致",
+          "断句合理",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": null,
+        "note": "降级终点或不参与降级"
+      },
+      "brief": {
+        "creative_notes": "一条字幕,文字与对应音频脚本逐字一致,时间轴依据音频实际时长。",
+        "style": [
+          "字幕文本必须与对应音频的脚本逐字一致",
+          "每条 ≤ 34 字(DESIGN.md 版心),时间递增不重叠"
+        ],
+        "grounding": "同 a-nar-return-world。",
+        "forbidden_elements": [
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "可辨认的真实人物面部或肖像",
+          "任何没有场景要素表依据的服饰、兵器、旗帜、器物、建筑形制细节(城墙/城门只画概括轮廓)",
+          "把演绎当作史实呈现:天气、动作、心理、对白一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹"
+        ],
+        "depiction": "INTERPRETATION",
+        "references": [],
+        "script_text": "“国破”是记事，不是写景：力量来自落差。",
+        "script_text_sha256": "833e0a3d91301f08e9dbe7fc19dca46ea5b5db30827be52b679f5ae46ad81b39"
+      },
+      "placeholder_plan": {
+        "strategy": "generated-vtt",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs"
+      },
+      "source": {
+        "demand": "tasks/chun-wang/demand.json",
+        "bundle": "../runtime/contracts/sample.chun-wang.json",
+        "text_from": "steps[3].layers[0].lines[0].text"
+      },
+      "companion_of": "a-nar-return-world",
+      "depends_on": [
+        "a-nar-return-world"
+      ]
+    },
+    {
+      "task_id": "a-nar-return-person",
+      "poem": "chun-wang",
+      "type": "narration",
+      "title": "旁白:回——家书(PERSON)",
+      "asset_id": "a-nar-return-person",
+      "kind": "audio",
+      "level": "L2",
+      "render": "audio",
+      "registry": true,
+      "priority": "P1",
+      "usage": {
+        "steps": [
+          "return"
+        ],
+        "layers": [
+          "PERSON"
+        ],
+        "line_seqs": [
+          6
+        ],
+        "lines_text": [
+          "家书抵万金"
+        ],
+        "bundle_refs": [
+          "steps[3].layers[1].lines[0]"
+        ],
+        "purpose": "让学生听到『抵万金』为什么有分量,落回第六句"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "narration.m4a",
+          "formats": [
+            "m4a"
+          ],
+          "required": true,
+          "constraints": {
+            "min_duration_ms": 1500,
+            "max_duration_ms": 30000,
+            "min_sample_rate": 22050,
+            "max_bytes": 400000
+          }
+        },
+        {
+          "role": "script",
+          "filename": "narration.txt",
+          "formats": [
+            "txt"
+          ],
+          "required": true
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license",
+          "evidence"
+        ],
+        "allowed_origins": [
+          "真人录音(须附朗读人授权)",
+          "授权合成音(须写明模型、版本与授权范围)",
+          "自生成占位"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "真人:朗读人书面授权/同意书编号;合成音:服务条款或授权书中覆盖商用的条款"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/a-nar-return-person/ 含 delivery.json(来源、授权、交付人)",
+          "entry:narration.m4a(m4a) 必需;min_duration_ms=1500, max_duration_ms=30000, min_sample_rate=22050, max_bytes=400000",
+          "script:narration.txt(txt) 必需",
+          "文字类交付物(字幕/文字卡/脚本)与任务单 brief.script_text 逐字一致(忽略空白)"
+        ],
+        "human": [
+          "与 narration.txt 逐字一致",
+          "音色符合 voice-profile",
+          "音量与诵读示范一致(±3dB)",
+          "无明显合成痕迹或爆音",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": "a-nar-return-person-sub",
+        "note": "降级目标类型:subtitle"
+      },
+      "brief": {
+        "creative_notes": "旁白音色。这是解释。",
+        "style": [
+          "逐字念 narration.txt,不增删;文本来自 bundle 的 lines,改文案必须先改剧本",
+          "『演绎』台词必须由角色音色念出,旁白不得念演绎台词",
+          "语气平实,不用评价性形容词(悲惨/伟大/不朽)"
+        ],
+        "grounding": "bundle 台词 kind=INTERPRETATION,basis=claim-bg-person。",
+        "forbidden_elements": [
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "可辨认的真实人物面部或肖像",
+          "任何没有场景要素表依据的服饰、兵器、旗帜、器物、建筑形制细节(城墙/城门只画概括轮廓)",
+          "把演绎当作史实呈现:天气、动作、心理、对白一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹"
+        ],
+        "depiction": "INTERPRETATION",
+        "references": [],
+        "script_text": "家书到不了，“抵万金”才有分量。",
+        "script_text_sha256": "667a4150d7e5f60a5774c370ac6cdb32692855e64f4bb0d51666bea30212fbe7"
+      },
+      "placeholder_plan": {
+        "strategy": "generated-audio",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs"
+      },
+      "source": {
+        "demand": "tasks/chun-wang/demand.json",
+        "bundle": "../runtime/contracts/sample.chun-wang.json",
+        "text_from": "steps[3].layers[1].lines[0].text"
+      },
+      "dispatch_hold": "bundle 里的台词依据的 claim 尚无可核查引文(facts.chun-wang.json 的 cited_claim_ids 为空,草稿状态)。文案定稿前不得派发录音。"
+    },
+    {
+      "task_id": "a-nar-return-person-sub",
+      "poem": "chun-wang",
+      "type": "subtitle",
+      "title": "字幕:回——家书(PERSON)",
+      "asset_id": "a-nar-return-person-sub",
+      "kind": "subtitle",
+      "level": "L0",
+      "render": "subtitle-track",
+      "registry": true,
+      "priority": "P0",
+      "usage": {
+        "steps": [
+          "return"
+        ],
+        "layers": [
+          "PERSON"
+        ],
+        "line_seqs": [
+          6
+        ],
+        "lines_text": [
+          "家书抵万金"
+        ],
+        "bundle_refs": [
+          "assets.a-nar-return-person.fallback"
+        ],
+        "purpose": "旁白不可用时,这条解释仍以文字呈现"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "captions.vtt",
+          "formats": [
+            "vtt"
+          ],
+          "required": true,
+          "constraints": {
+            "vtt_monotonic": true,
+            "max_bytes": 20000
+          }
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license"
+        ],
+        "allowed_origins": [
+          "由底座/剧本文本派生",
+          "自生成占位"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "外包:合同编号;AI 生成:工作流 JSON@hash;自绘:作者声明"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/a-nar-return-person-sub/ 含 delivery.json(来源、授权、交付人)",
+          "entry:captions.vtt(vtt) 必需;vtt_monotonic=true, max_bytes=20000",
+          "文字类交付物(字幕/文字卡/脚本)与任务单 brief.script_text 逐字一致(忽略空白)"
+        ],
+        "human": [
+          "文字与音频一致",
+          "断句合理",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": null,
+        "note": "降级终点或不参与降级"
+      },
+      "brief": {
+        "creative_notes": "一条字幕,文字与对应音频脚本逐字一致,时间轴依据音频实际时长。",
+        "style": [
+          "字幕文本必须与对应音频的脚本逐字一致",
+          "每条 ≤ 34 字(DESIGN.md 版心),时间递增不重叠"
+        ],
+        "grounding": "同 a-nar-return-person。",
+        "forbidden_elements": [
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "可辨认的真实人物面部或肖像",
+          "任何没有场景要素表依据的服饰、兵器、旗帜、器物、建筑形制细节(城墙/城门只画概括轮廓)",
+          "把演绎当作史实呈现:天气、动作、心理、对白一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹"
+        ],
+        "depiction": "INTERPRETATION",
+        "references": [],
+        "script_text": "家书到不了，“抵万金”才有分量。",
+        "script_text_sha256": "667a4150d7e5f60a5774c370ac6cdb32692855e64f4bb0d51666bea30212fbe7"
+      },
+      "placeholder_plan": {
+        "strategy": "generated-vtt",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs"
+      },
+      "source": {
+        "demand": "tasks/chun-wang/demand.json",
+        "bundle": "../runtime/contracts/sample.chun-wang.json",
+        "text_from": "steps[3].layers[1].lines[0].text"
+      },
+      "companion_of": "a-nar-return-person",
+      "depends_on": [
+        "a-nar-return-person"
+      ]
+    },
+    {
+      "task_id": "a-sfx-birds",
+      "poem": "chun-wang",
+      "type": "sfx",
+      "title": "音效:鸟鸣(恨别鸟惊心)",
+      "asset_id": "a-sfx-birds",
+      "kind": "audio",
+      "level": "L2",
+      "render": "audio",
+      "registry": true,
+      "priority": "P2",
+      "usage": {
+        "steps": [
+          "arrive"
+        ],
+        "layers": [
+          "SCENE"
+        ],
+        "line_seqs": [
+          4
+        ],
+        "lines_text": [
+          "恨别鸟惊心"
+        ],
+        "bundle_refs": [],
+        "purpose": "给『恨别鸟惊心』一点环境声,让学生意识到春天的鸟鸣与诗人心境的反差"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "sfx.m4a",
+          "formats": [
+            "m4a"
+          ],
+          "required": true,
+          "constraints": {
+            "min_duration_ms": 1000,
+            "max_duration_ms": 12000,
+            "min_sample_rate": 22050,
+            "max_bytes": 250000
+          }
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license",
+          "evidence"
+        ],
+        "allowed_origins": [
+          "真人录音(须附朗读人授权)",
+          "授权合成音(须写明模型、版本与授权范围)",
+          "自生成占位"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "真人:朗读人书面授权/同意书编号;合成音:服务条款或授权书中覆盖商用的条款"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/a-sfx-birds/ 含 delivery.json(来源、授权、交付人)",
+          "entry:sfx.m4a(m4a) 必需;min_duration_ms=1000, max_duration_ms=12000, min_sample_rate=22050, max_bytes=250000"
+        ],
+        "human": [
+          "首尾无缝",
+          "对应的声音在 meaning 里有依据",
+          "不盖过旁白",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用",
+          "已确认界面会带『演绎』标识,素材本身不冒充史料"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": "a-sfx-birds-text",
+        "note": "降级目标类型:text-card"
+      },
+      "brief": {
+        "creative_notes": "几声鸟鸣,稀疏、不热闹,可循环,音量很低。只做鸟鸣,不加风声、人声、战鼓、号角。",
+        "style": [
+          "可无缝循环",
+          "只做能从诗句字面或场景要素表落实的声音;不加战鼓、号角等无依据的声音",
+          "音量低,可被旁白压住"
+        ],
+        "grounding": "诗句『恨别鸟惊心』(鸟)。鸟种、数量、时刻均无依据,故为演绎。本任务尚未被 bundle 引用,是否采用由内容负责人决定(P2)。",
+        "forbidden_elements": [
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "可辨认的真实人物面部或肖像",
+          "任何没有场景要素表依据的服饰、兵器、旗帜、器物、建筑形制细节(城墙/城门只画概括轮廓)",
+          "把演绎当作史实呈现:天气、动作、心理、对白一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹"
+        ],
+        "depiction": "DRAMATIZATION",
+        "references": []
+      },
+      "placeholder_plan": {
+        "strategy": "generated-audio",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs",
+        "note": "占位:ffmpeg 合成的几声短促啁啾,不可上线"
+      },
+      "source": {
+        "demand": "tasks/chun-wang/demand.json",
+        "bundle": "../runtime/contracts/sample.chun-wang.json"
+      }
+    },
+    {
+      "task_id": "a-sfx-birds-text",
+      "poem": "chun-wang",
+      "type": "text-card",
+      "title": "音效:鸟鸣(文字卡)",
+      "asset_id": "a-sfx-birds-text",
+      "kind": "subtitle",
+      "level": "L0",
+      "render": "text-card",
+      "registry": true,
+      "priority": "P2",
+      "usage": {
+        "steps": [
+          "arrive"
+        ],
+        "layers": [
+          "SCENE"
+        ],
+        "line_seqs": [
+          4
+        ],
+        "lines_text": [
+          "恨别鸟惊心"
+        ],
+        "bundle_refs": [],
+        "purpose": "音效不可用时,用文字提醒学生诗里写到了鸟——不影响理解"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "card.txt",
+          "formats": [
+            "txt"
+          ],
+          "required": true,
+          "constraints": {
+            "max_bytes": 4000
+          }
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license"
+        ],
+        "allowed_origins": [
+          "由底座/剧本文本派生",
+          "自生成占位"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "外包:合同编号;AI 生成:工作流 JSON@hash;自绘:作者声明"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/a-sfx-birds-text/ 含 delivery.json(来源、授权、交付人)",
+          "entry:card.txt(txt) 必需;max_bytes=4000",
+          "文字类交付物(字幕/文字卡/脚本)与任务单 brief.script_text 逐字一致(忽略空白)"
+        ],
+        "human": [
+          "不含无依据的史实",
+          "没有图也能读懂",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": null,
+        "note": "降级终点或不参与降级"
+      },
+      "brief": {
+        "creative_notes": "一句话,只指向诗句。",
+        "style": [
+          "一到三句话,说清这里原本是什么图/声,学生仍能读懂",
+          "来自内容底座或剧本的文字,不另写史实"
+        ],
+        "grounding": "诗句『恨别鸟惊心』。",
+        "forbidden_elements": [
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "可辨认的真实人物面部或肖像",
+          "任何没有场景要素表依据的服饰、兵器、旗帜、器物、建筑形制细节(城墙/城门只画概括轮廓)",
+          "把演绎当作史实呈现:天气、动作、心理、对白一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹"
+        ],
+        "depiction": "INTERPRETATION",
+        "references": [],
+        "script_text": "诗里写到了鸟:“恨别鸟惊心”。",
+        "script_text_sha256": "5a0c1d44dd069e54d36a8a465588f19e0b6754055703f67da0a41d641da044a0"
+      },
+      "placeholder_plan": {
+        "strategy": "generated-text",
+        "generator": "tools/gen/gen-chun-wang-text.mjs"
+      },
+      "source": {
+        "demand": "tasks/chun-wang/demand.json",
+        "bundle": "../runtime/contracts/sample.chun-wang.json"
+      },
+      "companion_of": "a-sfx-birds"
+    },
+    {
+      "task_id": "res-font-poem-serif",
+      "poem": "chun-wang",
+      "type": "font",
+      "title": "诗句宋体/明朝体(子集)",
+      "asset_id": "res-font-poem-serif",
+      "kind": null,
+      "level": null,
+      "render": null,
+      "registry": false,
+      "priority": "P1",
+      "usage": {
+        "steps": [
+          "all"
+        ],
+        "line_seqs": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "lines_text": [
+          "国破山河在",
+          "城春草木深",
+          "感时花溅泪",
+          "恨别鸟惊心",
+          "烽火连三月",
+          "家书抵万金",
+          "白头搔更短",
+          "浑欲不胜簪"
+        ],
+        "bundle_refs": [],
+        "purpose": "诗句用有授权的衬线中文字体排印,保证字形完整与商用合规——对应全诗八句"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "*.woff2",
+          "formats": [
+            "woff2"
+          ],
+          "required": true,
+          "constraints": {
+            "max_bytes": 3000000
+          }
+        },
+        {
+          "role": "license",
+          "filename": "LICENSE*",
+          "formats": [
+            "txt",
+            "md",
+            "pdf"
+          ],
+          "required": true,
+          "note": "字体授权原文或授权书,必须覆盖商用与网页嵌入。"
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license"
+        ],
+        "allowed_origins": [
+          "开源字体(须附许可原文)",
+          "购买授权(须附授权书)"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "外包:合同编号;AI 生成:工作流 JSON@hash;自绘:作者声明"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/res-font-poem-serif/ 含 delivery.json(来源、授权、交付人)",
+          "entry:*.woff2(woff2) 必需;max_bytes=3000000",
+          "license:LICENSE*(txt/md/pdf) 必需"
+        ],
+        "human": [
+          "授权覆盖商用+网页嵌入+子集化",
+          "字形无缺字(春望八句全覆盖)",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": null,
+        "note": "降级终点或不参与降级"
+      },
+      "brief": {
+        "creative_notes": "开源或已购买授权的中文衬线字体,按全诗用字子集化为 woff2。须核对授权覆盖商用+网页嵌入+子集化(待办 A-1,未核实)。",
+        "style": [
+          "子集化(只含诗句用字)以控制体积",
+          "不得使用来源不明的字体"
+        ],
+        "grounding": "docs/design/tokens.css 的 --font-serif 声明了字体回退链;授权尚未核查。",
+        "forbidden_elements": [
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "可辨认的真实人物面部或肖像",
+          "任何没有场景要素表依据的服饰、兵器、旗帜、器物、建筑形制细节(城墙/城门只画概括轮廓)",
+          "把演绎当作史实呈现:天气、动作、心理、对白一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹"
+        ],
+        "depiction": "FACT",
+        "references": []
+      },
+      "placeholder_plan": {
+        "strategy": "none",
+        "note": "前端使用系统字体回退链"
+      },
+      "source": {
+        "demand": "tasks/chun-wang/demand.json",
+        "bundle": "../runtime/contracts/sample.chun-wang.json"
+      }
+    },
+    {
+      "task_id": "res-font-calligraphy",
+      "poem": "chun-wang",
+      "type": "font",
+      "title": "书法字体(诗题与落款字形,可选)",
+      "asset_id": "res-font-calligraphy",
+      "kind": null,
+      "level": null,
+      "render": null,
+      "registry": false,
+      "priority": "P2",
+      "usage": {
+        "steps": [
+          "read"
+        ],
+        "line_seqs": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "lines_text": [
+          "国破山河在",
+          "城春草木深",
+          "感时花溅泪",
+          "恨别鸟惊心",
+          "烽火连三月",
+          "家书抵万金",
+          "白头搔更短",
+          "浑欲不胜簪"
+        ],
+        "bundle_refs": [],
+        "purpose": "诗题与逐字显示用的书法字形,增强氛围;不是五步必需——对应全诗八句"
+      },
+      "deliverables": [
+        {
+          "role": "entry",
+          "filename": "*.woff2",
+          "formats": [
+            "woff2"
+          ],
+          "required": true,
+          "constraints": {
+            "max_bytes": 3000000
+          }
+        },
+        {
+          "role": "license",
+          "filename": "LICENSE*",
+          "formats": [
+            "txt",
+            "md",
+            "pdf"
+          ],
+          "required": true,
+          "note": "字体授权原文或授权书,必须覆盖商用与网页嵌入。"
+        }
+      ],
+      "rights_requirements": {
+        "must_provide": [
+          "origin",
+          "license"
+        ],
+        "allowed_origins": [
+          "开源字体(须附许可原文)",
+          "购买授权(须附授权书)"
+        ],
+        "forbidden": [
+          "来源不明",
+          "网络下载",
+          "网图",
+          "盗版"
+        ],
+        "evidence": "外包:合同编号;AI 生成:工作流 JSON@hash;自绘:作者声明"
+      },
+      "acceptance": {
+        "auto": [
+          "交付目录 inbox/res-font-calligraphy/ 含 delivery.json(来源、授权、交付人)",
+          "entry:*.woff2(woff2) 必需;max_bytes=3000000",
+          "license:LICENSE*(txt/md/pdf) 必需"
+        ],
+        "human": [
+          "授权覆盖商用+网页嵌入+子集化",
+          "字形无缺字(春望八句全覆盖)",
+          "版权:delivery.json 的来源与授权真实、完整、覆盖商用"
+        ]
+      },
+      "fallback": {
+        "fallback_asset_id": null,
+        "note": "降级终点或不参与降级"
+      },
+      "brief": {
+        "creative_notes": "必须有明确授权的书法字体;不得从碑帖/网络图片抠字。",
+        "style": [
+          "子集化(只含诗句用字)以控制体积",
+          "不得使用来源不明的字体"
+        ],
+        "grounding": "无。",
+        "forbidden_elements": [
+          "画面中出现文字、印章、落款(文字由前端排印)",
+          "可辨认的真实人物面部或肖像",
+          "任何没有场景要素表依据的服饰、兵器、旗帜、器物、建筑形制细节(城墙/城门只画概括轮廓)",
+          "把演绎当作史实呈现:天气、动作、心理、对白一律不得带『据记载』的口吻",
+          "来源不明的参考图、他人作品的描摹"
+        ],
+        "depiction": "FACT",
+        "references": []
+      },
+      "placeholder_plan": {
+        "strategy": "none"
+      },
+      "source": {
+        "demand": "tasks/chun-wang/demand.json",
+        "bundle": "../runtime/contracts/sample.chun-wang.json"
+      }
+    }
+  ]
+}

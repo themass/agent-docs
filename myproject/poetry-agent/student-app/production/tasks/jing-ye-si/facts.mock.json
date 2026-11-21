@@ -1,0 +1,17 @@
+{
+  "mock": true,
+  "mock_note": "mock 事实夹具(草稿态):格式与 content-agent/pipeline/contracts/facts.chun-wang.json 相同,但所有 id 都是 mock,全部为草稿、没有任何可核查引文。真实事实必须来自内容底座的只读导出,不能用这份冒充。编译器的 --check-only 用它(或由 fixture-facts 提升后的 /tmp 副本)做规则验证。",
+  "status": "草稿/待核",
+  "generated_by": "MOCK — written by task C to rehearse the second poem; not from the database",
+  "published_ids": [],
+  "draft_ids": ["work-jys", "text-jys-draft", "bg-jys-scene", "claim-jys-simile", "claim-jys-turn"],
+  "lines": [
+    { "version_id": "text-jys-draft", "line_seq": 1 },
+    { "version_id": "text-jys-draft", "line_seq": 2 },
+    { "version_id": "text-jys-draft", "line_seq": 3 },
+    { "version_id": "text-jys-draft", "line_seq": 4 }
+  ],
+  "cited_claim_ids": [],
+  "unknown_date_ids": ["work-jys"],
+  "background_line_counts": { "bg-jys-scene": 4 }
+}

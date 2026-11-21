@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 清单片段(不是完整文件):cap add android 之后,把下面的内容合并进
+  android/app/src/main/AndroidManifest.xml。未构建、未在真机验证。
+
+  面向未成年人的原则:
+    - 不申请位置、通讯录、相机;不使用广告标识符(AD_ID 显式移除,防止依赖库把它合并进来)。
+    - 麦克风(RECORD_AUDIO)在「诵」步录音真正接通之前不声明。接通时取消下面的注释,并同时提供应用内说明页。
+    - 关闭系统备份:孩子的学习记录与录音不应被云备份带走。
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+          xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- 录音接通后再启用。用途文案见 docs/native-capabilities.md 与 native/ios/Info.plist.snippet.xml。 -->
+    <!-- <uses-permission android:name="android.permission.RECORD_AUDIO" /> -->
+
+    <!-- 广告标识符:显式移除 -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove" />
+
+    <!-- 麦克风是可选硬件:没有麦克风的平板仍然可以安装、用文字复述走完「诵」 -->
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+
+    <application
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:usesCleartextTraffic="false"
+        tools:replace="android:allowBackup,android:usesCleartextTraffic">
+        <!-- MainActivity 保持 Capacitor 模板;屏幕方向不锁定,平板竖屏优先由前端布局决定 -->
+    </application>
+</manifest>
+
+<!--
+  res/xml/data_extraction_rules.xml(Android 12+),与上面 @xml/data_extraction_rules 对应:
+
+  <?xml version="1.0" encoding="utf-8"?>
+  <data-extraction-rules>
+      <cloud-backup><exclude domain="root" /><exclude domain="file" /><exclude domain="database" /><exclude domain="sharedpref" /></cloud-backup>
+      <device-transfer><exclude domain="root" /><exclude domain="file" /><exclude domain="database" /><exclude domain="sharedpref" /></device-transfer>
+  </data-extraction-rules>
+-->

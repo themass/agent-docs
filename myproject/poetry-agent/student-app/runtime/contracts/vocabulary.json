@@ -1,0 +1,12 @@
+{
+  "$comment": "单一来源：bundle 与素材的枚举值。scripts/maintenance/check-copies.sh 会把它与 bundle.schema.json、scene-runtime/src/bundle.ts、scene-validator/rules.mjs、vvv-poetry 的 PoetryMediaService 逐项比对；任何一处不一致，检查失败。改词表时先改这里，再同步其余四处。学生端副本与本文件字节一致。",
+  "asset_kind": ["illustration", "map", "character", "audio", "voice", "subtitle", "video"],
+  "media_level": ["L0", "L1", "L2", "L3", "L4"],
+  "claim_kind": ["FACT", "INTERPRETATION", "DRAMATIZATION"],
+  "step": ["read", "arrive", "meet", "return", "recite"],
+  "layer": ["SCENE", "CITY", "WORLD", "PERSON"],
+  "$notes": {
+    "asset_kind": "与 Java PoetryMediaService.KINDS、asset-registry.schema.json 一致。视差不是 kind，用 illustration + render=parallax；角色的 frames 是角色渲染器名，不是素材 kind；scene3d 没有对应实现，不列入。",
+    "media_level": "没有 L1.5（asset-registry.schema.json 明确排除）。降级顺序见 scene-runtime/src/degrade.ts 的 ORDER。"
+  }
+}

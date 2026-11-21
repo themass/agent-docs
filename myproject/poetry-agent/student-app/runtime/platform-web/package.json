@@ -1,0 +1,9 @@
+{
+  "name": "@xuexi/platform-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "scene-runtime 的 Web 能力实现（音频/录音/加载/存储/安全区/遥测/分享/家长闸/图形）。App 壳替换的就是这一层。",
+  "main": "src/index.ts",
+  "dependencies": { "@xuexi/scene-runtime": "link:../scene-runtime" }
+}

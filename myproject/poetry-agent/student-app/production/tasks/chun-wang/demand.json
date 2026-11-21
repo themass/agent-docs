@@ -1,0 +1,961 @@
+{
+  "poem": "chun-wang",
+  "title": "春望(杜甫)",
+  "bundle": "../runtime/contracts/sample.chun-wang.json",
+  "bundle_note": "只读引用任务 B 的样例 bundle。台词文本一律从这里取(text_from),素材任务不另写文案;文案变了,gen 会提示任务单过期。",
+  "poem_lines": [
+    {
+      "seq": 1,
+      "text": "国破山河在"
+    },
+    {
+      "seq": 2,
+      "text": "城春草木深"
+    },
+    {
+      "seq": 3,
+      "text": "感时花溅泪"
+    },
+    {
+      "seq": 4,
+      "text": "恨别鸟惊心"
+    },
+    {
+      "seq": 5,
+      "text": "烽火连三月"
+    },
+    {
+      "seq": 6,
+      "text": "家书抵万金"
+    },
+    {
+      "seq": 7,
+      "text": "白头搔更短"
+    },
+    {
+      "seq": 8,
+      "text": "浑欲不胜簪"
+    }
+  ],
+  "poem_lines_note": "line_seq 以 facts.chun-wang.json 为准(1..8,每句一行)。原文与字音未与纸质课本核对,见 holds.text。",
+  "vars": {
+    "form": "律诗",
+    "polyphone_note": "『胜』shèng 等,待纸质课本核对",
+    "glyph_coverage": "春望八句全覆盖"
+  },
+  "regen": [
+    "node tools/prod.mjs gen chun-wang",
+    "node tools/gen/gen-character-dufu.mjs",
+    "node tools/character-check.mjs published/characters/du-fu/manifest.json",
+    "node tools/register-character.mjs published/characters/du-fu --prefix a-dufu --step meet",
+    "node tools/gen/gen-chun-wang-text.mjs",
+    "node tools/gen/gen-chun-wang-scene.mjs",
+    "node tools/gen/gen-chun-wang-audio.mjs",
+    "node tools/prod.mjs placeholder chun-wang"
+  ],
+  "holds": {
+    "scene_spec": "《春望》的场景要素表(地点、季节、时段、天气、可见物件、禁止出现项)尚未建立:查遍 docs/ 与 content-agent/ 只有设计文档提到它,没有数据。器物、服饰、建筑细节没有依据,不得派发给绘制方。建立后解除。",
+    "claims": "bundle 里的台词依据的 claim 尚无可核查引文(facts.chun-wang.json 的 cited_claim_ids 为空,草稿状态)。文案定稿前不得派发录音。",
+    "text": "课本版原文、字音(尤其『胜』shèng)、停顿尚未与纸质课本核对(chun-wang-sample-spec §5/§8.4)。核对前不得派发真人诵读。"
+  },
+  "global_forbidden": [
+    "画面中出现文字、印章、落款(文字由前端排印)",
+    "可辨认的真实人物面部或肖像",
+    "任何没有场景要素表依据的服饰、兵器、旗帜、器物、建筑形制细节(城墙/城门只画概括轮廓)",
+    "把演绎当作史实呈现:天气、动作、心理、对白一律不得带『据记载』的口吻",
+    "来源不明的参考图、他人作品的描摹"
+  ],
+  "tasks": [
+    {
+      "id": "a-changan-dusk",
+      "type": "parallax-scene",
+      "priority": "P0",
+      "title": "春日长安(视差场景)",
+      "steps": [
+        "arrive",
+        "recite"
+      ],
+      "layers": [
+        "SCENE"
+      ],
+      "line_seqs": [
+        1,
+        2
+      ],
+      "purpose": "让学生感到“城还在,但已经残破”——对应『国破山河在,城春草木深』",
+      "bundle_refs": [
+        "steps[1].layers[0].assets",
+        "steps[4].layers[0].assets"
+      ],
+      "fallback": "a-changan-dusk-text",
+      "depiction": "DRAMATIZATION",
+      "hold": "scene_spec",
+      "creative": "春天的长安城,远处有山,中景是城郭的概括轮廓,近景是长得很深的草木。画面重点是落差:城还在,但静;草木很盛,人很少。色调取淡墨与宣纸底,少量青绿;不要鲜艳。分 4–5 层(天空/远山/城郭/草木/近草),便于视差。",
+      "grounding": "诗句『国破山河在,城春草木深』(山河、城、春、草木);bundle SCENE 层台词『城还在,但城门和城墙像是烧过又重新修过』属 INTERPRETATION,依据 claim-bg-scene 尚未核查。『烧过又修过』的具体痕迹没有场景要素表依据,画面不得具体描绘,只用概括的残旧感。",
+      "forbidden": [
+        "画出人物",
+        "画出战争场面、尸体、血迹、武器、旗帜",
+        "写实的建筑纹样"
+      ],
+      "placeholder": {
+        "strategy": "generated-svg",
+        "generator": "tools/gen/gen-chun-wang-scene.mjs"
+      }
+    },
+    {
+      "id": "a-changan-dusk-text",
+      "type": "text-card",
+      "priority": "P0",
+      "companion_of": "a-changan-dusk",
+      "title": "春日长安(文字卡)",
+      "steps": [
+        "arrive"
+      ],
+      "layers": [
+        "SCENE"
+      ],
+      "line_seqs": [
+        1,
+        2
+      ],
+      "purpose": "图没加载时,仍告诉学生此处是春天的长安,城在、草木深——文字永远是降级终点",
+      "bundle_refs": [
+        "assets.a-changan-dusk.fallback"
+      ],
+      "fallback": null,
+      "depiction": "INTERPRETATION",
+      "creative": "一到两句话,只复述诗句本身的画面(城、春、草木),不添加天气、人物动作、具体建筑。",
+      "grounding": "仅取诗句『城春草木深』的字面意思。",
+      "text_from": null,
+      "script_text": "春天的长安。城还在,草木已经长得很深。",
+      "placeholder": {
+        "strategy": "generated-text",
+        "generator": "tools/gen/gen-chun-wang-text.mjs"
+      }
+    },
+    {
+      "id": "a-chang-an-map",
+      "type": "map",
+      "priority": "P1",
+      "title": "长安示意地图",
+      "steps": [
+        "arrive"
+      ],
+      "layers": [
+        "CITY"
+      ],
+      "line_seqs": [
+        1,
+        2
+      ],
+      "purpose": "让学生知道长安的规模与位置——对应『城春草木深』里的『城』",
+      "bundle_refs": [
+        "steps[1].layers[1].assets"
+      ],
+      "fallback": "a-chang-an-map-text",
+      "depiction": "INTERPRETATION",
+      "hold": "scene_spec",
+      "creative": "示意图而非考据复原:一个城郭方框、注明『长安』,标出内容底座已发布的相关地点(待 place-chang-an 发布后取其关联地点)。图上写明『示意图,不按比例』。",
+      "grounding": "bundle CITY 层台词『这是帝国都城,不是边地小城』(FACT,claim-bg-city 未核查);place-chang-an 目前是草稿。不得添加底座没有的城门、坊市、宫殿名。",
+      "forbidden": [
+        "自行添加底座没有的地名",
+        "把示意图画成精确复原图"
+      ],
+      "placeholder": {
+        "strategy": "generated-svg",
+        "generator": "tools/gen/gen-chun-wang-scene.mjs"
+      }
+    },
+    {
+      "id": "a-chang-an-map-text",
+      "type": "text-card",
+      "priority": "P0",
+      "companion_of": "a-chang-an-map",
+      "title": "长安示意地图(文字卡)",
+      "steps": [
+        "arrive"
+      ],
+      "layers": [
+        "CITY"
+      ],
+      "line_seqs": [
+        1,
+        2
+      ],
+      "purpose": "地图没加载时,用文字告诉学生长安是唐代都城——这是内容底座已有的结论",
+      "bundle_refs": [
+        "assets.a-chang-an-map.fallback"
+      ],
+      "fallback": null,
+      "depiction": "FACT",
+      "creative": "只写 bundle CITY 层已有结论,不增加数字(人口数字待核)。",
+      "grounding": "bundle CITY 层台词『这是帝国都城,不是边地小城。』",
+      "text_from": "steps[1].layers[1].lines[0].text",
+      "placeholder": {
+        "strategy": "generated-text",
+        "generator": "tools/gen/gen-chun-wang-text.mjs"
+      }
+    },
+    {
+      "id": "a-dufu-bust",
+      "type": "character",
+      "priority": "P1",
+      "title": "杜甫角色(正式版,替换占位)",
+      "steps": [
+        "meet"
+      ],
+      "layers": [
+        "PERSON"
+      ],
+      "line_seqs": [
+        7,
+        8
+      ],
+      "purpose": "让学生见到此时此地的诗人,而不是一个通用古人像",
+      "bundle_refs": [
+        "cast[0].avatar_asset",
+        "steps[2].roleplay.layers[0].assets"
+      ],
+      "fallback": "a-dufu-still",
+      "depiction": "DRAMATIZATION",
+      "creative": "按角色 bible 绘制(见 design/2d-character.md 的模板;bible 需用户先定稿并提供风格参考)。必须含 idle/talk/sorrow/bow,可有 listen。形象为演绎,界面带标识。外包可选 Live2D / Spine / Lottie / 分层 SVG(许可条款待核实,见 2d-character.md)。",
+      "grounding": "没有可靠的诗人画像可依据。年龄:写『四十多岁』,不写精确岁数(OQ-06,2026-11-11 已定)。角色不得被刻画成确切年龄。服饰须等场景要素表。",
+      "forbidden": [
+        "依据网上流传的杜甫画像描摹(版权与史实均不明)",
+        "在没有场景要素表的情况下画官服品级"
+      ],
+      "placeholder": {
+        "strategy": "existing",
+        "note": "占位已由里程碑 1 生成并登记(published/characters/du-fu)"
+      }
+    },
+    {
+      "id": "a-dufu-still",
+      "type": "character-still",
+      "priority": "P1",
+      "title": "杜甫静帧(正式版)",
+      "companion_of": "a-dufu-bust",
+      "steps": [
+        "meet"
+      ],
+      "layers": [
+        "PERSON"
+      ],
+      "line_seqs": [
+        7,
+        8
+      ],
+      "purpose": "角色动画不可用时仍保留“有人在场”",
+      "bundle_refs": [
+        "assets.a-dufu-bust.fallback"
+      ],
+      "fallback": "a-dufu-text",
+      "depiction": "DRAMATIZATION",
+      "creative": "与动画角色同一形象的静帧,背景透明。",
+      "grounding": "同 a-dufu-bust。",
+      "placeholder": {
+        "strategy": "existing"
+      }
+    },
+    {
+      "id": "a-dufu-text",
+      "type": "text-card",
+      "priority": "P0",
+      "companion_of": "a-dufu-bust",
+      "title": "杜甫在场(文字卡)",
+      "steps": [
+        "meet"
+      ],
+      "layers": [
+        "PERSON"
+      ],
+      "line_seqs": [
+        7,
+        8
+      ],
+      "purpose": "角色和图都不可用时,仍用文字告诉学生此处有人在场",
+      "bundle_refs": [
+        "assets.a-dufu-still.fallback"
+      ],
+      "fallback": null,
+      "depiction": "DRAMATIZATION",
+      "creative": "一句话说明:接下来的话是教学演绎,由『杜甫』的角色说出,不是史料。",
+      "grounding": "演绎声明规则(DESIGN.md §4)。",
+      "script_text": "接下来是杜甫的角色在说话。这是教学演绎,不是史料。",
+      "placeholder": {
+        "strategy": "existing"
+      }
+    },
+    {
+      "id": "voice-dufu-1",
+      "type": "voice-profile",
+      "priority": "P1",
+      "title": "杜甫音色档案",
+      "steps": [
+        "meet"
+      ],
+      "layers": [
+        "PERSON"
+      ],
+      "line_seqs": [
+        7,
+        8
+      ],
+      "purpose": "让“杜甫”开口时有稳定的音色身份,而不是每次换一种声音",
+      "bundle_refs": [
+        "cast[0].voice_id"
+      ],
+      "fallback": "a-recite-demo-subtitle",
+      "depiction": "DRAMATIZATION",
+      "creative": "确定一个音色(真人或授权合成),成年男声,语速偏缓,语气克制,不夸张。若用合成音,需记录模型、版本、参数以便复现,并确认授权覆盖商用。若克隆真人,需该真人的书面授权。",
+      "grounding": "产品规则:角色音色需稳定(architecture §2.3)。无史料依据其嗓音,故为演绎。",
+      "placeholder": {
+        "strategy": "generated-audio",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs",
+        "note": "占位:macOS say 合成,不可上线,授权未核实"
+      }
+    },
+    {
+      "id": "a-recite-demo",
+      "type": "recitation",
+      "priority": "P0",
+      "title": "《春望》诵读示范(真人)",
+      "steps": [
+        "recite"
+      ],
+      "layers": [
+        "SCENE"
+      ],
+      "line_seqs": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "purpose": "示范停顿与韵律,学生知道这句该怎么读出来——对应全诗八句",
+      "bundle_refs": [
+        "steps[4].demo_audio"
+      ],
+      "fallback": "a-recite-demo-subtitle",
+      "depiction": "FACT",
+      "hold": "text",
+      "creative": "真人诵读,律诗节奏,语速适合学生跟读,不加配乐。需要小学版与初中版时各开一张任务单(本单为通用版,若分版请复制)。TTS 读古诗韵律不合格(architecture §2.3),不得用 TTS 作正式版。",
+      "grounding": "诗句全文;字音与停顿须与纸质课本核对后再派发。",
+      "script_text": "国破山河在,城春草木深。感时花溅泪,恨别鸟惊心。烽火连三月,家书抵万金。白头搔更短,浑欲不胜簪。",
+      "placeholder": {
+        "strategy": "generated-audio",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs",
+        "note": "占位:macOS say 朗读,韵律不可信,不可上线"
+      }
+    },
+    {
+      "id": "a-recite-demo-subtitle",
+      "type": "subtitle",
+      "priority": "P0",
+      "companion_of": "a-recite-demo",
+      "depends_on": [
+        "a-recite-demo"
+      ],
+      "title": "诵读字幕(WebVTT)",
+      "steps": [
+        "recite"
+      ],
+      "layers": [
+        "SCENE"
+      ],
+      "line_seqs": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "purpose": "音频不可用时,文本与断句仍在(也是无障碍与降级必需)",
+      "bundle_refs": [
+        "assets.a-recite-demo.fallback"
+      ],
+      "fallback": null,
+      "depiction": "FACT",
+      "creative": "逐句字幕,时间轴依据真实录音的停顿;文字与 recite.txt 逐字一致。",
+      "grounding": "诗句全文。时间轴只能在真录音交付后确定。",
+      "script_text": "国破山河在,城春草木深。感时花溅泪,恨别鸟惊心。烽火连三月,家书抵万金。白头搔更短,浑欲不胜簪。",
+      "placeholder": {
+        "strategy": "generated-vtt",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs",
+        "note": "占位:时间轴按占位音频的实际时长均分"
+      }
+    },
+    {
+      "id": "a-nar-arrive-scene",
+      "type": "narration",
+      "priority": "P1",
+      "companion_subtitle": "a-nar-arrive-scene-sub",
+      "title": "旁白:眼前(SCENE)",
+      "steps": [
+        "arrive"
+      ],
+      "layers": [
+        "SCENE"
+      ],
+      "line_seqs": [
+        1,
+        2
+      ],
+      "purpose": "用声音带学生进入“城还在,但已残破”的眼前一层",
+      "bundle_refs": [
+        "steps[1].layers[0].lines[0]"
+      ],
+      "fallback": "a-nar-arrive-scene-sub",
+      "depiction": "INTERPRETATION",
+      "hold": "claims",
+      "text_from": "steps[1].layers[0].lines[0].text",
+      "speaker": "旁白",
+      "creative": "旁白音色,平实、不渲染。逐字念脚本文本。",
+      "grounding": "bundle 台词,kind=INTERPRETATION,basis=claim-bg-scene(未核查)。",
+      "placeholder": {
+        "strategy": "generated-audio",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs"
+      }
+    },
+    {
+      "id": "a-nar-arrive-scene-sub",
+      "type": "subtitle",
+      "priority": "P0",
+      "companion_of": "a-nar-arrive-scene",
+      "depends_on": [
+        "a-nar-arrive-scene"
+      ],
+      "title": "字幕:眼前(SCENE)",
+      "steps": [
+        "arrive"
+      ],
+      "layers": [
+        "SCENE"
+      ],
+      "line_seqs": [
+        1,
+        2
+      ],
+      "purpose": "旁白不可用时,这一层的文字仍完整可读",
+      "bundle_refs": [
+        "assets.a-nar-arrive-scene.fallback"
+      ],
+      "fallback": null,
+      "depiction": "INTERPRETATION",
+      "text_from": "steps[1].layers[0].lines[0].text",
+      "creative": "一条字幕,时间轴依据旁白实际时长。",
+      "grounding": "同 a-nar-arrive-scene。",
+      "placeholder": {
+        "strategy": "generated-vtt",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs"
+      }
+    },
+    {
+      "id": "a-nar-arrive-city",
+      "type": "narration",
+      "priority": "P1",
+      "companion_subtitle": "a-nar-arrive-city-sub",
+      "title": "旁白:这座城(CITY)",
+      "steps": [
+        "arrive"
+      ],
+      "layers": [
+        "CITY"
+      ],
+      "line_seqs": [
+        1,
+        2
+      ],
+      "purpose": "让学生听到长安是都城、不是边地小城",
+      "bundle_refs": [
+        "steps[1].layers[1].lines[0]"
+      ],
+      "fallback": "a-nar-arrive-city-sub",
+      "depiction": "FACT",
+      "hold": "claims",
+      "text_from": "steps[1].layers[1].lines[0].text",
+      "speaker": "旁白",
+      "creative": "旁白音色,平实。",
+      "grounding": "bundle 台词,kind=FACT,basis=claim-bg-city(未核查)。",
+      "placeholder": {
+        "strategy": "generated-audio",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs"
+      }
+    },
+    {
+      "id": "a-nar-arrive-city-sub",
+      "type": "subtitle",
+      "priority": "P0",
+      "companion_of": "a-nar-arrive-city",
+      "depends_on": [
+        "a-nar-arrive-city"
+      ],
+      "title": "字幕:这座城(CITY)",
+      "steps": [
+        "arrive"
+      ],
+      "layers": [
+        "CITY"
+      ],
+      "line_seqs": [
+        1,
+        2
+      ],
+      "purpose": "旁白不可用时,这一层的文字仍完整可读",
+      "bundle_refs": [
+        "assets.a-nar-arrive-city.fallback"
+      ],
+      "fallback": null,
+      "depiction": "FACT",
+      "text_from": "steps[1].layers[1].lines[0].text",
+      "creative": "一条字幕,文字与对应音频脚本逐字一致,时间轴依据音频实际时长。",
+      "grounding": "同 a-nar-arrive-city。",
+      "placeholder": {
+        "strategy": "generated-vtt",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs"
+      }
+    },
+    {
+      "id": "a-nar-arrive-world",
+      "type": "narration",
+      "priority": "P1",
+      "companion_subtitle": "a-nar-arrive-world-sub",
+      "title": "旁白:这个天下(WORLD)",
+      "steps": [
+        "arrive"
+      ],
+      "layers": [
+        "WORLD"
+      ],
+      "line_seqs": [
+        5,
+        6
+      ],
+      "purpose": "让学生听到战事持续、音信不通——对应『烽火连三月,家书抵万金』的处境",
+      "bundle_refs": [
+        "steps[1].layers[2].lines[0]"
+      ],
+      "fallback": "a-nar-arrive-world-sub",
+      "depiction": "FACT",
+      "hold": "claims",
+      "text_from": "steps[1].layers[2].lines[0].text",
+      "speaker": "旁白",
+      "creative": "旁白音色,平实。『第三年』『驿路断了』须与 claim-bg-world 核对。",
+      "grounding": "bundle 台词,kind=FACT,basis=claim-bg-world(未核查);时间口径两说并存,见 bundle.unknown_dates_notice。",
+      "placeholder": {
+        "strategy": "generated-audio",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs"
+      }
+    },
+    {
+      "id": "a-nar-arrive-world-sub",
+      "type": "subtitle",
+      "priority": "P0",
+      "companion_of": "a-nar-arrive-world",
+      "depends_on": [
+        "a-nar-arrive-world"
+      ],
+      "title": "字幕:这个天下(WORLD)",
+      "steps": [
+        "arrive"
+      ],
+      "layers": [
+        "WORLD"
+      ],
+      "line_seqs": [
+        5,
+        6
+      ],
+      "purpose": "旁白不可用时,这一层的文字仍完整可读",
+      "bundle_refs": [
+        "assets.a-nar-arrive-world.fallback"
+      ],
+      "fallback": null,
+      "depiction": "FACT",
+      "text_from": "steps[1].layers[2].lines[0].text",
+      "creative": "一条字幕,文字与对应音频脚本逐字一致,时间轴依据音频实际时长。",
+      "grounding": "同 a-nar-arrive-world。",
+      "placeholder": {
+        "strategy": "generated-vtt",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs"
+      }
+    },
+    {
+      "id": "a-nar-arrive-person",
+      "type": "narration",
+      "priority": "P1",
+      "companion_subtitle": "a-nar-arrive-person-sub",
+      "title": "旁白:这个人(PERSON)",
+      "steps": [
+        "arrive"
+      ],
+      "layers": [
+        "PERSON"
+      ],
+      "line_seqs": [
+        7,
+        8
+      ],
+      "purpose": "让学生听到诗人当时孤身一人、家人不在身边——对应『白头搔更短』的处境",
+      "bundle_refs": [
+        "steps[1].layers[3].lines[0]"
+      ],
+      "fallback": "a-nar-arrive-person-sub",
+      "depiction": "FACT",
+      "hold": "claims",
+      "text_from": "steps[1].layers[3].lines[0].text",
+      "speaker": "旁白",
+      "creative": "旁白音色,平实。",
+      "grounding": "bundle 台词,kind=FACT,basis=claim-bg-person(未核查)。2026-11-11 已定(OQ-06):台词写『四十多岁』,精确岁数无确证,不写进台词;出处区另标「年岁无确证」。",
+      "placeholder": {
+        "strategy": "generated-audio",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs"
+      }
+    },
+    {
+      "id": "a-nar-arrive-person-sub",
+      "type": "subtitle",
+      "priority": "P0",
+      "companion_of": "a-nar-arrive-person",
+      "depends_on": [
+        "a-nar-arrive-person"
+      ],
+      "title": "字幕:这个人(PERSON)",
+      "steps": [
+        "arrive"
+      ],
+      "layers": [
+        "PERSON"
+      ],
+      "line_seqs": [
+        7,
+        8
+      ],
+      "purpose": "旁白不可用时,这一层的文字仍完整可读",
+      "bundle_refs": [
+        "assets.a-nar-arrive-person.fallback"
+      ],
+      "fallback": null,
+      "depiction": "FACT",
+      "text_from": "steps[1].layers[3].lines[0].text",
+      "creative": "一条字幕,文字与对应音频脚本逐字一致,时间轴依据音频实际时长。",
+      "grounding": "同 a-nar-arrive-person。",
+      "placeholder": {
+        "strategy": "generated-vtt",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs"
+      }
+    },
+    {
+      "id": "a-nar-meet-dufu",
+      "type": "narration",
+      "priority": "P1",
+      "companion_subtitle": "a-nar-meet-dufu-sub",
+      "title": "杜甫台词(见)",
+      "steps": [
+        "meet"
+      ],
+      "layers": [
+        "PERSON"
+      ],
+      "line_seqs": [
+        7,
+        8
+      ],
+      "purpose": "让学生听到诗人本人的口吻——这是教学演绎,不是史料",
+      "bundle_refs": [
+        "steps[2].roleplay.layers[0].lines[0]"
+      ],
+      "fallback": "a-nar-meet-dufu-sub",
+      "depiction": "DRAMATIZATION",
+      "hold": "claims",
+      "text_from": "steps[2].roleplay.layers[0].lines[0].text",
+      "speaker": "杜甫(voice-dufu-1)",
+      "depends_on": [
+        "voice-dufu-1"
+      ],
+      "creative": "必须用 voice-dufu-1 的音色。语气克制。演绎台词必须由角色音色念出,旁白音色不得念。",
+      "grounding": "bundle 台词 kind=DRAMATIZATION,basis=null,界面带『这是教学演绎,不是史料』。台词里『草长得比城墙还高』是编写者的演绎,没有史料依据,不得在任何地方当作事实使用。",
+      "placeholder": {
+        "strategy": "generated-audio",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs"
+      }
+    },
+    {
+      "id": "a-nar-meet-dufu-sub",
+      "type": "subtitle",
+      "priority": "P0",
+      "companion_of": "a-nar-meet-dufu",
+      "depends_on": [
+        "a-nar-meet-dufu"
+      ],
+      "title": "字幕:杜甫台词(见)",
+      "steps": [
+        "meet"
+      ],
+      "layers": [
+        "PERSON"
+      ],
+      "line_seqs": [
+        7,
+        8
+      ],
+      "purpose": "台词音频不可用时,演绎台词仍以文字带『演绎』角标显示",
+      "bundle_refs": [
+        "assets.a-nar-meet-dufu.fallback"
+      ],
+      "fallback": null,
+      "depiction": "DRAMATIZATION",
+      "text_from": "steps[2].roleplay.layers[0].lines[0].text",
+      "creative": "一条字幕;界面负责角标。",
+      "grounding": "同 a-nar-meet-dufu。",
+      "placeholder": {
+        "strategy": "generated-vtt",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs"
+      }
+    },
+    {
+      "id": "a-nar-return-world",
+      "type": "narration",
+      "priority": "P1",
+      "companion_subtitle": "a-nar-return-world-sub",
+      "title": "旁白:回——国破(WORLD)",
+      "steps": [
+        "return"
+      ],
+      "layers": [
+        "WORLD"
+      ],
+      "line_seqs": [
+        1
+      ],
+      "purpose": "让学生听到『国破』是记事不是写景,落回第一句",
+      "bundle_refs": [
+        "steps[3].layers[0].lines[0]"
+      ],
+      "fallback": "a-nar-return-world-sub",
+      "depiction": "INTERPRETATION",
+      "hold": "claims",
+      "text_from": "steps[3].layers[0].lines[0].text",
+      "speaker": "旁白",
+      "creative": "旁白音色。这是解释,不是史实。",
+      "grounding": "bundle 台词 kind=INTERPRETATION,basis=claim-bg-world。",
+      "placeholder": {
+        "strategy": "generated-audio",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs"
+      }
+    },
+    {
+      "id": "a-nar-return-world-sub",
+      "type": "subtitle",
+      "priority": "P0",
+      "companion_of": "a-nar-return-world",
+      "depends_on": [
+        "a-nar-return-world"
+      ],
+      "title": "字幕:回——国破(WORLD)",
+      "steps": [
+        "return"
+      ],
+      "layers": [
+        "WORLD"
+      ],
+      "line_seqs": [
+        1
+      ],
+      "purpose": "旁白不可用时,这条解释仍以文字呈现",
+      "bundle_refs": [
+        "assets.a-nar-return-world.fallback"
+      ],
+      "fallback": null,
+      "depiction": "INTERPRETATION",
+      "text_from": "steps[3].layers[0].lines[0].text",
+      "creative": "一条字幕,文字与对应音频脚本逐字一致,时间轴依据音频实际时长。",
+      "grounding": "同 a-nar-return-world。",
+      "placeholder": {
+        "strategy": "generated-vtt",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs"
+      }
+    },
+    {
+      "id": "a-nar-return-person",
+      "type": "narration",
+      "priority": "P1",
+      "companion_subtitle": "a-nar-return-person-sub",
+      "title": "旁白:回——家书(PERSON)",
+      "steps": [
+        "return"
+      ],
+      "layers": [
+        "PERSON"
+      ],
+      "line_seqs": [
+        6
+      ],
+      "purpose": "让学生听到『抵万金』为什么有分量,落回第六句",
+      "bundle_refs": [
+        "steps[3].layers[1].lines[0]"
+      ],
+      "fallback": "a-nar-return-person-sub",
+      "depiction": "INTERPRETATION",
+      "hold": "claims",
+      "text_from": "steps[3].layers[1].lines[0].text",
+      "speaker": "旁白",
+      "creative": "旁白音色。这是解释。",
+      "grounding": "bundle 台词 kind=INTERPRETATION,basis=claim-bg-person。",
+      "placeholder": {
+        "strategy": "generated-audio",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs"
+      }
+    },
+    {
+      "id": "a-nar-return-person-sub",
+      "type": "subtitle",
+      "priority": "P0",
+      "companion_of": "a-nar-return-person",
+      "depends_on": [
+        "a-nar-return-person"
+      ],
+      "title": "字幕:回——家书(PERSON)",
+      "steps": [
+        "return"
+      ],
+      "layers": [
+        "PERSON"
+      ],
+      "line_seqs": [
+        6
+      ],
+      "purpose": "旁白不可用时,这条解释仍以文字呈现",
+      "bundle_refs": [
+        "assets.a-nar-return-person.fallback"
+      ],
+      "fallback": null,
+      "depiction": "INTERPRETATION",
+      "text_from": "steps[3].layers[1].lines[0].text",
+      "creative": "一条字幕,文字与对应音频脚本逐字一致,时间轴依据音频实际时长。",
+      "grounding": "同 a-nar-return-person。",
+      "placeholder": {
+        "strategy": "generated-vtt",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs"
+      }
+    },
+    {
+      "id": "a-sfx-birds",
+      "type": "sfx",
+      "priority": "P2",
+      "title": "音效:鸟鸣(恨别鸟惊心)",
+      "steps": [
+        "arrive"
+      ],
+      "layers": [
+        "SCENE"
+      ],
+      "line_seqs": [
+        4
+      ],
+      "purpose": "给『恨别鸟惊心』一点环境声,让学生意识到春天的鸟鸣与诗人心境的反差",
+      "bundle_refs": [],
+      "fallback": "a-sfx-birds-text",
+      "depiction": "DRAMATIZATION",
+      "creative": "几声鸟鸣,稀疏、不热闹,可循环,音量很低。只做鸟鸣,不加风声、人声、战鼓、号角。",
+      "grounding": "诗句『恨别鸟惊心』(鸟)。鸟种、数量、时刻均无依据,故为演绎。本任务尚未被 bundle 引用,是否采用由内容负责人决定(P2)。",
+      "placeholder": {
+        "strategy": "generated-audio",
+        "generator": "tools/gen/gen-chun-wang-audio.mjs",
+        "note": "占位:ffmpeg 合成的几声短促啁啾,不可上线"
+      }
+    },
+    {
+      "id": "a-sfx-birds-text",
+      "type": "text-card",
+      "priority": "P2",
+      "companion_of": "a-sfx-birds",
+      "title": "音效:鸟鸣(文字卡)",
+      "steps": [
+        "arrive"
+      ],
+      "layers": [
+        "SCENE"
+      ],
+      "line_seqs": [
+        4
+      ],
+      "purpose": "音效不可用时,用文字提醒学生诗里写到了鸟——不影响理解",
+      "bundle_refs": [],
+      "fallback": null,
+      "depiction": "INTERPRETATION",
+      "creative": "一句话,只指向诗句。",
+      "grounding": "诗句『恨别鸟惊心』。",
+      "script_text": "诗里写到了鸟:“恨别鸟惊心”。",
+      "placeholder": {
+        "strategy": "generated-text",
+        "generator": "tools/gen/gen-chun-wang-text.mjs"
+      }
+    },
+    {
+      "id": "res-font-poem-serif",
+      "type": "font",
+      "priority": "P1",
+      "title": "诗句宋体/明朝体(子集)",
+      "steps": [
+        "all"
+      ],
+      "line_seqs": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "purpose": "诗句用有授权的衬线中文字体排印,保证字形完整与商用合规——对应全诗八句",
+      "bundle_refs": [],
+      "fallback": null,
+      "depiction": "FACT",
+      "creative": "开源或已购买授权的中文衬线字体,按全诗用字子集化为 woff2。须核对授权覆盖商用+网页嵌入+子集化(待办 A-1,未核实)。",
+      "grounding": "docs/design/tokens.css 的 --font-serif 声明了字体回退链;授权尚未核查。",
+      "placeholder": {
+        "strategy": "none",
+        "note": "前端使用系统字体回退链"
+      }
+    },
+    {
+      "id": "res-font-calligraphy",
+      "type": "font",
+      "priority": "P2",
+      "title": "书法字体(诗题与落款字形,可选)",
+      "steps": [
+        "read"
+      ],
+      "line_seqs": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "purpose": "诗题与逐字显示用的书法字形,增强氛围;不是五步必需——对应全诗八句",
+      "bundle_refs": [],
+      "fallback": null,
+      "depiction": "FACT",
+      "creative": "必须有明确授权的书法字体;不得从碑帖/网络图片抠字。",
+      "grounding": "无。",
+      "placeholder": {
+        "strategy": "none"
+      }
+    }
+  ],
+  "regen_note": "按顺序执行即等同 scripts/student-app-production/regen-placeholders.sh。这些是《春望》专用脚本,名字带 chun-wang;《静夜思》用的是通用脚本(gen-text / gen-audio),见 tasks/jing-ye-si/demand.json。"
+}

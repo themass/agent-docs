@@ -1,0 +1,492 @@
+# 唐诗三百首双证报告（阶段 C）
+
+- 三百首 366 首；御定全唐詩 43103 首；poet.tang 57607 首。
+- 比对在去标点正文上进行；分段差异不算异文；异体字折叠表见脚本注释（只折叠同字异写，繁简归并字不折叠）。
+
+| 档 | 含义 | 数量 |
+|---|---|---|
+| DUAL_RAW | 两路正文逐字一致 + 作者一致（入库候选；仍需维基文库独立复核） | 89 |
+| DUAL_FOLDED | 两路都命中，但有一路需归一异体字（差异字符已逐条登记） | 46 |
+| TEXT_OK_AUTHOR_SPLIT | 正文两路一致，但某一路署了别的作者（作者双证未过） | 5 |
+| SINGLE | 只有一路命中（另一路异文或未收录） | 223 |
+| VARIANT_ONLY | 两路都是真异文（需版本判断，不入库） | 1 |
+| MISSING | 两路都找不到（选本独采或正文差异过大） | 2 |
+
+**够格进入下一步（维基文库独立复核）的：135 首**（其中 46 首需先人工看过异体字差异）。
+
+## 未过清单
+
+### TEXT_OK_AUTHOR_SPLIT（5）
+
+- 3 明皇帝《經鄒魯祭孔子而歎之》 御定=FOLD_EXACT／poet.tang=RAW_EXACT
+    - 异体字：爲/為、栖/棲
+    - 作者: 选本=明皇帝 御定=['李隆基'] poet.tang=['明皇帝']
+- 129 盧綸《和張僕射塞下曲 三》 御定=FOLD_EXACT／poet.tang=RAW_EXACT
+    - 异体字：鴈/雁
+    - 作者: 选本=盧綸 御定=['錢起'] poet.tang=['盧綸', '錢起']
+- 190 周朴《春宮怨》 御定=FOLD_EXACT／poet.tang=RAW_EXACT
+    - 异体字：爲/為
+    - 作者: 选本=周朴 御定=['周樸', '杜荀鶴'] poet.tang=['周朴', '杜荀鶴']
+- 257 楊敬述進《雜曲歌辭 婆羅門》 御定=FOLD_EXACT／poet.tang=RAW_EXACT
+    - 异体字：迴/回
+    - 作者: 选本=楊敬述進 御定=['不詳', '李益'] poet.tang=['李益', '楊敬述進']
+- 363 劉眘虛《闕題》 御定=RAW_EXACT／poet.tang=RAW_EXACT
+    - 分段不同（正文逐字一致）
+    - 作者: 选本=劉眘虛 御定=['劉昚虛'] poet.tang=['劉眘虛']
+
+### SINGLE（223）
+
+- 1 駱賓王《在嶽詠蟬》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第30字 沈≠沉
+- 4 李白《鼓吹曲辭 將進酒》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 176≠113，首异在第 56 字（千金散盡… / 岑夫子丹…）
+- 5 王昌齡《橫吹曲辭 出塞 一》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 28≠56，首异在第 29 字（… / 白花垣上…）
+- 6 王之渙《橫吹曲辭 出塞》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第23字 風≠光
+- 8 王建《新嫁娘詞三首 三》 御定=未收／poet.tang=RAW_EXACT
+- 10 李商隱《錦瑟》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（望帝春心… / 此情可待…）
+- 14 李商隱《韓碑》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 366≠189，首异在第 22 字（坐法宮中… / 不據山河…）
+- 15 李商隱《風雨》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第38字 斗≠鬥
+- 17 李商隱《隋宮》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（錦帆應是… / 地下若逢…）
+- 18 李商隱《籌筆驛》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（終見降王… / 他年錦裡…）
+- 19 李商隱《無題二首 一》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠63，首异在第 17 字（綵鳳雙飛… / 彩鳳雙飛…）
+- 20 李商隱《無題四首 一》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠145，首异在第 22 字（書被催成… / 劉郎已恨…）
+- 21 李商隱《無題四首 二》 御定=未收／poet.tang=RAW_EXACT
+- 25 李商隱《無題》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第28字 乾≠幹
+- 27 李商隱《春雨》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（珠箔飄燈… / 玉璫緘劄…）
+- 29 李商隱《無題二首 一》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 42≠70，首异在第 22 字（車走雷聲… / 斑騅只系…）
+- 30 李商隱《無題二首 二》 御定=未收／poet.tang=RAW_EXACT
+- 35 韋莊《章臺夜思》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第24字 云≠雲
+- 37 韋莊《臺城》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第27字 里≠裡
+- 38 薛逢《宮詞》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（水滴銅龍… / 遙窺正殿…）
+- 39 馬戴《楚江懷古三首 一》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 40≠120，首异在第 41 字（… / 驚鳥去無…）
+- 44 元稹《遣悲懷三首 一》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠105，首异在第 22 字（泥他沽酒… / 今日俸錢…）
+- 45 元稹《遣悲懷三首 二》 御定=未收／poet.tang=RAW_EXACT
+- 46 元稹《遣悲懷三首 三》 御定=未收／poet.tang=RAW_EXACT
+- 49 無名氏《雜詩 十三》 御定=未收／poet.tang=RAW_EXACT
+- 50 沈佺期《雜詩三首 三》 御定=未收／poet.tang=RAW_EXACT
+- 51 沈佺期《古意呈補闕喬知之》 御定=未收／poet.tang=RAW_EXACT
+- 55 王維《送綦毋潛落第還鄉》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第27字 云≠雲
+- 56 王維《青谿》 御定=未收／poet.tang=RAW_EXACT
+- 59 王維《老將行》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 210≠105，首异在第 14 字（射射殺中… / 騎射殺中…）
+- 60 王維《桃源行》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 224≠119，首异在第 22 字（行盡青溪… / 遙看一處…）
+- 61 王維《洛陽女兒行》 御定=未收／poet.tang=RAW_EXACT
+- 62 王維《輞川閑居贈裴秀才迪》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第27字 里≠裡；第31字 復≠複
+- 64 王維《送梓州李使君》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第38字 倚≠依
+- 65 權德輿《玉臺體十二首 十一》 御定=未收／poet.tang=RAW_EXACT
+- 66 韓愈《山石》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 140≠77，首异在第 22 字（芭蕉葉大… / 鋪床拂席…）
+- 67 韓愈《八月十五夜贈張功曹》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 182≠105，首异在第 22 字（一杯相屬… / 洞庭連天…）
+- 68 韓愈《謁衡嶽廟遂宿嶽寺題門樓》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 224≠119，首异在第 22 字（天假神柄… / 我來正逢…）
+- 69 韓偓《已涼》 御定=未收／poet.tang=RAW_EXACT
+- 70 杜荀鶴《春宮怨》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第38字 採≠采
+- 72 杜牧《將赴吳興登樂遊原一絕》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第23字 遊≠游
+- 75 杜牧《贈別二首 一》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 28≠56，首异在第 18 字（里揚州路… / 裡揚州路…）
+- 76 杜牧《贈別二首 二》 御定=未收／poet.tang=RAW_EXACT
+- 80 杜牧《旅宿》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第29字 隔≠來；第37字 繫≠系
+- 81 許渾《早秋三首 一》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 40≠120，首异在第 41 字（… / 一葉下前…）
+- 83 張泌《寄人 一》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 28≠56，首异在第 29 字（… / 酷憐風月…）
+- 84 陳陶《隴西行四首 二》 御定=未收／poet.tang=RAW_EXACT
+- 86 白居易《後宮詞》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第24字 薰≠熏
+- 88 李益《江南詞》 御定=未收／poet.tang=RAW_EXACT
+- 97 劉長卿《新年作》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第32字 是≠似
+- 101 劉長卿《江州重別薛六柳八二員外》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（淮南木落… / 今日龍鍾…）
+- 102 劉長卿《長沙過賈誼宅》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（寒林空見… / 寂寂江山…）
+- 103 劉長卿《自夏口至鸚鵡洲夕望岳陽寄源中丞》 御定=未收／poet.tang=RAW_EXACT
+- 104 劉長卿《賦得》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（心隨明月… / 為問元戎…）
+- 105 崔曙《九日登望仙臺呈劉明府容》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（二陵風雨… / 且欲近尋…）
+- 106 王翰《涼州詞二首 一》 御定=未收／poet.tang=RAW_EXACT
+- 108 孟浩然《夏日南亭懷辛大》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第12字 髮≠發
+- 110 孟浩然《夜歸鹿門山歌》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（余亦乘舟… / 岩扉松徑…）
+- 117 孟浩然《與諸子登峴山》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第18字 復≠複
+- 120 孟浩然《歲除夜有懷》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第17字 燈≠燭；第27字 於≠于
+- 123 李白《蜀道難》 御定=未收／poet.tang=RAW_EXACT
+- 124 李白《將進酒》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 176≠113，首异在第 56 字（千金散盡… / 岑夫子丹…）
+- 125 杜荀鶴《春宮怨》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第38字 採≠采
+- 127 盧綸《和張僕射塞下曲 一》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 20≠120，首异在第 21 字（… / 林暗草驚…）
+- 128 盧綸《和張僕射塞下曲 二》 御定=未收／poet.tang=RAW_EXACT
+- 130 盧綸《和張僕射塞下曲 四》 御定=未收／poet.tang=RAW_EXACT
+- 131 盧綸《晚次鄂州》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（舟人夜語… / 舊業已隨…）
+- 133 王維《過香積寺》 御定=未收／poet.tang=RAW_EXACT
+- 139 王維《奉和聖製從蓬萊向興慶閣道中留春雨中春望之作應制》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（閣道回看… / 為乘陽氣…）
+- 140 王維《和賈舍人早朝大明宮之作》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（萬國衣冠… / 朝罷須裁…）
+- 141 王維《酬郭給事》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（省中啼鳥… / 強欲從君…）
+- 142 王維《積雨輞川莊作》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（陰陰夏木… / 野老與人…）
+- 143 王維《輞川集 鹿柴》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第16字 復≠複
+- 144 王維《輞川集 竹里館》 御定=未收／poet.tang=RAW_EXACT
+- 146 王維《雜詩三首 二》 御定=未收／poet.tang=RAW_EXACT
+- 147 王維《相思》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第14字 采≠採
+- 150 裴迪《崔九欲往南山馬上口號與別》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第17字 游≠遊
+- 151 丘爲《尋西山隱者不遇》 御定=未收／poet.tang=RAW_EXACT
+- 152 崔顥《黃鶴樓》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（白雲千載… / 日暮鄉關…）
+- 153 崔顥《行經華陰》 御定=未收／poet.tang=RAW_EXACT
+- 154 崔顥《長干曲四首 一》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 20≠80，首异在第 21 字（… / 家臨九江…）
+- 155 崔顥《長干曲四首 二》 御定=未收／poet.tang=RAW_EXACT
+- 156 祖詠《望薊門》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（三邊曙色… / 少小雖非…）
+- 158 李頎《古從軍行》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 84≠42，首异在第 18 字（斗風沙暗… / 鬥風沙暗…）
+- 159 李頎《琴歌》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 70≠42，首异在第 22 字（霜淒萬樹… / 一聲已動…）
+- 160 李頎《送陳章甫》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 126≠63，首异在第 22 字（嘶馬出門… / 腹中貯書…）
+- 161 李頎《聽安萬善吹觱篥歌》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 126≠63，首异在第 22 字（涼州胡人… / 世人解聽…）
+- 162 李頎《古意》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 72≠51，首异在第 26 字（鬚如蝟毛… / 須如蝟毛…）
+- 163 李頎《聽董大彈胡笳聲兼寄語弄房給事》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 191≠104，首异在第 22 字（漢使斷腸… / 先拂商弦…）
+- 164 李頎《送魏萬之京》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（雲山況是… / 莫見長安…）
+- 166 王昌齡《塞下曲四首 一》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 40≠160，首异在第 24 字（幷客皆共… / 並客皆共…）
+- 167 王昌齡《塞下曲四首 二》 御定=未收／poet.tang=RAW_EXACT
+- 169 王昌齡《出塞二首 一》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 28≠56，首异在第 29 字（… / 白花垣上…）
+- 172 王昌齡《芙蓉樓送辛漸二首 一》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 28≠56，首异在第 29 字（… / 丹陽城南…）
+- 174 李白《清平調 一》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 28≠84，首异在第 29 字（… / 一枝紅豔…）
+- 175 李白《清平調 二》 御定=未收／poet.tang=RAW_EXACT
+- 176 李白《清平調 三》 御定=未收／poet.tang=RAW_EXACT
+- 178 白居易《長恨歌》 御定=未收／poet.tang=RAW_EXACT
+- 179 白居易《琵琶引》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 616≠315，首异在第 22 字（舉酒欲飲… / 忽聞水上…）
+- 181 白居易《自河南經亂關內阻饑兄弟離散各在一處因望月有感聊書所懷寄上浮梁大兄於潛七兄烏江十五兄兼示符離及下邽弟妹》 御定=未收／poet.tang=RAW_EXACT
+- 182 白居易《問劉十九》 御定=未收／poet.tang=RAW_EXACT
+- 183 賈島《尋隱者不遇》 御定=未收／poet.tang=RAW_EXACT
+- 184 溫庭筠《利州南渡》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（柳邊人歇… / 誰解乘舟…）
+- 187 溫庭筠《蘇武廟》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（隴上羊歸… / 茂陵不見…）
+- 188 李頻《渡漢江》 御定=未收／poet.tang=RAW_EXACT
+- 189 秦韜玉《貧女》 御定=未收／poet.tang=RAW_EXACT
+- 191 崔塗《孤鴈 二》 御定=未收／poet.tang=RAW_EXACT
+- 192 崔塗《巴山道中除夜書懷》 御定=未收／poet.tang=RAW_EXACT
+- 193 張祜《宮詞二首 一》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 20≠40，首异在第 21 字（… / 自倚能歌…）
+- 195 張祜《集靈臺二首 一》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 28≠56，首异在第 29 字（… / 虢國夫人…）
+- 196 張祜《集靈臺二首 二》 御定=未收／poet.tang=RAW_EXACT
+- 199 韓愈《石鼓歌》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 462≠231，首异在第 22 字（才薄將奈… / 大開明堂…）
+- 202 柳宗元《登柳州城樓寄漳汀封連四州》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（密雨斜侵… / 共來百越…）
+- 205 柳宗元《漁翁》 御定=未收／poet.tang=RAW_EXACT
+- 206 劉禹錫《蜀先主廟》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第17字 復≠複
+- 207 杜甫《月夜》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第40字 乾≠幹
+- 212 杜甫《天末憶李白》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第39字 汩≠汨
+- 213 杜甫《蜀相》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 16 字（堦碧草自… / 階碧草自…）
+- 214 杜甫《客至》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（蓬門今始… / 肯與鄰翁…）
+- 215 杜甫《野望》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（天涯涕淚… / 跨馬出郊…）
+- 216 杜甫《奉濟驛重送嚴公四韻》 御定=未收／poet.tang=RAW_EXACT
+- 217 杜甫《聞官軍收河南河北》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（漫卷詩書… / 即從巴峽…）
+- 218 杜甫《登高》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（不盡長江… / 艱難苦恨…）
+- 219 杜甫《別房太尉墓》 御定=未收／poet.tang=RAW_EXACT
+- 220 杜甫《登樓》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（玉壘浮雲… / 可憐後主…）
+- 221 杜甫《宿府》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（中天月色… / 已忍伶俜…）
+- 223 杜甫《閣夜》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（三峽星河… / 臥龍躍馬…）
+- 225 杜甫《詠懷古跡五首 一》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠175，首异在第 22 字（五溪衣服… / 庾信平生…）
+- 226 杜甫《詠懷古跡五首 二》 御定=未收／poet.tang=RAW_EXACT
+- 227 杜甫《詠懷古跡五首 三》 御定=未收／poet.tang=RAW_EXACT
+- 228 杜甫《詠懷古跡五首 四》 御定=未收／poet.tang=RAW_EXACT
+- 229 杜甫《詠懷古跡五首 五》 御定=未收／poet.tang=RAW_EXACT
+- 230 杜甫《江南逢李龜年》 御定=未收／poet.tang=RAW_EXACT
+- 232 杜甫《虢國夫人》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第23字 埽≠掃
+- 234 宋之問《題大庾嶺北驛》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第18字 復≠複
+    - 分段不同（正文逐字一致）
+- 235 宋之問《渡漢江》 御定=未收／poet.tang=RAW_EXACT
+- 236 宋之問《新年作》 御定=未收／poet.tang=RAW_EXACT
+- 237 王勃《杜少府之任蜀州》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 40≠41，首异在第 22 字（內存知己… / 記憶體知…）
+- 240 高適《送李少府貶峽中王少府貶長沙》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（衡陽歸雁… / 聖代即今…）
+- 241 杜甫《望嶽》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第13字 鍾≠鐘；第21字 盪≠蕩；第22字 胷≠胸
+- 242 杜甫《兵車行》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 223≠144，首异在第 15 字（孃妻子走… / 娘妻子走…）
+    - 分段不同（正文逐字一致）
+- 243 杜甫《贈衛八處士》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第13字 復≠複；第83字 剪≠翦；第115字 岳≠嶽
+- 244 杜甫《麗人行》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 178≠95，首异在第 22 字（肌理細膩… / 頭上何所…）
+- 245 杜甫《哀江頭》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 140≠77，首异在第 22 字（細柳新蒲… / 昭陽殿裡…）
+- 246 杜甫《哀王孫》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 196≠127，首异在第 22 字（屋底達官… / 腰下寶玦…）
+- 247 杜甫《佳人》 御定=未收／poet.tang=RAW_EXACT
+- 248 杜甫《夢李白二首 一》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 80≠160，首异在第 65 字（梁猶疑照… / 樑猶疑照…）
+- 249 杜甫《夢李白二首 二》 御定=未收／poet.tang=RAW_EXACT
+- 250 杜甫《韋諷錄事宅觀曹將軍畫馬圖》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 241≠136，首异在第 22 字（人間又見… / 內府殷紅…）
+- 251 杜甫《丹青引贈曹將軍霸》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 280≠147，首异在第 22 字（文彩風流… / 丹青不知…）
+- 252 杜甫《寄韓諫議》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 154≠84，首异在第 22 字（濯足洞庭… / 玉京群帝…）
+- 253 杜甫《古柏行》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 168≠84，首异在第 22 字（黛色參天… / 雲來氣接…）
+- 254 杜甫《觀公孫大娘弟子舞劒器行》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 182≠98，首异在第 22 字（天地為之… / 來如雷霆…）
+- 255 張佖《寄人二首  其一》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 28≠56，首异在第 29 字（… / 酷憐風月…）
+    - 作者: 选本=張佖 御定=['張泌'] poet.tang=['張泌']
+- 256 不詳《雜曲歌辭 蓋羅縫 一》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 28≠56，首异在第 29 字（… / 音書杜絕…）
+- 258 李白《雜曲歌辭 清平調 一》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 28≠84，首异在第 29 字（… / 一枝紅豔…）
+- 259 李白《雜曲歌辭 清平調 二》 御定=未收／poet.tang=RAW_EXACT
+- 260 李白《雜曲歌辭 清平調 三》 御定=未收／poet.tang=RAW_EXACT
+- 261 王維《雜曲歌辭 渭城曲》 御定=未收／poet.tang=RAW_EXACT
+- 263 張九齡《感遇十二首 一》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 40≠600，首异在第 41 字（… / 幽林歸獨…）
+- 264 張九齡《感遇十二首 二》 御定=未收／poet.tang=RAW_EXACT
+- 265 張九齡《感遇十二首 四》 御定=未收／poet.tang=RAW_EXACT
+- 266 張九齡《感遇十二首 七》 御定=未收／poet.tang=RAW_EXACT
+- 267 皎然《尋陸鴻漸不遇》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第32字 道≠導
+- 268 劉禹錫《西塞山懷古》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 19 字（沈江底一… / 沉江底今…）
+- 271 孟郊《列女操》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第12字 女≠婦；第14字 狥≠殉；第16字 捨≠舍
+- 276 錢起《贈闕下裴舍人》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（龍池柳色… / 獻賦十年…）
+- 278 元結《賊退示官吏》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第83字 徴≠征
+- 279 元結《石魚湖上醉歌》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 54≠33，首异在第 20 字（酒徒歷歷… / 我持長瓢…）
+- 282 韓翃《同題仙游觀》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（砧聲近報… / 何用別尋…）
+- 283 韓翃《寒食》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第12字 御≠禦
+- 284 韋應物《寄李儋元錫》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（春愁黯黯… / 聞道欲來…）
+- 288 韋應物《送楊氏女》 御定=未收／poet.tang=RAW_EXACT
+- 290 韋應物《夕次盱眙縣》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第19字 沈≠沉
+- 291 韋應物《東郊》 御定=未收／poet.tang=RAW_EXACT
+    - 分段不同（正文逐字一致）
+- 295 岑參《白雪歌送武判官歸京》 御定=未收／poet.tang=RAW_EXACT
+- 296 岑參《輪臺歌奉送封大夫出師西征》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 126≠63，首异在第 22 字（單于已在… / 上將擁旄…）
+- 297 岑參《走馬川行奉送出師西征》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第31字 斗≠鬥
+- 298 岑參《寄左省杜拾遺》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第18字 御≠禦
+- 299 岑參《奉和中書舍人賈至早朝大明宮》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（玉階仙仗… / 獨有鳳凰…）
+- 300 岑參《逢入京使》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第14字 乾≠幹
+- 301 孫革《訪羊尊師》 御定=未收／poet.tang=RAW_EXACT
+- 303 李白《行路難三首 一》 御定=未收／poet.tang=RAW_EXACT
+- 304 李白《行路難三首 二》 御定=未收／poet.tang=RAW_EXACT
+- 305 李白《行路難三首 三》 御定=未收／poet.tang=RAW_EXACT
+- 306 李白《長相思》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 75≠143，首异在第 13 字（闌微霜淒… / 欄微霜淒…）
+- 309 李白《清平調詞三首 一》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 28≠84，首异在第 29 字（… / 一枝紅豔…）
+- 310 李白《清平調詞三首 二》 御定=未收／poet.tang=RAW_EXACT
+- 313 李白《子夜吳歌 春歌》 御定=未收／poet.tang=RAW_EXACT
+- 314 李白《子夜吳歌 夏歌》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第15字 採≠采；第20字 耶≠邪
+- 318 李白《廬山謠寄盧侍御虛舟》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 191≠100，首异在第 42 字（屏風九疊… / 翠影紅霞…）
+- 319 李白《夢遊天姥吟留別》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 285≠134，首异在第 18 字（雲霓明滅… / 天台四萬…）
+    - 分段不同（正文逐字一致）
+- 320 李白《金陵酒肆留別》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 42≠21，首异在第 22 字（欲行不行… / …）
+- 322 李白《渡荆門送別》 御定=未收／poet.tang=RAW_EXACT
+- 324 李白《宣州謝朓樓餞別校書叔雲》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 92≠64，首异在第 44 字（中間小謝… / 抽刀斷水…）
+- 325 李白《下終南山過斛斯山人宿置酒》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第64字 復≠複
+- 326 李白《登金陵鳳凰臺》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 22 字（晉代衣冠… / 總為浮雲…）
+- 329 李白《月下獨酌四首 一》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 70≠270，首异在第 71 字（… / 天若不愛…）
+- 331 李白《怨情》 御定=未收／poet.tang=RAW_EXACT
+- 333 韋應物《郡齋雨中與諸文士燕集》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第22字 疴≠屙；第28字 復≠複；第32字 慙≠慚；第37字 覩≠睹；第49字 迹≠跡
+- 334 韋應物《初發揚子寄元大校書》 御定=未收／poet.tang=RAW_EXACT
+- 336 高適《相和歌辭 燕歌行》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 197≠113，首异在第 22 字（天子非常… / 校尉羽書…）
+- 337 李頎《相和歌辭 從軍行》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 84≠42，首异在第 18 字（斗風砂暗… / 鬥風砂暗…）
+- 338 李白《相和歌辭 蜀道難》 御定=未收／poet.tang=RAW_EXACT
+    - 分段不同（正文逐字一致）
+- 339 王昌齡《相和歌辭 長信怨 二》 御定=未收／poet.tang=RAW_EXACT
+- 341 李白《相和歌辭 子夜四時歌四首 春歌》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第22字 飢≠饑
+- 345 孟郊《琴曲歌辭 列女操》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第14字 徇≠殉
+- 347 杜甫《雜曲歌辭 麗人行》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 178≠95，首异在第 22 字（肌理細膩… / 頭上何所…）
+- 348 李白《雜曲歌辭 長相思三首 一》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 75≠143，首异在第 63 字（夢魂不到… / 日色已盡…）
+- 349 李白《雜曲歌辭 長相思三首 二》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 71≠64，首异在第 22 字（蜀琴欲奏… / 不信妾腸…）
+- 350 李白《雜曲歌辭 行路難三首 一》 御定=未收／poet.tang=RAW_EXACT
+    - 分段不同（正文逐字一致）
+- 351 李白《雜曲歌辭 行路難三首 二》 御定=未收／poet.tang=RAW_EXACT
+- 352 李白《雜曲歌辭 行路難三首 三》 御定=未收／poet.tang=RAW_EXACT
+    - 分段不同（正文逐字一致）
+- 353 崔顥《雜曲歌辭 長干曲四首 一》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 20≠80，首异在第 21 字（… / 家臨九江…）
+- 354 崔顥《雜曲歌辭 長干曲四首 二》 御定=未收／poet.tang=RAW_EXACT
+- 355 李白《雜曲歌辭 長干行二首 一》 御定=未收／poet.tang=RAW_EXACT
+- 356 沈佺期《雜曲歌辭 獨不見》 御定=未收／poet.tang=RAW_EXACT
+- 358 皇甫冉《春思》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 56≠35，首异在第 17 字（秦城鄰漢… / 層城臨漢…）
+- 359 劉方平《夜月》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第11字 干≠幹
+- 362 王之渙《涼州詞二首 一》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 长度 28≠56，首异在第 29 字（… / 單于北望…）
+- 364 柳中庸《征怨》 御定=未收／poet.tang=RAW_EXACT
+- 365 嚴維《送李端》 御定=VARIANT／poet.tang=RAW_EXACT
+    - 第31字 揜≠掩
+- 366 顧況《宮詞五首 二》 御定=未收／poet.tang=RAW_EXACT
+
+### VARIANT_ONLY（1）
+
+- 177 黄拱《還鄉偶書  其二》 御定=未收／poet.tang=VARIANT
+    - 第22字 借≠笑
+    - 作者: 选本=黄拱 御定=[] poet.tang=['賀知章']
+
+### MISSING（2）
+
+- 85 釋明辯《頌古三十二首  其二三》 御定=未收／poet.tang=未收
+    - 作者: 选本=釋明辯 御定=[] poet.tang=[]
+- 273 蔡襄《度南澗》 御定=未收／poet.tang=未收
+    - 作者: 选本=蔡襄 御定=[] poet.tang=[]
+
+## DUAL_FOLDED 的异体字差异（46 首，供人工过目）
+
+- 11 李商隱《蟬》 异体字：疎/疏、汎/泛
+- 13 李商隱《夜雨寄北》 异体字：却/卻
+- 23 李商隱《落花》 异体字：遰/遞
+- 24 李商隱《爲有》 异体字：爲/為、壻/婿
+- 40 馬戴《灞上秋居》 异体字：鴈/雁、隣/鄰
+- 53 張旭《桃花谿》 异体字：谿/溪
+- 57 王維《渭川田家》 异体字：荆/荊、閑/閒
+- 58 王維《西施詠》 异体字：衆/眾
+- 71 朱慶餘《近試上張籍水部》 异体字：壻/婿
+- 73 杜牧《赤壁》 异体字：鏁/鎖
+- 77 杜牧《遣懷》 异体字：倖/幸
+- 82 許渾《秋日赴闕題潼關驛樓》 异体字：疎/疏
+- 92 司空曙《雲陽館與韓紳宿別》 异体字：溼/濕
+- 98 劉長卿《秋日登吳公臺上寺遠眺寺即陳將吳明徹戰場》 异体字：臺/台
+- 100 劉長卿《餞別王十一南遊》 异体字：霑/沾
+- 109 孟浩然《宿業師山房期丁大不至》 异体字：羣/群、逕/徑
+- 115 孟浩然《留別王侍御維》 异体字：秪/只
+- 116 孟浩然《清明日宴梅道士房》 异体字：竈/灶
+- 119 孟浩然《歲暮歸南山》 异体字：疎/疏
+- 132 盧綸《李端公》 异体字：爲/為
+- 137 王維《終南山》 异体字：迴/回、衆/眾
+- 138 王維《漢江臨汎》 异体字：荆/荊
+- 148 王維《九月九日憶山東兄弟》 异体字：爲/為
+- 165 綦毋潛《春泛若耶溪》 异体字：爲/為
+- 171 王昌齡《閨怨》 异体字：壻/婿
+- 173 常建《宿王昌齡隱居》 异体字：爲/為、羣/群
+- 185 溫庭筠《瑤瑟怨》 异体字：牀/床
+- 186 溫庭筠《送人東遊》 异体字：櫂/棹
+- 201 柳宗元《晨詣超師院讀禪經》 异体字：閒/閑
+- 203 柳宗元《溪居》 异体字：爲/為
+- 204 柳宗元《江雪》 异体字：逕/徑
+- 238 杜審言《和晉陵陸丞早春遊望》 异体字：霑/沾
+- 274 錢起《谷口書齋寄楊補闕》 异体字：逕/徑
+- 285 韋應物《寄全椒山中道士》 异体字：荆/荊
+- 289 韋應物《長安遇馮著》 异体字：爲/為
+- 293 韋應物《和晉陵陸丞早春遊望》 异体字：霑/沾
+- 294 岑參《與高適薛據慈恩寺浮圖》 异体字：挂/掛
+- 308 李白《玉階怨》 异体字：却/卻
+- 311 李白《靜夜思》 异体字：牀/床
+- 323 李白《送友人》 异体字：遶/繞、爲/為
+- 327 李白《早發白帝城》 异体字：猨/猿
+- 328 李白《夜泊牛渚懷古》 异体字：挂/掛
+- 330 李白《聽蜀僧濬彈琴》 异体字：爲/為
+- 332 韋應物《淮上喜會梁川故人》 异体字：爲/為、疎/疏
+- 340 李白《相和歌辭 玉階怨》 异体字：却/卻
+- 342 李白《相和歌辭 子夜四時歌四首 夏歌》 异体字：迴/回
+
+## 关键发现：本地三份 JSON 不构成独立双证
+
+- 御定 json 有已知缺陷：71 首正文比四库本短 15% 以上（长诗被截断，如《錦瑟》只存首尾联）。
+  这不是版本异文，是转录不完整——所以御定 json 只能当旁证，不能当第二证。
+- A（选本）与 C（poet.tang）同出 chinese-poetry 仓库，且抽查显示同源痕迹明显；
+  B 虽标「御定」，其 json 同样出自该仓库的转录。三份都在同一棵树上。
+- 真正的第二证 = 维基文库《全唐詩》录入本（V011 核《春望》用的就是它，卷号体系一致）。
+  经御定 volume 字段映射，366 首要复核的卷共 134 卷，清单在 tang300-volumes.txt。
+
+## 已知局限
+
+- 本报告是「仓库内多转录一致」；够格的档位在维基文库逐字复核之前不算完成双证。
+- 三百首含 4 个同题同作者条目（李商隐《隋宮》等），按选本原样逐条计。
+- 撞键候选取最接近的一首；同首句的组诗/拟作可能取错首，逐条看清单即可发现。
+- DUAL_FOLDED 的异体字只登记差异、不裁决；入库时正文以维基文库复核结果为准，异体照原样保留。

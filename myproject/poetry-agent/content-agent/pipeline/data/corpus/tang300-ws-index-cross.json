@@ -1,0 +1,4395 @@
+{
+  "source_url": "https://zh.wikisource.org/zh-hans/唐詩三百首",
+  "snapshot": "/tmp/src-dl/tang300-ws-index.txt",
+  "ws_entries": 320,
+  "selection_poems": 366,
+  "counts": {
+    "SEL_ONLY": 141,
+    "T1_TITLE": 197,
+    "T1_TITLE_FIRSTLINE": 21,
+    "T1_TITLE_ORDINAL": 7
+  },
+  "selection": [
+    {
+      "seq": 1,
+      "author": "駱賓王",
+      "title": "在嶽詠蟬",
+      "tier": "SEL_ONLY",
+      "first_line": "西陸蟬聲唱南冠客思侵",
+      "near_candidates": []
+    },
+    {
+      "seq": 2,
+      "author": "陳子昂",
+      "title": "登幽州臺歌",
+      "tier": "T1_TITLE",
+      "ws_title": "登幽州臺歌",
+      "ws_raw": "陳子昂 [[登幽州臺歌]]",
+      "ws_disamb": null,
+      "ws_genre": "七言古詩",
+      "title_diff": false,
+      "first_line": "前不見古人後不見來者"
+    },
+    {
+      "seq": 3,
+      "author": "明皇帝",
+      "title": "經鄒魯祭孔子而歎之",
+      "tier": "SEL_ONLY",
+      "first_line": "夫子何為者栖栖一代中",
+      "near_candidates": []
+    },
+    {
+      "seq": 4,
+      "author": "李白",
+      "title": "鼓吹曲辭 將進酒",
+      "tier": "T1_TITLE",
+      "ws_title": "將進酒",
+      "ws_raw": "李白 [[將進酒 (李白)|將進酒]]",
+      "ws_disamb": "李白",
+      "ws_genre": "樂府",
+      "title_diff": false,
+      "first_line": "君不見黃河之水天上來奔流"
+    },
+    {
+      "seq": 5,
+      "author": "王昌齡",
+      "title": "橫吹曲辭 出塞 一",
+      "tier": "T1_TITLE_FIRSTLINE",
+      "ws_title": "出塞",
+      "ws_raw": "王昌齡 [[出塞 (秦時明月漢時關)|出塞]]",
+      "ws_disamb": "秦時明月漢時關",
+      "ws_genre": "樂府",
+      "title_diff": false,
+      "first_line": "秦時明月漢時關萬里長征人"
+    },
+    {
+      "seq": 6,
+      "author": "王之渙",
+      "title": "橫吹曲辭 出塞",
+      "tier": "T1_TITLE",
+      "ws_title": "出塞",
+      "ws_raw": "王之渙 [[出塞 (王之渙)|出塞]]",
+      "ws_disamb": "王之渙",
+      "ws_genre": "樂府",
+      "title_diff": false,
+      "first_line": "黃砂直上白雲間一片孤城萬"
+    },
+    {
+      "seq": 7,
+      "author": "李白",
+      "title": "橫吹曲辭 關山月",
+      "tier": "T1_TITLE",
+      "ws_title": "關山月",
+      "ws_raw": "李白 [[關山月 (李白)|關山月]]",
+      "ws_disamb": "李白",
+      "ws_genre": "樂府",
+      "title_diff": false,
+      "first_line": "明月出天山蒼茫雲海間"
+    },
+    {
+      "seq": 8,
+      "author": "王建",
+      "title": "新嫁娘詞三首 三",
+      "tier": "SEL_ONLY",
+      "first_line": "三日入廚下洗手作羹湯",
+      "near_candidates": [
+        "王建 [[新嫁娘]]"
+      ]
+    },
+    {
+      "seq": 9,
+      "author": "王建",
+      "title": "故行宮",
+      "tier": "SEL_ONLY",
+      "first_line": "寥落古行宮宮花寂寞紅",
+      "near_candidates": []
+    },
+    {
+      "seq": 10,
+      "author": "李商隱",
+      "title": "錦瑟",
+      "tier": "T1_TITLE",
+      "ws_title": "錦瑟",
+      "ws_raw": "李商隱 [[錦瑟]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "錦瑟無端五十弦一弦一柱思"
+    },
+    {
+      "seq": 11,
+      "author": "李商隱",
+      "title": "蟬",
+      "tier": "T1_TITLE",
+      "ws_title": "蟬",
+      "ws_raw": "李商隱 [[蟬 (李商隱)|蟬]]",
+      "ws_disamb": "李商隱",
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "本以高難飽徒勞恨費聲"
+    },
+    {
+      "seq": 12,
+      "author": "李商隱",
+      "title": "樂遊原",
+      "tier": "SEL_ONLY",
+      "first_line": "向晚意不適驅車登古原",
+      "near_candidates": []
+    },
+    {
+      "seq": 13,
+      "author": "李商隱",
+      "title": "夜雨寄北",
+      "tier": "T1_TITLE",
+      "ws_title": "夜雨寄北",
+      "ws_raw": "李商隱 [[夜雨寄北]]",
+      "ws_disamb": null,
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "君問歸期未有期巴山夜雨漲"
+    },
+    {
+      "seq": 14,
+      "author": "李商隱",
+      "title": "韓碑",
+      "tier": "T1_TITLE",
+      "ws_title": "韓碑",
+      "ws_raw": "李商隱 [[韓碑]]",
+      "ws_disamb": null,
+      "ws_genre": "七言古詩",
+      "title_diff": false,
+      "first_line": "元和天子神武姿彼何人哉軒"
+    },
+    {
+      "seq": 15,
+      "author": "李商隱",
+      "title": "風雨",
+      "tier": "T1_TITLE",
+      "ws_title": "風雨",
+      "ws_raw": "李商隱 [[風雨 (李商隱)|風雨]]",
+      "ws_disamb": "李商隱",
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "淒涼寶劍篇羈泊欲窮年"
+    },
+    {
+      "seq": 16,
+      "author": "李商隱",
+      "title": "寄令狐郎中",
+      "tier": "T1_TITLE",
+      "ws_title": "寄令狐郎中",
+      "ws_raw": "李商隱 [[寄令狐郎中]]",
+      "ws_disamb": null,
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "嵩雲秦樹久離居雙鯉迢迢一"
+    },
+    {
+      "seq": 17,
+      "author": "李商隱",
+      "title": "隋宮",
+      "tier": "T1_TITLE_FIRSTLINE",
+      "ws_title": "隋宮",
+      "ws_raw": "李商隱 [[隋宮 (紫泉宮殿鎖煙霞)|隋宮]]",
+      "ws_disamb": "紫泉宮殿鎖煙霞",
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "紫泉宮殿鎖煙霞欲取蕪城作"
+    },
+    {
+      "seq": 18,
+      "author": "李商隱",
+      "title": "籌筆驛",
+      "tier": "T1_TITLE",
+      "ws_title": "籌筆驛",
+      "ws_raw": "李商隱 [[籌筆驛 (李商隱)|籌筆驛]]",
+      "ws_disamb": "李商隱",
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "猿鳥猶疑畏簡書風雲常為護"
+    },
+    {
+      "seq": 19,
+      "author": "李商隱",
+      "title": "無題二首 一",
+      "tier": "T1_TITLE_FIRSTLINE",
+      "ws_title": "無題",
+      "ws_raw": "李商隱 [[無題 (昨夜星辰昨夜風)|無題]]",
+      "ws_disamb": "昨夜星辰昨夜風",
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "昨夜星辰昨夜風畫樓西畔桂"
+    },
+    {
+      "seq": 20,
+      "author": "李商隱",
+      "title": "無題四首 一",
+      "tier": "T1_TITLE_FIRSTLINE",
+      "ws_title": "無題",
+      "ws_raw": "李商隱 [[無題 (來是空言去絕蹤)|無題之一]]",
+      "ws_disamb": "來是空言去絕蹤",
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "來是空言去絕蹤月斜樓上五"
+    },
+    {
+      "seq": 21,
+      "author": "李商隱",
+      "title": "無題四首 二",
+      "tier": "T1_TITLE_FIRSTLINE",
+      "ws_title": "無題",
+      "ws_raw": "李商隱 [[無題 (颯颯東風細雨來)|無題之二]]",
+      "ws_disamb": "颯颯東風細雨來",
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "颯颯東風細雨來芙蓉塘外有"
+    },
+    {
+      "seq": 22,
+      "author": "李商隱",
+      "title": "隋宮",
+      "tier": "T1_TITLE_FIRSTLINE",
+      "ws_title": "隋宮",
+      "ws_raw": "李商隱 [[隋宮 (乘興南遊不戒嚴)|隋宮]]",
+      "ws_disamb": "乘興南遊不戒嚴",
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "乘興南遊不戒嚴九重誰省諫"
+    },
+    {
+      "seq": 23,
+      "author": "李商隱",
+      "title": "落花",
+      "tier": "T1_TITLE",
+      "ws_title": "落花",
+      "ws_raw": "李商隱 [[落花 (李商隱)|落花]]",
+      "ws_disamb": "李商隱",
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "高閣客竟去小園花亂飛"
+    },
+    {
+      "seq": 24,
+      "author": "李商隱",
+      "title": "爲有",
+      "tier": "T1_TITLE",
+      "ws_title": "為有",
+      "ws_raw": "李商隱 [[為有]]",
+      "ws_disamb": null,
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "為有雲屏無限嬌鳳城寒盡怕"
+    },
+    {
+      "seq": 25,
+      "author": "李商隱",
+      "title": "無題",
+      "tier": "T1_TITLE_FIRSTLINE",
+      "ws_title": "無題",
+      "ws_raw": "李商隱 [[無題 (相見時難別亦難)|無題]]",
+      "ws_disamb": "相見時難別亦難",
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "相見時難別亦難東風無力百"
+    },
+    {
+      "seq": 26,
+      "author": "李商隱",
+      "title": "瑤池",
+      "tier": "T1_TITLE",
+      "ws_title": "瑤池",
+      "ws_raw": "李商隱 [[瑤池]]",
+      "ws_disamb": null,
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "瑤池阿母綺窗開黃竹歌聲動"
+    },
+    {
+      "seq": 27,
+      "author": "李商隱",
+      "title": "春雨",
+      "tier": "T1_TITLE",
+      "ws_title": "春雨",
+      "ws_raw": "李商隱 [[春雨 (李商隱)|春雨]]",
+      "ws_disamb": "李商隱",
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "悵臥新春白袷衣白門寥落意"
+    },
+    {
+      "seq": 28,
+      "author": "李商隱",
+      "title": "常娥",
+      "tier": "SEL_ONLY",
+      "first_line": "雲母屏風燭影深長河漸落曉",
+      "near_candidates": []
+    },
+    {
+      "seq": 29,
+      "author": "李商隱",
+      "title": "無題二首 一",
+      "tier": "T1_TITLE_FIRSTLINE",
+      "ws_title": "無題",
+      "ws_raw": "李商隱 [[無題 (鳳尾香羅薄幾重)|無題之一]]",
+      "ws_disamb": "鳳尾香羅薄幾重",
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "鳳尾香羅薄幾重碧文圓頂夜"
+    },
+    {
+      "seq": 30,
+      "author": "李商隱",
+      "title": "無題二首 二",
+      "tier": "T1_TITLE_FIRSTLINE",
+      "ws_title": "無題",
+      "ws_raw": "李商隱 [[無題 (重帷深下莫愁堂)|無題之二]]",
+      "ws_disamb": "重帷深下莫愁堂",
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "重帷深下莫愁堂臥後清宵細"
+    },
+    {
+      "seq": 31,
+      "author": "李商隱",
+      "title": "賈生",
+      "tier": "T1_TITLE",
+      "ws_title": "賈生",
+      "ws_raw": "李商隱 [[賈生]]",
+      "ws_disamb": null,
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "宣室求賢訪逐臣賈生才調更"
+    },
+    {
+      "seq": 32,
+      "author": "李商隱",
+      "title": "涼思",
+      "tier": "T1_TITLE",
+      "ws_title": "涼思",
+      "ws_raw": "李商隱 [[涼思]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "客去波平檻蟬休露滿枝"
+    },
+    {
+      "seq": 33,
+      "author": "李商隱",
+      "title": "北青蘿",
+      "tier": "T1_TITLE",
+      "ws_title": "北青蘿",
+      "ws_raw": "李商隱 [[北青蘿]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "殘陽西入崦茅屋訪孤僧"
+    },
+    {
+      "seq": 34,
+      "author": "李商隱",
+      "title": "赤壁",
+      "tier": "SEL_ONLY",
+      "first_line": "折戟沈沙鐵未銷自將磨洗認",
+      "near_candidates": []
+    },
+    {
+      "seq": 35,
+      "author": "韋莊",
+      "title": "章臺夜思",
+      "tier": "T1_TITLE",
+      "ws_title": "章臺夜思",
+      "ws_raw": "韋莊 [[章臺夜思]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "清瑟怨遙夜遶弦風雨哀"
+    },
+    {
+      "seq": 36,
+      "author": "韋莊",
+      "title": "金陵圖",
+      "tier": "T1_TITLE",
+      "ws_title": "金陵圖",
+      "ws_raw": "韋莊 [[金陵圖]]",
+      "ws_disamb": null,
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "誰謂傷心畫不成畫人心逐世"
+    },
+    {
+      "seq": 37,
+      "author": "韋莊",
+      "title": "臺城",
+      "tier": "SEL_ONLY",
+      "first_line": "江雨霏霏江草齊六朝如夢鳥",
+      "near_candidates": []
+    },
+    {
+      "seq": 38,
+      "author": "薛逢",
+      "title": "宮詞",
+      "tier": "T1_TITLE",
+      "ws_title": "宮詞",
+      "ws_raw": "薛逢 [[宮詞 (薛逢)|宮詞]]",
+      "ws_disamb": "薛逢",
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "十二樓中盡曉妝望仙樓上望"
+    },
+    {
+      "seq": 39,
+      "author": "馬戴",
+      "title": "楚江懷古三首 一",
+      "tier": "T1_TITLE",
+      "ws_title": "楚江懷古",
+      "ws_raw": "馬戴 [[楚江懷古 (馬戴)|楚江懷古]]",
+      "ws_disamb": "馬戴",
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "露氣寒光集微陽下楚丘"
+    },
+    {
+      "seq": 40,
+      "author": "馬戴",
+      "title": "灞上秋居",
+      "tier": "T1_TITLE",
+      "ws_title": "灞上秋居",
+      "ws_raw": "馬戴 [[灞上秋居]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "灞原風雨定晚見雁行頻"
+    },
+    {
+      "seq": 41,
+      "author": "鄭畋",
+      "title": "馬嵬坡",
+      "tier": "T1_TITLE",
+      "ws_title": "馬嵬坡",
+      "ws_raw": "鄭畋 [[馬嵬坡 (鄭畋)|馬嵬坡]]",
+      "ws_disamb": "鄭畋",
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "玄宗回馬楊妃死雲雨雖亡日"
+    },
+    {
+      "seq": 42,
+      "author": "張籍",
+      "title": "沒蕃故人",
+      "tier": "T1_TITLE",
+      "ws_title": "沒蕃故人",
+      "ws_raw": "張籍 [[沒蕃故人]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "前年伐月支城上沒全師"
+    },
+    {
+      "seq": 43,
+      "author": "金昌緒",
+      "title": "春怨",
+      "tier": "T1_TITLE",
+      "ws_title": "春怨",
+      "ws_raw": "金昌緒 [[春怨 (金昌緒)|春怨]]",
+      "ws_disamb": "金昌緒",
+      "ws_genre": "五言絕句",
+      "title_diff": false,
+      "first_line": "打起黃鶯兒莫教枝上啼"
+    },
+    {
+      "seq": 44,
+      "author": "元稹",
+      "title": "遣悲懷三首 一",
+      "tier": "T1_TITLE_ORDINAL",
+      "ws_title": "遣悲懷",
+      "ws_raw": "元稹 [[遣悲懷之一]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "謝公最小偏憐女嫁與黔婁百"
+    },
+    {
+      "seq": 45,
+      "author": "元稹",
+      "title": "遣悲懷三首 二",
+      "tier": "T1_TITLE_ORDINAL",
+      "ws_title": "遣悲懷",
+      "ws_raw": "元稹 [[遣悲懷之二]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "昔日戲言身後意今朝皆到眼"
+    },
+    {
+      "seq": 46,
+      "author": "元稹",
+      "title": "遣悲懷三首 三",
+      "tier": "T1_TITLE",
+      "ws_title": "遣悲懷",
+      "ws_raw": "元稹 [[遣悲懷之三]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "閒坐悲君亦自悲百年都是幾"
+    },
+    {
+      "seq": 47,
+      "author": "元稹",
+      "title": "行宮",
+      "tier": "T1_TITLE",
+      "ws_title": "行宮",
+      "ws_raw": "元稹 [[行宮]]",
+      "ws_disamb": null,
+      "ws_genre": "五言絕句",
+      "title_diff": false,
+      "first_line": "寥落古行宮宮花寂寞紅"
+    },
+    {
+      "seq": 48,
+      "author": "西鄙人",
+      "title": "哥舒歌",
+      "tier": "T1_TITLE",
+      "ws_title": "哥舒歌",
+      "ws_raw": "西鄙人 [[哥舒歌]]",
+      "ws_disamb": null,
+      "ws_genre": "五言絕句",
+      "title_diff": false,
+      "first_line": "北斗七星高哥舒夜帶刀"
+    },
+    {
+      "seq": 49,
+      "author": "無名氏",
+      "title": "雜詩 十三",
+      "tier": "SEL_ONLY",
+      "first_line": "近寒食雨草萋萋著麥苗風柳",
+      "near_candidates": [
+        "無名氏 [[雜詩 (無名氏)|雜詩]]"
+      ]
+    },
+    {
+      "seq": 50,
+      "author": "沈佺期",
+      "title": "雜詩三首 三",
+      "tier": "T1_TITLE",
+      "ws_title": "雜詩",
+      "ws_raw": "沈佺期 [[雜詩 (沈佺期)|雜詩]]",
+      "ws_disamb": "沈佺期",
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "聞道黃龍戍頻年不解兵"
+    },
+    {
+      "seq": 51,
+      "author": "沈佺期",
+      "title": "古意呈補闕喬知之",
+      "tier": "SEL_ONLY",
+      "first_line": "盧家少婦鬱金堂海燕雙棲玳",
+      "near_candidates": []
+    },
+    {
+      "seq": 52,
+      "author": "王灣",
+      "title": "次北固山下",
+      "tier": "T1_TITLE",
+      "ws_title": "次北固山下",
+      "ws_raw": "王灣 [[次北固山下]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "客路青山外行舟綠水前"
+    },
+    {
+      "seq": 53,
+      "author": "張旭",
+      "title": "桃花谿",
+      "tier": "T1_TITLE",
+      "ws_title": "桃花谿",
+      "ws_raw": "張旭 [[桃花谿]]",
+      "ws_disamb": null,
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "隱隱飛橋隔野煙石磯西畔問"
+    },
+    {
+      "seq": 54,
+      "author": "王維",
+      "title": "送別",
+      "tier": "T1_TITLE_FIRSTLINE",
+      "ws_title": "送別",
+      "ws_raw": "王維 [[送別 (下馬飲君酒)|送別]]",
+      "ws_disamb": "下馬飲君酒",
+      "ws_genre": "五言古詩",
+      "title_diff": false,
+      "first_line": "下馬飲君酒問君何所之"
+    },
+    {
+      "seq": 55,
+      "author": "王維",
+      "title": "送綦毋潛落第還鄉",
+      "tier": "T1_TITLE",
+      "ws_title": "送綦毋潛落第還鄉",
+      "ws_raw": "王維 [[送綦毋潛落第還鄉]]",
+      "ws_disamb": null,
+      "ws_genre": "五言古詩",
+      "title_diff": false,
+      "first_line": "聖代無隱者英靈盡來歸"
+    },
+    {
+      "seq": 56,
+      "author": "王維",
+      "title": "青谿",
+      "tier": "T1_TITLE",
+      "ws_title": "青谿",
+      "ws_raw": "王維 [[青谿]]",
+      "ws_disamb": null,
+      "ws_genre": "五言古詩",
+      "title_diff": false,
+      "first_line": "言入黃花川每逐青溪水"
+    },
+    {
+      "seq": 57,
+      "author": "王維",
+      "title": "渭川田家",
+      "tier": "T1_TITLE",
+      "ws_title": "渭川田家",
+      "ws_raw": "王維 [[渭川田家]]",
+      "ws_disamb": null,
+      "ws_genre": "五言古詩",
+      "title_diff": false,
+      "first_line": "斜陽照墟落窮巷牛羊歸"
+    },
+    {
+      "seq": 58,
+      "author": "王維",
+      "title": "西施詠",
+      "tier": "T1_TITLE",
+      "ws_title": "西施詠",
+      "ws_raw": "王維 [[西施詠]]",
+      "ws_disamb": null,
+      "ws_genre": "五言古詩",
+      "title_diff": false,
+      "first_line": "豔色天下重西施寧久微"
+    },
+    {
+      "seq": 59,
+      "author": "王維",
+      "title": "老將行",
+      "tier": "T1_TITLE",
+      "ws_title": "老將行",
+      "ws_raw": "王維 [[老將行 (王維)|老將行]]",
+      "ws_disamb": "王維",
+      "ws_genre": "樂府",
+      "title_diff": false,
+      "first_line": "少年十五二十時步行奪得胡"
+    },
+    {
+      "seq": 60,
+      "author": "王維",
+      "title": "桃源行",
+      "tier": "T1_TITLE",
+      "ws_title": "桃源行",
+      "ws_raw": "王維 [[桃源行 (王維)|桃源行]]",
+      "ws_disamb": "王維",
+      "ws_genre": "樂府",
+      "title_diff": false,
+      "first_line": "漁舟逐水愛山春兩岸桃花夾"
+    },
+    {
+      "seq": 61,
+      "author": "王維",
+      "title": "洛陽女兒行",
+      "tier": "T1_TITLE",
+      "ws_title": "洛陽女兒行",
+      "ws_raw": "王維 [[洛陽女兒行]]",
+      "ws_disamb": null,
+      "ws_genre": "樂府",
+      "title_diff": false,
+      "first_line": "洛陽女兒對門居纔可容顏十"
+    },
+    {
+      "seq": 62,
+      "author": "王維",
+      "title": "輞川閑居贈裴秀才迪",
+      "tier": "T1_TITLE",
+      "ws_title": "輞川閑居贈裴秀才迪",
+      "ws_raw": "王維 [[輞川閑居贈裴秀才迪]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "寒山轉蒼翠秋水日潺湲"
+    },
+    {
+      "seq": 63,
+      "author": "王維",
+      "title": "酬張少府",
+      "tier": "T1_TITLE",
+      "ws_title": "酬張少府",
+      "ws_raw": "王維 [[酬張少府]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "晚年唯好靜萬事不關心"
+    },
+    {
+      "seq": 64,
+      "author": "王維",
+      "title": "送梓州李使君",
+      "tier": "T1_TITLE",
+      "ws_title": "送梓州李使君",
+      "ws_raw": "王維 [[送梓州李使君]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "萬壑樹參天千山響杜鵑"
+    },
+    {
+      "seq": 65,
+      "author": "權德輿",
+      "title": "玉臺體十二首 十一",
+      "tier": "SEL_ONLY",
+      "first_line": "昨夜裙帶解今朝蟢子飛",
+      "near_candidates": [
+        "權德輿 [[玉臺體]]"
+      ]
+    },
+    {
+      "seq": 66,
+      "author": "韓愈",
+      "title": "山石",
+      "tier": "T1_TITLE",
+      "ws_title": "山石",
+      "ws_raw": "韓愈 [[山石]]",
+      "ws_disamb": null,
+      "ws_genre": "七言古詩",
+      "title_diff": false,
+      "first_line": "山石犖確行徑微黃昏到寺蝙"
+    },
+    {
+      "seq": 67,
+      "author": "韓愈",
+      "title": "八月十五夜贈張功曹",
+      "tier": "T1_TITLE",
+      "ws_title": "八月十五夜贈張功曹",
+      "ws_raw": "韓愈 [[八月十五夜贈張功曹]]",
+      "ws_disamb": null,
+      "ws_genre": "七言古詩",
+      "title_diff": false,
+      "first_line": "纖雲四卷天無河清風吹空月"
+    },
+    {
+      "seq": 68,
+      "author": "韓愈",
+      "title": "謁衡嶽廟遂宿嶽寺題門樓",
+      "tier": "T1_TITLE",
+      "ws_title": "謁衡嶽廟遂宿嶽寺題門樓",
+      "ws_raw": "韓愈 [[謁衡嶽廟遂宿嶽寺題門樓]]",
+      "ws_disamb": null,
+      "ws_genre": "七言古詩",
+      "title_diff": false,
+      "first_line": "五嶽祭秩皆三公四方環鎮嵩"
+    },
+    {
+      "seq": 69,
+      "author": "韓偓",
+      "title": "已涼",
+      "tier": "T1_TITLE",
+      "ws_title": "已涼",
+      "ws_raw": "韓偓 [[已涼]]",
+      "ws_disamb": null,
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "碧闌干外繡簾垂猩血屏風畫"
+    },
+    {
+      "seq": 70,
+      "author": "杜荀鶴",
+      "title": "春宮怨",
+      "tier": "T1_TITLE",
+      "ws_title": "春宮怨",
+      "ws_raw": "杜荀鶴 [[春宮怨]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "早被嬋娟誤欲妝臨鏡慵"
+    },
+    {
+      "seq": 71,
+      "author": "朱慶餘",
+      "title": "近試上張籍水部",
+      "tier": "SEL_ONLY",
+      "first_line": "洞房昨夜停紅燭待曉堂前拜",
+      "near_candidates": []
+    },
+    {
+      "seq": 72,
+      "author": "杜牧",
+      "title": "將赴吳興登樂遊原一絕",
+      "tier": "SEL_ONLY",
+      "first_line": "清時有味是無能閒愛孤雲靜",
+      "near_candidates": [
+        "杜牧 [[將赴吳興登樂游原]]"
+      ]
+    },
+    {
+      "seq": 73,
+      "author": "杜牧",
+      "title": "赤壁",
+      "tier": "T1_TITLE",
+      "ws_title": "赤壁",
+      "ws_raw": "杜牧 [[赤壁]]",
+      "ws_disamb": null,
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "折戟沈沙鐵未銷自將磨洗認"
+    },
+    {
+      "seq": 74,
+      "author": "杜牧",
+      "title": "泊秦淮",
+      "tier": "T1_TITLE",
+      "ws_title": "泊秦淮",
+      "ws_raw": "杜牧 [[泊秦淮]]",
+      "ws_disamb": null,
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "煙籠寒水月籠沙夜泊秦淮近"
+    },
+    {
+      "seq": 75,
+      "author": "杜牧",
+      "title": "贈別二首 一",
+      "tier": "SEL_ONLY",
+      "first_line": "娉娉褭褭十三餘豆蔻梢頭二",
+      "near_candidates": []
+    },
+    {
+      "seq": 76,
+      "author": "杜牧",
+      "title": "贈別二首 二",
+      "tier": "SEL_ONLY",
+      "first_line": "多情却似總無情唯覺尊前笑",
+      "near_candidates": []
+    },
+    {
+      "seq": 77,
+      "author": "杜牧",
+      "title": "遣懷",
+      "tier": "T1_TITLE",
+      "ws_title": "遣懷",
+      "ws_raw": "杜牧 [[遣懷(杜牧)|遣懷]]",
+      "ws_disamb": "杜牧",
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "落魄江南載酒行楚腰腸斷掌"
+    },
+    {
+      "seq": 78,
+      "author": "杜牧",
+      "title": "秋夕",
+      "tier": "T1_TITLE",
+      "ws_title": "秋夕",
+      "ws_raw": "杜牧 [[秋夕 (杜牧)|秋夕]]",
+      "ws_disamb": "杜牧",
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "紅燭秋光冷畫屏輕羅小扇撲"
+    },
+    {
+      "seq": 79,
+      "author": "杜牧",
+      "title": "金谷園",
+      "tier": "T1_TITLE",
+      "ws_title": "金谷園",
+      "ws_raw": "杜牧 [[金谷園 (杜牧)|金谷園]]",
+      "ws_disamb": "杜牧",
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "繁華事散逐香塵流水無情草"
+    },
+    {
+      "seq": 80,
+      "author": "杜牧",
+      "title": "旅宿",
+      "tier": "T1_TITLE",
+      "ws_title": "旅宿",
+      "ws_raw": "杜牧 [[旅宿 (杜牧)|旅宿]]",
+      "ws_disamb": "杜牧",
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "旅館無良伴凝情自悄然"
+    },
+    {
+      "seq": 81,
+      "author": "許渾",
+      "title": "早秋三首 一",
+      "tier": "T1_TITLE",
+      "ws_title": "早秋",
+      "ws_raw": "許渾 [[早秋]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "遙夜泛清瑟西風生翠蘿"
+    },
+    {
+      "seq": 82,
+      "author": "許渾",
+      "title": "秋日赴闕題潼關驛樓",
+      "tier": "T1_TITLE",
+      "ws_title": "秋日赴闕題潼關驛樓",
+      "ws_raw": "許渾 [[秋日赴闕題潼關驛樓]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "紅葉晚蕭蕭長亭酒一瓢"
+    },
+    {
+      "seq": 83,
+      "author": "張泌",
+      "title": "寄人 一",
+      "tier": "T1_TITLE",
+      "ws_title": "寄人",
+      "ws_raw": "張泌 [[寄人 (張泌)|寄人]]",
+      "ws_disamb": "張泌",
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "別夢依依到謝家小廊回合曲"
+    },
+    {
+      "seq": 84,
+      "author": "陳陶",
+      "title": "隴西行四首 二",
+      "tier": "T1_TITLE",
+      "ws_title": "隴西行",
+      "ws_raw": "陳陶 [[隴西行 (陳陶)|隴西行]]",
+      "ws_disamb": "陳陶",
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "誓掃匈奴不顧身五千貂錦喪"
+    },
+    {
+      "seq": 85,
+      "author": "釋明辯",
+      "title": "頌古三十二首  其二三",
+      "tier": "SEL_ONLY",
+      "first_line": "打起黄鶯兒莫教枝上啼",
+      "near_candidates": []
+    },
+    {
+      "seq": 86,
+      "author": "白居易",
+      "title": "後宮詞",
+      "tier": "SEL_ONLY",
+      "first_line": "淚濕羅巾夢不成夜深前殿按",
+      "near_candidates": [
+        "白居易 [[宮詞 (白居易)|宮詞]]"
+      ]
+    },
+    {
+      "seq": 87,
+      "author": "李益",
+      "title": "喜見外弟又言別",
+      "tier": "T1_TITLE",
+      "ws_title": "喜見外弟又言別",
+      "ws_raw": "李益 [[喜見外弟又言別]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "十年離亂後長大一相逢"
+    },
+    {
+      "seq": 88,
+      "author": "李益",
+      "title": "江南詞",
+      "tier": "SEL_ONLY",
+      "first_line": "嫁得瞿塘賈朝朝悞妾期",
+      "near_candidates": []
+    },
+    {
+      "seq": 89,
+      "author": "李益",
+      "title": "夜上受降城聞笛",
+      "tier": "T1_TITLE",
+      "ws_title": "夜上受降城聞笛",
+      "ws_raw": "李益 [[夜上受降城聞笛]]",
+      "ws_disamb": null,
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "回樂峰前沙似雪受降城下月"
+    },
+    {
+      "seq": 90,
+      "author": "李端",
+      "title": "聽箏",
+      "tier": "T1_TITLE",
+      "ws_title": "聽箏",
+      "ws_raw": "李端 [[聽箏 (李端)|聽箏]]",
+      "ws_disamb": "李端",
+      "ws_genre": "五言絕句",
+      "title_diff": false,
+      "first_line": "鳴箏金粟柱素手玉房前"
+    },
+    {
+      "seq": 91,
+      "author": "司空曙",
+      "title": "賊平後送人北歸",
+      "tier": "T1_TITLE",
+      "ws_title": "賊平後送人北歸",
+      "ws_raw": "司空曙 [[賊平後送人北歸]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "世亂同南去時清獨北還"
+    },
+    {
+      "seq": 92,
+      "author": "司空曙",
+      "title": "雲陽館與韓紳宿別",
+      "tier": "T1_TITLE",
+      "ws_title": "雲陽館與韓紳宿別",
+      "ws_raw": "司空曙 [[雲陽館與韓紳宿別]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "故人江海別幾度隔山川"
+    },
+    {
+      "seq": 93,
+      "author": "司空曙",
+      "title": "喜外弟盧綸見宿",
+      "tier": "T1_TITLE",
+      "ws_title": "喜外弟盧綸見宿",
+      "ws_raw": "司空曙 [[喜外弟盧綸見宿]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "靜夜四無鄰荒居舊業貧"
+    },
+    {
+      "seq": 94,
+      "author": "劉長卿",
+      "title": "聽彈琴",
+      "tier": "SEL_ONLY",
+      "first_line": "泠泠七絲上靜聽松風寒",
+      "near_candidates": [
+        "劉長卿 [[彈琴]]"
+      ]
+    },
+    {
+      "seq": 95,
+      "author": "劉長卿",
+      "title": "送方外上人",
+      "tier": "SEL_ONLY",
+      "first_line": "孤雲將野鶴豈向人間住",
+      "near_candidates": []
+    },
+    {
+      "seq": 96,
+      "author": "劉長卿",
+      "title": "送靈澈上人",
+      "tier": "SEL_ONLY",
+      "first_line": "蒼蒼竹林寺杳杳鐘聲晚",
+      "near_candidates": [
+        "劉長卿 [[送靈澈]]"
+      ]
+    },
+    {
+      "seq": 97,
+      "author": "劉長卿",
+      "title": "新年作",
+      "tier": "T1_TITLE",
+      "ws_title": "新年作",
+      "ws_raw": "劉長卿 [[新年作 (劉長卿)|新年作]]",
+      "ws_disamb": "劉長卿",
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "鄉心新歲切天畔獨潸然"
+    },
+    {
+      "seq": 98,
+      "author": "劉長卿",
+      "title": "秋日登吳公臺上寺遠眺寺即陳將吳明徹戰場",
+      "tier": "SEL_ONLY",
+      "first_line": "古台搖落後秋日望鄉心",
+      "near_candidates": [
+        "劉長卿 [[秋日登吳公臺上寺遠眺]]"
+      ]
+    },
+    {
+      "seq": 99,
+      "author": "劉長卿",
+      "title": "尋南溪常山道人隱居",
+      "tier": "SEL_ONLY",
+      "first_line": "一路經行處莓苔見履痕",
+      "near_candidates": []
+    },
+    {
+      "seq": 100,
+      "author": "劉長卿",
+      "title": "餞別王十一南遊",
+      "tier": "T1_TITLE",
+      "ws_title": "餞別王十一南遊",
+      "ws_raw": "劉長卿 [[餞別王十一南遊]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "望君煙水闊揮手淚沾巾"
+    },
+    {
+      "seq": 101,
+      "author": "劉長卿",
+      "title": "江州重別薛六柳八二員外",
+      "tier": "T1_TITLE",
+      "ws_title": "江州重別薛六柳八二員外",
+      "ws_raw": "劉長卿 [[江州重別薛六柳八二員外]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "生涯豈料承優詔世事空知學"
+    },
+    {
+      "seq": 102,
+      "author": "劉長卿",
+      "title": "長沙過賈誼宅",
+      "tier": "T1_TITLE",
+      "ws_title": "長沙過賈誼宅",
+      "ws_raw": "劉長卿 [[長沙過賈誼宅]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "三年謫宦此棲遲萬古惟留楚"
+    },
+    {
+      "seq": 103,
+      "author": "劉長卿",
+      "title": "自夏口至鸚鵡洲夕望岳陽寄源中丞",
+      "tier": "SEL_ONLY",
+      "first_line": "汀洲無浪復無煙楚客相思益",
+      "near_candidates": [
+        "劉長卿 [[自夏口至鸚鵡洲望岳陽寄元中丞]]"
+      ]
+    },
+    {
+      "seq": 104,
+      "author": "劉長卿",
+      "title": "賦得",
+      "tier": "SEL_ONLY",
+      "first_line": "鶯啼燕語報新年馬邑龍堆路",
+      "near_candidates": []
+    },
+    {
+      "seq": 105,
+      "author": "崔曙",
+      "title": "九日登望仙臺呈劉明府容",
+      "tier": "SEL_ONLY",
+      "first_line": "漢文皇帝有高台此日登臨曙",
+      "near_candidates": [
+        "崔曙 [[九日登望仙臺呈劉明府]]"
+      ]
+    },
+    {
+      "seq": 106,
+      "author": "王翰",
+      "title": "涼州詞二首 一",
+      "tier": "T1_TITLE_FIRSTLINE",
+      "ws_title": "涼州詞",
+      "ws_raw": "王翰 [[涼州詞 (葡萄美酒夜光杯)|涼州詞]]",
+      "ws_disamb": "葡萄美酒夜光杯",
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "葡萄美酒夜光杯欲飲琵琶馬"
+    },
+    {
+      "seq": 107,
+      "author": "孟浩然",
+      "title": "秋登蘭山寄張五",
+      "tier": "T1_TITLE",
+      "ws_title": "秋登蘭山寄張",
+      "ws_raw": "孟浩然 [[秋登蘭山寄張五]]",
+      "ws_disamb": null,
+      "ws_genre": "五言古詩",
+      "title_diff": false,
+      "first_line": "北山白雲裏隱者自怡悅"
+    },
+    {
+      "seq": 108,
+      "author": "孟浩然",
+      "title": "夏日南亭懷辛大",
+      "tier": "T1_TITLE",
+      "ws_title": "夏日南亭懷辛大",
+      "ws_raw": "孟浩然 [[夏日南亭懷辛大]]",
+      "ws_disamb": null,
+      "ws_genre": "五言古詩",
+      "title_diff": false,
+      "first_line": "山光忽西落池月漸東上"
+    },
+    {
+      "seq": 109,
+      "author": "孟浩然",
+      "title": "宿業師山房期丁大不至",
+      "tier": "SEL_ONLY",
+      "first_line": "夕陽度西嶺群壑倏已暝",
+      "near_candidates": [
+        "孟浩然 [[宿業師山房待丁大不至]]"
+      ]
+    },
+    {
+      "seq": 110,
+      "author": "孟浩然",
+      "title": "夜歸鹿門山歌",
+      "tier": "SEL_ONLY",
+      "first_line": "山寺鐘鳴晝已昏漁梁渡頭爭",
+      "near_candidates": []
+    },
+    {
+      "seq": 111,
+      "author": "孟浩然",
+      "title": "望洞庭湖贈張丞相",
+      "tier": "SEL_ONLY",
+      "first_line": "八月湖水平涵虛混太清",
+      "near_candidates": []
+    },
+    {
+      "seq": 112,
+      "author": "孟浩然",
+      "title": "秦中感秋寄遠上人",
+      "tier": "T1_TITLE",
+      "ws_title": "秦中感秋寄遠上人",
+      "ws_raw": "孟浩然 [[秦中感秋寄遠上人]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "一丘常欲臥三徑苦無資"
+    },
+    {
+      "seq": 113,
+      "author": "孟浩然",
+      "title": "宿桐廬江寄廣陵舊遊",
+      "tier": "T1_TITLE",
+      "ws_title": "宿桐廬江寄廣陵舊遊",
+      "ws_raw": "孟浩然 [[宿桐廬江寄廣陵舊遊]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "山暝聞猿愁滄江急夜流"
+    },
+    {
+      "seq": 114,
+      "author": "孟浩然",
+      "title": "早寒江上有懷",
+      "tier": "SEL_ONLY",
+      "first_line": "木落雁南度北風江上寒",
+      "near_candidates": []
+    },
+    {
+      "seq": 115,
+      "author": "孟浩然",
+      "title": "留別王侍御維",
+      "tier": "SEL_ONLY",
+      "first_line": "寂寂竟何待朝朝空自歸",
+      "near_candidates": []
+    },
+    {
+      "seq": 116,
+      "author": "孟浩然",
+      "title": "清明日宴梅道士房",
+      "tier": "SEL_ONLY",
+      "first_line": "林臥愁春盡開軒覽物華",
+      "near_candidates": []
+    },
+    {
+      "seq": 117,
+      "author": "孟浩然",
+      "title": "與諸子登峴山",
+      "tier": "T1_TITLE",
+      "ws_title": "與諸子登峴山",
+      "ws_raw": "孟浩然 [[與諸子登峴山]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "人事有代謝往來成古今"
+    },
+    {
+      "seq": 118,
+      "author": "孟浩然",
+      "title": "過故人莊",
+      "tier": "T1_TITLE",
+      "ws_title": "過故人莊",
+      "ws_raw": "孟浩然 [[過故人莊]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "故人具雞黍邀我至田家"
+    },
+    {
+      "seq": 119,
+      "author": "孟浩然",
+      "title": "歲暮歸南山",
+      "tier": "T1_TITLE",
+      "ws_title": "歲暮歸南山",
+      "ws_raw": "孟浩然 [[歲暮歸南山]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "北闕休上書南山歸敝廬"
+    },
+    {
+      "seq": 120,
+      "author": "孟浩然",
+      "title": "歲除夜有懷",
+      "tier": "SEL_ONLY",
+      "first_line": "迢遞三巴路羈危萬里身",
+      "near_candidates": []
+    },
+    {
+      "seq": 121,
+      "author": "孟浩然",
+      "title": "春曉",
+      "tier": "T1_TITLE",
+      "ws_title": "春曉",
+      "ws_raw": "孟浩然 [[春曉 (孟浩然)|春曉]]",
+      "ws_disamb": "孟浩然",
+      "ws_genre": "五言絕句",
+      "title_diff": false,
+      "first_line": "春眠不覺曉處處聞啼鳥"
+    },
+    {
+      "seq": 122,
+      "author": "孟浩然",
+      "title": "宿建德江",
+      "tier": "T1_TITLE",
+      "ws_title": "宿建德江",
+      "ws_raw": "孟浩然 [[宿建德江]]",
+      "ws_disamb": null,
+      "ws_genre": "五言絕句",
+      "title_diff": false,
+      "first_line": "移舟泊煙渚日暮客愁新"
+    },
+    {
+      "seq": 123,
+      "author": "李白",
+      "title": "蜀道難",
+      "tier": "T1_TITLE",
+      "ws_title": "蜀道難",
+      "ws_raw": "李白 [[蜀道難 (李白)|蜀道難]]",
+      "ws_disamb": "李白",
+      "ws_genre": "樂府",
+      "title_diff": false,
+      "first_line": "噫吁戲危乎高哉蜀道之難難"
+    },
+    {
+      "seq": 124,
+      "author": "李白",
+      "title": "將進酒",
+      "tier": "SEL_ONLY",
+      "first_line": "君不見黃河之水天上來奔流",
+      "near_candidates": []
+    },
+    {
+      "seq": 125,
+      "author": "杜荀鶴",
+      "title": "春宮怨",
+      "tier": "SEL_ONLY",
+      "first_line": "早被嬋娟誤欲妝臨鏡慵",
+      "near_candidates": []
+    },
+    {
+      "seq": 126,
+      "author": "戴叔倫",
+      "title": "客夜與故人偶集",
+      "tier": "SEL_ONLY",
+      "first_line": "天秋月又滿城闕夜千重",
+      "near_candidates": []
+    },
+    {
+      "seq": 127,
+      "author": "盧綸",
+      "title": "和張僕射塞下曲 一",
+      "tier": "SEL_ONLY",
+      "first_line": "鷲翎金僕姑燕尾繡蝥弧",
+      "near_candidates": [
+        "盧綸 [[塞下曲之一]]",
+        "盧綸 [[塞下曲之二]]",
+        "盧綸 [[塞下曲之三]]"
+      ]
+    },
+    {
+      "seq": 128,
+      "author": "盧綸",
+      "title": "和張僕射塞下曲 二",
+      "tier": "SEL_ONLY",
+      "first_line": "林暗草驚風將軍夜引弓",
+      "near_candidates": [
+        "盧綸 [[塞下曲之一]]",
+        "盧綸 [[塞下曲之二]]",
+        "盧綸 [[塞下曲之三]]"
+      ]
+    },
+    {
+      "seq": 129,
+      "author": "盧綸",
+      "title": "和張僕射塞下曲 三",
+      "tier": "SEL_ONLY",
+      "first_line": "月黑雁飛高單于夜遁逃",
+      "near_candidates": [
+        "盧綸 [[塞下曲之一]]",
+        "盧綸 [[塞下曲之二]]",
+        "盧綸 [[塞下曲之三]]"
+      ]
+    },
+    {
+      "seq": 130,
+      "author": "盧綸",
+      "title": "和張僕射塞下曲 四",
+      "tier": "SEL_ONLY",
+      "first_line": "野幕敞瓊筵羌戎賀勞旋",
+      "near_candidates": [
+        "盧綸 [[塞下曲之一]]",
+        "盧綸 [[塞下曲之二]]",
+        "盧綸 [[塞下曲之三]]"
+      ]
+    },
+    {
+      "seq": 131,
+      "author": "盧綸",
+      "title": "晚次鄂州",
+      "tier": "T1_TITLE",
+      "ws_title": "晚次鄂州",
+      "ws_raw": "盧綸 [[晚次鄂州]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "雲開遠見漢陽城猶是孤帆一"
+    },
+    {
+      "seq": 132,
+      "author": "盧綸",
+      "title": "李端公",
+      "tier": "SEL_ONLY",
+      "first_line": "故關衰草遍離別自堪悲",
+      "near_candidates": []
+    },
+    {
+      "seq": 133,
+      "author": "王維",
+      "title": "過香積寺",
+      "tier": "T1_TITLE",
+      "ws_title": "過香積寺",
+      "ws_raw": "王維 [[過香積寺]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "不知香積寺數里入雲峰"
+    },
+    {
+      "seq": 134,
+      "author": "王維",
+      "title": "山居秋暝",
+      "tier": "T1_TITLE",
+      "ws_title": "山居秋暝",
+      "ws_raw": "王維 [[山居秋暝]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "空山新雨後天氣晚來秋"
+    },
+    {
+      "seq": 135,
+      "author": "王維",
+      "title": "終南別業",
+      "tier": "T1_TITLE",
+      "ws_title": "終南別業",
+      "ws_raw": "王維 [[終南別業]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "中歲頗好道晚家南山陲"
+    },
+    {
+      "seq": 136,
+      "author": "王維",
+      "title": "歸嵩山作",
+      "tier": "T1_TITLE",
+      "ws_title": "歸嵩山作",
+      "ws_raw": "王維 [[歸嵩山作]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "清川帶長薄車馬去閒閒"
+    },
+    {
+      "seq": 137,
+      "author": "王維",
+      "title": "終南山",
+      "tier": "T1_TITLE",
+      "ws_title": "終南山",
+      "ws_raw": "王維 [[終南山 (王維)|終南山]]",
+      "ws_disamb": "王維",
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "太乙近天都連山接海隅"
+    },
+    {
+      "seq": 138,
+      "author": "王維",
+      "title": "漢江臨汎",
+      "tier": "SEL_ONLY",
+      "first_line": "楚塞三湘接荊門九派通",
+      "near_candidates": []
+    },
+    {
+      "seq": 139,
+      "author": "王維",
+      "title": "奉和聖製從蓬萊向興慶閣道中留春雨中春望之作應制",
+      "tier": "T1_TITLE",
+      "ws_title": "奉和聖製從蓬萊向興慶閣道中留春雨中春望之作應制",
+      "ws_raw": "王維 [[奉和聖製從蓬萊向興慶閣道中留春雨中春望之作應制 (王維)|奉和聖製從蓬萊向興慶閣道中留春雨中春望之作應制]]",
+      "ws_disamb": "王維",
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "渭水自縈秦塞曲黃山舊遶漢"
+    },
+    {
+      "seq": 140,
+      "author": "王維",
+      "title": "和賈舍人早朝大明宮之作",
+      "tier": "T1_TITLE",
+      "ws_title": "和賈舍人早朝大明宮之作",
+      "ws_raw": "王維 [[和賈舍人早朝大明宮之作]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "絳幘雞人送曉籌尚衣方進翠"
+    },
+    {
+      "seq": 141,
+      "author": "王維",
+      "title": "酬郭給事",
+      "tier": "SEL_ONLY",
+      "first_line": "洞門高閣靄餘輝桃李陰陰柳",
+      "near_candidates": []
+    },
+    {
+      "seq": 142,
+      "author": "王維",
+      "title": "積雨輞川莊作",
+      "tier": "T1_TITLE",
+      "ws_title": "積雨輞川莊作",
+      "ws_raw": "王維 [[積雨輞川莊作]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "積雨空林煙火遲蒸藜炊黍餉"
+    },
+    {
+      "seq": 143,
+      "author": "王維",
+      "title": "輞川集 鹿柴",
+      "tier": "SEL_ONLY",
+      "first_line": "空山不見人但聞人語響",
+      "near_candidates": [
+        "王維 [[鹿柴 (王維)|鹿柴]]"
+      ]
+    },
+    {
+      "seq": 144,
+      "author": "王維",
+      "title": "輞川集 竹里館",
+      "tier": "SEL_ONLY",
+      "first_line": "獨坐幽篁裏彈琴復長嘯",
+      "near_candidates": [
+        "王維 [[竹里館 (王維)|竹里館]]"
+      ]
+    },
+    {
+      "seq": 145,
+      "author": "王維",
+      "title": "送別",
+      "tier": "T1_TITLE_FIRSTLINE",
+      "ws_title": "送別",
+      "ws_raw": "王維 [[送別 (山中相送罷)|送別]]",
+      "ws_disamb": "山中相送罷",
+      "ws_genre": "五言絕句",
+      "title_diff": false,
+      "first_line": "山中相送罷日暮掩柴扉"
+    },
+    {
+      "seq": 146,
+      "author": "王維",
+      "title": "雜詩三首 二",
+      "tier": "T1_TITLE_FIRSTLINE",
+      "ws_title": "雜詩",
+      "ws_raw": "王維 [[雜詩 (君自故鄉來)|雜詩]]",
+      "ws_disamb": "君自故鄉來",
+      "ws_genre": "五言絕句",
+      "title_diff": false,
+      "first_line": "君自故鄉來應知故鄉事"
+    },
+    {
+      "seq": 147,
+      "author": "王維",
+      "title": "相思",
+      "tier": "T1_TITLE",
+      "ws_title": "相思",
+      "ws_raw": "王維 [[相思]]",
+      "ws_disamb": null,
+      "ws_genre": "五言絕句",
+      "title_diff": false,
+      "first_line": "紅豆生南國秋來發故枝"
+    },
+    {
+      "seq": 148,
+      "author": "王維",
+      "title": "九月九日憶山東兄弟",
+      "tier": "T1_TITLE",
+      "ws_title": "九月九日憶山東兄弟",
+      "ws_raw": "王維 [[九月九日憶山東兄弟]]",
+      "ws_disamb": null,
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "獨在異鄉為異客每逢佳節倍"
+    },
+    {
+      "seq": 149,
+      "author": "王維",
+      "title": "渭城曲",
+      "tier": "T1_TITLE",
+      "ws_title": "渭城曲",
+      "ws_raw": "王維 [[渭城曲]]",
+      "ws_disamb": null,
+      "ws_genre": "樂府",
+      "title_diff": false,
+      "first_line": "渭城朝雨浥輕塵客舍青青楊"
+    },
+    {
+      "seq": 150,
+      "author": "裴迪",
+      "title": "崔九欲往南山馬上口號與別",
+      "tier": "SEL_ONLY",
+      "first_line": "歸山深淺去須盡丘壑美",
+      "near_candidates": []
+    },
+    {
+      "seq": 151,
+      "author": "丘爲",
+      "title": "尋西山隱者不遇",
+      "tier": "T1_TITLE",
+      "ws_title": "尋西山隱者不遇",
+      "ws_raw": "丘為 [[尋西山隱者不遇]]",
+      "ws_disamb": null,
+      "ws_genre": "五言古詩",
+      "title_diff": false,
+      "first_line": "絕頂一茅茨直上三十里"
+    },
+    {
+      "seq": 152,
+      "author": "崔顥",
+      "title": "黃鶴樓",
+      "tier": "T1_TITLE",
+      "ws_title": "黃鶴樓",
+      "ws_raw": "崔顥 [[黃鶴樓 (崔顥)|黃鶴樓]]",
+      "ws_disamb": "崔顥",
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "昔人已乘白雲去此地空餘黃"
+    },
+    {
+      "seq": 153,
+      "author": "崔顥",
+      "title": "行經華陰",
+      "tier": "T1_TITLE",
+      "ws_title": "行經華陰",
+      "ws_raw": "崔顥 [[行經華陰]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "岧嶤太華俯咸京天外三峰削"
+    },
+    {
+      "seq": 154,
+      "author": "崔顥",
+      "title": "長干曲四首 一",
+      "tier": "SEL_ONLY",
+      "first_line": "君家何處住妾住在橫塘",
+      "near_candidates": []
+    },
+    {
+      "seq": 155,
+      "author": "崔顥",
+      "title": "長干曲四首 二",
+      "tier": "SEL_ONLY",
+      "first_line": "家臨九江水來去九江側",
+      "near_candidates": []
+    },
+    {
+      "seq": 156,
+      "author": "祖詠",
+      "title": "望薊門",
+      "tier": "T1_TITLE",
+      "ws_title": "望薊門",
+      "ws_raw": "祖詠 [[望薊門]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "燕台一望客心驚簫鼓喧喧漢"
+    },
+    {
+      "seq": 157,
+      "author": "祖詠",
+      "title": "終南望餘雪",
+      "tier": "T1_TITLE",
+      "ws_title": "終南望餘雪",
+      "ws_raw": "祖詠 [[終南望餘雪]]",
+      "ws_disamb": null,
+      "ws_genre": "五言絕句",
+      "title_diff": false,
+      "first_line": "終南陰嶺秀積雪浮雲端"
+    },
+    {
+      "seq": 158,
+      "author": "李頎",
+      "title": "古從軍行",
+      "tier": "T1_TITLE",
+      "ws_title": "古從軍行",
+      "ws_raw": "李頎 [[古從軍行]]",
+      "ws_disamb": null,
+      "ws_genre": "樂府",
+      "title_diff": false,
+      "first_line": "白日登山望烽火黃昏飲馬傍"
+    },
+    {
+      "seq": 159,
+      "author": "李頎",
+      "title": "琴歌",
+      "tier": "T1_TITLE",
+      "ws_title": "琴歌",
+      "ws_raw": "李頎 [[琴歌 (李頎)|琴歌]]",
+      "ws_disamb": "李頎",
+      "ws_genre": "七言古詩",
+      "title_diff": false,
+      "first_line": "主人有酒歡今夕請奏鳴琴廣"
+    },
+    {
+      "seq": 160,
+      "author": "李頎",
+      "title": "送陳章甫",
+      "tier": "T1_TITLE",
+      "ws_title": "送陳章甫",
+      "ws_raw": "李頎 [[送陳章甫]]",
+      "ws_disamb": null,
+      "ws_genre": "七言古詩",
+      "title_diff": false,
+      "first_line": "四月南風大麥黃棗花未落桐"
+    },
+    {
+      "seq": 161,
+      "author": "李頎",
+      "title": "聽安萬善吹觱篥歌",
+      "tier": "T1_TITLE",
+      "ws_title": "聽安萬善吹觱篥歌",
+      "ws_raw": "李頎 [[聽安萬善吹觱篥歌]]",
+      "ws_disamb": null,
+      "ws_genre": "七言古詩",
+      "title_diff": false,
+      "first_line": "南山截竹為觱篥此樂本自龜"
+    },
+    {
+      "seq": 162,
+      "author": "李頎",
+      "title": "古意",
+      "tier": "T1_TITLE",
+      "ws_title": "古意",
+      "ws_raw": "李頎 [[古意 (李頎)|古意]]",
+      "ws_disamb": "李頎",
+      "ws_genre": "七言古詩",
+      "title_diff": false,
+      "first_line": "男兒事長征少小幽燕客"
+    },
+    {
+      "seq": 163,
+      "author": "李頎",
+      "title": "聽董大彈胡笳聲兼寄語弄房給事",
+      "tier": "SEL_ONLY",
+      "first_line": "蔡女昔造胡笳聲一彈一十有",
+      "near_candidates": [
+        "李頎 [[聽董大彈胡笳兼寄語弄房給事]]"
+      ]
+    },
+    {
+      "seq": 164,
+      "author": "李頎",
+      "title": "送魏萬之京",
+      "tier": "T1_TITLE",
+      "ws_title": "送魏萬之京",
+      "ws_raw": "李頎 [[送魏萬之京]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "朝聞遊子唱離歌昨夜微霜初"
+    },
+    {
+      "seq": 165,
+      "author": "綦毋潛",
+      "title": "春泛若耶溪",
+      "tier": "T1_TITLE",
+      "ws_title": "春泛若耶溪",
+      "ws_raw": "綦毋潛 [[春泛若耶溪]]",
+      "ws_disamb": null,
+      "ws_genre": "五言古詩",
+      "title_diff": false,
+      "first_line": "幽意無斷絕此去隨所偶"
+    },
+    {
+      "seq": 166,
+      "author": "王昌齡",
+      "title": "塞下曲四首 一",
+      "tier": "SEL_ONLY",
+      "first_line": "蟬鳴空桑林八月蕭關道",
+      "near_candidates": []
+    },
+    {
+      "seq": 167,
+      "author": "王昌齡",
+      "title": "塞下曲四首 二",
+      "tier": "SEL_ONLY",
+      "first_line": "飲馬渡秋水水寒風似刀",
+      "near_candidates": []
+    },
+    {
+      "seq": 168,
+      "author": "王昌齡",
+      "title": "同從弟銷南齋玩月憶山陰崔少府",
+      "tier": "SEL_ONLY",
+      "first_line": "高臥南齋時開帷月初吐",
+      "near_candidates": [
+        "王昌齡 [[同從弟南齋翫月憶山陰崔少府]]"
+      ]
+    },
+    {
+      "seq": 169,
+      "author": "王昌齡",
+      "title": "出塞二首 一",
+      "tier": "SEL_ONLY",
+      "first_line": "秦時明月漢時關萬里長征人",
+      "near_candidates": []
+    },
+    {
+      "seq": 170,
+      "author": "王昌齡",
+      "title": "春宮曲",
+      "tier": "T1_TITLE",
+      "ws_title": "春宮曲",
+      "ws_raw": "王昌齡 [[春宮曲]]",
+      "ws_disamb": null,
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "昨夜風開露井桃未央前殿月"
+    },
+    {
+      "seq": 171,
+      "author": "王昌齡",
+      "title": "閨怨",
+      "tier": "T1_TITLE",
+      "ws_title": "閨怨",
+      "ws_raw": "王昌齡 [[閨怨 (王昌齡)|閨怨]]",
+      "ws_disamb": "王昌齡",
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "閨中少婦不曾愁春日凝妝上"
+    },
+    {
+      "seq": 172,
+      "author": "王昌齡",
+      "title": "芙蓉樓送辛漸二首 一",
+      "tier": "T1_TITLE_FIRSTLINE",
+      "ws_title": "芙蓉樓送辛漸",
+      "ws_raw": "王昌齡 [[芙蓉樓送辛漸 (寒雨連天夜入湖)|芙蓉樓送辛漸]]",
+      "ws_disamb": "寒雨連天夜入湖",
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "寒雨連天夜入湖平明送客楚"
+    },
+    {
+      "seq": 173,
+      "author": "常建",
+      "title": "宿王昌齡隱居",
+      "tier": "T1_TITLE",
+      "ws_title": "宿王昌齡隱居",
+      "ws_raw": "常建 [[宿王昌齡隱居]]",
+      "ws_disamb": null,
+      "ws_genre": "五言古詩",
+      "title_diff": false,
+      "first_line": "清溪深不測隱處唯孤雲"
+    },
+    {
+      "seq": 174,
+      "author": "李白",
+      "title": "清平調 一",
+      "tier": "SEL_ONLY",
+      "first_line": "雲想衣裳花想容春風拂檻露",
+      "near_candidates": []
+    },
+    {
+      "seq": 175,
+      "author": "李白",
+      "title": "清平調 二",
+      "tier": "SEL_ONLY",
+      "first_line": "一枝紅豔露凝香雲雨巫山枉",
+      "near_candidates": []
+    },
+    {
+      "seq": 176,
+      "author": "李白",
+      "title": "清平調 三",
+      "tier": "SEL_ONLY",
+      "first_line": "名花傾國兩相歡常得君王帶",
+      "near_candidates": []
+    },
+    {
+      "seq": 177,
+      "author": "黄拱",
+      "title": "還鄉偶書  其二",
+      "tier": "SEL_ONLY",
+      "first_line": "少小離家老大回鄉音難改鬢",
+      "near_candidates": []
+    },
+    {
+      "seq": 178,
+      "author": "白居易",
+      "title": "長恨歌",
+      "tier": "T1_TITLE",
+      "ws_title": "長恨歌",
+      "ws_raw": "白居易 [[長恨歌]]",
+      "ws_disamb": null,
+      "ws_genre": "七言古詩",
+      "title_diff": false,
+      "first_line": "漢皇重色思傾國御宇多年求"
+    },
+    {
+      "seq": 179,
+      "author": "白居易",
+      "title": "琵琶引",
+      "tier": "SEL_ONLY",
+      "first_line": "潯陽江頭夜送客楓葉荻花秋",
+      "near_candidates": []
+    },
+    {
+      "seq": 180,
+      "author": "白居易",
+      "title": "賦得古原草送別",
+      "tier": "T1_TITLE",
+      "ws_title": "賦得古原草送別",
+      "ws_raw": "白居易 [[賦得古原草送別]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "離離原上草一歲一枯榮"
+    },
+    {
+      "seq": 181,
+      "author": "白居易",
+      "title": "自河南經亂關內阻饑兄弟離散各在一處因望月有感聊書所懷寄上浮梁大兄於潛七兄烏江十五兄兼示符離及下邽弟妹",
+      "tier": "T1_TITLE",
+      "ws_title": "自河南經亂，關內阻饑，兄弟離散，各在一處。因望月有感，聊書所懷寄上，浮梁大兄，於潛七兄，烏江十五兄，兼示符離，及下邽弟妹",
+      "ws_raw": "白居易 [[自河南經亂，關內阻饑，兄弟離散，各在一處。因望月有感，聊書所懷寄上，浮梁大兄，於潛七兄，烏江十五兄，兼示符離，及下邽弟妹]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "時難年饑世業空弟兄羇旅各"
+    },
+    {
+      "seq": 182,
+      "author": "白居易",
+      "title": "問劉十九",
+      "tier": "T1_TITLE",
+      "ws_title": "問劉十",
+      "ws_raw": "白居易 [[問劉十九]]",
+      "ws_disamb": null,
+      "ws_genre": "五言絕句",
+      "title_diff": false,
+      "first_line": "綠螘新醅酒紅泥小火壚"
+    },
+    {
+      "seq": 183,
+      "author": "賈島",
+      "title": "尋隱者不遇",
+      "tier": "T1_TITLE",
+      "ws_title": "尋隱者不遇",
+      "ws_raw": "賈島 [[尋隱者不遇]]",
+      "ws_disamb": null,
+      "ws_genre": "五言絕句",
+      "title_diff": false,
+      "first_line": "松下問童子言師採藥去"
+    },
+    {
+      "seq": 184,
+      "author": "溫庭筠",
+      "title": "利州南渡",
+      "tier": "SEL_ONLY",
+      "first_line": "澹然空水對斜暉曲島蒼茫接",
+      "near_candidates": []
+    },
+    {
+      "seq": 185,
+      "author": "溫庭筠",
+      "title": "瑤瑟怨",
+      "tier": "T1_TITLE",
+      "ws_title": "瑤瑟怨",
+      "ws_raw": "溫庭筠 [[瑤瑟怨]]",
+      "ws_disamb": null,
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "冰簟銀牀夢不成碧天如水夜"
+    },
+    {
+      "seq": 186,
+      "author": "溫庭筠",
+      "title": "送人東遊",
+      "tier": "T1_TITLE",
+      "ws_title": "送人東遊",
+      "ws_raw": "溫庭筠 [[送人東遊]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "荒戍落黃葉浩然離故關"
+    },
+    {
+      "seq": 187,
+      "author": "溫庭筠",
+      "title": "蘇武廟",
+      "tier": "T1_TITLE",
+      "ws_title": "蘇武廟",
+      "ws_raw": "溫庭筠 [[蘇武廟]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "蘇武魂銷漢使前古祠高樹兩"
+    },
+    {
+      "seq": 188,
+      "author": "李頻",
+      "title": "渡漢江",
+      "tier": "T1_TITLE",
+      "ws_title": "渡漢江",
+      "ws_raw": "李頻 [[渡漢江 (李頻)|渡漢江]]",
+      "ws_disamb": "李頻",
+      "ws_genre": "五言絕句",
+      "title_diff": false,
+      "first_line": "嶺外音書絕經年復歷春"
+    },
+    {
+      "seq": 189,
+      "author": "秦韜玉",
+      "title": "貧女",
+      "tier": "T1_TITLE",
+      "ws_title": "貧女",
+      "ws_raw": "秦韜玉 [[貧女(秦韜玉)|貧女]]",
+      "ws_disamb": "秦韜玉",
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "蓬門未識綺羅香擬託良媒益"
+    },
+    {
+      "seq": 190,
+      "author": "周朴",
+      "title": "春宮怨",
+      "tier": "SEL_ONLY",
+      "first_line": "早被嬋娟誤欲妝臨鏡慵",
+      "near_candidates": []
+    },
+    {
+      "seq": 191,
+      "author": "崔塗",
+      "title": "孤鴈 二",
+      "tier": "T1_TITLE",
+      "ws_title": "孤雁",
+      "ws_raw": "崔塗 [[孤雁]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "幾行歸去盡片影獨何之"
+    },
+    {
+      "seq": 192,
+      "author": "崔塗",
+      "title": "巴山道中除夜書懷",
+      "tier": "SEL_ONLY",
+      "first_line": "迢遞三巴路羇危萬里身",
+      "near_candidates": []
+    },
+    {
+      "seq": 193,
+      "author": "張祜",
+      "title": "宮詞二首 一",
+      "tier": "SEL_ONLY",
+      "first_line": "故國三千里深宮二十年",
+      "near_candidates": []
+    },
+    {
+      "seq": 194,
+      "author": "張祜",
+      "title": "贈內人",
+      "tier": "T1_TITLE",
+      "ws_title": "贈內人",
+      "ws_raw": "張祜 [[贈內人]]",
+      "ws_disamb": null,
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "禁門宮樹月痕過媚眼唯看宿"
+    },
+    {
+      "seq": 195,
+      "author": "張祜",
+      "title": "集靈臺二首 一",
+      "tier": "T1_TITLE_ORDINAL",
+      "ws_title": "集靈臺",
+      "ws_raw": "張祜 [[集靈臺之一]]",
+      "ws_disamb": null,
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "日光斜照集靈台紅樹花迎曉"
+    },
+    {
+      "seq": 196,
+      "author": "張祜",
+      "title": "集靈臺二首 二",
+      "tier": "T1_TITLE",
+      "ws_title": "集靈臺",
+      "ws_raw": "張祜 [[集靈臺之二]]",
+      "ws_disamb": null,
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "虢國夫人承主恩平明騎馬入"
+    },
+    {
+      "seq": 197,
+      "author": "張祜",
+      "title": "題金陵渡",
+      "tier": "T1_TITLE",
+      "ws_title": "題金陵渡",
+      "ws_raw": "張祜 [[題金陵渡]]",
+      "ws_disamb": null,
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "金陵津渡小山樓一宿行人自"
+    },
+    {
+      "seq": 198,
+      "author": "朱慶餘",
+      "title": "宮詞",
+      "tier": "SEL_ONLY",
+      "first_line": "寂寂花時閉院門美人相並立",
+      "near_candidates": []
+    },
+    {
+      "seq": 199,
+      "author": "韓愈",
+      "title": "石鼓歌",
+      "tier": "T1_TITLE",
+      "ws_title": "石鼓歌",
+      "ws_raw": "韓愈 [[石鼓歌 (韓愈)|石鼓歌]]",
+      "ws_disamb": "韓愈",
+      "ws_genre": "七言古詩",
+      "title_diff": false,
+      "first_line": "張生手持石鼓文勸我試作石"
+    },
+    {
+      "seq": 200,
+      "author": "王涯",
+      "title": "秋夜曲",
+      "tier": "SEL_ONLY",
+      "first_line": "桂魄初生秋露微輕羅已薄未",
+      "near_candidates": []
+    },
+    {
+      "seq": 201,
+      "author": "柳宗元",
+      "title": "晨詣超師院讀禪經",
+      "tier": "T1_TITLE",
+      "ws_title": "晨詣超師院讀禪經",
+      "ws_raw": "柳宗元 [[晨詣超師院讀禪經]]",
+      "ws_disamb": null,
+      "ws_genre": "五言古詩",
+      "title_diff": false,
+      "first_line": "汲井漱寒齒清心拂塵服"
+    },
+    {
+      "seq": 202,
+      "author": "柳宗元",
+      "title": "登柳州城樓寄漳汀封連四州",
+      "tier": "SEL_ONLY",
+      "first_line": "城上高樓接大荒海天愁思正",
+      "near_candidates": [
+        "柳宗元 [[登柳州城樓寄漳汀封連四州刺史]]"
+      ]
+    },
+    {
+      "seq": 203,
+      "author": "柳宗元",
+      "title": "溪居",
+      "tier": "T1_TITLE",
+      "ws_title": "溪居",
+      "ws_raw": "柳宗元 [[溪居]]",
+      "ws_disamb": null,
+      "ws_genre": "五言古詩",
+      "title_diff": false,
+      "first_line": "久為簪組累幸此南夷謫"
+    },
+    {
+      "seq": 204,
+      "author": "柳宗元",
+      "title": "江雪",
+      "tier": "T1_TITLE",
+      "ws_title": "江雪",
+      "ws_raw": "柳宗元 [[江雪]]",
+      "ws_disamb": null,
+      "ws_genre": "五言絕句",
+      "title_diff": false,
+      "first_line": "千山鳥飛絕萬逕人蹤滅"
+    },
+    {
+      "seq": 205,
+      "author": "柳宗元",
+      "title": "漁翁",
+      "tier": "T1_TITLE",
+      "ws_title": "漁翁",
+      "ws_raw": "柳宗元 [[漁翁]]",
+      "ws_disamb": null,
+      "ws_genre": "七言古詩",
+      "title_diff": false,
+      "first_line": "漁翁夜傍西巖宿曉汲清湘燃"
+    },
+    {
+      "seq": 206,
+      "author": "劉禹錫",
+      "title": "蜀先主廟",
+      "tier": "T1_TITLE",
+      "ws_title": "蜀先主廟",
+      "ws_raw": "劉禹錫 [[蜀先主廟]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "天地英雄氣千秋尚凜然"
+    },
+    {
+      "seq": 207,
+      "author": "杜甫",
+      "title": "月夜",
+      "tier": "T1_TITLE",
+      "ws_title": "月夜",
+      "ws_raw": "杜甫 [[月夜 (杜甫)|月夜]]",
+      "ws_disamb": "杜甫",
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "今夜鄜州月閨中只獨看"
+    },
+    {
+      "seq": 208,
+      "author": "杜甫",
+      "title": "春望",
+      "tier": "T1_TITLE",
+      "ws_title": "春望",
+      "ws_raw": "杜甫 [[春望]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "國破山河在城春草木深"
+    },
+    {
+      "seq": 209,
+      "author": "杜甫",
+      "title": "春宿左省",
+      "tier": "T1_TITLE",
+      "ws_title": "春宿左省",
+      "ws_raw": "杜甫 [[春宿左省]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "花隱掖垣暮啾啾棲鳥過"
+    },
+    {
+      "seq": 210,
+      "author": "杜甫",
+      "title": "至德二載甫自京金光門出問道歸鳳翔乾元初從左拾遺移華州掾與親故別因出此門有悲往事",
+      "tier": "SEL_ONLY",
+      "first_line": "此道昔歸順西郊胡正繁",
+      "near_candidates": [
+        "杜甫 [[至德二載甫自京金光門出 間道歸鳳翔 乾元初從左拾遺移華州掾 與親故別 因出此門 有悲往事]]"
+      ]
+    },
+    {
+      "seq": 211,
+      "author": "杜甫",
+      "title": "月夜憶舍弟",
+      "tier": "T1_TITLE",
+      "ws_title": "月夜憶舍弟",
+      "ws_raw": "杜甫 [[月夜憶舍弟]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "戍鼓斷人行秋邊一雁聲"
+    },
+    {
+      "seq": 212,
+      "author": "杜甫",
+      "title": "天末憶李白",
+      "tier": "SEL_ONLY",
+      "first_line": "涼風起天末君子意如何",
+      "near_candidates": []
+    },
+    {
+      "seq": 213,
+      "author": "杜甫",
+      "title": "蜀相",
+      "tier": "T1_TITLE",
+      "ws_title": "蜀相",
+      "ws_raw": "杜甫 [[蜀相]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "丞相祠堂何處尋錦官城外柏"
+    },
+    {
+      "seq": 214,
+      "author": "杜甫",
+      "title": "客至",
+      "tier": "T1_TITLE",
+      "ws_title": "客至",
+      "ws_raw": "杜甫 [[客至]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "舍南舍北皆春水但見群鷗日"
+    },
+    {
+      "seq": 215,
+      "author": "杜甫",
+      "title": "野望",
+      "tier": "T1_TITLE_FIRSTLINE",
+      "ws_title": "野望",
+      "ws_raw": "杜甫 [[野望 (西山白雪三奇戍)|野望]]",
+      "ws_disamb": "西山白雪三奇戍",
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "西山白雪三奇戍南浦清江萬"
+    },
+    {
+      "seq": 216,
+      "author": "杜甫",
+      "title": "奉濟驛重送嚴公四韻",
+      "tier": "T1_TITLE",
+      "ws_title": "奉濟驛重送嚴公四韻",
+      "ws_raw": "杜甫 [[奉濟驛重送嚴公四韻]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "遠送從此別青山空復情"
+    },
+    {
+      "seq": 217,
+      "author": "杜甫",
+      "title": "聞官軍收河南河北",
+      "tier": "T1_TITLE",
+      "ws_title": "聞官軍收河南河北",
+      "ws_raw": "杜甫 [[聞官軍收河南河北]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "劒外忽傳收薊北初聞涕淚滿"
+    },
+    {
+      "seq": 218,
+      "author": "杜甫",
+      "title": "登高",
+      "tier": "T1_TITLE",
+      "ws_title": "登高",
+      "ws_raw": "杜甫 [[登高]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "風急天高猿嘯哀渚清沙白鳥"
+    },
+    {
+      "seq": 219,
+      "author": "杜甫",
+      "title": "別房太尉墓",
+      "tier": "T1_TITLE",
+      "ws_title": "別房太尉墓",
+      "ws_raw": "杜甫 [[別房太尉墓]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "他鄉復行役駐馬別孤墳"
+    },
+    {
+      "seq": 220,
+      "author": "杜甫",
+      "title": "登樓",
+      "tier": "T1_TITLE",
+      "ws_title": "登樓",
+      "ws_raw": "杜甫 [[登樓 (杜甫)|登樓]]",
+      "ws_disamb": "杜甫",
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "花近高樓傷客心萬方多難此"
+    },
+    {
+      "seq": 221,
+      "author": "杜甫",
+      "title": "宿府",
+      "tier": "T1_TITLE",
+      "ws_title": "宿府",
+      "ws_raw": "杜甫 [[宿府]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "清秋幕府井梧寒獨宿江城蠟"
+    },
+    {
+      "seq": 222,
+      "author": "杜甫",
+      "title": "旅夜書懷",
+      "tier": "T1_TITLE",
+      "ws_title": "旅夜書懷",
+      "ws_raw": "杜甫 [[旅夜書懷]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "細草微風岸危檣獨夜舟"
+    },
+    {
+      "seq": 223,
+      "author": "杜甫",
+      "title": "閣夜",
+      "tier": "T1_TITLE",
+      "ws_title": "閣夜",
+      "ws_raw": "杜甫 [[閣夜]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "歲暮陰陽催短景天涯霜雪霽"
+    },
+    {
+      "seq": 224,
+      "author": "杜甫",
+      "title": "八陣圖",
+      "tier": "T1_TITLE",
+      "ws_title": "八陣圖",
+      "ws_raw": "杜甫 [[八陣圖]]",
+      "ws_disamb": null,
+      "ws_genre": "五言絕句",
+      "title_diff": false,
+      "first_line": "功蓋三分國名高八陣圖"
+    },
+    {
+      "seq": 225,
+      "author": "杜甫",
+      "title": "詠懷古跡五首 一",
+      "tier": "T1_TITLE_ORDINAL",
+      "ws_title": "詠懷古跡",
+      "ws_raw": "杜甫 [[詠懷古跡之一]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "支離東北風塵際漂泊西南天"
+    },
+    {
+      "seq": 226,
+      "author": "杜甫",
+      "title": "詠懷古跡五首 二",
+      "tier": "T1_TITLE_ORDINAL",
+      "ws_title": "詠懷古跡",
+      "ws_raw": "杜甫 [[詠懷古跡之二]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "搖落深知宋玉悲風流儒雅亦"
+    },
+    {
+      "seq": 227,
+      "author": "杜甫",
+      "title": "詠懷古跡五首 三",
+      "tier": "T1_TITLE_ORDINAL",
+      "ws_title": "詠懷古跡",
+      "ws_raw": "杜甫 [[詠懷古跡之三]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "群山萬壑赴荊門生長明妃尚"
+    },
+    {
+      "seq": 228,
+      "author": "杜甫",
+      "title": "詠懷古跡五首 四",
+      "tier": "T1_TITLE_ORDINAL",
+      "ws_title": "詠懷古跡",
+      "ws_raw": "杜甫 [[詠懷古跡之四]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "蜀主窺吳幸三峽崩年亦在永"
+    },
+    {
+      "seq": 229,
+      "author": "杜甫",
+      "title": "詠懷古跡五首 五",
+      "tier": "T1_TITLE",
+      "ws_title": "詠懷古跡",
+      "ws_raw": "杜甫 [[詠懷古跡之五]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "諸葛大名垂宇宙宗臣遺像肅"
+    },
+    {
+      "seq": 230,
+      "author": "杜甫",
+      "title": "江南逢李龜年",
+      "tier": "T1_TITLE",
+      "ws_title": "江南逢李龜年",
+      "ws_raw": "杜甫 [[江南逢李龜年]]",
+      "ws_disamb": null,
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "歧王宅裏尋常見崔九堂前幾"
+    },
+    {
+      "seq": 231,
+      "author": "杜甫",
+      "title": "登岳陽樓",
+      "tier": "T1_TITLE",
+      "ws_title": "登岳陽樓",
+      "ws_raw": "杜甫 [[登岳陽樓 (杜甫)|登岳陽樓]]",
+      "ws_disamb": "杜甫",
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "昔聞洞庭水今上岳陽樓"
+    },
+    {
+      "seq": 232,
+      "author": "杜甫",
+      "title": "虢國夫人",
+      "tier": "SEL_ONLY",
+      "first_line": "虢國夫人承主恩平明上馬入",
+      "near_candidates": []
+    },
+    {
+      "seq": 233,
+      "author": "張九齡",
+      "title": "望月懷遠",
+      "tier": "T1_TITLE",
+      "ws_title": "望月懷遠",
+      "ws_raw": "張九齡 [[望月懷遠]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "海上生明月天涯共此時"
+    },
+    {
+      "seq": 234,
+      "author": "宋之問",
+      "title": "題大庾嶺北驛",
+      "tier": "T1_TITLE",
+      "ws_title": "題大庾嶺北驛",
+      "ws_raw": "宋之問 [[題大庾嶺北驛]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "陽月南飛雁傳聞至此回"
+    },
+    {
+      "seq": 235,
+      "author": "宋之問",
+      "title": "渡漢江",
+      "tier": "SEL_ONLY",
+      "first_line": "嶺外音書斷經冬復歷春",
+      "near_candidates": []
+    },
+    {
+      "seq": 236,
+      "author": "宋之問",
+      "title": "新年作",
+      "tier": "SEL_ONLY",
+      "first_line": "鄉心新歲切天畔獨澘然",
+      "near_candidates": []
+    },
+    {
+      "seq": 237,
+      "author": "王勃",
+      "title": "杜少府之任蜀州",
+      "tier": "SEL_ONLY",
+      "first_line": "城闕輔三秦風煙望五津",
+      "near_candidates": [
+        "王勃 [[送杜少府之任蜀州]]"
+      ]
+    },
+    {
+      "seq": 238,
+      "author": "杜審言",
+      "title": "和晉陵陸丞早春遊望",
+      "tier": "SEL_ONLY",
+      "first_line": "獨有宦遊人偏驚物候新",
+      "near_candidates": [
+        "杜審言 [[和晉陵路丞早春遊望]]"
+      ]
+    },
+    {
+      "seq": 239,
+      "author": "朱斌",
+      "title": "登樓",
+      "tier": "SEL_ONLY",
+      "first_line": "白日依山盡黃河入海流",
+      "near_candidates": []
+    },
+    {
+      "seq": 240,
+      "author": "高適",
+      "title": "送李少府貶峽中王少府貶長沙",
+      "tier": "T1_TITLE",
+      "ws_title": "送李少府貶峽中王少府貶長沙",
+      "ws_raw": "高適 [[送李少府貶峽中王少府貶長沙]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "嗟君此別意何如駐馬銜桮問"
+    },
+    {
+      "seq": 241,
+      "author": "杜甫",
+      "title": "望嶽",
+      "tier": "T1_TITLE_FIRSTLINE",
+      "ws_title": "望嶽",
+      "ws_raw": "杜甫 [[望嶽 (岱宗夫如何)|望嶽]]",
+      "ws_disamb": "岱宗夫如何",
+      "ws_genre": "五言古詩",
+      "title_diff": false,
+      "first_line": "岱宗夫如何齊魯青未了"
+    },
+    {
+      "seq": 242,
+      "author": "杜甫",
+      "title": "兵車行",
+      "tier": "T1_TITLE",
+      "ws_title": "兵車行",
+      "ws_raw": "杜甫 [[兵車行]]",
+      "ws_disamb": null,
+      "ws_genre": "樂府",
+      "title_diff": false,
+      "first_line": "車轔轔馬蕭蕭行人弓箭各在"
+    },
+    {
+      "seq": 243,
+      "author": "杜甫",
+      "title": "贈衛八處士",
+      "tier": "T1_TITLE",
+      "ws_title": "贈衛八處士",
+      "ws_raw": "杜甫 [[贈衛八處士]]",
+      "ws_disamb": null,
+      "ws_genre": "五言古詩",
+      "title_diff": false,
+      "first_line": "人生不相見動如參與商"
+    },
+    {
+      "seq": 244,
+      "author": "杜甫",
+      "title": "麗人行",
+      "tier": "T1_TITLE",
+      "ws_title": "麗人行",
+      "ws_raw": "杜甫 [[麗人行]]",
+      "ws_disamb": null,
+      "ws_genre": "樂府",
+      "title_diff": false,
+      "first_line": "三月三日天氣新長安水邊多"
+    },
+    {
+      "seq": 245,
+      "author": "杜甫",
+      "title": "哀江頭",
+      "tier": "T1_TITLE",
+      "ws_title": "哀江頭",
+      "ws_raw": "杜甫 [[哀江頭]]",
+      "ws_disamb": null,
+      "ws_genre": "樂府",
+      "title_diff": false,
+      "first_line": "少陵野老吞聲哭春日潛行曲"
+    },
+    {
+      "seq": 246,
+      "author": "杜甫",
+      "title": "哀王孫",
+      "tier": "T1_TITLE",
+      "ws_title": "哀王孫",
+      "ws_raw": "杜甫 [[哀王孫]]",
+      "ws_disamb": null,
+      "ws_genre": "樂府",
+      "title_diff": false,
+      "first_line": "長安城頭頭白烏夜飛延秋門"
+    },
+    {
+      "seq": 247,
+      "author": "杜甫",
+      "title": "佳人",
+      "tier": "T1_TITLE",
+      "ws_title": "佳人",
+      "ws_raw": "杜甫 [[佳人 (杜甫)|佳人]]",
+      "ws_disamb": "杜甫",
+      "ws_genre": "五言古詩",
+      "title_diff": false,
+      "first_line": "絕代有佳人幽居在空谷"
+    },
+    {
+      "seq": 248,
+      "author": "杜甫",
+      "title": "夢李白二首 一",
+      "tier": "SEL_ONLY",
+      "first_line": "死別已吞聲生別常惻惻",
+      "near_candidates": []
+    },
+    {
+      "seq": 249,
+      "author": "杜甫",
+      "title": "夢李白二首 二",
+      "tier": "SEL_ONLY",
+      "first_line": "浮雲終日行遊子久不至",
+      "near_candidates": []
+    },
+    {
+      "seq": 250,
+      "author": "杜甫",
+      "title": "韋諷錄事宅觀曹將軍畫馬圖",
+      "tier": "T1_TITLE",
+      "ws_title": "韋諷錄事宅觀曹將軍畫馬圖",
+      "ws_raw": "杜甫 [[韋諷錄事宅觀曹將軍畫馬圖]]",
+      "ws_disamb": null,
+      "ws_genre": "七言古詩",
+      "title_diff": false,
+      "first_line": "國初已來畫鞍馬神妙獨數江"
+    },
+    {
+      "seq": 251,
+      "author": "杜甫",
+      "title": "丹青引贈曹將軍霸",
+      "tier": "SEL_ONLY",
+      "first_line": "將軍魏武之子孫於今為庶為",
+      "near_candidates": [
+        "杜甫 [[丹青引贈曹霸將軍]]"
+      ]
+    },
+    {
+      "seq": 252,
+      "author": "杜甫",
+      "title": "寄韓諫議",
+      "tier": "SEL_ONLY",
+      "first_line": "今我不樂思岳陽身欲奮飛病",
+      "near_candidates": [
+        "杜甫 [[寄韓諫議注]]"
+      ]
+    },
+    {
+      "seq": 253,
+      "author": "杜甫",
+      "title": "古柏行",
+      "tier": "T1_TITLE",
+      "ws_title": "古柏行",
+      "ws_raw": "杜甫 [[古柏行]]",
+      "ws_disamb": null,
+      "ws_genre": "七言古詩",
+      "title_diff": false,
+      "first_line": "孔明廟前有老柏柯如青銅根"
+    },
+    {
+      "seq": 254,
+      "author": "杜甫",
+      "title": "觀公孫大娘弟子舞劒器行",
+      "tier": "SEL_ONLY",
+      "first_line": "昔有佳人公孫氏一舞劒氣動",
+      "near_candidates": [
+        "杜甫 [[觀公孫大娘弟子舞劍器行並序]]"
+      ]
+    },
+    {
+      "seq": 255,
+      "author": "張佖",
+      "title": "寄人二首  其一",
+      "tier": "SEL_ONLY",
+      "first_line": "別夢依依到謝家小廊回合曲",
+      "near_candidates": []
+    },
+    {
+      "seq": 256,
+      "author": "不詳",
+      "title": "雜曲歌辭 蓋羅縫 一",
+      "tier": "SEL_ONLY",
+      "first_line": "秦時明月漢時關萬里征人尚",
+      "near_candidates": []
+    },
+    {
+      "seq": 257,
+      "author": "楊敬述進",
+      "title": "雜曲歌辭 婆羅門",
+      "tier": "SEL_ONLY",
+      "first_line": "回樂峰前沙似雪受降城外月",
+      "near_candidates": []
+    },
+    {
+      "seq": 258,
+      "author": "李白",
+      "title": "雜曲歌辭 清平調 一",
+      "tier": "SEL_ONLY",
+      "first_line": "雲想衣裳花想容春風拂檻露",
+      "near_candidates": []
+    },
+    {
+      "seq": 259,
+      "author": "李白",
+      "title": "雜曲歌辭 清平調 二",
+      "tier": "SEL_ONLY",
+      "first_line": "一枝紅豔露凝香雲雨巫山枉",
+      "near_candidates": []
+    },
+    {
+      "seq": 260,
+      "author": "李白",
+      "title": "雜曲歌辭 清平調 三",
+      "tier": "SEL_ONLY",
+      "first_line": "名花傾國兩相歡長得君王帶",
+      "near_candidates": []
+    },
+    {
+      "seq": 261,
+      "author": "王維",
+      "title": "雜曲歌辭 渭城曲",
+      "tier": "SEL_ONLY",
+      "first_line": "謂城朝雨浥輕塵客舍青青柳",
+      "near_candidates": []
+    },
+    {
+      "seq": 262,
+      "author": "不詳",
+      "title": "雜曲歌辭 金縷衣",
+      "tier": "SEL_ONLY",
+      "first_line": "勸君莫惜金縷衣勸君惜取少",
+      "near_candidates": []
+    },
+    {
+      "seq": 263,
+      "author": "張九齡",
+      "title": "感遇十二首 一",
+      "tier": "SEL_ONLY",
+      "first_line": "蘭葉春葳蕤桂華秋皎潔",
+      "near_candidates": []
+    },
+    {
+      "seq": 264,
+      "author": "張九齡",
+      "title": "感遇十二首 二",
+      "tier": "SEL_ONLY",
+      "first_line": "幽林歸獨臥滯慮洗孤清",
+      "near_candidates": []
+    },
+    {
+      "seq": 265,
+      "author": "張九齡",
+      "title": "感遇十二首 四",
+      "tier": "SEL_ONLY",
+      "first_line": "孤鴻海上來池潢不敢顧",
+      "near_candidates": []
+    },
+    {
+      "seq": 266,
+      "author": "張九齡",
+      "title": "感遇十二首 七",
+      "tier": "SEL_ONLY",
+      "first_line": "江南有丹橘經冬猶綠林",
+      "near_candidates": []
+    },
+    {
+      "seq": 267,
+      "author": "皎然",
+      "title": "尋陸鴻漸不遇",
+      "tier": "SEL_ONLY",
+      "first_line": "移家雖帶郭野徑入桑麻",
+      "near_candidates": []
+    },
+    {
+      "seq": 268,
+      "author": "劉禹錫",
+      "title": "西塞山懷古",
+      "tier": "T1_TITLE",
+      "ws_title": "西塞山懷古",
+      "ws_raw": "劉禹錫 [[西塞山懷古]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "西晉樓船下益州金陵王氣黯"
+    },
+    {
+      "seq": 269,
+      "author": "劉禹錫",
+      "title": "金陵五題 烏衣巷",
+      "tier": "SEL_ONLY",
+      "first_line": "朱雀橋邊野草花烏衣巷口夕",
+      "near_candidates": [
+        "劉禹錫 [[烏衣巷]]"
+      ]
+    },
+    {
+      "seq": 270,
+      "author": "劉禹錫",
+      "title": "和樂天春詞",
+      "tier": "SEL_ONLY",
+      "first_line": "新妝面面下朱樓深鎖春光一",
+      "near_candidates": [
+        "劉禹錫 [[春詞 (劉禹錫)|春詞]]"
+      ]
+    },
+    {
+      "seq": 271,
+      "author": "孟郊",
+      "title": "列女操",
+      "tier": "SEL_ONLY",
+      "first_line": "梧桐相待老鴛鴦會雙死",
+      "near_candidates": []
+    },
+    {
+      "seq": 272,
+      "author": "孟郊",
+      "title": "遊子吟",
+      "tier": "T1_TITLE",
+      "ws_title": "遊子吟",
+      "ws_raw": "孟郊 [[遊子吟 (孟郊)|遊子吟]]",
+      "ws_disamb": "孟郊",
+      "ws_genre": "樂府",
+      "title_diff": false,
+      "first_line": "慈母手中線遊子身上衣"
+    },
+    {
+      "seq": 273,
+      "author": "蔡襄",
+      "title": "度南澗",
+      "tier": "SEL_ONLY",
+      "first_line": "隠隠飛橋隔野煙石磯西畔問",
+      "near_candidates": []
+    },
+    {
+      "seq": 274,
+      "author": "錢起",
+      "title": "谷口書齋寄楊補闕",
+      "tier": "T1_TITLE",
+      "ws_title": "谷口書齋寄楊補闕",
+      "ws_raw": "錢起 [[谷口書齋寄楊補闕]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "泉壑帶茅茨雲霞生薜帷"
+    },
+    {
+      "seq": 275,
+      "author": "錢起",
+      "title": "送僧歸日本",
+      "tier": "T1_TITLE",
+      "ws_title": "送僧歸日本",
+      "ws_raw": "錢起 [[送僧歸日本]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "上國隨緣住來途若夢行"
+    },
+    {
+      "seq": 276,
+      "author": "錢起",
+      "title": "贈闕下裴舍人",
+      "tier": "T1_TITLE",
+      "ws_title": "贈闕下裴舍人",
+      "ws_raw": "錢起 [[贈闕下裴舍人]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "二月黃鶯飛上林春城紫禁曉"
+    },
+    {
+      "seq": 277,
+      "author": "錢起",
+      "title": "和張僕射塞下曲",
+      "tier": "SEL_ONLY",
+      "first_line": "月黑雁飛高單于夜遁逃",
+      "near_candidates": []
+    },
+    {
+      "seq": 278,
+      "author": "元結",
+      "title": "賊退示官吏",
+      "tier": "T1_TITLE",
+      "ws_title": "賊退示官吏",
+      "ws_raw": "元結 [[賊退示官吏]]",
+      "ws_disamb": null,
+      "ws_genre": "五言古詩",
+      "title_diff": false,
+      "first_line": "昔歲逢太平山林二十年"
+    },
+    {
+      "seq": 279,
+      "author": "元結",
+      "title": "石魚湖上醉歌",
+      "tier": "T1_TITLE",
+      "ws_title": "石魚湖上醉歌並序",
+      "ws_raw": "元結 [[石魚湖上醉歌並序]]",
+      "ws_disamb": null,
+      "ws_genre": "七言古詩",
+      "title_diff": false,
+      "first_line": "石魚湖似洞庭夏水欲滿君山"
+    },
+    {
+      "seq": 280,
+      "author": "張繼",
+      "title": "楓橋夜泊",
+      "tier": "T1_TITLE",
+      "ws_title": "楓橋夜泊",
+      "ws_raw": "張繼 [[楓橋夜泊]]",
+      "ws_disamb": null,
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "月落烏啼霜滿天江楓漁父對"
+    },
+    {
+      "seq": 281,
+      "author": "韓翃",
+      "title": "酬程延秋夜即事見贈",
+      "tier": "SEL_ONLY",
+      "first_line": "長簟迎風早空城澹月華",
+      "near_candidates": [
+        "韓翃 [[酬程近秋夜即事見贈]]"
+      ]
+    },
+    {
+      "seq": 282,
+      "author": "韓翃",
+      "title": "同題仙游觀",
+      "tier": "SEL_ONLY",
+      "first_line": "仙台下見五城樓風物淒淒宿",
+      "near_candidates": []
+    },
+    {
+      "seq": 283,
+      "author": "韓翃",
+      "title": "寒食",
+      "tier": "T1_TITLE",
+      "ws_title": "寒食",
+      "ws_raw": "韓翃 [[寒食 (韓翃)|寒食]]",
+      "ws_disamb": "韓翃",
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "春城無處不飛花寒食東風御"
+    },
+    {
+      "seq": 284,
+      "author": "韋應物",
+      "title": "寄李儋元錫",
+      "tier": "T1_TITLE",
+      "ws_title": "寄李儋元錫",
+      "ws_raw": "韋應物 [[寄李儋元錫]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "去年花裏逢君別今日花開已"
+    },
+    {
+      "seq": 285,
+      "author": "韋應物",
+      "title": "寄全椒山中道士",
+      "tier": "T1_TITLE",
+      "ws_title": "寄全椒山中道士",
+      "ws_raw": "韋應物 [[寄全椒山中道士]]",
+      "ws_disamb": null,
+      "ws_genre": "五言古詩",
+      "title_diff": false,
+      "first_line": "今朝郡齋冷忽念山中客"
+    },
+    {
+      "seq": 286,
+      "author": "韋應物",
+      "title": "秋夜寄丘二十二員外",
+      "tier": "SEL_ONLY",
+      "first_line": "懷君屬秋夜散步詠涼天",
+      "near_candidates": []
+    },
+    {
+      "seq": 287,
+      "author": "韋應物",
+      "title": "賦得暮雨送李胄",
+      "tier": "SEL_ONLY",
+      "first_line": "楚江微雨裏建業暮鐘時",
+      "near_candidates": [
+        "韋應物 [[賦得暮雨送李冑]]"
+      ]
+    },
+    {
+      "seq": 288,
+      "author": "韋應物",
+      "title": "送楊氏女",
+      "tier": "T1_TITLE",
+      "ws_title": "送楊氏女",
+      "ws_raw": "韋應物 [[送楊氏女]]",
+      "ws_disamb": null,
+      "ws_genre": "五言古詩",
+      "title_diff": false,
+      "first_line": "永日方慼慼出門復悠悠"
+    },
+    {
+      "seq": 289,
+      "author": "韋應物",
+      "title": "長安遇馮著",
+      "tier": "T1_TITLE",
+      "ws_title": "長安遇馮著",
+      "ws_raw": "韋應物 [[長安遇馮著]]",
+      "ws_disamb": null,
+      "ws_genre": "五言古詩",
+      "title_diff": false,
+      "first_line": "客從東方來衣上灞陵雨"
+    },
+    {
+      "seq": 290,
+      "author": "韋應物",
+      "title": "夕次盱眙縣",
+      "tier": "T1_TITLE",
+      "ws_title": "夕次盱眙縣",
+      "ws_raw": "韋應物 [[夕次盱眙縣]]",
+      "ws_disamb": null,
+      "ws_genre": "五言古詩",
+      "title_diff": false,
+      "first_line": "落帆逗淮鎮停舫臨孤驛"
+    },
+    {
+      "seq": 291,
+      "author": "韋應物",
+      "title": "東郊",
+      "tier": "T1_TITLE",
+      "ws_title": "東郊",
+      "ws_raw": "韋應物 [[東郊]]",
+      "ws_disamb": null,
+      "ws_genre": "五言古詩",
+      "title_diff": false,
+      "first_line": "吏舍跼終年出郊曠清曙"
+    },
+    {
+      "seq": 292,
+      "author": "韋應物",
+      "title": "滁州西澗",
+      "tier": "T1_TITLE",
+      "ws_title": "滁州西澗",
+      "ws_raw": "韋應物 [[滁州西澗]]",
+      "ws_disamb": null,
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "獨憐幽草澗邊生上有黃鸝深"
+    },
+    {
+      "seq": 293,
+      "author": "韋應物",
+      "title": "和晉陵陸丞早春遊望",
+      "tier": "SEL_ONLY",
+      "first_line": "獨有宦遊人偏驚物候新",
+      "near_candidates": []
+    },
+    {
+      "seq": 294,
+      "author": "岑參",
+      "title": "與高適薛據慈恩寺浮圖",
+      "tier": "SEL_ONLY",
+      "first_line": "塔勢如湧出孤高聳天宮",
+      "near_candidates": [
+        "岑參 [[與高適薛據登慈恩寺浮圖]]"
+      ]
+    },
+    {
+      "seq": 295,
+      "author": "岑參",
+      "title": "白雪歌送武判官歸京",
+      "tier": "T1_TITLE",
+      "ws_title": "白雪歌送武判官歸京",
+      "ws_raw": "岑參 [[白雪歌送武判官歸京]]",
+      "ws_disamb": null,
+      "ws_genre": "七言古詩",
+      "title_diff": false,
+      "first_line": "北風捲地白草折胡天八月即"
+    },
+    {
+      "seq": 296,
+      "author": "岑參",
+      "title": "輪臺歌奉送封大夫出師西征",
+      "tier": "T1_TITLE",
+      "ws_title": "輪臺歌奉送封大夫出師西征",
+      "ws_raw": "岑參 [[輪臺歌奉送封大夫出師西征]]",
+      "ws_disamb": null,
+      "ws_genre": "七言古詩",
+      "title_diff": false,
+      "first_line": "輪台城頭夜吹角輪台城北旄"
+    },
+    {
+      "seq": 297,
+      "author": "岑參",
+      "title": "走馬川行奉送出師西征",
+      "tier": "SEL_ONLY",
+      "first_line": "君不見走馬川行雪海邊平沙",
+      "near_candidates": [
+        "岑參 [[走馬川行奉送封大夫出師西征]]"
+      ]
+    },
+    {
+      "seq": 298,
+      "author": "岑參",
+      "title": "寄左省杜拾遺",
+      "tier": "T1_TITLE",
+      "ws_title": "寄左省杜拾遺",
+      "ws_raw": "岑參 [[寄左省杜拾遺]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "聯步趨丹陛分曹限紫微"
+    },
+    {
+      "seq": 299,
+      "author": "岑參",
+      "title": "奉和中書舍人賈至早朝大明宮",
+      "tier": "T1_TITLE",
+      "ws_title": "奉和中書舍人賈至早朝大明宮",
+      "ws_raw": "岑參 [[奉和中書舍人賈至早朝大明宮]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "雞鳴紫陌曙光寒鶯囀皇州春"
+    },
+    {
+      "seq": 300,
+      "author": "岑參",
+      "title": "逢入京使",
+      "tier": "T1_TITLE",
+      "ws_title": "逢入京使",
+      "ws_raw": "岑參 [[逢入京使]]",
+      "ws_disamb": null,
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "故園東望路漫漫雙袖龍鍾淚"
+    },
+    {
+      "seq": 301,
+      "author": "孫革",
+      "title": "訪羊尊師",
+      "tier": "SEL_ONLY",
+      "first_line": "松下問童子言師採藥去",
+      "near_candidates": []
+    },
+    {
+      "seq": 302,
+      "author": "張喬",
+      "title": "書邊事",
+      "tier": "T1_TITLE",
+      "ws_title": "書邊事",
+      "ws_raw": "張喬 [[書邊事 (張喬)|書邊事]]",
+      "ws_disamb": "張喬",
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "調角斷清秋征人倚戍樓"
+    },
+    {
+      "seq": 303,
+      "author": "李白",
+      "title": "行路難三首 一",
+      "tier": "SEL_ONLY",
+      "first_line": "金樽清酒斗十千玉盤珍羞直",
+      "near_candidates": []
+    },
+    {
+      "seq": 304,
+      "author": "李白",
+      "title": "行路難三首 二",
+      "tier": "SEL_ONLY",
+      "first_line": "大道如青天我獨不得出",
+      "near_candidates": []
+    },
+    {
+      "seq": 305,
+      "author": "李白",
+      "title": "行路難三首 三",
+      "tier": "SEL_ONLY",
+      "first_line": "有耳莫洗潁川水有口莫食首",
+      "near_candidates": []
+    },
+    {
+      "seq": 306,
+      "author": "李白",
+      "title": "長相思",
+      "tier": "SEL_ONLY",
+      "first_line": "長相思在長安絡緯秋啼金井",
+      "near_candidates": []
+    },
+    {
+      "seq": 307,
+      "author": "李白",
+      "title": "關山月",
+      "tier": "SEL_ONLY",
+      "first_line": "明月出天山蒼茫雲海間",
+      "near_candidates": []
+    },
+    {
+      "seq": 308,
+      "author": "李白",
+      "title": "玉階怨",
+      "tier": "T1_TITLE",
+      "ws_title": "玉階怨",
+      "ws_raw": "李白 [[玉階怨 (李白)|玉階怨]]",
+      "ws_disamb": "李白",
+      "ws_genre": "樂府",
+      "title_diff": false,
+      "first_line": "玉階生白露夜久侵羅襪"
+    },
+    {
+      "seq": 309,
+      "author": "李白",
+      "title": "清平調詞三首 一",
+      "tier": "SEL_ONLY",
+      "first_line": "雲想衣裳花想容春風拂檻露",
+      "near_candidates": []
+    },
+    {
+      "seq": 310,
+      "author": "李白",
+      "title": "清平調詞三首 二",
+      "tier": "SEL_ONLY",
+      "first_line": "一枝穠豔露凝香雲雨巫山枉",
+      "near_candidates": []
+    },
+    {
+      "seq": 311,
+      "author": "李白",
+      "title": "靜夜思",
+      "tier": "T1_TITLE",
+      "ws_title": "靜夜思",
+      "ws_raw": "李白 [[靜夜思]]",
+      "ws_disamb": null,
+      "ws_genre": "五言絕句",
+      "title_diff": false,
+      "first_line": "牀前看月光疑是地上霜"
+    },
+    {
+      "seq": 312,
+      "author": "李白",
+      "title": "春思",
+      "tier": "T1_TITLE",
+      "ws_title": "春思",
+      "ws_raw": "李白 [[春思 (李白)|春思]]",
+      "ws_disamb": "李白",
+      "ws_genre": "五言古詩",
+      "title_diff": false,
+      "first_line": "燕草如碧絲秦桑低綠枝"
+    },
+    {
+      "seq": 313,
+      "author": "李白",
+      "title": "子夜吳歌 春歌",
+      "tier": "SEL_ONLY",
+      "first_line": "秦地羅敷女採桑綠水邊",
+      "near_candidates": []
+    },
+    {
+      "seq": 314,
+      "author": "李白",
+      "title": "子夜吳歌 夏歌",
+      "tier": "SEL_ONLY",
+      "first_line": "鏡湖三百里菡萏發荷花",
+      "near_candidates": []
+    },
+    {
+      "seq": 315,
+      "author": "李白",
+      "title": "子夜吳歌 秋歌",
+      "tier": "SEL_ONLY",
+      "first_line": "長安一片月萬戶擣衣聲",
+      "near_candidates": []
+    },
+    {
+      "seq": 316,
+      "author": "李白",
+      "title": "子夜吳歌 冬歌",
+      "tier": "SEL_ONLY",
+      "first_line": "明朝驛使發一夜絮征袍",
+      "near_candidates": []
+    },
+    {
+      "seq": 317,
+      "author": "李白",
+      "title": "贈孟浩然",
+      "tier": "T1_TITLE",
+      "ws_title": "贈孟浩然",
+      "ws_raw": "李白 [[贈孟浩然]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "吾愛孟夫子風流天下聞"
+    },
+    {
+      "seq": 318,
+      "author": "李白",
+      "title": "廬山謠寄盧侍御虛舟",
+      "tier": "SEL_ONLY",
+      "first_line": "我本楚狂人鳳歌笑孔丘",
+      "near_candidates": [
+        "李白 [[廬山謠寄盧侍禦虛舟]]"
+      ]
+    },
+    {
+      "seq": 319,
+      "author": "李白",
+      "title": "夢遊天姥吟留別",
+      "tier": "T1_TITLE",
+      "ws_title": "夢遊天姥吟留別",
+      "ws_raw": "李白 [[夢遊天姥吟留別]]",
+      "ws_disamb": null,
+      "ws_genre": "七言古詩",
+      "title_diff": false,
+      "first_line": "海客談瀛洲煙濤微茫信難求"
+    },
+    {
+      "seq": 320,
+      "author": "李白",
+      "title": "金陵酒肆留別",
+      "tier": "T1_TITLE",
+      "ws_title": "金陵酒肆留別",
+      "ws_raw": "李白 [[金陵酒肆留別]]",
+      "ws_disamb": null,
+      "ws_genre": "七言古詩",
+      "title_diff": false,
+      "first_line": "風吹柳花滿店香吳姬壓酒喚"
+    },
+    {
+      "seq": 321,
+      "author": "李白",
+      "title": "黃鶴樓送孟浩然之廣陵",
+      "tier": "SEL_ONLY",
+      "first_line": "故人西辭黃鶴樓煙花三月下",
+      "near_candidates": [
+        "李白 [[送孟浩然之廣陵]]"
+      ]
+    },
+    {
+      "seq": 322,
+      "author": "李白",
+      "title": "渡荆門送別",
+      "tier": "T1_TITLE",
+      "ws_title": "渡荊門送別",
+      "ws_raw": "李白 [[渡荊門送別]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "渡遠荊門外來從楚國遊"
+    },
+    {
+      "seq": 323,
+      "author": "李白",
+      "title": "送友人",
+      "tier": "T1_TITLE",
+      "ws_title": "送友人",
+      "ws_raw": "李白 [[送友人 (李白)|送友人]]",
+      "ws_disamb": "李白",
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "青山橫北郭白水遶東城"
+    },
+    {
+      "seq": 324,
+      "author": "李白",
+      "title": "宣州謝朓樓餞別校書叔雲",
+      "tier": "T1_TITLE",
+      "ws_title": "宣州謝朓樓餞別校書叔雲",
+      "ws_raw": "李白 [[宣州謝朓樓餞別校書叔雲]]",
+      "ws_disamb": null,
+      "ws_genre": "七言古詩",
+      "title_diff": false,
+      "first_line": "棄我去者昨日之日不可留亂"
+    },
+    {
+      "seq": 325,
+      "author": "李白",
+      "title": "下終南山過斛斯山人宿置酒",
+      "tier": "T1_TITLE",
+      "ws_title": "下終南山過斛斯山人宿置酒",
+      "ws_raw": "李白 [[下終南山過斛斯山人宿置酒]]",
+      "ws_disamb": null,
+      "ws_genre": "五言古詩",
+      "title_diff": false,
+      "first_line": "暮從碧山下山月隨人歸"
+    },
+    {
+      "seq": 326,
+      "author": "李白",
+      "title": "登金陵鳳凰臺",
+      "tier": "T1_TITLE",
+      "ws_title": "登金陵鳳凰臺",
+      "ws_raw": "李白 [[登金陵鳳凰臺]]",
+      "ws_disamb": null,
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "鳳凰台上鳳凰遊鳳去台空江"
+    },
+    {
+      "seq": 327,
+      "author": "李白",
+      "title": "早發白帝城",
+      "tier": "SEL_ONLY",
+      "first_line": "朝辭白帝彩雲間千里江陵一",
+      "near_candidates": []
+    },
+    {
+      "seq": 328,
+      "author": "李白",
+      "title": "夜泊牛渚懷古",
+      "tier": "T1_TITLE",
+      "ws_title": "夜泊牛渚懷古",
+      "ws_raw": "李白 [[夜泊牛渚懷古]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "牛渚西江夜青天無片雲"
+    },
+    {
+      "seq": 329,
+      "author": "李白",
+      "title": "月下獨酌四首 一",
+      "tier": "T1_TITLE_FIRSTLINE",
+      "ws_title": "月下獨酌",
+      "ws_raw": "李白 [[月下獨酌 (花間一壺酒)|月下獨酌]]",
+      "ws_disamb": "花間一壺酒",
+      "ws_genre": "五言古詩",
+      "title_diff": false,
+      "first_line": "花間一壺酒獨酌無相親"
+    },
+    {
+      "seq": 330,
+      "author": "李白",
+      "title": "聽蜀僧濬彈琴",
+      "tier": "T1_TITLE",
+      "ws_title": "聽蜀僧濬彈琴",
+      "ws_raw": "李白 [[聽蜀僧濬彈琴]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "蜀僧抱綠綺西下峨眉峰"
+    },
+    {
+      "seq": 331,
+      "author": "李白",
+      "title": "怨情",
+      "tier": "T1_TITLE_FIRSTLINE",
+      "ws_title": "怨情",
+      "ws_raw": "李白 [[怨情 (美人捲珠簾)|怨情]]",
+      "ws_disamb": "美人捲珠簾",
+      "ws_genre": "五言絕句",
+      "title_diff": false,
+      "first_line": "美人捲珠簾深坐顰蛾眉"
+    },
+    {
+      "seq": 332,
+      "author": "韋應物",
+      "title": "淮上喜會梁川故人",
+      "tier": "T1_TITLE",
+      "ws_title": "淮上喜會梁川故人",
+      "ws_raw": "韋應物 [[淮上喜會梁川故人 ]]",
+      "ws_disamb": null,
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "江漢曾為客相逢每醉還"
+    },
+    {
+      "seq": 333,
+      "author": "韋應物",
+      "title": "郡齋雨中與諸文士燕集",
+      "tier": "T1_TITLE",
+      "ws_title": "郡齋雨中與諸文士燕集",
+      "ws_raw": "韋應物 [[郡齋雨中與諸文士燕集]]",
+      "ws_disamb": null,
+      "ws_genre": "五言古詩",
+      "title_diff": false,
+      "first_line": "兵衛森畫戟宴寢凝清香"
+    },
+    {
+      "seq": 334,
+      "author": "韋應物",
+      "title": "初發揚子寄元大校書",
+      "tier": "T1_TITLE",
+      "ws_title": "初發揚子寄元大校書",
+      "ws_raw": "韋應物 [[初發揚子寄元大校書]]",
+      "ws_disamb": null,
+      "ws_genre": "五言古詩",
+      "title_diff": false,
+      "first_line": "悽悽去親愛泛泛入煙霧"
+    },
+    {
+      "seq": 335,
+      "author": "李益",
+      "title": "相和歌辭 江南曲",
+      "tier": "T1_TITLE_FIRSTLINE",
+      "ws_title": "江南曲",
+      "ws_raw": "李益 [[江南曲 (嫁得瞿塘賈)|江南曲]]",
+      "ws_disamb": "嫁得瞿塘賈",
+      "ws_genre": "樂府",
+      "title_diff": false,
+      "first_line": "嫁得瞿塘賈朝朝誤妾期"
+    },
+    {
+      "seq": 336,
+      "author": "高適",
+      "title": "相和歌辭 燕歌行",
+      "tier": "SEL_ONLY",
+      "first_line": "漢家煙塵在東北漢將辭家破",
+      "near_candidates": []
+    },
+    {
+      "seq": 337,
+      "author": "李頎",
+      "title": "相和歌辭 從軍行",
+      "tier": "SEL_ONLY",
+      "first_line": "白日登山望烽火昏黃飲馬傍",
+      "near_candidates": []
+    },
+    {
+      "seq": 338,
+      "author": "李白",
+      "title": "相和歌辭 蜀道難",
+      "tier": "SEL_ONLY",
+      "first_line": "噫吁嚱危乎高哉蜀道之難難",
+      "near_candidates": []
+    },
+    {
+      "seq": 339,
+      "author": "王昌齡",
+      "title": "相和歌辭 長信怨 二",
+      "tier": "T1_TITLE",
+      "ws_title": "長信怨",
+      "ws_raw": "王昌齡 [[長信怨 (王昌齡)|長信怨]]",
+      "ws_disamb": "王昌齡",
+      "ws_genre": "樂府",
+      "title_diff": false,
+      "first_line": "奉帚平明金殿開暫將團扇共"
+    },
+    {
+      "seq": 340,
+      "author": "李白",
+      "title": "相和歌辭 玉階怨",
+      "tier": "SEL_ONLY",
+      "first_line": "玉階生白露夜久侵羅襪",
+      "near_candidates": []
+    },
+    {
+      "seq": 341,
+      "author": "李白",
+      "title": "相和歌辭 子夜四時歌四首 春歌",
+      "tier": "SEL_ONLY",
+      "first_line": "秦地羅敷女采桑綠水邊",
+      "near_candidates": []
+    },
+    {
+      "seq": 342,
+      "author": "李白",
+      "title": "相和歌辭 子夜四時歌四首 夏歌",
+      "tier": "SEL_ONLY",
+      "first_line": "鏡湖三百里菡萏發荷花",
+      "near_candidates": []
+    },
+    {
+      "seq": 343,
+      "author": "李白",
+      "title": "相和歌辭 子夜四時歌四首 秋歌",
+      "tier": "SEL_ONLY",
+      "first_line": "長安一片月萬戶擣衣聲",
+      "near_candidates": []
+    },
+    {
+      "seq": 344,
+      "author": "李白",
+      "title": "相和歌辭 子夜四時歌四首 冬歌",
+      "tier": "SEL_ONLY",
+      "first_line": "明朝驛使發一夜絮征袍",
+      "near_candidates": []
+    },
+    {
+      "seq": 345,
+      "author": "孟郊",
+      "title": "琴曲歌辭 列女操",
+      "tier": "SEL_ONLY",
+      "first_line": "梧桐相待老鴛鴦會雙死",
+      "near_candidates": []
+    },
+    {
+      "seq": 346,
+      "author": "孟郊",
+      "title": "雜曲歌辭 遊子吟",
+      "tier": "SEL_ONLY",
+      "first_line": "慈母手中線遊子身上衣",
+      "near_candidates": []
+    },
+    {
+      "seq": 347,
+      "author": "杜甫",
+      "title": "雜曲歌辭 麗人行",
+      "tier": "SEL_ONLY",
+      "first_line": "三月三日天氣新長安水邊多",
+      "near_candidates": []
+    },
+    {
+      "seq": 348,
+      "author": "李白",
+      "title": "雜曲歌辭 長相思三首 一",
+      "tier": "SEL_ONLY",
+      "first_line": "長相思在長安絡緯秋啼金井",
+      "near_candidates": []
+    },
+    {
+      "seq": 349,
+      "author": "李白",
+      "title": "雜曲歌辭 長相思三首 二",
+      "tier": "SEL_ONLY",
+      "first_line": "日色已盡花含煙月明欲素愁",
+      "near_candidates": []
+    },
+    {
+      "seq": 350,
+      "author": "李白",
+      "title": "雜曲歌辭 行路難三首 一",
+      "tier": "SEL_ONLY",
+      "first_line": "金尊清酒斗十千玉盤珍羞直",
+      "near_candidates": []
+    },
+    {
+      "seq": 351,
+      "author": "李白",
+      "title": "雜曲歌辭 行路難三首 二",
+      "tier": "SEL_ONLY",
+      "first_line": "大道如青天我獨不得出",
+      "near_candidates": []
+    },
+    {
+      "seq": 352,
+      "author": "李白",
+      "title": "雜曲歌辭 行路難三首 三",
+      "tier": "SEL_ONLY",
+      "first_line": "有耳莫洗潁川水有口莫食首",
+      "near_candidates": []
+    },
+    {
+      "seq": 353,
+      "author": "崔顥",
+      "title": "雜曲歌辭 長干曲四首 一",
+      "tier": "SEL_ONLY",
+      "first_line": "君家定何處妾住在橫塘",
+      "near_candidates": []
+    },
+    {
+      "seq": 354,
+      "author": "崔顥",
+      "title": "雜曲歌辭 長干曲四首 二",
+      "tier": "SEL_ONLY",
+      "first_line": "家臨九江水去來九江側",
+      "near_candidates": []
+    },
+    {
+      "seq": 355,
+      "author": "李白",
+      "title": "雜曲歌辭 長干行二首 一",
+      "tier": "T1_TITLE_FIRSTLINE",
+      "ws_title": "長干行",
+      "ws_raw": "李白 [[長干行 (妾髮初覆額)|長干行]]",
+      "ws_disamb": "妾髮初覆額",
+      "ws_genre": "樂府",
+      "title_diff": false,
+      "first_line": "妾髮初覆額折花門前劇"
+    },
+    {
+      "seq": 356,
+      "author": "沈佺期",
+      "title": "雜曲歌辭 獨不見",
+      "tier": "T1_TITLE",
+      "ws_title": "獨不見",
+      "ws_raw": "沈佺期 [[獨不見 (沈佺期)|獨不見]]",
+      "ws_disamb": "沈佺期",
+      "ws_genre": "樂府",
+      "title_diff": false,
+      "first_line": "盧家小婦鬱金堂海燕雙栖玳"
+    },
+    {
+      "seq": 357,
+      "author": "王涯",
+      "title": "雜曲歌辭 秋夜曲",
+      "tier": "SEL_ONLY",
+      "first_line": "桂魄初生秋露微輕羅已薄未",
+      "near_candidates": []
+    },
+    {
+      "seq": 358,
+      "author": "皇甫冉",
+      "title": "春思",
+      "tier": "T1_TITLE",
+      "ws_title": "春思",
+      "ws_raw": "皇甫冉 [[春思 (皇甫冉)|春思]]",
+      "ws_disamb": "皇甫冉",
+      "ws_genre": "七言律詩",
+      "title_diff": false,
+      "first_line": "鶯啼燕語報新年馬邑龍堆路"
+    },
+    {
+      "seq": 359,
+      "author": "劉方平",
+      "title": "夜月",
+      "tier": "SEL_ONLY",
+      "first_line": "更深月色半人家北斗闌干南",
+      "near_candidates": []
+    },
+    {
+      "seq": 360,
+      "author": "劉方平",
+      "title": "春怨",
+      "tier": "T1_TITLE",
+      "ws_title": "春怨",
+      "ws_raw": "劉方平 [[春怨 (劉方平)|春怨]]",
+      "ws_disamb": "劉方平",
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "紗窗日落漸黃昏金屋無人見"
+    },
+    {
+      "seq": 361,
+      "author": "王之渙",
+      "title": "登鸛雀樓",
+      "tier": "T1_TITLE",
+      "ws_title": "登鸛雀樓",
+      "ws_raw": "王之渙 [[登鸛雀樓 (王之渙)|登鸛雀樓]]",
+      "ws_disamb": "王之渙",
+      "ws_genre": "五言絕句",
+      "title_diff": false,
+      "first_line": "白日依山盡黃河入海流"
+    },
+    {
+      "seq": 362,
+      "author": "王之渙",
+      "title": "涼州詞二首 一",
+      "tier": "SEL_ONLY",
+      "first_line": "黃河遠上白雲間一片孤城萬",
+      "near_candidates": []
+    },
+    {
+      "seq": 363,
+      "author": "劉眘虛",
+      "title": "闕題",
+      "tier": "T1_TITLE",
+      "ws_title": "闕題",
+      "ws_raw": "劉眘虛 [[闕題 (劉眘虛)|闕題]]",
+      "ws_disamb": "劉眘虛",
+      "ws_genre": "五言律詩",
+      "title_diff": false,
+      "first_line": "道由白雲盡春與青溪長"
+    },
+    {
+      "seq": 364,
+      "author": "柳中庸",
+      "title": "征怨",
+      "tier": "SEL_ONLY",
+      "first_line": "歲歲金河復玉關朝朝馬策與",
+      "near_candidates": []
+    },
+    {
+      "seq": 365,
+      "author": "嚴維",
+      "title": "送李端",
+      "tier": "SEL_ONLY",
+      "first_line": "故關衰草遍離別正堪悲",
+      "near_candidates": []
+    },
+    {
+      "seq": 366,
+      "author": "顧況",
+      "title": "宮詞五首 二",
+      "tier": "T1_TITLE_FIRSTLINE",
+      "ws_title": "宮詞",
+      "ws_raw": "顧況 [[宮詞 (玉樓天半起笙歌)|宮詞]]",
+      "ws_disamb": "玉樓天半起笙歌",
+      "ws_genre": "七言絕句",
+      "title_diff": false,
+      "first_line": "玉樓天半起笙歌風送宮嬪笑"
+    }
+  ],
+  "ws_only": [
+    {
+      "genre": "五言古詩",
+      "author": "王昌齡",
+      "raw": "王昌齡 [[同從弟南齋翫月憶山陰崔少府]]"
+    },
+    {
+      "genre": "五言古詩",
+      "author": "岑參",
+      "raw": "岑參 [[與高適薛據登慈恩寺浮圖]]"
+    },
+    {
+      "genre": "五言古詩",
+      "author": "杜甫 <sub>之一</sub>",
+      "raw": "杜甫 [[夢李白 (死別已吞聲)|夢李白]]<sub>之一</sub>"
+    },
+    {
+      "genre": "五言古詩",
+      "author": "杜甫 <sub>之二</sub>",
+      "raw": "杜甫 [[夢李白 (浮雲終日行)|夢李白]]<sub>之二</sub>"
+    },
+    {
+      "genre": "五言古詩",
+      "author": "孟浩然",
+      "raw": "孟浩然 [[宿業師山房待丁大不至]]"
+    },
+    {
+      "genre": "五言古詩",
+      "author": "張九齡 <sub>之一</sub>",
+      "raw": "張九齡 [[感遇 (孤鴻海上來)|感遇]]<sub>之一</sub>"
+    },
+    {
+      "genre": "五言古詩",
+      "author": "張九齡 <sub>之二</sub>",
+      "raw": "張九齡 [[感遇 (蘭葉春葳蕤)|感遇]]<sub>之二</sub>"
+    },
+    {
+      "genre": "五言古詩",
+      "author": "張九齡 <sub>之三</sub>",
+      "raw": "張九齡 [[感遇 (幽林歸獨臥)|感遇]]<sub>之三</sub>"
+    },
+    {
+      "genre": "五言古詩",
+      "author": "張九齡 <sub>之四</sub>",
+      "raw": "張九齡 [[感遇 (江南有丹橘)|感遇]]<sub>之四</sub>"
+    },
+    {
+      "genre": "七言古詩",
+      "author": "白居易",
+      "raw": "白居易 [[琵琶行|琵琶行並序]]"
+    },
+    {
+      "genre": "七言古詩",
+      "author": "岑參",
+      "raw": "岑參 [[走馬川行奉送封大夫出師西征]]"
+    },
+    {
+      "genre": "七言古詩",
+      "author": "李白",
+      "raw": "李白 [[廬山謠寄盧侍禦虛舟]]"
+    },
+    {
+      "genre": "七言古詩",
+      "author": "李頎",
+      "raw": "李頎 [[聽董大彈胡笳兼寄語弄房給事]]"
+    },
+    {
+      "genre": "七言古詩",
+      "author": "杜甫",
+      "raw": "杜甫 [[丹青引贈曹霸將軍]]"
+    },
+    {
+      "genre": "七言古詩",
+      "author": "杜甫",
+      "raw": "杜甫 [[寄韓諫議注]]"
+    },
+    {
+      "genre": "七言古詩",
+      "author": "杜甫",
+      "raw": "杜甫 [[觀公孫大娘弟子舞劍器行並序]]"
+    },
+    {
+      "genre": "七言古詩",
+      "author": "孟浩然",
+      "raw": "孟浩然 [[夜歸鹿門歌]]"
+    },
+    {
+      "genre": "樂府",
+      "author": "王昌齡 <sub>之一</sub>",
+      "raw": "王昌齡 [[塞下曲 (蟬鳴空桑林)|塞下曲]]<sub>之一</sub>"
+    },
+    {
+      "genre": "樂府",
+      "author": "王昌齡 <sub>之二</sub>",
+      "raw": "王昌齡 [[塞下曲 (飲馬渡秋水)|塞下曲]]<sub>之二</sub>"
+    },
+    {
+      "genre": "樂府",
+      "author": "王維",
+      "raw": "王維 [[秋夜曲 (王維)|秋夜曲]]"
+    },
+    {
+      "genre": "樂府",
+      "author": "李白 <sub>之一</sub>",
+      "raw": "李白 [[清平調 (雲想衣裳花想容)|清平調]]<sub>之一</sub>"
+    },
+    {
+      "genre": "樂府",
+      "author": "李白 <sub>之二</sub>",
+      "raw": "李白 [[清平調 (一枝紅艷露凝香)|清平調]]<sub>之二</sub>"
+    },
+    {
+      "genre": "樂府",
+      "author": "李白 <sub>之三</sub>",
+      "raw": "李白 [[清平調 (名花傾國兩相歡)|清平調]]<sub>之三</sub>"
+    },
+    {
+      "genre": "樂府",
+      "author": "李白 <sub>之一</sub>",
+      "raw": "李白 [[長相思 (長相思在長安)|長相思]]<sub>之一</sub>"
+    },
+    {
+      "genre": "樂府",
+      "author": "李白 <sub>之二</sub>",
+      "raw": "李白 [[長相思 (日色欲盡花含煙)|長相思]]<sub>之二</sub>"
+    },
+    {
+      "genre": "樂府",
+      "author": "李白 <sub>之一</sub>",
+      "raw": "李白 [[行路難 (金樽清酒斗十千)|行路難]]<sub>之一</sub>"
+    },
+    {
+      "genre": "樂府",
+      "author": "李白 <sub>之二</sub>",
+      "raw": "李白 [[行路難 (大道如青天)|行路難]]<sub>之二</sub>"
+    },
+    {
+      "genre": "樂府",
+      "author": "李白 <sub>之三</sub>",
+      "raw": "李白 [[行路難 (有耳莫洗潁川水)|行路難]]<sub>之三</sub>"
+    },
+    {
+      "genre": "樂府",
+      "author": "李白 <sub>之春歌</sub>",
+      "raw": "李白 [[子夜吳歌/春歌|子夜吳歌]]<sub>之春歌</sub>"
+    },
+    {
+      "genre": "樂府",
+      "author": "李白 <sub>之夏歌</sub>",
+      "raw": "李白 [[子夜吳歌/夏歌|子夜吳歌]]<sub>之夏歌</sub>"
+    },
+    {
+      "genre": "樂府",
+      "author": "李白 <sub>之秋歌</sub>",
+      "raw": "李白 [[子夜吳歌/秋歌|子夜吳歌]]<sub>之秋歌</sub>"
+    },
+    {
+      "genre": "樂府",
+      "author": "李白 <sub>之冬歌</sub>",
+      "raw": "李白 [[子夜吳歌/冬歌|子夜吳歌]]<sub>之冬歌</sub>"
+    },
+    {
+      "genre": "樂府",
+      "author": "杜秋娘",
+      "raw": "杜秋娘 [[金縷衣]]"
+    },
+    {
+      "genre": "樂府",
+      "author": "孟郊",
+      "raw": "孟郊 [[烈女操]]"
+    },
+    {
+      "genre": "樂府",
+      "author": "高適 <sub>并序</sub>",
+      "raw": "高適 [[燕歌行 (高適)|燕歌行]]<sub>并序</sub>"
+    },
+    {
+      "genre": "樂府",
+      "author": "崔顥",
+      "raw": "崔顥 [[長干行之一]]"
+    },
+    {
+      "genre": "樂府",
+      "author": "崔顥",
+      "raw": "崔顥 [[長干行之二]]"
+    },
+    {
+      "genre": "樂府",
+      "author": "盧綸",
+      "raw": "盧綸 [[塞下曲之一]]"
+    },
+    {
+      "genre": "樂府",
+      "author": "盧綸",
+      "raw": "盧綸 [[塞下曲之二]]"
+    },
+    {
+      "genre": "樂府",
+      "author": "盧綸",
+      "raw": "盧綸 [[塞下曲之三]]"
+    },
+    {
+      "genre": "樂府",
+      "author": "盧綸",
+      "raw": "盧綸 [[塞下曲之四]]"
+    },
+    {
+      "genre": "五言律詩",
+      "author": "王勃",
+      "raw": "王勃 [[送杜少府之任蜀州]]"
+    },
+    {
+      "genre": "五言律詩",
+      "author": "王維",
+      "raw": "王維 [[漢江臨眺]]"
+    },
+    {
+      "genre": "五言律詩",
+      "author": "杜甫",
+      "raw": "杜甫 [[至德二載甫自京金光門出 間道歸鳳翔 乾元初從左拾遺移華州掾 與親故別 因出此門 有悲往事]]"
+    },
+    {
+      "genre": "五言律詩",
+      "author": "杜甫",
+      "raw": "杜甫 [[天末懷李白]]"
+    },
+    {
+      "genre": "五言律詩",
+      "author": "杜審言",
+      "raw": "杜審言 [[和晉陵路丞早春遊望]]"
+    },
+    {
+      "genre": "五言律詩",
+      "author": "孟浩然",
+      "raw": "孟浩然 [[留別王維 (孟浩然)|留別王維]]"
+    },
+    {
+      "genre": "五言律詩",
+      "author": "孟浩然",
+      "raw": "孟浩然 [[早寒有懷]]"
+    },
+    {
+      "genre": "五言律詩",
+      "author": "孟浩然",
+      "raw": "孟浩然 [[臨洞庭贈張丞相]]"
+    },
+    {
+      "genre": "五言律詩",
+      "author": "孟浩然",
+      "raw": "孟浩然 [[宴梅道士山房]]"
+    },
+    {
+      "genre": "五言律詩",
+      "author": "韋應物",
+      "raw": "韋應物 [[賦得暮雨送李冑]]"
+    },
+    {
+      "genre": "五言律詩",
+      "author": "唐玄宗",
+      "raw": "唐玄宗 [[經鄒魯祭孔子而歎之]]"
+    },
+    {
+      "genre": "五言律詩",
+      "author": "崔塗",
+      "raw": "崔塗 [[除夜有懷 (崔塗)|除夜有懷]]"
+    },
+    {
+      "genre": "五言律詩",
+      "author": "常建",
+      "raw": "常建 [[題破山寺後禪院]]"
+    },
+    {
+      "genre": "五言律詩",
+      "author": "僧皎然",
+      "raw": "僧皎然 [[尋陸鴻漸不遇]]"
+    },
+    {
+      "genre": "五言律詩",
+      "author": "劉長卿",
+      "raw": "劉長卿 [[尋南溪常道士]]"
+    },
+    {
+      "genre": "五言律詩",
+      "author": "劉長卿",
+      "raw": "劉長卿 [[秋日登吳公臺上寺遠眺]]"
+    },
+    {
+      "genre": "五言律詩",
+      "author": "劉長卿",
+      "raw": "劉長卿 [[送李中丞歸漢陽別業]]"
+    },
+    {
+      "genre": "五言律詩",
+      "author": "盧綸",
+      "raw": "盧綸 [[送李端 (盧綸)|送李端]]"
+    },
+    {
+      "genre": "五言律詩",
+      "author": "駱賓王 <sub>并序</sub>",
+      "raw": "駱賓王 [[在獄詠蟬]]<sub>并序</sub>"
+    },
+    {
+      "genre": "五言律詩",
+      "author": "戴叔倫",
+      "raw": "戴叔倫 [[江鄉故人偶集客舍]]"
+    },
+    {
+      "genre": "五言律詩",
+      "author": "韓翃",
+      "raw": "韓翃 [[酬程近秋夜即事見贈]]"
+    },
+    {
+      "genre": "七言律詩",
+      "author": "王維",
+      "raw": "王維 [[贈郭給事]]"
+    },
+    {
+      "genre": "七言律詩",
+      "author": "柳宗元",
+      "raw": "柳宗元 [[登柳州城樓寄漳汀封連四州刺史]]"
+    },
+    {
+      "genre": "七言律詩",
+      "author": "崔曙",
+      "raw": "崔曙 [[九日登望仙臺呈劉明府]]"
+    },
+    {
+      "genre": "七言律詩",
+      "author": "溫庭筠",
+      "raw": "溫庭筠 [[利洲南渡]]"
+    },
+    {
+      "genre": "七言律詩",
+      "author": "劉長卿",
+      "raw": "劉長卿 [[自夏口至鸚鵡洲望岳陽寄元中丞]]"
+    },
+    {
+      "genre": "七言律詩",
+      "author": "韓翃",
+      "raw": "韓翃 [[同題仙遊觀]]"
+    },
+    {
+      "genre": "五言絕句",
+      "author": "王建",
+      "raw": "王建 [[新嫁娘]]"
+    },
+    {
+      "genre": "五言絕句",
+      "author": "王維",
+      "raw": "王維 [[鹿柴 (王維)|鹿柴]]"
+    },
+    {
+      "genre": "五言絕句",
+      "author": "王維",
+      "raw": "王維 [[竹里館 (王維)|竹里館]]"
+    },
+    {
+      "genre": "五言絕句",
+      "author": "李商隱",
+      "raw": "李商隱 [[登樂游原]]"
+    },
+    {
+      "genre": "五言絕句",
+      "author": "韋應物",
+      "raw": "韋應物 [[秋夜寄丘員外]]"
+    },
+    {
+      "genre": "五言絕句",
+      "author": "張祜",
+      "raw": "張祜 [[何滿子 (張祜)|何滿子]]"
+    },
+    {
+      "genre": "五言絕句",
+      "author": "裴迪",
+      "raw": "裴迪 [[送崔九]]"
+    },
+    {
+      "genre": "五言絕句",
+      "author": "劉長卿",
+      "raw": "劉長卿 [[送靈澈]]"
+    },
+    {
+      "genre": "五言絕句",
+      "author": "劉長卿",
+      "raw": "劉長卿 [[彈琴]]"
+    },
+    {
+      "genre": "五言絕句",
+      "author": "劉長卿",
+      "raw": "劉長卿 [[送上人]]"
+    },
+    {
+      "genre": "五言絕句",
+      "author": "權德輿",
+      "raw": "權德輿 [[玉臺體]]"
+    },
+    {
+      "genre": "七言絕句",
+      "author": "白居易",
+      "raw": "白居易 [[宮詞 (白居易)|宮詞]]"
+    },
+    {
+      "genre": "七言絕句",
+      "author": "朱慶餘",
+      "raw": "朱慶餘 [[宮中詞]]"
+    },
+    {
+      "genre": "七言絕句",
+      "author": "朱慶餘",
+      "raw": "朱慶餘 [[近試上張水部]]"
+    },
+    {
+      "genre": "七言絕句",
+      "author": "李白",
+      "raw": "李白 [[送孟浩然之廣陵]]"
+    },
+    {
+      "genre": "七言絕句",
+      "author": "李白",
+      "raw": "李白 [[下江陵]]"
+    },
+    {
+      "genre": "七言絕句",
+      "author": "李商隱",
+      "raw": "李商隱 [[嫦娥]]"
+    },
+    {
+      "genre": "七言絕句",
+      "author": "杜牧 <sub>之一</sub>",
+      "raw": "杜牧 [[贈別 (娉娉褭褭十三餘)|贈別]]<sub>之一</sub>"
+    },
+    {
+      "genre": "七言絕句",
+      "author": "杜牧 <sub>之二</sub>",
+      "raw": "杜牧 [[贈別 (多情卻似總無情)|贈別]]<sub>之二</sub>"
+    },
+    {
+      "genre": "七言絕句",
+      "author": "杜牧",
+      "raw": "杜牧 [[寄揚州韓綽判官]]"
+    },
+    {
+      "genre": "七言絕句",
+      "author": "杜牧",
+      "raw": "杜牧 [[將赴吳興登樂游原]]"
+    },
+    {
+      "genre": "七言絕句",
+      "author": "柳中庸",
+      "raw": "柳中庸 [[征人怨]]"
+    },
+    {
+      "genre": "七言絕句",
+      "author": "無名氏",
+      "raw": "無名氏 [[雜詩 (無名氏)|雜詩]]"
+    },
+    {
+      "genre": "七言絕句",
+      "author": "賀知章",
+      "raw": "賀知章 [[回鄉偶書 (少小離家老大回)|回鄉偶書]]"
+    },
+    {
+      "genre": "七言絕句",
+      "author": "劉方平",
+      "raw": "劉方平 [[月夜 (劉方平)|月夜]]"
+    },
+    {
+      "genre": "七言絕句",
+      "author": "劉禹錫",
+      "raw": "劉禹錫 [[烏衣巷]]"
+    },
+    {
+      "genre": "七言絕句",
+      "author": "劉禹錫",
+      "raw": "劉禹錫 [[春詞 (劉禹錫)|春詞]]"
+    }
+  ]
+}

@@ -1,0 +1,197 @@
+{
+  "schema": "chronology-rulers/1",
+  "dynasty": "tang",
+  "provenance": {
+    "primary": {
+      "title": "教育部《重編國語辭典修訂本》附錄·歷代帝王在位年表",
+      "url": "https://dict.revised.moe.edu.tw/appendix.jsp?ID=22&la=0&page=2&powerMode=0&ver=4",
+      "fetched": "2026-11-12",
+      "columns": "年代, 帝王, 即位元年, 退位末年",
+      "notes": "只有帝王与公元年，没有年号列。表里把文宗、武宗、宣宗写成文帝、武帝、宣帝；这里的名字以《旧唐书》本纪标题为准，该差异记在 moe_name。"
+    },
+    "cross_check": "每位皇帝的即位句已逐卷在维基文库《舊唐書》本紀中找到，见 annals_volume；公元年份的独立复核由 validate.py 的『锚点链』完成，结果见其输出。"
+  },
+  "span": [
+    618,
+    907
+  ],
+  "rulers": [
+    {
+      "seq": 1,
+      "name": "高祖",
+      "start": 618,
+      "end": 626,
+      "annals_volume": "卷1"
+    },
+    {
+      "seq": 2,
+      "name": "太宗",
+      "start": 626,
+      "end": 649,
+      "annals_volume": "卷2"
+    },
+    {
+      "seq": 3,
+      "name": "高宗",
+      "start": 649,
+      "end": 683,
+      "annals_volume": "卷4"
+    },
+    {
+      "seq": 4,
+      "name": "中宗",
+      "start": 684,
+      "end": 684,
+      "annals_volume": "卷7",
+      "note": "第一次在位，即位当年被废",
+      "boundary_before": {
+        "gap_years": 1,
+        "status": "unresolved",
+        "facts": "卷6：「弘道元年十二月丁巳，大帝崩，皇太子顯即位」。卷4、卷5 的年号链（以贞观二十三年=649 为锚）得弘道元年=683。教育部表：高宗退位末年 683，中宗即位元年 684。",
+        "open_question": "即位句在弘道元年十二月：该月是否落在公历 683 年底，还是 684 年初，我没有用来源核实。若落在 683 年底，则 684 是『即位次年』的口径，而不是历法跨年。"
+      }
+    },
+    {
+      "seq": 5,
+      "name": "睿宗",
+      "start": 684,
+      "end": 684,
+      "annals_volume": "卷7",
+      "note": "第一次在位，临朝称制的武后实际掌权"
+    },
+    {
+      "seq": 6,
+      "name": "武后",
+      "start": 684,
+      "end": 705,
+      "annals_volume": "卷6",
+      "moe_name": "（周）武后",
+      "note": "690 年改国号为周，705 年中宗复位恢复唐"
+    },
+    {
+      "seq": 7,
+      "name": "中宗",
+      "start": 705,
+      "end": 710,
+      "annals_volume": "卷7",
+      "note": "第二次在位"
+    },
+    {
+      "seq": 8,
+      "name": "睿宗",
+      "start": 710,
+      "end": 712,
+      "annals_volume": "卷7",
+      "moe_name": "睿宗.",
+      "note": "第二次在位"
+    },
+    {
+      "seq": 9,
+      "name": "玄宗",
+      "start": 712,
+      "end": 756,
+      "annals_volume": "卷8"
+    },
+    {
+      "seq": 10,
+      "name": "肅宗",
+      "start": 756,
+      "end": 762,
+      "annals_volume": "卷10"
+    },
+    {
+      "seq": 11,
+      "name": "代宗",
+      "start": 762,
+      "end": 779,
+      "annals_volume": "卷11"
+    },
+    {
+      "seq": 12,
+      "name": "德宗",
+      "start": 779,
+      "end": 805,
+      "annals_volume": "卷12"
+    },
+    {
+      "seq": 13,
+      "name": "順宗",
+      "start": 805,
+      "end": 805,
+      "annals_volume": "卷14"
+    },
+    {
+      "seq": 14,
+      "name": "憲宗",
+      "start": 805,
+      "end": 820,
+      "annals_volume": "卷14"
+    },
+    {
+      "seq": 15,
+      "name": "穆宗",
+      "start": 820,
+      "end": 824,
+      "annals_volume": "卷16"
+    },
+    {
+      "seq": 16,
+      "name": "敬宗",
+      "start": 824,
+      "end": 826,
+      "annals_volume": "卷17上"
+    },
+    {
+      "seq": 17,
+      "name": "文宗",
+      "start": 826,
+      "end": 840,
+      "annals_volume": "卷17上",
+      "moe_name": "文帝"
+    },
+    {
+      "seq": 18,
+      "name": "武宗",
+      "start": 840,
+      "end": 846,
+      "annals_volume": "卷18上",
+      "moe_name": "武帝"
+    },
+    {
+      "seq": 19,
+      "name": "宣宗",
+      "start": 846,
+      "end": 859,
+      "annals_volume": "卷18下",
+      "moe_name": "宣帝"
+    },
+    {
+      "seq": 20,
+      "name": "懿宗",
+      "start": 859,
+      "end": 873,
+      "annals_volume": "卷19上"
+    },
+    {
+      "seq": 21,
+      "name": "僖宗",
+      "start": 873,
+      "end": 888,
+      "annals_volume": "卷19下"
+    },
+    {
+      "seq": 22,
+      "name": "昭宗",
+      "start": 888,
+      "end": 904,
+      "annals_volume": "卷20上"
+    },
+    {
+      "seq": 23,
+      "name": "哀帝",
+      "start": 904,
+      "end": 907,
+      "annals_volume": "卷20下"
+    }
+  ]
+}

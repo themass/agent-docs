@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  iOS Info.plist 片段(不是完整文件):cap add ios 之后合并进 ios/App/App/Info.plist。
+  本机没有 Xcode / CocoaPods,尚未生成 iOS 工程,以下内容未经 Xcode 校验。
+
+  不申请:位置、通讯录、相机、照片库、蓝牙、追踪(不写 NSUserTrackingUsageDescription,也不弹 ATT)。
+  后台音频(UIBackgroundModes=audio)v1 不开:切后台即暂停,减少审核面;将来要做锁屏控制再开。
+-->
+<plist version="1.0">
+<dict>
+    <!-- 麦克风:录音接通前可以不写;一旦写了就必须真有录音功能。文案要说明用途、去向、可删除。 -->
+    <key>NSMicrophoneUsageDescription</key>
+    <string>「诵」这一步可以录下你读诗的声音,放给自己听。录音只保存在这台设备里,不会上传,可以随时在「家长」页面删除。</string>
+
+    <!-- 只使用 HTTPS 与系统自带加密,不含自有加密算法。是否可以如此申报,需用户/法务在 App Store Connect 确认。 -->
+    <key>ITSAppUsesNonExemptEncryption</key>
+    <false/>
+
+    <!-- iPad 竖屏优先;手机不强制 -->
+    <key>UISupportedInterfaceOrientations~ipad</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationPortraitUpsideDown</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+</dict>
+</plist>

@@ -1,0 +1,22 @@
+id: example-skill
+upstream:
+  url: https://github.com/owner/repository
+  commit: exact-commit-sha-required-before-copy
+  license: SPDX-or-link
+  source_paths: []
+adoption:
+  lane: adapted-skill
+  intended_roles: []
+  copied_sections: []
+  rewritten_sections: []
+security_review:
+  requested_tools: []
+  data_classes: [PUBLIC]
+  has_remote_fetch: false
+  has_shell_or_hook: false
+  prompt_injection_risk: LOW
+  prohibited_capabilities_checked: true
+approval:
+  reviewer: null
+  approved_at: null
+  local_version: null
