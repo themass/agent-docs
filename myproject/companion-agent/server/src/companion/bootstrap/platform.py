@@ -93,6 +93,24 @@ def _utcnow() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
 
 
+def log_turn_llm_calls(calls: list[Any], *, channel: str) -> None:
+    """语音 worker 没有 /metrics，模型段只能落进行内日志（F16 RCA 的 ② 段）。
+
+    字段全部来自 LlmCallCollector 已有的记录，不新造采集。文字通道的同一组数字
+    由 api 进程的 /metrics 提供（observe_llm_call 在采集器里就写掉），这里只补语音。
+    """
+    if channel != "voice":
+        return
+    for call in calls:
+        log.info(
+            "voice llm seq=%d model=%s ttft_ms=%s total_ms=%s reasoning_chars=%d error=%s",
+            call.seq, call.model or "-",
+            call.first_token_ms if call.first_token_ms is not None else "-",
+            call.total_ms if call.total_ms is not None else "-",
+            len(call.reasoning_text or ""), call.error_code or "-",
+        )
+
+
 @dataclass
 class Platform:
     chat: ChatApi
@@ -284,6 +302,9 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
         """回合收尾时登记这一回合的追踪。**这里只把任务放进队列**，同意判断和写库都在后台：
         记录是旁路，不能让回复多等一次数据库往返，也不能让会话锁多占。"""
         calls = collector.drain()
+        # 语音回合的模型段先落日志再返回：语音 worker（8082）没有 /metrics，
+        # 没有这一行，RCA 里「context 完成→流末」只能靠时间差猜（见 log_turn_llm_calls）。
+        log_turn_llm_calls(calls, channel=str(request.metadata.get("channel") or "text"))
         if not calls:
             return
         turn_id = str(request.metadata.get("turn_id") or "")

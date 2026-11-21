@@ -166,6 +166,38 @@ async def test_empty_user_message_starts_no_reply(monkeypatch):
     assert speech.events == []
 
 
+async def test_first_tts_frame_is_logged_with_its_delay(caplog, monkeypatch):
+    """首帧时刻单独记一行：`tts done` 在回合末尾才出现，量不出引擎首包多久。
+
+    RCA 的 ③ 段（tts start→首个有能量帧）全靠这一行；早停（打断）也要有。"""
+    import logging
+
+    monkeypatch.setattr(Agent.default, "tts_node", _fake_default(_frames(2)), raising=True)
+    speech = _Speech()
+    agent = _agent(Pipeline(), speech)
+    with caplog.at_level(logging.INFO, logger="companion.api.livekit.agent"):
+        await _synthesize(agent)
+
+    (line,) = [r.message for r in caplog.records if "tts first" in r.message]
+    assert "turn=T1" in line and "first_frame_ms=" in line
+
+
+async def test_first_tts_frame_is_logged_even_when_the_turn_is_interrupted(caplog, monkeypatch):
+    """被打断只剩一帧也要有首帧行——F16 要量的正是「引擎什么时候开始出帧」。"""
+    import logging
+
+    monkeypatch.setattr(Agent.default, "tts_node", _fake_default(_frames(5)), raising=True)
+    speech = _Speech()
+    agent = _agent(Pipeline(), speech)
+    with caplog.at_level(logging.INFO, logger="companion.api.livekit.agent"):
+        node = await agent.tts_node(_texts("先歇一会儿"), None)
+        await node.__anext__()
+        await node.aclose()
+
+    (line,) = [r.message for r in caplog.records if "tts first" in r.message]
+    assert "turn=T1" in line and "first_frame_ms=" in line
+
+
 async def test_tts_that_runs_to_the_end_finishes_the_speech(monkeypatch):
     """帧迭代正常结束 → finish → speech.end（§9.3 生成侧排空）。
 

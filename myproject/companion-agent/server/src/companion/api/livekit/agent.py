@@ -292,6 +292,7 @@ def build_agent_class() -> type:
 
             turn_id = self._current_turn_id()
             logger.info("tts start turn=%s", turn_id or "-")
+            tts_started = time.monotonic()
             frames_out = 0
             audio_ms = 0
             peak_max = 0.0
@@ -302,6 +303,13 @@ def build_agent_class() -> type:
                 frames = Agent.default.tts_node(self, capture.tee_text(watched(text)), model_settings)
                 async for frame in capture.tee_frames(frames):
                     frames_out += 1
+                    if frames_out == 1:
+                        # F16 的 ③ 段（tts start→引擎首帧）：tts done 要等整段合成排空才出现，
+                        # 被打断时干脆没有，首包延迟只能在这里当场记一行（peak 是该帧的能量）。
+                        logger.info(
+                            "tts first turn=%s first_frame_ms=%d peak=%.4f",
+                            turn_id or "-", int((time.monotonic() - tts_started) * 1000), frame_peak(frame),
+                        )
                     rate = int(getattr(frame, "sample_rate", 0) or 0)
                     channels = int(getattr(frame, "num_channels", 1) or 1)
                     if rate and channels:
