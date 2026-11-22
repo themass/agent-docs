@@ -113,6 +113,23 @@ def log_turn_llm_calls(calls: list[Any], *, channel: str) -> None:
         )
 
 
+def voice_llm_start_logger(*, channel: str):
+    """模型**开流那一刻**的日志口（F16 ② 段的另一半），非语音通道返回 None。
+
+    ``voice llm`` 那行在回合收尾才落，时间戳是流末；被打断的回合里 ``on_llm_end``
+    还会晚触发，拿它减 total_ms 反推开流时刻整体错位。这一行由 LlmCallCollector 在
+    ``on_chat_model_start`` 当场调用，和 context 完成、tts start 同一条时钟轴，
+    ② 段就能切成 A（recall→开流）/ B（ttft）/ C（开流→首片段）三段分别读。
+    """
+    if channel != "voice":
+        return None
+
+    def on_start(*, seq: int, model: str) -> None:
+        log.info("voice llm start seq=%d model=%s", seq, model or "-")
+
+    return on_start
+
+
 @dataclass
 class Platform:
     chat: ChatApi
@@ -348,7 +365,8 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
         if hasattr(brain, "run"):
             # 采集器一直挂着，不再跟 QA 开关走：它同时承担写指标（延迟、用量）的职责，
             # 追踪落不落库才看开关（见 record_trace 与 metrics 模块文档）。
-            collector = LlmCallCollector()
+            # 语音通道额外挂开流日志口：② 段要在开流那一刻记墙钟，见 voice_llm_start_logger。
+            collector = LlmCallCollector(on_start=voice_llm_start_logger(channel=channel))
             request.metadata["llm_collector"] = collector
             started_at = datetime.now(UTC)
             try:

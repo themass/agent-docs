@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 import time
-from typing import Any
+from typing import Any, Callable
 from uuid import UUID
 
 from langchain_core.callbacks import BaseCallbackHandler
@@ -58,12 +58,20 @@ def _reasoning(message: Any) -> str:
 
 
 class LlmCallCollector(BaseCallbackHandler):
-    """一个回合一个实例。``drain`` 取走已完成的调用记录。"""
+    """一个回合一个实例。``drain`` 取走已完成的调用记录。
 
-    def __init__(self) -> None:
+    ``on_start``：每次模型开流**当场**回调一次（``seq`` / ``model`` 关键字参数）。
+    F16 的 ② 段要把「recall 完成→模型开流」单独量出来，而完成记录要等回合收尾才
+    drain 得到——被打断的回合里 ``on_llm_end`` 还会晚触发，拿流末时刻反推开流时刻
+    整体错位（见 tests/test_voice_llm_log.py）。日志口在组合根（platform.py）注入；
+    回调抛错在这里吞掉：采集是旁路，不能把日志失败变成回合失败。
+    """
+
+    def __init__(self, *, on_start: Callable[[dict[str, Any]], None] | None = None) -> None:
         self._open: dict[UUID, dict[str, Any]] = {}
         self._done: list[LlmCall] = []
         self._seq = 0
+        self._on_start = on_start
 
     # ---- LangChain 回调 ----
 
@@ -77,6 +85,11 @@ class LlmCallCollector(BaseCallbackHandler):
             "provider": str(meta.get("ls_provider") or ""), "model": str(meta.get("ls_model_name") or ""),
             "input": [_input_item(m) for m in (messages[0] if messages else [])],
         }
+        if self._on_start is not None:
+            try:
+                self._on_start(seq=self._seq, model=str(meta.get("ls_model_name") or ""))
+            except Exception:  # noqa: BLE001 - 日志口炸了也不该影响模型调用
+                pass
         self._seq += 1
 
     def on_llm_new_token(self, token: str, *, run_id: UUID, **kwargs: Any) -> None:
