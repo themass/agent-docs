@@ -70,6 +70,13 @@ PREWARM_IMPORTS = (
     "companion.bootstrap.database",
     # httpcore 的连接原语第一次发请求才拉（loop_monitor：anyio.abc._testing 135ms）
     "anyio._backends._asyncio",
+    # 2026-11-22 stage-2 真机对账：5f1742d 上线后点名的换成了 psycopg——fork 子进程里
+    # `importing psycopg_binary.version` 10.4s、`importing psycopg` 19.9s。
+    # bootstrap.database 只有 to_psycopg_conninfo 这类纯字符串工具，不拉驱动本体；
+    # 驱动是 SQLAlchemy 建第一条连接时才进来，正撞在建连关键路径上。psycopg.pq.misc
+    # 是 loop_monitor 直接点过的子模块（psycopg_binary 实现经 pq 链进来）。
+    "psycopg",
+    "psycopg.pq.misc",
 )
 
 

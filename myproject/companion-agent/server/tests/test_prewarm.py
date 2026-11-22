@@ -29,11 +29,15 @@ def test_prewarm_covers_modules_the_loop_blamed_in_production():
     companion.agent.skills.library 12.0s、yaml/scanner 9.5s、
     companion.bootstrap.database 10.9s——同进程里的 recall 0.8s 预算必然超时
     （voice.log 里 facts error=timeout 只出现在新进程）。
+
+    5f1742d 部署后（stage-2，2026-11-22）点名的换成了 psycopg：fork 子进程里
+    `importing psycopg_binary.version` 10.4s、`importing psycopg` 19.9s——
+    bootstrap.database 只声明了 to_psycopg_conninfo 的工具面，不触发驱动本体。
     """
     from companion.api.livekit.prewarm import PREWARM_IMPORTS
 
     for blamed in ("companion.agent.skills.library", "yaml", "companion.bootstrap.database",
-                   "anyio._backends._asyncio"):
+                   "anyio._backends._asyncio", "psycopg", "psycopg.pq.misc"):
         assert blamed in PREWARM_IMPORTS, blamed
 
 

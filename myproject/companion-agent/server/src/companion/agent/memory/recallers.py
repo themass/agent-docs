@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -68,10 +69,15 @@ class TimelineRecaller:
         now = self._clock()
         role = (query.role_id or "") if self._per_role else ""
         try:
-            upcoming = await self._timeline.upcoming(owner_id=query.user_id, role_id=role, now=now,
-                                                     horizon=self.HORIZON, limit=query.limit)
-            past = await self._timeline.recent_past(owner_id=query.user_id, role_id=role, now=now,
-                                                    window=self.RECENT, limit=max(1, query.limit // 2))
+            # 并发：异地 PG 上一个查询就是一次往返（autocommit 后约 300–550ms），
+            # 串行两笔必超 MemoryPipeline 的 0.8s 预算——生产 2026-11-22 暖进程
+            # timeline 超时 63% 就是这么来的（见 tests/test_timeline_recall_concurrency.py）。
+            upcoming, past = await asyncio.gather(
+                self._timeline.upcoming(owner_id=query.user_id, role_id=role, now=now,
+                                        horizon=self.HORIZON, limit=query.limit),
+                self._timeline.recent_past(owner_id=query.user_id, role_id=role, now=now,
+                                           window=self.RECENT, limit=max(1, query.limit // 2)),
+            )
         except Exception as exc:  # noqa: BLE001
             return RecallResult(source=self.name, error=type(exc).__name__)
         out: list[RecalledItem] = []
