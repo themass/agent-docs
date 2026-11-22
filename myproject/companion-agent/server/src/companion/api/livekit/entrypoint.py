@@ -27,11 +27,17 @@ from companion.api.livekit.input_attachments import CompositeInputRelay, Pending
 from companion.api.livekit.outbound_audio_probe import attach_outbound_audio_probe
 from companion.api.livekit.touch_input import DEFAULT_COOLDOWN_S
 from companion.api.livekit.speech_publisher import SpeechPublisher
+from companion.api.livekit.topics import TEXT_TOPIC
 from companion.api.livekit.anchored_cues import AnchoredCuePublisher
 
 logger = logging.getLogger(__name__)
 
-TEXT_TOPIC = "lk.chat"
+# ``TEXT_TOPIC`` 的值在 ``topics.py``，本模块只是**再导出**它（顶部那行 import），
+# 这样 ``from ...entrypoint import TEXT_TOPIC`` 的老写法照旧可用。为什么不定义在这里：
+# 剧本房也要同一个 topic，但它不能 import 本模块——本模块在模块级 import 音频探针，
+# 会把 livekit / livekit.agents 拖进它的模块图，于是「离线」测试也得装 --extra livekit
+# 才跑得动（见 topics.py 的模块 docstring）。
+
 # 我们自己加的通道：形象事件、主动消息、待确认动作。不用 lk.chat，避免和用户
 # 输入混在一起——客户端要能区分「她说的话」和「她让你确认一件事」。
 #

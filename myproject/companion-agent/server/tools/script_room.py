@@ -5,9 +5,14 @@
     uv run python -m tools.script_room run --case barge_mid_sentence
     uv run python -m tools.script_room run --case multi_seg --tts volcengine
     uv run python -m tools.script_room run --case barge_mid_sentence --url wss://...
+    uv run --extra dev --extra livekit python -m tools.script_room run --case image_reply --tts fake --wait 180
 
 默认 TTS 为 fake（本地无网络）；``--tts volcengine`` 才走真实合成。
-不 import 生产 agent 入口（companion.worker / companion.agent.entry）。
+case YAML 的 ``mode`` 决定跑法：``push``（默认）等手机入房、把台词推给它；
+``real_turn`` 由 CLI 自己在房里同时扮演 agent 与用户，走生产装配 + 真模型（见
+``companion.devtools.script_room.real_turn``）。``--tts`` 只作用于 push 模式。
+不 import 生产 agent 入口（companion.worker / companion.agent.entry）——
+real_turn 用的是 ``bootstrap.platform``（组合根本身），不是 worker 的语音入口。
 """
 
 from __future__ import annotations
@@ -15,6 +20,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import sys
+import time
 from pathlib import Path
 
 from companion.paths import SERVER_ROOT
@@ -45,6 +51,13 @@ def _build_parser() -> argparse.ArgumentParser:
         type=float,
         default=120.0,
         help="等手机入房 + control.hello 的超时秒数（默认 120；两段共用）",
+    )
+    run.add_argument(
+        "--no-image",
+        action="store_true",
+        help="real_turn 负对照：装配、文字、模型、门禁全不变，只不发 control.input"
+             "(kind=attachments)。断言反转成「关键词族零命中 + submit 没收到附件」，"
+             "用来证明正向那条的命中不是模型的条件反射。",
     )
     return parser
 
@@ -83,34 +96,23 @@ def _make_tts(kind: str):
     return VolcengineProvider(config=VolcengineConfig.from_env()), "volcengine"
 
 
-async def _run(args: argparse.Namespace) -> int:
-    # Settings / 适配器读 os.environ；先 load_env 再 import 依赖配置的模块
-    load_env()
-
-    from companion.config import settings
-    from companion.devtools.script_room.case_schema import load_case
-    from companion.devtools.script_room.runner import run_script_room
-    from companion.devtools.script_room.rtc import LiveKitRtcAdapter
-    from companion.service.room.livekit_tokens import TokenMinter
-    from companion.service.voice.port import VoiceRef
-
-    case = load_case(_case_path(args.case))
-    url = (args.url or settings.livekit_url or "").strip()
-    if not url:
-        raise SystemExit("LIVEKIT_URL / --url 未配置")
-
-    lease = _make_lease(settings)
+async def _run_push(args, case, settings, lease, minter) -> int:
+    """push 模式：CLI 当推流 agent，等**手机**入房发 hello。原有行为，原样搬进来。"""
     room = await lease.attach(case.id)
     if not room.startswith("script-"):
         raise SystemExit(f"lease 返回非法房间名: {room}")
 
-    minter = TokenMinter.from_settings(settings)
     agent_id = f"script-{case.id}"
     minted = minter.agent_token(agent_id, room)
+
+    from companion.devtools.script_room.runner import run_script_room
+    from companion.devtools.script_room.rtc import LiveKitRtcAdapter
+    from companion.service.voice.port import VoiceRef
 
     tts, tts_name = _make_tts(args.tts)
     voice_ref = VoiceRef(provider=tts_name, voice_id="script")
 
+    url = args.url_or_settings
     print(f"room: {room}")
     print(f"phone: createScriptSession(case={case.id!r})  # 同 case 会师此房间")
     print(f"tts: {tts_name}  agent={minted.identity}  url={url}")
@@ -137,6 +139,139 @@ async def _run(args: argparse.Namespace) -> int:
     for i, name in enumerate(timeline):
         print(f"  {i:02d}  {name}")
     return 0
+
+
+async def _run_real_turn(args, case, settings, lease, minter) -> int:
+    """real_turn 模式：CLI 同时在房里扮演 agent 与用户两个 participant，中间是真装配真模型。
+
+    需要 ``.env`` 里的全套真环境（DB/Redis/LLM 网关/TOS/LiveKit）——这条 case 的意义
+    就在于它走的是生产的那条装配，缺任何一环都该红，不该假绿。
+
+    ``--no-image`` 走**同一条装配**但不发 ``control.input(kind=attachments)``，
+    断言反转：关键词族必须**零**命中，且 ``submit`` 必须**没有**收到附件。
+    这两条合起来才是「关键词命中 ⇔ 图真的进了模型」的可复现证伪——
+    只有正向的绿灯说明不了命中不是模型对「照片里有什么？」这句话的条件反射。
+    """
+    from companion.bootstrap.platform import build_platform, default_prompts
+    from companion.agent.memory.fake import InMemoryMemoryPort
+    from companion.devtools.script_room.real_turn import keyword_hits, run_real_turn
+    from companion.devtools.script_room.rtc import LiveKitRtcAdapter
+
+    room = await lease.attach(case.id)
+    if not room.startswith("script-"):
+        raise SystemExit(f"lease 返回非法房间名: {room}")
+
+    # 回合主人用一个跑得动的数字 id：ca_chat_message.owner_id 是 BIGINT，
+    # AuthVerifier 在生产里保证登录态是正整数。剧本房没有登录态，就自己造一个
+    # 每次运行都新鲜的（同一进程/同一天的重复跑不会撞别人的会话历史）。
+    owner_id = int(time.time()) % 10**11
+
+    url = args.url_or_settings
+    user_token = minter.user_token(str(owner_id), room)
+    agent_token = minter.agent_token(f"script-{case.id}", room)
+
+    print(f"room: {room}")
+    print(f"real_turn: owner={owner_id} agent={agent_token.identity} user={user_token.identity}")
+    print(f"fixture: {case.real_turn.fixture}  text: {case.real_turn.text!r}")
+    if args.no_image:
+        print("mode: NEGATIVE CONTROL (--no-image) — 不发 attachments 事件，断言取反")
+    print("building platform (real brain, real turn stack)…", flush=True)
+
+    platform = build_platform(settings, prompts=default_prompts(), memory_port=InMemoryMemoryPort())
+    await platform.astart()
+
+    agent_rtc = LiveKitRtcAdapter()
+    user_rtc = LiveKitRtcAdapter()
+    key = None
+    try:
+        result = await run_real_turn(
+            case=case,
+            url=url,
+            agent_token=agent_token.token,
+            user_token=user_token.token,
+            owner_id=owner_id,
+            platform=platform,
+            agent_rtc=agent_rtc,
+            user_rtc=user_rtc,
+            room=room,
+            wait_timeout_sec=args.wait,
+            with_image=not args.no_image,
+        )
+        key = result.object_key
+    finally:
+        await agent_rtc.close()
+        await user_rtc.close()
+        # 桶卫生：fixture 是可再生的测试产物，跑完就删；只删本次运行的那一个 key，
+        # 会话与消息留在库里当运行证据（ca_chat_* 本来就是测试/开发共用的库）。
+        # 负对照不上传图，object_key 为空串——没东西要删，也别拿空 key 去删。
+        if key and platform.uploads is not None:
+            try:
+                await platform.objects.delete(key=key)
+                print(f"cleanup: deleted object {key}")
+            except Exception as exc:  # noqa: BLE001 — 清理失败只警告，不能盖住跑测结果
+                print(f"warn: cleanup 失败（key={key}）: {exc}", file=sys.stderr)
+        await platform.aclose()
+
+    print("timeline:")
+    for i, name in enumerate(result.timeline):
+        print(f"  {i:02d}  {name}")
+    print(f"session: {result.session_id}  turn: {result.turn_id}  upload: {result.upload_id or '-'}")
+    print("speech.seg texts:")
+    for text in result.seg_texts:
+        print(f"  - {text}")
+    if result.stored_reply:
+        print(f"stored assistant reply: {result.stored_reply!r}")
+    print(f"submit attachments: {result.submit_attachments!r}")
+
+    family = case.real_turn.keyword_family
+    hits = keyword_hits(family, result.seg_texts)
+    if args.no_image:
+        # 断言取反。两个方向都要：只验「零命中」的话，一条没走到 submit 的空回合也能骗绿。
+        if hits:
+            print(f"\nFAIL(负对照): 没发附件却命中了 {hits}——关键词族里有泛词，"
+                  "或附件以别的路径混进了模型", file=sys.stderr)
+            return 1
+        if any(atts for atts in result.submit_attachments):
+            print("\nFAIL(负对照): 没发 attachments 事件，但 submit 收到了附件"
+                  f"：{result.submit_attachments!r}——附件路径漏了东西", file=sys.stderr)
+            return 1
+        print(f"\nPASS(负对照): 不带图时关键词族 {list(family)} 零命中，"
+              "且 submit 没收到任何附件 → 正向那条的命中确实来自图")
+        return 0
+
+    if not hits:
+        print(f"\nFAIL: 回复没有命中图内要素关键词族 {list(family)} 中任何一个", file=sys.stderr)
+        return 1
+    if not any(result.submit_attachments):
+        print("\nFAIL: 关键词命中了，但 submit 没收到附件——图根本没进模型，"
+              "命中是泛词或条件反射", file=sys.stderr)
+        return 1
+    print(f"\nPASS: 关键词族命中 {hits}（族={list(family)}），且 submit 收到了附件")
+    return 0
+
+
+
+async def _run(args: argparse.Namespace) -> int:
+    """按 case 的 ``mode`` 分派：push（等手机、推台词）或 real_turn（真装配真模型）。"""
+    # Settings / 适配器读 os.environ；先 load_env 再 import 依赖配置的模块
+    load_env()
+
+    from companion.config import settings
+    from companion.devtools.script_room.case_schema import MODE_REAL_TURN, load_case
+    from companion.service.room.livekit_tokens import TokenMinter
+
+    case = load_case(_case_path(args.case))
+    url = (args.url or settings.livekit_url or "").strip()
+    if not url:
+        raise SystemExit("LIVEKIT_URL / --url 未配置")
+    args.url_or_settings = url
+
+    lease = _make_lease(settings)
+    minter = TokenMinter.from_settings(settings)
+
+    if case.mode == MODE_REAL_TURN:
+        return await _run_real_turn(args, case, settings, lease, minter)
+    return await _run_push(args, case, settings, lease, minter)
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -1,0 +1,30 @@
+# 图片消息 P1：一张图 + 一句话，端到端走到模型，再由真模型的话回扣图内内容。
+#
+# mode: real_turn —— 这条 case 不是「推一段写好的台词」（push 模式全程不碰模型，
+# 也不碰 control.input 的附件槽，那样断言就成了自证）。real_turn 下房间里的 agent 走生产
+# 那一套装配（ProtocolBridge + SpeechPublisher + PendingAttachmentSlot + CompositeInputRelay
+# + PlatformBrain + TurnPipeline），说的话由**真模型看着图**生成。
+# 装配与断言见 src/companion/devtools/script_room/real_turn.py。
+id: image_reply
+goal: 用户先发 attachments 事件再发文字 → 附件并入同一回合 → 真模型看图 → speech.seg 的文本含图内要素
+mode: real_turn
+audios: none
+
+# 用户 participant 的两个动作，顺序按 Task 4 客户端的实际出站顺序：
+# 先 control.input(kind=attachments)，再 lk.chat 文字。
+#
+# fixture 名字对应 real_turn._FIXTURES：这张图的内容是「浅灰底 + 实心红圆 + 蓝色方框」，
+# 机器生成（不入库、不依赖网络），元素少、颜色纯——模型对它的描述稳定。
+#
+# any_of 是图内要素的关键词**族**（不是某一句 exact 句子）：命中任一即算「回复引用了图内
+# 内容」。模型可能说形状（圆/方）、可能说颜色（红/蓝）、可能中英文，四种都接。
+# 只钉一句会在模型换个说法时假红；一族词既兜得住改写，也兜得住中英文回复。
+real_turn:
+  fixture: shapes
+  text: "照片里有什么？"
+  any_of: ["圆", "方", "红", "蓝", "circle", "square", "red", "blue"]
+
+steps:
+  - protocol:
+      - speech.seg
+      - speech.end
