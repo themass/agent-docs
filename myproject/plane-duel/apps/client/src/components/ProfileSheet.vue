@@ -1,15 +1,27 @@
 <script setup lang="ts">
 /**
  * 个人战绩页（spec §21.4）：段位详情 + 累计统计 + 最近战绩列表。
- * 数据全部来自 profile 推送；此页只读，不发新请求。
+ * 统计来自 profile 推送；近期战绩 WS 协议不下发，打开本页时从 HTTP
+ * /matches/recent 拉一次（失败静默，走"还没有战绩"空态）。
  */
-import { computed } from 'vue'
-import { TIERS, tierLabel } from '@plane-duel/shared'
+import { computed, onMounted, ref } from 'vue'
+import { TIERS, tierLabel, type GameSummary } from '@plane-duel/shared'
 import type { GameStore } from '../net/store'
+import { fetchRecent } from '../net/http'
+import { getVpnToken } from '../net/socket'
 
 const props = defineProps<{ store: GameStore }>()
 const emit = defineEmits<{ close: [] }>()
 const p = computed(() => props.store.state.profile)
+
+const recent = ref<GameSummary[]>([])
+onMounted(async () => {
+  try {
+    recent.value = await fetchRecent(getVpnToken())
+  } catch (e) {
+    console.warn('近期战绩拉取失败', e)
+  }
+})
 
 const MODE_TEXT = { duel: '对决', melee: '混战' } as const
 const PRESET_TEXT: Record<string, string> = { beginner: '入门', standard: '标准', advanced: '进阶', expert: '高手' }
@@ -39,8 +51,8 @@ function timeText(at: number): string {
       </div>
       <p class="muted small">历史最高：{{ TIERS[p.stats.bestTier] }} {{ p.stats.bestStars }} 星 · 计分 {{ p.stats.scoringGames }} 局</p>
 
-      <ul v-if="p.recent.length" class="recent">
-        <li v-for="g in p.recent" :key="g.id" :class="{ win: g.win }">
+      <ul v-if="recent.length" class="recent">
+        <li v-for="g in recent" :key="g.id" :class="{ win: g.win }">
           <span class="res">{{ g.win ? '胜' : '负' }}</span>
           <span class="desc">{{ MODE_TEXT[g.mode] }}{{ g.capacity }}人 · {{ PRESET_TEXT[g.preset] }} · 第 {{ g.rank }} 名 · 命中 {{ g.hits }}</span>
           <span class="delta" :class="g.delta > 0 ? 'up' : g.delta < 0 ? 'down' : ''">

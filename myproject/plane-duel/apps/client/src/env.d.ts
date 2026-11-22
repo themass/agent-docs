@@ -11,6 +11,8 @@ interface ImportMetaEnv {
   readonly VITE_WS_URL?: string
   /** 平台 Vpn-Token 兜底（调试用）；优先 URL ?vpnToken= 或 localStorage */
   readonly VITE_VPN_TOKEN?: string
+  /** 游戏 HTTP 读接口基址覆盖；缺省见 net/http.ts defaultApiBase 策略 */
+  readonly VITE_API_BASE?: string
 }
 
 interface ImportMeta {
