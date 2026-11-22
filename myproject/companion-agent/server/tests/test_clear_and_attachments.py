@@ -25,7 +25,14 @@ def _client():
     from companion.bootstrap.platform import build_platform
     from companion.config import Settings
 
-    settings = Settings(companion_mysql_url=URL, companion_redis_url=os.environ.get("COMPANION_TEST_REDIS_URL", ""))
+    # tos_endpoint="" 显式关掉对象存储，让这份夹具对开发机的 .env 免疫（hermetic）：
+    # 仓库里的 .env 带着真 TOS_* 凭据时，build_platform 会挂上 api.direct，于是
+    # send_message 对每个 upload_id 跑一次真实 bind —— 这些用例喂的是编造的 id
+    # （u-1），归属查不到就 DirectRejected("KEY_NOT_FOUND") → 404，把「数量上限」这条
+    # 契约钉成了「本机有没有 TOS 凭据」。顺带也省掉启动时那次真网络自检。
+    # 附件数量上限（422）发生在 bind 之前的 pydantic 校验里，关掉直传不影响它被钉住。
+    settings = Settings(companion_mysql_url=URL, companion_redis_url=os.environ.get("COMPANION_TEST_REDIS_URL", ""),
+                        tos_endpoint="")
     platform = build_platform(settings, brain=FakeBrain(["好"]), prompts=default_prompts(),
                               memory_port=InMemoryMemoryPort())
     app = create_app(livekit_url="", platform=platform)
@@ -87,6 +94,15 @@ def test_send_rejects_more_than_the_attachment_cap():
         assert r.status_code == 422, r.text
         # 422 时一条都不能落库：校验发生在写库之前
         assert c.get(f"/v1/sessions/{sid}/messages", headers=h).json()["items"] == []
+        # 错误体要带得出具体的数字：Android 端已经把 422 翻成人话给用户看（选超了要能说
+        # 「最多 9 张」），而它在客户端读的是 too_long 这条上的 max_length/actual_length。
+        # 只钉住 422 这个状态码的话，服务端把校验改成「按别的数字裁」或换成不带 ctx 的
+        # 自定义 detail，客户端就会静默掉回一句没信息的兜底话。
+        detail = r.json()["detail"]
+        too_long = [d for d in detail if d["type"] == "too_long" and d["loc"][-1] == "attachments"]
+        assert len(too_long) == 1, r.text
+        assert too_long[0]["ctx"]["max_length"] == MAX_MESSAGE_ATTACHMENTS, r.text
+        assert too_long[0]["ctx"]["actual_length"] == MAX_MESSAGE_ATTACHMENTS + 1, r.text
 
 
 def test_send_accepts_exactly_the_attachment_cap():
