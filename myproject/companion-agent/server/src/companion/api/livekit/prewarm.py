@@ -59,6 +59,17 @@ PREWARM_IMPORTS = (
     "osc_data._core",
     # openai/httpx 第一次发请求才拉的 anyio 流封装（同通 147ms）
     "anyio.streams.stapled",
+    # 2026-11-21 真机测量：新进程接房后第一件事就在事件循环里同步吃这几笔冷 import
+    # （skills.library 12.0s / yaml 9.5s / bootstrap.database 10.9s，loop_monitor 点名）。
+    # 阻塞期间 context.build 里 0.8s 预算的 recall 必然超时——voice.log 里
+    # facts error=timeout 只出现在新 pid、暖进程从不，就是这么来的。清单只列 import
+    # 不猜名字：tests/test_prewarm.py 会在 CI 里逐项真 import 一遍，拼错当场红。
+    "companion.agent.skills.library",
+    "yaml",
+    "yaml.scanner",
+    "companion.bootstrap.database",
+    # httpcore 的连接原语第一次发请求才拉（loop_monitor：anyio.abc._testing 135ms）
+    "anyio._backends._asyncio",
 )
 
 
