@@ -1,0 +1,171 @@
+/*
+ * 视觉方向：午夜电竞（Astryx 主题 planeduel 落地）。
+ * 近黑靛蓝底 + 电光青主色，命中用电光青、击落用珊瑚红、信息用天蓝；
+ * 卡片是深色面板配白色内描边（inset ring），不是旧海图的纸面。
+ * 令牌取自 themes/planeduel（Astryx theme editor 生成并出图确认），此处只保留客户端实际用到的子集。
+ */
+
+:root {
+  /* 背景层：body 近黑靛蓝，card 深灰面板，surface 交互抬起层 */
+  --bg: #0a0f1e;
+  --bg-raised: #1b1b1b;
+  --surface: #262626;
+  --paper: #ffffff;
+  --ink: #ffffff;
+  --ink-soft: #9e9e9e;
+  --grid-line: rgb(255 255 255 / 0.10);
+  --sea: #232323;
+  --sea-dim: #181818;
+  /* 语义色（dark）：hit 亮青、kill 珊瑚红、pending 天蓝、ok 绿 */
+  --hit: #51dff8;
+  --kill: #ff705d;
+  --pending: #6d9cfe;
+  --accent: #22d3ee;
+  --accent-ink: #51dff8;
+  --ok: #64af4c;
+  --ok-ink: #90ca90;
+  --focus: #22d3ee;
+  --warn: #ffce2f;
+  --warn-ink: #eec448;
+  /* 面板抬起感：外投影 + 1px 白色内描边（planeduel shadow-low 的深色档） */
+  --ring: inset 0 0 0 1px rgb(255 255 255 / 0.08);
+  --shadow: 0 2px 4px rgb(0 0 0 / 0.25), 0 4px 8px rgb(0 0 0 / 0.4), var(--ring);
+
+  --radius: 12px;
+  --font-display: Figtree, 'Avenir Next Condensed', 'DIN Condensed', 'PingFang SC', 'Hiragino Sans GB',
+    system-ui, sans-serif;
+  --font-body: Figtree, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(circle at 50% -10%, rgb(34 211 238 / 0.10) 0%, transparent 55%),
+    var(--bg);
+  min-height: 100vh;
+}
+
+#app {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+.btn {
+  display: block;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--grid-line);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: var(--ring);
+  transition: transform 80ms ease, border-color 120ms ease, background-color 120ms ease;
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.btn.primary {
+  /* 电光青主按钮：黑字（planeduel on-accent），按压时压暗 */
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #04121a;
+  box-shadow: 0 0 20px rgb(34 211 238 / 0.25), var(--ring);
+}
+
+.btn.primary:active:not(:disabled) {
+  background: #1eb8cf;
+}
+
+.btn.ghost {
+  background: transparent;
+  box-shadow: none;
+}
+
+.btn:focus-visible,
+.input:focus-visible,
+.cell:focus-visible {
+  outline: 2px solid var(--focus, #22d3ee);
+  outline-offset: 2px;
+}
+
+.input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--grid-line);
+  border-radius: var(--radius);
+  background: var(--sea-dim);
+  color: var(--ink);
+  font-size: 22px;
+  font-family: var(--font-display);
+  letter-spacing: 0.3em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.input::placeholder {
+  color: var(--ink-soft);
+  letter-spacing: 0.1em;
+  font-size: 16px;
+}
+
+.muted {
+  color: var(--ink-soft);
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: max(24px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--kill);
+  color: #170403;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.35);
+  z-index: 50;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
