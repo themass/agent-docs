@@ -24,11 +24,19 @@ from agentkit.storage.media import (  # noqa: F401 —— 对产品而言这就�
     scaled_size,
 )
 
+#: 一条消息最多带几张图。**媒体限制的本家**：``control.input`` 的 pending 槽（语音侧
+#: 并入附件）与 ``SendBody`` 的发送校验都从这里 import。上限写在这产品这一侧而不是
+#: agentkit 里，因为它跟消息格式有关（客户端一次能圈几张、历史气泡怎么排），
+#: 跟「一张图能不能收进来」的字节/像素规则无关。
+#: 两个消费点共用同一个数，才不会一边按 9 裁、另一边按别的数字裁。
+MAX_MESSAGE_ATTACHMENTS = 9
+
 __all__ = [
     "ImageLimits",
     "JPEG_QUALITY",
     "LONG_EDGE",
     "MAX_BYTES",
+    "MAX_MESSAGE_ATTACHMENTS",
     "MAX_PIXELS_SIDE",
     "UploadRejected",
     "check_pixels",

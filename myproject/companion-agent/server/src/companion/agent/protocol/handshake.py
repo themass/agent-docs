@@ -41,6 +41,11 @@ SERVER_CAPS: dict[str, int] = {
     # 句级声明（§9.3）：speech.seg / speech.end / control.cancel 都挂在它下面。
     "speech.v1": 1,
     "perception.attention": 0,
+    # 图片消息（P1）：端侧可以发 control.input(kind=attachments)，服务端能把 upload_ids
+    # 并入用户下一回合。**键名必须与客户端 CLIENT_CAPS 里的 "media.image" 字节级一致**——
+    # negotiate 按名字取交集，一边拼错就永远谈不成这一项。
+    # 老客户端不报它：negotiate 只丢弃能力项、不拒握手，表现是这一项缺席而不是断连。
+    "media.image": 1,
 }
 
 #: 服务端自报的上限。客户端据此裁剪自己的发送节奏。

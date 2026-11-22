@@ -116,6 +116,30 @@ async def test_hello_gets_an_ack_with_the_intersection():
     assert "presentation.state" not in args["caps"]
 
 
+async def test_media_image_negotiates_when_the_client_declares_it():
+    """图片消息（P1）：客户端报 ``media.image`` → ack 里有它。
+
+    键名是契约本身：客户端 ``CLIENT_CAPS`` 里拼的是 "media.image"，我们这边写成
+    别的任何拼法，交集里就永远少这一项，而握手看不出任何异常。
+    """
+    sink = _Sink()
+    bridge = _bridge(sink)
+    await _feed(bridge, _packet(_hello_bytes(caps={"media.image": 1}), identity=CLIENT))
+
+    assert sink.last_args()["caps"] == {"media.image": 1}
+
+
+async def test_an_older_client_without_media_image_still_completes_the_handshake():
+    """老客户端不报这一项：能力缺席，握手照常成功（negotiate 丢弃能力项、不拒握手）。"""
+    sink = _Sink()
+    bridge = _bridge(sink)
+    await _feed(bridge, _packet(_hello_bytes(caps={"presentation.emotion": 1}), identity=CLIENT))
+
+    args = sink.last_args()
+    assert args["compat"] == "v2"
+    assert "media.image" not in args["caps"]
+
+
 async def test_no_hello_within_the_window_means_v1():
     bridge = _bridge(legacy_timeout=0.01)
     ack = await bridge.wait_for_hello()

@@ -31,25 +31,55 @@ DEFAULT_TURN_TIMEOUT_SEC = 120.0
 _POLL_MS = 1000
 _END_EVENTS = frozenset({"message.done", "turn.cancelled", "error"})
 
+#: 并入 submit 的附件条目 kind。``control.input`` 这一路只承载图片，而 ``submit`` 把它
+#: 原样存进 ``meta["attachments"]``、读 API 原样带回，客户端解析以这个拼写为准。
+_ATTACHMENT_KIND = "image"
+
 
 class PlatformBrain:
     """``BrainPort`` 的实现：提交到平台，读回同一回合的文字流。"""
 
     def __init__(self, *, submit: Any, control: Any, turn_timeout_sec: float = DEFAULT_TURN_TIMEOUT_SEC,
                  role: str = "user", kind: str = "voice",
-                 wait_for_busy: bool = True) -> None:
+                 wait_for_busy: bool = True, pending_attachments: Any = None) -> None:
         """``role`` / ``kind`` 是这条输入在历史里的身份：语音是 user/voice；
         服务端主动开口是 system/proactive（模型看到的是一条带标记的指令，不是用户说的话）。
 
         ``wait_for_busy``：语音为 True——会话忙（QUEUED/MERGED）时挂等 drain / 跟活跃回合，
         否则端上就是 ``said=''``；主动开口为 False——忙就返回空串，由循环按 empty_turn 跳过，
-        真正朗读留给语音或用户下次打开对话。"""
+        真正朗读留给语音或用户下次打开对话。
+
+        ``pending_attachments``：端侧那条带图消息的 ``upload_ids`` 暂存位
+        （``api.livekit.input_attachments.PendingAttachmentSlot``，形状：``consume() ->
+        list[str]``）。数据通道上的 attachments 事件和 lk.chat 上的文字是两条独立通道，
+        顺序不保证，所以只能在这里（提交前最后一站）合并。不传就是纯文本回合——后台主动
+        开口（``service/jobs/background.py``）根本没有附件可来。"""
         self._submit = submit
         self._control = control
         self._timeout = turn_timeout_sec
         self._role = role
         self._kind = kind
         self._wait_for_busy = wait_for_busy
+        self._pending = pending_attachments
+
+    def _take_attachments(self) -> list[dict[str, Any]] | None:
+        """从暂存位取走本回合的附件，换成 ``submit`` 认识的条目形状。
+
+        取走即清（槽的语义），所以一批附件只会落进一条消息。空槽返回 ``None`` 而不是
+        ``[]``：``submit`` 里 ``if attachments:`` 两种都当没有，但 ``None`` 让它和
+        「这条消息压根不带附件」在 meta 里长得一模一样，历史接口不会多出空数组。
+        """
+        if self._pending is None:
+            return None
+        try:
+            upload_ids = self._pending.consume()
+        except Exception as exc:  # noqa: BLE001 —— 附件读失败不该让整句话提交不了
+            logger.warning("pending attachments consume failed: %s", exc)
+            return None
+        if not upload_ids:
+            return None
+        logger.info("merging %d pending attachment(s) into this turn", len(upload_ids))
+        return [{"upload_id": upload_id, "kind": _ATTACHMENT_KIND} for upload_id in upload_ids]
 
     async def start_turn(self, request: TurnRequest) -> BrainTurn:
         if request.session_id is None:
@@ -62,13 +92,18 @@ class PlatformBrain:
 
         # 先记游标再提交：回合可能在 submit 返回前就开始吐字，晚记会漏掉开头几个字
         cursor = await self._control.tail_event_id(session_id=request.session_id)
+        # 附件在 submit 前最后一刻才取：取早了， attachments 事件还在路上，
+        # 一条带图消息就变成了纯文本；取晚了没有意义，文字和图必须在同一条消息里。
+        attachments = self._take_attachments()
         result = await self._submit.submit(
             owner_id=owner_id, session_id=request.session_id, character_id=request.character_id,
             text=request.message, client_message_id=None,
             # 语音一次一句，用户说完才提交；不做“插话进正在跑的回合”
             steerable=False,
             # 来源标记：转写文字和打字的区别在这里，质检与记忆降置信度都靠它
-            role=self._role, kind=self._kind)
+            role=self._role, kind=self._kind,
+            # 端侧 control.input(kind=attachments) 暂存下来的图；None 表示这条没图
+            attachments=attachments)
 
         if result.status == "denied":
             raise TurnRefused(getattr(result, "reason", None))

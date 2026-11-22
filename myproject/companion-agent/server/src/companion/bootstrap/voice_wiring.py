@@ -62,9 +62,16 @@ class VoiceWiring:
             info["tts_voice"] = voice_id
         return info
 
-    def __call__(self, platform: Any, voice_id: str | None = None) -> VoiceParts:
+    def __call__(self, platform: Any, voice_id: str | None = None,
+                 pending_attachments: Any = None) -> VoiceParts:
+        """``pending_attachments`` 是入口为本房间构造的附件暂存位（可为 None）。
+
+        必须原样交给 ``PlatformBrain``：写它的是数据通道上的 ``control.input``
+        (kind=attachments)，读它的是回合。这里新建一个的话，图就永远进不了消息，
+        而且没有任何报错可查。"""
         info = self.info_for(voice_id)
-        return VoiceParts(brain=PlatformBrain(submit=platform.chat.submit, control=platform.chat.control),
+        return VoiceParts(brain=PlatformBrain(submit=platform.chat.submit, control=platform.chat.control,
+                                              pending_attachments=pending_attachments),
                           recorder=build_voice_recorder(platform, info),
                           tts_sink=build_tts_archiver(platform, info))
 

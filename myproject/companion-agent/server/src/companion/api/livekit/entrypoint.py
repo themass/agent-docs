@@ -23,8 +23,9 @@ from companion.api.livekit.bridge import require
 from companion.api.livekit.protocol_bridge import ProtocolBridge, attach, local_sender
 from companion.api.livekit.barge_in import BargeInRelay
 from companion.api.livekit.inbound_audio_probe import attach_inbound_audio_probe
+from companion.api.livekit.input_attachments import CompositeInputRelay, PendingAttachmentSlot
 from companion.api.livekit.outbound_audio_probe import attach_outbound_audio_probe
-from companion.api.livekit.touch_input import TouchInputRelay
+from companion.api.livekit.touch_input import DEFAULT_COOLDOWN_S
 from companion.api.livekit.speech_publisher import SpeechPublisher
 from companion.api.livekit.anchored_cues import AnchoredCuePublisher
 
@@ -371,7 +372,11 @@ class RoomEntrypoint:
         # 分成两处各自解析会出现「说的是 A、记的是 B」这种事后没法查的错。
         voice_id = room_voice_id(identity, self._characters)
 
-        parts: VoiceParts = self._wire_voice(platform, voice_id)
+        # 附件暂存位：写它的是数据通道（CompositeInputRelay），读它的是回合
+        # （PlatformBrain.start_turn）。**必须是同一个实例**——两个实例的话事件写进 A、
+        # 回合读 B，带图消息静默变成纯文本，一条错误都不报。
+        pending = PendingAttachmentSlot()
+        parts: VoiceParts = self._wire_voice(platform, voice_id, pending)
         # event_sink 只喂 v1 companion.avatar；v2 presentation.* 走 AnchoredCuePublisher。
         pipeline = TurnPipeline(parts.brain, event_sink=ProtocolCueSink(publisher))
         agent_class = build_agent_class()
@@ -403,9 +408,11 @@ class RoomEntrypoint:
         # Publish-path 探针：chain/source peak + pause/resume（静音下行 RCA）。
         # start 之后才挂：这时 Recorder/Synchronizer/RoomIO 链已经接好。
         attach_outbound_audio_probe(session)
-        # 触摸 → 用户句 → generate_reply。必须在 start 之后挂：session 还没起来时
-        # 发 generate_reply 会炸；挂晚一点没事，最多丢掉开场几秒内的点按。
-        bridge.on_input = TouchInputRelay(session)
+        # control.input 的分发器：kind=touch → 触摸句 → generate_reply；
+        # kind=attachments → 上面那个 pending 槽（由回合并入 submit）。
+        # 必须在 start 之后挂：session 还没起来时发 generate_reply 会炸；
+        # 挂晚一点没事，最多丢掉开场几秒内的点按与附件事件。
+        bridge.on_input = CompositeInputRelay(session, pending, cooldown_s=DEFAULT_COOLDOWN_S)
         # 用户开口打断：interrupt 截断 TTS，speech.cancel 立刻发 control.cancel（§10）。
         bridge.on_barge = BargeInRelay(session, speech)
         logger.info(
