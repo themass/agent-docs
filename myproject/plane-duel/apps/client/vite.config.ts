@@ -2,6 +2,8 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
 export default defineConfig({
+  // 相对资源路径：H5 挂站点任意子路径（如 /plane/）都能加载（见 testserverV docs/game/deploy.md）
+  base: './',
   plugins: [vue()],
   server: {
     port: 5173,
