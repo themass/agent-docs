@@ -73,6 +73,7 @@ def build_voice_stack(
     config: VoiceStackConfig | None = None,
     *,
     voice_id: str | None = None,
+    vad: object | None = None,
 ) -> tuple[object, object, object]:
     """返回 (tts, stt, vad)，供 ``AgentSession(tts=..., stt=..., vad=...)``。
 
@@ -108,8 +109,13 @@ def build_voice_stack(
 
     tts = build_tts(resolved, voice_id=voice_id)
     stt = NewConsoleSTT()
-    # silero 需要在 worker 启动时预加载（prewarm），否则第一句会有明显延迟。
-    vad = silero.VAD.load()
+    # VAD 模型**应当**由 prewarm 进程级加载后经 `vad=` 传进来（见 api/livekit/prewarm.py）。
+    # 生产 2026-11-22 stage-3：这里每房间 `silero.VAD.load()` 一次，把 ONNX 同步读进
+    # 内存，事件循环被冻 7–23s（loop_monitor 点名 pathlib.py:1013 open，task=
+    # job_user_entrypoint，恰在 `companion joined room` 前）。SDK 文档原话就是把
+    # load 放进 prewarm。不传时仍自己 load：dev/测试进程没有 userdata，行为回退。
+    if vad is None:
+        vad = silero.VAD.load()
     if not isinstance(vad, lk_vad.VAD):
         raise RuntimeError("VAD 不是 LiveKit 的 VAD 实例")
     return tts, stt, vad

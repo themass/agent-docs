@@ -28,6 +28,19 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+#: 进程级 VAD 模型缓存。prewarm 会被 forkserver 与 job 进程各调一次；模型只 load
+#: 一次，后续调用查表（tests/test_worker_prewarm.py 钉住"第二次调用免费"）。
+_VAD: object | None = None
+
+
+def _load_vad() -> object:
+    global _VAD  # noqa: PLW0603 —— 进程级缓存是本模块的职责
+    if _VAD is None:
+        from livekit.plugins import silero
+
+        _VAD = silero.VAD.load()
+    return _VAD
+
 #: 首帧必经的重 import。每一项都要能对上生产日志里点过名、或代码里每房间第一次
 #: 调用就会触发的模块；只列模块名，不做任何调用。
 PREWARM_IMPORTS = (
@@ -81,12 +94,22 @@ PREWARM_IMPORTS = (
 
 
 def prewarm(job_proc: Any = None) -> None:
-    """`WorkerOptions.prewarm_fnc` 的实现。签名里的 job_proc SDK 传入、我们不用。
+    """`WorkerOptions.prewarm_fnc` 的实现。job_proc 是 SDK 的 JobProcess：
+    加载好的 VAD 放进它的 `userdata`，入口按 `ctx.proc.userdata["vad"]` 取用。
 
     import 失败不吞掉：让异常冒出去，SDK 会按进程失败处理并在日志里带完整
     traceback——比静默降级回"首帧再卡一次、现场无线索"好得多。
+
+    VAD 模型必须在预热里加载（2026-11-22 stage-3 生产：`silero.VAD.load()` 留在
+    每房间的 `build_voice_stack` 里，ONNX 同步读冻事件循环 7–23s）。这里只 load
+    一次、每进程；SDK 文档推荐的就是这个位置。
     """
     t0 = time.perf_counter()
     for name in PREWARM_IMPORTS:
         __import__(name)
-    logger.info("prewarm done modules=%d cost_ms=%.0f", len(PREWARM_IMPORTS), (time.perf_counter() - t0) * 1000)
+    vad = _load_vad()
+    userdata = getattr(job_proc, "userdata", None)
+    if isinstance(userdata, dict):
+        userdata["vad"] = vad
+    logger.info("prewarm done modules=%d vad=loaded cost_ms=%.0f",
+                len(PREWARM_IMPORTS), (time.perf_counter() - t0) * 1000)

@@ -42,11 +42,16 @@ def test_prewarm_covers_modules_the_loop_blamed_in_production():
 
 
 def test_prewarm_imports_them_without_calling_anything(tmp_path, monkeypatch):
-    """prewarm 只许 import：不许建连接、读远端配置（副作用会被 forkserver 复制）。"""
+    """prewarm 的 import 循环不许夹带别的 import；副作用只许是 VAD load。
+
+    VAD 是有意为之的例外（stage-3 生产：每房间 silero.VAD.load() 冻事件循环
+    7–23s，SDK 文档要求放进 prewarm）——单独用替身计数验证，见下一用例。
+    """
     from companion.api.livekit import prewarm as mod
 
     calls: list[str] = []
     monkeypatch.setattr(mod, "PREWARM_IMPORTS", ("json", "base64"))
+    monkeypatch.setattr(mod, "_load_vad", lambda: "stub-vad")
     real_import = __import__
 
     def spy(name, *a, **k):
@@ -56,3 +61,28 @@ def test_prewarm_imports_them_without_calling_anything(tmp_path, monkeypatch):
     monkeypatch.setattr("builtins.__import__", spy)
     mod.prewarm()
     assert calls == ["json", "base64"]
+
+
+def test_prewarm_loads_vad_once_per_process(monkeypatch):
+    """VAD 进程级一次：prewarm 被 forkserver 与 job 进程各调一次，第二次查表。"""
+    from companion.api.livekit import prewarm as mod
+
+    monkeypatch.setattr(mod, "_VAD", None)
+    loads: list[int] = []
+
+    class _FakeVAD:
+        @classmethod
+        def load(cls, **kw):
+            loads.append(1)
+            return "sentinel-vad"
+
+    import livekit.plugins.silero as silero
+
+    orig = silero.VAD
+    monkeypatch.setattr(silero, "VAD", _FakeVAD)
+    try:
+        assert mod._load_vad() == "sentinel-vad"
+        assert mod._load_vad() == "sentinel-vad"
+    finally:
+        silero.VAD = orig
+    assert len(loads) == 1

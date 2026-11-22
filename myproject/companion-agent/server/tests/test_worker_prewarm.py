@@ -10,8 +10,24 @@
 import sys
 import time
 
+import pytest
+
 from companion.api.livekit.capacity import worker_options_kwargs
 from companion.api.livekit.prewarm import PREWARM_IMPORTS, prewarm
+
+
+@pytest.fixture(autouse=True)
+def _stub_vad(monkeypatch):
+    """本文件验的是 import 清单与挂载，不是 ONNX 模型。
+
+    prewarm 现在还会 load VAD（stage-3 生产：每房间 load 冻循环 7–23s）——
+    这里 stub 掉真模型加载，并重置进程级缓存，保证每个用例看到的都是干净计数。
+    """
+    from companion.api.livekit import prewarm as mod
+
+    monkeypatch.setattr(mod, "_VAD", None)
+    monkeypatch.setattr(mod, "_load_vad", lambda: "stub-vad")
+    yield
 
 
 def test_prewarm_imports_every_listed_module():

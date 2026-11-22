@@ -228,8 +228,21 @@ def room_voice_id(identity: "RoomIdentity", characters: Any) -> str | None:
     return voice_id or None
 
 
+def _preloaded_vad(ctx: Any) -> Any:
+    """取 prewarm 在进程级热好的 VAD 模型（`proc.userdata["vad"]`），取不到返回 None。
+
+    链条的最后一棒：prewarm 放、这里取、`build_session_options` 传给 factory。
+    少任何一环，`build_voice_stack` 都会在事件循环里重新 load ONNX——stage-3 生产
+    每房间冻 7–23s 就是这么来的。dev 模式与测试替身没有 proc，一律容错成 None。
+    """
+    userdata = getattr(getattr(ctx, "proc", None), "userdata", None)
+    if isinstance(userdata, dict):
+        return userdata.get("vad")
+    return None
+
+
 def build_session_options(*, mode: str = "text", voice_factory: Any = None,
-                          voice_id: str | None = None) -> dict:
+                          voice_id: str | None = None, vad: Any = None) -> dict:
     """AgentSession 的构造参数。
 
     文字模式不挂 STT/TTS，语音模式才需要；两者都挂会让文字模式也去合成语音，
@@ -238,6 +251,9 @@ def build_session_options(*, mode: str = "text", voice_factory: Any = None,
     ``voice_id`` 是**这个房间**的说话人（来自角色卡 ``voice_ref``）。它必须一路
     传到 ``voice_factory``：音色由角色决定，不是进程级配置——否则同一台 worker
     上所有角色共用一个嗓子。
+
+    ``vad`` 是 prewarm 在进程级加载好的 VAD 模型（`ctx.proc.userdata["vad"]`）。
+    传进去就绝不会再 load——每房间 load 一次曾把事件循环冻 7–23s（stage-3 生产）。
 
     ``llm`` 两种模式都要给（原因见 ``_pipeline_llm``）：不给的话房间里的文字输入
     与被识别的语音都走不到 ``llm_node``。
@@ -250,8 +266,12 @@ def build_session_options(*, mode: str = "text", voice_factory: Any = None,
             "interruption": {"resume_false_interruption": False},
         }
     if mode == "voice" and voice_factory is not None:
-        parts = voice_factory(voice_id=voice_id) if voice_id else voice_factory()
-        tts, stt, *rest = parts
+        kwargs: dict[str, Any] = {}
+        if voice_id:
+            kwargs["voice_id"] = voice_id
+        if vad is not None:
+            kwargs["vad"] = vad
+        tts, stt, *rest = voice_factory(**kwargs)
         options["tts"] = tts
         options["stt"] = stt
         if rest:
@@ -405,7 +425,8 @@ class RoomEntrypoint:
         # 音色跟着角色走：说话人由本房间的 ``character_id`` 解析出的角色卡 ``voice_ref`` 决定。
         # 不传的话每个房间都落到进程级默认值，两个角色一个嗓子。
         session = AgentSession(**build_session_options(
-            mode="voice", voice_factory=self._voice_factory, voice_id=voice_id))
+            mode="voice", voice_factory=self._voice_factory, voice_id=voice_id,
+            vad=_preloaded_vad(ctx)))
 
         await session.start(agent, room=room)
         # Mode B 探针：INFO 打出第一帧 / track_subscribed / user_state。
