@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { connectSocket } from '../src/net/socket'
+import { connectSocket, getVpnToken, shouldStopReconnectAsExpired } from '../src/net/socket'
 
 class FakeWS {
   static OPEN = 1
@@ -54,6 +54,15 @@ describe('Java v1 协议适配层', () => {
     expect(FakeWS.instances[0]!.url).toBe('ws://x/api/game/ws?vpnToken=TKN')
     FakeWS.instances[0]!.open()
     expect(JSON.parse(FakeWS.instances[0]!.sent[0]!)).toMatchObject({ v: 1, cmd: 'profile.get', seq: 1, data: {} })
+    sock.close()
+  })
+
+  it('token 只从 localStorage 取：URL ?vpnToken= 一律不读、不持久化（产品要求）', () => {
+    // node（vitest）环境本来没有 location；这里额外钉死旧行为不再回来：
+    // getVpnToken 不引用 location.search，token 缺失时握手参数为空串
+    expect(getVpnToken()).toBe('')
+    const sock = connectSocket({ url: 'ws://x', playerId: 'p1', nickname: () => 'nick' })
+    expect(FakeWS.instances[0]!.url).toBe('ws://x?vpnToken=')
     sock.close()
   })
 
@@ -134,6 +143,51 @@ describe('Java v1 协议适配层', () => {
     got.length = 0
     FakeWS.instances[1]!.emit('profile.now', { userId: 42, nickname: '甲', season: 1 })
     expect(got[0]).toMatchObject({ type: 'ready' }) // 重连后再合成一次
+    sock.close()
+  })
+
+  it('过期判定纯函数：从未认证成功 + 尝试 ≥3 才停；成功过就永远重连', () => {
+    expect(shouldStopReconnectAsExpired(false, 0)).toBe(false)
+    expect(shouldStopReconnectAsExpired(false, 2)).toBe(false)
+    expect(shouldStopReconnectAsExpired(false, 3)).toBe(true)
+    expect(shouldStopReconnectAsExpired(true, 99)).toBe(false)
+    expect(shouldStopReconnectAsExpired(false, 5, 5)).toBe(true) // threshold 可配
+  })
+
+  it('从未认证成功：第 3 次重连尝试失败后放 onExpired 并停止重连', () => {
+    const onExpired = vi.fn()
+    const sock = connectSocket({ url: 'ws://x', playerId: 'p1', nickname: () => 'nick', onExpired })
+    // 首连失败 → 依次安排重连 1/2/3（退避 1s/2s/4s）；第 3 次仍失败 → 放弃
+    FakeWS.instances[0]!.onclose!({ code: 1006 })
+    vi.advanceTimersByTime(1000)
+    expect(onExpired).not.toHaveBeenCalled()
+    FakeWS.instances[1]!.onclose!({ code: 1006 })
+    vi.advanceTimersByTime(2000)
+    expect(onExpired).not.toHaveBeenCalled()
+    FakeWS.instances[2]!.onclose!({ code: 1006 })
+    vi.advanceTimersByTime(4000)
+    expect(FakeWS.instances).toHaveLength(4) // 第 3 次重连已发起
+    expect(onExpired).not.toHaveBeenCalled()
+    FakeWS.instances[3]!.onclose!({ code: 1006 }) // 第 3 次重连也失败 → 触顶
+    expect(onExpired).toHaveBeenCalledTimes(1)
+    // 已停止：不再安排第 4 次连接
+    vi.advanceTimersByTime(60000)
+    expect(FakeWS.instances).toHaveLength(4)
+    expect(onExpired).toHaveBeenCalledTimes(1)
+    sock.close()
+  })
+
+  it('认证成功过一次的连接：无限重连，绝不触发 onExpired', () => {
+    const onExpired = vi.fn()
+    const sock = connectSocket({ url: 'ws://x', playerId: 'p1', nickname: () => 'nick', onExpired })
+    FakeWS.instances[0]!.open()
+    FakeWS.instances[0]!.emit('profile.now', { userId: 42, nickname: '甲', season: 1 })
+    for (let i = 0; i < 6; i++) {
+      FakeWS.instances[i]!.onclose!({ code: 1006 })
+      vi.advanceTimersByTime(8000)
+    }
+    expect(FakeWS.instances).toHaveLength(7) // 一直在重连
+    expect(onExpired).not.toHaveBeenCalled()
     sock.close()
   })
 })

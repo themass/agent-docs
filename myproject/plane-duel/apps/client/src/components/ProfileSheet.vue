@@ -11,7 +11,7 @@ import { fetchRecent } from '../net/http'
 import { getVpnToken } from '../net/socket'
 
 const props = defineProps<{ store: GameStore }>()
-const emit = defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: []; logout: [] }>()
 const p = computed(() => props.store.state.profile)
 
 const recent = ref<GameSummary[]>([])
@@ -64,6 +64,7 @@ function timeText(at: number): string {
       <p v-else class="muted small">还没有战绩。去排一局吧。</p>
 
       <button class="btn primary" @click="emit('close')">关闭</button>
+      <button class="btn ghost logout" @click="emit('logout')">退出登录</button>
     </div>
   </div>
 </template>

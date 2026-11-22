@@ -8,7 +8,8 @@
  *
  * 鉴权：浏览器 WebSocket 设不了 HTTP 头，握手用 `?vpnToken=` 查询参数
  * （GameHandshakeInterceptor 支持的两条路径之一）。token 来源优先级：
- * URL 参数 ?vpnToken= → localStorage → 构建期 VITE_VPN_TOKEN。
+ * localStorage（正式登录页 login() 写入）→ 构建期 VITE_VPN_TOKEN（原生壳调试）。
+ * 产品要求 token 绝不出现在 URL：地址栏 ?vpnToken= 一律不读。
  *
  * 身份：平台 userId（字符串形态即 playerId），不再有 auth/ready/token 往返——
  * 首次收到 profile.now 时合成一条 ready 喂给 store。
@@ -25,6 +26,7 @@ import {
   type TableView,
 } from '@plane-duel/shared'
 import { generateNickname } from '../nickname-gen'
+import { getToken } from './auth'
 
 export type SocketStatus = 'connecting' | 'open' | 'closed' | 'superseded'
 
@@ -61,17 +63,14 @@ export function saveNickname(nickname: string): void {
   localStorage.setItem('plane-duel:nickname', nickname)
 }
 
-const VPN_TOKEN_KEY = 'plane-duel:vpnToken'
-
-/** 平台 token（Vpn-Token）；URL ?vpnToken= 粘一次即持久化，便于换环境调试。 */
+/**
+ * 平台 token（Vpn-Token）。正式来源是登录页 login() 写入的 localStorage
+ * （auth.ts，键 plane-duel:vpnToken）；VITE_VPN_TOKEN 只在原生壳调试时兜底。
+ * 地址栏 ?vpnToken= 一律不读（产品要求 token 不出现在 URL：会进浏览历史 /
+ * Referer / 服务器访问日志）。
+ */
 export function getVpnToken(): string {
-  // node（vitest）里没有 location；只有浏览器环境才读地址栏
-  const q = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('vpnToken') : null
-  if (q) {
-    localStorage.setItem(VPN_TOKEN_KEY, q)
-    return q
-  }
-  return localStorage.getItem(VPN_TOKEN_KEY) ?? import.meta.env.VITE_VPN_TOKEN ?? ''
+  return getToken() || import.meta.env.VITE_VPN_TOKEN || ''
 }
 
 export function defaultWsUrl(): string {
@@ -243,7 +242,22 @@ function fromEvt(evt: string, d: AnyJson, auth: { authed: boolean }): ServerMess
 
 // ================================================================ 连接
 
-export function connectSocket(opts: { url: string; playerId: string; nickname: () => string }): SocketHandle {
+/**
+ * 重连放弃判定（纯函数，便于单测）：整个 SocketHandle 生命周期内从未认证成功
+ * （一次 profile.now 都没收到过）且重连尝试已达 threshold 次 → 认为 token 已失效，
+ * 停止重连、回登录页。只要认证成功过一次就照常无限重连（顶号/断网都能自愈）。
+ */
+export function shouldStopReconnectAsExpired(everAuthed: boolean, reconnectAttempts: number, threshold = 3): boolean {
+  return !everAuthed && reconnectAttempts >= threshold
+}
+
+export function connectSocket(opts: {
+  url: string
+  playerId: string
+  nickname: () => string
+  /** 登录过期（从未认证成功 + 重连触顶）时触发；App 层清空内存态并弹回登录。 */
+  onExpired?: () => void
+}): SocketHandle {
   const status = ref<SocketStatus>('connecting')
   const listeners: ((m: ServerMessage) => void)[] = []
   let ws: WebSocket | null = null
@@ -251,6 +265,10 @@ export function connectSocket(opts: { url: string; playerId: string; nickname: (
   let stopped = false
   let seq = 0
   const auth = { authed: false }
+  /** 本 handle 生命周期内是否认证成功过（profile.now 至少来过一次） */
+  let everAuthed = false
+  /** 本 handle 生命周期内累计的重连尝试次数 */
+  let reconnects = 0
 
   const open = () => {
     status.value = 'connecting'
@@ -274,11 +292,18 @@ export function connectSocket(opts: { url: string; playerId: string; nickname: (
       }
       if (typeof m.evt !== 'string') return
       for (const out of fromEvt(m.evt, m.data ?? {}, auth)) for (const l of listeners) l(out)
+      if (auth.authed) everAuthed = true
     }
     ws.onclose = () => {
       // Java 顶号/超限都是普通关闭码，统一走重连；桌子在服务端保留，重连自动恢复
       status.value = 'closed'
       if (stopped) return
+      if (shouldStopReconnectAsExpired(everAuthed, reconnects)) {
+        stopped = true // 不再重连；等用户在登录页重登后整条链路重建
+        opts.onExpired?.()
+        return
+      }
+      reconnects += 1
       setTimeout(open, delay)
       delay = Math.min(delay * 2, 8000)
     }

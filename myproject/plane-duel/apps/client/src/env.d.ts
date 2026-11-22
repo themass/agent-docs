@@ -9,7 +9,7 @@ declare module '*.vue' {
 interface ImportMetaEnv {
   /** WS 入口；缺省 wss://api.ok123find.top/vvv/api/game/ws（见 net/socket.ts） */
   readonly VITE_WS_URL?: string
-  /** 平台 Vpn-Token 兜底（调试用）；优先 URL ?vpnToken= 或 localStorage */
+  /** 平台 Vpn-Token 兜底（原生壳调试用）；正式来源是登录页写入的 localStorage（net/auth.ts） */
   readonly VITE_VPN_TOKEN?: string
   /** 游戏 HTTP 读接口基址覆盖；缺省见 net/http.ts defaultApiBase 策略 */
   readonly VITE_API_BASE?: string
