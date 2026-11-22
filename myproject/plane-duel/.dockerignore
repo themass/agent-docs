@@ -1,6 +1,0 @@
-**/node_modules
-**/dist
-apps/client/android
-apps/client/ios
-.git
-.superpowers
