@@ -91,3 +91,20 @@ def test_saxw_cold_start_blockers_are_on_the_list():
     }
     missing = required - set(PREWARM_IMPORTS)
     assert not missing, f"Saxw 阻塞模块没进预热清单: {sorted(missing)}"
+
+
+def test_langgraph_checkpointer_is_on_the_list():
+    """2026-11-22 stage-4 生产：VAD 修复上线后，新进程接房仍冻 10–13s，
+    loop_monitor 点名 `importing langgraph at bootstrap/platform.py:197
+    _checkpointer`（13121ms）。清单里的 companion.bootstrap.platform 只把
+    模块本体拉进来——`from langgraph.checkpoint.postgres.aio import
+    AsyncPostgresSaver` 藏在函数体里，每房间第一次装配平台才冷 import。
+    每个新 job 进程付一次，用户听到的就是接房后十几秒的静默。"""
+    required = {
+        "langgraph.checkpoint.postgres.aio",  # _checkpointer:197（13.1s 的那条）
+    }
+    missing = required - set(PREWARM_IMPORTS)
+    assert not missing, f"checkpointer 冷 import 没进预热清单: {sorted(missing)}"
+    prewarm()
+    for name in required:
+        assert name in sys.modules, f"{name} 声称预热了但其实没进 sys.modules"

@@ -90,6 +90,11 @@ PREWARM_IMPORTS = (
     # 是 loop_monitor 直接点过的子模块（psycopg_binary 实现经 pq 链进来）。
     "psycopg",
     "psycopg.pq.misc",
+    # 2026-11-22 stage-4 生产：VAD 修复上线后接房仍冻 10–13s，loop_monitor 点名
+    # `importing langgraph at bootstrap/platform.py:197 _checkpointer`（13121ms）。
+    # 清单里 companion.bootstrap.platform 只拉模块本体——这行 import 藏在
+    # _checkpointer() 函数体里，每房间装配平台才第一次冷 import，每个新进程付一次。
+    "langgraph.checkpoint.postgres.aio",
 )
 
 
