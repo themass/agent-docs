@@ -12,13 +12,18 @@
 
 from __future__ import annotations
 
+import logging
 import os
+import time
 from collections.abc import Mapping
 
 from livekit.plugins.volcengine.stt import STTOptions
+from livekit.plugins.volcengine.stt import SpeechStream as _PluginSpeechStream
 from livekit.plugins.volcengine.stt import STT as _PluginSTT
 from livekit.plugins.volcengine.tts import TTS as _PluginTTS
 from livekit.plugins.volcengine.tts import _TTSOptions as _PluginTTSOptions
+
+logger = logging.getLogger(__name__)
 
 
 class NewConsoleSTTOptions(STTOptions):
@@ -46,6 +51,44 @@ class NewConsoleSTTOptions(STTOptions):
             "X-Api-Request-Id": reqid,
         }
         return header
+
+
+class _LoggingSpeechStream(_PluginSpeechStream):
+    """ASR 连接生命周期的日志点（R3 事故的直接补丁）。
+
+    插件的失败路径日志全在 `livekit.plugins.volcengine` 命名空间，而生产采集的是
+    companion 树——等于断流时 voice.log 里一个字都没有（2026-11-21 R3：VAD 正常、
+    transcript 恒零、零条 STT 报错）。这里把三件事钉在 companion 命名空间：
+    流启停（``stream start/end/failed``）、websocket 建连（``ws open/failed`` +
+    毫秒耗时）。R3 的主嫌疑是冷 import 卡住事件循环导致握手超时静默死掉——有了
+    ``ws failed`` 的耗时和异常名，下次一句 grep 就能证实或排除。
+
+    只加日志、不改语义：异常原样上抛，重连、分包、解析全部沿用插件。
+    """
+
+    async def _run(self) -> None:
+        t0 = time.monotonic()
+        logger.info("volc asr stream start reqid=%s", self._request_id)
+        try:
+            await super()._run()
+        except Exception:
+            logger.exception("volc asr stream failed reqid=%s elapsed_ms=%.0f",
+                             self._request_id, (time.monotonic() - t0) * 1000)
+            raise
+        logger.info("volc asr stream end reqid=%s elapsed_ms=%.0f",
+                    self._request_id, (time.monotonic() - t0) * 1000)
+
+    async def _connect_ws(self):  # noqa: ANN202 - 返回类型跟随插件（私有泛型不便标注）
+        t0 = time.monotonic()
+        try:
+            ws = await super()._connect_ws()
+        except Exception:
+            logger.exception("volc asr ws failed reqid=%s elapsed_ms=%.0f",
+                             self._request_id, (time.monotonic() - t0) * 1000)
+            raise
+        logger.info("volc asr ws open reqid=%s elapsed_ms=%.0f",
+                    self._request_id, (time.monotonic() - t0) * 1000)
+        return ws
 
 
 class NewConsoleSTT(_PluginSTT):
@@ -99,6 +142,22 @@ class NewConsoleSTT(_PluginSTT):
         ours.api_key = key
         ours.resource_id = resource_id
         self._opts = ours
+
+    def stream(self, *, language=None, conn_options=None) -> _LoggingSpeechStream:
+        """覆写插件的 stream()：它硬编码造插件自己的 SpeechStream，日志子类必须
+        从这里换进去。其余（弱引用登记、参数缺省）跟随插件签名。"""
+        from livekit.agents import DEFAULT_API_CONNECT_OPTIONS
+
+        if conn_options is None:
+            conn_options = DEFAULT_API_CONNECT_OPTIONS
+        stream = _LoggingSpeechStream(
+            stt=self,
+            conn_options=conn_options,
+            opts=self._opts,
+            http_session=self._ensure_session(),
+        )
+        self._streams.add(stream)
+        return stream
 
 
 def volcengine_available(env: Mapping[str, str] | None = None) -> bool:
