@@ -17,6 +17,7 @@ from companion.service.chat.submit import SubmitService
 from companion.service.turn.queue import DRAIN_MAX_ATTEMPTS
 from companion.db.port import MessageStore, QueueStore, SessionStore
 from companion.service.turn.control import TurnControlPort
+from companion.service.uploads.policy import MAX_MESSAGE_ATTACHMENTS
 
 log = logging.getLogger("companion.chat_api")
 
@@ -117,7 +118,10 @@ def build_router(api: ChatApi, current_user):
         text: str = Field(default="", max_length=4000)
         client_message_id: str | None = Field(default=None, max_length=64)
         steerable: bool = True
-        attachments: list[Attachment] = Field(default_factory=list)
+        # 数量上限跟客户端挑选上限同源（policy.MAX_MESSAGE_ATTACHMENTS，也是 control.input
+        # pending 槽用的那个数）：两边各写一个数字迟早漂开，一边按 9 裁一边按别的数字裁。
+        # pydantic 对 list 直接支持 max_length，超了走 422，业务层收不到脏请求。
+        attachments: list[Attachment] = Field(default_factory=list, max_length=MAX_MESSAGE_ATTACHMENTS)
         location: Location | None = None
 
     class CreateSession(BaseModel):

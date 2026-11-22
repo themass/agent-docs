@@ -7,6 +7,8 @@ import os
 
 import pytest
 
+from companion.service.uploads.policy import MAX_MESSAGE_ATTACHMENTS
+
 URL = (os.environ.get("COMPANION_TEST_DATABASE_URL") or os.environ.get("COMPANION_TEST_MYSQL_URL", ""))
 pytestmark = pytest.mark.skipif(not URL, reason="COMPANION_TEST_DATABASE_URL not set")
 
@@ -69,3 +71,32 @@ def test_attachment_only_message_is_accepted_and_kept_on_the_message():
         assert len(mine) == 1
         # 附件挂在消息上，刷新历史后还在
         assert mine[0].get("attachments", [])[0]["upload_id"] == "u-1"
+
+
+def _att(i: int) -> dict:
+    return {"upload_id": f"u-{i}", "kind": "image", "name": f"{i}.jpg"}
+
+
+def test_send_rejects_more_than_the_attachment_cap():
+    """超上限必须在进业务前被拒（422），否则客户端挑选上限和服务端校验就会各裁各的。"""
+    client, h = _client()
+    with client as c:
+        sid = c.post("/v1/sessions", json={"role_id": "linche", "name": "超上限"}, headers=h).json()["id"]
+        too_many = [_att(i) for i in range(MAX_MESSAGE_ATTACHMENTS + 1)]
+        r = c.post(f"/v1/sessions/{sid}/messages", json={"text": "", "attachments": too_many}, headers=h)
+        assert r.status_code == 422, r.text
+        # 422 时一条都不能落库：校验发生在写库之前
+        assert c.get(f"/v1/sessions/{sid}/messages", headers=h).json()["items"] == []
+
+
+def test_send_accepts_exactly_the_attachment_cap():
+    client, h = _client()
+    with client as c:
+        sid = c.post("/v1/sessions", json={"role_id": "linche", "name": "刚好上限"}, headers=h).json()["id"]
+        exact = [_att(i) for i in range(MAX_MESSAGE_ATTACHMENTS)]
+        r = c.post(f"/v1/sessions/{sid}/messages", json={"text": "", "attachments": exact}, headers=h)
+        assert r.status_code == 202, r.text
+        items = c.get(f"/v1/sessions/{sid}/messages", headers=h).json()["items"]
+        mine = [m for m in items if m["role"] == "user"]
+        assert len(mine) == 1
+        assert len(mine[0].get("attachments", [])) == MAX_MESSAGE_ATTACHMENTS
