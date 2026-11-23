@@ -163,6 +163,18 @@ async def test_voice_session_disables_soft_pause_but_keeps_interruptions():
     assert session.options.interruption["enabled"] is True
 
 
+async def test_voice_session_requires_min_words_before_stt_interrupt():
+    """STT 默认 min_words=0：一句 final 甚至一个音节就能打断，首句 TTS 常 frames=0。"""
+    from livekit.agents import AgentSession
+    from companion.api.livekit.entrypoint import VOICE_INTERRUPTION_MIN_WORDS
+
+    options = build_session_options(mode="voice", voice_factory=None)
+    assert options["turn_handling"]["interruption"]["min_words"] == VOICE_INTERRUPTION_MIN_WORDS
+    assert VOICE_INTERRUPTION_MIN_WORDS >= 2
+    session = AgentSession(**options)
+    assert session.options.interruption["min_words"] == VOICE_INTERRUPTION_MIN_WORDS
+
+
 def test_text_session_keeps_default_turn_handling():
     assert "turn_handling" not in build_session_options(mode="text")
 

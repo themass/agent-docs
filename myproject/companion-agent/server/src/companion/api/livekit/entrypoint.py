@@ -55,6 +55,8 @@ TOPIC_ACTION = "companion.action"
 #: 3 秒里被 GC 回收，超时回落永远不会发生。
 _HANDSHAKES: set[asyncio.Task[Any]] = set()
 
+# LiveKit STT 打断默认 min_words=0；连续 final/ interim 会在首句 TTS 出声前 interrupt。
+VOICE_INTERRUPTION_MIN_WORDS = 2
 
 
 @dataclass
@@ -265,7 +267,10 @@ def build_session_options(*, mode: str = "text", voice_factory: Any = None,
         # Continuous VAD activity can hold soft-pause playback indefinitely.
         # Keep hard interruptions, including the explicit client barge-in relay.
         options["turn_handling"] = {
-            "interruption": {"resume_false_interruption": False},
+            "interruption": {
+                "resume_false_interruption": False,
+                "min_words": VOICE_INTERRUPTION_MIN_WORDS,
+            },
         }
     if mode == "voice" and voice_factory is not None:
         kwargs: dict[str, Any] = {}
