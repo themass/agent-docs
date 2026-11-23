@@ -27,6 +27,25 @@ TOUCH_LINES: dict[str, str] = {
 }
 
 DEFAULT_COOLDOWN_S = 1.5
+# 进房头几秒不跟 STT 抢首轮 user turn（npFD：摸头 generate_reply + Hello 叠麦）。
+DEFAULT_TOUCH_WARMUP_S = 3.0
+
+_BUSY_AGENT_STATES = frozenset({"thinking", "speaking"})
+_BUSY_USER_STATES = frozenset({"speaking"})
+
+
+def voice_session_accepts_touch_turn(session: Any) -> bool:
+    """触摸不要再起一轮 ``generate_reply`` 的时机：agent/用户在说，或上句还没完。"""
+    agent = getattr(session, "agent_state", None)
+    if agent in _BUSY_AGENT_STATES:
+        return False
+    user = getattr(session, "user_state", None)
+    if user in _BUSY_USER_STATES:
+        return False
+    speech = getattr(session, "current_speech", None)
+    if speech is not None and not getattr(speech, "done", False):
+        return False
+    return True
 
 
 def touch_user_message(args: dict[str, Any] | None) -> str | None:
@@ -51,9 +70,18 @@ class TouchInputRelay:
     ``AgentSession`` 就是这种形状；单测喂一个假对象即可，不必拉起语音栈。
     """
 
-    def __init__(self, session: Any, *, cooldown_s: float = DEFAULT_COOLDOWN_S) -> None:
+    def __init__(
+        self,
+        session: Any,
+        *,
+        cooldown_s: float = DEFAULT_COOLDOWN_S,
+        warmup_s: float = 0.0,
+    ) -> None:
         self._session = session
         self._cooldown_s = max(0.0, float(cooldown_s))
+        warmup = max(0.0, float(warmup_s))
+        start = time.monotonic()
+        self._ready_mono = start + warmup
         self._last_mono = 0.0
         self.accepted = 0
         self.ignored = 0
@@ -64,6 +92,12 @@ class TouchInputRelay:
             self.ignored += 1
             return
         now = time.monotonic()
+        if now < self._ready_mono:
+            self.ignored += 1
+            return
+        if not voice_session_accepts_touch_turn(self._session):
+            self.ignored += 1
+            return
         if self._cooldown_s > 0.0 and (now - self._last_mono) < self._cooldown_s:
             self.ignored += 1
             return

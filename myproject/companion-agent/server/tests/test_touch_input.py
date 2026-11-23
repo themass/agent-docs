@@ -5,13 +5,18 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
 from companion.agent.protocol import TOPIC_CTL, TOPIC_IN, encode, new_envelope
 from companion.api.livekit.protocol_bridge import ProtocolBridge
-from companion.api.livekit.touch_input import TouchInputRelay, touch_user_message
+from companion.api.livekit.touch_input import (
+    TouchInputRelay,
+    touch_user_message,
+    voice_session_accepts_touch_turn,
+)
 
 CLIENT = "user-1002"
 AGENT = "agent-linche"
@@ -32,9 +37,24 @@ class _Publisher:
 
 
 class _Session:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        agent_state: str = "listening",
+        user_state: str = "listening",
+        speech_done: bool = True,
+    ) -> None:
         self.calls: list[str] = []
         self.fail = False
+        self.agent_state = agent_state
+        self.user_state = user_state
+        self._speech_done = speech_done
+
+    @property
+    def current_speech(self) -> Any:
+        if self._speech_done:
+            return None
+        return SimpleNamespace(done=False)
 
     def generate_reply(self, *, user_input: str) -> None:
         if self.fail:
@@ -100,6 +120,41 @@ def test_touch_user_message_maps_known_regions():
 )
 def test_touch_user_message_rejects_bad_args(args: Any):
     assert touch_user_message(args) is None
+
+
+@pytest.mark.parametrize(
+    "agent_state,user_state,speech_done,expected",
+    [
+        ("listening", "listening", True, True),
+        ("thinking", "listening", True, False),
+        ("speaking", "listening", True, False),
+        ("listening", "speaking", True, False),
+        ("listening", "listening", False, False),
+    ],
+)
+def test_voice_session_accepts_touch_turn(agent_state, user_state, speech_done, expected):
+    session = _Session(
+        agent_state=agent_state,
+        user_state=user_state,
+        speech_done=speech_done,
+    )
+    assert voice_session_accepts_touch_turn(session) is expected
+
+
+def test_relay_drops_touch_during_warmup():
+    session = _Session()
+    relay = TouchInputRelay(session, cooldown_s=0.0, warmup_s=60.0)
+    relay({"kind": "touch", "region": "head"})
+    assert session.calls == []
+    assert relay.ignored == 1
+
+
+def test_relay_skips_touch_while_agent_thinking():
+    session = _Session(agent_state="thinking")
+    relay = TouchInputRelay(session, cooldown_s=0.0, warmup_s=0.0)
+    relay({"kind": "touch", "region": "head"})
+    assert session.calls == []
+    assert relay.ignored == 1
 
 
 def test_relay_forwards_first_touch_and_cools_down():

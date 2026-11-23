@@ -25,7 +25,11 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from companion.api.livekit.touch_input import DEFAULT_COOLDOWN_S, TouchInputRelay
+from companion.api.livekit.touch_input import (
+    DEFAULT_COOLDOWN_S,
+    DEFAULT_TOUCH_WARMUP_S,
+    TouchInputRelay,
+)
 from companion.service.uploads.policy import MAX_MESSAGE_ATTACHMENTS
 
 logger = logging.getLogger(__name__)
@@ -214,9 +218,15 @@ class CompositeInputRelay:
     这里不抛异常，理由和槽的 ``put`` 一样：输入链不该被一条坏输入拖停。
     """
 
-    def __init__(self, session: Any, slot: PendingAttachmentSlot, *,
-                 cooldown_s: float = DEFAULT_COOLDOWN_S) -> None:
-        self.touch = TouchInputRelay(session, cooldown_s=cooldown_s)
+    def __init__(
+        self,
+        session: Any,
+        slot: PendingAttachmentSlot,
+        *,
+        cooldown_s: float = DEFAULT_COOLDOWN_S,
+        touch_warmup_s: float = 0.0,
+    ) -> None:
+        self.touch = TouchInputRelay(session, cooldown_s=cooldown_s, warmup_s=touch_warmup_s)
         self._slot = slot
         #: 分发器自己拒掉的条数（kind 缺失或不认识）。触摸分支内部的拒收记在
         #: ``touch.ignored`` 里，两处加起来才是「这个房间丢了多少条 control.input」。

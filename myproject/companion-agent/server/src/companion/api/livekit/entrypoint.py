@@ -26,7 +26,7 @@ from companion.api.livekit.barge_in import BargeInRelay
 from companion.api.livekit.inbound_audio_probe import attach_inbound_audio_probe
 from companion.api.livekit.input_attachments import CompositeInputRelay, PendingAttachmentSlot
 from companion.api.livekit.outbound_audio_probe import attach_outbound_audio_probe
-from companion.api.livekit.touch_input import DEFAULT_COOLDOWN_S
+from companion.api.livekit.touch_input import DEFAULT_COOLDOWN_S, DEFAULT_TOUCH_WARMUP_S
 from companion.api.livekit.speech_publisher import SpeechPublisher
 from companion.api.livekit.anchored_cues import AnchoredCuePublisher
 
@@ -65,6 +65,7 @@ VOICE_PREEMPTIVE_GENERATION_ENABLED = False
 # 略拉长 endpointing，减少连续 final 叠成多轮 user turn。
 VOICE_ENDPOINTING_MIN_DELAY = 0.75
 VOICE_ENDPOINTING_MAX_DELAY = 4.0
+# 见 touch_input.DEFAULT_TOUCH_WARMUP_S；入口挂 relay 时传入。
 
 
 @dataclass
@@ -482,7 +483,12 @@ class RoomEntrypoint:
         # kind=attachments → 上面那个 pending 槽（由回合并入 submit）。
         # 必须在 start 之后挂：session 还没起来时发 generate_reply 会炸；
         # 挂晚一点没事，最多丢掉开场几秒内的点按与附件事件。
-        bridge.on_input = CompositeInputRelay(session, pending, cooldown_s=DEFAULT_COOLDOWN_S)
+        bridge.on_input = CompositeInputRelay(
+            session,
+            pending,
+            cooldown_s=DEFAULT_COOLDOWN_S,
+            touch_warmup_s=DEFAULT_TOUCH_WARMUP_S,
+        )
         # 用户开口打断：interrupt 截断 TTS，speech.cancel 立刻发 control.cancel（§10）。
         bridge.on_barge = BargeInRelay(session, speech)
         logger.info(

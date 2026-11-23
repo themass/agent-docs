@@ -18,6 +18,7 @@ from companion.api.livekit.agent import (
     last_user_message,
 )
 from companion.api.livekit.entrypoint import RoomIdentity, build_session_options, make_entrypoint
+from companion.api.livekit.touch_input import DEFAULT_TOUCH_WARMUP_S
 
 
 def _meta(**kw) -> str:
@@ -202,6 +203,10 @@ async def test_voice_session_widens_endpointing():
     assert ep["min_delay"] >= 0.65
     session = AgentSession(**options)
     assert session.options.endpointing["min_delay"] == VOICE_ENDPOINTING_MIN_DELAY
+
+
+def test_touch_warmup_blocks_early_touch_turns():
+    assert DEFAULT_TOUCH_WARMUP_S >= 3.0
 
 
 async def test_voice_session_extends_vad_interrupt_thresholds():
