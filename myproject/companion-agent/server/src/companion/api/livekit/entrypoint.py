@@ -60,6 +60,11 @@ VOICE_INTERRUPTION_MIN_WORDS = 2
 VOICE_INTERRUPTION_MIN_DURATION = 0.9
 # agent 开口前几秒：收紧 VAD/叠麦误打断（75e90fda：Hello 重复 final + VAD）。
 VOICE_INTERRUPTION_BACKCHANNEL_BOUNDARY: tuple[float, float] = (2.0, 1.0)
+# 190d782a：SDK 默认 preemptive_generation=True，STT 变体每来一条就 cancel+新开 llm_node。
+VOICE_PREEMPTIVE_GENERATION_ENABLED = False
+# 略拉长 endpointing，减少连续 final 叠成多轮 user turn。
+VOICE_ENDPOINTING_MIN_DELAY = 0.75
+VOICE_ENDPOINTING_MAX_DELAY = 4.0
 
 
 @dataclass
@@ -270,6 +275,13 @@ def build_session_options(*, mode: str = "text", voice_factory: Any = None,
         # Continuous VAD activity can hold soft-pause playback indefinitely.
         # Keep hard interruptions, including the explicit client barge-in relay.
         options["turn_handling"] = {
+            "endpointing": {
+                "min_delay": VOICE_ENDPOINTING_MIN_DELAY,
+                "max_delay": VOICE_ENDPOINTING_MAX_DELAY,
+            },
+            "preemptive_generation": {
+                "enabled": VOICE_PREEMPTIVE_GENERATION_ENABLED,
+            },
             "interruption": {
                 "resume_false_interruption": False,
                 "min_words": VOICE_INTERRUPTION_MIN_WORDS,

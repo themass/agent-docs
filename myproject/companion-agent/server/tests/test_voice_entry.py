@@ -175,6 +175,35 @@ async def test_voice_session_requires_min_words_before_stt_interrupt():
     assert session.options.interruption["min_words"] == VOICE_INTERRUPTION_MIN_WORDS
 
 
+async def test_voice_session_disables_preemptive_generation():
+    """默认 preemptive 会在 interim/变体 transcript 上重复 _generate_reply，顶掉 llm_node。"""
+    from companion.api.livekit.entrypoint import VOICE_PREEMPTIVE_GENERATION_ENABLED
+    from livekit.agents import AgentSession
+
+    options = build_session_options(mode="voice", voice_factory=None)
+    pre = options["turn_handling"]["preemptive_generation"]
+    assert pre["enabled"] is VOICE_PREEMPTIVE_GENERATION_ENABLED
+    assert VOICE_PREEMPTIVE_GENERATION_ENABLED is False
+    session = AgentSession(**options)
+    assert session.options.preemptive_generation["enabled"] is False
+
+
+async def test_voice_session_widens_endpointing():
+    from companion.api.livekit.entrypoint import (
+        VOICE_ENDPOINTING_MAX_DELAY,
+        VOICE_ENDPOINTING_MIN_DELAY,
+    )
+    from livekit.agents import AgentSession
+
+    options = build_session_options(mode="voice", voice_factory=None)
+    ep = options["turn_handling"]["endpointing"]
+    assert ep["min_delay"] == VOICE_ENDPOINTING_MIN_DELAY
+    assert ep["max_delay"] == VOICE_ENDPOINTING_MAX_DELAY
+    assert ep["min_delay"] >= 0.65
+    session = AgentSession(**options)
+    assert session.options.endpointing["min_delay"] == VOICE_ENDPOINTING_MIN_DELAY
+
+
 async def test_voice_session_extends_vad_interrupt_thresholds():
     from companion.api.livekit.entrypoint import (
         VOICE_INTERRUPTION_BACKCHANNEL_BOUNDARY,
