@@ -69,8 +69,12 @@ def _case_path(case_id: str) -> Path:
     return path
 
 
-async def cleanup_fixture_object(platform, key: str) -> str:
-    """跑完删掉本次的 fixture 对象，返回一句给控制台的话。
+async def cleanup_fixture_object(platform, key: str) -> tuple[str, bool]:
+    """跑完删掉本次的 fixture 对象，返回 ``(给控制台的一行, 是不是警告)``。
+
+    第二个值不是装饰：原代码把「删了」写 stdout、把「清理失败」写 **stderr**，
+    跑的人（和 grep 日志的脚本）靠这个分得开「正常收尾」与「桶没清干净」。返回一句
+    字符串再让调用点去猜，就会把 warn 混进 stdout——所以把判断留在这里。
 
     桶卫生：fixture 是可再生的测试产物，跑完就删；只删本次运行的那一个 key，
     会话与消息留在库里当运行证据（``ca_chat_*`` 本来就是测试/开发共用的库）。
@@ -83,14 +87,14 @@ async def cleanup_fixture_object(platform, key: str) -> str:
     清理失败也不能盖住跑测结果，所以异常只警告。
     """
     if not key:
-        return "cleanup: 本次没有上传对象（负对照），无需删除"
+        return "cleanup: 本次没有上传对象（负对照），无需删除", False
     if platform.objects is None:
-        return f"warn: 对象存储不可用（objects=None），fixture 对象 {key} 留在桶里"
+        return f"warn: 对象存储不可用（objects=None），fixture 对象 {key} 留在桶里", True
     try:
         await platform.objects.delete(key=key)
-        return f"cleanup: deleted object {key}"
+        return f"cleanup: deleted object {key}", False
     except Exception as exc:  # noqa: BLE001 — 清理失败只警告，不能盖住跑测结果
-        return f"warn: cleanup 失败（key={key}）: {exc}"
+        return f"warn: cleanup 失败（key={key}）: {exc}", True
 
 
 def ensure_no_image_matches_mode(mode: str, no_image: bool) -> None:
@@ -242,9 +246,10 @@ async def _run_real_turn(args, case, settings, lease, minter) -> int:
     finally:
         await agent_rtc.close()
         await user_rtc.close()
-        # 桶卫生与「查哪个对象」见 ``cleanup_fixture_object``。清理的话走 stderr，
-        # 不能盖住跑测结果。
-        print(await cleanup_fixture_object(platform, key))
+        # 桶卫生与「查哪个对象」见 ``cleanup_fixture_object``：清理的话走 stderr，
+        # 不能盖住跑测结果，也不能混在正常输出里让脚本分不开。
+        cleanup_line, is_warning = await cleanup_fixture_object(platform, key)
+        print(cleanup_line, file=sys.stderr if is_warning else sys.stdout)
         await platform.aclose()
 
     print("timeline:")

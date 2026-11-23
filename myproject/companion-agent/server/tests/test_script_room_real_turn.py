@@ -370,7 +370,7 @@ async def test_real_turn_needs_a_real_bucket_instead_of_dying_on_none():
                             room="script-image_reply-tos", wait_timeout_sec=5.0)
 
 
-# --------------------------------------------------------------------- 关键词族的形状
+# --------------------------------------------------------------------- CLI 开关与桶卫生（审查 minor #5 / #11）
 
 
 def test_no_image_flag_is_refused_on_a_push_mode_case():
@@ -392,8 +392,11 @@ async def test_cleanup_deletes_via_objects_not_uploads():
 
     原来 ``if key and platform.uploads is not None: … platform.objects.delete(key)``：
     对象存储降级时两个一起 None 所以侥幸没事，但 ``uploads`` 在、``objects`` 缺的组合会
-    拿到 ``AttributeError: 'NoneType' object has no attribute 'delete'``——清理失败还
-    会盖住跑测结果。三种情况都得有明确措辞：删了 / 没东西可删 / 桶不可用。
+    拿到 ``AttributeError: 'NoneType' object has no attribute 'delete'``——清理失败还会
+    盖住跑测结果。三种情况都得有明确措辞：删了 / 没东西可删 / 桶不可用。
+
+    第二个返回值是**是不是警告**，调用点据此走 stderr/stdout（改前的 CLI 就是区分的，
+    混成一路的话脚本没法把「正常收尾」和「桶没清干净」分开）。
     """
     from tools.script_room import cleanup_fixture_object
 
@@ -406,19 +409,21 @@ async def test_cleanup_deletes_via_objects_not_uploads():
     class _Platform:
         objects = _Objects()
 
-    assert "deleted" in await cleanup_fixture_object(_Platform(), "companion-qa/uploads/x.jpg")
+    line, warn = await cleanup_fixture_object(_Platform(), "companion-qa/uploads/x.jpg")
+    assert "deleted" in line and warn is False
     assert deleted == ["companion-qa/uploads/x.jpg"]
 
-    # 负对照：没上传，别拿空 key 去删
-    assert "无需删除" in await cleanup_fixture_object(_Platform(), "")
+    # 负对照：没上传，别拿空 key 去删——这是正常路径，不是警告
+    line, warn = await cleanup_fixture_object(_Platform(), "")
+    assert "无需删除" in line and warn is False
     assert deleted == ["companion-qa/uploads/x.jpg"]
 
-    # 桶不可用：返回一句 warn，不抛（清理失败不能盖住跑测结果）
+    # 桶不可用：返回一句警告，不抛（清理失败不能盖住跑测结果）
     class _NoBucket:
         objects = None
 
-    msg = await cleanup_fixture_object(_NoBucket(), "companion-qa/uploads/y.jpg")
-    assert "对象存储不可用" in msg
+    line, warn = await cleanup_fixture_object(_NoBucket(), "companion-qa/uploads/y.jpg")
+    assert "对象存储不可用" in line and warn is True
 
 
 async def test_cleanup_failure_is_a_warning_not_an_exception():
@@ -431,10 +436,14 @@ async def test_cleanup_failure_is_a_warning_not_an_exception():
     class _Platform:
         objects = _Broken()
 
-    assert "cleanup 失败" in await cleanup_fixture_object(_Platform(), "k")
+    line, warn = await cleanup_fixture_object(_Platform(), "k")
+    assert "cleanup 失败" in line and warn is True
 
 
-# --------------------------------------------------------------------- 断言函数本身
+# --------------------------------------------------------------------- 关键词族的形状
+
+
+def test_case_keyword_family_has_no_generic_or_echoed_words():
     """关键词族里不许有泛词，也不许有提问句里本来就有的词。
 
     泛词加进族里，断言当场空转：模型看不到图时的标准回答就是在说「照片 / 发过来 /
@@ -489,11 +498,13 @@ def test_real_turn_imports_without_livekit_agents():
     """``real_turn`` 的「离线」宣称必须是**真**的：挡住 ``livekit.agents`` 还能 import。
 
     为什么值得单独一条：``real_turn`` 的 docstring 承诺不 import livekit /
-    livekit.agents，而**没有任何静态闸能守住它**（``.importlinter`` 那 6 条契约一条都不
-    覆盖 ``companion.devtools``）。它当初就是这么坏的——``from
-    companion.api.livekit.entrypoint import TEXT_TOPIC`` 经模块级音频探针把
+    livekit.agents。``.importlinter`` 现在有一条
+    ``devtools-livekit-only-in-rtc`` 守着「devtools 里只有 rtc.py 能 import livekit」，
+    但那条只看**直接** import 边——**间接**泄漏（经 ``entrypoint`` 这类模块把
+    ``livekit.agents`` 顺道拖进来）它抓不到，而这条 case 当初坏的就是那条路：
+    ``from companion.api.livekit.entrypoint import TEXT_TOPIC`` 经模块级音频探针把
     ``livekit.agents`` 整块拖了进来，于是这套「离线」测试也得装 ``--extra livekit``
-    才跑得动，而这恰好掩盖了它本来能离线跑这件事。
+    才跑得动，而这恰好掩盖了它本来能离线跑这件事。两道闸各挡各的，都留着。
 
     跑在子进程里而不是本进程：``livekit.agents`` 早已被本测试会话的其它 import 载入了，
     在进程内加 blocker 只会测到「Python 的模块缓存」。子进程是唯一干净的观测点。
