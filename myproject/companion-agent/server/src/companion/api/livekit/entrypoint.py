@@ -55,8 +55,11 @@ TOPIC_ACTION = "companion.action"
 #: 3 秒里被 GC 回收，超时回落永远不会发生。
 _HANDSHAKES: set[asyncio.Task[Any]] = set()
 
-# LiveKit STT 打断默认 min_words=0；连续 final/ interim 会在首句 TTS 出声前 interrupt。
+# LiveKit 打断默认 min_words=0、min_duration=0.5；叠麦/短 VAD 会在首句 TTS 出声前 interrupt。
 VOICE_INTERRUPTION_MIN_WORDS = 2
+VOICE_INTERRUPTION_MIN_DURATION = 0.9
+# agent 开口前几秒：收紧 VAD/叠麦误打断（75e90fda：Hello 重复 final + VAD）。
+VOICE_INTERRUPTION_BACKCHANNEL_BOUNDARY: tuple[float, float] = (2.0, 1.0)
 
 
 @dataclass
@@ -270,6 +273,8 @@ def build_session_options(*, mode: str = "text", voice_factory: Any = None,
             "interruption": {
                 "resume_false_interruption": False,
                 "min_words": VOICE_INTERRUPTION_MIN_WORDS,
+                "min_duration": VOICE_INTERRUPTION_MIN_DURATION,
+                "backchannel_boundary": VOICE_INTERRUPTION_BACKCHANNEL_BOUNDARY,
             },
         }
     if mode == "voice" and voice_factory is not None:

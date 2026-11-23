@@ -175,6 +175,23 @@ async def test_voice_session_requires_min_words_before_stt_interrupt():
     assert session.options.interruption["min_words"] == VOICE_INTERRUPTION_MIN_WORDS
 
 
+async def test_voice_session_extends_vad_interrupt_thresholds():
+    from companion.api.livekit.entrypoint import (
+        VOICE_INTERRUPTION_BACKCHANNEL_BOUNDARY,
+        VOICE_INTERRUPTION_MIN_DURATION,
+    )
+    from livekit.agents import AgentSession
+
+    options = build_session_options(mode="voice", voice_factory=None)
+    intr = options["turn_handling"]["interruption"]
+    assert intr["min_duration"] == VOICE_INTERRUPTION_MIN_DURATION
+    assert intr["min_duration"] >= 0.8
+    assert intr["backchannel_boundary"] == VOICE_INTERRUPTION_BACKCHANNEL_BOUNDARY
+    session = AgentSession(**options)
+    assert session.options.interruption["min_duration"] == VOICE_INTERRUPTION_MIN_DURATION
+    assert session.options.interruption["backchannel_boundary"] == VOICE_INTERRUPTION_BACKCHANNEL_BOUNDARY
+
+
 def test_text_session_keeps_default_turn_handling():
     assert "turn_handling" not in build_session_options(mode="text")
 
