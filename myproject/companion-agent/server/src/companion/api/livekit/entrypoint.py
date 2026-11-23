@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import logging
 from dataclasses import dataclass
@@ -27,16 +28,17 @@ from companion.api.livekit.input_attachments import CompositeInputRelay, Pending
 from companion.api.livekit.outbound_audio_probe import attach_outbound_audio_probe
 from companion.api.livekit.touch_input import DEFAULT_COOLDOWN_S
 from companion.api.livekit.speech_publisher import SpeechPublisher
-from companion.api.livekit.topics import TEXT_TOPIC
 from companion.api.livekit.anchored_cues import AnchoredCuePublisher
 
 logger = logging.getLogger(__name__)
 
-# ``TEXT_TOPIC`` 的值在 ``topics.py``，本模块只是**再导出**它（顶部那行 import），
-# 这样 ``from ...entrypoint import TEXT_TOPIC`` 的老写法照旧可用。为什么不定义在这里：
-# 剧本房也要同一个 topic，但它不能 import 本模块——本模块在模块级 import 音频探针，
-# 会把 livekit / livekit.agents 拖进它的模块图，于是「离线」测试也得装 --extra livekit
-# 才跑得动（见 topics.py 的模块 docstring）。
+# 文本流 topic 的本尊在 ``api.livekit.topics``，这里**不再导出**它。
+# 曾经有一行 ``from ...topics import TEXT_TOPIC`` 作为兼容再导出，但全仓零读者
+# （生产与剧本房都直接 import ``topics``），留着反而邀请人走错门：剧本房一旦
+# ``from ...entrypoint import TEXT_TOPIC``，就把本模块模块级的音频探针
+# （``from livekit import rtc`` + ``from livekit.agents.voice.io``）整块拖进它的模块图，
+# 「离线」的剧本房测试就得装 ``--extra livekit`` 才跑得动（见 topics.py 的模块 docstring，
+# 以及 ``tests/test_script_room_real_turn.py`` 那条挡住 livekit.agents 的子进程探针）。
 
 # 我们自己加的通道：形象事件、主动消息、待确认动作。不用 lk.chat，避免和用户
 # 输入混在一起——客户端要能区分「她说的话」和「她让你确认一件事」。
@@ -290,6 +292,25 @@ class VoiceParts:
     tts_sink: Any = None       # async (**turn 信息, segment=TtsSegment) -> None
 
 
+def _checked_wire_voice(wire_voice: Any) -> Any:
+    """装配时就确认 ``wire_voice`` 收得下三个位置参，别等到房间 join 才 TypeError。
+
+    入口按 ``wire_voice(platform, voice_id, pending_attachments)`` 调它（第三个是附件槽）。
+    这个参数原先是 ``Any``，一个还按两参写的注入会活到 ``_run`` 里才炸——那一刻房间已经
+    连上、platform 已经起来，异常落在 LiveKit 的 job 里，日志看不出根因是装配少了一个参数。
+    判据是「能不能收下这三个位置参」，不是参数个数：带默认值的可选第三参同样合法。
+    """
+    if wire_voice is None:
+        return None
+    try:
+        inspect.signature(wire_voice).bind(None, None, None)
+    except (TypeError, ValueError) as exc:
+        raise TypeError(
+            "wire_voice 必须是 wire_voice(platform, voice_id, pending_attachments) —— "
+            f"这个注入收不下三个位置参：{exc}") from exc
+    return wire_voice
+
+
 class RoomEntrypoint:
     """worker 入口。
 
@@ -313,7 +334,7 @@ class RoomEntrypoint:
                  characters: Any = None) -> None:
         self._platform_factory = platform_factory
         self._voice_factory = voice_factory
-        self._wire_voice = wire_voice
+        self._wire_voice = _checked_wire_voice(wire_voice)
         # 角色卡来源：只用来解析本房间的说话人（见 ``room_voice_id``）。
         # 是 ``companion.service.roles.port.CharacterSourcePort``，一个 ``load(id)`` 就够；
         # 接口层只认这个形状，不认它读盘还是读服务。

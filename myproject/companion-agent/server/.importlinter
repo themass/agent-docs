@@ -76,3 +76,23 @@ source_modules =
     companion.api
     companion.db
 forbidden_modules = companion.bootstrap
+
+# ---- devtools 里只有 rtc.py 能碰 livekit（剧本房的「离线」靠这条撑着）----
+# companion.devtools 原本在全部契约之外：real_turn 的 docstring 承诺「本文件不 import
+# livekit / livekit.agents」，却没有任何静态闸守过它——它当初就是从
+# ``from ...entrypoint import TEXT_TOPIC`` 这条路把 livekit.agents 整块拖进模块图的。
+# 这条契约把那句承诺变成闸：devtools 的其它模块一旦 import livekit 就当场红。
+# rtc.py 是唯一被点名的例外（MemoryRtcAdapter 与 LiveKitRtcAdapter 的家），
+# 用 ignore_imports 精确放行那一条边，而不是放宽整条契约。
+#
+# 禁的是外部包 ``livekit`` 本身——import-linter 不接受 ``livekit.agents`` 这种
+# 「外部包的子包」作为 forbidden module（报 Invalid forbidden module），而 ``livekit``
+# 这一条已经覆盖它：``from livekit.agents import X`` 在依赖图里落到 livekit 根包上，
+# 下面那条变异测试验过闸确实咬得住两者。
+[importlinter:contract:devtools-livekit-only-in-rtc]
+name = devtools 里只有 rtc.py 能 import livekit
+type = forbidden
+source_modules = companion.devtools
+forbidden_modules = livekit
+ignore_imports =
+    companion.devtools.script_room.rtc -> livekit

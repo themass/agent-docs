@@ -116,3 +116,27 @@ def test_send_accepts_exactly_the_attachment_cap():
         mine = [m for m in items if m["role"] == "user"]
         assert len(mine) == 1
         assert len(mine[0].get("attachments", [])) == MAX_MESSAGE_ATTACHMENTS
+
+
+@pytest.mark.parametrize("body", [
+    {"text": "你好", "attachments": []},      # 显式空数组
+    {"text": "你好"},                        # 键整个缺省（走 default_factory）
+])
+def test_empty_or_omitted_attachments_key_is_a_plain_text_message(body: dict):
+    """``attachments`` 缺省与显式空数组必须是**同一条纯文本消息**。
+
+    ``SendBody.attachments`` 是 ``default_factory=list``：客户端两种写法都得落到同一形态，
+    且**不会**在 meta 里留下一个空数组——历史接口因此不会多出一种「带空附件」的消息形状，
+    客户端也不用为它写分支。（``PlatformBrain._take_attachments`` 返回 ``None`` 而不是
+    ``[]`` 是同一个理由的另一半。）
+    """
+    client, h = _client()
+    with client as c:
+        sid = c.post("/v1/sessions", json={"role_id": "linche", "name": "没附件"}, headers=h).json()["id"]
+        r = c.post(f"/v1/sessions/{sid}/messages", json=body, headers=h)
+        assert r.status_code == 202, r.text
+        items = c.get(f"/v1/sessions/{sid}/messages", headers=h).json()["items"]
+        mine = [m for m in items if m["role"] == "user"]
+        assert len(mine) == 1, r.text
+        assert mine[0]["content"] == "你好"
+        assert not mine[0].get("attachments"), f"空附件不该在历史里留下键：{mine[0]}"

@@ -220,6 +220,13 @@ async def run_real_turn(
 
     # ---- 1. 输入先备好：会话、fixture 图、上传 id。这几步都不碰房间，
     # 失败的话不该让另一端先看到半个回合。
+    if with_image and platform.uploads is None:
+        # build_platform 在对象存储自检失败时把 uploads 降级成 None（只关上传，不挡启动）。
+        # 这条 case 的意义就在于走**真实上传**，所以缺桶要当场说清——直接往下走会得到
+        # ``AttributeError: 'NoneType' object has no attribute 'accept'``，读起来像代码 bug，
+        # 实际是环境缺 TOS_* 配置。
+        raise RealTurnError("这条 case 需要真桶：platform.uploads 为 None"
+                            "（TOS_* 未配置或自检失败，见 build_platform 的降级日志）")
     session = await platform.chat.sessions.create(
         owner_id=owner_id, role_id=CHARACTER_ID, name=f"script-{case.id}", locale="zh-CN")
     # 负对照连图都不上传：留着一个没人引用的对象，只是把桶弄脏。
@@ -331,6 +338,35 @@ async def run_real_turn(
                           submit_attachments=recorder.attachments)
 
 
+def negative_control_problems(*, hits: Sequence[str], submit_attachments: Sequence[Any],
+                              seg_texts: Sequence[str]) -> list[str]:
+    """负对照（``--no-image``）的断言：返回**不成立**的条目，空列表才算通过。
+
+    三条都要成立，缺任何一条这条负对照就没有证据力：
+
+    1. 关键词族**零**命中——没图却命中，说明族里有泛词，或图以别的路径混进了模型。
+    2. ``submit`` **被调用过**（``submit_attachments`` 非空）。这条是补的洞：
+       ``submit_attachments == []`` 时「没收到附件」光看 ``not any`` 也成立，
+       于是一个压根没走到 submit 的空回合能把负对照判成 PASS——绿灯证明的是「什么都没发生」。
+    3. ``submit`` 收到的每一项都是空（``None`` 或空列表）。
+
+    断言函数放模块里而不是留在 CLI 里，是为了让它能被离线测试直接跑（CLI 那条要真房真模型）。
+    """
+    problems: list[str] = []
+    if hits:
+        problems.append(f"没发附件却命中了 {list(hits)}——关键词族里有泛词，"
+                        "或附件以别的路径混进了模型")
+    if not submit_attachments:
+        problems.append("submit 一次都没被调用——这条负对照没有任何证据力"
+                        "（空列表同样满足「没收到附件」）")
+    elif any(atts for atts in submit_attachments):
+        problems.append(f"没发 attachments 事件，但 submit 收到了附件：{list(submit_attachments)!r}"
+                        "——附件路径漏了东西")
+    if not seg_texts:
+        problems.append("没有任何 speech.seg 上线——关键词断言没有语料，零命中是空转")
+    return problems
+
+
 def keyword_hits(family: Sequence[str], seg_texts: Sequence[str]) -> list[str]:
     """回复里命中了关键词族的哪几个（保持族内顺序）。
 
@@ -396,6 +432,11 @@ def _data_handler(bridge: ProtocolBridge,
         try:
             await bridge.on_data(payload, topic=topic, publisher_identity=publisher_identity,
                                  publisher_kind=publisher_kind)
+        except asyncio.CancelledError:
+            # 取消不是 bridge 的回归：``close()`` 会 cancel 这些 task（rtc.py 的
+            # ``_on_data_task_done`` 对 ``task.cancelled()`` 也是同样的口径——不记账、
+            # 不告警）。记进来的话，一次正常的收尾会把整跑判成失败。
+            raise
         except BaseException as exc:  # noqa: BLE001 — 收一份再抛，见 docstring
             errors.append(exc)
             raise
@@ -474,4 +515,5 @@ async def _send_attachments(rtc: RtcAdapter, *, upload_id: str, client_msg_id: s
 
 
 __all__ = ["CHARACTER_ID", "GENERIC_KEYWORDS", "RealTurnError", "RealTurnResult",
-           "fixture_bytes", "keyword_hits", "run_real_turn", "vacuous_family_members"]
+           "fixture_bytes", "keyword_hits", "negative_control_problems", "run_real_turn",
+           "vacuous_family_members"]

@@ -222,6 +222,75 @@ async def test_text_before_the_attachments_event_keeps_the_images_for_the_next_t
     assert any("attach" in r.getMessage().lower() for r in caplog.records)
 
 
+# ---------------------------------------------------------------- 3.5 计数器落到日志（放量前四条件④）
+
+def test_consume_emits_a_log_line_with_the_accepted_and_ignored_counts(caplog):
+    """每一回合消费时必须有**一行**日志带 accepted/ignored，否则「图片没被理解」无从诊断。
+
+    计数器原来只有出口给剧本房用（``relay.accepted``），线上没有任何读者：一条带图消息
+    变成纯文本时，日志里既看不出「事件根本没到」（accepted=0），也看不出「到了但被拒」
+    （ignored>0）——这两种故障在端上长得一模一样。
+    """
+    slot = PendingAttachmentSlot()
+    slot.put(["01A"], client_msg_id="att-1")
+    slot.put("not-a-list", client_msg_id="att-2")     # 拒收
+
+    with caplog.at_level("INFO", logger="companion.api.livekit.input_attachments"):
+        slot.consume()
+
+    line = [r.getMessage() for r in caplog.records if "accepted=" in r.getMessage()]
+    assert line, "consume 必须落一行带计数器的日志"
+    assert "accepted=1" in line[0], line[0]
+    assert "ignored=1" in line[0], line[0]
+
+
+def test_the_relay_counters_and_the_slot_counters_agree():
+    """两个计数器不能各记各的：线上读的是日志（槽），剧本房读的是属性（分发器）。
+
+    两边分开累加的话，其中一处漏加就永远对不上，而那正是这条日志要排除的情况。
+    """
+    session = _Session()
+    slot = PendingAttachmentSlot()
+    relay = CompositeInputRelay(session, slot)
+
+    relay(_attachments_args(["01A"], client_msg_id="att-1"))
+    relay(_attachments_args("nope", client_msg_id="att-2"))
+    relay({"kind": "swipe"})
+
+    assert relay.accepted == slot.accepted == 1
+    assert relay.ignored == 2          # 一条拒收 + 一条未知 kind
+    assert slot.ignored == 1           # 槽只算附件这一路的拒收
+    assert relay.touch.accepted == 0
+
+
+def test_a_duplicate_is_counted_as_accepted_and_as_a_duplicate():
+    """重发的计数口径（评审言「易误读」）：既算 accepted，也单独算 duplicates。
+
+    两个数分开才有意义：只有 accepted 的话，「点 1 次重传 2 次」读起来像「发了 3 条带图
+    消息」；只有 duplicates 的话，重发又像被丢掉了。日志那行同时带两者（``_log_counters``）。
+    """
+    slot = PendingAttachmentSlot()
+    slot.put(["01A"], client_msg_id="att-1")
+    slot.put(["01A"], client_msg_id="att-1")     # 幂等命中
+
+    assert (slot.accepted, slot.duplicates, slot.ignored) == (2, 1, 0)
+    assert slot.consume() == ["01A"]             # 但只并进去一次
+
+
+# ---------------------------------------------------------------- 3.6 规范化（审查 minor #1）
+
+def test_ids_are_stripped_when_stored_not_just_when_validated():
+    """校验用 strip、存储也用 strip：两端必须同一个值。
+
+    原来 ``_clean_ids`` 只拿 strip 判空，存的却是原值——``" 01A "`` 一路到
+    ``get_owned``（按 ULID 精确查）才挂，表现是「图收下了、模型看不到」，
+    而日志里那条 accepted 完全正常。规范化必须在进槽那一刻做完。
+    """
+    slot = PendingAttachmentSlot()
+    assert slot.put([" 01A ", "01B"], client_msg_id="att-1") is True
+    assert slot.consume() == ["01A", "01B"]
+
+
 # ---------------------------------------------------------------- 4. TTL（Review Focus 2）
 
 def test_expired_slot_consumes_empty_without_raising():
@@ -239,6 +308,27 @@ def test_expired_slot_consumes_empty_without_raising():
 
 def test_ttl_is_sixty_seconds():
     assert PENDING_TTL_SEC == 60
+
+
+async def test_an_expired_batch_submits_a_pure_text_turn():
+    """TTL 的**回合级**后果：过期的那批不能进 submit，submit 收到 ``attachments=None``。
+
+    原来只在槽层钉了「过期消费为空」，没钉「于是这一条消息就是纯文本」——而那才是用户
+    看得见的事实（图没进去），也是 ``PlatformBrain._take_attachments`` 把空槽换成 ``None``
+    （而不是 ``[]``）的理由。
+    """
+    from companion.service.turns.platform_brain import PlatformBrain
+
+    clock = _Clock()
+    slot = PendingAttachmentSlot(clock=clock)
+    submit = _FakeSubmit()
+    brain = PlatformBrain(submit=submit, control=_FakeControl(), pending_attachments=slot)
+    slot.put(["01A"], client_msg_id="att-1")
+    clock.advance(PENDING_TTL_SEC + 1)
+
+    await _start_turn(brain)
+
+    assert submit.calls[0]["attachments"] is None
 
 
 # ---------------------------------------------------------------- 5. 幂等（Review Focus 3）
@@ -285,6 +375,42 @@ def test_a_different_client_msg_id_overrides_the_slot():
     assert slot.consume() == ["01NEW"]
 
 
+# ---------------------------------------------------------------- 5.5 幂等记忆的**真实**边界（审查 minor #2）
+
+def test_a_retransmit_is_still_recognized_long_after_the_ttl():
+    """幂等记忆按 id 精确匹配，**不**按 TTL 过期——这里钉住实际语义。
+
+    ``_consumed_client_msg_id`` 那段的旧注释说「更早的重传越过 TTL 才到，本来也该丢」，
+    读起来像记忆本身有过期时间。事实是：槽空了以后只能靠 id 认重发，所以**永远**认得出
+    最近消费的那一批（不给它过期恰恰是安全的——一过期，这批图就会贴到用户下一条消息上）。
+    """
+    clock = _Clock()
+    slot = PendingAttachmentSlot(clock=clock)
+    slot.put(["01A"], client_msg_id="att-1")
+    assert slot.consume() == ["01A"]
+
+    clock.advance(PENDING_TTL_SEC * 10)          # 远超 TTL
+    assert slot.put(["01A"], client_msg_id="att-1") is True
+    assert slot.consume() == []
+
+
+def test_only_the_most_recent_consumed_batch_is_remembered():
+    """记忆只留**最近一次**那批：上上次那批的迟到重传认不出来，会被当成新附件。
+
+    这是已知代价，不是已防住的事——注释与测试都得把它摆在明面上，否则读代码的人会以为
+    重发路径密不透风。（id 是端侧每次点击现造的，房间又是 per-worker，撞上的概率极低，
+    但一旦撞上就是「图跑到另一条消息上」，所以要能一眼看到这条边界。）
+    """
+    slot = PendingAttachmentSlot()
+    slot.put(["01OLD"], client_msg_id="att-old")
+    assert slot.consume() == ["01OLD"]
+    slot.put(["01NEW"], client_msg_id="att-new")
+    assert slot.consume() == ["01NEW"]
+
+    assert slot.put(["01OLD"], client_msg_id="att-old") is True   # 认不出来了
+    assert slot.consume() == ["01OLD"]                            # 会被并入下一条消息
+
+
 # ---------------------------------------------------------------- 6. 上限与脏数据
 
 @pytest.mark.parametrize("ids", [
@@ -309,6 +435,38 @@ def test_bad_or_oversized_payloads_are_refused_without_touching_the_slot(ids: An
 def test_max_message_attachments_is_nine():
     """这个常数是 HTTP 上传与消息附件两处校验的本家（Task 6 的 SendBody 也 import 它）。"""
     assert MAX_MESSAGE_ATTACHMENTS == 9
+
+
+# ---------------------------------------------------------------- 6.5 缺键与空数组（审查 minor #9）
+
+@pytest.mark.parametrize("args", [
+    {"kind": "attachments"},                                     # upload_ids 键整个缺掉
+    {"kind": "attachments", "upload_ids": []},                   # 显式空数组
+    {"kind": "attachments", "upload_ids": ["01A"]},              # client_msg_id 缺掉（幂等闸失效）
+])
+def test_missing_or_empty_attachment_keys_are_refused_not_crashed(args: dict[str, Any], caplog):
+    """端侧少发一个键必须是「拒收 + warn」，不是异常，也不是收下空批。
+
+    ``args.get(...)`` 对缺键给 ``None``：``upload_ids`` 缺 → 走拒收；``client_msg_id`` 缺 →
+    这批没有幂等身份，重传会翻倍。两种都得当场可见（``client_msg_id=None`` 那批仍然收下，
+    但没有幂等保护——这是端侧该修的，日志里要看得出来）。
+    """
+    session = _Session()
+    slot = PendingAttachmentSlot()
+    relay = CompositeInputRelay(session, slot)
+
+    with caplog.at_level("WARNING"):
+        relay(args)
+
+    assert session.calls == [], "附件事件绝不能被当成一句话"
+    if args.get("upload_ids"):
+        # 有 id 但没有 client_msg_id：收下（功能优先），但没有幂等保护
+        assert slot.consume() == ["01A"]
+        assert relay.ignored == 0
+    else:
+        assert slot.consume() == []
+        assert relay.ignored == 1, "缺 upload_ids / 空数组必须计进 ignored 并落一条 warn"
+        assert any("rejected" in r.getMessage() for r in caplog.records)
 
 
 def test_a_batch_at_the_limit_is_accepted():
@@ -346,3 +504,30 @@ def test_the_wiring_still_works_without_a_slot():
     platform = SimpleNamespace(qa=None, qa_enabled=False,
                                chat=SimpleNamespace(submit=object(), control=object()))
     assert voice_wiring()(platform).brain is not None
+
+
+def test_an_old_two_arg_wire_voice_fails_at_assembly_not_at_room_join():
+    """``wire_voice`` 少了第三个参数要在**装配时**炸，而不是等到房间 join 才 TypeError。
+
+    附件槽是第三个位置参，入口按 ``wire_voice(platform, voice_id, pending)`` 调它。
+    原来 ``_wire_voice`` 是 ``Any``，一个还在按 2 参写的旧注入（或第三方装配）会一路活到
+    ``RoomEntrypoint._run`` 里才抛 ``TypeError``——那一刻房间已经连上、platform 已经起来，
+    报错点在 LiveKit 的 job 里，日志里看不出是装配少了一个参数。
+    """
+    from companion.api.livekit.entrypoint import RoomEntrypoint
+
+    def old_wire_voice(platform, voice_id):        # 少一个参数
+        return SimpleNamespace(brain=object(), recorder=None, tts_sink=None)
+
+    with pytest.raises(TypeError, match="wire_voice"):
+        RoomEntrypoint(platform_factory=object(), wire_voice=old_wire_voice)
+
+    # 三参与「带默认值的可选第三参」都合法：契约是「能不能收下这三个位置参」，不是个数
+    def ok_three(platform, voice_id, pending):
+        return SimpleNamespace(brain=object(), recorder=None, tts_sink=None)
+
+    def ok_optional(platform, voice_id, pending=None):
+        return SimpleNamespace(brain=object(), recorder=None, tts_sink=None)
+
+    RoomEntrypoint(platform_factory=object(), wire_voice=ok_three)
+    RoomEntrypoint(platform_factory=object(), wire_voice=ok_optional)

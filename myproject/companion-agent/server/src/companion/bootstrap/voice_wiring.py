@@ -70,6 +70,12 @@ class VoiceWiring:
         (kind=attachments)，读它的是回合。这里新建一个的话，图就永远进不了消息，
         而且没有任何报错可查。"""
         info = self.info_for(voice_id)
+        # ``role``/``kind`` 这里**不传**，吃 ``PlatformBrain.__init__`` 的默认
+        # ``role="user", kind="voice"``——这是这个装配的本意（语音回合）。
+        # 剧本房 ``devtools/script_room/real_turn.py`` 显式传的是 ``kind="chat"``，
+        # 因为陪伴页那条带图消息本来就是文字回合；那是**刻意的口径差异**，不是漏配
+        # （三处口径同一份说法：本行注释、``real_turn.py`` 模块 docstring 第 2 条、
+        # 验收 notes §4）。代价：「语音回合带图」不在那条 case 的覆盖里。
         return VoiceParts(brain=PlatformBrain(submit=platform.chat.submit, control=platform.chat.control,
                                               pending_attachments=pending_attachments),
                           recorder=build_voice_recorder(platform, info),

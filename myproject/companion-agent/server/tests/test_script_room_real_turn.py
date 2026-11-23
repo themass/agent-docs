@@ -23,7 +23,10 @@ from companion.agent.protocol import TOPIC_IN, decode
 from companion.agent.protocol.catalog import TOPIC_CTL, TOPIC_CUE
 from companion.devtools.script_room.case_schema import load_case
 from companion.devtools.script_room.real_turn import (
+    RealTurnError,
+    _data_handler,
     keyword_hits,
+    negative_control_problems,
     run_real_turn,
     vacuous_family_members,
 )
@@ -280,10 +283,158 @@ async def test_real_turn_without_image_sends_no_attachment_and_submits_none():
     assert keyword_hits(_case().real_turn.keyword_family, result.seg_texts) == []
 
 
+# --------------------------------------------------------------------- 负对照的断言本身（审查 minor #8）
+
+
+def test_negative_control_requires_that_submit_was_actually_called():
+    """负对照必须同时满足「submit 被调过」——空列表 ``[]`` 光看 ``not any`` 是满足的。
+
+    原来的两条（零命中 + 没收到附件）在 ``submit_attachments == []`` 时**都成立**，
+    于是一条压根没走到 submit 的空回合也能把负对照判成 PASS。这正是评审点名的那个洞：
+    间接由「seg 为空即 raise」兜住，但那只是运气，不是断言。
+    """
+    problems = negative_control_problems(hits=["红"], submit_attachments=[None], seg_texts=["红的。"])
+    assert problems, "有命中必须判失败"
+
+    problems = negative_control_problems(hits=[], submit_attachments=[], seg_texts=["没图。"])
+    assert problems, "submit 一次都没被调用 → 这条负对照没有证据力，必须判失败"
+
+    # 两条都真满足才算通过
+    assert negative_control_problems(hits=[], submit_attachments=[None], seg_texts=["没图。"]) == []
+
+    # 没有语料的零命中是空转：断言必须有话可断
+    assert any("speech.seg" in p for p in
+               negative_control_problems(hits=[], submit_attachments=[None], seg_texts=[]))
+
+
+def test_data_handler_records_errors_on_the_real_room_path_and_still_raises():
+    """``_data_handler`` 必须**同时**记账与抛出：真房路径只靠「不包 try」是假的响亮。
+
+    真房里处理器跑在 ``create_task`` 里，异常经 ``_on_data_task_done`` 降级成一条 warning
+    （rtc.py），永远到不了 ``run_real_turn``；离线路径才直接冒。所以「收进 errors」这一份
+    是两条路径上唯一都成立的响亮——而抛出是给离线路径留的。两者都要钉住。
+    """
+    errors: list[BaseException] = []
+    boom = RuntimeError("bridge regression")
+
+    class _Bridge:
+        async def on_data(self, payload, *, topic, publisher_identity, publisher_kind):
+            raise boom
+
+    handler = _data_handler(_Bridge(), errors)
+
+    import pytest
+
+    with pytest.raises(RuntimeError, match="bridge regression"):
+        asyncio.run(handler(b"{}", TOPIC_IN, "user-1", "STANDARD"))
+
+    assert errors == [boom], "异常必须被收进 errors，否则真房路径无声无息"
+
+
+def test_data_handler_does_not_record_a_cancellation_as_a_bridge_failure():
+    """取消不是 bridge 的回归：``close()`` 会 cancel 这些 task，记账会把正常收尾判成失败。
+
+    ``rtc.py:223`` 那条旧路对 ``task.cancelled()`` 是不告警的；``_data_handler`` 原来
+    ``except BaseException`` 连 ``CancelledError`` 一起收，两条路径因此不对称——
+    一次正常的收尾让整跑红在「bridge 的回归，不是模型的问题」上。
+    """
+    errors: list[BaseException] = []
+
+    class _Bridge:
+        async def on_data(self, payload, *, topic, publisher_identity, publisher_kind):
+            raise asyncio.CancelledError()
+
+    handler = _data_handler(_Bridge(), errors)
+
+    with pytest.raises(asyncio.CancelledError):
+        asyncio.run(handler(b"{}", TOPIC_IN, "user-1", "STANDARD"))
+
+    assert errors == [], "取消不该被记账"
+
+
+async def test_real_turn_needs_a_real_bucket_instead_of_dying_on_none():
+    """``--no-image`` 之外若对象存储降级（``platform.uploads is None``），要报「需要真桶」。
+
+    原来这里直接 ``platform.uploads.accept(...)`` → ``AttributeError: 'NoneType' object has
+    no attribute 'accept'``，读起来像 bug，实际是环境缺 TOS 配置——这条 case 的意义就在
+    于走真实上传，所以缺桶该当场说清，而不是抛一个指向代码的假错。
+    """
+    platform = _Platform(reply_lines=("看到图。",))
+    platform.uploads = None            # build_platform 的 TOS 自检失败就是这个样子
+    agent_rtc, user_rtc = _pair()
+
+    with pytest.raises(RealTurnError, match="桶|TOS"):
+        await run_real_turn(case=_case(), url="mem://room", agent_token="tok-a",
+                            user_token="tok-u", owner_id=91005, platform=platform,
+                            agent_rtc=agent_rtc, user_rtc=user_rtc,
+                            room="script-image_reply-tos", wait_timeout_sec=5.0)
+
+
 # --------------------------------------------------------------------- 关键词族的形状
 
 
-def test_case_keyword_family_has_no_generic_or_echoed_words():
+def test_no_image_flag_is_refused_on_a_push_mode_case():
+    """``--no-image`` 用在 push 模式的 case 上必须当场报错，不能静默无效。
+
+    开关注册在共享的 ``run`` 子命令上，只有 ``_run_real_turn`` 读它。push 模式压根没有
+    附件路径，带上它跑完还是正向绿灯——跑的人以为做了一次负对照。
+    """
+    from tools.script_room import ensure_no_image_matches_mode
+
+    ensure_no_image_matches_mode("real_turn", True)        # 合法组合：不报错
+
+    with pytest.raises(SystemExit, match="no-image"):
+        ensure_no_image_matches_mode("push", True)
+
+
+async def test_cleanup_deletes_via_objects_not_uploads():
+    """清理守卫必须查**真正调用的那个对象**（``objects``），不是 ``uploads``。
+
+    原来 ``if key and platform.uploads is not None: … platform.objects.delete(key)``：
+    对象存储降级时两个一起 None 所以侥幸没事，但 ``uploads`` 在、``objects`` 缺的组合会
+    拿到 ``AttributeError: 'NoneType' object has no attribute 'delete'``——清理失败还
+    会盖住跑测结果。三种情况都得有明确措辞：删了 / 没东西可删 / 桶不可用。
+    """
+    from tools.script_room import cleanup_fixture_object
+
+    deleted: list[str] = []
+
+    class _Objects:
+        async def delete(self, *, key: str) -> None:
+            deleted.append(key)
+
+    class _Platform:
+        objects = _Objects()
+
+    assert "deleted" in await cleanup_fixture_object(_Platform(), "companion-qa/uploads/x.jpg")
+    assert deleted == ["companion-qa/uploads/x.jpg"]
+
+    # 负对照：没上传，别拿空 key 去删
+    assert "无需删除" in await cleanup_fixture_object(_Platform(), "")
+    assert deleted == ["companion-qa/uploads/x.jpg"]
+
+    # 桶不可用：返回一句 warn，不抛（清理失败不能盖住跑测结果）
+    class _NoBucket:
+        objects = None
+
+    msg = await cleanup_fixture_object(_NoBucket(), "companion-qa/uploads/y.jpg")
+    assert "对象存储不可用" in msg
+
+
+async def test_cleanup_failure_is_a_warning_not_an_exception():
+    from tools.script_room import cleanup_fixture_object
+
+    class _Broken:
+        async def delete(self, *, key: str) -> None:
+            raise RuntimeError("tos 503")
+
+    class _Platform:
+        objects = _Broken()
+
+    assert "cleanup 失败" in await cleanup_fixture_object(_Platform(), "k")
+
+
+# --------------------------------------------------------------------- 断言函数本身
     """关键词族里不许有泛词，也不许有提问句里本来就有的词。
 
     泛词加进族里，断言当场空转：模型看不到图时的标准回答就是在说「照片 / 发过来 /
@@ -315,6 +466,23 @@ def test_keyword_hits_matches_across_sentences_and_case():
 
 
 # --------------------------------------------------------------------- import 边界
+
+
+def test_entrypoint_no_longer_re_exports_text_topic():
+    """``entrypoint`` 不再再导出 ``TEXT_TOPIC``——那是 livekit.agents 泄漏的入口。
+
+    全仓零读者，留着只邀请人写 ``from ...entrypoint import TEXT_TOPIC``，而那会把本模块
+    模块级的音频探针（``from livekit import rtc`` + ``from livekit.agents.voice.io``）
+    整块拖进剧本房的模块图。值的本尊在 ``api.livekit.topics``。
+    """
+    import importlib
+
+    topics = importlib.import_module("companion.api.livekit.topics")
+    entry = importlib.import_module("companion.api.livekit.entrypoint")
+
+    assert topics.TEXT_TOPIC == "lk.chat"
+    assert not hasattr(entry, "TEXT_TOPIC"), (
+        "entrypoint 又再导出了 TEXT_TOPIC：从那里 import 会把 livekit.agents 拖进剧本房")
 
 
 def test_real_turn_imports_without_livekit_agents():

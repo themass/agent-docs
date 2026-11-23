@@ -69,9 +69,26 @@ class PendingAttachmentSlot:
         # LATE_ARRIVAL_GRACE_SEC）。None 表示这个 worker 还没提交过回合。
         self._last_empty_consume_at: float | None = None
         # 最近一次被消费掉的那批的 client_msg_id。重传可能晚到消费之后，
-        # 那时槽已经空了，只看槽分不出「重发」和「新消息」。只记最近一次：
-        # 更早的重传越过 TTL 才到，本来也该丢。
+        # 那时槽已经空了，只看槽分不出「重发」和「新消息」。
+        #
+        # **这个记忆没有过期时间，这是刻意的**（别按 TTL 给它加一个）：槽空了以后只能靠
+        # id 认重发，一旦让它过期，同一条消息的迟到重传就会被当成**新消息**的附件，
+        # 贴到用户下一条消息上——那比「认出来然后丢掉」糟得多。
+        #
+        # 代价要说清：只记**最近一次**那批。上上次那批的迟到重传认不出来，会被当成
+        # 新附件收进槽。（id 是端侧每次点击现造的、房间又是 per-worker，撞上概率极低；
+        # 由 ``tests/test_input_attachments.py`` 把这个边界钉成测试，不让它读起来像已防住。）
         self._consumed_client_msg_id: str | None = None
+        # 计数器。放量前必须能从日志里读出「这个房间的附件事件收了多少、拒了多少」——
+        # 一条带图消息变成纯文本，线上要分得开「事件根本没到」与「到了但被拒」。
+        # consume 把这两个数落到一行 INFO（见 :meth:`consume`）。
+        #
+        # ``accepted`` 含**幂等命中**（同 ``client_msg_id`` 的重发也是「收下」，返回 True）：
+        # 它统计的是「收下的事件条数」，不是「不同的消息条数」。重发单独计在
+        # ``duplicates`` 里，所以一行日志能把「用户点了 3 次」和「点了 1 次重传 2 次」分开。
+        self.accepted = 0
+        self.duplicates = 0
+        self.ignored = 0
 
     def put(self, upload_ids: Any, *, client_msg_id: Any) -> bool:
         """暂存一批 upload_id。收下返回 True，拒收返回 False（槽原样不动）。
@@ -82,6 +99,7 @@ class PendingAttachmentSlot:
         """
         ids = _clean_ids(upload_ids)
         if ids is None:
+            self.ignored += 1
             self._warn_rejected(upload_ids, client_msg_id)
             return False
 
@@ -93,6 +111,11 @@ class PendingAttachmentSlot:
             # 只记一次——否则一次点击的两张图会变成消费时的四张。
             # 记的不只是槽里那一批：重传可能晚到**已经消费之后**，那时槽是空的，
             # 不记的话这批图会被当成新消息的附件，贴到用户下一条消息上。
+            # 计数口径：重发算「收下」（与 ``CompositeInputRelay.accepted`` 一致，
+            # 那边按 put 的返回值累加），另记一笔 duplicates，免得「点了 1 次重传 2 次」
+            # 在日志里读成「用户发了 3 条带图消息」。
+            self.accepted += 1
+            self.duplicates += 1
             logger.info("duplicate attachments event client_msg_id=%s ignored", key)
             return True
 
@@ -113,24 +136,43 @@ class PendingAttachmentSlot:
                         staged.client_msg_id, key)
 
         self._staged = _Staged(staged_at=self._clock(), client_msg_id=key, upload_ids=ids)
+        self.accepted += 1
         return True
 
     def consume(self) -> list[str]:
         """取走这批附件并清空（消费即清）。空槽或过期返回 ``[]``，不抛。"""
         staged = self._staged
+        ids: list[str] = []
         if staged is None:
             self._last_empty_consume_at = self._clock()
-            return []
-        self._staged = None
-        # 这批已经「用过」了（并入过一条消息，或因过期被丢）。记下它的 id：
-        # 同一条消息的重传随后到达时，槽是空的，只能靠这个认出来。
-        self._consumed_client_msg_id = staged.client_msg_id
-        if (self._clock() - staged.staged_at) > self._ttl:
-            logger.warning("pending attachments expired after %.0fs client_msg_id=%s: %s",
-                           self._ttl, staged.client_msg_id, list(staged.upload_ids))
-            self._last_empty_consume_at = self._clock()
-            return []
-        return list(staged.upload_ids)
+        else:
+            self._staged = None
+            # 这批已经「用过」了（并入过一条消息，或因过期被丢）。记下它的 id：
+            # 同一条消息的重传随后到达时，槽是空的，只能靠这个认出来。
+            self._consumed_client_msg_id = staged.client_msg_id
+            if (self._clock() - staged.staged_at) > self._ttl:
+                logger.warning("pending attachments expired after %.0fs client_msg_id=%s: %s",
+                               self._ttl, staged.client_msg_id, list(staged.upload_ids))
+                self._last_empty_consume_at = self._clock()
+            else:
+                ids = list(staged.upload_ids)
+        self._log_counters(ids)
+        return ids
+
+    def _log_counters(self, ids: Sequence[str]) -> None:
+        """每回合消费时把两个计数器落到一行 INFO——放量前的第四条件。
+
+        「图片没被理解」在线上必须能分开两种成因：**事件根本没到**（这个房间连一行计数器
+        都没有，说明端侧没发或数据通道没送）与**到了但被拒**（``ignored>0``，同一行里
+        还有上面那条 rejected 的 warn 可以对照）。没有这行，两者在端上长得一模一样。
+
+        一条附件事件都没收到时**不打**：纯文本回合是每个房间都有的事，为一件没发生的
+        事刷日志会把这行真正的信号淹掉。「没有这行」因此也是可读的事实。
+        """
+        if not (self.accepted or self.ignored or self.duplicates):
+            return
+        logger.info("attachments consumed for this turn: %d; counters accepted=%d ignored=%d "
+                    "duplicates=%d", len(ids), self.accepted, self.ignored, self.duplicates)
 
     def _warn_rejected(self, upload_ids: Any, client_msg_id: Any) -> None:
         kinds = {type(upload_ids).__name__}
@@ -141,17 +183,24 @@ class PendingAttachmentSlot:
 
 
 def _clean_ids(upload_ids: Any) -> tuple[str, ...] | None:
-    """校验并归一化；不合法返回 ``None``。
+    """校验**并规范化**；不合法返回 ``None``。
 
     上限用 :data:`MAX_MESSAGE_ATTACHMENTS`（媒体限制的本家，HTTP 上传与发送校验同源）。
+
+    strip 必须在**存进槽之前**做完，不能只用来判空：下游 ``get_owned`` 是按 ULID
+    精确查的，``" 01A "`` 校验时通过、查库时查不到，表现是「图收下了、模型看不到」，
+    而计数器与日志一切正常——正是最难查的那种错位。
     """
     if not isinstance(upload_ids, list) or not upload_ids:
         return None
     if len(upload_ids) > MAX_MESSAGE_ATTACHMENTS:
         return None
-    if any(not isinstance(x, str) or not x.strip() for x in upload_ids):
-        return None
-    return tuple(upload_ids)
+    cleaned: list[str] = []
+    for x in upload_ids:
+        if not isinstance(x, str) or not x.strip():
+            return None
+        cleaned.append(x.strip())
+    return tuple(cleaned)
 
 
 class CompositeInputRelay:
@@ -169,10 +218,23 @@ class CompositeInputRelay:
                  cooldown_s: float = DEFAULT_COOLDOWN_S) -> None:
         self.touch = TouchInputRelay(session, cooldown_s=cooldown_s)
         self._slot = slot
-        self.accepted = 0
         #: 分发器自己拒掉的条数（kind 缺失或不认识）。触摸分支内部的拒收记在
         #: ``touch.ignored`` 里，两处加起来才是「这个房间丢了多少条 control.input」。
-        self.ignored = 0
+        self._unknown_kind = 0
+
+    @property
+    def accepted(self) -> int:
+        """收下的附件事件条数——**读槽的那一个计数器**，不在这里再累加一遍。
+
+        两个累加器迟早对不上，而线上那行日志（``PendingAttachmentSlot._log_counters``）
+        读的是槽的数；剧本房等「这批 id 真的进槽了」也读同一个数。一处累加、多处读。
+        """
+        return self._slot.accepted
+
+    @property
+    def ignored(self) -> int:
+        """这个房间丢了多少条 ``control.input``：附件路的拒收（在槽里）+ 没人认领的 kind。"""
+        return self._unknown_kind + self._slot.ignored
 
     def __call__(self, args: dict[str, Any]) -> None:
         kind = args.get("kind") if isinstance(args, dict) else None
@@ -181,11 +243,9 @@ class CompositeInputRelay:
         elif kind == "touch":
             self.touch(args)
         else:
-            self.ignored += 1
+            self._unknown_kind += 1
             logger.info("control.input kind=%r has no handler (ignored=%d)", kind, self.ignored)
 
     def _on_attachments(self, args: dict[str, Any]) -> None:
-        if self._slot.put(args.get("upload_ids"), client_msg_id=args.get("client_msg_id")):
-            self.accepted += 1
-        else:
-            self.ignored += 1
+        # put 自己计数并落日志（拒收另有 warn），这里只管分流——见 accepted/ignored 两个属性。
+        self._slot.put(args.get("upload_ids"), client_msg_id=args.get("client_msg_id"))
