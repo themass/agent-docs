@@ -34,9 +34,11 @@ async def test_pipeline_keeps_one_line_cue_json_whole():
     chunks = [line[i:i + 9] for i in range(0, len(line), 9)]
     brain = FakeBrain(chunks)
     out = await drain(TurnPipeline(brain), req())
-    assert [o.text for o in out] == ["好，那先把能跑的部分跑起来。你现在卡在哪？"]
-    assert out[0].source == "structured"
-    assert [i.name for i in out[0].intents] == ["calm"]
+    assert out[0].text == "好，那先把能跑的部分跑起来。"
+    assert out[0].source == "tag"
+    structured = [o for o in out if o.source == "structured"]
+    assert structured
+    assert [i.name for i in structured[-1].intents] == ["calm"]
 
 
 async def test_pipeline_text_then_json_order():

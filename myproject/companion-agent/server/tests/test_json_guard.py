@@ -29,10 +29,9 @@ def test_json_held_until_braces_close_across_chunks():
     step = 9
     for i in range(0, len(LINE), step):
         out += g.feed(LINE[i:i + step])
-    assert out == [] or out == [LINE]
-    if not out:
-        out = g.feed("") + g.flush()
-    assert out == [LINE]
+    # F16：say 在整对象闭合前经断句器放出；闭合后下发 cues 壳。
+    assert any(s.startswith("好，那先把") for s in out)
+    assert any("cues" in s for s in out)
 
 
 def test_escaped_quotes_and_braces_in_say():
@@ -149,19 +148,42 @@ def test_cues_first_object_is_recognized_as_protocol():
 
 
 def test_cues_first_object_holds_until_closed_when_chunked():
-    """同一条 cues-first 片段逐字喂也不能漏出协议外壳。"""
+    """cues-first：外壳仍闭合才下发 JSON；say 可先流式。"""
     g = guard()
     out: list[str] = []
     for i in range(0, len(CUES_FIRST), 7):
         out += g.feed(CUES_FIRST[i:i + 7])
     out += g.flush()
-    assert out == [CUES_FIRST]
+    assert "你好呀。" in out
+    assert any("cues" in s for s in out)
 
 
 def test_a_bare_open_brace_still_holds_for_either_key():
     """只到 `{` / `{"` 时两把钥匙都可能，不能提前放行。"""
     assert guard().feed('{"c') == []
     assert guard().feed('{"cu') == []
+
+
+@pytest.mark.parametrize("step", [3, 9])
+def test_f16_say_streams_before_object_close(step):
+    """长 cue JSON：首句不必等整条 JSON 闭合（F16 回归）。"""
+    line = (
+        '{"say":"你好呀。你连着摸了她好几次头，我还不知道她是谁呢，跟我说说呗。",'
+        '"cues":[{"kind":"avatar.expression","name":"calm","anchor":"segment_start"}]}'
+    )
+    g = guard()
+    first_sentence_at = None
+    closed_at = None
+    for i in range(0, len(line), step):
+        emitted = g.feed(line[i : i + step])
+        for idx, item in enumerate(emitted):
+            if first_sentence_at is None and item.startswith("你好呀。"):
+                first_sentence_at = i
+            if closed_at is None and "cues" in item and item.startswith("{"):
+                closed_at = i
+    assert first_sentence_at is not None
+    assert closed_at is not None
+    assert first_sentence_at < len(line) - step
 
 
 def test_prose_brace_that_is_not_a_fragment_still_passes():
