@@ -110,6 +110,24 @@ def test_langgraph_checkpointer_is_on_the_list():
         assert name in sys.modules, f"{name} 声称预热了但其实没进 sys.modules"
 
 
+def test_prewarm_warms_system_catalog_once(monkeypatch):
+    """stage-6：283 角色 md 扫盘不得落在接房事件循环里。"""
+    from companion.api.livekit import prewarm as mod
+    from companion.bootstrap import catalog_cache
+
+    calls: list[int] = []
+
+    def fake_warm():
+        calls.append(1)
+        return object()
+
+    monkeypatch.setattr(catalog_cache, "warm_system_catalog", fake_warm)
+    catalog_cache.clear_system_catalog_cache_for_tests()
+    prewarm()
+    prewarm()
+    assert calls == [1, 1]  # 两次 prewarm 各调一次；缓存由 warm 内部保证只扫盘一次
+
+
 def test_brain_build_chain_is_on_the_list():
     """2026-11-23 stage-5 生产：langgraph 补上后两通真机（05:29/05:33）仍各冻
     10.2/10.4s，loop_monitor 帧落在 build_platform → _build_brain。104 生产

@@ -56,14 +56,30 @@ async def _platform():
 
     以前这里单独造一个大脑并在配置不全时退回 FakeBrain：房间能进、能听能说，回答却是
     写死的假话，而且说过的话不落库。现在没有数据库 / Redis 就直接拒绝启动，不降级。
+
+    stage-6：``build_platform`` 仍是同步的重装配（含大脑图），但角色目录在 prewarm 里
+    已进程级缓存；装配本身 ``asyncio.to_thread``，避免在接房关键路径上冻事件循环 10s+。
     """
+    import asyncio
+
+    from companion.bootstrap.catalog_cache import get_system_catalog, warm_system_catalog
     from companion.bootstrap.platform import build_platform, default_prompts
     from companion.config import settings
 
     if not (settings.database_url and settings.companion_redis_url):
         raise RuntimeError("语音 worker 需要 COMPANION_DATABASE_URL 与 COMPANION_REDIS_URL（与 HTTP 服务相同）")
+    catalog = get_system_catalog() or warm_system_catalog()
+
+    def _build() -> object:
+        return build_platform(
+            settings,
+            prompts=default_prompts(),
+            catalog=catalog,
+            profile="voice",
+        )
+
     # 每个房间一个任务进程，各自一份连接池：用最小的档，同时在线的房间多了也不会占满数据库
-    return build_platform(settings, prompts=default_prompts(), profile="voice")
+    return await asyncio.to_thread(_build)
 
 
 def main() -> None:

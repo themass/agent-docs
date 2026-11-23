@@ -127,6 +127,9 @@ def prewarm(job_proc: Any = None) -> None:
     t0 = time.perf_counter()
     for name in PREWARM_IMPORTS:
         __import__(name)
+    from companion.bootstrap.catalog_cache import warm_system_catalog
+
+    warm_system_catalog()
     vad = _load_vad()
     userdata = getattr(job_proc, "userdata", None)
     if isinstance(userdata, dict):

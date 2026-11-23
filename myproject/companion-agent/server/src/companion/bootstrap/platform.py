@@ -237,7 +237,7 @@ def default_prompts() -> PromptAssembler:
 
 
 def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None, memory_port: Any = None,
-                   llm: Any = None, push: Any = None, profile: str = "api") -> Platform:
+                   llm: Any = None, push: Any = None, catalog: Any = None, profile: str = "api") -> Platform:
     """组装。缺少数据库或 Redis 配置时直接失败（fail-closed），不退回内存实现。
 
     ``brain`` 为空时按配置构造 DeerFlow 大脑（需要网关配置）；测试可以传入假大脑。
@@ -269,7 +269,8 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     reminder_store = SqlReminderStore(engine)
     control = RedisTurnControl(redis)
 
-    catalog = load_system_catalog(ROLES_CATALOG_DIR, reserved_ids=BUILTIN_PERSONA_IDS)
+    if catalog is None:
+        catalog = load_system_catalog(ROLES_CATALOG_DIR, reserved_ids=BUILTIN_PERSONA_IDS)
     roles = RoleService(catalog, roles_store)
 
     timeline = SqlTimelineStore(engine)
