@@ -60,11 +60,67 @@ class _LoggingSpeechStream(_PluginSpeechStream):
     companion 树——等于断流时 voice.log 里一个字都没有（2026-11-21 R3：VAD 正常、
     transcript 恒零、零条 STT 报错）。这里把三件事钉在 companion 命名空间：
     流启停（``stream start/end/failed``）、websocket 建连（``ws open/failed`` +
-    毫秒耗时）。R3 的主嫌疑是冷 import 卡住事件循环导致握手超时静默死掉——有了
-    ``ws failed`` 的耗时和异常名，下次一句 grep 就能证实或排除。
+    毫秒耗时）、麦帧是否进入 ``push_frame``（与 inbound_audio_probe 对照判 B1/B2）、
+    Volc 回包是否有 text（插件 ``transcription start`` 在 livekit.plugins 树）。
 
     只加日志、不改语义：异常原样上抛，重连、分包、解析全部沿用插件。
     """
+
+    #: 与 inbound_audio_probe 对齐：~5s 周期的麦帧计数（假定 ~10ms/帧）。
+    _PUSH_SUMMARY_EVERY = 500
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        super().__init__(*args, **kwargs)
+        self._push_frames = 0
+        self._push_first_logged = False
+        self._asr_results_logged = 0
+
+    def push_frame(self, frame: object) -> None:
+        self._push_frames += 1
+        if not self._push_first_logged:
+            self._push_first_logged = True
+            logger.info(
+                "volc asr push first reqid=%s rate=%s ch=%s samples=%s opts_rate=%s",
+                self._request_id,
+                getattr(frame, "sample_rate", None),
+                getattr(frame, "num_channels", None),
+                getattr(frame, "samples_per_channel", None),
+                getattr(self._opts, "sample_rate", None),
+            )
+        if self._push_frames % self._PUSH_SUMMARY_EVERY == 0:
+            logger.info(
+                "volc asr push summary reqid=%s frames=%d opts_rate=%s",
+                self._request_id,
+                self._push_frames,
+                getattr(self._opts, "sample_rate", None),
+            )
+        super().push_frame(frame)  # type: ignore[arg-type]
+
+    def _process_stream_event(self, data: object) -> None:
+        try:
+            from livekit.plugins.volcengine.stt import parse_response
+
+            payload = parse_response(res=data)["payload_msg"]
+            result = (payload or {}).get("result") or {}
+            text = (result.get("text") or "")[:80]
+            definite = None
+            utterances = result.get("utterances") or []
+            if utterances:
+                definite = utterances[0].get("definite")
+            if text and self._asr_results_logged < 8:
+                self._asr_results_logged += 1
+                logger.info(
+                    "volc asr result reqid=%s definite=%s text=%r",
+                    self._request_id,
+                    definite,
+                    text,
+                )
+        except Exception:
+            logger.exception(
+                "volc asr parse failed reqid=%s",
+                self._request_id,
+            )
+        super()._process_stream_event(data)  # type: ignore[arg-type]
 
     async def _run(self) -> None:
         t0 = time.monotonic()

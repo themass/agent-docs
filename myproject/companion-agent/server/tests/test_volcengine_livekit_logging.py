@@ -95,3 +95,52 @@ async def test_run_logs_exception_and_reraises(stream, monkeypatch, caplog) -> N
             await stream._run()
 
     assert any("volc asr stream failed" in r.getMessage() for r in caplog.records)
+
+
+def test_push_frame_logs_first_rate_and_summary(stream, monkeypatch, caplog) -> None:
+    """B2 判别：麦帧是否进 STT push_audio；首帧采样率 + 周期摘要必须在 voice.log 可见。"""
+    from livekit import rtc
+
+    pushed: list[rtc.AudioFrame] = []
+
+    def capture_push(self, frame):  # noqa: ANN001
+        pushed.append(frame)
+
+    monkeypatch.setattr(vl._PluginSpeechStream, "push_frame", capture_push)
+    speech = stream
+
+    data = b"\x01\x00" * 600
+    frame = rtc.AudioFrame(data=data, sample_rate=24000, num_channels=1, samples_per_channel=600)
+
+    with caplog.at_level(logging.INFO, logger=_LOGGER):
+        speech.push_frame(frame)
+        for _ in range(499):
+            speech.push_frame(frame)
+
+    msgs = [r.getMessage() for r in caplog.records if r.name == _LOGGER]
+    assert any("volc asr push first" in m and "rate=24000" in m for m in msgs)
+    assert any("volc asr push summary" in m and "frames=500" in m for m in msgs)
+    assert len(pushed) == 500
+
+
+def test_process_stream_event_logs_result_preview(stream, monkeypatch, caplog) -> None:
+    speech = stream
+    speech._speaking = False
+
+    def fake_parse(*, res):  # noqa: ANN001 - 插件按 parse_response(res=...) 调用
+        return {
+            "payload_msg": {
+                "result": {
+                    "text": "你好",
+                    "utterances": [{"definite": False, "start_time": 0.0, "end_time": 0.5}],
+                }
+            }
+        }
+
+    monkeypatch.setattr("livekit.plugins.volcengine.stt.parse_response", fake_parse)
+
+    with caplog.at_level(logging.INFO, logger=_LOGGER):
+        speech._process_stream_event(b"\x00" * 16)
+
+    assert any("volc asr result" in r.getMessage() and "你好" in r.getMessage()
+               for r in caplog.records)
