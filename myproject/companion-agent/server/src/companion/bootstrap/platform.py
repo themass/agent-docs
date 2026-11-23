@@ -237,7 +237,8 @@ def default_prompts() -> PromptAssembler:
 
 
 def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None, memory_port: Any = None,
-                   llm: Any = None, push: Any = None, catalog: Any = None, profile: str = "api") -> Platform:
+                   llm: Any = None, push: Any = None, catalog: Any = None, profile: str = "api",
+                   checkpoint_bundle: tuple[Any, Any] | None = None) -> Platform:
     """组装。缺少数据库或 Redis 配置时直接失败（fail-closed），不退回内存实现。
 
     ``brain`` 为空时按配置构造 DeerFlow 大脑（需要网关配置）；测试可以传入假大脑。
@@ -287,7 +288,10 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     pool = checkpointer = graph = None
     if brain is None:
         if settings.checkpoint_url:
-            pool, checkpointer = _checkpointer(settings.checkpoint_url, pool_profile)
+            if checkpoint_bundle is not None:
+                pool, checkpointer = checkpoint_bundle
+            else:
+                pool, checkpointer = _checkpointer(settings.checkpoint_url, pool_profile)
         brain, graph, built_llm = _build_brain(settings, registry=registry, runtime=runtime,
                                                checkpointer=checkpointer)
         llm = llm or built_llm

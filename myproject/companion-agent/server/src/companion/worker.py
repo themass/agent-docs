@@ -59,16 +59,24 @@ async def _platform():
 
     stage-6：``build_platform`` 仍是同步的重装配（含大脑图），但角色目录在 prewarm 里
     已进程级缓存；装配本身 ``asyncio.to_thread``，避免在接房关键路径上冻事件循环 10s+。
+
+    ``AsyncPostgresSaver`` 构造时要 ``asyncio.get_running_loop()``——必须在事件循环里建，
+    不能跟着 ``build_platform`` 进线程池（stage-6 回归）。
     """
     import asyncio
 
     from companion.bootstrap.catalog_cache import get_system_catalog, warm_system_catalog
-    from companion.bootstrap.platform import build_platform, default_prompts
+    from companion.bootstrap.database import profile_for
+    from companion.bootstrap.platform import _checkpointer, build_platform, default_prompts
     from companion.config import settings
 
     if not (settings.database_url and settings.companion_redis_url):
         raise RuntimeError("语音 worker 需要 COMPANION_DATABASE_URL 与 COMPANION_REDIS_URL（与 HTTP 服务相同）")
     catalog = get_system_catalog() or warm_system_catalog()
+
+    checkpoint_bundle = None
+    if settings.checkpoint_url:
+        checkpoint_bundle = _checkpointer(settings.checkpoint_url, profile_for("voice"))
 
     def _build() -> object:
         return build_platform(
@@ -76,6 +84,7 @@ async def _platform():
             prompts=default_prompts(),
             catalog=catalog,
             profile="voice",
+            checkpoint_bundle=checkpoint_bundle,
         )
 
     # 每个房间一个任务进程，各自一份连接池：用最小的档，同时在线的房间多了也不会占满数据库
