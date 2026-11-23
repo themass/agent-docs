@@ -95,6 +95,21 @@ PREWARM_IMPORTS = (
     # 清单里 companion.bootstrap.platform 只拉模块本体——这行 import 藏在
     # _checkpointer() 函数体里，每房间装配平台才第一次冷 import，每个新进程付一次。
     "langgraph.checkpoint.postgres.aio",
+    # 2026-11-23 stage-5：langgraph 补上后两通真机（05:29/05:33）仍各冻 10.2/10.4s，
+    # 栈落在 build_platform → _build_brain → deerflow import 链。104 生产 venv
+    # `-X importtime` 实测：冷 build_platform 9.8–11.0s，其中 companion.agent.
+    # brain.deerflow 一条 3.85s——它 import graph_middleware 时函数体外就拉
+    # deerflow.mcp（1.9s）与 langchain_anthropic（2.16s）；清单里的
+    # companion.api.livekit.agent 只 import agent 模块本体，够不着 brain 链。
+    "companion.agent.brain.deerflow",
+    # 同上：_build_brain 函数体里的 LLMRouter / bootstrap.models / brain.tools，
+    # 每房间第一次装配才冷 import（与 deerflow 同一条首帧路径）。
+    "companion.agent.llm.router",
+    "companion.bootstrap.models",
+    "companion.agent.brain.tools",
+    # 首帧 platform.astart() 里的 checkpointer.setup() 走 psycopg 连接池；
+    # psycopg_pool 本体此前不在清单（psycopg 在，池不在）。
+    "psycopg_pool",
 )
 
 

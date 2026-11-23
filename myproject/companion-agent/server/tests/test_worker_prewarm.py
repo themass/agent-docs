@@ -108,3 +108,25 @@ def test_langgraph_checkpointer_is_on_the_list():
     prewarm()
     for name in required:
         assert name in sys.modules, f"{name} 声称预热了但其实没进 sys.modules"
+
+
+def test_brain_build_chain_is_on_the_list():
+    """2026-11-23 stage-5 生产：langgraph 补上后两通真机（05:29/05:33）仍各冻
+    10.2/10.4s，loop_monitor 帧落在 build_platform → _build_brain。104 生产
+    venv `-X importtime` 实测：冷 build_platform 9.8–11.0s，其中
+    companion.agent.brain.deerflow 一条 3.85s（langchain_anthropic 2.16s +
+    deerflow.mcp 1.9s 都在它的模块级 import 上）。清单里
+    companion.api.livekit.agent 只 import agent 模块本体，够不着 brain 链——
+    `_build_brain` 函数体里的每一项都是每房间第一次装配才冷 import。"""
+    required = {
+        "companion.agent.brain.deerflow",   # importtime: 3.85s 的那条主链
+        "companion.agent.llm.router",       # _build_brain 函数体
+        "companion.bootstrap.models",       # 同上（brain_models/chat_model）
+        "companion.agent.brain.tools",      # 同上（to_langchain_tools）
+        "psycopg_pool",                     # astart 里 checkpointer 池的真身
+    }
+    missing = required - set(PREWARM_IMPORTS)
+    assert not missing, f"大脑装配链没进预热清单: {sorted(missing)}"
+    prewarm()
+    for name in required:
+        assert name in sys.modules, f"{name} 声称预热了但其实没进 sys.modules"
