@@ -155,6 +155,9 @@ class PlatformBrain:
             deadline = time.monotonic() + timeout
             after = cursor
             turn_id = turn.turn_id
+            started = time.monotonic()
+            deltas = 0
+            first_logged = False
             while time.monotonic() < deadline:
                 events = await control.wait_events(session_id=session_id, after_id=after, block_ms=_POLL_MS)
                 for entry_id, name, data in events:
@@ -182,14 +185,22 @@ class PlatformBrain:
                         # cues 只在原文里，TTS 链路必须读原文（没有 raw_delta 就是两串一致）。
                         delta = data.get("raw_delta") or data.get("delta")
                         if delta:
+                            deltas += 1
                             yield str(delta)
                     elif name in _END_EVENTS:
+                        # 收流原因 + 喂了多少 delta：`said=''` 但 `interrupted=False` 时，
+                        # 这行分清 token 是丢在回合之前（deltas=0）还是断句之后（deltas>0）。
+                        logger.info("voice turn stream end turn=%s message_id=%s mode=%s event=%s deltas=%d",
+                                    turn_id, message_id, bind_mode, name, deltas)
                         return
             logger.warning("voice turn timed out turn=%s message_id=%s mode=%s",
                            turn.turn_id or "", message_id, bind_mode)
 
         async def cancel() -> None:
             if turn.turn_id:
+                # 取消的是共享的文字回合：别的语音订阅者（merged/queued 挂同一 turn）
+                # 会因此提前收流，没这行就对不上是谁杀的。
+                logger.info("voice turn cancel sent turn=%s message_id=%s", turn.turn_id, message_id)
                 await control.send_cancel(turn_id=turn.turn_id)
 
         turn.tokens = tokens()

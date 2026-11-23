@@ -220,6 +220,74 @@ async def test_a_non_numeric_user_id_is_refused_before_anything_is_written():
     assert submit.calls == []
 
 
+async def test_stream_end_logs_which_event_closed_it_and_how_many_deltas(caplog):
+    """RCA 探针（拨测 14:30 UTC）：`said=''` 但 `interrupted=False` 的回合里，
+    tokens() 是被哪个结束事件关掉的、之前喂过几个 delta——没有这行就得拿时间差猜。
+
+    生产里 `voice reply said='' interrupted=False` + `first_ms=None` 的组合意味着
+    tokens() 正常耗尽：要么 END 事件前一个 delta 都没有，要么 delta 全被 turn_id 过滤。
+    这行日志把两种情况钉死。
+    """
+    control = FakeControl()
+
+    def script(c: FakeControl) -> None:
+        c.add("turn.started", turn_id=TURN)
+        c.add("message.delta", turn_id=TURN, delta="前半句。")
+        c.add("turn.cancelled", turn_id=TURN)
+
+    submit = FakeSubmit(control, script)
+    turn = await _brain(control, submit).start_turn(_request())
+    with caplog.at_level("INFO", logger="companion.service.turns.platform_brain"):
+        assert await _collect(turn) == "前半句。"
+
+    ends = [r.getMessage() for r in caplog.records if "voice turn stream end" in r.getMessage()]
+    assert any("event=turn.cancelled" in m and "deltas=1" in m and TURN in m for m in ends)
+
+
+async def test_zero_delta_end_is_visible_as_zero_delta(caplog):
+    """空回复的判别式：END 到达时 deltas=0 —— token 丢在 merged 之前/之中，而不是断句。"""
+    control = FakeControl()
+
+    def script(c: FakeControl) -> None:
+        c.add("turn.started", turn_id=TURN)
+        c.add("message.done", turn_id=TURN)
+
+    turn = await _brain(control, FakeSubmit(control, script)).start_turn(_request())
+    with caplog.at_level("INFO", logger="companion.service.turns.platform_brain"):
+        assert await _collect(turn) == ""
+
+    ends = [r.getMessage() for r in caplog.records if "voice turn stream end" in r.getMessage()]
+    assert any("event=message.done" in m and "deltas=0" in m for m in ends)
+
+
+async def test_sending_cancel_is_logged(caplog):
+    """打断取消要留痕：语音 barge-in 取消的是共享的文字回合，别的语音订阅者
+    （merged/queued 挂在同一个 turn 上）会因此提前收流——没这行就无法对账是谁杀的。"""
+    control = FakeControl()
+    turn = await _brain(control, FakeSubmit(control, lambda c: c.add("turn.started", turn_id=TURN))
+                        ).start_turn(_request())
+    with caplog.at_level("INFO", logger="companion.service.turns.platform_brain"):
+        await turn.cancel_turn()
+
+    assert control.cancelled == [TURN]
+    assert any("voice turn cancel sent" in r.getMessage() and TURN in r.getMessage()
+               for r in caplog.records)
+
+
+async def test_first_delta_receipt_is_logged(caplog):
+    """② 段的收口探针：首句要 19–31 秒（拨测 first_ms=19143/30986）时，必须分清
+    是「chat 侧把 delta 送进事件流慢」还是「voice 侧拿到 delta 后断句慢」。
+    这行给 platform_brain 观察到第一个 delta 的时刻。"""
+    control = FakeControl()
+    submit = FakeSubmit(control, _happy)
+    turn = await _brain(control, submit).start_turn(_request())
+    with caplog.at_level("INFO", logger="companion.service.turns.platform_brain"):
+        assert await _collect(turn) == "先歇一会儿，我在。"
+
+    firsts = [r.getMessage() for r in caplog.records if "voice turn first delta" in r.getMessage()]
+    assert any(TURN in m and "after_ms=" in m for m in firsts)
+
+
 async def test_raw_delta_is_preferred_over_the_display_delta():
     """展示清洗后 delta 只剩 say；朗读必须读 raw_delta，否则 cues 再也提不出来。"""
     def script(control: FakeControl) -> None:
