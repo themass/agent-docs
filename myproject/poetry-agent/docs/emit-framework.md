@@ -69,7 +69,13 @@ V018 存储面重建比对（ws-raw 净文 ≡ 折叠 poem 面）留在生成器
 段的顺序与格式（source → content → claims+selection → background → citations UNION →
 background_line → schema_version）与全部已提交 V0xx 一致；框架的 `guard /
 citation_union / bgline_union / version_row` 保证新迁移不再手抄格式。
-MySQL 5.6.40 兼容：无 CTE、无 JSON、字面量禁反斜杠（`sql_s` 硬断言）。
+只用 MySQL 5.6 子集写法：无 CTE、无 JSON、字面量禁反斜杠（`sql_s` 硬断言）。
+**这条不是「因为服务器是 5.6」**——V001–V007 当年（2026-11-06）确实在 5.6.40 上执行，
+但今天 `mysql.sspacee.com:6666` 实测已是 **8.0.46**（握手横幅；与 testserverV
+`docs/game/README.md` 11-22 的 `SELECT VERSION()` 一致）。保留 5.6 子集的理由是
+**前向兼容**：同一套脚本在两版上都能一次跑过，不必先探测版本再决定写法。
+（另见 testserverV `docs/poetry/network-architecture.md`：那台库是**第三台机器**
+`47.82.163.162`，既不是网关也不是应用机——迁移执行位置、备份、防火墙都挂在这一跳上。）
 
 `rollback_sql(version_no, BG, CLAIMS, new_source_ids, header_lines)` 按 id 全枚举删除，
 顺序 claim_selection → citation → background_line → background → claim → content →

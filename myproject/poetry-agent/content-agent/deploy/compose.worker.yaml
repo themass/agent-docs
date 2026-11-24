@@ -1,0 +1,37 @@
+# overlay：worker 单独部署时用的那份（不改主 compose）
+#
+#   docker compose -f compose.yaml -f compose.worker.yaml up -d agent-worker poetry-domain-mcp
+#
+# 注意这里**不用 profiles**：多份 compose 的 profiles 是并集合并，靠它做门控容易看错。
+# 点名起服务更直白——上面那条命令只起这两个（worker 的 depends_on 本来就指向 mcp，
+# BFF / gateway / redis 不会被拉起）。要用 profile 形态，先自己跑
+# `docker compose -f compose.yaml -f compose.worker.yaml config --services` 看合并结果对不对。
+#
+# 为什么需要它（依据见 docs/worker-deployment-topology.md §1，都是代码实测）：
+#   - agent-worker 绑 0.0.0.0:8102（app.py:120），入站两条写路由
+#     POST /internal/dispatch、POST /internal/runs/{id}/cancel —— 拿到它就等于能发起
+#     内容生产轮次。所以它「不发布端口」不是省事，是边界本身；这里显式重申。
+#   - worker 不持模型密钥、不直连 Java、不直连 MySQL（config.py 只读 control/gateway 两个 URL）。
+#   - poetry-domain-mcp 没有 ports: 是刻意的（A-18：能 apply DRAFT 的控制桥不得被 host/LAN 触达）。
+#
+# 用之前必须先在 deploy/.env 里配好（缺一不可，缺了 worker 会 fail closed 而不是半开）：
+#   POETRY_DOMAIN_CONTROL_TOKEN  POETRY_WORKER_TOKEN
+#   POETRY_API_BASE_URL   ← 必须是**私网/同机**地址，不要填公网 IP:8888：
+#                           那会让内网依赖绕出公网，并依赖应用机 :8888 当前对公网可达这个事实。
+#   POETRY_AGENT_INTERNAL_TOKEN  POETRY_DOMAIN_MCP_TOKEN
+#
+# 起来之后必须补跑三条边界验证（content-smoke 不覆盖它们）：见
+# docs/worker-deployment-topology.md §5 的 a/d/e。
+
+services:
+  agent-worker:
+    restart: unless-stopped
+    # 并发由 WORKER_MAX_CONCURRENT_RUNS 限（默认 2）；资源上限只是防止一轮失控吃掉整机。
+    mem_limit: 1g
+    cpus: 2
+
+  poetry-domain-mcp:
+    # mcp 是 worker 的唯一出口，必须一起起（主 compose 里 worker 的 depends_on 已指向它）。
+    restart: unless-stopped
+    mem_limit: 512m
+
