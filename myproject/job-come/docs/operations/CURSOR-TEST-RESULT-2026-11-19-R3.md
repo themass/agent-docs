@@ -204,7 +204,7 @@ M/X 驱动改在生产机本机跑（对 `http://127.0.0.1:8000`），绕开本�
 
 新缺陷：**无**。
 
-证据：生产机 `/tmp/mrun/prod-full/`（phase-mx.json、m1-report.json、m1-answers.json、m1-opening-events.json）。注意 Mac 本机 `/tmp` 已被系统清理（2026-11-24 确认目录为空），证据仅存生产机侧，结论以上表为准。
+证据：当时在 Mac `/tmp/jc-validation/2026-11-19-r3/prod-full{,-img}/` 与生产机 `/tmp/mrun/prod-full/`（phase-mx.json、m1-report.json、m1-answers.json、m1-opening-events.json、img-results.json、e1b-vision.json）。**2026-11-24 复核：两侧 `/tmp` 均已被系统清理，原始 JSON 不在**（生产机 tmpfs 回收、Mac /tmp 定期清空）。结论以上表为准；各拒绝码（`upload_not_found`/`attachment_rejected`/`foreign_upload`/`attachment_too_large`）与视觉 relay 逐字读出内容已在正文记录，且拒绝侧由单测长期覆盖。
 
 ---
 
