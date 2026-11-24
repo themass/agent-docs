@@ -160,6 +160,60 @@
 
 本地曾建：`prof_rmc62y3oxo7bt561`（JD parse 同样 500，未跑完 M）。
 
+**清理状态（2026-11-19 后）**：上述 R3 账号及残留 `cursor-r*` / `g12-verify-*` 生产账号已 purge；复验账号 `usr_8dctxixq6ehtw4d6` 亦已删。
+
+---
+
+## 生产复验（deploy `d0e8a321` / fix `0db95b2`）
+
+证据：`/tmp/jc-validation/2026-11-19-r3/prod-reverify/`
+
+| 项 | 结果 |
+|---|---|
+| tip | `d0e8a321`（含 id-merge + ingest_fast hop1 去 thinking） |
+| routing | hop0 `thinking.disabled`；hop1 **无** `thinking` |
+| R1（P0/P1-2） | **PASS** — P99→110ms；日均 / 管理 5 人仍在；`experience_count_after=2` |
+| JD parse（P0-1） | **PASS** — `POST …/parse` 200，`company=示例科技`，`job_8bzdm82s44rhwr2x` 出现在 list |
+| 复验账号 | `cursor-r3-1795047824-reverify@sspacee.com` / `usr_8dctxixq6ehtw4d6` — **已 purge** |
+
+说明：确认卡 patch 的 `experiences` 长度为 2（模型本轮带了两条）；即便如此 id-merge 路径仍保住全部硬事实。原先 R1 FAIL 的整段单元素替换场景由单测 `test_profile_patch_list_merge.py` 覆盖，本地 9/9 绿。
+
+---
+
+## 全量复测（2026-11-24，deploy `d0e8a321` / fix `0db95b2`，生产）
+
+本轮要求：新账号、Job **走产品 JD parse 路径**（不再 SQL 种子）、完整 M1–M8 + X1/X2、图片消息全案例。
+M/X 驱动改在生产机本机跑（对 `http://127.0.0.1:8000`），绕开本地→生产公网链路超时（此前两轮 SSE 被 `Errno 60` 打断）。
+
+账号：`cursor-r3-1795057975-a@sspacee.com`（`usr_xmal91scixe8xrst` / `prof_nmsv8dx4r7fl8pwq`）、图片组 `cursor-r3-*-img-a/-b`。**全部已 purge（见清理终态）。**
+
+| 阶段 | 结果 |
+|---|---|
+| Phase R（产品路径） | R1 **PASS**、R2 **PASS**、R3 **PASS**、R4 **PASS**、R5 N/A、R6 **PASS** |
+| Job 创建 | **产品路径** `POST /jobs/profiles/{pid}/parse` → `job_nxgvmqlr82cwur6m`，company=示例科技，喂给整条模拟面链 |
+| Phase M | M1 **PASS**（开场引用示例科技；`asked_main` 推进；complete 200；report **ready** 带 summary）、M2 **PASS**、M3 **PASS**、M4 **PASS**、M5 **PASS**、M6 **PASS**（每 cmid 一行）、M7 **PASS**（旧 completed / 新开 active）、M8 **PASS**（状态稳定；重试 409） |
+| Phase X | X1 **PASS**、X2 **PASS**（mock 进行中 resume-coach 补档案互不干扰） |
+| 图片 E1 直传闭环 | **PASS** — sign→PUT→send→history：`storage_key` 在，history 无 `data:image`，assistant 有回复 |
+| E2 download_url | **PASS** — GET 200 |
+| E3 未 PUT 直接绑定 | **PASS** — 404 `upload_not_found` |
+| E4 类型不符 | **PASS** — 错误 CT PUT 403；魔数不符绑定 400 `attachment_rejected` |
+| E7 音频直传 | **PASS** |
+| E8 跨用户绑定 | **PASS** — 403 `foreign_upload` |
+| E9 单消息合计 >24MB | **PASS** — 400 `attachment_too_large`，无半态消息落库 |
+| E1b 视觉 relay | **PASS** — 真实 JPEG 内嵌文字被模型逐字读出（`JC VISION 42 / HELLO FROM PROD IMAGE TEST`） |
+
+新缺陷：**无**。
+
+证据：生产机 `/tmp/mrun/prod-full/`（phase-mx.json、m1-report.json、m1-answers.json、m1-opening-events.json）。注意 Mac 本机 `/tmp` 已被系统清理（2026-11-24 确认目录为空），证据仅存生产机侧，结论以上表为准。
+
+---
+
+## 清理终态（2026-11-24）
+
+诊断出 11-19 那轮 `PURGE_TARGETS []` 对 `TEST_USERS_LEFT 1` 矛盾的根源：残留账号是 **`cursor-r3b-1795047652-a@sspacee.com`（`usr_pv1pfysz1mgmcfiz`）**——r3b 复验账号；早前 purge dry 因表列名失配（`jc_media_upload` 无 `id` 列）中止，从未真正执行删除。本轮 3 个账号已在更早的 purge 中删除。
+
+11-24 用修正脚本（目标谓词与 VERIFY 一致：`email LIKE 'cursor-r%' OR email LIKE 'g12-verify%'`，不限域名）：dry 预览 1 账号 / 14 张 `jc_%` 表 / 0 存储对象 → apply → **`TEST_USERS_LEFT 0`**。生产测试账号清零。
+
 ---
 
 ## 产物索引
