@@ -498,8 +498,16 @@ class TurnRunner:
             await self._control.finish_turn(session_id=inp.session_id, owner=inp.owner,
                                             turn_id=inp.turn_id, event=event, data=data)
         else:
-            await self._control.clear_turn(session_id=inp.session_id)
-            await self._control.release_lock(session_id=inp.session_id, owner=inp.owner)
+            # 跑完整个回合、一个可见 token 都没有（provider 空 completion）。过去这里
+            # 只清状态不放事件：订阅这条回合的语音 tokens() 等不到 END 事件，只能熬满
+            # 120 秒超时（生产 voice.log 里 `voice turn timed out … mode=merged` 就是它），
+            # 文字端「正在输入」也不会停。发可重试的 error 让两端立即收流；空的 assistant
+            # 消息仍不存——它没说什么，不该作为一条空回复进历史喂模型。
+            log.warning("turn produced no output", extra={"turn_id": inp.turn_id})
+            await self._control.finish_turn(session_id=inp.session_id, owner=inp.owner,
+                                            turn_id=inp.turn_id, event="error",
+                                            data={"turn_id": inp.turn_id, "code": "empty_completion",
+                                                  "message": "没有生成回答，请重试", "retryable": True})
         if self._drain is not None and not failed:
             await self._drain(owner_id=inp.owner_id, session_id=inp.session_id,
                               character_id=inp.character_id)

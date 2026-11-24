@@ -427,3 +427,64 @@ async def test_voice_turn_publishes_raw_delta_for_the_tts_pipeline(control, redi
         assert "".join(d.get("delta", "") for d in deltas) == "好，那先把能跑的部分跑起来。"
     finally:
         await _cleanup(redis_client, sid)
+
+
+async def test_a_done_turn_with_no_output_still_closes_the_events(control, redis_client, caplog):
+    """B2 RCA：模型跑完整回合没吐一个可见 token（provider 空 completion）。
+
+    过去这种 done 回合不存消息、也不发任何收尾事件，只 clear_turn+release_lock：
+    语音 tokens() 等不到 END 事件，只能熬满 120 秒超时（生产 voice.log 里
+    `voice turn timed out ... mode=merged` 就是这个），文字端「正在输入」也不会停。
+    现在收尾必须发 error(empty_completion)：订阅者立即收流，retryable 语义与
+    turn_failed 一致；空的 assistant 消息仍不存——它没说什么，不该进历史喂模型。
+    """
+    from companion.service.chat.turn_runner import TurnInput, TurnRunner
+
+    sid = _session_id()
+    messages, queue = Messages(), Queue()
+
+    async def produce(request, inbox):
+        return
+        yield  # pragma: no cover  让它成为异步生成器：模型一次输出都没有
+
+    runner = TurnRunner(control=control, messages=messages, queue=queue, produce=produce)
+    turn = TurnInput(owner_id=7, session_id=sid, character_id="linche", turn_id="T1",
+                     owner="p:T1", text="在吗", message_ids=[])
+    try:
+        with caplog.at_level("WARNING", logger="companion.turn"):
+            await runner.run(turn)
+        events = await control.read_events_after(session_id=sid, after_id="0-0")
+        errors = [(n, d) for _i, n, d in events if n == "error"]
+        assert errors, [n for _i, n, _d in events]
+        assert errors[0][1].get("code") == "empty_completion"
+        assert errors[0][1].get("turn_id") == "T1"
+        assert errors[0][1].get("retryable") is True
+        assert [m for m in messages.rows.values() if m.role == "assistant"] == []
+        assert await control.active_turn(session_id=sid) is None
+        assert any("turn produced no output" in r.getMessage() for r in caplog.records)
+    finally:
+        await _cleanup(redis_client, sid)
+
+
+async def test_a_turn_with_output_ends_with_message_done_and_no_error(control, redis_client):
+    """判别式不能误伤正常回合：有输出的回合收尾仍只有 message.done，没有 error。"""
+    from companion.service.chat.turn_runner import TurnInput, TurnRunner
+    from companion.agent.brain.port import TextDelta
+
+    sid = _session_id()
+    messages, queue = Messages(), Queue()
+
+    async def produce(request, inbox):
+        yield TextDelta("在呢。")
+
+    runner = TurnRunner(control=control, messages=messages, queue=queue, produce=produce)
+    turn = TurnInput(owner_id=7, session_id=sid, character_id="linche", turn_id="T1",
+                     owner="p:T1", text="在吗", message_ids=[])
+    try:
+        await runner.run(turn)
+        events = await control.read_events_after(session_id=sid, after_id="0-0")
+        names = [n for _i, n, _d in events]
+        assert "error" not in names
+        assert "message.done" in names
+    finally:
+        await _cleanup(redis_client, sid)
