@@ -5,7 +5,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from companion.api.livekit.capacity import FULL_AT, room_load, worker_options_kwargs
+from companion.api.livekit.capacity import (
+    FULL_AT,
+    INITIALIZE_PROCESS_TIMEOUT_S,
+    room_load,
+    worker_options_kwargs,
+)
 
 
 def server(n_rooms):
@@ -42,13 +47,18 @@ def test_a_non_positive_cap_is_rejected_by_the_load_function(bad):
         room_load(bad)
 
 
-def test_zero_means_unlimited_and_passes_nothing_to_the_sdk():
-    assert worker_options_kwargs(0) == {} and worker_options_kwargs(-3) == {}
+def test_zero_means_unlimited_and_passes_no_load_options():
+    # 不限流时只剩进程初始化预算一项——限流相关的键一个都不带。
+    kw = worker_options_kwargs(0)
+    assert kw == {"initialize_process_timeout": INITIALIZE_PROCESS_TIMEOUT_S}
+    kw = worker_options_kwargs(-3)
+    assert kw == {"initialize_process_timeout": INITIALIZE_PROCESS_TIMEOUT_S}
 
 
 def test_a_positive_cap_sets_both_the_function_and_the_threshold():
     kw = worker_options_kwargs(5)
-    assert set(kw) == {"load_fnc", "load_threshold"} and kw["load_threshold"] == FULL_AT
+    assert set(kw) == {"load_fnc", "load_threshold", "initialize_process_timeout"}
+    assert kw["load_threshold"] == FULL_AT
     assert kw["load_fnc"](server(5)) == 1.0
 
 

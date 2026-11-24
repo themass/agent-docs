@@ -16,6 +16,15 @@ from typing import Any
 # 阈值的取值：负载到 1.0（房间数 == 上限）就算满。SDK 要求生产环境阈值不超过 1。
 FULL_AT = 1.0
 
+# job 进程 initialize/prewarm 的预算。SDK 默认 10.0s（worker.py:219），生产实测顶不住：
+# 2026-11-23/24 voice.log 94+7 条 `error initializing process` 全是这条 wait_for 的
+# TimeoutError——prewarm 本体（import 清单 + catalog 扫盘 + VAD）cost_ms 5.3–8.6s
+# （104 nproc=1），成功 init 的 elapsed_time 最高 9.99s 贴边；失败子 pid 全部缺
+# `prewarm done` 行（被杀在 prewarm 中途），每次白烧 10s + 一整轮重生，用户端是
+# 拨号后 10–30s 静默。2a098aa 把清单补到 27 项后 10s 更不够（生产 venv 冷 import
+# 单项就 9.2s）。显式 20s：prewarm 有头，真挂死仍会触发重试。
+INITIALIZE_PROCESS_TIMEOUT_S = 20.0
+
 
 def room_load(max_rooms: int) -> Callable[[Any], float]:
     """返回 ``load_fnc``：当前房间数占上限的比例（可以超过 1，表示已经超员）。"""
@@ -29,13 +38,18 @@ def room_load(max_rooms: int) -> Callable[[Any], float]:
 
 
 def worker_options_kwargs(max_rooms: int, *, port: int | None = None) -> dict[str, Any]:
-    """给 ``WorkerOptions`` 的限流参数。``max_rooms <= 0`` 表示不限（沿用 SDK 默认的 CPU 判断）。
+    """给 ``WorkerOptions`` 的装配参数：限流、进程初始化预算、健康检查端口。
+
+    ``max_rooms <= 0`` 表示不限流（沿用 SDK 默认的 CPU 判断）。
 
     ``port`` 是 worker 自己的健康检查 HTTP 端口（不是我们的业务端口）。SDK 在生产模式下默认 8081，
     和 ``companion.serve`` 的默认端口撞车——两个进程在同一台机器上部署时，后起的那个绑不上
     ``[Errno 98] address already in use`` 然后退出。部署时给它一个单独的端口。
+
+    ``initialize_process_timeout`` 无条件带上：job 进程 prewarm 的预算（见
+    ``INITIALIZE_PROCESS_TIMEOUT_S``），与限流无关，所以不跟 max_rooms 的条件走。
     """
-    kwargs: dict[str, Any] = {}
+    kwargs: dict[str, Any] = {"initialize_process_timeout": INITIALIZE_PROCESS_TIMEOUT_S}
     if max_rooms > 0:
         kwargs.update(load_fnc=room_load(max_rooms), load_threshold=FULL_AT)
     if port:
