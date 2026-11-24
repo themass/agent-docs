@@ -186,6 +186,12 @@ class PlatformBrain:
                         delta = data.get("raw_delta") or data.get("delta")
                         if delta:
                             deltas += 1
+                            if not first_logged:
+                                # ② 段收口：voice 侧看到首 delta 的时刻（不是模型侧）——
+                                # 首句 19–31 秒里，chat 发进事件流慢和 voice 断句慢在这行两侧分开。
+                                first_logged = True
+                                logger.info("voice turn first delta turn=%s after_ms=%d",
+                                            turn_id, int((time.monotonic() - started) * 1000))
                             yield str(delta)
                     elif name in _END_EVENTS:
                         # 收流原因 + 喂了多少 delta：`said=''` 但 `interrupted=False` 时，
