@@ -176,6 +176,8 @@ def build_agent_class() -> type:
             first_ms: int | None = None
             sentences: list[str] = []
             finished = False
+            cue_intents = 0
+            cue_sent = 0
             try:
                 async for output in self._pipeline.run(request):
                     if output.text:
@@ -187,16 +189,16 @@ def build_agent_class() -> type:
                         declared = None
                         if turn_id:
                             declared = await self._speech.say(output.text, turn_id=turn_id)
-                        if declared is not None:
+                        intents = getattr(output, "intents", None) or []
+                        cue_intents += len(intents)
+                        if declared is not None and intents:
                             speech_id, seg = declared
-                            intents = getattr(output, "intents", None) or []
-                            if intents:
-                                await self._cues.publish_for_segment(
-                                    intents,
-                                    speech_id=speech_id,
-                                    seg_idx=seg.idx,
-                                    source=getattr(output, "source", "tag"),
-                                )
+                            cue_sent += await self._cues.publish_for_segment(
+                                intents,
+                                speech_id=speech_id,
+                                seg_idx=seg.idx,
+                                source=getattr(output, "source", "tag"),
+                            )
                         yield output.text
                 finished = True
             except TurnRefused:
@@ -208,9 +210,12 @@ def build_agent_class() -> type:
                 finished = True
                 yield UNAVAILABLE_LINE
             finally:
-                logger.info("voice reply user=%s role=%s first_ms=%s total_ms=%s interrupted=%s said=%r",
+                # cues=发出/意图：三种「表情没出来」的成因（模型没出、锚点没声明、
+                # 降级闸掉）在这一行先分开，不用拿「grep 不到 presentation.emotion」反推。
+                logger.info("voice reply user=%s role=%s first_ms=%s total_ms=%s interrupted=%s cues=%d/%d said=%r",
                             self._user_id, self._character_id, first_ms,
                             int((time.monotonic() - started) * 1000), not finished,
+                            cue_sent, cue_intents,
                             _clip("".join(sentences)))
                 # 被打断时生成器会在这里被关闭：记录要放到后台任务里，不能在关闭路径上 await
                 self._record(message, sentences, first_ms, int((time.monotonic() - started) * 1000),

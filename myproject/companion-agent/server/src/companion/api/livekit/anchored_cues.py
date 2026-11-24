@@ -78,7 +78,7 @@ class AnchoredCuePublisher:
         level = _degrade_level(getattr(self._bridge, "telemetry", None))
         caps = self._caps()
         compiled = compile_cues(
-            self._gate(intents, level),
+            self._gate(intents, level, speech_id=speech_id, seg_idx=seg_idx),
             speech_id=speech_id,
             seg_idx=seg_idx,
             caps=caps,
@@ -88,9 +88,14 @@ class AnchoredCuePublisher:
         for cue in compiled:
             if await self._send(cue):
                 sent += 1
+                # 「服务端有没有发 cue」以前只能从静默的 publish 反推——11-23 对账
+                # 拿 `grep presentation.emotion` 判没发，而正常发送本来就没有这一行。
+                # 发一条记一条，下次排障直接 grep。
+                logger.info("cue sent t=%s speech=%s seg=%d", cue.event_type, speech_id, seg_idx)
         return sent
 
-    def _gate(self, intents: Iterable[CueIntent], level: int) -> list[CueIntent]:
+    def _gate(self, intents: Iterable[CueIntent], level: int, *,
+              speech_id: str = "", seg_idx: int = 0) -> list[CueIntent]:
         """按端侧自报档位丢掉「客户端反正会丢」的意图，并计数。
 
         丢在编译前而不是发送后：降级的意图不该再占每段/每回合的预算——
@@ -100,11 +105,18 @@ class AnchoredCuePublisher:
             return list(intents)
         allowed = _LEVEL1_KINDS if level == 1 else frozenset()
         kept: list[CueIntent] = []
+        dropped = 0
         for intent in intents:
             if intent.kind in allowed:
                 kept.append(intent)
             else:
+                dropped += 1
                 self._budget.stats.cues_dropped_degrade += 1
+        # 闸掉也要留痕：11-23 三个陪伴通话 job 的 cue 全被 L3 闸掉，voice.log 里
+        # 却与「模型没生成 cue」一模一样。没这行，两种成因无法区分。
+        if dropped:
+            logger.info("cue gate speech=%s seg=%d level=L%d dropped=%d kept=%d",
+                        speech_id, seg_idx, level, dropped, len(kept))
         return kept
 
     def _caps(self) -> Mapping[str, int]:

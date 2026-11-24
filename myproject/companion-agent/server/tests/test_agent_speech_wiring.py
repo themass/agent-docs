@@ -293,3 +293,51 @@ async def test_turn_log_clips_long_transcripts(caplog):
 
     said = next(r.message for r in caplog.records if "voice turn" in r.message)
     assert "(+300)" in said and "\n" not in said
+
+
+async def test_voice_reply_line_reports_the_cue_outcome(caplog):
+    """「表情没出来」的三种成因必须一眼分开：模型没出 cue、锚点没声明、闸掉了。
+
+    11-23 三个 job 的 `voice reply` 行里 cue 去向完全看不见，对账只能拿
+    「grep 不到 presentation.emotion」反推——而那条 grep 对正常发送也永远是空。
+    回复行直接带 cues=发出/意图，每回合一条，不再靠反推。
+    """
+    import logging
+    from companion.agent.protocol.cue_intent import CueIntent
+
+    speech = _Speech()
+    cues = _Cues()
+
+    class _WithIntents:
+        def __init__(self):
+            self.last_turn = SimpleNamespace(turn_id="T1", user_message_id=None)
+
+        async def run(self, request):
+            yield SimpleNamespace(text="先歇一会儿。", events=[],
+                                  intents=[CueIntent(kind="emotion", name="joy")], source="structured")
+
+        async def cancel(self) -> None:
+            return None
+
+    agent = build_agent_class()(pipeline=_WithIntents(), user_id="1002", character_id="linche",
+                                chat_session_id=42, speech=speech, cues=cues)
+    with caplog.at_level(logging.INFO, logger="companion.api.livekit.agent"):
+        async for _ in agent.llm_node(CTX, [], None):
+            pass
+
+    reply = next(r.message for r in caplog.records if "voice reply" in r.message)
+    assert "cues=1/1" in reply, reply
+
+
+async def test_a_reply_without_cue_intents_says_so(caplog):
+    """模型没出 cue（intents 空）要在同一行显式记 cues=0/0，而不是靠 absence 推断。"""
+    import logging
+
+    speech = _Speech()
+    agent = _agent(Pipeline(sentences=("先歇一会儿。",)), speech)
+    with caplog.at_level(logging.INFO, logger="companion.api.livekit.agent"):
+        async for _ in agent.llm_node(CTX, [], None):
+            pass
+
+    reply = next(r.message for r in caplog.records if "voice reply" in r.message)
+    assert "cues=0/0" in reply, reply
