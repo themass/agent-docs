@@ -7,7 +7,7 @@
 # 为什么分开：下面的值是照网关实测出来的（超时、关推理、extra_body），换模型不该重填；
 # 而模型本身换得频繁得多。两处都写模型名就会变成「改了哪个生效说不清」——
 # 所以模型名只有一个来源（.env），调优只有一个来源（本文件）。
-# .env 里缺某个场景的变量会直接报错，不会退回到这里的什么默认值。
+# .env 里缺现有场景的变量会直接报错；photosolve 可选，默认沿用 companion_chat 模型名。
 #
 # 换网关之前，先看它到底提供哪些模型：
 #   curl "$COMPANION_LLM_API_BASE/models" -H "Authorization: Bearer $COMPANION_LLM_API_KEY"
@@ -37,6 +37,18 @@ scenarios:
           type: disabled
     - provider: gateway
       timeout_sec: 60
+      reasoning_effort: none
+      extra_body:
+        thinking:
+          type: disabled
+
+  # 拍照解题：无会话、非流式。所有模型（包括 fallback）必须支持 image_url 视觉输入。
+  # COMPANION_LLM_MODEL_PHOTOSOLVE 可选；未设置时沿用 companion_chat 的模型名。
+  photosolve:
+    - provider: gateway
+      timeout_sec: 60
+      temperature: 0
+      max_tokens: 8192
       reasoning_effort: none
       extra_body:
         thinking:

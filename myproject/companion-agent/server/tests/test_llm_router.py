@@ -86,6 +86,27 @@ def test_memory_extract_disables_reasoning():
     assert endpoint.extra_body == {"thinking": {"type": "disabled"}}
 
 
+def test_photosolve_defaults_to_chat_names_with_vision_tuning():
+    router = LLMRouter(ROUTING, environ=ALL_SCENARIOS)
+    chain = router.chain("photosolve")
+    assert [e.model for e in chain] == [e.model for e in router.chain("companion_chat")]
+    assert all(e.max_tokens == 8192 and e.temperature == 0 for e in chain)
+    assert all(e.reasoning_effort == "none" for e in chain)
+
+
+@pytest.mark.parametrize("override", ["", "  "])
+def test_photosolve_blank_override_keeps_existing_deployment_compatible(override):
+    router = LLMRouter(ROUTING, environ={**ALL_SCENARIOS, "COMPANION_LLM_MODEL_PHOTOSOLVE": override})
+    assert [e.model for e in router.chain("photosolve")] == ["a", "b"]
+
+
+def test_photosolve_explicit_vision_chain_does_not_change_chat():
+    router = LLMRouter(ROUTING, environ={**ALL_SCENARIOS,
+                      "COMPANION_LLM_MODEL_PHOTOSOLVE": "openai/vision-a,openai/vision-b"})
+    assert [e.model for e in router.chain("photosolve")] == ["openai/vision-a", "openai/vision-b"]
+    assert [e.model for e in router.chain("companion_chat")] == ["a", "b"]
+
+
 def test_unknown_scenario_raises():
     with pytest.raises(KeyError):
         LLMRouter(ROUTING, environ=ALL_SCENARIOS).chain("no_such_scenario")

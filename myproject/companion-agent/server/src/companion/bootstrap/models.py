@@ -57,6 +57,22 @@ def scenario_model(router: LLMRouter, scenario: str, *, streaming: bool = True) 
     return primary.with_fallbacks(rest) if rest else primary
 
 
+def photosolve_service(settings):
+    """Lazy model construction keeps app creation independent of gateway configuration."""
+    from functools import cache
+
+    from companion.service.photosolve import PhotoSolveService
+
+    @cache
+    def model():
+        router = LLMRouter(settings.companion_llm_routing_path)
+        # Older deployment-specific routing files may predate this scenario.
+        scenario = "photosolve" if "photosolve" in router.scenarios else "companion_chat"
+        return scenario_model(router, scenario, streaming=False)
+
+    return PhotoSolveService(model)
+
+
 def scenario_call(router: LLMRouter, scenario: str) -> LLMCall:
     """非流式的 ``async (prompt) -> str``，给记忆提取、摘要重建等后台任务用。"""
     model = scenario_model(router, scenario, streaming=False)

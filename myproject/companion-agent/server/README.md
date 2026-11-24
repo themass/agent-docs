@@ -6,6 +6,48 @@ companion-agent 的 Python 服务：FastAPI + SQLAlchemy(async) + PostgreSQL，�
 本文件是 `pyproject.toml` 声明的 `companion-agent` 发行包的说明；构建与 `uv sync` 都依赖它存在。
 项目整体布局、产品设计、部署见上一级 [`../README.md`](../README.md)。
 
+## 无会话拍照解题
+
+`POST /v1/photosolve/solve?client_request_id=<1..128 字符非空标识>&subject=math`
+复用 `current_user` 的 Bearer 登录态验证。body 是原始图片字节（不是 multipart / JSON），
+`Content-Type: image/jpeg` 可用，但类型按文件头判定。`subject` 默认 `math`，仅支持数学。
+声明长度与实际流式读取都限制为 **8 MiB**；图片按既有 uploads policy 解码、转正、
+去 EXIF、长边缩到 2048、重编码 JPEG。PNG/JPEG/WebP/HEIC 的识别与解码能力沿用 uploads；
+HEIC 仍取决于 Pillow 的解码支持。图片只在请求内存中使用，不写上传记录、聊天会话或数据库。
+
+响应为普通 JSON（无 SSE、无外层 data 包装）：`requestId` 回传 `client_request_id`，
+`providerUsed: "companion-agent"` 表示本服务处理（不承诺命中哪一个 fallback 模型），
+`subject: "math"`，`questionFound`，`questions`。每题字段为 `index/text/latex/steps/
+finalAnswer/finalAnswerLatex/thinking/confidence`，步骤为 `index/text/latex`，与 Android
+`PhotoSolveApiResponse` 同名。`thinking` 可省略（服务端默认空字符串），无需模型提供私有思维链。
+没有题目返回 HTTP 200、`questionFound: false, questions: []`，由客户端映射 40002。
+模型 JSON 必须通过类型、长度、置信度范围和题目/答案一致性校验。
+
+业务错误为 `{"detail":{"code":数字,"message":"安全提示"}}`：
+
+| HTTP | code | 条件 |
+|---|---|---|
+| 400 | 40003 | 缺少/空白/过长 client_request_id、不支持的 subject、非法 Content-Length |
+| 413 | 40003 | 图片 body 超过 8 MiB（包括没有 Content-Length 的流） |
+| 422 | 40003 | 空图片、不支持的类型、无法解码、像素超限 |
+| 429 | 42901 | 模型网关返回限流 |
+| 502 | 50001 | 模型配置/调用失败、120 秒总调用超时、模型返回无效或过长结构 |
+
+认证错误保持共用依赖的现有契约：HTTP 401（无效登录态）或 503（认证后端不可用），
+`detail` 是字符串。提供商异常正文、图片和凭据不会回显给客户端。
+
+旧 testserverV 的本地用户配额、费用预算和幂等去重**不会自动继承**到此直连接口。
+当前 companion-agent 没有可直接复用的通用 HTTP 限流/配额依赖，此接口只映射网关 429，
+没有新增配额子系统。`client_request_id` / `requestId` 仅用于客户端关联响应，不是幂等键，
+也不承诺 exactly-once：同一标识重试仍会再次调用模型，可能重复计费。
+
+模型在首次合法请求时惰性装配，经 `scenario_model(..., streaming=False).ainvoke` 发送
+OpenAI-compatible `image_url` data URL。`COMPANION_LLM_MODEL_PHOTOSOLVE` 是**可选**模型链，
+逗号分隔、按顺序故障转移；未设置/空字符串时沿用 `companion_chat` 的模型名，并应用
+`photosolve` 自己的调优。每一跳都必须支持视觉 `image_url` 和结构化 JSON 文本回答；
+若聊天模型是纯文本，必须显式配置视觉模型链。旧自定义 routing 文件未声明 photosolve 时沿用
+companion_chat 场景，避免让现有部署因新增必填环境变量启动失败。无需新增网关凭据。
+
 ## 目录
 
 | 路径 | 内容 |

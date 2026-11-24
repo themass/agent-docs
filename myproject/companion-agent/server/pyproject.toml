@@ -33,7 +33,7 @@ dependencies = [
     "pyyaml>=6.0.0",
     "litellm>=1.55.0",
     # 公共组件库：指标/快照/联邦与 job-come 共用同一套词汇，监控面板因此能一起看。
-    "agentkit==0.1.0+20261117.96e55e48",
+    "agentkit[image]==0.1.0+20261117.96e55e48",
     # /metrics：进程内指标登记簿（companion/metrics.py）。只是别的包的传递依赖，直接用了就要显式声明。
     "prometheus-client>=0.20",
 ]

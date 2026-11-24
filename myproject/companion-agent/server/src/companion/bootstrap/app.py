@@ -37,6 +37,9 @@ from companion.api.http.routers.memory_v1 import build_router as build_memory_v1
 from companion.api.http.routers.reminders import build_router as build_reminders_router
 from companion.api.http.routers.chat import build_health_router
 from companion.bootstrap.platform import Platform
+from companion.bootstrap.models import photosolve_service
+from companion.service.photosolve import PhotoSolveService
+from companion.api.http.routers.photosolve import build_router as build_photosolve_router
 from companion.service.roles.service import RoleService
 from companion.api.http.routers.chat import ChatApi, build_router as build_chat_router
 
@@ -127,6 +130,7 @@ def create_app(
     chat: ChatApi | None = None,
     roles: RoleService | None = None,
     platform: Platform | None = None,
+    photosolve: PhotoSolveService | None = None,
 ) -> FastAPI:
     """装配应用。参数都可注入，方便测试替换实现。
 
@@ -200,6 +204,8 @@ def create_app(
         return {"status": "ok"}
 
     current_user = build_current_user(app.state.companion.verifier)
+    app.include_router(build_photosolve_router(
+        photosolve if photosolve is not None else photosolve_service(settings), current_user))
     app.include_router(build_router(service, current_user,
                                     chat_sessions=platform.sessions if platform is not None else None,
                                     # 与 /v1/sessions 同一个角色校验判据（build_platform 挂在 chat 上）：

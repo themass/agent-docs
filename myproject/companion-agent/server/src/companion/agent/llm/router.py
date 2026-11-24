@@ -61,6 +61,10 @@ def _require_model_chain(scenario: str, environ: dict[str, str]) -> list[str]:
     """从 .env 取这个场景的模型链。没给就是错误：routing.yaml 只写调优，没有模型可跑。"""
     name = _model_override_env(scenario)
     raw = (environ.get(name) or "").strip()
+    # New opt-in vision override must not make existing deployments fail startup.
+    # Reuse model names only; photosolve keeps its own tuning from routing.yaml.
+    if not raw and scenario == "photosolve":
+        return _require_model_chain("companion_chat", environ)
     if not raw:
         raise ValueError(
             f"{name} 未设置：它决定场景 {scenario!r} 用哪些模型。"
