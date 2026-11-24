@@ -77,7 +77,21 @@ overlay 文件 `content-agent/deploy/compose.worker.yaml` 只做两件事——`
 | `8101` mcp | 只有 internal 网内容器 | 同上（已如此）；**且** host 防火墙再兜一层 |
 | `8001` gateway | internal 网 | 同上 |
 | `6379` redis | internal 网 | 同上，另设 `requirepass` |
-| `8888` Java（应用机） | 只有 agent 机的 mcp/bff | **应用机侧**安全组：`src = agent 机 IP`（这也是端口收紧那件事的一部分） |
+| `8888` Java（应用机） | 只有**能拨出到它的进程**：mcp（`POETRY_API_BASE_URL`）与 BFF | **应用机侧**安全组：`src = 回环 + agent 机 IP` |
+
+⚠ **不要把这条规则写成「只有 agent 机能连 8888」却同时把 mcp 放在应用机上**——那两种写法会互相打架。
+`poetry-domain-mcp` 是**主动拨出**到 Java 的一方（`compose.yaml:100-101` 给了
+`extra_hosts: host.docker.internal:host-gateway`，就是为这一跳准备的）：
+
+- **mcp 与应用机同机**（§3 的最小形态）→ `POETRY_API_BASE_URL=http://host.docker.internal:8888`，
+  这一跳走 **bridge→host 回环**。此时应用机那条「只允许网关 + agent 机」的规则**必须放行回环**，
+  否则 mcp 起得来但每次 `load_context` 都连不上库；写成只允许外部 IP 是常见的自锁。
+- **mcp 在另一台机** → 这条拨出跨机，`src = agent 机 IP` 才是要的那条；同时 mcp 那台机要有
+  到应用机的出站（它挂在 `poetry-agent-egress` 上，`compose.yaml:109`——注意这与
+  「worker 那张网不出网」是两张网，别一起禁掉）。
+
+`POETRY_API_BASE_URL` **不要填公网地址**（`http://64.32.22.150:8888/...`）：内网依赖会绕出公网
+再绕回来，并把整条内容生产链绑在「应用机 :8888 当前对公网可达」这个我们正打算关掉的事实上。
 
 ⚠ **两个已实测的坑**：
 

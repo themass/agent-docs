@@ -14,11 +14,19 @@
 #   - worker 不持模型密钥、不直连 Java、不直连 MySQL（config.py 只读 control/gateway 两个 URL）。
 #   - poetry-domain-mcp 没有 ports: 是刻意的（A-18：能 apply DRAFT 的控制桥不得被 host/LAN 触达）。
 #
-# 用之前必须先在 deploy/.env 里配好（缺一不可，缺了 worker 会 fail closed 而不是半开）：
-#   POETRY_DOMAIN_CONTROL_TOKEN  POETRY_WORKER_TOKEN
-#   POETRY_API_BASE_URL   ← 必须是**私网/同机**地址，不要填公网 IP:8888：
-#                           那会让内网依赖绕出公网，并依赖应用机 :8888 当前对公网可达这个事实。
-#   POETRY_AGENT_INTERNAL_TOKEN  POETRY_DOMAIN_MCP_TOKEN
+# 用之前必须先在 deploy/.env 里配好。前五个是 compose.yaml 里带 `:?` 的强制键——少一个
+# docker compose 直接拒绝启动（不是半开，是起不来）：
+#   POETRY_DOMAIN_CONTROL_TOKEN  POETRY_WORKER_TOKEN          ← worker 侧两条
+#   POETRY_DOMAIN_REVIEW_TOKEN                                ← mcp 侧强制键：A-05 的关键分工，
+#                                                           审批令牌只在 mcp，**worker 永远不持**
+#   POETRY_API_BASE_URL POETRY_AGENT_INTERNAL_TOKEN POETRY_DOMAIN_MCP_TOKEN
+#   POETRY_API_BASE_URL 必须是**私网/同机**地址，不要填公网 IP:8888：那会让内网依赖绕出公网，
+#   并依赖应用机 :8888 当前对公网可达这个事实。同机部署填 http://host.docker.internal:8888
+#   （compose.yaml:100-101 的 extra_hosts 就是为这一跳准备的）。
+# 起真内容（不是 smoke）才需要的第二组——只起 worker+mcp 时用不上，
+# 但 dispatch 里带 runtime=DEERFLOW 就必须先有它们（runner.py:223 否则报 DEERFLOW_DISABLED）：
+#   DEERFLOW_ENABLED=true  DEER_FLOW_INTERNAL_AUTH_TOKEN  POETRY_LLM_*  DEERFLOW_SOURCE_DIR
+#   （gateway 与 redis 挂在 profiles: ["deerflow"] 上，起法见 docs/worker-deployment-topology.md §3.1）
 #
 # 起来之后必须补跑三条边界验证（content-smoke 不覆盖它们）：见
 # docs/worker-deployment-topology.md §5 的 a/d/e。
