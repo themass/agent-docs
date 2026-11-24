@@ -71,6 +71,72 @@ def test_the_options_are_accepted_by_the_real_worker_options_class():
     opts.validate_config(devmode=False)        # 生产模式的校验不报错
 
 
+def test_the_timeout_reaches_the_real_worker_options_class():
+    """生产 94+7 条 `error initializing process` 全是 initialize 的 10s wait_for 超时。
+    预算必须真的挂进 SDK（名字写错=白改），而且比 SDK 默认（10.0s）宽。"""
+    from livekit.agents import WorkerOptions
+
+    opts = WorkerOptions(entrypoint_fnc=lambda ctx: None,
+                         **worker_options_kwargs(5, port=8091))
+    assert opts.initialize_process_timeout == INITIALIZE_PROCESS_TIMEOUT_S
+    default_opts = WorkerOptions(entrypoint_fnc=lambda ctx: None)
+    assert INITIALIZE_PROCESS_TIMEOUT_S > default_opts.initialize_process_timeout
+
+
+def _hang_forever(_proc):
+    """挂死替身：forkserver 要 pickle 它，所以必须放模块级。"""
+    import time
+
+    time.sleep(30)
+
+
+async def _unused_entry(_ctx):
+    """entrypoint 走不到（进程在 initialize 就被掐），同样要模块级可 pickle。"""
+    raise AssertionError("entrypoint 不该被调到")
+
+
+async def test_a_hanging_prewarm_is_still_killed_at_the_budget():
+    """放宽预算不等于放弃看门狗：挂死的 prewarm 到点仍被 initialize 的 wait_for 掐掉
+    （20s 候选的安全性质——SDK 对任何预算值都执行同样的超时+重试路径）。用 0.5s 预算演示。
+
+    构造与 worker 装配 ProcPool 时下给 job 进程的同一形状（ProcJobExecutor），
+    只是 initialize_process_fnc 换成一个睡 30s 的挂死替身。"""
+    import asyncio
+    import multiprocessing
+    import time
+
+    from livekit.agents.ipc.job_proc_executor import ProcJobExecutor
+
+    proc = ProcJobExecutor(
+        initialize_process_fnc=_hang_forever,
+        job_entrypoint_fnc=_unused_entry,
+        session_end_fnc=None,
+        simulation_end_fnc=None,
+        inference_executor=None,
+        initialize_timeout=0.5,
+        close_timeout=5.0,
+        session_end_timeout=300.0,
+        memory_warn_mb=2000.0,
+        memory_limit_mb=0.0,
+        ping_interval=2.5,
+        ping_timeout=60.0,
+        high_ping_threshold=0.5,
+        http_proxy=None,
+        mp_ctx=multiprocessing.get_context("forkserver"),
+        loop=asyncio.get_event_loop(),
+    )
+    t0 = time.perf_counter()
+    killed = False
+    try:
+        await proc.start()
+        await proc.initialize()
+    except TimeoutError:
+        killed = True
+    finally:
+        await proc.aclose()
+    assert killed and time.perf_counter() - t0 < 10
+
+
 def test_the_setting_has_a_conservative_default_and_reads_the_env(monkeypatch):
     from companion.config import Settings
 
