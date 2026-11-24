@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- 宣纸底 + 浓墨「詩」：与 public/tokens.css 的 --paper / --ink 同源 -->
+  <rect width="512" height="512" fill="#f6f1e7"/>
+  <text x="256" y="256" text-anchor="middle" dominant-baseline="central"
+        font-family="Songti SC, Noto Serif CJK SC, serif" font-size="300" fill="#1f1e1b">詩</text>
+</svg>

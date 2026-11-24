@@ -55,6 +55,12 @@ if (process.argv.includes('--web')) {
   rmSync(web, { recursive: true, force: true });
   mkdirSync(web, { recursive: true });
   for (const f of ['index.html', 'sw.js']) if (existsSync(join(here, f))) cpSync(join(here, f), join(web, f));
+  // PWA entry points live at the SITE ROOT (nginx routes them there explicitly: manifest needs
+  // application/manifest+json + no-cache, and start_url/icons in the manifest are root-relative).
+  for (const f of ['manifest.webmanifest', 'icon.svg']) {
+    const src = join(here, 'public', f);
+    if (existsSync(src)) cpSync(src, join(web, f));
+  }
   for (const d of ['src', 'public']) cpSync(join(here, d), join(web, d), { recursive: true });
   mkdirSync(join(web, 'dist'), { recursive: true });
   cpSync(join(out, 'runtime'), join(web, 'dist', 'runtime'), { recursive: true });

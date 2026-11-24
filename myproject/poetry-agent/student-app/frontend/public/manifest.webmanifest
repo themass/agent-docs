@@ -1,0 +1,15 @@
+{
+  "name": "诗词时空",
+  "short_name": "诗词时空",
+  "description": "读唐诗：每读懂一首，能说出他为什么写。",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f1e7",
+  "theme_color": "#f6f1e7",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
