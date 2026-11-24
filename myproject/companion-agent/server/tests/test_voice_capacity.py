@@ -8,9 +8,11 @@ import pytest
 from companion.api.livekit.capacity import (
     FULL_AT,
     INITIALIZE_PROCESS_TIMEOUT_S,
+    WARM_IDLE_PROCESSES,
     room_load,
     worker_options_kwargs,
 )
+from companion.api.livekit.prewarm import PREWARM_IMPORTS
 
 
 def server(n_rooms):
@@ -48,16 +50,28 @@ def test_a_non_positive_cap_is_rejected_by_the_load_function(bad):
 
 
 def test_zero_means_unlimited_and_passes_no_load_options():
-    # 不限流时只剩进程初始化预算一项——限流相关的键一个都不带。
+    # 不限流时只剩三件与限流无关的：进程初始化预算、常驻热进程、forkserver 预热清单。
+    # 限流相关的键一个都不带。
     kw = worker_options_kwargs(0)
-    assert kw == {"initialize_process_timeout": INITIALIZE_PROCESS_TIMEOUT_S}
+    assert kw == {
+        "initialize_process_timeout": INITIALIZE_PROCESS_TIMEOUT_S,
+        "num_idle_processes": WARM_IDLE_PROCESSES,
+        "preload_modules": list(PREWARM_IMPORTS),
+    }
     kw = worker_options_kwargs(-3)
-    assert kw == {"initialize_process_timeout": INITIALIZE_PROCESS_TIMEOUT_S}
+    assert kw == {
+        "initialize_process_timeout": INITIALIZE_PROCESS_TIMEOUT_S,
+        "num_idle_processes": WARM_IDLE_PROCESSES,
+        "preload_modules": list(PREWARM_IMPORTS),
+    }
 
 
 def test_a_positive_cap_sets_both_the_function_and_the_threshold():
     kw = worker_options_kwargs(5)
-    assert set(kw) == {"load_fnc", "load_threshold", "initialize_process_timeout"}
+    assert set(kw) == {
+        "load_fnc", "load_threshold", "initialize_process_timeout",
+        "num_idle_processes", "preload_modules",
+    }
     assert kw["load_threshold"] == FULL_AT
     assert kw["load_fnc"](server(5)) == 1.0
 

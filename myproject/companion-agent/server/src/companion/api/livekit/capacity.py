@@ -16,6 +16,12 @@ from typing import Any
 # 阈值的取值：负载到 1.0（房间数 == 上限）就算满。SDK 要求生产环境阈值不超过 1。
 FULL_AT = 1.0
 
+# 常驻热 job 进程数。SDK 默认 `min(ceil(cpu_count),4)`——但 104（Ubuntu 20.04、cgroup v1
+# 无配额）上 `CGroupV1CPUMonitor.cpu_count()` 回退 **2.0**（实机验证），热池成了 2 个
+# ~540MB 常驻进程（journalctl 实测 idle RSS 542MB/545MB），通话时补池还按 default=2 追：
+# 1 活跃房间 = 3 进程并存，2GB 机器顶不住。显式 1：接住下一通够用，内存峰值可控。
+WARM_IDLE_PROCESSES = 1
+
 # job 进程 initialize/prewarm 的预算。SDK 默认 10.0s（worker.py:219），生产实测顶不住：
 # 2026-11-23/24 voice.log 94+7 条 `error initializing process` 全是这条 wait_for 的
 # TimeoutError——prewarm 本体（import 清单 + catalog 扫盘 + VAD）cost_ms 5.3–8.6s
@@ -48,8 +54,25 @@ def worker_options_kwargs(max_rooms: int, *, port: int | None = None) -> dict[st
 
     ``initialize_process_timeout`` 无条件带上：job 进程 prewarm 的预算（见
     ``INITIALIZE_PROCESS_TIMEOUT_S``），与限流无关，所以不跟 max_rooms 的条件走。
+
+    ``num_idle_processes`` 同样无条件带上：常驻 1 个热 job 进程（见
+    ``WARM_IDLE_PROCESSES``）。不显式设的话生产默认按 cpu_count 算，104 上 SDK 的
+    cgroup-v1 监视器回退 2.0——两个热进程 + 通话中补池，内存直接越线。
+
+    ``preload_modules`` 把 prewarm 的 import 清单交给 forkserver（`set_forkserver_preload`，
+    worker.py:786）：重 import 在 forkserver 里只付一次，每个 job 进程 COW 继承，
+    ``prewarm_fnc`` 里只剩 sys.modules 查表。不设的话（现状）forkserver 只带 SDK 自带两个
+    模块，每个 job——包括通话中途补池的那个——都要重烧一遍 27 项冷 import（生产
+    cost_ms 9323–9971 的单核风暴，正砸在通话进行中的 ICE/媒体窗口上）。spawn 上下文
+    （macOS 开发机）下该参数是 no-op，prewarm_fnc 仍逐项执行，行为不变。
     """
-    kwargs: dict[str, Any] = {"initialize_process_timeout": INITIALIZE_PROCESS_TIMEOUT_S}
+    from companion.api.livekit.prewarm import PREWARM_IMPORTS
+
+    kwargs: dict[str, Any] = {
+        "initialize_process_timeout": INITIALIZE_PROCESS_TIMEOUT_S,
+        "num_idle_processes": WARM_IDLE_PROCESSES,
+        "preload_modules": list(PREWARM_IMPORTS),
+    }
     if max_rooms > 0:
         kwargs.update(load_fnc=room_load(max_rooms), load_threshold=FULL_AT)
     if port:
