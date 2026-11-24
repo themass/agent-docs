@@ -95,3 +95,39 @@ async def test_degrade_drops_are_counted_in_stats():
     assert sent == 1
     assert stats.cues_dropped_degrade == 1
     assert stats.cues_emitted == 1
+
+
+# ---------------------------------------------------------------- 可观测性（emotion-cue RCA 20261124）
+
+
+async def test_successful_send_is_logged(caplog):
+    """「服务端到底发没发 cue」必须能从 voice.log 直接 grep 出来。
+
+    11-23 对账用 `grep presentation.emotion` 判服务端没发——但 publish 成功本来就是
+    静默的，这个 grep 对正常通话也永远是空。不发一条发出行，下次排障还得猜。
+    """
+    import logging
+
+    bridge = _FakeBridge({"degrade_level": "L0"})
+    pub = AnchoredCuePublisher(bridge)
+    with caplog.at_level(logging.INFO, logger="companion.api.livekit.anchored_cues"):
+        sent = await pub.publish_for_segment(
+            [CueIntent(kind="emotion", name="joy")], speech_id="s1", seg_idx=0)
+    assert sent == 1
+    lines = [r.getMessage() for r in caplog.records if "cue sent" in r.getMessage()]
+    assert any("presentation.emotion" in m and "s1" in m for m in lines)
+
+
+async def test_degrade_gate_drop_is_logged(caplog):
+    """降级闸丢的 cue 要留一行：三个生产 job 全窗 degrade=L3、cue 一条没发，
+    日志里却没有任何「闸掉了几条」——没这行，闸掉和没生成在日志里长得一样。
+    """
+    import logging
+
+    bridge = _FakeBridge({"degrade_level": "L3"})
+    pub = AnchoredCuePublisher(bridge)
+    with caplog.at_level(logging.INFO, logger="companion.api.livekit.anchored_cues"):
+        sent = await pub.publish_for_segment(_intents(), speech_id="s2", seg_idx=1)
+    assert sent == 0
+    lines = [r.getMessage() for r in caplog.records if "cue gate" in r.getMessage()]
+    assert any("L3" in m and "s2" in m for m in lines)
