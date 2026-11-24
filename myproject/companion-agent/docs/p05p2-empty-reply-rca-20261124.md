@@ -25,8 +25,8 @@
 与 TTS。对 HEAD 版守卫做逐 chunk 切分模糊测试（8 blob × 36000 切分）稳定复现。
 
 修复：片段闭合后置 `_after_close` 位，紧随其后的「空白 + `]`/`}`」残尾直接丢弃；
-其余正文（含 `，然后。` 这类真文本）原样放行。RED 4 → GREEN；重跑 36k 模糊
-切分零泄漏。
+其余正文（含 `，然后。` 这类真文本）原样放行。RED 3 → GREEN（第 4 条跨 chunk
+用例随修复设计补入）；重跑 36k 模糊切分零泄漏。
 
 ### 机制 A（已修已部署，B2 线）：零输出回合不收流
 
@@ -62,9 +62,9 @@ AJ_npFDTG/AJ_jMmvz 同型）。报告里「↔ 104 后续 `said=''`」所引的�
 
 - 新守卫用例 4 条：`test_closer_tail_after_a_fragment_is_not_spoken`、
   `test_closed_fragment_followed_by_junk_then_real_prose`、
-  `test_closer_tail_after_a_rejected_object_is_dropped_too`、
-  `test_closer_junk_spanning_chunk_boundary_is_dropped` —— HEAD 守卫下 RED，
-  修复后 GREEN（`test_json_guard.py` 38 passed）。
+  `test_closer_tail_after_a_rejected_object_is_dropped_too` 在 HEAD 守卫下
+  RED 且复现生产值 `']}'`；`test_closer_junk_spanning_chunk_boundary_is_dropped`
+  随修复设计补入（未单独跑 HEAD）。修复后 GREEN（`test_json_guard.py` 38 passed）。
 - `test_turns.py`（TurnPipeline 全套）同跑：51 passed。
 - 模糊切分（8 blob × 8~9 段 × 500 随机切点 = 36000）：修复前复现 `']}'`，
   修复后零泄漏。
