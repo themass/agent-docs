@@ -365,6 +365,10 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
         # 用户的等待里有一部分是我们自己造提示词（召回、世界书、角色卡），和模型无关。
         # 单独量出来，别都算到"模型慢"头上。
         metrics.observe_phase(phase="prepare", duration_sec=time.monotonic() - prepare_started)
+        # ⓪ 段探针：语音 worker（8082）没有 /metrics，Prometheus 这一份在语音侧看不见，
+        # 没有这行「提交完成→造提示词完成」就只能靠别的行的时间差推。
+        if channel == "voice":
+            log.info("voice prepare ms=%d", int((time.monotonic() - prepare_started) * 1000))
         request.prompt = plan
         request.system_prompt = plan.system
         if hasattr(brain, "run"):
@@ -481,16 +485,23 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
 
     class _ActivityAwareSubmit:
         async def submit(self, **kw):
+            # ⓪ 段探针：把「上游提交」与「活跃记账」分开量。note_activity 是在语音路径上
+            # 同步等的库往返，没有这一行就只能看见总耗时、分不清哪一段。
+            upstream_started = time.monotonic()
             result = await upstream_submit.submit(**kw)
+            upstream_ms = int((time.monotonic() - upstream_started) * 1000)
             if getattr(result, "status", "") == "accepted":
+                activity_started = time.monotonic()
                 try:
                     reminder = await compliance.note_activity(owner_id=int(kw["owner_id"]))
                 except Exception:  # noqa: BLE001
                     log.warning("usage reminder failed", extra={"owner_id": kw.get("owner_id")})
                     reminder = None
+                activity_ms = int((time.monotonic() - activity_started) * 1000)
                 if reminder:
                     await control.publish(session_id=int(kw["session_id"]), event="usage.reminder",
                                           data={"text": reminder, "turn_id": result.turn_id or ""})
+                log.info("voice submit chain upstream_ms=%d activity_ms=%d", upstream_ms, activity_ms)
             return result
 
         def __getattr__(self, name):
