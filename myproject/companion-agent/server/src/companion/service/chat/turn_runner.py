@@ -104,6 +104,9 @@ class TurnOutcome:
     failed: bool
     lock_lost: bool
     lc_ids: tuple[str, ...]
+    #: 打断时「已说出口」的文本前缀（契约 v2 §2.2）：按端侧 played_ms 折算的段前缀。
+    #: 没有端侧上报时为 ``""``——after_turn 退回 assistant_text，与改动前一致。
+    spoken_prefix: str = ""
 
 
 AfterTurn = Callable[[TurnOutcome], Awaitable[None]]
@@ -462,13 +465,29 @@ class TurnRunner:
         await self._flush(inp, state)
         full = "".join(state.deltas)
         interrupted = state.cancelled or failed
+        # 打断前缀（契约 v2 §2.2）：房间 worker 在 barge 时把端侧 played_ms 折算成
+        # 字符数写进 turn:{tid}:prefix；这里只在取消的回合读一次。读不到就是 0，
+        # 线程补记退回全量——退回旧行为比按一个不可信的估计截断更安全。
+        prefix_chars = 0
+        if state.cancelled and self._control is not None:
+            reader = getattr(self._control, "read_spoken_prefix", None)
+            if reader is not None:
+                try:
+                    prefix_chars = int(await reader(turn_id=inp.turn_id))
+                except Exception:  # noqa: BLE001 —— 前缀是旁路，读失败不改变回合结局
+                    prefix_chars = 0
+        prefix_text = full[:prefix_chars] if prefix_chars > 0 else ""
         saved_id: int | None = None
         saved_alt_group: int | None = None
         if full or interrupted:
+            meta: dict[str, Any] = {"lc_ids": list(state.lc_ids)} if state.lc_ids else {}
+            if prefix_chars > 0:
+                # content 仍存全量（不丢信息）；前缀只进 meta，无需新列（基线守卫不受影响）。
+                meta["spoken_prefix_chars"] = prefix_chars
             saved = await self._messages.append(
                 owner_id=inp.owner_id, session_id=inp.session_id, role="assistant", content=full,
                 kind="chat", client_message_id=None, turn_id=inp.turn_id,
-                meta={"lc_ids": list(state.lc_ids)} if state.lc_ids else {}, fence=inp.fence,
+                meta=meta, fence=inp.fence,
                 **({"alt_of": inp.alt_of} if inp.alt_of is not None else {}))
             if saved is None:
                 # 围栏号已不是最新：这把锁过期后被别的进程接手过。不写、不发完成事件。
@@ -490,7 +509,7 @@ class TurnRunner:
             await self._requeue(inp, int(mid), text)
 
         await self._notify(inp, state, saved_id=saved_id, text=full, interrupted=interrupted,
-                           failed=failed)
+                           failed=failed, spoken_prefix=prefix_text)
         # 收尾的最后一个事件、删回合状态、放锁，合成一次 Redis 往返。
         # 顺序有硬约束（事件先发、状态在放锁之前删），pipeline 按注册顺序执行所以不变。
         if saved_id is not None or state.cancelled:
@@ -526,7 +545,7 @@ class TurnRunner:
         await self._control.release_lock(session_id=inp.session_id, owner=inp.owner)  # 只释放自己的
 
     async def _notify(self, inp: TurnInput, state: _RunState, *, saved_id: int | None, text: str,
-                      interrupted: bool, failed: bool) -> None:
+                      interrupted: bool, failed: bool, spoken_prefix: str = "") -> None:
         # 指标写在 after_turn 判断**之前**：after_turn 只在组合根装了收尾钩子时才有，
         # 拿它当开关会让这条指标在某些部署里静默消失，而回合的结局是任何部署都要看到的。
         ended = time.monotonic()
@@ -543,7 +562,8 @@ class TurnRunner:
             owner_id=inp.owner_id, session_id=inp.session_id, character_id=inp.character_id,
             turn_id=inp.turn_id, user_message_ids=user_ids, user_text=inp.text,
             assistant_message_id=saved_id, assistant_text=text, interrupted=interrupted,
-            cancelled=state.cancelled, failed=failed, lock_lost=state.lost, lc_ids=tuple(state.lc_ids))
+            cancelled=state.cancelled, failed=failed, lock_lost=state.lost, lc_ids=tuple(state.lc_ids),
+            spoken_prefix=spoken_prefix)
         try:
             await self._after_turn(outcome)
         except Exception:  # noqa: BLE001 —— 收尾钩子失败不影响回合结果

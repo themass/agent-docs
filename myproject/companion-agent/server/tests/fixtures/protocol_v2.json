@@ -57,6 +57,40 @@
       "outcome": "ok"
     },
     {
+      "name": "speech.seg 带 turn_id（契约 v2 §2.3）",
+      "json": {
+        "v": 2,
+        "t": "speech.seg",
+        "id": "01J9Z8K3QP7N8",
+        "seq": 42,
+        "ep": "a3f1",
+        "ts": 1731900000460,
+        "args": {
+          "speech_id": "s-2",
+          "idx": 1,
+          "chars": 4,
+          "est_ms": 727,
+          "turn_id": "turn-7"
+        }
+      },
+      "outcome": "ok"
+    },
+    {
+      "name": "presentation.state 契约 v2 词汇（小写 interrupted）",
+      "json": {
+        "v": 2,
+        "t": "presentation.state",
+        "id": "01J9Z8K3QP7N9",
+        "seq": 43,
+        "ep": "a3f1",
+        "ts": 1731900000461,
+        "args": {
+          "state": "interrupted"
+        }
+      },
+      "outcome": "ok"
+    },
+    {
       "name": "客户端 hello",
       "json": {
         "v": 2,

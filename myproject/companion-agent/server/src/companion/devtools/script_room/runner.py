@@ -105,7 +105,7 @@ async def run_script_room(
 
     rtc.set_data_handler(_on_rtc_data)
 
-    publisher = SpeechPublisher(bridge)  # type: ignore[arg-type]
+    publisher = SpeechPublisher(bridge, state_sink=bridge.presentation_state)  # type: ignore[arg-type]
     budget = CueBudget()
     turn_id = f"script-{case.id}"
     synthesize = case.audios != "none"

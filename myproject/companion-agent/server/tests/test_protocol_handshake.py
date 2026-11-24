@@ -133,10 +133,10 @@ def test_negotiate_keeps_zero_versions():
 def test_negotiate_drops_caps_the_client_never_mentioned():
     hello = parse_hello({"proto": {"min": 2, "max": 2}, "caps": {"presentation.state": 1}})
     ack = negotiate(hello, sid="s-1")
-    # 服务端对 state 标的是 0：交集会保留 0，但不能发。
-    assert ack.caps == {"presentation.state": 0}
+    # 客户端报 1、服务端也是 1：交集 1，可以发（契约 v2 §1）。
+    assert ack.caps == {"presentation.state": 1}
     assert "presentation.emotion" not in ack.caps
-    assert not supports(ack, "presentation.state")
+    assert supports(ack, "presentation.state")
 
 
 def test_negotiate_drops_caps_the_server_does_not_know():
@@ -225,14 +225,14 @@ def test_supports_is_false_for_anything_not_negotiated():
     ack = negotiate(parse_hello({"proto": {"min": 2, "max": 2}, "caps": dict(SERVER_CAPS)}), sid="s-1")
     assert not supports(ack, "presentation.teleport")
     assert not supports(ack, "telemetry.health")  # 在目录里，但服务端不协商它
-    assert not supports(ack, "presentation.state")
+    assert supports(ack, "presentation.state")    # 契约 v2：服务端在回合边界发状态
     assert supports(ack, "presentation.gesture")
     assert supports(ack, "presentation.gaze")
     assert not supports(ack, "perception.attention")
 
     partial = negotiate(parse_hello({"proto": {"min": 2, "max": 2}, "caps": {"presentation.state": 1}}), sid="s-1")
-    assert partial.caps == {"presentation.state": 0}
-    assert not supports(partial, "presentation.state")
+    assert partial.caps == {"presentation.state": 1}
+    assert supports(partial, "presentation.state")
     assert not supports(partial, "presentation.emotion")
 
 
@@ -253,17 +253,19 @@ def test_server_caps_only_enable_what_we_can_ship():
     现在能兑现的：
     * ``presentation.emotion`` / ``presentation.gesture`` / ``presentation.gaze``
       —— ``AnchoredCuePublisher`` + 端侧 B 类路径
+    * ``presentation.state`` —— ``SpeechPublisher`` 在语音回合边界发
+      thinking / speaking / idle / interrupted（契约 v2 §1）
     * ``speech.v1`` —— ``speech_seg`` / ``speech_end`` / ``cancel_speech``
 
-    目录里仍保留 state / attention 的名字，所以表里也要有它们，但版本必须是 0：
+    目录里仍保留 attention 的名字，所以表里也要有它，但版本必须是 0：
     客户端会看到「知道但未启用」，而不是「会收到」。
     """
     assert SERVER_CAPS["presentation.emotion"] == 1
     assert SERVER_CAPS["presentation.gesture"] == 1
     assert SERVER_CAPS["presentation.gaze"] == 1
+    assert SERVER_CAPS["presentation.state"] == 1
     assert SERVER_CAPS["speech.v1"] == 1
     for name in (
-        "presentation.state",
         "perception.attention",
     ):
         assert name in SERVER_CAPS, name
@@ -281,11 +283,11 @@ def test_server_caps_only_enable_what_we_can_ship():
     assert supports(ack, "presentation.emotion")
     assert supports(ack, "presentation.gesture")
     assert supports(ack, "presentation.gaze")
+    assert supports(ack, "presentation.state")
     assert supports(ack, "speech.seg")
     assert supports(ack, "speech.end")
     assert supports(ack, "control.cancel")
     for name in (
-        "presentation.state",
         "perception.attention",
     ):
         assert ack.caps[name] == 0, name

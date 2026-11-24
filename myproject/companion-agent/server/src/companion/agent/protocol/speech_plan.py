@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -32,13 +33,19 @@ class PlannedSegment:
     est_ms: int
     #: 可选实测 / 校正时长（§18 #2）。声明时通常不设；有值才上线，不升版。
     dur_ms: int | None = None
+    #: 所属回合（契约 v2 §2.3）。有值才上线 ``speech.seg``，老端忽略未知键。
+    #: 前缀计算也要用它把打断对回正在生成的回合。
+    turn_id: str = ""
 
     @property
     def chars(self) -> int:
         return len(self.text)
 
     def seg_args(self, speech_id: str) -> dict[str, Any]:
-        """``speech.seg`` 的 args（§9.3）。``dur_ms`` 有值才带，老端忽略未知键。"""
+        """``speech.seg`` 的 args（§9.3 / 契约 v2 §2.3）。
+
+        ``dur_ms`` / ``turn_id`` 有值才带，老端忽略未知键。
+        """
         args: dict[str, Any] = {
             "speech_id": speech_id,
             "idx": self.idx,
@@ -47,12 +54,41 @@ class PlannedSegment:
         }
         if self.dur_ms is not None:
             args["dur_ms"] = self.dur_ms
+        if self.turn_id:
+            args["turn_id"] = self.turn_id
         return args
 
 
 def estimate_ms(text: str) -> int:
     """按字符数估一段的时长。至少 1 ms，免得空段把时间线压成同一个点。"""
     return max(1, round(len(text) * 1000 / CHARS_PER_SECOND))
+
+
+def spoken_prefix(segments: Sequence[PlannedSegment], played_ms: int) -> tuple[str, int]:
+    """「已经说出口的前缀」（契约 v2 §2.2）：完整播完的段 + 正在段的按字符比例部分。
+
+    输入是端侧上报的 ``played_ms``（真实播放时钟）与我们自己声明的段序列
+    （:class:`PlannedSegment` 的 ``est_ms`` 只有 ±20% 精度）。所以前缀是估计值——
+    但它是「她说到哪儿」目前最好的口径：服务端没有播放时钟，端侧的数字是唯一
+    真数据。返回 ``(前缀文本, 前缀字符数)``。
+    """
+    if played_ms <= 0 or not segments:
+        return "", 0
+    parts: list[str] = []
+    elapsed = 0
+    for seg in segments:
+        end = elapsed + max(1, seg.est_ms)
+        if played_ms >= end:
+            parts.append(seg.text)
+            elapsed = end
+            continue
+        if played_ms > elapsed:
+            fraction = (played_ms - elapsed) / max(1, seg.est_ms)
+            take = min(seg.chars, round(seg.chars * fraction))
+            parts.append(seg.text[:take])
+        break
+    prefix = "".join(parts)
+    return prefix, len(prefix)
 
 
 class SpeechStream:
@@ -77,6 +113,7 @@ class SpeechStream:
             return None
         if self._declared >= MAX_SEGMENTS:
             return None
-        seg = PlannedSegment(idx=self._declared, text=text, est_ms=estimate_ms(text))
+        seg = PlannedSegment(idx=self._declared, text=text, est_ms=estimate_ms(text),
+                             turn_id=self.turn_id)
         self._declared += 1
         return seg

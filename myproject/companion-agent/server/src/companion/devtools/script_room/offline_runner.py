@@ -17,10 +17,16 @@ from companion.devtools.script_room.case_schema import ScriptCase
 
 
 class RecordingBridge:
-    """``SpeechPublisher`` / cue 路径用的假 bridge：按调用顺序记下事件类型名。"""
+    """``SpeechPublisher`` / cue 路径用的假 bridge：按调用顺序记下事件类型名。
+
+    ``presentation.state`` 额外把状态值记进 ``states``：时间线断言既要看见
+    「发过状态事件」，也要看见是哪一个（thinking→speaking→…的次序是契约 v2 §1
+    的验收点）。
+    """
 
     def __init__(self) -> None:
         self.types: list[str] = []
+        self.states: list[str] = []
 
     async def speech_seg(self, speech_id: str, seg: Any) -> bool:
         self.types.append("speech.seg")
@@ -32,6 +38,11 @@ class RecordingBridge:
 
     async def cancel_speech(self, speech_id: str, reason: str = "user_barge_in") -> bool:
         self.types.append("control.cancel")
+        return True
+
+    async def presentation_state(self, state: str) -> bool:
+        self.types.append("presentation.state")
+        self.states.append(state)
         return True
 
     async def cue_emotion(
@@ -98,10 +109,19 @@ async def drive_reply_line(
     return said
 
 
-async def run_offline(case: ScriptCase) -> list[str]:
-    """按 case 步骤跑一遍离线协议路径，返回事件类型名序列。"""
-    bridge = RecordingBridge()
-    publisher = SpeechPublisher(bridge)  # type: ignore[arg-type]
+#: barge 注入时假定的播放位置：第一条句已播完、第二条播到一半。
+#: 离线 case 没有真播放时钟，但前缀断言需要一个确定的数字（契约 v2 §2.2）。
+DEFAULT_BARGE_PLAYED_MS = 900
+
+
+async def run_offline(case: ScriptCase, *, bridge: RecordingBridge | None = None) -> list[str]:
+    """按 case 步骤跑一遍离线协议路径，返回事件类型名序列。
+
+    ``bridge`` 可注入（测试要单独读 ``states`` 时传自己的 RecordingBridge）。
+    """
+    if bridge is None:
+        bridge = RecordingBridge()
+    publisher = SpeechPublisher(bridge, state_sink=bridge.presentation_state)  # type: ignore[arg-type]
     budget = CueBudget()
     cancelled = False
     turn_id = f"script-{case.id}"
@@ -134,7 +154,8 @@ async def run_offline(case: ScriptCase) -> list[str]:
                     budget=budget,
                 )
         elif step.inject == "barge_in":
-            await publisher.cancel()
+            # 离线没有播放时钟：按固定 played_ms 注入，让前缀路径在断言里真跑一遍。
+            await publisher.cancel(played_ms=DEFAULT_BARGE_PLAYED_MS)
             cancelled = True
             break
         # user / protocol：离线不执行（protocol 由断言对照；user 留给 capture 阶段）

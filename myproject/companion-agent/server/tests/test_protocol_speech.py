@@ -75,7 +75,9 @@ def test_stream_assigns_contiguous_idx_and_estimates():
     assert a is not None and b is not None
     assert [a.idx, b.idx] == [0, 1]
     assert a.est_ms == estimate_ms("你好啊")
-    assert a.seg_args("sp_1") == {"speech_id": "sp_1", "idx": 0, "chars": 3, "est_ms": estimate_ms("你好啊")}
+    # turn_id 进 args（契约 v2 §2.3）：端侧与历史侧都靠它把段对回回合。
+    assert a.seg_args("sp_1") == {"speech_id": "sp_1", "idx": 0, "chars": 3,
+                                  "est_ms": estimate_ms("你好啊"), "turn_id": "tn_1"}
 
 
 def test_seg_args_omits_dur_ms_when_unset_and_includes_when_set():
@@ -111,7 +113,8 @@ async def test_speech_seg_goes_out_on_cue_topic_for_v2():
     assert await bridge.speech_seg("sp_1", seg)
     [(topic, t, args)] = sink.envelopes()
     assert (topic, t) == (TOPIC_CUE, "speech.seg")
-    assert args == {"speech_id": "sp_1", "idx": 0, "chars": 2, "est_ms": estimate_ms("你好")}
+    assert args == {"speech_id": "sp_1", "idx": 0, "chars": 2,
+                    "est_ms": estimate_ms("你好"), "turn_id": "tn_1"}
 
 
 async def test_speech_end_carries_speech_id():

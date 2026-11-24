@@ -67,6 +67,12 @@ class BridgeOverRtc:
             self.types.append("control.cancel")
         return ok
 
+    async def presentation_state(self, state: str) -> bool:
+        ok = await self.inner.presentation_state(state)
+        if ok:
+            self.types.append("presentation.state")
+        return ok
+
     async def cue_emotion(
         self,
         name: str,

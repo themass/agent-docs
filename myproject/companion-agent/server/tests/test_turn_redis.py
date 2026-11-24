@@ -85,9 +85,9 @@ class Queue:
 
 
 async def _cleanup(redis_client, sid):
-    from companion.service.turn.redis_control import events_key, lock_key, turn_key
+    from companion.service.turn.redis_control import events_key, lock_key, prefix_key, turn_key
 
-    await redis_client.delete(events_key(sid), turn_key(sid), lock_key(sid))
+    await redis_client.delete(events_key(sid), turn_key(sid), lock_key(sid), prefix_key("T"))
 
 
 @pytest.mark.parametrize("phase,steerable,used,expected", [
@@ -255,6 +255,81 @@ async def test_uninjected_steer_goes_back_to_the_queue(control, redis_client):
         assert 55 not in messages.attached
     finally:
         await _cleanup(redis_client, sid)
+
+
+async def test_cancelled_turn_records_spoken_prefix_in_meta_and_outcome(control, redis_client):
+    """契约 v2 §2.2：房间 worker 写的前缀字符数在收尾时进 meta 与 TurnOutcome。"""
+    from companion.service.chat.turn_runner import TurnInput, TurnRunner
+    from companion.agent.brain.port import TextDelta
+    from companion.agent.brain.steer import SteerInbox
+
+    sid = _session_id()
+    messages, queue = Messages(), Queue()
+    outcomes: list = []
+
+    async def after_turn(outcome):
+        outcomes.append(outcome)
+
+    async def produce(request, inbox):
+        yield TextDelta("听到了。累了就先歇会儿吧。")
+
+    runner = TurnRunner(control=control, messages=messages, queue=queue, produce=produce,
+                        after_turn=after_turn)
+    try:
+        await control.acquire_lock(session_id=sid, owner="p:T")
+        await control.init_turn(session_id=sid, turn_id="T")
+        # 模拟 barge：worker 先写前缀（4 字），再让回合在下一个事件处判定取消。
+        await control.note_spoken_prefix(turn_id="T", chars=4)
+        inp = TurnInput(owner_id=7, session_id=sid, character_id="linche", turn_id="T", owner="p:T",
+                        text="x", message_ids=[])
+        state = _run_state_cancelled(deltas=["听到了。累了就先歇会儿吧。"])
+        await runner._finish(inp, state, SteerInbox(budget=3))
+
+        saved = next(m for m in messages.rows.values() if m.role == "assistant")
+        assert saved.content == "听到了。累了就先歇会儿吧。"      # 全量不丢
+        assert saved.meta["spoken_prefix_chars"] == 4
+        assert outcomes and outcomes[0].spoken_prefix == "听到了。"
+    finally:
+        await _cleanup(redis_client, sid)
+
+
+async def test_cancelled_turn_without_prefix_falls_back_to_full_text(control, redis_client):
+    """没有前缀（文字端 / 缺 played_ms）：meta 不加键，outcome 前缀为空串。"""
+    from companion.service.chat.turn_runner import TurnInput, TurnRunner
+    from companion.agent.brain.steer import SteerInbox
+
+    sid = _session_id()
+    messages, queue = Messages(), Queue()
+    outcomes: list = []
+
+    async def after_turn(outcome):
+        outcomes.append(outcome)
+
+    runner = TurnRunner(control=control, messages=messages, queue=queue, produce=None,
+                        after_turn=after_turn)
+    try:
+        await control.acquire_lock(session_id=sid, owner="p:T")
+        await control.init_turn(session_id=sid, turn_id="T")
+        inp = TurnInput(owner_id=7, session_id=sid, character_id="linche", turn_id="T", owner="p:T",
+                        text="x", message_ids=[])
+        state = _run_state_cancelled(deltas=["她说的话"])
+        await runner._finish(inp, state, SteerInbox(budget=3))
+
+        saved = next(m for m in messages.rows.values() if m.role == "assistant")
+        assert "spoken_prefix_chars" not in saved.meta
+        assert outcomes and outcomes[0].spoken_prefix == ""
+    finally:
+        await _cleanup(redis_client, sid)
+
+
+def _run_state_cancelled(deltas: list[str] | None = None):
+    from companion.service.chat.turn_runner import _RunState
+
+    state = _RunState()
+    state.cancelled = True
+    if deltas:
+        state.deltas.extend(deltas)
+    return state
 
 
 async def test_sse_snapshot_resume_gone_reconnect_and_keepalive(control, redis_client):

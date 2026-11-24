@@ -1,15 +1,19 @@
 id: barge_mid_sentence
-goal: 她说到一半被打断，端侧应收到 cancel 并停口
+goal: 她说到一半被打断，端侧应收到显式状态、cancel，且打断后不再有新的 seg
 steps:
   - user: "今天真累。"
   - expect_reply:
       - "[soft]听到了。"
       - "累了就先歇会儿吧。"
   - protocol:
+      - presentation.state   # thinking：回合开始生成（契约 v2 §1）
+      - presentation.state   # speaking：第一句 speech.seg 之前（§13-1 顺序）
       - speech.seg
       - presentation.emotion
+      - presentation.state   # speaking：第二句
       - speech.seg
   - inject: barge_in
   - protocol:
+      - presentation.state   # interrupted：服务端确认打断
       - control.cancel
 audios: synthesize

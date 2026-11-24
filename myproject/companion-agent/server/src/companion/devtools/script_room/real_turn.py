@@ -244,7 +244,7 @@ async def run_real_turn(
     data_errors: list[BaseException] = []
     agent_rtc.set_data_handler(_data_handler(bridge.inner, data_errors))
     agent_rtc.set_text_handler(_text_handler(texts))
-    speech = SpeechPublisher(bridge)  # type: ignore[arg-type]
+    speech = SpeechPublisher(bridge, state_sink=bridge.presentation_state)  # type: ignore[arg-type]
     slot = PendingAttachmentSlot()
     touch = _TouchSession()
     relay = CompositeInputRelay(touch, slot)

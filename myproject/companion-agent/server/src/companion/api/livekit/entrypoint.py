@@ -429,7 +429,9 @@ class RoomEntrypoint:
         )
         attach(room, bridge)
         # speech.* 的发送口：seg/end/cancel 都经它出去，由 agent 在 TTS 前后调用。
-        speech = SpeechPublisher(bridge)
+        # presentation.state 也挂在它上面（契约 v2 §1）：回合边界发 thinking /
+        # speaking / idle / interrupted，顺序与 §13-1 一致（state 先于该 speech 首 seg）。
+        speech = SpeechPublisher(bridge, state_sink=bridge.presentation_state)
         # v2 锚点 cue：必须在 speech.seg 之后、TTS 之前发（§13 不变量 1）。
         cues = AnchoredCuePublisher(bridge)
         # 握手等待放在后台：它只影响「现在能不能发 cmp.*」，不该拖住语音开场 3 秒。
@@ -489,8 +491,11 @@ class RoomEntrypoint:
             cooldown_s=DEFAULT_COOLDOWN_S,
             touch_warmup_s=DEFAULT_TOUCH_WARMUP_S,
         )
-        # 用户开口打断：interrupt 截断 TTS，speech.cancel 立刻发 control.cancel（§10）。
-        bridge.on_barge = BargeInRelay(session, speech)
+        # 用户开口打断：interrupt 截断 TTS，speech.cancel 立刻发 control.cancel（§10），
+        # 前缀写进回合状态，pipeline.cancel 停生成（契约 v2 §2.2——只截音频不
+        # send_cancel 的话，模型会把整段继续烧完）。
+        bridge.on_barge = BargeInRelay(session, speech, pipeline=pipeline,
+                                       control=platform.chat.control)
         logger.info(
             "companion joined room user=%s character=%s",
             identity.user_id,

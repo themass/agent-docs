@@ -40,7 +40,7 @@ VECTORS = json.loads(FIXTURE.read_text(encoding="utf-8"))
 
 #: 客户端那份拷贝的 sha256 必须与这个值一致。两边对不上就说明契约被单边改过。
 #: 换 fixture 时同时更新客户端 `ProtocolCodecTest.TEST_VECTOR_SHA256`。
-TEST_VECTOR_SHA256 = "70464b8a66b5687e5b57c27e156e10998fb8627345abe1bdf99d91f654a487f5"
+TEST_VECTOR_SHA256 = "fa382f669a5afd81e1c802df21b4f5704339ee1af95adab86ffaab1713d92cc0"
 
 
 def _payload(case: dict) -> bytes:

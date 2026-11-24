@@ -45,12 +45,35 @@ class _Session:
 class _Speech:
     def __init__(self) -> None:
         self.cancels: list[str] = []
+        self.played: list[int | None] = []
         self.fail = False
+        self.prefix = None
 
-    async def cancel(self, reason: str = "user_barge_in") -> None:
+    async def cancel(self, reason: str = "user_barge_in", played_ms: int | None = None) -> None:
         if self.fail:
             raise RuntimeError("cancel boom")
         self.cancels.append(reason)
+        self.played.append(played_ms)
+        return self.prefix
+
+
+class _Pipeline:
+    def __init__(self) -> None:
+        self.cancels = 0
+        self.fail = False
+
+    async def cancel(self) -> None:
+        if self.fail:
+            raise RuntimeError("pipeline cancel boom")
+        self.cancels += 1
+
+
+class _Control:
+    def __init__(self) -> None:
+        self.prefixes: list[tuple[str, int]] = []
+
+    async def note_spoken_prefix(self, *, turn_id: str, chars: int) -> None:
+        self.prefixes.append((turn_id, chars))
 
 
 def _bridge(sink: _Sink | None = None) -> ProtocolBridge:
@@ -149,6 +172,68 @@ async def test_relay_works_without_speech_publisher():
     await relay({"reason": "vad"})
 
     assert session.interrupts == 1
+    assert relay.accepted == 1
+
+
+@pytest.mark.asyncio
+async def test_relay_stops_generation_and_records_prefix():
+    """契约 v2 §2.2：barge 必须停生成（pipeline.cancel），并把 played_ms 换的前缀写进回合。"""
+    from companion.api.livekit.speech_publisher import SpokenPrefix
+
+    session = _Session()
+    speech = _Speech()
+    speech.prefix = SpokenPrefix(speech_id="sp_1", turn_id="T7", text="听到了。", chars=4)
+    pipeline = _Pipeline()
+    control = _Control()
+    relay = BargeInRelay(session, speech, pipeline=pipeline, control=control, cooldown_s=0.0)
+
+    await relay({"speech_id": "sp_1", "played_ms": 730, "reason": "vad"})
+
+    assert speech.played == [730]
+    assert pipeline.cancels == 1
+    assert control.prefixes == [("T7", 4)]
+
+
+@pytest.mark.asyncio
+async def test_relay_without_played_ms_sends_none_and_no_prefix_note():
+    session = _Session()
+    speech = _Speech()
+    pipeline = _Pipeline()
+    control = _Control()
+    relay = BargeInRelay(session, speech, pipeline=pipeline, control=control, cooldown_s=0.0)
+
+    await relay({"speech_id": "sp_1", "reason": "vad"})
+
+    assert speech.played == [None]
+    assert control.prefixes == []
+    assert pipeline.cancels == 1
+
+
+@pytest.mark.asyncio
+async def test_relay_cancels_pipeline_even_when_speech_cancel_fails():
+    session = _Session()
+    speech = _Speech()
+    speech.fail = True
+    pipeline = _Pipeline()
+    relay = BargeInRelay(session, speech, pipeline=pipeline, cooldown_s=0.0)
+
+    await relay({"played_ms": 100})
+
+    assert pipeline.cancels == 1
+    assert relay.accepted == 1  # interrupt 成功了
+
+
+@pytest.mark.asyncio
+async def test_relay_survives_pipeline_cancel_failure():
+    session = _Session()
+    speech = _Speech()
+    pipeline = _Pipeline()
+    pipeline.fail = True
+    relay = BargeInRelay(session, speech, pipeline=pipeline, cooldown_s=0.0)
+
+    await relay({"played_ms": 100})
+
+    assert speech.cancels == ["user_barge_in"]
     assert relay.accepted == 1
 
 

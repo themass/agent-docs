@@ -41,7 +41,7 @@ class _NoSpeech:
     async def finish(self) -> None:
         return None
 
-    async def cancel(self, reason: str = "user_barge_in") -> None:
+    async def cancel(self, reason: str = "user_barge_in", played_ms: int | None = None):
         return None
 
 

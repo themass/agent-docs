@@ -27,14 +27,15 @@ LEGACY_WAIT_SECONDS = 3.0
 #: 与客户端 `ProtocolHandshake.CLIENT_CAPS` 必须覆盖同一批名字，否则交集会少一项；
 #: 版本号可以不同——这里只报**当前这条连接真正会发 / 会收**的版本。
 #:
-#: 现在能兑现的：``presentation.emotion`` / ``presentation.gesture`` /
+#: 现在能兑现的：``presentation.state``（由 ``SpeechPublisher`` 在语音回合边界发出：
+#: ``thinking`` / ``speaking`` / ``idle`` / 打断后 ``interrupted``，契约见
+#: state-cancel-contract-v2）与 ``presentation.emotion`` / ``presentation.gesture`` /
 #: ``presentation.gaze``（由 ``AnchoredCuePublisher`` 在 ``speech.seg`` 之后带 ``at``
 #: 发出；``cue_emotion`` 仍保留给冒烟）与 ``speech.v1``（``speech_seg`` /
-#: ``speech_end`` / ``cancel_speech``）。``state`` 在目录与客户端解析器里还在，
-#: 但服务端没有发送方，标 1 会让客户端以为会收到它；``perception.attention``
-#: 同理，``ProtocolBridge`` 没有消费者，标 1 只会把它送进 ``unhandled``。
+#: ``speech_end`` / ``cancel_speech``）。``perception.attention`` 没有消费者，
+#: 标 1 只会把它送进 ``unhandled``。
 SERVER_CAPS: dict[str, int] = {
-    "presentation.state": 0,
+    "presentation.state": 1,
     "presentation.emotion": 1,
     "presentation.gesture": 1,
     "presentation.gaze": 1,

@@ -99,6 +99,11 @@ def text_key(tid: str) -> str:
     return f"{KEY_PREFIX}turn:{tid}:text"
 
 
+def prefix_key(tid: str) -> str:
+    """打断时「已说话前缀」的字符数（契约 v2 §2.2）。房间 worker 写、TurnRunner 收尾读。"""
+    return f"{KEY_PREFIX}turn:{tid}:prefix"
+
+
 def events_key(sid: int) -> str:
     return f"{KEY_PREFIX}sess:{sid}:events"
 
@@ -203,6 +208,17 @@ class RedisTurnControl:
     async def send_cancel(self, *, turn_id: str) -> None:
         await self._r.xadd(ctl_key(turn_id), {"kind": "cancel"}, maxlen=100, approximate=True)
 
+    async def note_spoken_prefix(self, *, turn_id: str, chars: int) -> None:
+        """barge 时房间 worker 写入的前缀字符数（幂等：后写覆盖）。回合结束后过期即可。"""
+        await self._r.set(prefix_key(turn_id), str(max(0, int(chars))), ex=3600)
+
+    async def read_spoken_prefix(self, *, turn_id: str) -> int:
+        raw = await self._r.get(prefix_key(turn_id))
+        try:
+            return max(0, int(_s(raw))) if raw else 0
+        except (TypeError, ValueError):
+            return 0
+
     # ---- 正文缓冲（首连快照与崩溃回收用）----
 
     async def append_text(self, *, turn_id: str, delta: str) -> None:
@@ -299,7 +315,7 @@ class RedisTurnControl:
             await self.send_cancel(turn_id=tid)
         keys = [turn_key(session_id), lock_key(session_id), fence_key(session_id), events_key(session_id)]
         if tid:
-            keys += [ctl_key(tid), text_key(tid)]
+            keys += [ctl_key(tid), text_key(tid), prefix_key(tid)]
         await self._r.delete(*keys)
 
     async def tail_event_id(self, *, session_id: int) -> str:

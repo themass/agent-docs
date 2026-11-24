@@ -302,6 +302,15 @@ class ProtocolBridge:
 
     # ------------------------------------------------------------------ 表现指令
 
+    async def presentation_state(self, state: str) -> bool:
+        """``presentation.state``：角色状态显式事件（契约 v2 §1，DEADLINE / cmp.cue）。
+
+        args 只有一个键 ``state``，词汇是小写的 ``idle|listening|thinking|speaking|interrupted``。
+        服务端在语音回合边界发（由 ``SpeechPublisher`` 驱动）；未协商 ``presentation.state``
+        的连接由 ``_may_send`` 挡掉，端侧自己推导本地状态。
+        """
+        return await self.publish("presentation.state", {"state": state}, topic=TOPIC_CUE)
+
     async def cue_emotion(
         self,
         name: str,

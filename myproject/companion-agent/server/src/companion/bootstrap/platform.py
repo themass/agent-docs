@@ -407,10 +407,15 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
                 turn_id=outcome.turn_id, session_id=outcome.session_id, owner_id=outcome.owner_id,
                 role_id=outcome.character_id, state=state, error_code="turn_failed" if outcome.failed else ""))
         # 拿着会话锁：补记中断的回复，让模型知道上一句说到哪里。
-        if outcome.interrupted and outcome.assistant_message_id and outcome.assistant_text and not outcome.lock_lost:
-            await history.note_interrupted(session_id=outcome.session_id,
-                                           assistant_message_id=outcome.assistant_message_id,
-                                           text=outcome.assistant_text)
+        # 有「已说话前缀」时只补记她真正说出口的部分（契约 v2 §2.2）：全部已生成文本
+        # 里有一半以上可能根本没出声，喂给模型就是让它以为自己说完了那半句。
+        # 没有前缀（文字端回合、缺 played_ms）时退回全量，与改动前一致。
+        if outcome.interrupted and outcome.assistant_message_id and not outcome.lock_lost:
+            noted = outcome.spoken_prefix or outcome.assistant_text
+            if noted.strip():
+                await history.note_interrupted(session_id=outcome.session_id,
+                                               assistant_message_id=outcome.assistant_message_id,
+                                               text=noted)
         # 记忆写入放到后台任务：回合不等它。
         if recorders and not outcome.failed and outcome.user_text.strip():
             await jobs.enqueue(kind=MEMORY_RECORD_JOB, payload={
