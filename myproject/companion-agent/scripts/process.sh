@@ -195,16 +195,21 @@ esac
 unit_name() { case "$1" in api) echo companion-api ;; voice) echo companion-voice ;; esac; }
 
 systemd_managed() {
-  local unit; unit="$(unit_name "$1")"
+  local unit rc out
+  unit="$(unit_name "$1")"
   [[ -f "/etc/systemd/system/${unit}.service" ]] || return 1
   command -v systemctl >/dev/null 2>&1 || return 1
-  sudo -n true >/dev/null 2>&1 || return 1
-  # unit 活着：它是主人。
-  sudo -n systemctl is-active --quiet "$unit" && return 0
-  # unit 装了还没起，但 setsid 旧进程还在（切换窗口）：这一下仍走 PID 文件，
-  # 好让 `process.sh stop` 能把旧进程收掉，而不是对着没起的 unit 打空。
-  is_running "$1" && return 1
-  return 0
+  # 探 sudo 权限要用白名单里的命令本身（`sudo -n true` 不算——sudoers 只免密
+  # systemctl 那几个动作）。exit: 0=unit 活 3=unit 装而未起 其他=sudo 不行/没有该 unit。
+  out="$(sudo -n systemctl is-active "$unit" 2>&1)"; rc=$?
+  case "$rc" in
+    0) return 0 ;;   # unit 活着：它是主人
+    3) # unit 装了还没起，但 setsid 旧进程还在（切换窗口）：这一下仍走 PID 文件，
+       # 好让 `process.sh stop` 能把旧进程收掉，而不是对着没起的 unit 打空。
+       is_running "$1" && return 1
+       return 0 ;;
+    *) return 1 ;;
+  esac
 }
 
 systemd_cmd() {
