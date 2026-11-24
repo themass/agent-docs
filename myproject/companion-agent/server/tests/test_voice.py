@@ -1,3 +1,4 @@
+import asyncio
 import json
 import struct
 from dataclasses import FrozenInstanceError
@@ -247,6 +248,174 @@ async def test_secondary_must_be_registered_to_be_used():
     with pytest.raises(VoiceProviderError):
         await collect_audio(gw.tts(aiter_of("嗨。"), ref(provider="primary")))
     assert gw.switches == []
+
+
+# ---- 首句流式：有限预取（P3） ----
+
+class _GateProvider(FakeVoiceProvider):
+    """卡住合成的假供应商：每个 tts 等到自己的门开才开始吐块。
+
+    用来断言「句 2 的合成开始早于句 1 播放排干」——不是靠计时，是靠事件顺序：
+    ``started`` 在等门之前就记，所以门没开时「已开始合成」也是可观测的。
+    """
+
+    def __init__(self, name: str = "fake", chunk_bytes: int = 8) -> None:
+        super().__init__(name=name, chunk_bytes=chunk_bytes)
+        self.gates: list[asyncio.Event] = []
+        self.started: list[str] = []
+        self.finished: list[str] = []
+        self.live = 0
+        self.max_live = 0
+
+    def arm(self, count: int) -> None:
+        self.gates = [asyncio.Event() for _ in range(count)]
+
+    async def tts(self, text_stream, voice_ref):
+        text = "".join([t async for t in text_stream])
+        self.tts_calls.append((voice_ref.voice_id, text))
+        index = len(self.started)
+        # 先计数再等门：这样「已开始」在门没开时也是可观测的。
+        self.started.append(text)
+        self.live += 1
+        self.max_live = max(self.max_live, self.live)
+        # finally 覆盖整个函数体：被取消（哪怕卡在门上）也要减计数，
+        # 否则「关闭后无残留」就没有可观测的判据了。
+        try:
+            if index < len(self.gates):
+                await self.gates[index].wait()
+            for chunk in self._chunks(text, voice_ref):
+                yield chunk
+            self.finished.append(text)
+        finally:
+            self.live -= 1
+
+
+async def test_prefetch_starts_next_sentence_before_current_drains():
+    gate = _GateProvider()
+    gate.arm(3)
+    gw = VoiceGateway({"fake": gate})
+    voice = ref()
+
+    agen = gw.tts(aiter_of("第一句。第二句。第三句。"), voice)
+    gate.gates[0].set()
+    # 只取句 1 的第一块就停手——句 1 没排干，它占着窗口的名额。
+    first = await agen.__anext__()
+    await asyncio.sleep(0)
+    assert first.data
+    # 句 2 的 provider 调用已经开始（它卡在句 2 自己的门上），不等句 1 播完。
+    # 串行实现到这里只会 started == ["第一句。"]——这条断言就是区分两种实现的。
+    assert gate.started == ["第一句。", "第二句。"], "句 2 的合成要早于句 1 播放排干"
+    assert gate.finished == ["第一句。"], "句 1 合成完了，但没播完——句 2 不能先播"
+
+    gate.gates[1].set()
+    gate.gates[2].set()
+    received = [first]
+    async for chunk in agen:
+        received.append(chunk)
+
+    # 按段序播放：消费顺序 = 句 1 全部块 → 句 2 全部块 → 句 3。字节上直接可验。
+    expected: list[AudioChunk] = []
+    for text in ["第一句。", "第二句。", "第三句。"]:
+        expected.extend(gate._chunks(text, voice))
+    assert len(received) == len(expected), "每句不止一块，才能停在句中"
+    assert [c.data for c in received] == [c.data for c in expected]
+    assert gate.finished == ["第一句。", "第二句。", "第三句。"]
+
+
+async def test_prefetch_window_is_bounded():
+    """在途合成不超过「正在播 1 句 + prefetch 句」。"""
+    gate = _GateProvider()
+    gate.arm(6)
+    gw = VoiceGateway({"fake": gate}, prefetch_sentences=1)
+
+    agen = gw.tts(aiter_of("一二三。四五六。七八九。十一。十二。十三。"), ref())
+    gate.gates[0].set()
+    await agen.__anext__()
+    await asyncio.sleep(0)
+    # 句 1 还占着名额（没播完）：只有句 2 获准开始，句 3 必须还在窗口外。
+    assert gate.started == ["一二三。", "四五六。"]
+
+    for i in range(1, 6):
+        gate.gates[i].set()
+    async for _ in agen:
+        pass
+    assert len(gate.tts_calls) == 6
+
+
+async def test_prefetch_two_lets_two_sentences_ahead():
+    gate = _GateProvider()
+    gate.arm(4)
+    gw = VoiceGateway({"fake": gate}, prefetch_sentences=2)
+
+    agen = gw.tts(aiter_of("一。二。三。四。"), ref())
+    gate.gates[0].set()
+    await agen.__anext__()
+    await asyncio.sleep(0)
+    assert gate.started == ["一。", "二。", "三。"]
+    for i in range(1, 4):
+        gate.gates[i].set()
+    async for _ in agen:
+        pass
+    assert len(gate.tts_calls) == 4
+
+
+async def test_prefetch_zero_is_strictly_serial():
+    """回退开关：prefetch_sentences=0 时句 2 只能等句 1 排完才开始。"""
+    gate = _GateProvider()
+    gate.arm(2)
+    gw = VoiceGateway({"fake": gate}, prefetch_sentences=0)
+
+    agen = gw.tts(aiter_of("第一句。第二句。"), ref())
+    gate.gates[0].set()
+    await agen.__anext__()
+    await asyncio.sleep(0)
+    assert gate.started == ["第一句。"], "串行路径不该提前开始句 2"
+
+    gate.gates[1].set()
+    async for _ in agen:
+        pass
+    assert gate.started == ["第一句。", "第二句。"]
+    assert gate.finished == ["第一句。", "第二句。"]
+
+
+async def test_consumer_close_discards_pending_synthesis():
+    """生成器链一关（barge / 任务取消走的是同一条 aclose），未播的合成必须丢弃。"""
+    gate = _GateProvider()
+    gate.arm(3)
+    gw = VoiceGateway({"fake": gate})
+
+    agen = gw.tts(aiter_of("第一句。第二句。第三句。"), ref())
+    gate.gates[0].set()
+    await agen.__anext__()
+    await asyncio.sleep(0)
+    assert gate.started == ["第一句。", "第二句。"], "关闭前预取确实在跑"
+
+    await agen.aclose()
+    await asyncio.sleep(0)
+    # 卡住的 tts 生成器只有被取消才会走到 finally——live 归零说明没有遗留任务。
+    assert gate.live == 0, "关闭后不能留卡住的合成任务"
+    assert gate.finished == ["第一句。"], "句 2、句 3 的门还没开就被丢弃，不该继续烧供应商"
+
+
+async def test_mid_failure_keeps_emitted_chunks_before_the_error():
+    """预取不能改变「已吐音频不撤回」：块先到手，错误在后。"""
+    class Halfway(FakeVoiceProvider):
+        async def tts(self, text_stream, voice_ref):
+            text = "".join([t async for t in text_stream])
+            self.tts_calls.append((voice_ref.voice_id, text))
+            yield AudioChunk(data=b"partial", sample_rate=1, format="pcm")
+            raise VoiceProviderError("boom mid-stream", provider=self.name, direction="tts")
+
+    primary = Halfway(name="primary")
+    backup = FakeVoiceProvider(name="backup")
+    gw = VoiceGateway({"primary": primary, "backup": backup}, secondary="backup", failure_threshold=1)
+
+    received = []
+    with pytest.raises(VoiceProviderError):
+        async for chunk in gw.tts(aiter_of("半句话。"), ref(provider="primary")):
+            received.append(chunk)
+    assert [c.data for c in received] == [b"partial"]
+    assert backup.tts_calls == [], "混音色比报错更糟，不能中途换供应商"
 
 
 # ---- ASR ----

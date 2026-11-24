@@ -7,6 +7,8 @@
 2. **短句缓存**。问候语这类固定短句每回合都要合成一次，缓存能省掉首包延迟。
    只缓存短句：长句千变万化，缓存命中率低还占内存。
 3. **故障切换**。连续失败 N 次后切到备用供应商，每次切换都记日志。
+4. **有限预取**。上一句在播的时候，下一句已经在合成（见 ``_tts``）。这是首句之后
+   各句之间的空档唯一的来源：串行时句 k+1 要等句 k 的音频全吐完才开始合成。
 
 不做的事：不转码、不改采样率、不重放已经吐出去的音频。半句音频已经发给客户端
 再换供应商会混音色，比报错更糟，所以只在「一个音频块都还没吐」时才重试。
@@ -14,6 +16,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from collections.abc import AsyncIterator, Iterable, Mapping
@@ -28,6 +31,10 @@ log = logging.getLogger("companion.voice")
 DEFAULT_FAILURE_THRESHOLD = 2
 DEFAULT_MAX_PHRASE_CHARS = 32
 DEFAULT_CACHE_CAPACITY = 64
+DEFAULT_PREFETCH_SENTENCES = 1
+#: 预取句子最多攒多少个音频块就开始背压。预取的是「提前合成」，不是「把整段对话
+#: 装进内存」：一帧 20 ms 的话，64 帧不到 1.5 秒的音频。
+MAX_BUFFERED_CHUNKS = 64
 
 
 @dataclass(frozen=True)
@@ -76,6 +83,7 @@ class VoiceGateway:
         failure_threshold: int = DEFAULT_FAILURE_THRESHOLD,
         max_phrase_chars: int = DEFAULT_MAX_PHRASE_CHARS,
         cache_capacity: int = DEFAULT_CACHE_CAPACITY,
+        prefetch_sentences: int = DEFAULT_PREFETCH_SENTENCES,
     ) -> None:
         if not providers:
             raise ValueError("VoiceGateway 至少需要一个供应商")
@@ -83,6 +91,8 @@ class VoiceGateway:
             raise ValueError("failure_threshold must be positive")
         if max_phrase_chars < 1:
             raise ValueError("max_phrase_chars must be positive")
+        if prefetch_sentences < 0:
+            raise ValueError("prefetch_sentences must not be negative")
         self._providers: dict[str, VoiceProvider] = dict(providers)
         self._primary = primary
         self._secondary = secondary
@@ -90,6 +100,7 @@ class VoiceGateway:
         self._failure_threshold = failure_threshold
         self._max_phrase_chars = max_phrase_chars
         self._cache_capacity = cache_capacity
+        self._prefetch_sentences = prefetch_sentences
 
         self._cache: dict[tuple[str, str, str], tuple[AudioChunk, ...]] = {}
         # 每个方向记住「已经切到谁了」。按方向分开：TTS 出事不代表 ASR 也出事。
@@ -130,6 +141,71 @@ class VoiceGateway:
     async def _tts(
         self, text_stream: AsyncIterator[str], voice_ref: VoiceRef
     ) -> AsyncIterator[AudioChunk]:
+        if self._prefetch_sentences == 0:
+            async for chunk in self._tts_serial(text_stream, voice_ref):
+                yield chunk
+            return
+
+        # 有限预取（参考 Open-LLM-VTuber 的 SentenceOutput → 并行 TTS → 按序播放，
+        # 但不引入新的队列框架）：喂句任务把断句结果挂成按序的「合成槽」，每槽一个
+        # 独立合成任务 + 一条自己的音频队列——文本一到位就开始合成，不等上一句的
+        # 音频吐完；主循环始终按槽的顺序逐块 yield，所以播放顺序与串行版完全一致。
+        #
+        # 两层上界：槽数 = 1（正在播的）+ prefetch（在途合成）——喂句任务先抢窗口
+        # 名额再排槽，窗口满时背压，文本流不会被无限超前消费；每槽的队列攒到
+        # MAX_BUFFERED_CHUNKS 块就停，预取的是「提前合成」，不是把整段对话装进内存。
+        #
+        # 每槽单独排队而不是先攒整句：供应商中途失败时，已经吐出的块仍按原顺序到达
+        # 调用方、之后才报错（「不撤回已吐音频」的不变式与串行版一致）。
+        pending: "asyncio.Queue[_SentenceSlot | None]" = asyncio.Queue()
+        window = asyncio.Semaphore(1 + self._prefetch_sentences)
+        feeder_error: list[BaseException | None] = [None]
+        feeder = asyncio.create_task(
+            self._feed_sentences(text_stream, voice_ref, pending, window, feeder_error)
+        )
+        current: _SentenceSlot | None = None
+        try:
+            while True:
+                slot = await pending.get()
+                if slot is None:  # 喂句任务的结束标记
+                    break
+                current = slot
+                try:
+                    async for chunk in self._drain_slot(slot):
+                        yield chunk
+                finally:
+                    current = None
+                    # 腾出的名额给喂句任务排下一句——「正在播 1 句 + 在途合成
+                    # prefetch 句」是硬上界，不是软提示。
+                    window.release()
+            if feeder_error[0] is not None:
+                # 文本流出错也要先把已合成的句子放完，错误最后才抛（串行版同样如此：
+                # 报错点在 for text in text_stream 处，之前的句子已经吐完）。
+                raise feeder_error[0]
+        finally:
+            # 取消语义（契约 v2 §2）：生成器链一关（调用方 aclose / 上游抛异常 /
+            # barge 取消整个任务），未播完的合成全部丢弃，不留后台任务。
+            # 已经 yield 出去的块本来就不撤回（模块开头的不变式）。
+            feeder.cancel()
+            tasks = [feeder]
+            if current is not None and current.task is not None:
+                # 正在播的这句也要停：它的队列满了之后会永远等在 put 上。
+                current.task.cancel()
+                tasks.append(current.task)
+            while True:
+                try:
+                    slot = pending.get_nowait()
+                except asyncio.QueueEmpty:
+                    break
+                if slot is not None and slot.task is not None:
+                    slot.task.cancel()
+                    tasks.append(slot.task)
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def _tts_serial(
+        self, text_stream: AsyncIterator[str], voice_ref: VoiceRef
+    ) -> AsyncIterator[AudioChunk]:
+        """严格串行路径（``prefetch_sentences=0``）：句 k 全吐完才开始句 k+1。"""
         splitter = SentenceSplitter()
         async for text in text_stream:
             for sentence in splitter.feed(text):
@@ -138,6 +214,71 @@ class VoiceGateway:
         for sentence in splitter.flush():
             async for chunk in self._one_sentence(sentence, voice_ref):
                 yield chunk
+
+    async def _drain_slot(self, slot: _SentenceSlot) -> AsyncIterator[AudioChunk]:
+        """按序吐完一个槽的全部音频；槽内错误在已吐块之后重抛（与串行版一致）。"""
+        while True:
+            item = await slot.queue.get()
+            if isinstance(item, _SlotEnd):
+                if item.error is not None:
+                    raise item.error
+                return
+            yield item.chunk
+
+    async def _feed_sentences(
+        self,
+        text_stream: AsyncIterator[str],
+        voice_ref: VoiceRef,
+        pending: "asyncio.Queue[_SentenceSlot | None]",
+        window: asyncio.Semaphore,
+        feeder_error: list[BaseException | None],
+    ) -> None:
+        """断句 + 排槽。文本流出错也先让已排的槽播完，错误最后由主循环重抛。"""
+        splitter = SentenceSplitter()
+        try:
+            async for text in text_stream:
+                for sentence in splitter.feed(text):
+                    await self._offer(sentence, voice_ref, pending, window)
+            for sentence in splitter.flush():
+                await self._offer(sentence, voice_ref, pending, window)
+        except asyncio.CancelledError:
+            # 取消必须能穿透（与 _one_sentence 同一条纪律）。
+            raise
+        except BaseException as exc:  # noqa: BLE001 — 上游异常收口给主循环
+            feeder_error[0] = exc
+        finally:
+            # 结束标记。主循环被关时这条 put 无人消费，无所谓——gather 会收掉本任务。
+            pending.put_nowait(None)
+
+    async def _offer(
+        self,
+        sentence: str,
+        voice_ref: VoiceRef,
+        pending: "asyncio.Queue[_SentenceSlot | None]",
+        window: asyncio.Semaphore,
+    ) -> None:
+        # 先抢名额再排槽：在途（正在播 + 已排未播）的合成永远不超过 1 + prefetch 句。
+        await window.acquire()
+        slot = _SentenceSlot(queue=asyncio.Queue(maxsize=MAX_BUFFERED_CHUNKS))
+        slot.task = asyncio.create_task(self._produce(sentence, voice_ref, slot))
+        pending.put_nowait(slot)
+
+    async def _produce(self, sentence: str, voice_ref: VoiceRef, slot: _SentenceSlot) -> None:
+        """合成一句，把块推进槽的有界队列。故障切换、缓存与「未吐字节才重试」都在
+        ``_one_sentence`` 里——与串行版共用同一段逻辑，不分叉。"""
+        try:
+            async for chunk in self._one_sentence(sentence, voice_ref):
+                # 队列满时停在这里：预取的是提前合成，不是无限攒音频。
+                await slot.queue.put(_SlotChunk(chunk))
+            await slot.queue.put(_SlotEnd(None))
+        except asyncio.CancelledError:
+            # 被丢弃的槽直接散开：不往队列里塞收尾标记——消费侧已经不在了，
+            # 塞标记可能永远等在满队列上。取消必须能穿透（同 _one_sentence 纪律）。
+            raise
+        except BaseException as exc:  # noqa: BLE001 — 错误经队列交给消费侧再抛
+            # 错误与音频块同队：已吐的块先到调用方，错误在后（与串行版一致）。
+            # 消费侧在排空这个槽，所以这里不会挂死。
+            await slot.queue.put(_SlotEnd(exc))
 
     async def _one_sentence(self, sentence: str, voice_ref: VoiceRef) -> AsyncIterator[AudioChunk]:
         text = sentence.strip()
@@ -340,6 +481,31 @@ def _as_provider_error(exc: Exception, provider_name: str, direction: str) -> Vo
     return VoiceProviderError(
         f"{provider_name} {direction} failed: {exc}", provider=provider_name, direction=direction
     )
+
+
+@dataclass(frozen=True)
+class _SlotChunk:
+    chunk: AudioChunk
+
+
+@dataclass(frozen=True)
+class _SlotEnd:
+    error: BaseException | None
+
+
+#: 队列里流转的东西：音频块，或者「这一句到此为止」（带错误就是带错误）。
+_SlotItem = _SlotChunk | _SlotEnd
+
+
+@dataclass
+class _SentenceSlot:
+    """一个预取槽：合成任务 + 它自己的有界音频队列。
+
+    结束标记与音频块走同一条队列，保证「错误在已吐块之后才到达调用方」。
+    """
+
+    queue: "asyncio.Queue[_SlotItem]"
+    task: "asyncio.Task[None] | None" = None
 
 
 async def _one_text(text: str) -> AsyncIterator[str]:
