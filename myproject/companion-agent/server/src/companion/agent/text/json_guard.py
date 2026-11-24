@@ -16,6 +16,11 @@ prompt（``CUE_OUTPUT_SNIPPET``）要求模型优先输出一行 cue JSON，而
 已识别的 cue JSON 必须可解析且含可朗读的 say 才能交付。畸形、未闭合或
 超限片段丢弃，绝不回落到原文朗读。超限后丢弃本轮余下 token，flush 重置状态；
 普通非协议花括号正文仍走断句器。
+
+片段闭合后紧跟的 ``]``/``}`` 残尾同样丢弃：模型收尾常吐出 ``]}`` 这类未配平
+括号（生产 11-22 05:07 ``said=']}'`` 即这条路径——守卫把完整 JSON 交付后，
+把 ``]}`` 当正文放给了断句器）。它既不是正文也不是协议，进 TTS 就是 volc
+「No readable text!」；``said`` 只剩残尾时日志上就是空回复。
 """
 
 from __future__ import annotations
@@ -59,6 +64,7 @@ class CueJsonGuard:
         self._discarding = False
         self._say_streamed_chars = 0     # say 闭合后已喂给断句器的解码长度
         self._say_field_closed = False   # 顶层 say 字符串是否已闭合
+        self._after_close = False        # 片段刚闭合：紧随其后的 ]/} 残尾丢弃
 
     def feed(self, chunk: str) -> list[str]:
         """吃一块模型文本，返回此刻能交付的"句"（cue 片段是完整一行 JSON）。"""
@@ -67,6 +73,11 @@ class CueJsonGuard:
         out: list[str] = []
         buf = chunk
         while buf:
+            if self._after_close:
+                buf = _strip_closer_junk(buf)
+                if not buf:
+                    return out
+                self._after_close = False
             if self._pending is None:
                 brace = buf.find("{")
                 if brace < 0:
@@ -107,6 +118,9 @@ class CueJsonGuard:
                     self._say_field_closed = False
                 return out
             complete, self._pending = probe[:end], None
+            # 闭合后的第一串字符是「刚出协议」的位置：模型在这里最常吐 `]}`
+            # 这类未配平收尾（11-22 05:07 `said=']}'`）。置位让循环下一轮先剥掉它。
+            self._after_close = True
             if len(complete) <= self._max_pending and _safe_fragment(complete):
                 if self._say_streamed_chars > 0:
                     out += self._splitter.flush()
@@ -169,13 +183,26 @@ class CueJsonGuard:
             self._discarding = False
             self._say_streamed_chars = 0
             self._say_field_closed = False
+            self._after_close = False
             self._splitter.flush()
             return []
         self._pending = None
         self._discarding = False
         self._say_streamed_chars = 0
         self._say_field_closed = False
+        self._after_close = False
         return self._splitter.flush()
+
+
+def _strip_closer_junk(text: str) -> str:
+    """片段闭合后紧跟的未配平收尾（空白 + `]`/`}`）不是正文，直接丢弃。
+
+    只认这一串：`，然后。` 这类真正文必须原样放行，所以不吞任何别的东西。
+    """
+    i = 0
+    while i < len(text) and (text[i].isspace() or text[i] in "]}"):
+        i += 1
+    return text[i:]
 
 
 def _safe_fragment(text: str) -> bool:

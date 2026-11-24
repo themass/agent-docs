@@ -105,6 +105,44 @@ def test_malformed_complete_object_does_not_drop_following_valid_fragment():
     assert g.feed('{"say":123}' + LINE) + g.flush() == [LINE]
 
 
+def test_closer_tail_after_a_fragment_is_not_spoken():
+    """生产 RCA（11-22 05:07 `said=']}'`）：模型收尾吐出未配平的 `]}` 残尾。
+
+    回合末一条 `voice reply … interrupted=False`，`said` 只由 ``output.text``
+    拼接——守卫必须在 cue 片段闭合后丢弃 `]`/`}` 残尾：它既不是正文也不是协议，
+    进 TTS 就是 volc「No readable text!」，日志上就是残片"空回复"。
+    """
+    g = guard()
+    out = g.feed('{"say":"好。","cues":[]}' + ']}')
+    out += g.flush()
+    assert out == ['{"say":"好。","cues":[]}']
+
+
+def test_closed_fragment_followed_by_junk_then_real_prose():
+    g = guard()
+    out = g.feed('{"say":"好。"}]}')
+    out += g.feed('明天再说。')
+    out += g.flush()
+    assert out == ['{"say":"好。"}', '明天再说。']
+
+
+def test_closer_tail_after_a_rejected_object_is_dropped_too():
+    g = guard()
+    out = g.feed('{"say":123}' + ']}')
+    out += g.flush()
+    assert out == []
+
+
+def test_closer_junk_spanning_chunk_boundary_is_dropped():
+    """残尾跨流式块到达时也必须丢弃：flag 在 feed 开头继续剥。"""
+    g = guard()
+    out = g.feed('{"say":"好。","cues":[]}')
+    out += g.feed(']}')
+    out += g.feed('明天见。')
+    out += g.flush()
+    assert out == ['{"say":"好。","cues":[]}', '明天见。']
+
+
 @pytest.mark.parametrize("blob", [
     '{"say":"好。{"say":"继续。","cues":[]}',
     '{"say":"未完成',
