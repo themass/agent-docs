@@ -1,0 +1,22 @@
+[Unit]
+Description=Companion API (companion.serve, :8081)
+Documentation=file:///home/web/webroot/companion-agent/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=web
+Group=web
+WorkingDirectory=/home/web/webroot/companion-agent/server
+ExecStart=/home/web/webroot/companion-agent/scripts/run-as-service.sh api
+Restart=always
+RestartSec=3
+# 与 process.sh 同口径：api 收到 TERM 后停止接新请求、等回合收尾，最长给到 60s 再 KILL。
+TimeoutStopSec=60
+LimitNOFILE=65535
+# 日志进 journal（journalctl -u companion-api），不再写 .data/logs/api.log——
+# 两处写同一文件会互相踩。轮转交给 journald。
+
+[Install]
+WantedBy=multi-user.target

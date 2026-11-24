@@ -10,6 +10,10 @@
 # 不用 systemd、不用 sudo：setsid 让进程脱离启动它的脚本（和 SSH 会话）继续跑。
 # start 会轮询 /health 最多 30 秒才报成功——"进程起来了但从不响应"正是只查 PID 会漏掉的故障。
 #
+# 例外：如果机器上装了 deploy/systemd/ 的 unit（见那份 README），本脚本自动改走
+# systemctl——进程归 init 管（重启自起、崩溃自动拉起、cgroup 归 system.slice），
+# 命令语义不变，只是背后换人。两套不能混跑，装 unit 前先把 setsid 起的进程 stop 掉。
+#
 # 端口从 <部署目录>/.data/deploy.env 读（CA_API_PORT 等），nginx 必须指同一个值。
 set -euo pipefail
 
@@ -181,6 +185,70 @@ case "$target" in
   all) names=(api voice) ;;
   *) die "未知目标: ${target}（api / voice / all）" ;;
 esac
+
+# ---------------------------------------------------------------------------
+# systemd 模式：如果 deploy/systemd 的 unit 已装进 /etc/systemd/system，
+# 全部命令委托给 systemctl——进程归 init 管（机器重启自起、崩溃自动重启、
+# cgroup 归位 system.slice），PID 文件那套只留给没装 unit 的机器。
+# 需要 sudo（web 只对这两个 unit 的 start/stop/restart 有 NOPASSWD，见
+# deploy/systemd/README.md）；sudo -n 不通就不委托，别卡在密码提示上。
+unit_name() { case "$1" in api) echo companion-api ;; voice) echo companion-voice ;; esac; }
+
+systemd_managed() {
+  local unit; unit="$(unit_name "$1")"
+  [[ -f "/etc/systemd/system/${unit}.service" ]] || return 1
+  command -v systemctl >/dev/null 2>&1 || return 1
+  sudo -n true >/dev/null 2>&1 || return 1
+  # unit 活着：它是主人。
+  sudo -n systemctl is-active --quiet "$unit" && return 0
+  # unit 装了还没起，但 setsid 旧进程还在（切换窗口）：这一下仍走 PID 文件，
+  # 好让 `process.sh stop` 能把旧进程收掉，而不是对着没起的 unit 打空。
+  is_running "$1" && return 1
+  return 0
+}
+
+systemd_cmd() {
+  local cmd="$1" name="$2" unit
+  unit="$(unit_name "$name")"
+  case "$cmd" in
+    start | stop | restart)
+      log "systemd: ${cmd} ${unit}"
+      sudo systemctl "$cmd" "$unit"
+      # api 启动沿用健康检查：systemctl start 只保证 exec 成功，不代表 /health 活了。
+      if [[ "$cmd" != stop && "$name" == api ]]; then
+        local waited=0
+        while (( waited < CA_START_TIMEOUT )); do
+          health_ok && { log "api 健康（http://${CA_API_HOST}:${CA_API_PORT}/health）"; return 0; }
+          sleep 1; waited=$((waited + 1))
+        done
+        die "api 起了但 ${CA_START_TIMEOUT}s 内 /health 没响应：journalctl -u ${unit} -n 40"
+      fi
+      ;;
+    status)
+      printf '  %-6s %s\n' "$name" "$(sudo systemctl is-active "$unit")  [systemd ${unit}]"
+      ;;
+    logs)
+      local lines="${3:-80}"
+      journalctl -u "$unit" -n "$lines" --no-pager
+      ;;
+  esac
+}
+
+# 目标里有一个是 systemd 管的，就整组走 systemd（混跑两套必打架）。
+# 目标里每一个都是 systemd 管的，整组才走 systemd（混跑两套必打架；
+# 切换窗口里旧的没停干净时，本组仍按 PID 文件模式走，先把旧的收掉）。
+group_systemd=true
+for n in "${names[@]}"; do systemd_managed "$n" || { group_systemd=false; break; }; done
+if $group_systemd; then
+  for n in "${names[@]}"; do
+    case "$cmd" in
+      start | stop | restart | status) systemd_cmd "$cmd" "$n" ;;
+      logs) systemd_cmd logs "$n" "${3:-80}" ;;
+      *) die "未知命令: ${cmd}（start / stop / restart / status / logs）" ;;
+    esac
+  done
+  exit 0
+fi
 
 case "$cmd" in
   start) for n in "${names[@]}"; do start_one "$n"; done ;;
