@@ -178,8 +178,17 @@ def build_agent_class() -> type:
             finished = False
             cue_intents = 0
             cue_sent = 0
+            # F16（7ef3ace）后 CueJsonGuard 提前把 say 放给断句器，JSON 闭合时 cues 随
+            # 空正文壳 {"say":"","cues":[…]} 到达——写死在 `if output.text:` 里，模型
+            # 出的 cue 就在壳里静默消失（session-33 cues=0/0 的确切路径）。
+            # 意图计数不挑正文；壳里的 cue 补挂到最近一次 say 声明的段（壳的 say 文本
+            # 就是那段，不变量 1 仍成立）。没有可挂的段就只计数——cues=0/1 与「模型
+            # 没出」cues=0/0 在日志里可分（44d2d27 三成因口径）。
+            last_declared: tuple[Any, Any] | None = None
             try:
                 async for output in self._pipeline.run(request):
+                    intents = getattr(output, "intents", None) or []
+                    cue_intents += len(intents)
                     if output.text:
                         if first_ms is None:
                             first_ms = int((time.monotonic() - started) * 1000)
@@ -189,8 +198,8 @@ def build_agent_class() -> type:
                         declared = None
                         if turn_id:
                             declared = await self._speech.say(output.text, turn_id=turn_id)
-                        intents = getattr(output, "intents", None) or []
-                        cue_intents += len(intents)
+                        if declared is not None:
+                            last_declared = declared
                         if declared is not None and intents:
                             speech_id, seg = declared
                             cue_sent += await self._cues.publish_for_segment(
@@ -200,6 +209,15 @@ def build_agent_class() -> type:
                                 source=getattr(output, "source", "tag"),
                             )
                         yield output.text
+                    elif intents and last_declared is not None:
+                        # 空壳：补挂到它自己的 say 已声明的那一段。
+                        speech_id, seg = last_declared
+                        cue_sent += await self._cues.publish_for_segment(
+                            intents,
+                            speech_id=speech_id,
+                            seg_idx=seg.idx,
+                            source=getattr(output, "source", "structured"),
+                        )
                 finished = True
             except TurnRefused:
                 # 输入没过内容检查：用户该听到一句话，而不是房间突然安静

@@ -341,3 +341,82 @@ async def test_a_reply_without_cue_intents_says_so(caplog):
 
     reply = next(r.message for r in caplog.records if "voice reply" in r.message)
     assert "cues=0/0" in reply, reply
+
+
+# 生产 session-33 / turn 01M86MPWW7FD0DS4WH2979MVWM 的 checkpoint 原文：模型确实
+# 输出了两行 cue JSON，voice.log 却是 cues=0/0。F16（7ef3ace）后守卫提前流式 say，
+# cues 随空正文壳 {"say":"","cues":[…]} 到达——它们必须补挂到刚声明的那一段。
+PROD_LINE = (
+    '{"say":"我们在多个县。","cues":[{"kind":"gaze","name":"look_user","anchor":"segment_start"}]} '
+    '{"say":"你是说你们分布覆盖了好几个县？","cues":[{"kind":"gesture","name":"nod","anchor":"segment_start"}]}'
+)
+
+
+async def test_cue_shells_from_streamed_say_publish_on_their_segment(caplog):
+    """F16 空壳里的 cue 不能因 text 为空被吞：生产 cue JSON → cues=2/2 + 两段都发。
+
+    守卫把 say 提前放给断句器，闭合后只回 ``{"say":"","cues":[…]}``。llm_node 以前
+    把意图计数与发送都写在 ``if output.text:`` 里——空壳整个被跳过，模型出的 cue
+    就在这里静默消失（session-33 的 cue JSON 变成 cues=0/0 的确切路径）。
+    """
+    import logging
+
+    from companion.agent.brain.fake import FakeBrain
+    from companion.service.turn.pipeline import TurnPipeline
+
+    speech = _Speech()
+    cues = _Cues()
+    chunks = [PROD_LINE[i:i + 7] for i in range(0, len(PROD_LINE), 7)]
+    agent = build_agent_class()(
+        pipeline=TurnPipeline(FakeBrain(chunks)),
+        user_id="1002", character_id="linche", chat_session_id=42,
+        speech=speech, cues=cues,
+    )
+
+    with caplog.at_level(logging.INFO, logger="companion.api.livekit.agent"):
+        seen = [t async for t in agent.llm_node(CTX, [], None)]
+
+    assert cues.events == [
+        "reset_turn",
+        "cue:sp_test:0:look_user:structured",
+        "cue:sp_test:1:nod:structured",
+    ], cues.events
+    assert cues.calls[0]["seg_idx"] == 0 and cues.calls[1]["seg_idx"] == 1
+    reply = next(r.message for r in caplog.records if "voice reply" in r.message)
+    assert "cues=2/2" in reply, reply
+    assert "我们在多个县" in reply and "你是说你们分布覆盖了" in reply, reply
+
+
+async def test_cue_shell_before_any_declared_segment_counts_but_sends_nothing(caplog):
+    """正文还没声明过 seg 就来的 cue 壳：意图计数照常（cues=0/1），不凭空发布。
+
+    这是 44d2d27 三种成因口径的另一半——「锚点没声明」必须在计数里看得见，
+    否则 cues=0/0 又把「模型没出」和「没处挂」混回一行。
+    """
+    import logging
+    from companion.agent.protocol.cue_intent import CueIntent
+
+    speech = _Speech()
+    cues = _Cues()
+
+    class _ShellFirst:
+        def __init__(self):
+            self.last_turn = SimpleNamespace(turn_id="T1", user_message_id=None)
+
+        async def run(self, request):
+            yield SimpleNamespace(text="", events=[],
+                                  intents=[CueIntent(kind="emotion", name="joy")], source="structured")
+            yield SimpleNamespace(text="先歇一会儿。", events=[], intents=[], source="tag")
+
+        async def cancel(self) -> None:
+            return None
+
+    agent = build_agent_class()(pipeline=_ShellFirst(), user_id="1002", character_id="linche",
+                                chat_session_id=42, speech=speech, cues=cues)
+    with caplog.at_level(logging.INFO, logger="companion.api.livekit.agent"):
+        seen = [t async for t in agent.llm_node(CTX, [], None)]
+
+    assert seen == ["先歇一会儿。"]
+    assert cues.events == ["reset_turn"], cues.events
+    reply = next(r.message for r in caplog.records if "voice reply" in r.message)
+    assert "cues=0/1" in reply, reply
