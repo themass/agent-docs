@@ -110,6 +110,15 @@ PREWARM_IMPORTS = (
     # 首帧 platform.astart() 里的 checkpointer.setup() 走 psycopg 连接池；
     # psycopg_pool 本体此前不在清单（psycopg 在，池不在）。
     "psycopg_pool",
+    # 2026-11-24 F16-B1：loop_monitor 点名 `importing livekit.plugins.volcengine`
+    # 576ms / `.tts` 456ms / `.realtime` 367–676ms——每 job 子进程第一次合成/识别
+    # 才冷 import（osc_data 在清单里，插件本体不在）。本机实测 cold import：
+    # tts 2128ms、stt 1280ms、realtime 1257ms。隔离 bench 证明火山合成本身
+    # 首包只有 ~0.7–0.8s（fresh P50=783ms），生产 ③ 冷轮 P50=7.5s 的大头是
+    # 进程内冷路径——这三行是最小可归零部分。realtime 经插件 __init__ 链进来。
+    "livekit.plugins.volcengine.tts",
+    "livekit.plugins.volcengine.stt",
+    "livekit.plugins.volcengine.realtime",
 )
 
 
