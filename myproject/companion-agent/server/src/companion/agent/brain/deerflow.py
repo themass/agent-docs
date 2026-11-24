@@ -12,6 +12,8 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+import time
 import uuid
 from collections.abc import AsyncIterator, Sequence
 from typing import Any
@@ -38,6 +40,8 @@ from companion.agent.brain.port import (
 from companion.agent.brain.conversation import lc_user_id
 from deerflow.agents.factory import create_deerflow_agent
 from deerflow.agents.features import RuntimeFeatures
+
+log = logging.getLogger("companion.brain.deerflow")
 
 # 图编译时的占位提示词：真正的提示词由 PromptMiddleware 每轮写入（P §2.4）。
 _PLACEHOLDER_SYSTEM = "You are a helpful assistant."
@@ -145,7 +149,15 @@ class DeerFlowBrain:
             # exit = 整个 run 结束时才写一次。前提是图里没有 interrupt()（我们没有：
             # 工具确认是回合之外的确认表，不靠图暂停），取消回合时状态仍会保留。
             kwargs["durability"] = DURABILITY
+        # ⓪ 段探针：`voice llm start` 之后到第一个图消息之间是黑的——checkpoint 读取
+        # （独立 psycopg 池）和中间件都在这里，现网 recall→llm start 虽只 0.3s 中位，
+        # 这一段（llm start→首 delta）没量过。首块用时只在第一块记一次。
+        stream_started = time.monotonic()
+        first_chunk_logged = False
         async for msg, _meta in self._graph.astream({"messages": messages}, **kwargs):
+            if not first_chunk_logged:
+                first_chunk_logged = True
+                log.info("brain first graph chunk ms=%d", int((time.monotonic() - stream_started) * 1000))
             mid = getattr(msg, "id", None)
             if mid and mid not in seen_ids and mid not in input_ids and isinstance(msg, (AIMessage, ToolMessage)):
                 seen_ids.add(mid)

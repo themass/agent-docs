@@ -200,6 +200,9 @@ class TurnRunner:
     async def _run(self, inp: TurnInput, *, started: float) -> None:
         state = _RunState()
         inbox = SteerInbox(budget=self._steer_budget)
+        # ⓪ 段探针：turn 任务被拉起后到进模型前还有两次串行库往返（读消息 + attach_turn），
+        # 原先没有日志，`turn.started` 与 `voice llm start` 之间是黑的。
+        prelude_started = time.monotonic()
         inputs = await self._load_inputs(inp)
         restarts = 0
         stop = asyncio.Event()
@@ -209,6 +212,8 @@ class TurnRunner:
         try:
             await self._messages.attach_turn(owner_id=inp.owner_id, session_id=inp.session_id,
                                              message_ids=inp.message_ids, turn_id=inp.turn_id)
+            log.info("turn prelude ms=%d inputs=%d",
+                     int((time.monotonic() - prelude_started) * 1000), len(inputs))
             # turn.started 不在这里发：已在 SubmitService._start() 里、启动本任务之前发出，
             # 并与 message.created 合成了一次 Redis 往返。这里再发一次就是重复事件。
             while True:

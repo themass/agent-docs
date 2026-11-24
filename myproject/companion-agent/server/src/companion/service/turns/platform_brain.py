@@ -91,10 +91,15 @@ class PlatformBrain:
             raise ValueError(f"user id must be numeric, got {request.user_id!r}") from exc
 
         # 先记游标再提交：回合可能在 submit 返回前就开始吐字，晚记会漏掉开头几个字
+        cursor_started = time.monotonic()
         cursor = await self._control.tail_event_id(session_id=request.session_id)
+        cursor_ms = int((time.monotonic() - cursor_started) * 1000)
         # 附件在 submit 前最后一刻才取：取早了， attachments 事件还在路上，
         # 一条带图消息就变成了纯文本；取晚了没有意义，文字和图必须在同一条消息里。
         attachments = self._take_attachments()
+        # ⓪ 段探针：`voice turn` 到 `queued/drained` 之间原先没有一行日志，
+        # 现网 9–10s 只能靠上下文时间差猜。提交这一段（六次串行库/Redis 往返）单独量出来。
+        submit_started = time.monotonic()
         result = await self._submit.submit(
             owner_id=owner_id, session_id=request.session_id, character_id=request.character_id,
             text=request.message, client_message_id=None,
@@ -105,6 +110,9 @@ class PlatformBrain:
             # 端侧 control.input(kind=attachments) 暂存下来的图；None 表示这条没图
             attachments=attachments)
 
+        logger.info("voice turn submit done cursor_ms=%d submit_ms=%d status=%s disposition=%s turn_id=%s",
+                    cursor_ms, int((time.monotonic() - submit_started) * 1000),
+                    result.status, getattr(result, "disposition", None), getattr(result, "turn_id", None) or "")
         if result.status == "denied":
             raise TurnRefused(getattr(result, "reason", None))
         if result.status == "duplicate":
