@@ -395,6 +395,32 @@ relationship = Table(
 )
 
 
+# P6 角色卡（可版本化身份/声音偏好/关系边界）：一卡一行 + 每版本一行。
+# base 是基准字段（来自角色资产），version 行是覆盖链上的变更集；
+# active_version 是提示词读的那一个版本号——回退只是把它挪回去，历史行不删（可观可改）。
+role_card = Table(
+    TABLE_PREFIX + "role_card", metadata,
+    _pk(),
+    Column("owner_id", BigInteger, nullable=False),
+    Column("role_id", String(128), nullable=False),                  # 与记忆/画像同样的「用户 + 角色」隔离
+    Column("base", JsonText, nullable=False),                        # 基准字段（未叠加任何版本前）
+    Column("active_version", Integer, nullable=False, server_default="1"),
+    _now(), _upd(),
+    UniqueConstraint("owner_id", "role_id", name="ca_uq_role_card_owner_role"),
+)
+
+role_card_version = Table(
+    TABLE_PREFIX + "role_card_version", metadata,
+    _pk(),
+    Column("owner_id", BigInteger, nullable=False),
+    Column("role_id", String(128), nullable=False),
+    Column("version", Integer, nullable=False),                      # 同一卡内自增；生效链按它升序叠加
+    Column("changes", JsonText, nullable=False),                     # 变更集：字段→新值；null=清除该字段
+    _now(),
+    UniqueConstraint("owner_id", "role_id", "version", name="ca_uq_role_card_version"),
+)
+
+
 user_consent = Table(
     TABLE_PREFIX + "user_consent", metadata,
     Column("owner_id", BigInteger, primary_key=True, autoincrement=False),

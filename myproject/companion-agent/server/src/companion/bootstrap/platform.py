@@ -34,6 +34,8 @@ from companion.service.jobs.sql import SqlJobStore
 from companion.service.persona.sql import SqlPersonaStore
 from companion.service.relationship.model import delta_for
 from companion.service.relationship.sql import SqlRelationshipStore
+from companion.service.card.sql import SqlCardStore
+from companion.service.card.store import CardService
 from companion.service.proactive.store import (
     SqlDelivery, SqlPreferencesStore, SqlSendLedger,
 )
@@ -161,6 +163,8 @@ class Platform:
     brain: Any = None
     qa: Any = None
     objects: Any = None
+    # P6 角色卡（可版本化身份/边界）与窄记忆索引读接口共享它
+    cards: Any = None
     qa_retention_days: int = 90
     tos_key_prefix: str = ""
     trace_writer: Any = None
@@ -317,6 +321,8 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     profile_doc_updater = (ProfileDocUpdater(store=profile_doc, memory=memory, messages=messages, llm=llm)
                            if llm is not None else None)
     relationship = SqlRelationshipStore(engine)
+    # P6 角色卡：CardService 包住 SQL store；API 与（未来）注入点都只经它。
+    cards = CardService(SqlCardStore(engine))
     context = ContextBuilder(roles=resolver, messages=messages, sessions=sessions, memory=pipeline, persona=persona,
                              relationship=relationship, profile_doc=profile_doc)
     history = HistoryService(messages=messages, control=control, conversation=conversation, jobs=jobs,
@@ -552,6 +558,7 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
                     pipeline=pipeline, jobs=jobs, timeline_recorder=timeline_recorder, persona_updater=persona_updater,
                     persona=persona, profile_doc_updater=profile_doc_updater, profile_doc=profile_doc,
                     relationship=relationship, compliance=compliance, account=account, avatars=avatars,
+                    cards=cards,
                     admin_token=settings.companion_admin_token, sessions=sessions, brain=brain, qa=qa, objects=objects,
                     qa_retention_days=settings.companion_qa_retention_days, trace_writer=trace_writer, qa_enabled=qa_enabled,
                     tos_key_prefix=settings.tos_key_prefix, _pool=pool, _checkpointer=checkpointer)

@@ -140,6 +140,29 @@ async def test_memory_job_for_closed_session_is_skipped(engine):
     await SqlAccountStore(engine).purge(owner_id=owner)
 
 
+async def test_purge_removes_role_cards_too(engine):
+    """P6 角色卡是用户数据：注销后卡与版本都必须消失（与画像/关系同口径的表级删除）。"""
+    from sqlalchemy import func, select
+
+    from companion.db.schema import role_card, role_card_version
+    from companion.service.card.sql import SqlCardStore
+
+    owner = random.randint(10**8, 10**9)
+    cards = SqlCardStore(engine)
+    await cards.create(owner_id=owner, role_id="linche", base={"name": "临澈"}, changes={"personality": "温柔"})
+    await cards.add_version(owner_id=owner, role_id="linche", changes={"boundaries": ["不谈钱"]}, make_active=True)
+
+    report = await AccountPurgeService(
+        store=SqlAccountStore(engine), jobs=SqlJobStore(engine), control=None, threads=None,
+        memory=SqlMemoryPort(engine), timeline=None, objects=None).run(owner_id=owner)
+
+    async with engine.begin() as conn:
+        for table in (role_card, role_card_version):
+            assert (await conn.execute(select(func.count()).select_from(table)
+                                       .where(table.c.owner_id == owner))).scalar() == 0
+    assert report.rows > 0
+
+
 @pytest.mark.skipif(not os.environ.get("COMPANION_TEST_REDIS_URL"), reason="COMPANION_TEST_REDIS_URL not set")
 async def test_redis_purge_session_cancels_and_clears():
     from redis import asyncio as redis_async

@@ -34,6 +34,8 @@ from companion.api.http.routers.account import build_router as build_account_rou
 from companion.api.http.routers.avatars import build_router as build_avatars_router
 from companion.api.http.routers.compliance import build_router as build_compliance_router
 from companion.api.http.routers.memory_v1 import build_router as build_memory_v1_router
+from companion.api.http.routers import memory_index as memory_index_router
+from companion.api.http.routers.cards import build_router as build_cards_router
 from companion.api.http.routers.reminders import build_router as build_reminders_router
 from companion.api.http.routers.chat import build_health_router
 from companion.bootstrap.platform import Platform
@@ -239,6 +241,11 @@ def create_app(
         app.include_router(build_memory_v1_router(memory=platform.memory, timeline=platform.timeline,
                                                   current_user=current_user, persona=platform.persona,
                                                   profile_doc=platform.profile_doc))
+        # P6：角色卡接口与紧凑记忆索引（只读预览）。索引必须排在 memory_v1 之后：
+        # 两者共用 /v1/memory 前缀，v1 没有 /index 路由，顺序只影响可读性。
+        app.include_router(build_cards_router(platform.cards, current_user))
+        app.include_router(memory_index_router.build_router(
+            memory=platform.memory, cards=platform.cards, current_user=current_user))
         app.include_router(build_health_router(platform.drain))
 
     # 角色卡目录（陪伴角色的展示信息）不依赖数据库

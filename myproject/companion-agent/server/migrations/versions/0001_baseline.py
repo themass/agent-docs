@@ -245,8 +245,31 @@ CREATE TABLE ca_relationship (
 	PRIMARY KEY (owner_id, role_id)
 );
 
+CREATE TABLE ca_role_card (
+	id BIGSERIAL NOT NULL,
+	owner_id BIGINT NOT NULL,
+	role_id VARCHAR(128) NOT NULL,
+	base JSONB NOT NULL,
+	active_version INTEGER DEFAULT '1' NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	PRIMARY KEY (id),
+	CONSTRAINT ca_uq_role_card_owner_role UNIQUE (owner_id, role_id)
+);
+
+CREATE TABLE ca_role_card_version (
+	id BIGSERIAL NOT NULL,
+	owner_id BIGINT NOT NULL,
+	role_id VARCHAR(128) NOT NULL,
+	version INTEGER NOT NULL,
+	changes JSONB NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	PRIMARY KEY (id),
+	CONSTRAINT ca_uq_role_card_version UNIQUE (owner_id, role_id, version)
+);
+
 CREATE TABLE ca_persona_profile (
-	id BIGSERIAL NOT NULL, 
+	id BIGSERIAL NOT NULL,
 	owner_id BIGINT NOT NULL, 
 	app VARCHAR(32) NOT NULL, 
 	version INTEGER NOT NULL, 
@@ -693,6 +716,29 @@ CREATE TABLE ca_relationship (
 	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	PRIMARY KEY (owner_id, role_id)
+);
+
+CREATE TABLE ca_role_card (
+	id BIGINT NOT NULL AUTO_INCREMENT,
+	owner_id BIGINT NOT NULL,
+	role_id VARCHAR(128) NOT NULL,
+	base MEDIUMTEXT NOT NULL,
+	active_version INTEGER NOT NULL DEFAULT '1',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	PRIMARY KEY (id),
+	CONSTRAINT ca_uq_role_card_owner_role UNIQUE (owner_id, role_id)
+);
+
+CREATE TABLE ca_role_card_version (
+	id BIGINT NOT NULL AUTO_INCREMENT,
+	owner_id BIGINT NOT NULL,
+	role_id VARCHAR(128) NOT NULL,
+	version INTEGER NOT NULL,
+	changes MEDIUMTEXT NOT NULL,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	PRIMARY KEY (id),
+	CONSTRAINT ca_uq_role_card_version UNIQUE (owner_id, role_id, version)
 );
 
 CREATE TABLE ca_persona_profile (
