@@ -37,6 +37,11 @@ PERSON 层：**零传记之人第三、四枚合页首枚**——劉方平/金�
 零重开不碰）。四句七绝 shape：**1/1/1/1 第九次**。
 
 用法: python3 -I emit_v077.py --out-sql <path> --out-rollback <path> [--dry-run]
+
+本首已移植到 emit_common 框架（2026-11-24）：切片器/语料装载/年标题窗口/幂等 INSERT/
+回滚枚举/既往域查重/通用审计项全部来自框架；本文件只剩这首诗的四样东西——
+切片、四层正文、该首特有负证与入引硬卡、系年判决语。移植验收 = 产物与已提交
+V077 SQL 逐字节一致（cmp 过）。
 """
 import argparse
 import pathlib
@@ -45,17 +50,22 @@ import sys
 
 HERE = pathlib.Path(__file__).parent
 sys.path.insert(0, str(HERE))
-from emit_v019 import slice_between, sql_s, join  # noqa: E402
+from emit_common import (  # noqa: E402
+    POETRY_SQL_DIR, Premises, Snap, background_rows, bgline_union, cited_blob,
+    citation_union, claim_rows, claim_selection_rows, check_bgline_count,
+    check_id_unique, check_idempotent, check_no_cast, check_no_textline_touch,
+    check_not_reopen, check_pairs, check_phrases, check_shape, check_slices,
+    check_sources, check_widths, check_zero_known, content_rows, guard, join,
+    rollback_sql, slice_between, sql_s, version_row, window)
 
-WS = pathlib.Path('/tmp/src-dl/ws-poems/春怨__劉方平_.txt').read_text(encoding='utf-8')
-WJ = pathlib.Path('/tmp/src-dl/ws-poems/春怨__金昌緒_.txt').read_text(encoding='utf-8')
-V768 = pathlib.Path('/tmp/src-dl/quantangshi/vol768.txt').read_text(encoding='utf-8')
-V143 = pathlib.Path('/tmp/src-dl/quantangshi/vol143.txt').read_text(encoding='utf-8')
-V17 = pathlib.Path('/tmp/src-dl/quantangshi/vol017.txt').read_text(encoding='utf-8')
-FETCH = pathlib.Path('/tmp/src-dl/quantangshi/fetch.log').read_text(encoding='utf-8')
-V018 = pathlib.Path('/Users/gqli/work/testserverV/vvv-poetry/src/main/resources/db/poetry/V018__tang300_ws_verified.sql').read_text(encoding='utf-8')
-TJ205 = pathlib.Path('/tmp/src-dl/tongjian/tj-205.txt').read_text(encoding='utf-8')
-TJ256 = pathlib.Path('/tmp/src-dl/tongjian/tj-256.txt').read_text(encoding='utf-8')
+SNAP = Snap()                       # 语料规模断言（ws 295 / 全唐詩 118 / 通鉴 75）在框架内
+WS = SNAP.ws['春怨__劉方平_.txt']
+WJ = SNAP.ws['春怨__金昌緒_.txt']
+V768 = SNAP.qts['vol768.txt']
+FETCH = SNAP.fetch
+V018 = (POETRY_SQL_DIR / 'V018__tang300_ws_verified.sql').read_text(encoding='utf-8')
+TJ205 = SNAP.tj['tj-205.txt']
+TJ256 = SNAP.tj['tj-256.txt']
 
 # ---------- 切片（唯一锚点，逐字节；2026-11-21 实测全部唯一） ----------
 WS_AUTHOR = slice_between(WS, '| author   = 劉方平', '| author   = 劉方平',
@@ -126,27 +136,14 @@ if '打{{另|起|却}}黃鶯兒' not in V768_BLOCK or '{{另|啼時|幾時}}' no
 if WS.count('{{另') != 1 or WJ.count('{{另') != 2 or WJ.count('{{*') != 1:
     raise SystemExit('两页 {{另}}/{{*}} 计数变了（刘恰一/金恰二+恰一）——标记面断言须重估')
 
-# ---------- 通鉴年标题窗口断言 ----------
-_HEAD = re.compile(r'[^\n]*(?:（[甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥][，、]公元[〇零一二三四五六七八九十百千]+年）'
-                   r'|\{\{\*\|[甲乙丙丁戊己庚辛壬癸]，西元[〇零一二三四五六七八九十百千]+年\}\})')
+# ---------- 通鉴年标题窗口断言（框架 window()） ----------
+window(TJ205, TJ_LIHUA, '延載元年')
+window(TJ256, '以其有淚痕故也', '光啟二年')   # 只作耗尽登记断言——此句不入本迁移任何引文
 
-def _window(txt, needle, want):
-    i = txt.find(needle)
-    hs = [m.start() for m in _HEAD.finditer(txt)]
-    prev = [h for h in hs if h < i]
-    if not prev or want not in txt[prev[-1]:prev[-1] + 90]:
-        raise SystemExit(f'摘句前的年标题不是{want}——窗口断言失效，判决须重估')
-
-_window(TJ205, TJ_LIHUA, '延載元年')
-_window(TJ256, '以其有淚痕故也', '光啟二年')   # 只作耗尽登记断言——此句不入本迁移任何引文
-
-# ---------- 负证机器复查 ----------
-_tj = pathlib.Path('/tmp/src-dl/tongjian')
-_qts = pathlib.Path('/tmp/src-dl/quantangshi')
-_tjf = {p.name: p.read_text(encoding='utf-8') for p in sorted(_tj.glob('tj-*.txt'))}
-_alltj = ''.join(_tjf.values())
-_qtf = {p.name: p.read_text(encoding='utf-8') for p in sorted(_qts.glob('vol*.txt'))}
-_allq = ''.join(_qtf.values())
+# ---------- 负证机器复查（语料装载与 118/75/295 规模断言在 SNAP） ----------
+_tjf, _qtf, _wsf = SNAP.tj, SNAP.qts, SNAP.ws
+_alltj = SNAP.all_tj
+_allq = SNAP.all_qts
 # ① 通鉴：梨花恰一（延載元年）/淚痕恰一（光啟二年·已被 V056 用讫）；诗面语全零
 for _w, _n, _f in (('梨花', 1, 'tj-205.txt'), ('淚痕', 1, 'tj-256.txt')):
     if _alltj.count(_w) != _n or _tjf[_f].count(_w) != 1:
@@ -155,8 +152,6 @@ for _w in ('春怨', '紗窗', '金屋', '空庭', '不開門', '黃鶯', '遼�
     if _alltj.count(_w) != 0:
         raise SystemExit(f'通鉴「{_w}」不再全零（实 {_alltj.count(_w)}）——诗面语侧闭域档扫须重估')
 # ② 全唐诗快照：同题三诗三命运——刘四句净文全零（底本卷251不在）/金 inline 只在768/王锚壳在143
-if sorted(_qtf) and len(_qtf) != 118:
-    raise SystemExit(f'全唐詩快照卷数不再是 118（实 {len(_qtf)}）——闭域须重估')
 for _ln in ('紗窗日落漸黃昏', '金屋無人見淚痕', '寂寞空庭春欲晚', '梨花滿地不開門',
             '打起黃鶯兒', '啼時驚妾夢'):
     if _allq.count(_ln) != 0:
@@ -191,12 +186,8 @@ if _zh != ['vol017.txt'] or len(re.findall(r'====[^=\n]+著====', _allq)) != 55:
 _kv = sorted(n for n, t in _qtf.items() if '金昌緒' in t)
 if _kv != ['vol768.txt'] or V768.count('金昌緒') != 4:
     raise SystemExit(f'快照含「金昌緒」分布/计数变了（实 {_kv}）——一首之人谱须重估')
-# ③ 七史快照：劉方平/金昌緒全零（零传记之人第三、四枚合页首枚）
-_hist = {}
-for pat in ('jts-*.txt', 'xts-*.txt', 'qss-*.txt'):
-    for p in pathlib.Path('/tmp/src-dl').rglob(pat):
-        _hist[p.name] = p.read_text(encoding='utf-8')
-_allh = ''.join(_hist.values()) + _alltj
+# ③ 七史快照：劉方平/金昌緒全零（零传记之人第三、四枚合页首枚）——史部+通鉴域在 SNAP.all_hist
+_allh = SNAP.all_hist
 for _w in ('劉方平', '金昌緒'):
     if _allh.count(_w) != 0:
         raise SystemExit(f'史部快照「{_w}」不再全零（实 {_allh.count(_w)}）——零传记之人合页判决须重估')
@@ -205,11 +196,7 @@ if FETCH.count('卷251: FAILED both name forms') != 2:
     raise SystemExit(f'fetch.log「卷251: FAILED」不再恰二（实 {FETCH.count("卷251: FAILED both name forms")}）——在册外零凭证须重估')
 if FETCH.count('卷251: FAILED both name forms\n全唐詩/卷256') != 1 or FETCH.count(FETCH_251) != 1:
     raise SystemExit('fetch.log 卷251 两轮窗口结构变了——第一轮窗口锚定失效')
-# ⑤ ws 页形制闭域（notes双空格恰一页/四元组两页各唯一/题面{{*}}20/随尾挂145）
-_wsf = {p.name: p.read_text(encoding='utf-8')
-        for p in sorted(pathlib.Path('/tmp/src-dl/ws-poems').glob('*.txt'))}
-if len(_wsf) != 295:
-    raise SystemExit(f'ws 诗页语料不再 295 页（实 {len(_wsf)}）——闭域档扫须重估')
+# ⑤ ws 页形制闭域（notes双空格恰一页/四元组两页各唯一/题面{{*}}20/随尾挂145——295 页数断言在 SNAP）
 def _notes_tail2(t):
     for l in t.splitlines():
         if l.startswith('| notes'):
@@ -385,19 +372,7 @@ BG_SUMMARY = {k: '四层处境背景（阶段 D 第 58 首·四句七绝 1/1/1/1
                  '（audit 反向断言）；判例关键语零入引文。' for k in BG}
 
 
-def guard(table, cols, rows, match_expr):
-    def lit(v):
-        if v is None:
-            return 'NULL'
-        if isinstance(v, int):
-            return str(v)
-        return sql_s(v)
-    sel = '\nUNION ALL\n'.join(
-        'SELECT ' + ', '.join(f'{lit(r[c])} AS {c}' for c in cols) + ' FROM DUAL'
-        for r in rows)
-    return (f'INSERT INTO {table} ({", ".join(cols)})\n'
-            f'SELECT * FROM (\n{sel}\n) AS t\n'
-            f'WHERE NOT EXISTS (SELECT 1 FROM {table} x WHERE {match_expr});')
+DESC_EN = 'Liu Fang-ping\'s Spring Sorrow (work-t300-360) background layers (stage-D poem 58, one of two poems sharing the title in the anthology; four-line seven-character quatrain 1/1/1/1, ninth time): dating verdict fifty-two, thirty-eighth shape of the title-evidence series -- two Spring Sorrows in one anthology, three fates on the record. THE SAME-TITLE PAIR ON RECORD, first seen: the anthology carries two poems titled 春怨 -- t300-360 Liu Fang-ping (seven-character) and t300-043 Jin Changxu (five-character, "Hit the oriole off the branch") -- each with its own full work/text/claim/source stack (machine-asserted); their anthology pages each own a unique category quadruple in the whole 295-page corpus (seven-character and five-character runs, one page each -- curator action, not upgraded, V048). THREE FATES OF THE TITLE in the 118-volume Quan-Tangshi snapshot: the literal appears in exactly two volumes -- 143 (Wang Changling, anchor plus empty shell: counted only, never quoted) and 768 (Jin Changxu, inline full text quoted verbatim) -- while Liu\'s base volume 251 is absent from the snapshot: the fetch log says "卷251: FAILED both name forms" exactly twice (both rounds; first-round window quoted) -- OUT-OF-CATALOG ZERO, second instance (paired with V075\'s volume 256): the six clean lines scoring zero across 118 volumes is a snapshot zero, not a book zero. BASE-BOOK TWO STATES: volume 768 holds Jin\'s poem INLINE (unlike V076\'s volume-253 empty shell): anchor, poem body and an editors\' appendix mini-bio on one page. ALTERNATIVE TITLE, two witnesses, registered not adjudicated: 一作伊州歌 appears independently inside the volume-768 anchor ({{另|春怨|伊州歌}}) and in the anthology page\'s title field ({{*}}, a closed set of exactly 20 pages); the 768 face and the anthology face differ line by line ({{另|啼時|幾時}} vs {{另|啼時|幾迴}}, 却 vs 卻) -- cross-face variant witnesses, second pair. THE STORED FACE IS THE READING FACE, second of its series: both poems were stored by V018 as the folded face of their anthology pages (欲 from the head of {{另|欲|又}}, both physical lines\' trailing spaces trimmed; Jin\'s page folds twice: 打 from {{另|打|卻}}, 啼時 from {{另|啼時|幾迴}}) -- generator asserts the pair-join both directions for each page. Page form registered: the notes field of this page ends in a DOUBLE trailing space -- exactly one page in the whole corpus (machine-asserted); the {{唐詩三百首}} marker here hangs in the same line right after the header close (}}{{ form, a closed set of 145 pages), paired with V075\'s standalone-body hang (59 pages): two hang styles, one ledger. WORLD: same-character-two-realms, twenty-second shape -- the conceded shape, first seen. The poem\'s pear blossom: the Tongjian has exactly one (Yanzai 1, jiawu, 694: the empress dowager "sent a branch of pear blossom out to show the chancellors, and all the chancellors took it for an omen of fortune" while Du Jingjian alone said "now grass and trees are yellow and falling, yet this one blooms out of season -- the fault in the balance of yin and yang lies with us ministers", bowed and thanked; the history\'s pear blossom is an anomaly so out of season it made a chancellor confess, the poem\'s pear blossom is white all over the ground with nobody opening the door to see it). But the tears: the poem\'s second line carries tear traces, and the Tongjian\'s ledger of 淚痕 has exactly one entry (Guangqi 2, bingwu, 886: Xizong, sleeping under a plank, unfastened his imperial robe for Wang Jian "because it has tear traces on it") -- and that one entry was already quoted verbatim and used up by V056 (domain [\'V056\'] machine-asserted): for the first time in twenty-two shapes, this ledger was booked by a predecessor -- the migration registers the exhaustion and hard-asserts the closed sentence never re-enters any citation of this migration (audit). 春怨/紗窗/金屋/空庭/不開門/黃鶯/遼西/妾夢/黃昏 all zero in the Tongjian (machine-asserted). PERSON: ZERO-BIOGRAPHY PAIR, third and fourth of the series, first on one page: Liu Fang-ping and Jin Changxu score zero across the local history snapshots (2 JTS + 8 XTS + 3 QSS + 75 Tongjian, machine-asserted). Jin has one editors\' appendix line, quoted verbatim as this migration\'s PERSON evidence (the same apparatus as V076\'s Wang Zhihuan note: Wang got "six poems", Jin gets "one poem"; 餘杭人 appears exactly once in the whole snapshot). Liu has no note at all: 劉方平 appears in exactly two snapshot places, both anchor/byline lines (017 "====巫山高 劉方平著====" -- the "著"-style heading occurs 55 times corpus-wide, all in volume 017, machine-asserted, counted only, never quoted; 018 a byline): Liu keeps a name, Jin keeps one poem. NEW SOURCES: exactly one -- source-quantangshi-768, the volume page (second volume-page source ever, following V076; the audit asserts exactly one source insert and exactly one source delete in the rollback), while ws-t300-360 (second reuse), ws-t300-043 (second reuse) and the Tongjian events source are existing rows. Body use-ceiling, twenty-fifth instance: V018\'s punctuated excerpt on this poem stands first and is never re-opened (hard assertion); likewise V018\'s header-author excerpts for both pages and its punctuated excerpt for the sister poem stay closed. KNOWN zero honestly recorded (thirty-third instance -- both V018 text claims keep their KNOWN and stay untouched; audit reverse-asserts no KNOWN literal in this migration); closed precedent keywords (both punctuated full quotes, both header-author lines, V056\'s tear-trace sentence, V075\'s fetch-log line) stay out of all citations of this migration.'
 
 
 def build():
@@ -512,93 +487,47 @@ START TRANSACTION;""")
             src, 'x.id = t.id'))
 
     A('\n-- ---------- 1. BACKGROUND content identities ----------')
-    rows = [{'id': k, 'entity_type': 'BACKGROUND', 'slug': k[3:], 'title': BG_TITLES[k],
-             'summary': BG_SUMMARY[k], 'time_precision': 'UNKNOWN'} for k in BG]
     A(guard('poetry_content', ['id', 'entity_type', 'slug', 'title', 'summary', 'time_precision'],
-            rows, 'x.id = t.id'))
+            content_rows(BG, BG_TITLES, BG_SUMMARY), 'x.id = t.id'))
 
     A('\n-- ---------- 2. claims ----------')
-    crows = [{'id': k, 'subject_id': k.replace('claim-', '', 1), 'property_key': 'context',
-              'value_text': v[2], 'claim_kind': v[0], 'certainty': v[1]} for k, v in CLAIMS.items()]
     A(guard('poetry_claim', ['id', 'subject_id', 'property_key', 'value_text', 'claim_kind', 'certainty'],
-            crows, 'x.id = t.id'))
+            claim_rows(CLAIMS), 'x.id = t.id'))
     A(guard('poetry_claim_selection', ['subject_id', 'property_key', 'claim_id'],
-            [{'subject_id': k.replace('claim-', '', 1), 'property_key': 'context', 'claim_id': k}
-             for k in CLAIMS],
+            claim_selection_rows(CLAIMS),
             'x.subject_id = t.subject_id AND x.property_key = t.property_key'))
 
     A('\n-- ---------- 3. background rows ----------')
-    brows = [{'id': k, 'work_id': 'work-t300-360',
-              'layer': {'bg-360-scene': 'SCENE', 'bg-360-city': 'CITY',
-                        'bg-360-world': 'WORLD', 'bg-360-person': 'PERSON'}[k],
-              'body_text': BG[k], 'audience': BG_AUDIENCE[k], 'claim_id': 'claim-' + k} for k in BG]
     A(guard('poetry_background', ['id', 'work_id', 'layer', 'body_text', 'audience', 'claim_id'],
-            brows, 'x.id = t.id'))
+            background_rows(BG, 'work-t300-360',
+                            {'bg-360-scene': 'SCENE', 'bg-360-city': 'CITY',
+                             'bg-360-world': 'WORLD', 'bg-360-person': 'PERSON'},
+                            BG_AUDIENCE),
+            'x.id = t.id'))
 
     A('\n-- ---------- 4. 逐字引文 ----------')
-    L.append('INSERT INTO poetry_citation (claim_id, source_id, locator, evidence_excerpt)\nSELECT * FROM (')
-    L.append('\nUNION ALL\n'.join(
-        f"SELECT {sql_s(c)} AS claim_id, {sql_s(s)} AS source_id, {sql_s(loc)} AS locator, "
-        f"{sql_s(ex)} AS evidence_excerpt FROM DUAL"
-        for c, s, loc, ex in CITATIONS))
-    L.append(') AS t\nWHERE NOT EXISTS (SELECT 1 FROM poetry_citation x '
-             'WHERE x.claim_id = t.claim_id AND x.source_id = t.source_id);')
+    A(citation_union(CITATIONS))
 
     A('\n-- ---------- 5. background_line（四句七绝 1/1/1/1 第九次） ----------')
-    L.append('INSERT INTO poetry_background_line (background_id, version_id, line_seq)\nSELECT * FROM (')
-    L.append('\nUNION ALL\n'.join(
-        f"SELECT {sql_s(k)} AS background_id, 'text-work-t300-360-ws' AS version_id, {n} AS line_seq FROM DUAL"
-        for k, seqs in BG_LINES.items() for n in seqs))
-    L.append(') AS t\nWHERE NOT EXISTS (SELECT 1 FROM poetry_background_line x '
-             'WHERE x.background_id = t.background_id AND x.version_id = t.version_id '
-             'AND x.line_seq = t.line_seq);')
+    A(bgline_union(BG_LINES, 'text-work-t300-360-ws'))
 
-    A("""
--- ---------- 6. 版本账本（不给诗铸 time.span / event.name / written_during，零 relation，理由在文件头） ----------
-INSERT INTO poetry_schema_version (version_no, description)
-SELECT 77, 'Liu Fang-ping''s Spring Sorrow (work-t300-360) background layers (stage-D poem 58, one of two poems sharing the title in the anthology; four-line seven-character quatrain 1/1/1/1, ninth time): dating verdict fifty-two, thirty-eighth shape of the title-evidence series -- two Spring Sorrows in one anthology, three fates on the record. THE SAME-TITLE PAIR ON RECORD, first seen: the anthology carries two poems titled 春怨 -- t300-360 Liu Fang-ping (seven-character) and t300-043 Jin Changxu (five-character, "Hit the oriole off the branch") -- each with its own full work/text/claim/source stack (machine-asserted); their anthology pages each own a unique category quadruple in the whole 295-page corpus (seven-character and five-character runs, one page each -- curator action, not upgraded, V048). THREE FATES OF THE TITLE in the 118-volume Quan-Tangshi snapshot: the literal appears in exactly two volumes -- 143 (Wang Changling, anchor plus empty shell: counted only, never quoted) and 768 (Jin Changxu, inline full text quoted verbatim) -- while Liu''s base volume 251 is absent from the snapshot: the fetch log says "卷251: FAILED both name forms" exactly twice (both rounds; first-round window quoted) -- OUT-OF-CATALOG ZERO, second instance (paired with V075''s volume 256): the six clean lines scoring zero across 118 volumes is a snapshot zero, not a book zero. BASE-BOOK TWO STATES: volume 768 holds Jin''s poem INLINE (unlike V076''s volume-253 empty shell): anchor, poem body and an editors'' appendix mini-bio on one page. ALTERNATIVE TITLE, two witnesses, registered not adjudicated: 一作伊州歌 appears independently inside the volume-768 anchor ({{另|春怨|伊州歌}}) and in the anthology page''s title field ({{*}}, a closed set of exactly 20 pages); the 768 face and the anthology face differ line by line ({{另|啼時|幾時}} vs {{另|啼時|幾迴}}, 却 vs 卻) -- cross-face variant witnesses, second pair. THE STORED FACE IS THE READING FACE, second of its series: both poems were stored by V018 as the folded face of their anthology pages (欲 from the head of {{另|欲|又}}, both physical lines'' trailing spaces trimmed; Jin''s page folds twice: 打 from {{另|打|卻}}, 啼時 from {{另|啼時|幾迴}}) -- generator asserts the pair-join both directions for each page. Page form registered: the notes field of this page ends in a DOUBLE trailing space -- exactly one page in the whole corpus (machine-asserted); the {{唐詩三百首}} marker here hangs in the same line right after the header close (}}{{ form, a closed set of 145 pages), paired with V075''s standalone-body hang (59 pages): two hang styles, one ledger. WORLD: same-character-two-realms, twenty-second shape -- the conceded shape, first seen. The poem''s pear blossom: the Tongjian has exactly one (Yanzai 1, jiawu, 694: the empress dowager "sent a branch of pear blossom out to show the chancellors, and all the chancellors took it for an omen of fortune" while Du Jingjian alone said "now grass and trees are yellow and falling, yet this one blooms out of season -- the fault in the balance of yin and yang lies with us ministers", bowed and thanked; the history''s pear blossom is an anomaly so out of season it made a chancellor confess, the poem''s pear blossom is white all over the ground with nobody opening the door to see it). But the tears: the poem''s second line carries tear traces, and the Tongjian''s ledger of 淚痕 has exactly one entry (Guangqi 2, bingwu, 886: Xizong, sleeping under a plank, unfastened his imperial robe for Wang Jian "because it has tear traces on it") -- and that one entry was already quoted verbatim and used up by V056 (domain [''V056''] machine-asserted): for the first time in twenty-two shapes, this ledger was booked by a predecessor -- the migration registers the exhaustion and hard-asserts the closed sentence never re-enters any citation of this migration (audit). 春怨/紗窗/金屋/空庭/不開門/黃鶯/遼西/妾夢/黃昏 all zero in the Tongjian (machine-asserted). PERSON: ZERO-BIOGRAPHY PAIR, third and fourth of the series, first on one page: Liu Fang-ping and Jin Changxu score zero across the local history snapshots (2 JTS + 8 XTS + 3 QSS + 75 Tongjian, machine-asserted). Jin has one editors'' appendix line, quoted verbatim as this migration''s PERSON evidence (the same apparatus as V076''s Wang Zhihuan note: Wang got "six poems", Jin gets "one poem"; 餘杭人 appears exactly once in the whole snapshot). Liu has no note at all: 劉方平 appears in exactly two snapshot places, both anchor/byline lines (017 "====巫山高 劉方平著====" -- the "著"-style heading occurs 55 times corpus-wide, all in volume 017, machine-asserted, counted only, never quoted; 018 a byline): Liu keeps a name, Jin keeps one poem. NEW SOURCES: exactly one -- source-quantangshi-768, the volume page (second volume-page source ever, following V076; the audit asserts exactly one source insert and exactly one source delete in the rollback), while ws-t300-360 (second reuse), ws-t300-043 (second reuse) and the Tongjian events source are existing rows. Body use-ceiling, twenty-fifth instance: V018''s punctuated excerpt on this poem stands first and is never re-opened (hard assertion); likewise V018''s header-author excerpts for both pages and its punctuated excerpt for the sister poem stay closed. KNOWN zero honestly recorded (thirty-third instance -- both V018 text claims keep their KNOWN and stay untouched; audit reverse-asserts no KNOWN literal in this migration); closed precedent keywords (both punctuated full quotes, both header-author lines, V056''s tear-trace sentence, V075''s fetch-log line) stay out of all citations of this migration.'
-FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM poetry_schema_version WHERE version_no = 77);
-COMMIT;""")
+    A('\n-- ---------- 6. 版本账本（不给诗铸 time.span / event.name / written_during，零 relation，理由在文件头） ----------')
+    A(version_row(77, DESC_EN))
+    A('COMMIT;')
     return '\n'.join(L) + '\n'
 
 
 def build_rollback():
-    L = ['-- V077 精确回滚：只删 V077 插入的行（id 全枚举）。**source 只删一行**——',
+    return rollback_sql(
+        77, BG, CLAIMS, ['source-quantangshi-768'],
+        ['-- V077 精确回滚：只删 V077 插入的行（id 全枚举）。**source 只删一行**——',
          '-- source-quantangshi-768 是本迁移新建的卷页源（恰一枚，审计断言），按 id 删除；',
          '-- source-ws-t300-360 与 source-ws-t300-043 都是 V018 所立的选本页源（本迁移复用），绝不删；',
          '-- work-t300-360 / work-t300-043 本体与其 text_line 各 4 行都是 V018 的行，绝不删；',
-         '-- source-zizhi-tongjian-events 为他迁移所立，零删除。',
-         'START TRANSACTION;']
-    cids = list(CLAIMS)
-
-    def dels(table, col, vals, chunk=40):
-        for i in range(0, len(vals), chunk):
-            L.append(f'DELETE FROM {table} WHERE {col} IN ('
-                     + ', '.join(sql_s(v) for v in vals[i:i + chunk]) + ');')
-    dels('poetry_claim_selection', 'claim_id', cids)
-    dels('poetry_citation', 'claim_id', cids)
-    dels('poetry_background_line', 'background_id', list(BG))
-    dels('poetry_background', 'id', list(BG))
-    dels('poetry_claim', 'id', cids)
-    dels('poetry_content', 'id', list(BG))
-    L.append('DELETE FROM poetry_source WHERE id = ' + sql_s('source-quantangshi-768') + ';')
-    L.append('DELETE FROM poetry_schema_version WHERE version_no = 77;')
-    L.append('COMMIT;')
-    return '\n'.join(L) + '\n'
+         '-- source-zizhi-tongjian-events 为他迁移所立，零删除。'])
 
 
-POETRY = pathlib.Path('/Users/gqli/work/testserverV/vvv-poetry/src/main/resources/db/poetry')
-
-def _domain(needle):
-    return sorted({f.name.split('__')[0] for f in sorted(POETRY.glob('V0*.sql'))
-                   if not f.name.startswith('V077')
-                   for _ln in f.read_text(encoding='utf-8').splitlines()
-                   if 'evidence_excerpt' in _ln and needle in _ln})
-
-def _domain_src(needle):
-    return sorted({f.name.split('__')[0] for f in sorted(POETRY.glob('V0*.sql'))
-                   if not f.name.startswith('V077')
-                   and needle in f.read_text(encoding='utf-8')})
+PREM = Premises(exclude_prefixes=('V077',))   # 既往域查重——本迁移自己排除在外
 
 for _premise, _needle, _want in (
         ('本诗首句面(V018 句读式一引——零重开前提)', '紗窗日落漸黃昏', ['V018']),
@@ -611,9 +540,8 @@ for _premise, _needle, _want in (
         ('本诗选本页源已立(V018——第二次复用前提)', 'source-ws-t300-360', ['V018']),
         ('同题另一首选本页源已立(V018——第二次复用前提)', 'source-ws-t300-043', ['V018']),
         ('新源未立前提(source-quantangshi-768 系本迁移新建)', 'source-quantangshi-768', [])):
-    _prev = _domain_src(_needle) if (_needle.startswith('source-')) else _domain(_needle)
-    if _prev != _want:
-        raise SystemExit(f'前提「{_premise}」既往引文域 {_prev} ≠ {_want}——须重设计')
+    PREM.must_be(_premise, _needle, _want,
+                 mode='whole' if _needle.startswith('source-') else 'excerpt')
 for _first, _needle in (('页署名切片(原文面)', '| author   = 劉方平'),
                         ('页物理行1存原样', '紗窗日落漸黃昏，金屋無人見淚痕。 '),
                         ('页物理行2存原样({{另|欲|又}}面)', '寂寞空庭春{{另|欲|又}}晚，梨花滿地不開門。 '),
@@ -634,24 +562,16 @@ for _first, _needle in (('页署名切片(原文面)', '| author   = 劉方平')
                         ('通鉴梨花段尾', '卿真宰相也！」'),
                         ('陰陽不時', '陰陽不時'),
                         ('杜景儉', '杜景儉')):
-    if _domain(_needle):
-        raise SystemExit(f'首引句「{_first}」既往域非零——须换句或降级')
+    PREM.must_be_first(_first, _needle)
 
 
 def audit(sql):
     bad = []
-    if re.search(r"'(?:[^'\\]|'')*\\", sql):
-        bad.append('字面量里有反斜杠')
-    flat = sql.replace("''", "'")
+    rb = build_rollback()
     slices = [WS_AUTHOR, WS_POEM_A, WS_POEM_B, WS_NOTE, WS_300, WS_CAT4, FETCH_251,
               WJ_TITLE, WJ_NOTE, WJ_POEM_A, WJ_POEM_B, V768_BLOCK, V768_APP, TJ_LIHUA]
-    for q in slices:
-        if q not in flat:
-            bad.append(f'引文未逐字进入 SQL: {q[:24]}…')
-    cited = '……'.join(sorted(ex for _, _, _, ex in CITATIONS))
-    for q in slices:
-        if q not in cited:
-            bad.append(f'切片未进入任何引文: {q[:24]}…')
+    check_slices(sql, CITATIONS, slices, bad)
+    cited = cited_blob(CITATIONS)
     # SCENE：折叠断言的标记件必须逐字在引文内（存储面即定読面第二枚硬卡）
     sc = next(ex for c, s, _, ex in CITATIONS if c == 'claim-bg-360-scene' and s == 'source-ws-t300-360')
     if '{{另|欲|又}}' not in sc:
@@ -704,111 +624,38 @@ def audit(sql):
     if '同款装置' not in next(loc for c, _, loc, _ in CITATIONS if c == 'claim-bg-360-person'):
         bad.append('PERSON locator 须含「与 V076 附记同款装置」声明')
     # 判例只引不重开
-    for tok in ('紗窗日落漸黃昏，……梨花滿地不開門。', '打起黃鶯兒，……不得到遼西。',
-                'header author=劉方平', 'header author=金昌緒', '以其有淚痕故也',
-                '卷256: FAILED', '白日依山盡', '幽映每白日', '道由白雲盡', '玉皇授白雲先生高駢',
-                '而能試文三篇', '開青溪道', '車如流水', '客去波平檻', '本以高難飽',
-                '君問歸期未有期', 'theme2   = 詠春詩', '↑ [[全唐詩/卷256', '{{:闕題',
-                '時樞等七人已至滑州', '皆並命于白馬驛', '投屍於河。', '如出九泉睹白日',
-                '宜投之黃河', '刻青石為奇字'):
-        if tok in cited:
-            bad.append(f'判例只引不重开：{tok} 不得入本迁移引文')
-    if BG_LINES != {'bg-360-scene': (1,), 'bg-360-city': (2,),
-                    'bg-360-world': (3,), 'bg-360-person': (4,)}:
-        bad.append('四句 background_line 须 1/1/1/1 顺次（四句七绝常规·第九次）')
-    if len(re.findall(r"text-work-t300-360-ws' AS version_id", sql)) != 4:
-        bad.append('bg_line INSERT 的 version 行数应为 4')
+    check_not_reopen(cited, (
+        '紗窗日落漸黃昏，……梨花滿地不開門。', '打起黃鶯兒，……不得到遼西。',
+        'header author=劉方平', 'header author=金昌緒', '以其有淚痕故也',
+        '卷256: FAILED', '白日依山盡', '幽映每白日', '道由白雲盡', '玉皇授白雲先生高駢',
+        '而能試文三篇', '開青溪道', '車如流水', '客去波平檻', '本以高難飽',
+        '君問歸期未有期', 'theme2   = 詠春詩', '↑ [[全唐詩/卷256', '{{:闕題',
+        '時樞等七人已至滑州', '皆並命于白馬驛', '投屍於河。', '如出九泉睹白日',
+        '宜投之黃河', '刻青石為奇字'), bad)
+    check_shape(BG_LINES, {'bg-360-scene': (1,), 'bg-360-city': (2,),
+                           'bg-360-world': (3,), 'bg-360-person': (4,)}, bad)
+    check_bgline_count(sql, 'text-work-t300-360-ws', 4, bad)
     # 恰新建 source 一枚（卷页源第二枚）
-    if sql.count('INSERT INTO poetry_' + 'source') != 1:
-        bad.append('V077 有意恰新建一枚 source（source-quantangshi-768），但 SQL 里 source INSERT 数不是 1')
-    if sql_s('source-quantangshi-768') not in sql:
-        bad.append('source-quantangshi-768 未入 SQL')
-    rb = build_rollback()
-    if rb.count('DELETE FROM poetry_' + 'source') != 1:
-        bad.append('V077 恰新建一枚 source，回滚须恰含一行 source 删除')
-    if 'DELETE FROM poetry_source WHERE id = ' + sql_s('source-quantangshi-768') not in rb:
-        bad.append('回滚的 source 删除行不是 source-quantangshi-768')
-    for keep in ('source-ws-t300-360', 'source-ws-t300-043'):
-        if f'DELETE FROM poetry_source WHERE id = ' + sql_s(keep) in rb:
-            bad.append(f'回滚误删既有源 {keep}')
-    if "'KNOWN'" in sql:
-        bad.append('本迁移有意零 KNOWN，SQL 出现了 KNOWN 字面量')
-    if {v[1] for v in CLAIMS.values()} != {'LIKELY'}:
-        bad.append('本迁移 claim 应全 LIKELY（零 KNOWN 如实记录第卅三例）')
-    pairs = [(c, s) for c, s, _, _ in CITATIONS]
-    if len(pairs) != len(set(pairs)):
-        bad.append('poetry_citation (claim_id,source_id) 主键在本文件内重复')
-    if len(CITATIONS) != 6:
-        bad.append('本迁移引文应为 6 组')
-    if "'written_during' AS predicate" in sql:
-        bad.append("V077 有意不造 'written_during' AS predicate，但 SQL 里出现了")
-    if 'INSERT INTO poetry_relation' in sql:
-        bad.append('V077 有意零 poetry_relation 行，但 SQL 里出现了 INSERT')
-    for pk in ('time.span', 'event.name'):
-        if f"'work-t300-360' AS subject_id, '{pk}' AS property_key" in sql:
-            bad.append(f'V077 有意不给诗铸 {pk}，但该主语组合出现了')
-    if "SELECT 'work-t300-360' AS subject_id" in sql or "SELECT 'work-t300-043' AS subject_id" in sql:
-        bad.append('V077 的 claim 主语应全部是 bg-360-*，两首 work 都不该做主语')
-    if 'DELETE FROM poetry_text_line' in sql or 'DELETE FROM poetry_text_line' in rb:
-        bad.append('V077 不碰 poetry_text_line')
-    body_all = ''.join(BG.values())
-    if '让渡形态' not in body_all:
-        bad.append('BG 须含「让渡形态」（同字两界第二十二形态）声明')
-    if '在册外零' not in body_all:
-        bad.append('BG/CITY 须含「在册外零第二枚」声明')
-    if '存储面即定読面第二枚' not in body_all:
-        bad.append('BG/SCENE 须含「存储面即定読面第二枚」声明')
-    if '同题两诗' not in body_all:
-        bad.append('BG/CITY 须含「同题两诗在册首枚」声明')
-    if '同题三诗三命运' not in body_all:
-        bad.append('BG/CITY 须含「同题三诗三命运」声明')
-    if '零传记之人' not in body_all:
-        bad.append('BG/PERSON 须含「零传记之人第三、四枚合页首枚」声明')
-    if '只登记不裁决' not in body_all:
-        bad.append('BG/CITY 须含一作伊州歌「只登记不裁决」声明')
-    if 'V048' not in body_all:
-        bad.append('BG/CITY 须含类目不升格（V048）声明')
-    if '读法声明' not in body_all:
-        bad.append('BG 须含「读法声明」')
-    seen = {}
-    cur = None
-    for m in re.finditer(r'INSERT INTO (poetry_\w+)|SELECT \'([a-z0-9][a-z0-9_.-]{3,})\' AS id\b', sql):
-        if m.group(1):
-            cur = m.group(1)
-        else:
-            key = (cur, m.group(2))
-            if key in seen:
-                bad.append(f'id 文档内重复：{cur} {m.group(2)}')
-            seen[key] = True
-    for k, v in BG_TITLES.items():
-        if len(k) > 64 or len(k[3:]) > 120 or len(v) > 200:
-            bad.append(f'content 宽度超限: {k}')
-    for c, s, loc, ex in CITATIONS:
-        if len(c) > 64 or len(loc) > 300 or len(ex) > 500:
-            bad.append(f'citation 宽度超限: {c} ({len(loc)}B/{len(ex)}B)')
-    for m in re.finditer(r'INSERT INTO (poetry_\w+)', sql):
-        if m.group(1) == 'poetry_schema_version':
-            continue
-        i, in_str, end = m.end(), False, len(sql)
-        while i < end:
-            ch = sql[i]
-            if in_str:
-                if ch == "'":
-                    if i + 1 < end and sql[i + 1] == "'":
-                        i += 1
-                    else:
-                        in_str = False
-            elif ch == "'":
-                in_str = True
-            elif ch == ';':
-                end = i
-                break
-            i += 1
-        if 'WHERE NOT EXISTS' not in sql[m.start():end]:
-            bad.append(f'{m.group(1)} 的 INSERT 没有幂等守卫')
-    vblk = sql[sql.index('INSERT INTO poetry_schema_version'):]
-    if 'WHERE NOT EXISTS (SELECT 1 FROM poetry_schema_version WHERE version_no = 77)' not in vblk:
-        bad.append('poetry_schema_version INSERT 缺显式幂等守卫')
+    check_sources(sql, rb, ['source-quantangshi-768'],
+                  ('source-ws-t300-360', 'source-ws-t300-043'), bad)
+    check_zero_known(sql, CLAIMS, bad)
+    check_pairs(CITATIONS, bad, want_n=6)
+    check_no_cast(sql, ('work-t300-360', 'work-t300-043'), bad)
+    check_no_textline_touch(sql, rb, bad)
+    check_phrases(''.join(BG.values()), (
+        '让渡形态',      # 同字两界第二十二形态
+        '在册外零',      # CITY 在册外零第二枚
+        '存储面即定読面第二枚',   # SCENE
+        '同题两诗',      # CITY 在册首枚
+        '同题三诗三命运',  # CITY
+        '零传记之人',     # PERSON 第三、四枚合页首枚
+        '只登记不裁决',   # CITY 一作伊州歌
+        'V048',         # CITY 类目不升格
+        '读法声明',
+    ), bad)
+    check_id_unique(sql, bad)
+    check_widths(BG_TITLES, CITATIONS, bad)
+    check_idempotent(sql, 77, bad)
     return bad
 
 
