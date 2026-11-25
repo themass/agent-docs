@@ -65,7 +65,8 @@ def build_handlers(platform) -> dict:
     if platform.qa is not None:
         handlers[QA_PURGE_JOB] = qa_purge(platform.qa, retention_days=platform.qa_retention_days,
                                           objects=platform.objects)
-    if platform.avatar_gen is not None:
+    # getattr 而不是直接读：字段是后加的，测试里的最小 Platform 桩没有它也应能起循环
+    if getattr(platform, "avatar_gen", None) is not None:
         handlers[AVATAR_SWEEP_JOB] = avatar_source_sweep(platform.avatar_gen)
     return handlers
 
