@@ -52,6 +52,8 @@ def test_prewarm_imports_them_without_calling_anything(tmp_path, monkeypatch):
     calls: list[str] = []
     monkeypatch.setattr(mod, "PREWARM_IMPORTS", ("json", "base64"))
     monkeypatch.setattr(mod, "_load_vad", lambda: "stub-vad")
+    monkeypatch.setattr("companion.bootstrap.catalog_cache.warm_system_catalog",
+                        lambda: None)
     real_import = __import__
 
     def spy(name, *a, **k):
@@ -60,7 +62,9 @@ def test_prewarm_imports_them_without_calling_anything(tmp_path, monkeypatch):
 
     monkeypatch.setattr("builtins.__import__", spy)
     mod.prewarm()
-    assert calls == ["json", "base64"]
+    # 2f3eb70e 起 prewarm() 还延迟 import catalog_cache 跑一次 warm_system_catalog
+    # （角色目录预热）——除清单外唯一允许的 import，副作用已 stub 掉。
+    assert calls == ["json", "base64", "companion.bootstrap.catalog_cache"]
 
 
 def test_prewarm_loads_vad_once_per_process(monkeypatch):
