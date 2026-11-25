@@ -1,7 +1,7 @@
 # 服务端空回复（`said=''`）取证与 cue 守卫修复（2026-11-24）
 
 对应线：Android 仓 `docs/design/p05p2-proc-table-20261123.md` 「服务端空回复」类。
-状态：**取证闭环；守卫泄漏已修（在 main，未部署）；报告归因一处更正**。
+状态：**取证闭环；守卫泄漏已修并已部署 104（2026-11-25 逐文件 sha256 取证，见下）；报告归因一处更正**。
 
 ## 结论先行
 
@@ -72,8 +72,23 @@ AJ_npFDTG/AJ_jMmvz 同型）。报告里「↔ 104 后续 `said=''`」所引的�
 
 ## 边界
 
-- 未做生产重放、未部署；只读报告已引用的现存 `voice.log`，未取新生产数据。
+- 取证只读：只引用现存 `voice.log`，未取新生产数据、未做生产重放。
 - `_gate` 与 speech 语义未动；`interrupted=True` 的计数语义未动（其噪声身份
   已在表里列明）。
-- 修复随下一次 publish 上车；上车后「No readable text!」应归零，残片 `said`
-  不应再出现——这两条可直接 grep 验证。
+
+## 部署取证（2026-11-25，机制 B 守卫已上 104）
+
+原「随下一次 publish 上车」的口径已被更强的取证取代：
+
+- 104 `agent-docs-stage5` 克隆 `git fetch` 后 `origin/main`=当时 tip；**逐文件 sha256**
+  把 `origin/main:myproject/companion-agent/server/src/**` 与
+  `/home/web/webroot/companion-agent/server/src/**` 全量比对 —— 零 DIFF、零 MISS，
+  即生产源码内容 == main tip（publish 走文件级拷贝，克隆 HEAD 落后不代表内容落后）。
+- `.../agent/text/json_guard.py` 里 `_strip_closer_junk` 命中 2 处（定义 + 调用）——
+  机制 B 的守卫代码确在生产文件里。
+- `companion-voice.service`：active，MainPID=1415288，`ExecMainStart` 2026-11-24
+  19:44:17 UTC（同刻 `capacity.py` mtime 19:44）——守卫随那次发布+重启已进运行进程。
+
+**待验证（不等同于已生效）**：上车后「`No readable text!`」应归零、残片 `said`（`']}'`）
+不应再出现——这两条按 11-24 19:44 UTC 之后的 `voice.log` grep 才算实锤，本次取证只证
+「代码已在生产进程」，不证「生产已复现消失」。
