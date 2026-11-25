@@ -80,14 +80,38 @@ CREATE TABLE ca_avatar_release (
 	size_bytes BIGINT NOT NULL, 
 	sha256 VARCHAR(64) NOT NULL, 
 	min_app_version INTEGER DEFAULT '0' NOT NULL, 
-	published_at TIMESTAMP WITH TIME ZONE, 
-	created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL, 
-	updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL, 
-	PRIMARY KEY (id), 
+	published_at TIMESTAMP WITH TIME ZONE,
+	created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	PRIMARY KEY (id),
 	CONSTRAINT ca_uq_avatar_version UNIQUE (avatar_key, version)
 );
 
 CREATE INDEX ca_ix_avatar_status_role ON ca_avatar_release (status, role_id);
+
+CREATE TABLE ca_avatar_gen_attempt (
+	id BIGSERIAL NOT NULL,
+	owner_id BIGINT NOT NULL,
+	source_upload_id VARCHAR(26) NOT NULL,
+	source_key VARCHAR(255) NOT NULL,
+	result_upload_id VARCHAR(26),
+	style VARCHAR(32) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	expires_at TIMESTAMP WITH TIME ZONE,
+	PRIMARY KEY (id)
+);
+
+CREATE INDEX ca_ix_avatargen_owner_created ON ca_avatar_gen_attempt (owner_id, created_at);
+
+CREATE INDEX ca_ix_avatargen_expires ON ca_avatar_gen_attempt (expires_at);
+
+CREATE TABLE ca_user_avatar (
+	owner_id BIGINT NOT NULL,
+	upload_id VARCHAR(26) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	PRIMARY KEY (owner_id)
+);
 
 CREATE TABLE ca_chat_message (
 	id BIGSERIAL NOT NULL, 
@@ -545,22 +569,46 @@ CREATE TABLE ca_avatar_release (
 	id BIGINT NOT NULL AUTO_INCREMENT, 
 	avatar_key VARCHAR(64) NOT NULL, 
 	version INTEGER NOT NULL, 
-	name VARCHAR(60) NOT NULL, 
-	role_id VARCHAR(128) NOT NULL DEFAULT '', 
-	status VARCHAR(16) NOT NULL, 
-	manifest MEDIUMTEXT NOT NULL, 
-	object_key VARCHAR(255) NOT NULL, 
-	size_bytes BIGINT NOT NULL, 
-	sha256 VARCHAR(64) NOT NULL, 
-	min_app_version INTEGER NOT NULL DEFAULT '0', 
-	published_at DATETIME, 
-	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, 
-	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, 
-	PRIMARY KEY (id), 
+	name VARCHAR(60) NOT NULL,
+	role_id VARCHAR(128) NOT NULL DEFAULT '',
+	status VARCHAR(16) NOT NULL,
+	manifest MEDIUMTEXT NOT NULL,
+	object_key VARCHAR(255) NOT NULL,
+	size_bytes BIGINT NOT NULL,
+	sha256 VARCHAR(64) NOT NULL,
+	min_app_version INTEGER NOT NULL DEFAULT '0',
+	published_at DATETIME,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	PRIMARY KEY (id),
 	CONSTRAINT ca_uq_avatar_version UNIQUE (avatar_key, version)
 );
 
 CREATE INDEX ca_ix_avatar_status_role ON ca_avatar_release (status, role_id);
+
+CREATE TABLE ca_avatar_gen_attempt (
+	id BIGINT NOT NULL AUTO_INCREMENT,
+	owner_id BIGINT NOT NULL,
+	source_upload_id VARCHAR(26) NOT NULL,
+	source_key VARCHAR(255) NOT NULL,
+	result_upload_id VARCHAR(26),
+	style VARCHAR(32) NOT NULL,
+	created_at DATETIME NOT NULL,
+	expires_at DATETIME,
+	PRIMARY KEY (id)
+);
+
+CREATE INDEX ca_ix_avatargen_owner_created ON ca_avatar_gen_attempt (owner_id, created_at);
+
+CREATE INDEX ca_ix_avatargen_expires ON ca_avatar_gen_attempt (expires_at);
+
+CREATE TABLE ca_user_avatar (
+	owner_id BIGINT NOT NULL,
+	upload_id VARCHAR(26) NOT NULL,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	PRIMARY KEY (owner_id)
+);
 
 CREATE TABLE ca_chat_message (
 	id BIGINT NOT NULL AUTO_INCREMENT, 

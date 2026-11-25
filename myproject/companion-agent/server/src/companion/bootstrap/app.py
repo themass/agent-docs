@@ -32,6 +32,7 @@ from companion.api.http.routers.uploads import build_router as build_uploads_rou
 from companion.api.http.routers.actions import build_router as build_actions_router
 from companion.api.http.routers.account import build_router as build_account_router
 from companion.api.http.routers.avatars import build_router as build_avatars_router
+from companion.api.http.routers.avatar_gen import build_router as build_avatar_gen_router
 from companion.api.http.routers.compliance import build_router as build_compliance_router
 from companion.api.http.routers.memory_v1 import build_router as build_memory_v1_router
 from companion.api.http.routers import memory_index as memory_index_router
@@ -238,6 +239,10 @@ def create_app(
         if platform.avatars is not None:
             app.include_router(build_avatars_router(platform.avatars, current_user,
                                                     admin_token=platform.admin_token))
+        if platform.avatar_gen is not None:
+            # 「我」的二次元头像生成（Android AvatarGenRemote 的对端）。与上面的
+            # avatars（角色形象包目录）是两个特性，各自一个 router。
+            app.include_router(build_avatar_gen_router(platform.avatar_gen, current_user))
         app.include_router(build_memory_v1_router(memory=platform.memory, timeline=platform.timeline,
                                                   current_user=current_user, persona=platform.persona,
                                                   profile_doc=platform.profile_doc))

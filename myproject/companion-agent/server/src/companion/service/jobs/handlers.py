@@ -70,6 +70,22 @@ def timeline_sweep(store: Any):
     return handle
 
 
+AVATAR_SWEEP_JOB = "avatar.sweep"
+
+
+def avatar_source_sweep(avatar_gen: Any):
+    """头像源图 TTL 清理（隐私口径：不超过 24h；见 service/avatar_gen/service.py）。
+
+    ``sweep()`` 幂等：对象先删、行后删，失败的下一轮重试。按日入队（daily loop 每小时
+    扫一次），默认 TTL 20h + 最多一小时调度延迟仍在 24h 承诺以内。
+    """
+
+    async def handle(payload: dict[str, Any]) -> None:
+        await avatar_gen.sweep()
+
+    return handle
+
+
 def persona_update(updater: Any, *, sessions: Any = None):
     """批量更新用户画像。会话已删除或账号已注销时跳过，不把画像写回来。"""
 

@@ -115,5 +115,17 @@ class Settings(BaseSettings):
     # 运营接口（形象上下线）的管理令牌。为空 = 这些接口关闭，不留默认口令。
     companion_admin_token: str = ""
 
+    # ---- 二次元头像生成（avatar_gen，Android 契约 2026-11-24-anime-avatar-mvp.md）----
+    # provider 选型。目前只有 fake（确定性轻量变换，出图不是模型图）；真实模型
+    # （OpenRAIL 动漫检查点系）的挂载点在 service/avatar_gen/providers.py——配成别的
+    # 取值会在启动时报错而不是静默退回 fake，实现没接好之前不许假装能出图。
+    companion_avatar_gen_provider: str = "fake"
+    # 每日生成配额：滚动 24h 窗口按**尝试**计数（provider 失败的尝试也计——否则连续
+    # 失败可以无限重试打穿配额）。超了返回 429，端侧翻成「配额」话术。
+    companion_avatar_gen_daily_quota: int = 10
+    # 源图存活上限（小时）。隐私口径（写进端侧生成页文案）：**源图在服务端存活不超过
+    # 24h**。代码把本值夹到 24h 以内、默认 20h 给 sweep 轮询留余量——只允许往短调。
+    companion_avatar_source_ttl_hours: int = 20
+
 
 settings = Settings()

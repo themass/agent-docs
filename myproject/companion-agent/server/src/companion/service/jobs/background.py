@@ -36,8 +36,9 @@ def build_handlers(platform) -> dict:
     from companion.db.sql import SqlConfirmationStore, SqlToolCallStore
     from companion.service.account.purge import PURGE_JOB
     from companion.service.jobs.handlers import (
-        QA_PURGE_JOB, account_purge, audit_trim, confirmation_expire, memory_record, persona_update, profile_doc_update,
-        qa_purge, session_resummarize, timeline_record, timeline_sweep)
+        AVATAR_SWEEP_JOB, QA_PURGE_JOB, account_purge, audit_trim, avatar_source_sweep, confirmation_expire,
+        memory_record, persona_update, profile_doc_update, qa_purge, session_resummarize, timeline_record,
+        timeline_sweep)
     from companion.service.persona.updater import PERSONA_JOB
     from companion.service.profile_doc.updater import PROFILE_DOC_JOB
     from companion.service.timeline.sweep import TIMELINE_SWEEP_JOB
@@ -64,6 +65,8 @@ def build_handlers(platform) -> dict:
     if platform.qa is not None:
         handlers[QA_PURGE_JOB] = qa_purge(platform.qa, retention_days=platform.qa_retention_days,
                                           objects=platform.objects)
+    if platform.avatar_gen is not None:
+        handlers[AVATAR_SWEEP_JOB] = avatar_source_sweep(platform.avatar_gen)
     return handlers
 
 
@@ -171,12 +174,17 @@ class BackgroundJobs:
 
     async def _schedule_daily(self) -> None:
         """入队今天的整理任务。按日期去重，多个进程同时入队也只有一条。"""
-        from companion.service.jobs.handlers import QA_PURGE_JOB
+        from companion.service.jobs.handlers import AVATAR_SWEEP_JOB, QA_PURGE_JOB
         from companion.service.timeline.sweep import TIMELINE_SWEEP_JOB
 
         today = datetime.now(UTC).date().isoformat()
         now = datetime.now(UTC).replace(tzinfo=None)
-        for kind in (TIMELINE_SWEEP_JOB, QA_PURGE_JOB):
+        # avatar.sweep：源图 TTL 清理。平台没配头像（uploads 降级）时 kind 未注册，
+        # 队列会把它置 dead——无害但白排队列，所以只在有 avatar_gen 时入队。
+        kinds = [TIMELINE_SWEEP_JOB, QA_PURGE_JOB]
+        if getattr(self._platform, "avatar_gen", None) is not None:
+            kinds.append(AVATAR_SWEEP_JOB)
+        for kind in kinds:
             await self._platform.jobs.enqueue(kind=kind, payload={}, run_after=now, dedupe_key=f"{kind}:{today}")
 
     async def stop(self, timeout: float = 10.0) -> None:

@@ -31,5 +31,14 @@ class InMemoryObjectStore:
     async def delete(self, *, key: str) -> None:
         self._blobs.pop(key, None)
 
-    def get(self, key: str) -> tuple[bytes, str] | None:
-        return self._blobs.get(key)
+    async def get(self, *, key: str) -> bytes:
+        """字节读取：与 ``ObjectStore`` 协议 / ``TosObjectStore.get`` 同签名。
+
+        以前是个同步的 ``get(key) -> (bytes, str) | None`` 调试口——没有任何调用方
+        用它，所以协议漂移一直没暴露；头像生成第一次走 ``UploadService.read_bytes``
+        就会撞上。缺失抛 ``KeyError``（与 signed_url 同待遇）。
+        """
+        blob = self._blobs.get(key)
+        if blob is None:
+            raise KeyError(key)
+        return blob[0]

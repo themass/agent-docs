@@ -165,6 +165,8 @@ class Platform:
     objects: Any = None
     # P6 角色卡（可版本化身份/边界）与窄记忆索引读接口共享它
     cards: Any = None
+    # 二次元头像生成（Android 契约）：uploads 可用时才有——生成图的存储复用 uploads。
+    avatar_gen: Any = None
     qa_retention_days: int = 90
     tos_key_prefix: str = ""
     trace_writer: Any = None
@@ -539,6 +541,22 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     avatars = (AvatarCatalog(store=SqlAvatarReleaseStore(engine), objects=objects,
                              key_prefix=settings.tos_key_prefix) if objects is not None else None)
 
+    # 二次元头像（Android 契约 2026-11-24-anime-avatar-mvp.md）：同样吃对象存储——
+    # 源图与生成图都走既有 uploads 管线，uploads 降级时这组接口一起关。
+    # provider 在这里选：fake 默认可用；配了没有实现的取值当场拒绝启动（fail-closed）。
+    avatar_gen = None
+    if uploads is not None:
+        from datetime import timedelta
+
+        from companion.service.avatar_gen.providers import real_provider
+        from companion.service.avatar_gen.service import AvatarGenService
+        from companion.service.avatar_gen.sql import SqlAvatarGenAttemptStore, SqlUserAvatarStore
+
+        avatar_gen = AvatarGenService(
+            uploads=uploads, attempts=SqlAvatarGenAttemptStore(engine), avatars=SqlUserAvatarStore(engine),
+            provider=real_provider(settings), daily_quota=settings.companion_avatar_gen_daily_quota,
+            source_ttl=timedelta(hours=settings.companion_avatar_source_ttl_hours))
+
     dispatcher = ReminderDispatcher(store=reminder_store, submit=submit_proactive,
                                     owner=f"{socket.gethostname()}:{os.getpid()}", push=push or LogPush())
 
@@ -563,6 +581,7 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
                     pipeline=pipeline, jobs=jobs, timeline_recorder=timeline_recorder, persona_updater=persona_updater,
                     persona=persona, profile_doc_updater=profile_doc_updater, profile_doc=profile_doc,
                     relationship=relationship, compliance=compliance, account=account, avatars=avatars,
+                    avatar_gen=avatar_gen,
                     cards=cards,
                     admin_token=settings.companion_admin_token, sessions=sessions, brain=brain, qa=qa, objects=objects,
                     qa_retention_days=settings.companion_qa_retention_days, trace_writer=trace_writer, qa_enabled=qa_enabled,

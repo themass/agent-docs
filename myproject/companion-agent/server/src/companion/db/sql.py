@@ -489,6 +489,12 @@ class SqlUploadStore:
             await conn.execute(update(upload).where(upload.c.id == upload_id).values(
                 size=actual_size, referenced=True))
 
+    async def delete_owned(self, *, owner_id: int, upload_id: str) -> None:
+        """按归属删行（头像的源图 TTL 清理与换头像删旧结果用）。幂等：没这行就什么都不做。"""
+        async with self._engine.begin() as conn:
+            await conn.execute(delete(upload).where(and_(
+                upload.c.id == upload_id, upload.c.owner_id == owner_id)))
+
 
 class SqlConfirmationStore:
     def __init__(self, engine: AsyncEngine) -> None:

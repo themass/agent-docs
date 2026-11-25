@@ -335,6 +335,38 @@ avatar_release = Table(
 )
 
 
+# 二次元头像（avatar_gen）的生成账本。一行 = 一次生成尝试，只存元数据——
+# 图像字节在私有桶、ca_upload 行是归属凭证，这张表回答另外两个问题：
+# 1. 配额：按 (owner_id, created_at) 数 24h 窗口内的尝试。**失败的尝试也留行**，
+#    否则连续失败可以无限重试打穿配额（隐私上更糟：每张都真过了一遍模型）。
+# 2. 源图 TTL：expires_at = 尝试时间 + 源图存活上限（≤24h，隐私口径写死在
+#    avatar_gen/service.py）。到点 sweep 连对象带 ca_upload 行删掉，然后把
+#    expires_at 置空——行留着，配额窗口与 apply 的「这是我生成的结果」还要用它。
+# 时间列由调用方传入（可注入时钟），不用 server_default：配额与 TTL 都要在测试里钉死。
+avatar_gen_attempt = Table(
+    TABLE_PREFIX + "avatar_gen_attempt", metadata,
+    _pk(),
+    Column("owner_id", BigInteger, nullable=False),
+    Column("source_upload_id", String(26), nullable=False),           # 源图（ca_upload.id）
+    Column("source_key", String(255), nullable=False),                # 冗余存 key：sweep 不再回查归属
+    Column("result_upload_id", String(26), nullable=True),            # 空 = 这次尝试没出图
+    Column("style", String(32), nullable=False),
+    Column("created_at", UTCDateTime, nullable=False),                # 配额窗口的起点
+    Column("expires_at", UTCDateTime, nullable=True),                 # 空 = 源图已清理
+    Index("ca_ix_avatargen_owner_created", "owner_id", "created_at"),
+    Index("ca_ix_avatargen_expires", "expires_at"),
+)
+
+# 当前头像的服务端真相（每用户一行）。「失败不覆盖旧头像」这条红线要服务端先确认
+# 换了指针，端侧才写本地副本；换掉的那张生成图当场删（「直到再次更换前保留」）。
+user_avatar = Table(
+    TABLE_PREFIX + "user_avatar", metadata,
+    Column("owner_id", BigInteger, primary_key=True, autoincrement=False),
+    Column("upload_id", String(26), nullable=False),
+    _now(), _upd(),
+)
+
+
 persona_entry = Table(
     TABLE_PREFIX + "persona_entry", metadata,
     _pk(),

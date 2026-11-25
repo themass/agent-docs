@@ -76,3 +76,15 @@ class UploadService:
         调用方**必须**先 ``get_owned`` 过一遍归属；这里拿到的已经是被授权的那条记录。
         """
         return await self._objects.get(key=record.object_key)
+
+    async def delete_object(self, *, key: str) -> None:
+        """删对象（不做归属判断——调用方拿着的是账本里的 key，如头像源图的 TTL 清理）。
+
+        与聊天附件的删除不同，这里没有「消息还引用着」的问题：头像结果只在换掉时删、
+        源图只在 TTL 到点时删，两边都先确认过没人再要它。
+        """
+        await self._objects.delete(key=key)
+
+    async def delete_record(self, *, owner_id: int, upload_id: str) -> None:
+        """删 ca_upload 行（按归属，别人的 id 删不到）。对象应先删掉再走到这一步。"""
+        await self._records.delete_owned(owner_id=owner_id, upload_id=upload_id)
