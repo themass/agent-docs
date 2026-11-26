@@ -7,7 +7,7 @@
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from companion.service.chat.lifecycle import DrainState
 from companion.api.sse.stream import event_stream
@@ -82,6 +82,10 @@ def _message_json(m, alt_ids: list[int] | None = None) -> dict[str, Any]:
     location = (m.meta or {}).get("location")
     if location:
         out["location"] = location
+    # 「喜欢/不喜欢」只在有值时带：没有反馈的消息不占字节，客户端按缺省=无反馈渲染。
+    feedback = getattr(m, "feedback", None)
+    if feedback:
+        out["feedback"] = feedback
     if alt_ids and len(alt_ids) > 1 and m.id in alt_ids:
         out.update({"alt_group": m.alt_group, "alt_index": alt_ids.index(m.id), "alt_count": len(alt_ids),
                     "alt_ids": alt_ids})
@@ -134,6 +138,12 @@ def build_router(api: ChatApi, current_user):
 
     class EditMessage(BaseModel):
         content: str = Field(min_length=1, max_length=4000)
+
+    class MessageFeedback(BaseModel):
+        """「喜欢/不喜欢」（chatkit ComposerActions）。键必须给：``null`` 是「取消反馈」，
+        不是「没带」——所以这里不给默认值，``{}`` 走 422 而不是被当成取消。"""
+
+        feedback: Literal["like", "dislike"] | None
 
     router = APIRouter(prefix=PREFIX, tags=["chat"])
 
@@ -311,6 +321,26 @@ def build_router(api: ChatApi, current_user):
         alts = await api.messages.alt_ids_for(owner_id=owner, session_id=message.session_id,
                                               groups=[message.alt_group] if message.alt_group is not None else [])
         return _message_json(message, alts.get(message.alt_group))
+
+    @router.put("/sessions/{session_id}/messages/{message_id}/feedback")
+    async def put_feedback(session_id: int, message_id: int, body: MessageFeedback,
+                           user_id: str = Depends(current_user)) -> dict[str, Any]:
+        """「喜欢/不喜欢」落库（Android chatkit ComposerActions 的持久化，2026-11-26）。
+
+        幂等：重复设同一个值返回同一行；``feedback: null`` 是取消；切换即覆盖（没有历史，
+        所以是一列而不是一张表）。反馈是对**她的回答**的评价：用户自己的消息、别人的消息、
+        已删除的消息都按 404 处理（``set_feedback`` 的 WHERE 里带 role/owner/deleted）。
+        不带会话状态要求——回合进行中也能评价上一条回答，所以这里不查锁。
+        """
+        owner, _record = await owned_session(user_id, session_id)
+        message = await api.messages.get(owner_id=owner, message_id=message_id)
+        if message is None or message.session_id != session_id:
+            raise HTTPException(status_code=404, detail={"code": "not_found"})
+        if not await api.messages.set_feedback(owner_id=owner, message_id=message_id,
+                                               feedback=body.feedback):
+            raise HTTPException(status_code=404, detail={"code": "not_found"})
+        updated = await api.messages.get(owner_id=owner, message_id=message_id)
+        return _message_json(updated)
 
     @router.delete("/messages/{message_id}", status_code=204)
     async def delete_message(message_id: int, user_id: str = Depends(current_user)) -> Response:

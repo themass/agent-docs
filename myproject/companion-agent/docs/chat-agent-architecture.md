@@ -362,6 +362,8 @@ forbidden_modules =
   │                      │                       │       （写 merge 到 turn:{tid}:ctl）
   │                      │                       │    output 且可 steer → steered
   │                      │                       │       （写 steer 到 turn:{tid}:ctl）
+  │                      │                       │       —— 默认关闭：服务端 DEFAULT_STEER_ENABLED
+  │                      │                       │          关时这一支到不了，走 queued（D §6.1）
   │                      │                       │    其余     → queued    │
   │                      │                       │       （写 chat_queue）  │
   │                      │                       │                        │

@@ -42,6 +42,7 @@ class Messages:
     def __init__(self):
         self.rows = {}
         self.attached = {}
+        self.interrupted_ids = []
         self.next_id = 1000
 
     async def append(self, *, owner_id, session_id, role, content, kind, client_message_id, turn_id, meta,
@@ -70,7 +71,8 @@ class Messages:
             self.attached[mid] = turn_id
         return len(message_ids)
 
-    async def mark_interrupted(self, **kw):
+    async def mark_interrupted(self, *, owner_id, message_id):
+        self.interrupted_ids.append(message_id)
         return True
 
 
@@ -92,7 +94,7 @@ async def _cleanup(redis_client, sid):
 
 @pytest.mark.parametrize("phase,steerable,used,expected", [
     ("pre_output", True, 0, "merged"),
-    ("output", True, 0, "steered"),
+    ("output", True, 0, "queued"),
     ("output", True, 3, "queued"),
     ("output", False, 0, "queued"),
     ("tool", True, 0, "queued"),
@@ -111,6 +113,25 @@ async def test_lua_decision_matches_the_domain_table(control, redis_client, phas
         disposition, _tid = await control.decide(session_id=sid, message_id="9", text="x",
                                                  steerable=steerable, steer_budget=3, max_restarts=2)
         assert disposition.value == expected
+    finally:
+        await _cleanup(redis_client, sid)
+
+
+async def test_lua_steers_only_when_the_capability_is_explicitly_on(control, redis_client, monkeypatch):
+    """Lua 与 queue.decide 共用同一个开关：显式打开后 output 阶段仍裁决插话并记账。"""
+    from companion.service.turn import redis_control as rc
+    from companion.service.turn.queue import TurnPhase
+
+    sid = _session_id()
+    monkeypatch.setattr(rc, "DEFAULT_STEER_ENABLED", True)
+    try:
+        assert await control.acquire_lock(session_id=sid, owner="p:T")
+        await control.init_turn(session_id=sid, turn_id="T")
+        await control.advance_phase(session_id=sid, phase=TurnPhase.OUTPUT)
+        disposition, tid = await control.decide(session_id=sid, message_id="9", text="x",
+                                                steerable=True, steer_budget=3, max_restarts=2)
+        assert disposition.value == "steered" and tid == "T"
+        assert int(await redis_client.hget(turn_key(sid), "steer_used")) == 1
     finally:
         await _cleanup(redis_client, sid)
 
@@ -188,11 +209,15 @@ async def test_merge_during_pre_output_restarts_and_attaches_the_merged_message(
         await _cleanup(redis_client, sid)
 
 
-async def test_steer_during_output_is_injected_and_attached(control, redis_client):
+async def test_steer_during_output_is_injected_and_attached(control, redis_client, monkeypatch):
+    """插话注入路径保留为显式能力：默认裁决已改为排队（发送模型修订 2026-11-26），
+    这里显式打开开关，验证 steer 的投递-注入-挂载整条路仍然完好。"""
     from companion.service.chat.submit import SubmitService
     from companion.service.chat.turn_runner import TurnInput, TurnRunner
+    from companion.service.turn import redis_control as rc
     from companion.agent.brain.port import TextDelta
 
+    monkeypatch.setattr(rc, "DEFAULT_STEER_ENABLED", True)
     sid = _session_id()
     messages, queue = Messages(), Queue()
     tasks, box = [], {}
@@ -318,6 +343,59 @@ async def test_cancelled_turn_without_prefix_falls_back_to_full_text(control, re
         saved = next(m for m in messages.rows.values() if m.role == "assistant")
         assert "spoken_prefix_chars" not in saved.meta
         assert outcomes and outcomes[0].spoken_prefix == ""
+    finally:
+        await _cleanup(redis_client, sid)
+
+
+async def test_a_cancelled_turn_that_said_nothing_stores_no_message(control, redis_client):
+    """空 AI 气泡的服务端根因（取证 2026-11-26）：取消且一字未收时不落空行。
+
+    改前 `full or interrupted` 会存一条 content="" 的 assistant 行（interrupted=True），
+    客户端兜底拉历史把它带回成「只有头像的空气泡」。口径与非取消的空 completion 一致：
+    没说过话就不进历史。收尾仍发 turn.cancelled（assistant_message_id 为空）。
+    """
+    from companion.service.chat.turn_runner import TurnInput, TurnRunner
+    from companion.agent.brain.steer import SteerInbox
+
+    sid = _session_id()
+    messages, queue = Messages(), Queue()
+
+    runner = TurnRunner(control=control, messages=messages, queue=queue, produce=None)
+    try:
+        await control.acquire_lock(session_id=sid, owner="p:EMPTY")
+        await control.init_turn(session_id=sid, turn_id="EMPTY")
+        inp = TurnInput(owner_id=7, session_id=sid, character_id="linche", turn_id="EMPTY",
+                        owner="p:EMPTY", text="x", message_ids=[])
+        await runner._finish(inp, _run_state_cancelled(deltas=None), SteerInbox(budget=3))
+
+        assert [m for m in messages.rows.values() if m.role == "assistant"] == []
+        assert messages.interrupted_ids == []
+        events = await control.read_events_after(session_id=sid, after_id="0-0")
+        cancelled = [(n, d) for _i, n, d in events if n == "turn.cancelled"]
+        assert cancelled and cancelled[0][1].get("assistant_message_id") is None
+    finally:
+        await _cleanup(redis_client, sid)
+
+
+async def test_a_cancelled_turn_with_partial_text_stays_and_is_marked_interrupted(control, redis_client):
+    """判别式的另一半不能误伤：说到半截就取消，那半截照旧存、照旧标记打断（「继续」靠它）。"""
+    from companion.service.chat.turn_runner import TurnInput, TurnRunner
+    from companion.agent.brain.steer import SteerInbox
+
+    sid = _session_id()
+    messages, queue = Messages(), Queue()
+
+    runner = TurnRunner(control=control, messages=messages, queue=queue, produce=None)
+    try:
+        await control.acquire_lock(session_id=sid, owner="p:HALF")
+        await control.init_turn(session_id=sid, turn_id="HALF")
+        inp = TurnInput(owner_id=7, session_id=sid, character_id="linche", turn_id="HALF",
+                        owner="p:HALF", text="x", message_ids=[])
+        await runner._finish(inp, _run_state_cancelled(deltas=["她说到一半"]), SteerInbox(budget=3))
+
+        saved = [m for m in messages.rows.values() if m.role == "assistant"]
+        assert len(saved) == 1 and saved[0].content == "她说到一半"
+        assert messages.interrupted_ids == [saved[0].id]
     finally:
         await _cleanup(redis_client, sid)
 
