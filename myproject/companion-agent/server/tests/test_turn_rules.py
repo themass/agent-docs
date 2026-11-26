@@ -2,6 +2,7 @@
 
 import pytest
 
+import companion.service.turn.queue as queue_rules
 from companion.db.port import QUEUE_TRANSITIONS
 from companion.service.turn.queue import (
     DRAIN_BATCH_SIZE,
@@ -31,9 +32,17 @@ def test_merge_stops_after_max_restarts():
     assert d(phase=TurnPhase.PRE_OUTPUT, restarts=2) is Disposition.QUEUED
 
 
-def test_output_phase_steers_when_steerable_and_within_budget():
-    assert d(phase=TurnPhase.OUTPUT) is Disposition.STEERED
+def test_output_phase_queues_by_default():
+    """默认策略（发送模型修订 2026-11-26）：回复已开始输出后的新消息排队，不再默认插话。"""
+    assert d(phase=TurnPhase.OUTPUT) is Disposition.QUEUED
+    assert d(phase=TurnPhase.OUTPUT, steerable=False) is Disposition.QUEUED
     assert d(phase=TurnPhase.OUTPUT, steer_used=3) is Disposition.QUEUED
+
+
+def test_steer_is_a_reserved_capability_not_a_default(monkeypatch):
+    """STEERED 的判定路径保留（未来显式能力）：显式打开开关后仍裁决为插话。"""
+    monkeypatch.setattr(queue_rules, "DEFAULT_STEER_ENABLED", True)
+    assert d(phase=TurnPhase.OUTPUT) is Disposition.STEERED
     assert d(phase=TurnPhase.OUTPUT, steerable=False) is Disposition.QUEUED
 
 

@@ -92,7 +92,7 @@ async def _cleanup(redis_client, sid):
 
 @pytest.mark.parametrize("phase,steerable,used,expected", [
     ("pre_output", True, 0, "merged"),
-    ("output", True, 0, "steered"),
+    ("output", True, 0, "queued"),
     ("output", True, 3, "queued"),
     ("output", False, 0, "queued"),
     ("tool", True, 0, "queued"),
@@ -111,6 +111,25 @@ async def test_lua_decision_matches_the_domain_table(control, redis_client, phas
         disposition, _tid = await control.decide(session_id=sid, message_id="9", text="x",
                                                  steerable=steerable, steer_budget=3, max_restarts=2)
         assert disposition.value == expected
+    finally:
+        await _cleanup(redis_client, sid)
+
+
+async def test_lua_steers_only_when_the_capability_is_explicitly_on(control, redis_client, monkeypatch):
+    """Lua 与 queue.decide 共用同一个开关：显式打开后 output 阶段仍裁决插话并记账。"""
+    from companion.service.turn import redis_control as rc
+    from companion.service.turn.queue import TurnPhase
+
+    sid = _session_id()
+    monkeypatch.setattr(rc, "DEFAULT_STEER_ENABLED", True)
+    try:
+        assert await control.acquire_lock(session_id=sid, owner="p:T")
+        await control.init_turn(session_id=sid, turn_id="T")
+        await control.advance_phase(session_id=sid, phase=TurnPhase.OUTPUT)
+        disposition, tid = await control.decide(session_id=sid, message_id="9", text="x",
+                                                steerable=True, steer_budget=3, max_restarts=2)
+        assert disposition.value == "steered" and tid == "T"
+        assert int(await redis_client.hget(turn_key(sid), "steer_used")) == 1
     finally:
         await _cleanup(redis_client, sid)
 
@@ -188,11 +207,15 @@ async def test_merge_during_pre_output_restarts_and_attaches_the_merged_message(
         await _cleanup(redis_client, sid)
 
 
-async def test_steer_during_output_is_injected_and_attached(control, redis_client):
+async def test_steer_during_output_is_injected_and_attached(control, redis_client, monkeypatch):
+    """插话注入路径保留为显式能力：默认裁决已改为排队（发送模型修订 2026-11-26），
+    这里显式打开开关，验证 steer 的投递-注入-挂载整条路仍然完好。"""
     from companion.service.chat.submit import SubmitService
     from companion.service.chat.turn_runner import TurnInput, TurnRunner
+    from companion.service.turn import redis_control as rc
     from companion.agent.brain.port import TextDelta
 
+    monkeypatch.setattr(rc, "DEFAULT_STEER_ENABLED", True)
     sid = _session_id()
     messages, queue = Messages(), Queue()
     tasks, box = [], {}

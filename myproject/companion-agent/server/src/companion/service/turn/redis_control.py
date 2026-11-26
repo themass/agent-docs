@@ -20,7 +20,7 @@ import json
 from collections.abc import Sequence
 from typing import Any
 
-from companion.service.turn.queue import Disposition, TurnPhase
+from companion.service.turn.queue import DEFAULT_STEER_ENABLED, Disposition, TurnPhase
 
 # 共用的 Redis：所有键带 ca: 前缀，与 job-come 的 jc:… 区分（不清库、不占用别的 db）。
 KEY_PREFIX = "ca:"
@@ -31,6 +31,7 @@ _SUBMIT_LUA = """
 local turn, lock = KEYS[1], KEYS[2]
 local mid, steerable, text = ARGV[1], ARGV[2], ARGV[5]
 local steer_budget, max_restarts = tonumber(ARGV[3]), tonumber(ARGV[4])
+local steer_default = ARGV[6]
 if redis.call('EXISTS', lock) == 0 then
   return {'started', ''}
 end
@@ -44,7 +45,7 @@ if phase == 'pre_output' and restarts < max_restarts then
   redis.call('XADD', ctl, '*', 'kind', 'merge', 'message_id', mid, 'text', text)
   return {'merged', tid}
 end
-if phase == 'output' and steerable == '1' and used < steer_budget then
+if phase == 'output' and steer_default == '1' and steerable == '1' and used < steer_budget then
   redis.call('HINCRBY', turn, 'steer_used', 1)
   redis.call('XADD', ctl, '*', 'kind', 'steer', 'message_id', mid, 'text', text)
   return {'steered', tid}
@@ -122,7 +123,8 @@ class RedisTurnControl:
                      steer_budget: int, max_restarts: int) -> tuple[Disposition, str]:
         status, tid = await self._submit(
             keys=[turn_key(session_id), lock_key(session_id)],
-            args=[message_id, "1" if steerable else "0", steer_budget, max_restarts, text],
+            args=[message_id, "1" if steerable else "0", steer_budget, max_restarts, text,
+                  "1" if DEFAULT_STEER_ENABLED else "0"],
         )
         status = status.decode() if isinstance(status, bytes) else status
         tid = tid.decode() if isinstance(tid, bytes) else tid
