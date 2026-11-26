@@ -479,7 +479,13 @@ class TurnRunner:
         prefix_text = full[:prefix_chars] if prefix_chars > 0 else ""
         saved_id: int | None = None
         saved_alt_group: int | None = None
-        if full or interrupted:
+        # 落库条件只看「有没有说过话」，不看是否被取消（取证 2026-11-26：空 AI 气泡的根因）。
+        # 原先是 `full or interrupted`：取消且一字未收时会写下一条 content="" 的 assistant 行
+        # （interrupted=True），客户端兜底拉历史就把它带回成「只有头像的空气泡」，而对着空行
+        # 点「继续」也毫无意义。口径与非取消的空 completion 一致（见下面的 empty_completion 分支）：
+        # 她没说什么，就不该作为一条回复进历史喂模型。有半截正文的打断照旧存、照旧标记；
+        # 失败（failed）回合维持原行为——它的空行是 turn_failed 收尾的一部分，不在本次范围。
+        if full or (failed and not state.cancelled):
             meta: dict[str, Any] = {"lc_ids": list(state.lc_ids)} if state.lc_ids else {}
             if prefix_chars > 0:
                 # content 仍存全量（不丢信息）；前缀只进 meta，无需新列（基线守卫不受影响）。

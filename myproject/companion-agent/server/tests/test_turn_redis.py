@@ -42,6 +42,7 @@ class Messages:
     def __init__(self):
         self.rows = {}
         self.attached = {}
+        self.interrupted_ids = []
         self.next_id = 1000
 
     async def append(self, *, owner_id, session_id, role, content, kind, client_message_id, turn_id, meta,
@@ -70,7 +71,8 @@ class Messages:
             self.attached[mid] = turn_id
         return len(message_ids)
 
-    async def mark_interrupted(self, **kw):
+    async def mark_interrupted(self, *, owner_id, message_id):
+        self.interrupted_ids.append(message_id)
         return True
 
 
@@ -341,6 +343,59 @@ async def test_cancelled_turn_without_prefix_falls_back_to_full_text(control, re
         saved = next(m for m in messages.rows.values() if m.role == "assistant")
         assert "spoken_prefix_chars" not in saved.meta
         assert outcomes and outcomes[0].spoken_prefix == ""
+    finally:
+        await _cleanup(redis_client, sid)
+
+
+async def test_a_cancelled_turn_that_said_nothing_stores_no_message(control, redis_client):
+    """空 AI 气泡的服务端根因（取证 2026-11-26）：取消且一字未收时不落空行。
+
+    改前 `full or interrupted` 会存一条 content="" 的 assistant 行（interrupted=True），
+    客户端兜底拉历史把它带回成「只有头像的空气泡」。口径与非取消的空 completion 一致：
+    没说过话就不进历史。收尾仍发 turn.cancelled（assistant_message_id 为空）。
+    """
+    from companion.service.chat.turn_runner import TurnInput, TurnRunner
+    from companion.agent.brain.steer import SteerInbox
+
+    sid = _session_id()
+    messages, queue = Messages(), Queue()
+
+    runner = TurnRunner(control=control, messages=messages, queue=queue, produce=None)
+    try:
+        await control.acquire_lock(session_id=sid, owner="p:EMPTY")
+        await control.init_turn(session_id=sid, turn_id="EMPTY")
+        inp = TurnInput(owner_id=7, session_id=sid, character_id="linche", turn_id="EMPTY",
+                        owner="p:EMPTY", text="x", message_ids=[])
+        await runner._finish(inp, _run_state_cancelled(deltas=None), SteerInbox(budget=3))
+
+        assert [m for m in messages.rows.values() if m.role == "assistant"] == []
+        assert messages.interrupted_ids == []
+        events = await control.read_events_after(session_id=sid, after_id="0-0")
+        cancelled = [(n, d) for _i, n, d in events if n == "turn.cancelled"]
+        assert cancelled and cancelled[0][1].get("assistant_message_id") is None
+    finally:
+        await _cleanup(redis_client, sid)
+
+
+async def test_a_cancelled_turn_with_partial_text_stays_and_is_marked_interrupted(control, redis_client):
+    """判别式的另一半不能误伤：说到半截就取消，那半截照旧存、照旧标记打断（「继续」靠它）。"""
+    from companion.service.chat.turn_runner import TurnInput, TurnRunner
+    from companion.agent.brain.steer import SteerInbox
+
+    sid = _session_id()
+    messages, queue = Messages(), Queue()
+
+    runner = TurnRunner(control=control, messages=messages, queue=queue, produce=None)
+    try:
+        await control.acquire_lock(session_id=sid, owner="p:HALF")
+        await control.init_turn(session_id=sid, turn_id="HALF")
+        inp = TurnInput(owner_id=7, session_id=sid, character_id="linche", turn_id="HALF",
+                        owner="p:HALF", text="x", message_ids=[])
+        await runner._finish(inp, _run_state_cancelled(deltas=["她说到一半"]), SteerInbox(budget=3))
+
+        saved = [m for m in messages.rows.values() if m.role == "assistant"]
+        assert len(saved) == 1 and saved[0].content == "她说到一半"
+        assert messages.interrupted_ids == [saved[0].id]
     finally:
         await _cleanup(redis_client, sid)
 
