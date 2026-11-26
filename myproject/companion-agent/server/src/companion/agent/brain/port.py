@@ -48,6 +48,7 @@ class TurnInputMessage:
     text: str
     upload_ids: tuple[str, ...] = ()
     kind: str = "chat"
+    location: dict[str, float] | None = None
 
 
 @dataclass

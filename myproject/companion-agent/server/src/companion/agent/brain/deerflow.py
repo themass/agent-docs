@@ -218,6 +218,7 @@ class DeerFlowBrain:
                 locale=str(request.metadata.get("locale", "zh-CN")),
                 product=self._tool_product,
                 allowed=self._tool_allowed,
+                location=request.metadata.get("location") if isinstance(request.metadata.get("location"), dict) else None,
             )
         return context
 

@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     companion_llm_routing_path: Path = Field(default=LLM_ROUTING_PATH)
     companion_llm_api_base: str = ""
     companion_llm_api_key: str = ""
+    # 高德 Web 服务 key；只从服务端环境读取，不进入提示词、日志或数据库。
+    amap_key: str = ""
 
     livekit_url: str = ""
     livekit_api_key: str = ""

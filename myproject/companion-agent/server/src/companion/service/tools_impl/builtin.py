@@ -20,6 +20,7 @@ from companion.service.timeline.models import EventKind, EventOrigin, TimelineEv
 from companion.agent.tools.registry import ToolRegistry
 from companion.agent.tools.spec import Permission, SideEffect, ToolContext, ToolSpec
 from companion.agent.memory.port import MemoryItem
+from companion.service.tools_impl.poi_search import AmapPoiSearch, PoiSearchConfig, PoiSearchError, PoiHttpClient
 
 KIND_VALUES = tuple(k.value for k in EventKind)
 
@@ -59,17 +60,37 @@ class CancelReminderParams(BaseModel):
     reminder_id: int = Field(ge=1)
 
 
+class PoiSearchParams(BaseModel):
+    query: str = Field(min_length=1, max_length=100)
+    lat: float | None = Field(default=None, ge=-90, le=90)
+    lng: float | None = Field(default=None, ge=-180, le=180)
+    radius_m: int | None = Field(default=None, ge=100, le=50_000)
+
+
 RECALL_HORIZON = timedelta(days=14)
 
 
 def register_builtin_tools(registry: ToolRegistry, *, memory: Any, timeline: Any,
                            clock: Callable[[], datetime] = lambda: datetime.now(UTC),
-                           reminders: Any = None) -> None:
+                           reminders: Any = None, amap_key: str = "",
+                           poi_http_client: PoiHttpClient | None = None) -> None:
     """``reminders``：app/proactive/reminders.ReminderService。给了它，create_reminder 会建服务端提醒，
     到点由服务端主动联系用户；不给则退回旧行为（只记时间线，通知由端上调度）。"""
 
     async def get_current_time(ctx: ToolContext, args: NoParams) -> dict[str, str]:
         return {"now": clock().isoformat(), "timezone": "UTC"}
+
+    poi_search = AmapPoiSearch(PoiSearchConfig(amap_key=amap_key, client=poi_http_client))
+
+    async def search_poi(ctx: ToolContext, args: PoiSearchParams) -> dict[str, Any]:
+        location = ctx.location
+        lat = location.get("lat") if location else args.lat
+        lng = location.get("lng") if location else args.lng
+        radius = args.radius_m
+        try:
+            return await poi_search.search(query=args.query, lat=lat, lng=lng, radius_m=radius)
+        except PoiSearchError:
+            return {"status": "query_failed", "message": "地图查询失败", "pois": []}
 
     def subject(ctx: ToolContext) -> str:
         # 记忆按角色隔离：工具只看得到、只写得进当前角色的记忆空间。
@@ -139,6 +160,12 @@ def register_builtin_tools(registry: ToolRegistry, *, memory: Any, timeline: Any
         name="get_current_time", description="返回当前时间（UTC，不是用户本地时间）。需要判断今天、明天、星期几时调用，不要猜日期；换算成用户本地时间要先知道他的时区。",
         params=NoParams, permission=Permission.READ, side_effect=SideEffect.NONE, result_budget_chars=200,
     ), get_current_time)
+    registry.register(ToolSpec(
+        name="poi_search",
+        description="查询高德 POI（商户、餐饮、地点）。附近查询必须用当前回合可信位置；无位置时先问用户城市/区域。只按工具返回结果回答。status=not_configured 时明确说没有接入地图服务；query_failed 时说明查询失败；空列表就说没有查到。绝不编造名称、地址、距离或类别。",
+        params=PoiSearchParams, permission=Permission.READ, side_effect=SideEffect.NONE,
+        timeout_s=7.0, result_budget_chars=3000, products=frozenset({"chat", "roleplay"}),
+    ), search_poi)
     registry.register(ToolSpec(
         name="recall_memory",
         description="回忆用户说过的事：事实记忆（喜好、职业、家人、反复出现的困扰）与近期的重要日子"

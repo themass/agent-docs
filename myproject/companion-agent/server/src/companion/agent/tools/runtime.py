@@ -41,6 +41,7 @@ class ToolTurn:
     locale: str
     product: str
     allowed: frozenset[str]          # 本回合白名单（T §2.3）
+    location: dict[str, float] | None = None  # 服务端消息 meta 提供的位置
 
 
 @dataclass(frozen=True)
@@ -126,7 +127,7 @@ class ToolRuntime:
 
     async def _execute(self, turn: ToolTurn, handler: Callable[..., Any], spec: ToolSpec, parsed: Any) -> ToolOutcome:
         ctx = ToolContext(owner_id=turn.owner_id, session_id=turn.session_id, turn_id=turn.turn_id,
-                          character_id=turn.character_id, locale=turn.locale)
+                          character_id=turn.character_id, locale=turn.locale, location=turn.location)
         return await self._execute_with_ctx(ctx, handler, spec, parsed)
 
     async def _execute_with_ctx(self, ctx: ToolContext, handler: Callable[..., Any], spec: ToolSpec,

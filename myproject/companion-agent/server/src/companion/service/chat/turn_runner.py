@@ -78,6 +78,23 @@ def _attachment_ids(meta: Any) -> tuple[str, ...]:
     return tuple(ids)
 
 
+def _location_from_meta(meta: Any) -> dict[str, float] | None:
+    """提取并验证消息的结构化位置；坏历史数据当作无位置处理。"""
+    if not isinstance(meta, dict) or not isinstance(meta.get("location"), dict):
+        return None
+    location = meta["location"]
+    lat, lng = location.get("lat"), location.get("lng")
+    if (not isinstance(lat, (int, float)) or isinstance(lat, bool)
+            or not isinstance(lng, (int, float)) or isinstance(lng, bool)
+            or not -90 <= lat <= 90 or not -180 <= lng <= 180):
+        return None
+    result = {"lat": float(lat), "lng": float(lng)}
+    accuracy = location.get("accuracy_m")
+    if isinstance(accuracy, (int, float)) and not isinstance(accuracy, bool) and 0 <= accuracy <= 100_000:
+        result["accuracy_m"] = float(accuracy)
+    return result
+
+
 def _channel_for(inputs: list[TurnInputMessage]) -> str:
     """一条回合里只要有语音输入就按语音算。
 
@@ -266,7 +283,8 @@ class TurnRunner:
             if record is not None:
                 loaded.append(TurnInputMessage(message_id=mid, text=record.content,
                                                upload_ids=_attachment_ids(record.meta),
-                                               kind=getattr(record, "kind", "") or "chat"))
+                                               kind=getattr(record, "kind", "") or "chat",
+                                               location=_location_from_meta(record.meta)))
         if inp.message_ids and not loaded:
             loaded = [TurnInputMessage(message_id=inp.message_ids[0], text=inp.text)]
         return loaded
@@ -320,7 +338,9 @@ class TurnRunner:
                               images=await self._load_images(inp, inputs),
                               metadata={"turn_id": inp.turn_id, "session_id": inp.session_id,
                                         # 输出层按来源渠道选：语音要口语短句、文字不要 cue JSON。
-                                        "channel": _channel_for(inputs)})
+                                        "channel": _channel_for(inputs),
+                                        # 合并回合采用时间上最新、带坐标的用户消息位置。
+                                        "location": next((i.location for i in reversed(inputs) if i.location), None)})
         stream = self._produce(request, inbox)
         try:
             async for event in stream:

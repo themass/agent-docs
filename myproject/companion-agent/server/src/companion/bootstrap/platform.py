@@ -287,7 +287,8 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
 
     reminders = ReminderService(store=reminder_store, sessions=sessions)
     registry = ToolRegistry()
-    register_builtin_tools(registry, memory=memory, timeline=timeline, reminders=reminders)
+    register_builtin_tools(registry, memory=memory, timeline=timeline, reminders=reminders,
+                           amap_key=settings.amap_key)
     runtime = ToolRuntime(registry=registry, confirmations=confirmations_store, audit=tool_calls)
     confirmations = ConfirmationService(store=confirmations_store, messages=messages, runtime=runtime)
 
