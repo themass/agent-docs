@@ -126,9 +126,10 @@ CREATE TABLE ca_chat_message (
 	interrupted BOOLEAN DEFAULT '0' NOT NULL, 
 	created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL, 
 	deleted BOOLEAN DEFAULT '0' NOT NULL, 
-	alt_group BIGINT, 
-	alt_selected BOOLEAN DEFAULT '1' NOT NULL, 
-	PRIMARY KEY (id), 
+	alt_group BIGINT,
+	alt_selected BOOLEAN DEFAULT '1' NOT NULL,
+	feedback VARCHAR(16),
+	PRIMARY KEY (id),
 	CONSTRAINT ca_uq_message_client_id UNIQUE (session_id, client_message_id)
 );
 
@@ -623,9 +624,10 @@ CREATE TABLE ca_chat_message (
 	interrupted BOOL NOT NULL DEFAULT '0', 
 	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, 
 	deleted BOOL NOT NULL DEFAULT '0', 
-	alt_group BIGINT, 
-	alt_selected BOOL NOT NULL DEFAULT '1', 
-	PRIMARY KEY (id), 
+	alt_group BIGINT,
+	alt_selected BOOL NOT NULL DEFAULT '1',
+	feedback VARCHAR(16) NULL,
+	PRIMARY KEY (id),
 	CONSTRAINT ca_uq_message_client_id UNIQUE (session_id, client_message_id)
 );
 

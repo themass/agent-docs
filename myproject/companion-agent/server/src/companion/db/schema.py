@@ -123,6 +123,10 @@ chat_message = Table(
     # 普通消息两列为空 / 真。
     Column("alt_group", BigInteger, nullable=True),
     Column("alt_selected", Boolean, nullable=False, server_default="1"),
+    # 「喜欢/不喜欢」（Android chatkit ComposerActions）：值域 NULL / 'like' / 'dislike'。
+    # 存成行上的一列而不是单独建表：一条消息只有一个当前反馈、没有历史（切换即覆盖、null=取消），
+    # 也不按反馈查询，所以不需要索引。刷新后由历史接口带回，端上不再只靠内存态。
+    Column("feedback", String(16), nullable=True),
     Index("ca_ix_message_session_deleted_id", "session_id", "deleted", "id"),
     Index("ca_ix_message_alt_group", "alt_group"),
     UniqueConstraint("session_id", "client_message_id", name="ca_uq_message_client_id"),

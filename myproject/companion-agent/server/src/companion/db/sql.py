@@ -261,6 +261,24 @@ class SqlMessageStore:
                 .values(interrupted=True))
         return res.rowcount == 1
 
+    async def set_feedback(self, *, owner_id: int, message_id: int, feedback: str | None) -> bool:
+        """记「like / dislike」，``None`` = 取消。幂等（重复设同一个值仍是 True）。
+
+        条件里带 ``role=='assistant'``：反馈是对她的回答的评价，用户自己的消息、
+        排队中的输入都不该被标；带 owner_id 是跨用户隔离（D §5.3）。
+        """
+        async with self._autocommit() as conn:
+            res = await conn.execute(
+                update(chat_message)
+                .where(and_(
+                    chat_message.c.id == message_id,
+                    chat_message.c.owner_id == owner_id,
+                    chat_message.c.role == "assistant",
+                    chat_message.c.deleted == False,  # noqa: E712
+                ))
+                .values(feedback=feedback))
+        return res.rowcount == 1
+
     async def get(self, *, owner_id: int, message_id: int) -> MessageRecord | None:
         async with self._auto.connect() as conn:
             row = (await conn.execute(select(chat_message).where(and_(
@@ -607,7 +625,8 @@ def _message(r) -> MessageRecord:
         meta = json.loads(meta)
     return MessageRecord(r["id"], r["session_id"], r["owner_id"], r["role"], r["content"], r["kind"],
                          r["client_message_id"], r["turn_id"], bool(r["interrupted"]), r["created_at"], dict(meta or {}),
-                         alt_group=r["alt_group"], alt_selected=bool(r["alt_selected"]))
+                         alt_group=r["alt_group"], alt_selected=bool(r["alt_selected"]),
+                         feedback=r["feedback"])
 
 
 def _queue(r) -> QueueItem:

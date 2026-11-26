@@ -55,7 +55,7 @@ class Messages:
         # meta 必须存进行里：TurnRunner._load_inputs 读 record.meta 取附件 upload_ids（6e81d06）。
         m = SimpleNamespace(id=self.next_id, owner_id=owner_id, session_id=session_id, role=role, content=content,
                             kind=kind, client_message_id=client_message_id, turn_id=turn_id, interrupted=False,
-                            created_at=datetime.now(UTC), deleted=False, meta=meta)
+                            created_at=datetime.now(UTC), deleted=False, meta=meta, feedback=None)
         self.next_id += 1
         self.rows[m.id] = m
         return m
@@ -93,8 +93,27 @@ class Messages:
     async def mark_interrupted(self, **kw):
         return True
 
+    async def set_feedback(self, *, owner_id, message_id, feedback):
+        # 与 SqlMessageStore.set_feedback 同一判据：只有本人名下、未删除的助手消息能带反馈。
+        m = self.rows.get(message_id)
+        if m is None or m.owner_id != owner_id or m.deleted or m.role != "assistant":
+            return False
+        m.feedback = feedback
+        return True
+
     async def list_by_turn(self, *, owner_id, session_id, turn_id):
         return [m for m in self.rows.values() if m.turn_id == turn_id and not m.deleted]
+
+    async def alt_ids_for(self, *, owner_id, session_id, groups):
+        # 历史接口按候选组带回 alt_* 字段；这里的行都不是候选（alt_group 为空），所以恒空。
+        if not groups:
+            return {}
+        out = {g: [] for g in groups}
+        for m in self.rows.values():
+            if m.owner_id == owner_id and m.session_id == session_id and not m.deleted \
+                    and m.alt_group in out:
+                out[m.alt_group].append(m.id)
+        return out
 
 
 class Queue:
@@ -213,3 +232,59 @@ def test_message_edit_only_for_user_messages(env):
                                              kind="chat", client_message_id=None, turn_id=None, interrupted=False,
                                              created_at=datetime.now(UTC), deleted=False)
     assert http.patch("/v1/messages/600", json={"content": "改"}, headers=ME).status_code == 404
+
+
+def test_feedback_put_overwrites_cancels_and_comes_back_in_history(env):
+    """「喜欢/不喜欢」落库（chatkit FeedbackActions 刷新即丢的修复）。
+
+    幂等、切换即覆盖、``null``=取消；历史 JSON 带回 feedback（没有反馈时不带这个键）。
+    """
+    http = TestClient(env.app)
+    sid = http.post("/v1/sessions", json={"role_id": "linche"}, headers=ME).json()["id"]
+    env.messages.rows[700] = SimpleNamespace(id=700, owner_id=7, session_id=sid, role="assistant", content="答",
+                                             kind="chat", client_message_id=None, turn_id=None, interrupted=False,
+                                             created_at=datetime.now(UTC), deleted=False, meta={}, feedback=None,
+                                             alt_group=None)
+
+    assert http.put(f"/v1/sessions/{sid}/messages/700/feedback", json={"feedback": "like"},
+                    headers=ME).json()["feedback"] == "like"
+    # 重复提交同一个值：幂等，不报错
+    assert http.put(f"/v1/sessions/{sid}/messages/700/feedback", json={"feedback": "like"},
+                    headers=ME).status_code == 200
+    # 切换即覆盖
+    assert http.put(f"/v1/sessions/{sid}/messages/700/feedback", json={"feedback": "dislike"},
+                    headers=ME).json()["feedback"] == "dislike"
+    # 历史里带回来
+    items = http.get(f"/v1/sessions/{sid}/messages", headers=ME).json()["items"]
+    assert next(m for m in items if m["id"] == 700)["feedback"] == "dislike"
+    # null = 取消：之后历史里不再有这个键
+    updated = http.put(f"/v1/sessions/{sid}/messages/700/feedback", json={"feedback": None}, headers=ME).json()
+    assert "feedback" not in updated
+    assert "feedback" not in next(m for m in http.get(f"/v1/sessions/{sid}/messages",
+                                                     headers=ME).json()["items"] if m["id"] == 700)
+
+
+def test_feedback_refuses_wrong_target_session_owner_and_body(env):
+    http = TestClient(env.app)
+    sid = http.post("/v1/sessions", json={"role_id": "linche"}, headers=ME).json()["id"]
+    mine = http.post(f"/v1/sessions/{sid}/messages", json={"text": "问"}, headers=ME).json()["message_id"]
+    env.messages.rows[800] = SimpleNamespace(id=800, owner_id=7, session_id=sid, role="user", content="问",
+                                             kind="chat", client_message_id=None, turn_id=None, interrupted=False,
+                                             created_at=datetime.now(UTC), deleted=False, meta={}, feedback=None,
+                                             alt_group=None)
+    # 用户自己的消息不能被标反馈
+    assert http.put(f"/v1/sessions/{sid}/messages/800/feedback", json={"feedback": "like"},
+                    headers=ME).status_code == 404
+    # 消息不在这个会话里
+    assert http.put(f"/v1/sessions/{sid}/messages/{mine}/feedback", json={"feedback": "like"},
+                    headers=ME).status_code == 404
+    assert http.put(f"/v1/sessions/{sid}/messages/999999/feedback", json={"feedback": "like"},
+                    headers=ME).status_code == 404
+    # 别人的会话
+    assert http.put(f"/v1/sessions/{sid}/messages/700/feedback", json={"feedback": "like"},
+                    headers=BOB).status_code == 404
+    # 值域之外的值：422（pydantic Literal），不是静默写进去
+    assert http.put(f"/v1/sessions/{sid}/messages/700/feedback", json={"feedback": "meh"},
+                    headers=ME).status_code == 422
+    # 键必须给：省略它不算取消
+    assert http.put(f"/v1/sessions/{sid}/messages/700/feedback", json={}, headers=ME).status_code == 422
