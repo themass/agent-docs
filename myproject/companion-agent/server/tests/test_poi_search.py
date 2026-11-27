@@ -1,13 +1,11 @@
 """位置问答工具：无 key 降级与高德 POI 解析均使用离线 fake。"""
 
 import json
-from types import SimpleNamespace
-
 from companion.agent.brain.deerflow import DeerFlowBrain
 from companion.agent.brain.port import TurnRequest
 from companion.agent.tools.registry import ToolRegistry
 from companion.agent.tools.runtime import ToolRuntime, ToolTurn
-from companion.service.tools_impl.builtin import register_builtin_tools
+from companion.service.tools_impl.builtin import PoiSearchParams, register_builtin_tools
 from companion.service.tools_impl.poi_search import AmapPoiSearch, PoiSearchConfig
 
 
@@ -17,14 +15,16 @@ class NoopConfirmations:
 
 
 class FakePoiHttpClient:
-    def __init__(self, status=200, payload=None):
+    def __init__(self, status=200, payload=None, body=None):
         self.status = status
         self.payload = payload or {"status": "1", "pois": []}
+        self.body = body
         self.calls = []
 
     async def get(self, url, *, params):
         self.calls.append((url, dict(params)))
-        return self.status, json.dumps(self.payload).encode()
+        body = self.body if self.body is not None else json.dumps(self.payload).encode()
+        return self.status, body
 
 
 def _registry(*, amap_key="", client=None):
@@ -61,7 +61,7 @@ async def test_fake_amap_json_is_parsed_and_current_location_wins():
                     location={"lat": 31.23, "lng": 121.47})
 
     outcome = await runtime.invoke(turn, "poi_search", {
-        "query": "中餐", "lat": 0, "lng": 0, "radius_m": 1200,
+        "query": "中餐", "radius_m": 1200, "limit": 1,
     })
 
     assert outcome.status == "executed"
@@ -71,6 +71,7 @@ async def test_fake_amap_json_is_parsed_and_current_location_wins():
     assert url.endswith("/place/around")
     assert params["location"] == "121.47,31.23"
     assert params["radius"] == "1200"
+    assert params["offset"] == "1"
     assert "test-only-key" not in outcome.model_text
 
 
@@ -81,6 +82,41 @@ def test_turn_context_carries_server_location_not_model_arguments():
         user_id="7", character_id="role", message="附近有什么好吃的?", metadata={"location": location}
     ), "t3")
     assert context["tool_turn"].location == location
+
+
+async def test_model_coordinates_are_not_part_of_tool_schema_or_used_without_turn_location():
+    assert set(PoiSearchParams.model_fields) == {"query", "radius_m", "limit"}
+    client = FakePoiHttpClient()
+    registry = _registry(amap_key="test-only-key", client=client)
+    runtime = ToolRuntime(registry=registry, confirmations=NoopConfirmations())
+    turn = ToolTurn(owner_id=7, session_id=1, turn_id="t5", character_id="role", locale="zh-CN",
+                    product="chat", allowed=frozenset({"poi_search"}))
+
+    outcome = await runtime.invoke(turn, "poi_search", {
+        "query": "上海咖啡", "lat": 0, "lng": 0, "limit": 10,
+    })
+
+    assert outcome.status == "executed"
+    url, params = client.calls[0]
+    assert url.endswith("/place/text")
+    assert "location" not in params
+    assert params["offset"] == "10"
+
+
+async def test_upstream_error_body_is_not_returned_to_model_or_logged(caplog):
+    client = FakePoiHttpClient(status=503, body=b"provider-secret-error-body")
+    registry = _registry(amap_key="test-only-key", client=client)
+    runtime = ToolRuntime(registry=registry, confirmations=NoopConfirmations())
+    turn = ToolTurn(owner_id=7, session_id=1, turn_id="t6", character_id="role", locale="zh-CN",
+                    product="chat", allowed=frozenset({"poi_search"}),
+                    location={"lat": 31.23, "lng": 121.47})
+
+    outcome = await runtime.invoke(turn, "poi_search", {"query": "咖啡"})
+
+    assert "provider-secret-error-body" not in outcome.model_text
+    assert "test-only-key" not in outcome.model_text
+    assert "provider-secret-error-body" not in caplog.text
+    assert "test-only-key" not in caplog.text
 
 
 async def test_failed_amap_call_returns_structured_query_failed():

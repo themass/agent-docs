@@ -6,7 +6,6 @@ import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Protocol
-from urllib.parse import urlencode
 
 AMAP_TEXT_URL = "https://restapi.amap.com/v3/place/text"
 AMAP_AROUND_URL = "https://restapi.amap.com/v3/place/around"
@@ -45,12 +44,13 @@ class AmapPoiSearch:
         self._client = config.client or HttpxPoiClient()
 
     async def search(self, *, query: str, lat: float | None = None, lng: float | None = None,
-                     radius_m: int | None = None) -> dict[str, Any]:
+                     radius_m: int | None = None, limit: int = 5) -> dict[str, Any]:
         if not self._config.amap_key.strip():
             return {"status": "not_configured", "message": "未接入地图服务", "pois": []}
         around = lat is not None and lng is not None
         endpoint = AMAP_AROUND_URL if around else AMAP_TEXT_URL
-        params = {"key": self._config.amap_key, "keywords": query, "offset": str(self._config.result_limit),
+        result_limit = max(1, min(limit, self._config.result_limit))
+        params = {"key": self._config.amap_key, "keywords": query, "offset": str(result_limit),
                   "page": "1", "extensions": "base", "output": "JSON"}
         if around:
             params["location"] = f"{lng},{lat}"
@@ -66,7 +66,7 @@ class AmapPoiSearch:
             pois = payload.get("pois", [])
             if not isinstance(pois, list):
                 raise PoiSearchError("invalid POI list")
-            return {"status": "ok", "pois": [_poi(item) for item in pois[:self._config.result_limit]
+            return {"status": "ok", "pois": [_poi(item) for item in pois[:result_limit]
                                                 if isinstance(item, dict)]}
         except Exception as exc:  # noqa: BLE001 — upstream details must not reach model context
             raise PoiSearchError("地图查询失败") from exc

@@ -62,9 +62,8 @@ class CancelReminderParams(BaseModel):
 
 class PoiSearchParams(BaseModel):
     query: str = Field(min_length=1, max_length=100)
-    lat: float | None = Field(default=None, ge=-90, le=90)
-    lng: float | None = Field(default=None, ge=-180, le=180)
     radius_m: int | None = Field(default=None, ge=100, le=50_000)
+    limit: int = Field(default=5, ge=1, le=10)
 
 
 RECALL_HORIZON = timedelta(days=14)
@@ -84,11 +83,14 @@ def register_builtin_tools(registry: ToolRegistry, *, memory: Any, timeline: Any
 
     async def search_poi(ctx: ToolContext, args: PoiSearchParams) -> dict[str, Any]:
         location = ctx.location
-        lat = location.get("lat") if location else args.lat
-        lng = location.get("lng") if location else args.lng
-        radius = args.radius_m
         try:
-            return await poi_search.search(query=args.query, lat=lat, lng=lng, radius_m=radius)
+            return await poi_search.search(
+                query=args.query,
+                lat=location.get("lat") if location else None,
+                lng=location.get("lng") if location else None,
+                radius_m=args.radius_m,
+                limit=args.limit,
+            )
         except PoiSearchError:
             return {"status": "query_failed", "message": "地图查询失败", "pois": []}
 
