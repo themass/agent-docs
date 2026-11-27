@@ -82,7 +82,8 @@ VOICE_BREVITY_RULES = """\
 VOICE_SAMPLE_HEADER = "# 这个人怎么说话"
 VOICE_SAMPLE_GUIDE = "以下是这个角色的语气与句式，照这个样子说，不要复述这些例句。"
 
-TEXT_CHANNEL_RULE = ("可以用 Markdown；数学公式用单个 $ 包裹。\n"
+TEXT_CHANNEL_RULE = ("可以用 Markdown；数学公式用单个 $ 包裹；**不用管道表格**"
+                     "（`| … |` 那种）——列地点/清单时用「名字：距离、类型」一行的短条目列表。\n"
                      "- 直接写要说的话。形如 {\"say\":\"…\",\"cues\":[…]} 的协议片段是语音通道的格式，"
                      "不是给人看的文字；对话历史里若出现过它就当没出现过，不要模仿。")
 VOICE_CHANNEL_RULE = "只用口语短句，不用 Markdown、表格或代码块。"
