@@ -26,6 +26,9 @@ log = logging.getLogger("companion.background")
 REMINDER_POLL_SEC = 5.0
 INITIATIVE_POLL_SEC = 60.0
 DAILY_CHECK_SEC = 3600.0
+# 孤儿回合清扫。间隔不必短：判活看 Redis 锁，间隔只决定「用户最多白等多久」。
+# 2 分钟是「重启打断的回合大约 2 分钟内被重新驱动」与扫描成本之间的折中。
+TURN_RECOVERY_SEC = 120.0
 CLAIM_TTL_SEC = 24 * 3600
 # 每轮主循环写一次心跳文件的时间间隔。status 据此判断“进程活着但在空转”。
 HEARTBEAT_SEC = 30.0
@@ -165,6 +168,13 @@ class BackgroundJobs:
         self._tasks.append(asyncio.create_task(
             _every(self._stop, INITIATIVE_POLL_SEC, self._initiative_once, "initiative", self.heartbeat),
             name="initiative"))
+        # 孤儿回合清扫。两个入口都覆盖：api 内嵌 jobs（COMPANION_JOBS_IN_API）与
+        # worker_jobs 独立进程都带 platform，所以都挂得上这一条。
+        recovery = getattr(platform, "turn_recovery", None)
+        if recovery is not None:
+            self._tasks.append(asyncio.create_task(
+                _every(self._stop, TURN_RECOVERY_SEC, recovery.sweep, "turn-recovery", self.heartbeat),
+                name="turn-recovery"))
         log.info("background jobs started (owner=%s, tasks=%d)", owner, len(self._tasks))
 
     async def _initiative_once(self) -> None:
