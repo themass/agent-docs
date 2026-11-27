@@ -95,6 +95,17 @@ def test_text_channel_bans_writing_the_protocol_shape_itself():
     assert "协议" in T.TEXT_CHANNEL_RULE or "语音通道" in T.TEXT_CHANNEL_RULE
 
 
+def test_text_channel_bans_pipe_tables():
+    """客户端消息渲染器（chatkit）没有 markdown 表格支持。
+
+    2026-11-28 现网：poi_search 结果被模型排成管道表格，真机上整段糊成
+    空白乱码（截图存档 /tmp/chat-stuck-20261128/now.png）。客户端补表格
+    渲染器之前，文字通道必须明确禁表格、引导用短条目列表。
+    """
+    assert "管道表格" in T.TEXT_CHANNEL_RULE and "不用" in T.TEXT_CHANNEL_RULE, \
+        f"文字通道必须明确禁管道表格: {T.TEXT_CHANNEL_RULE}"
+
+
 def test_mandatory_overflow_is_an_error_not_a_silent_truncation():
     with pytest.raises(PromptBudgetExceeded):
         build_prompt_plan(_profile(description="长" * 5000), budget=PromptBudget(system_chars=2000))
