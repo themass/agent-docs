@@ -171,3 +171,18 @@ async def test_seed_from_cards_creates_packs_and_default_bindings(sqlite_engine)
     await seed_from_cards(store, cards)
     again = await store.load("live2d-linche-v1")
     assert again is not None and again.pack_version == 1
+
+
+async def test_seed_tool_imports_resolve(monkeypatch):
+    """播种工具不在 HTTP/库测试覆盖里，104 首跑曾因错 import 直接崩
+    （companion.agent.roles.files 不存在，应为 service.roles.files）。
+    这里把数据库地址置空后调用 seed()：函数体顶部的全部 import 先执行，
+    然后走「缺 DATABASE_URL 返回 2」的分支——不碰任何库，但 import 名钉死。
+    """
+    from companion.config import settings
+    from tools.seed_her_packs import seed
+
+    # database_url 是算出来的属性：整串与拆键都置空才会得到空串。
+    monkeypatch.setattr(settings, "companion_database_url", "")
+    monkeypatch.setattr(settings, "companion_db_host", "")
+    assert await seed() == 2

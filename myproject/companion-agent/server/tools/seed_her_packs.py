@@ -24,7 +24,7 @@ async def seed() -> int:
     from companion.bootstrap.database import make_engine, profile_for
     from companion.config import settings
     from companion.paths import CHARACTERS_DIR
-    from companion.agent.roles.files import CharacterSource
+    from companion.service.roles.files import CharacterSource
     from companion.service.roles.hers import SqlHerPackStore, seed_from_cards
     from companion.service.roles.packs import (
         ChainedCharacterSource, DbCharacterSource, SqlCharacterPackStore)
