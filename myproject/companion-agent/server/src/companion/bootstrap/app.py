@@ -263,8 +263,15 @@ def create_app(
     # her 包目录（persona/her 分层第一刀）：只有平台（数据库）才挂——呈现实体没有
     # 文件兜底，没库时根本没有注册表可查（与 control/inbox 同一取舍）。
     if platform is not None and getattr(platform, "hers", None) is not None:
+        # objects/characters 都是可选依赖：没配对象存储时 URL 字段空串（端上显示
+        # 「暂不可下载」），没角色链时 persona=null——目录本身照常可用（docs/
+        # her-tos-delivery-design-20261128.md §3：库里存对象 key，读时现签）。
         app.include_router(hers_router.build_router(
-            hers_router.HerCatalog(platform.hers), current_user))
+            hers_router.HerCatalog(
+                platform.hers,
+                objects=getattr(platform, "objects", None),
+                characters=getattr(platform, "characters", None)),
+            current_user))
 
     if platform is not None:
         # 偏好与收件箱读写 Postgres；没有平台时这两组接口不存在，而不是退回进程内存：

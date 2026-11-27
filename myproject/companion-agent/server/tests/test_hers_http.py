@@ -57,7 +57,10 @@ async def test_list_response_carries_every_declared_field(sqlite_engine):
     await _seed(sqlite_engine)
     body = _client(sqlite_engine).get("/v1/hers", headers=_as()).json()
     by_id = {item["id"]: item for item in body["items"]}
-    assert body["total"] == 2
+    # 上架闸：C 端列表只给 published——draft-first 裁决（注册≠上架）在这生效。
+    # draft 行仍可按 id 取详情（验收/QA 深链），下面 test 钉这条。
+    assert body["total"] == 1
+    assert "simple-plain" not in by_id
     her = by_id["live2d-linche-v1"]
     assert her["renderer"] == "live2d"
     assert her["status"] == "published"

@@ -56,6 +56,12 @@ ASSET_MANIFEST_FIELDS = frozenset(
 # 之前，产线对 VRM 包停在 candidate。
 ENGINE_TYPES = ("LAYERED", "LIVE2D", "RIVE", "DUIX", "TAO")
 
+# renderer 词表（用户裁决 2026-11-28，tools/her_registry.py）→ 端上引擎枚举的映射。
+# 纸偶的词是 simple（现网 simple-* 行），但端上枚举叫 LAYERED——两个词都是对的，
+# 边界在这张表：ca_her_pack.renderer 列存词表词，包 manifest 的 engine 存枚举值。
+RENDERER_TO_ENGINE = {"simple": "LAYERED", "layered": "LAYERED",
+                      "live2d": "LIVE2D", "rive": "RIVE", "duix": "DUIX", "tao": "TAO"}
+
 # payload.model_ref 收敛形态（persona/her 分层 §3：{asset, version, hash}）+
 # download_url（端上既有下载口径，AvatarSync.kt 读 "download_url"；URL 落点归
 # 协调会话的 CDN 决策，字段名归契约）。
@@ -121,8 +127,9 @@ def build_asset_pack(*, files: dict[str, bytes], pack_id: str, version: int,
     所以 model_ref.hash 是对账信号而不是每次重算的随机数。文件级 sha256 在这里
     一次算好写进 manifest——端上安装时逐文件复核的就是这些值。
     """
-    # ca_her_pack.renderer 列按现网口径小写（live2d/simple）；端上引擎枚举大写。
-    engine = renderer.strip().upper()
+    # ca_her_pack.renderer 列按词表小写（simple/live2d/…）；端上引擎枚举大写。
+    # simple（纸偶）在端上叫 LAYERED——映射见 RENDERER_TO_ENGINE。
+    engine = RENDERER_TO_ENGINE.get(renderer.strip().lower(), renderer.strip().upper())
     if engine not in ENGINE_TYPES:
         raise AssetPackError(f"renderer {renderer!r} is not a client engine "
                              f"(client enum: {list(ENGINE_TYPES)})")

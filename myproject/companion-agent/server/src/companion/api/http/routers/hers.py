@@ -18,10 +18,18 @@ model_ref 转成 her 包 + 默认绑定。
 ``user_id`` 会退化成 query 参数（422），deps.py 的注释钉过同一个坑。
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
+# HerCatalog 类体内有个叫 list() 的方法——它会把内建 list 遮住，之后任何注解再写
+# list[...] 就是在给方法对象下标（TypeError，收集期就炸）。注解一律用这个别名。
+_List = list
+
 from companion.service.roles.hers import HerPackRecord, SqlHerPackStore
+
+#: 签名 URL 的有效期。口径同形象发布链（service/avatar/catalog.py SIGNED_URL_TTL）：
+#: 下载是一次动作，不是长期凭据——1 小时够下一包，过期再取。
+SIGNED_URL_TTL = 3600
 
 
 class HerNotFound(LookupError):
@@ -44,6 +52,10 @@ class HerSummary:
     effect_count: int
     sticker_count: int
     voice_ref: dict[str, str] | None = None
+    # 卡片图。库里存的是对象 key（payload.thumbnail_key），读时现签——签名 URL 是
+    # bearer secret，不落库（同 avatars 线 SIGNED_URL_TTL 口径）。没配对象存储 = 空串。
+    thumbnail_url: str = ""
+    url_expires_in: int = 0
 
     def to_json(self) -> dict[str, Any]:
         return {
@@ -57,12 +69,22 @@ class HerSummary:
             "effect_count": self.effect_count,
             "sticker_count": self.sticker_count,
             "voice_ref": dict(self.voice_ref) if self.voice_ref else None,
+            "thumbnail_url": self.thumbnail_url,
+            "url_expires_in": self.url_expires_in,
         }
 
 
 @dataclass(frozen=True, slots=True)
 class HerDetail:
-    """详情。多给模型引用与目录（特效/贴纸/触摸区），端上按契约校验安装。"""
+    """详情。多给模型引用与目录（特效/贴纸/触摸区），端上按契约校验安装。
+
+    URL 口径（docs/her-tos-delivery-design-20261128.md §3）：库里存的是**对象 key**
+    （payload.object_key / thumbnail_key / portrait_key / 目录项 key），读时现签
+    （``url_expires_in`` 同步给出）；签名 URL 是 bearer secret，永不落库。
+    没配对象存储 → URL 全空串，端上按「暂不可下载」处理，不是错误。
+    persona 半经 ``ca_character_her`` 绑定 join 角色卡——「她长什么样」的页面
+    同时回答「她是谁」；her 可以没绑定（纯注册未上架），那时 persona=null。
+    """
 
     summary: HerSummary
     source: str
@@ -70,6 +92,9 @@ class HerDetail:
     effects: list[Any] = field(default_factory=list)
     stickers: list[Any] = field(default_factory=list)
     touch_zones: list[Any] = field(default_factory=list)
+    portrait_url: str = ""
+    persona: dict[str, Any] | None = None
+    url_expires_in: int = 0
 
     def to_json(self) -> dict[str, Any]:
         return {
@@ -79,6 +104,9 @@ class HerDetail:
             "effects": list(self.effects),
             "stickers": list(self.stickers),
             "touch_zones": list(self.touch_zones),
+            "portrait_url": self.portrait_url,
+            "persona": dict(self.persona) if self.persona else None,
+            "url_expires_in": self.url_expires_in,
         }
 
 
@@ -102,11 +130,31 @@ class HerCatalog:
 
     her 包的改动走播种/发布（部署或 Hermes 产线），列表页每请求重查整目录没有意义；
     热更新路径调 ``invalidate()``。
+
+    ``objects``（对象存储）与 ``characters``（persona 读取链）都是可选依赖：
+    - 没配对象存储 → URL 字段一律空串（服务照常起，端上显示「暂不可下载」）；
+      签名是本地加密运算，不联网，列表页 N 次签名没有成本问题（avatars 线同款）。
+    - 没有 persona 链 → persona=null；绑定存在但角色卡读不出来同样 null，不 404。
+    库里存的是**对象 key**（发布工具写入），URL 只在这里现签——签名 URL 是
+    bearer secret，永不落库。
     """
 
-    def __init__(self, store: SqlHerPackStore) -> None:
+    def __init__(self, store: SqlHerPackStore, *, objects: Any = None,
+                 characters: Any = None) -> None:
         self._store = store
+        self._objects = objects
+        self._characters = characters
         self._cache: dict[str, HerPackRecord] | None = None
+
+    async def _sign(self, key: str) -> tuple[str, int]:
+        if not key or self._objects is None:
+            return "", 0
+        try:
+            url = await self._objects.signed_url(key=key, ttl_seconds=SIGNED_URL_TTL)
+        except KeyError:
+            # 库里有 key、桶里没有对象（半写/误删）：URL 给空，别让一个坏 key 掀掉整页。
+            return "", 0
+        return url, SIGNED_URL_TTL
 
     async def _load_all(self) -> dict[str, HerPackRecord]:
         if self._cache is None:
@@ -115,21 +163,62 @@ class HerCatalog:
 
     async def list(self, *, limit: int = 20, offset: int = 0) -> tuple[list[HerSummary], int]:
         records = await self._load_all()
-        ids = sorted(records)
+        # 上架闸：C 端列表只给 published。draft-first 裁决（注册≠上架）在这里生效——
+        # 发布工具登记的 draft、下架的 retired 都不进目录，否则 draft 闸只是装饰。
+        # 详情仍可按 id 直达（验收/QA 的深链），列表与详情不同权是刻意的。
+        ids = sorted(hid for hid, rec in records.items() if rec.status == "published")
         window = ids[offset: offset + limit]
-        return [summarize(records[hid]) for hid in window], len(ids)
+        out: list[HerSummary] = []
+        for hid in window:
+            summary = summarize(records[hid])
+            url, ttl = await self._sign(str(records[hid].payload.get("thumbnail_key") or ""))
+            out.append(replace(summary, thumbnail_url=url, url_expires_in=ttl))
+        return out, len(ids)
+
+    async def _persona(self, her_id: str) -> dict[str, Any] | None:
+        role_id = await self._store.role_for_her(her_id)
+        if role_id is None or self._characters is None:
+            return None
+        try:
+            card = await self._characters.load(role_id)
+        except FileNotFoundError:
+            # 绑定存在但角色卡读不出来（没播种/坏卡）：persona 给 null，不连坐详情。
+            return None
+        return {"role_id": role_id, "name": getattr(card, "name", "") or role_id,
+                "description": getattr(card, "description", "") or "",
+                "personality": getattr(card, "personality", "") or ""}
+
+    async def _sign_catalog(self, items: _List[Any]) -> _List[Any]:
+        """目录项（特效/贴纸）现签 URL。缺 key 的项保持原样——策略目录也允许纯 id 项。"""
+        out: list[Any] = []
+        for item in items:
+            if isinstance(item, dict) and item.get("key"):
+                url, ttl = await self._sign(str(item["key"]))
+                item = {**item, "url": url, "url_expires_in": ttl}
+            out.append(item)
+        return out
 
     async def get(self, her_id: str) -> HerDetail:
         rec = (await self._load_all()).get(her_id)
         if rec is None:
             raise HerNotFound(her_id)
+        model_ref = rec.model_ref
+        url, ttl = await self._sign(str(rec.payload.get("object_key") or ""))
+        if url:
+            model_ref = {**model_ref, "download_url": url, "url_expires_in": ttl,
+                         "size_bytes": rec.payload.get("size_bytes")}
+        thumbnail_url, _ = await self._sign(str(rec.payload.get("thumbnail_key") or ""))
+        portrait_url, _ = await self._sign(str(rec.payload.get("portrait_key") or ""))
         return HerDetail(
-            summary=summarize(rec),
+            summary=replace(summarize(rec), thumbnail_url=thumbnail_url, url_expires_in=ttl),
             source=rec.source,
-            model_ref=rec.model_ref,
-            effects=rec.effects,
-            stickers=rec.stickers,
+            model_ref=model_ref,
+            effects=await self._sign_catalog(rec.effects),
+            stickers=await self._sign_catalog(rec.stickers),
             touch_zones=[z for z in (rec.payload.get("touch_zones") or []) if isinstance(z, (dict, list))],
+            portrait_url=portrait_url,
+            persona=await self._persona(her_id),
+            url_expires_in=ttl,
         )
 
     def invalidate(self) -> None:
@@ -162,6 +251,8 @@ def build_router(catalog: HerCatalog, current_user):
         # response_model 会滤掉未声明的字段——这里漏一个，客户端就永远看不见一个。
         # （voice_ref、renderer 各栽过一次，见 tests/test_hers_http.py 文件头。）
         voice_ref: dict[str, str] | None = None
+        thumbnail_url: str = ""
+        url_expires_in: int = 0
 
     class HerListResponse(BaseModel):
         items: list[HerSummaryResponse]
@@ -175,6 +266,8 @@ def build_router(catalog: HerCatalog, current_user):
         effects: list[Any]
         stickers: list[Any]
         touch_zones: list[Any]
+        portrait_url: str = ""
+        persona: dict[str, Any] | None = None
 
     router = APIRouter(prefix="/v1", tags=["companion"])
 
