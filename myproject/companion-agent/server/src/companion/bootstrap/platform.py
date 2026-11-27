@@ -168,6 +168,8 @@ class Platform:
     sessions: Any = None
     brain: Any = None
     qa: Any = None
+    # 孤儿回合清扫（重启打断的回合重新驱动）。见 service/chat/recovery.py。
+    turn_recovery: Any = None
     objects: Any = None
     # P6 角色卡（可版本化身份/边界）与窄记忆索引读接口共享它
     cards: Any = None
@@ -509,6 +511,13 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     # 「建会话放行、发消息必挂」的错位（线上 __default__ 占位符事故的根治）。
     api.role_check = resolver.exists
 
+    # 孤儿回合清扫：重启打断一个刚起步的回合后，那条消息原本永远没有回复
+    # （2026-11-28 线上 session 39）。判活看 Redis 锁，不靠猜时间。见 service/chat/recovery.py。
+    from companion.service.chat.recovery import SqlTurnRecoveryStore, TurnRecovery
+
+    turn_recovery = TurnRecovery(store=SqlTurnRecoveryStore(engine), control=control,
+                                 submit=api.submit, sessions=sessions, queue=queue)
+
     # 直传（ADR-011 同款）：sign 签发 presigned PUT、发送时绑定校验。挂在不被 dataclass
     # 约束的 ChatApi 实例上，随 uploads 一起降级——对象存储自检失败时直传同样不可用。
     if objects is not None:
@@ -611,5 +620,6 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
                     characters=characters,
                     hers=hers,
                     admin_token=settings.companion_admin_token, sessions=sessions, brain=brain, qa=qa, objects=objects,
+                    turn_recovery=turn_recovery,
                     qa_retention_days=settings.companion_qa_retention_days, trace_writer=trace_writer, qa_enabled=qa_enabled,
                     tos_key_prefix=settings.tos_key_prefix, _pool=pool, _checkpointer=checkpointer)

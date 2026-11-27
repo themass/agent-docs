@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -18,6 +19,8 @@ from companion.agent.middleware.safety import check_input
 from companion.service.turn.queue import Disposition
 from companion.db.port import MessageStore, QueueStore, SessionStore
 from companion.service.turn.control import TurnControlPort
+
+log = logging.getLogger("companion.chat.submit")
 
 # 启动一个回合的回调（由 bootstrap 注入，内部把 TurnRunner 放到后台任务里跑）。
 StartTurn = Callable[..., Awaitable[None]]
@@ -74,7 +77,8 @@ class SubmitService:
             existing = await self._messages.find_by_client_id(
                 owner_id=owner_id, session_id=session_id, client_message_id=client_message_id)
             if existing is not None:
-                return SubmitResult("duplicate", None, existing.id, existing.turn_id)
+                return await self._redrive_duplicate(owner_id=owner_id, session_id=session_id,
+                                                     character_id=character_id, existing=existing)
 
         denied = check_input(text)
         if denied is not None:
@@ -141,6 +145,64 @@ class SubmitService:
         ``alt_of``：被重新生成的那条助手回复。新回复会作为它的另一个候选保存（左右滑动切换）。"""
         return await self._start(owner_id=owner_id, session_id=session_id, character_id=character_id,
                                  text=text, message_ids=message_ids, alt_of=alt_of)
+
+    async def _redrive_duplicate(self, *, owner_id: int, session_id: int, character_id: str,
+                                 existing: Any) -> SubmitResult:
+        """重发命中幂等时的处理。
+
+        原来的判据只有一句「这条 client_message_id 存过」→ `duplicate`，HTTP 仍是 202。
+        2026-11-28 线上 session 39 就是这么把用户吞掉的：原回合在 16:47:51 的重启里死了，
+        17:04:45 的重发被判成 duplicate，既不起新回合、也不报错——用户那边是「发了没反应」，
+        而客户端在 17:09–17:11 打了约 40 次 /cancel。
+
+        所以现在多问一句：**那条回合还活着吗，它回答过吗。**
+        - 还活着（会话的活锁就是这个 turn_id）→ 真是重复，按原样回 duplicate，别抢它的工作。
+        - 已经死了但回答过了 → 也回 duplicate（重驱动会让用户看到两遍同样的话）。
+        - 还在排队（turn_id 为空但有队列条目）→ 回 duplicate，排空会带它，不能另起一个回合。
+        - 已经死了且没回答 → 这是唯一会静默丢消息的情形，重驱动它，回 `accepted`；
+          会话忙就把它转成排队（回 `accepted` + QUEUED），因为排队正是「稍后一定会回答」的
+          既有语义——不这样做的话，这条消息在回合状态被清掉后就再也没人捞得起来了。
+
+        回 `accepted` 而不是发明新状态：Android 现有实现对 accepted 的处理就是「等这条
+        回合的流」，对 QUEUED 的处理就是等排空，所以修复不需要端上配合（本次任务不动 Android 仓库）。
+        """
+        dead_turn_id = existing.turn_id
+        if dead_turn_id is not None:
+            live = await self._control.active_turn(session_id=session_id)
+            if live and live.get("turn_id") == dead_turn_id:
+                return SubmitResult("duplicate", None, existing.id, dead_turn_id)
+        else:
+            # turn_id 为空不等于没在处理：排队中的消息就是这个状态（submit 先落库、
+            # 后判定，排队的条目要等排空才挂上 turn_id）。这时重驱动会让同一个人被回答两遍。
+            for status in ("queued", "draining"):
+                items = await self._queue.list_status(owner_id=owner_id, session_id=session_id,
+                                                      status=status)
+                if any(i.message_id == existing.id for i in items):
+                    return SubmitResult("duplicate", None, existing.id, None)
+
+        # 回合已经不在。它有没有已经把答案写出来？
+        if dead_turn_id is not None:
+            rows = await self._messages.list_by_turn(owner_id=owner_id, session_id=session_id,
+                                                     turn_id=dead_turn_id)
+            if any(m.role == "assistant" for m in rows):
+                return SubmitResult("duplicate", None, existing.id, dead_turn_id)
+
+        turn_id = await self.rerun(owner_id=owner_id, session_id=session_id, character_id=character_id,
+                                   text=existing.content, message_ids=[existing.id])
+        if turn_id is None:
+            # 会话正被别的回合占着：不能并发驱动，转成排队——占场那个收尾后排空会带上它。
+            item = await self._queue.enqueue(owner_id=owner_id, session_id=session_id,
+                                             message_id=existing.id,
+                                             client_message_id=existing.client_message_id,
+                                             text=existing.content)
+            await self._control.publish(session_id=session_id, event="input.queued",
+                                        data={"message_id": existing.id, "queue_position": item.id})
+            log.warning("resend of message=%s hit a dead turn=%s but session=%s is busy -> queued",
+                        existing.id, dead_turn_id, session_id)
+            return SubmitResult("accepted", Disposition.QUEUED, existing.id, None)
+        log.warning("resend redrove message=%s dead_turn=%s -> turn=%s session=%s",
+                    existing.id, dead_turn_id, turn_id, session_id)
+        return SubmitResult("accepted", Disposition.STARTED, existing.id, turn_id)
 
     async def _start(self, *, owner_id: int, session_id: int, character_id: str, text: str,
                      message_ids: list[int], alt_of: int | None = None,
