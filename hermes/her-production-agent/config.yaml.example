@@ -1,0 +1,22 @@
+# her-production profile 的 Hermes 配置（install.sh 复制成 config.yaml）。
+# 通道形态照抄 coder profile（同一 newapi 网关，已实测文本+生图都通）。
+# key 不落 git：跑 install.sh 时从 coder profile 现配里同步，或自己填。
+model:
+  default: deepseek-v4-1-flash     # 便宜、够用的协调文本模型
+  provider: custom
+  api_key: sk-请填你自己的网关key
+  base_url: https://newapi.yuaiweiwu.com/v1
+providers:
+  manifest:
+    type: openai
+    base_url: https://newapi.yuaiweiwu.com/v1
+    key_env: CUSTOM_API_KEY
+fallback_providers: []
+toolsets:
+  - hermes-cli
+agent:
+  max_turns: 40
+  clarify_timeout: 600
+terminal:
+  backend: local
+  persistent_shell: true

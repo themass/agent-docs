@@ -198,6 +198,19 @@ class SqlHerPackStore:
                    ).first()
         return row[0] if row else None
 
+    async def role_for_her(self, her_id: str) -> str | None:
+        """绑定到该 her 的角色（persona 半）。多条取 role_id 最小，保证稳定。
+
+        详情接口用它 join 角色卡给出「她是谁」；her 可以没绑定（纯注册未上架），
+        那时 persona 是 null，不是 404。
+        """
+        async with self._auto.connect() as conn:
+            row = (await conn.execute(select(character_her.c.role_id)
+                                      .where(character_her.c.her_id == her_id)
+                                      .order_by(character_her.c.role_id))
+                   ).first()
+        return row[0] if row else None
+
     async def bindings(self, role_id: str) -> list[HerBinding]:
         async with self._auto.connect() as conn:
             rows = (await conn.execute(select(character_her)
