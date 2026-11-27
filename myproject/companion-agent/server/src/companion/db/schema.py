@@ -457,6 +457,26 @@ role_card_version = Table(
 )
 
 
+# 系统角色包（角色封装落库，2026-11-27）：随包发布的角色卡播种进这张表，
+# 运行时（提示词、目录页、语音选音色）以它为准；文件只留作未播种环境的兜底。
+# 与 ca_role_card 的分工：这张是「她是谁」（系统资产、无 owner），那张是「这个用户
+# 想微调的部分」（按 owner 隔离的覆盖链），解析时系统包在前、用户覆盖最后。
+# renderer / pack_asset 是从卡里 model_ref 提取出来单列存放的**技术判别**——
+# 客户端按它选数字人引擎、按 pack_asset 找形象包，不必再解析整张卡。
+character_pack = Table(
+    TABLE_PREFIX + "character_pack", metadata,
+    _pk(),
+    Column("role_id", String(128), nullable=False),                  # 与 ca_chat_session.role_id 同一命名空间
+    Column("payload", JsonText, nullable=False),                     # 完整 SillyTavern V2 卡（spec/spec_version/data）
+    Column("renderer", String(32), nullable=False, server_default=""),      # 引擎判别：simple|live2d|vrm|...
+    Column("pack_asset", String(128), nullable=False, server_default=""),   # 绑定的形象/模型包标识
+    Column("pack_version", Integer, nullable=False, server_default="1"),    # 内容变一次 +1（部署对账用）
+    Column("source", String(32), nullable=False, server_default=""),        # 怎么来的：file | manual
+    _now(), _upd(),
+    UniqueConstraint("role_id", name="ca_uq_character_pack_role"),
+)
+
+
 user_consent = Table(
     TABLE_PREFIX + "user_consent", metadata,
     Column("owner_id", BigInteger, primary_key=True, autoincrement=False),

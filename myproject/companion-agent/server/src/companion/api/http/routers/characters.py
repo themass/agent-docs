@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from companion.service.roles.port import CharacterSourcePort
+from companion.service.roles.packs import renderer_of
 from companion.agent.roles.card import CharacterCard, CharacterFormatError
 
 _CARD_SUFFIX = ".v2.json"
@@ -37,6 +38,9 @@ class CharacterSummary:
     # 这个角色说话用谁的声音。客户端拿它显示音色名（「贴心女友」）或调试时对账。
     # 只给 provider 与 voice_id，不给 params：那里面可能有账号侧的调参。
     voice_ref: dict[str, str] | None = None
+    # 这个角色的形象由哪种数字人引擎渲染（simple|live2d|vrm|…）。空串 = 卡没声明，
+    # 客户端退回默认引擎。有了它，「目录返回引擎类型 → 自动选引擎」不再靠实验菜单手选。
+    renderer: str = ""
 
     def to_json(self) -> dict[str, Any]:
         return {
@@ -46,6 +50,7 @@ class CharacterSummary:
             "tags": list(self.tags),
             "voice_available": self.voice_available,
             "voice_ref": dict(self.voice_ref) if self.voice_ref else None,
+            "renderer": self.renderer,
         }
 
 
@@ -123,44 +128,50 @@ def summarize(character_id: str, card: CharacterCard) -> CharacterSummary:
         tags=list(card.tags),
         voice_available=voice_is_available(card),
         voice_ref=public_voice_ref(card),
+        renderer=renderer_of(card),
     )
 
 
 class CharacterCatalog:
-    """角色目录。读盘一次、缓存一次。
+    """角色目录。读一次、缓存一次（进程级）。
 
-    角色卡随包发布、进程生命周期内不变；不缓存的话刷一次列表页就会把同一批
-    文件读几十遍。改卡需要重启进程，这与「卡是发布资产」的定位一致。
+    来源现在是链（库优先、文件兜底，见 service/roles/packs.py）。缓存沿用进程级：
+    列表页每请求重查整目录没有意义，而封装的改动走部署——播种后进程重启即生效，
+    热更新路径调 ``invalidate()``。
     """
 
     def __init__(self, source: CharacterSourcePort) -> None:
         self._source = source
         self._cache: dict[str, CharacterCard] | None = None
 
-    def _load_all(self) -> dict[str, CharacterCard]:
+    async def _load_all(self) -> dict[str, CharacterCard]:
         if self._cache is not None:
             return self._cache
-        loaded: dict[str, CharacterCard] = {}
-        for character_id in character_ids(self._source.root):
-            # 一张坏卡不该让整个选角色页空白：跳过它，其余照常展示。
-            try:
-                loaded[character_id] = self._source.load(character_id)
-            except (CharacterFormatError, json.JSONDecodeError, OSError):
-                continue
+        loader = getattr(self._source, "cards", None)
+        if loader is not None:
+            loaded = await loader()
+        else:
+            # 来源没有整目录接口时逐个读；一张坏卡不该让整个选角色页空白。
+            loaded = {}
+            for character_id in character_ids(self._source.root):
+                try:
+                    loaded[character_id] = await self._source.load(character_id)
+                except (CharacterFormatError, json.JSONDecodeError, OSError, FileNotFoundError):
+                    continue
         self._cache = loaded
         return loaded
 
-    def list(
+    async def list(
         self, *, limit: int = 20, offset: int = 0
     ) -> tuple[list[CharacterSummary], int]:
         """一页摘要 + 总数。总数让客户端知道还有没有下一页。"""
-        cards = self._load_all()
+        cards = await self._load_all()
         ids = sorted(cards)
         window = ids[offset : offset + limit]
         return [summarize(cid, cards[cid]) for cid in window], len(ids)
 
-    def get(self, character_id: str) -> CharacterDetail:
-        card = self._load_all().get(character_id)
+    async def get(self, character_id: str) -> CharacterDetail:
+        card = (await self._load_all()).get(character_id)
         if card is None:
             raise CharacterNotFound(character_id)
         return CharacterDetail(
@@ -223,7 +234,7 @@ def build_router(catalog: CharacterCatalog, current_user):
         offset: int = Query(0),
     ) -> CharacterListResponse:
         bounded_limit, bounded_offset = clamp_window(limit, offset)
-        items, total = catalog.list(limit=bounded_limit, offset=bounded_offset)
+        items, total = await catalog.list(limit=bounded_limit, offset=bounded_offset)
         return CharacterListResponse(
             items=[CharacterSummaryResponse(**item.to_json()) for item in items],
             total=total,
@@ -237,7 +248,7 @@ def build_router(catalog: CharacterCatalog, current_user):
         user_id: Annotated[str, Depends(current_user)],
     ) -> CharacterDetailResponse:
         try:
-            detail = catalog.get(character_id)
+            detail = await catalog.get(character_id)
         except CharacterNotFound as exc:
             raise HTTPException(status_code=404, detail="character not found") from exc
         return CharacterDetailResponse(**detail.to_json())

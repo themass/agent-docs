@@ -53,8 +53,9 @@ class PromptAssembler:
     def skills(self) -> SkillCatalog:
         return self._skills
 
-    def build(self, character_id: str, memory_block: str = "") -> str:
-        card = self._characters.load(character_id)
+    async def build(self, character_id: str, memory_block: str = "") -> str:
+        # 角色来源现在是异步的（库优先、文件兜底，见 service/roles/packs.py）。
+        card = await self._characters.load(character_id)
         skill_text = ""
         # 没声明 skill 也要 compose：常驻 skill（陪伴底线）对每个角色卡都生效。
         # skill 缺失不该让对话开不起来：角色人设本身已经能支撑一轮对话。
@@ -68,6 +69,6 @@ class PromptAssembler:
             memory_block=memory_block,
         )
 
-    def __call__(self, ctx: Any, memory_block: str) -> str:
+    async def __call__(self, ctx: Any, memory_block: str) -> str:
         """符合 ConversationService 对 prompt_builder 的调用约定。"""
-        return self.build(ctx.character_id, memory_block)
+        return await self.build(ctx.character_id, memory_block)

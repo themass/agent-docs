@@ -22,6 +22,11 @@ log = logging.getLogger("companion.roles")
 
 USER_ROLE_PREFIX = "u_"
 
+# 用户卡能覆盖到 RoleProfile 上的字段——与 service/card/model.py 的 persona 白名单里
+# 确实存在于角色层的那几项对齐（voice/boundaries 不在这条链上：音色由 voice_ref 走，
+# 边界由输出层走，见各自模块）。
+_OVERLAY_FIELDS = frozenset({"name", "description", "personality", "scenario"})
+
 
 class RoleNotFound(LookupError):
     pass
@@ -31,11 +36,15 @@ class RoleProfileResolver:
     def __init__(self, *, catalog: Any, user_roles: RoleStore, characters: CharacterSourcePort | None = None,
                  skills: SkillCatalog | None = None,
                  skill_id_of: Callable[[Any], str | None] | None = None,
-                 skill_ids_of: Callable[[Any], list[str]] | None = None) -> None:
+                 skill_ids_of: Callable[[Any], list[str]] | None = None,
+                 card_overlays: Any = None) -> None:
         self._catalog = catalog              # RoleIndex：get(role_id) -> SystemRole | None
         self._user_roles = user_roles
         self._characters = characters
         self._skills = skills
+        # ca_role_card 的生效链（CardService）。角色封装在库里（系统包），用户的微调盖在它
+        # 之上：只有陪伴卡走这一步，目录角色与用户自建角色本来就没有「封装」可覆盖。
+        self._card_overlays = card_overlays
         # 新接口优先；只给老的单值函数时包成列表，行为与之前一致。
         if skill_ids_of is not None:
             self._skill_ids_of = skill_ids_of
@@ -58,7 +67,7 @@ class RoleProfileResolver:
         if self._characters is None:
             return False
         try:
-            self._characters.load(role_id)
+            await self._characters.load(role_id)
             return True
         except FileNotFoundError:
             return False
@@ -77,16 +86,38 @@ class RoleProfileResolver:
         if self._characters is None:
             raise RoleNotFound(role_id)
         try:
-            card = self._characters.load(role_id)
+            card = await self._characters.load(role_id)
         except FileNotFoundError as exc:
             raise RoleNotFound(role_id) from exc
         profile = from_card(card)
+        profile = await self._apply_card_overlay(profile, role_id=role_id, owner_id=owner_id)
         method, skills = self._method_for(card)
         if method:
             from dataclasses import replace
 
             profile = replace(profile, method=method, skills=tuple(skills))
         return profile
+
+    async def _apply_card_overlay(self, profile: RoleProfile, *, role_id: str, owner_id: int) -> RoleProfile:
+        """把用户卡（ca_role_card 生效链）盖在系统封装之上。
+
+        只覆盖 persona 白名单里「这个人是谁」的几项；链里的 ``None`` 是「清除该字段」，
+        落到角色层就是回到封装值——persona 不能因为用户清了一个字段就变成空段。
+        """
+        if self._card_overlays is None:
+            return profile
+        try:
+            effective = await self._card_overlays.effective(owner_id=owner_id, role_id=role_id)
+        except Exception:  # noqa: BLE001 —— 覆盖链读不到不该让对话开不起来，封装本身够用
+            log.warning("card overlay lookup failed", extra={"role_id": role_id})
+            return profile
+        if effective is None or not effective.fields:
+            return profile
+        from dataclasses import replace
+
+        changes = {field: value for field, value in effective.fields.items()
+                   if field in _OVERLAY_FIELDS and value}
+        return replace(profile, **changes) if changes else profile
 
     def _method_for(self, card: Any) -> tuple[str, list[str]]:
         """返回 (方法层文本, 实际用到的 skill id)。"""

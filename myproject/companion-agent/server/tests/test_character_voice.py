@@ -63,22 +63,22 @@ def test_a_card_without_a_voice_is_not_an_error():
 
 
 @pytest.mark.parametrize("character_id", ["linche", "sudai"])
-def test_the_shipped_cards_actually_declare_an_usable_speaker(character_id):
+async def test_the_shipped_cards_actually_declare_an_usable_speaker(character_id):
     """随包发布的卡是这条链路的第一环。它们没有 voice_ref 时，后面全部逻辑都是空转。"""
     from companion.paths import CHARACTERS_DIR
     from companion.service.roles.files import CharacterSource
 
-    card = CharacterSource(CHARACTERS_DIR).load(character_id)
+    card = await CharacterSource(CHARACTERS_DIR).load(character_id)
     assert card.voice_ref and card.voice_ref.get("voice_id"), f"{character_id} 没有音色"
 
 
-def test_the_two_shipped_characters_do_not_share_one_voice():
+async def test_the_two_shipped_characters_do_not_share_one_voice():
     """验收条件本身：两个角色必须是两个说话人。"""
     from companion.paths import CHARACTERS_DIR
     from companion.service.roles.files import CharacterSource
 
     source = CharacterSource(CHARACTERS_DIR)
-    voices = {cid: source.load(cid).voice_ref["voice_id"] for cid in ("linche", "sudai")}
+    voices = {cid: (await source.load(cid)).voice_ref["voice_id"] for cid in ("linche", "sudai")}
     assert len(set(voices.values())) == 2, f"两个角色共用一个声音：{voices}"
 
 
@@ -90,7 +90,7 @@ class _Chars:
     def __init__(self, by_id: dict[str, str | None], *, broken: bool = False):
         self._by_id, self._broken = by_id, broken
 
-    def load(self, character_id: str) -> Any:
+    async def load(self, character_id: str) -> Any:
         if self._broken:
             raise FileNotFoundError(character_id)
         voice = self._by_id[character_id]
@@ -101,24 +101,24 @@ def _identity(character_id: str) -> RoomIdentity:
     return RoomIdentity(user_id="1002", character_id=character_id, chat_session_id=42)
 
 
-def test_each_room_resolves_its_own_character_voice():
+async def test_each_room_resolves_its_own_character_voice():
     chars = _Chars({"linche": "a_tob", "sudai": "b_tob"})
-    assert room_voice_id(_identity("linche"), chars) == "a_tob"
-    assert room_voice_id(_identity("sudai"), chars) == "b_tob"
+    assert await room_voice_id(_identity("linche"), chars) == "a_tob"
+    assert await room_voice_id(_identity("sudai"), chars) == "b_tob"
 
 
-def test_a_card_without_a_voice_falls_through_instead_of_raising():
+async def test_a_card_without_a_voice_falls_through_instead_of_raising():
     """没有音色的卡退回默认值，不是拒绝入场：人设与历史都还按这个角色走。"""
-    assert room_voice_id(_identity("x"), _Chars({"x": None})) is None
+    assert await room_voice_id(_identity("x"), _Chars({"x": None})) is None
 
 
-def test_an_unreadable_card_does_not_take_the_room_down():
+async def test_an_unreadable_card_does_not_take_the_room_down():
     """卡是发布资产，读盘失败不该让房间连不上。只有音色退回默认。"""
-    assert room_voice_id(_identity("x"), _Chars({}, broken=True)) is None
+    assert await room_voice_id(_identity("x"), _Chars({}, broken=True)) is None
 
 
-def test_no_character_source_means_the_default_voice():
-    assert room_voice_id(_identity("linche"), None) is None
+async def test_no_character_source_means_the_default_voice():
+    assert await room_voice_id(_identity("linche"), None) is None
 
 
 # --- 第三段：说话人真的传到了语音栈 -----------------------------------------------
@@ -154,13 +154,13 @@ def test_a_factory_that_takes_no_arguments_still_works():
     assert called and options["tts"] is not None
 
 
-def test_two_rooms_with_two_characters_ask_for_two_voices():
+async def test_two_rooms_with_two_characters_ask_for_two_voices():
     """端到端：两个角色进两个房间，语音栈收到两个不同的说话人。"""
     factory = _Factory()
     chars = _Chars({"linche": "a_tob", "sudai": "b_tob"})
     for character_id in ("linche", "sudai"):
         build_session_options(mode="voice", voice_factory=factory,
-                              voice_id=room_voice_id(_identity(character_id), chars))
+                              voice_id=await room_voice_id(_identity(character_id), chars))
     assert factory.asked == ["a_tob", "b_tob"]
 
 

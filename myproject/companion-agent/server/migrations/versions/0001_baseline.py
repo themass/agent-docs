@@ -293,6 +293,20 @@ CREATE TABLE ca_role_card_version (
 	CONSTRAINT ca_uq_role_card_version UNIQUE (owner_id, role_id, version)
 );
 
+CREATE TABLE ca_character_pack (
+	id BIGSERIAL NOT NULL,
+	role_id VARCHAR(128) NOT NULL,
+	payload JSONB NOT NULL,
+	renderer VARCHAR(32) DEFAULT '' NOT NULL,
+	pack_asset VARCHAR(128) DEFAULT '' NOT NULL,
+	pack_version INTEGER DEFAULT '1' NOT NULL,
+	source VARCHAR(32) DEFAULT '' NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+	PRIMARY KEY (id),
+	CONSTRAINT ca_uq_character_pack_role UNIQUE (role_id)
+);
+
 CREATE TABLE ca_persona_profile (
 	id BIGSERIAL NOT NULL,
 	owner_id BIGINT NOT NULL, 
@@ -789,6 +803,20 @@ CREATE TABLE ca_role_card_version (
 	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	PRIMARY KEY (id),
 	CONSTRAINT ca_uq_role_card_version UNIQUE (owner_id, role_id, version)
+);
+
+CREATE TABLE ca_character_pack (
+	id BIGINT NOT NULL AUTO_INCREMENT,
+	role_id VARCHAR(128) NOT NULL,
+	payload MEDIUMTEXT NOT NULL,
+	renderer VARCHAR(32) NOT NULL DEFAULT '',
+	pack_asset VARCHAR(128) NOT NULL DEFAULT '',
+	pack_version INTEGER NOT NULL DEFAULT '1',
+	source VARCHAR(32) NOT NULL DEFAULT '',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	PRIMARY KEY (id),
+	CONSTRAINT ca_uq_character_pack_role UNIQUE (role_id)
 );
 
 CREATE TABLE ca_persona_profile (

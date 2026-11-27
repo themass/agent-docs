@@ -253,8 +253,10 @@ def create_app(
             memory=platform.memory, cards=platform.cards, current_user=current_user))
         app.include_router(build_health_router(platform.drain))
 
-    # 角色卡目录（陪伴角色的展示信息）不依赖数据库
-    catalog = CharacterCatalog(CharacterSource(CHARACTERS_DIR))
+    # 角色卡目录（陪伴角色的展示信息）。有平台时用它的读取链（库里的系统包优先、文件兜底）——
+    # 目录与角色解析读同一份封装；没有平台时退回文件，这时确实不依赖数据库。
+    catalog = CharacterCatalog(
+        getattr(platform, "characters", None) or CharacterSource(CHARACTERS_DIR))
     app.include_router(characters_router.build_router(catalog, current_user))
 
     if platform is not None:

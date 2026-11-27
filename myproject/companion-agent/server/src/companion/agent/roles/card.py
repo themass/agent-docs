@@ -129,7 +129,9 @@ class CharacterCard:
     creator_notes: str = ""
     tags: list[str] = field(default_factory=list)
     voice_ref: dict[str, Any] | None = None
-    model_ref: str | None = None
+    # 形象来源。仓库自带的卡写映射 ``{"renderer": ..., "asset": ...}``（引擎判别 + 包标识）；
+    # 外部卡可能是个字符串标签（如 "default-chat"），那不是引擎判别（见 roles.packs.renderer_of）。
+    model_ref: Any = None
     emotion_map: dict[str, str] = field(default_factory=dict)
     memory_policy: dict[str, Any] = field(default_factory=dict)
     # 读到的所有非核心键；V3 独有的在 extensions["vvv"]。
@@ -186,6 +188,9 @@ def from_v2_json(payload: dict[str, Any]) -> CharacterCard:
     _vvv_block = extensions.get(VVV_KEY) if isinstance(extensions.get(VVV_KEY), dict) else {}
     voice_ref = data.get("voice_ref") or _vvv_block.get("voice_ref")
     model_ref = data.get("model_ref") or _vvv_block.get("model_ref")
+    # 映射原样保留（renderer/asset 是引擎判别与包标识——_text 会把 dict 变成 repr 字符串，
+    # 判别就丢了）；字符串形态（历史/外部卡）仍是字符串。
+    model_ref = model_ref if isinstance(model_ref, dict) else (_text(model_ref) or None)
     return CharacterCard(
         id=_text(data.get("id")),
         name=_text(data.get("name")),
@@ -198,7 +203,7 @@ def from_v2_json(payload: dict[str, Any]) -> CharacterCard:
         creator_notes=_text(data.get("creator_notes")),
         tags=_string_list(data.get("tags")),
         voice_ref=_mapping(voice_ref) or None,
-        model_ref=_text(model_ref) or None,
+        model_ref=model_ref,
         emotion_map=emotion_map,
         memory_policy=_mapping(data.get("memory_policy")),
         extensions=extensions,

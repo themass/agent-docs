@@ -221,19 +221,19 @@ def _pipeline_llm() -> Any:
     return _PipelineLLM()
 
 
-def room_voice_id(identity: "RoomIdentity", characters: Any) -> str | None:
+async def room_voice_id(identity: "RoomIdentity", characters: Any) -> str | None:
     """这个房间该用哪个说话人：从角色卡的 ``voice_ref`` 里取。
 
     取不到就返回 ``None``，让语音栈退回环境变量的默认值——**不在这一层猜**。
     猜错的表现是「两个角色一个嗓子」，而那正是这条链路要解决的问题本身。
 
-    卡读不出来也不抛：角色卡是发布资产，读盘失败不该让整个房间连不上。入口
+    卡读不出来也不抛：角色卡是发布资产，读失败不该让整个房间连不上。入口
     已经拿到了 ``character_id``，人设与历史都按它走，只有音色退回默认。
     """
     if characters is None:
         return None
     try:
-        card = characters.load(identity.character_id)
+        card = await characters.load(identity.character_id)
     except Exception as exc:  # noqa: BLE001 —— 缺卡 / 坏卡都不该拦住房间
         logger.warning("voice: cannot load character %s: %s", identity.character_id, exc)
         return None
@@ -442,7 +442,10 @@ class RoomEntrypoint:
 
         # 房间说话人解析一次，语音栈与质检记录都用它：TTS 用它出声，记录用它写 tts_voice。
         # 分成两处各自解析会出现「说的是 A、记的是 B」这种事后没法查的错。
-        voice_id = room_voice_id(identity, self._characters)
+        # 角色来源优先用平台那条链（库里的系统包优先、文件兜底）——HTTP 目录与语音解析
+        # 读同一份封装；构造参数只是没挂平台时的注入位（离线脚本、测试）。
+        characters = getattr(platform, "characters", None) or self._characters
+        voice_id = await room_voice_id(identity, characters)
 
         # 附件暂存位：写它的是数据通道（CompositeInputRelay），读它的是回合
         # （PlatformBrain.start_turn）。**必须是同一个实例**——两个实例的话事件写进 A、

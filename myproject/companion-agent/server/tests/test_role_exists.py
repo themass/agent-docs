@@ -21,7 +21,7 @@ class Cards:
     def __init__(self, ids):
         self._ids = set(ids)
 
-    def load(self, character_id):
+    async def load(self, character_id):
         if character_id not in self._ids:
             raise FileNotFoundError(f"character not found: {character_id}")
         return {"meta": {"name": character_id}}

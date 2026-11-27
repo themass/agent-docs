@@ -122,14 +122,12 @@ def main() -> None:
     voice_info = {"stt_provider": cfg.provider, "tts_provider": cfg.provider,
                   "tts_voice": cfg.voice_id or os.environ.get("VOLC_TTS_VOICE", "saturn_zh_female_keainvsheng_tob")}
     from companion.bootstrap.voice_wiring import voice_wiring
-    from companion.paths import CHARACTERS_DIR
-    from companion.service.roles.files import CharacterSource
 
-    # 角色卡来源：入口用它把房间的 character_id 解析成 voice_ref。与 HTTP 服务读同一个目录，
+    # 角色来源：入口把房间的 character_id 解析成 voice_ref。挂上平台后它用平台的读取链
+    # （库里的系统包优先、随包文件兜底）——与 HTTP 目录同一份封装，
     # 「页面上显示的这个角色」和「语音里说话的这个声音」因此不会分家。
     entry = make_entrypoint(_platform, voice_factory=build_voice_stack,
-                            wire_voice=voice_wiring(voice_info),
-                            characters=CharacterSource(CHARACTERS_DIR))
+                            wire_voice=voice_wiring(voice_info))
     from companion.api.livekit.capacity import worker_options_kwargs
     from companion.api.livekit.prewarm import prewarm
 

@@ -74,7 +74,7 @@ def test_non_companion_skill_is_not_pulled_in_by_the_always_loaded_one():
 
 async def test_resolver_gives_companion_core_to_cards_without_a_skill():
     class OneCard:
-        def load(self, _):
+        async def load(self, _):
             return _card(None)
 
     resolver = RoleProfileResolver(catalog=None, user_roles=None, characters=OneCard(),
@@ -85,7 +85,7 @@ async def test_resolver_gives_companion_core_to_cards_without_a_skill():
 
 async def test_resolver_still_honours_the_old_single_value_hook():
     class OneCard:
-        def load(self, _):
+        async def load(self, _):
             return _card("growth-coaching")
 
     resolver = RoleProfileResolver(catalog=None, user_roles=None, characters=OneCard(),
@@ -96,7 +96,7 @@ async def test_resolver_still_honours_the_old_single_value_hook():
 
 async def test_resolver_survives_a_missing_skill():
     class OneCard:
-        def load(self, _):
+        async def load(self, _):
             return _card("no-such-skill")
 
     resolver = RoleProfileResolver(catalog=None, user_roles=None, characters=OneCard(),
@@ -108,8 +108,8 @@ async def test_resolver_survives_a_missing_skill():
 # ---- 预算 --------------------------------------------------------------------
 
 @pytest.mark.parametrize("card_id", COMPANION_CARDS)
-def test_real_cards_fit_the_budget_with_every_optional_skill_stacked(card_id):
-    card = CHARACTERS.load(card_id)
+async def test_real_cards_fit_the_budget_with_every_optional_skill_stacked(card_id):
+    card = await CHARACTERS.load(card_id)
     ids = skill_ids_of(card) + [s for s in OPTIONAL_COMPANION_SKILLS if s not in skill_ids_of(card)]
     method = LIBRARY.compose(ids)
 

@@ -4,6 +4,8 @@
 （真机上看到过：客户端写“温和、会记事的倾听者”，角色卡的性格是“直接、务实”）。
 """
 
+import asyncio
+
 import pytest
 
 from companion.service.roles.files import CharacterSource
@@ -19,8 +21,8 @@ def test_there_are_cards_to_check():
 
 
 @pytest.mark.parametrize("card_id", CARD_IDS)
-def test_every_card_has_a_short_tagline(card_id):
-    tagline = summarize(card_id, SOURCE.load(card_id)).tagline
+async def test_every_card_has_a_short_tagline(card_id):
+    tagline = summarize(card_id, await SOURCE.load(card_id)).tagline
     assert tagline, f"{card_id}: tagline 为空，客户端会没有介绍可显示"
     assert 8 <= len(tagline) <= 30, f"{card_id}: tagline 应是一句话（8–30 字），实际 {len(tagline)}"
 
@@ -32,4 +34,4 @@ def test_client_fallback_text_matches_the_server_cards():
         "sudai": "懂团队心理的组织心理学家，帮你看清说不清的事",
     }
     for card_id, text in client.items():
-        assert summarize(card_id, SOURCE.load(card_id)).tagline == text
+        assert summarize(card_id, asyncio.run(SOURCE.load(card_id))).tagline == text

@@ -36,6 +36,11 @@ from companion.service.relationship.model import delta_for
 from companion.service.relationship.sql import SqlRelationshipStore
 from companion.service.card.sql import SqlCardStore
 from companion.service.card.store import CardService
+from companion.service.roles.packs import (
+    ChainedCharacterSource,
+    DbCharacterSource,
+    SqlCharacterPackStore,
+)
 from companion.service.proactive.store import (
     SqlDelivery, SqlPreferencesStore, SqlSendLedger,
 )
@@ -165,6 +170,9 @@ class Platform:
     objects: Any = None
     # P6 角色卡（可版本化身份/边界）与窄记忆索引读接口共享它
     cards: Any = None
+    # 角色读取链（库优先、文件兜底）：目录、语音入口与解析共用一条链，
+    # 「页面上的角色」与「说话的角色」不会各自读一份。见 service/roles/packs.py。
+    characters: Any = None
     # 二次元头像生成（Android 契约）：uploads 可用时才有——生成图的存储复用 uploads。
     avatar_gen: Any = None
     qa_retention_days: int = 90
@@ -312,10 +320,22 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     recorders = [ExtractionRecorder(MemoryExtractor(memory, llm))] if llm is not None else []
     pipeline = MemoryPipeline(recallers=[MemoryPortRecaller(memory), TimelineRecaller(timeline)],
                               recorders=recorders)
+    # P6 角色卡：CardService 包住 SQL store；API 与解析链的覆盖层都只经它。
+    # （建在 resolver 之前：用户的微调要在角色解析里盖在系统包上。）
+    cards = CardService(SqlCardStore(engine))
+    # 角色封装在库里：解析与目录都走链（ca_character_pack 优先，prompts 里的文件源兜底，
+    # 见 service/roles/packs.py）。没播种过的部署读文件，播种之后以库为准——
+    # 「改了没生效」不再取决于哪台机器的磁盘。
+    file_characters = getattr(prompts, "characters", None)
+    characters = ChainedCharacterSource(
+        tuple(s for s in (DbCharacterSource(SqlCharacterPackStore(engine)), file_characters) if s is not None))
     # prompts：PromptAssembler（角色卡来源 + skill 目录），陪伴角色卡与它声明的 skill 都从这里来。
+    # card_overlays=cards：用户的角色卡微调（ca_role_card）盖在系统包之上，只覆盖人格字段，
+    # 最后应用——系统封装与用户微调互不顶掉。
     resolver = RoleProfileResolver(catalog=catalog, user_roles=roles_store,
-                                   characters=getattr(prompts, "characters", None),
-                                   skills=getattr(prompts, "skills", None), skill_ids_of=skill_ids_of)
+                                   characters=characters,
+                                   skills=getattr(prompts, "skills", None), skill_ids_of=skill_ids_of,
+                                   card_overlays=cards)
     compliance = ComplianceService(store=SqlComplianceStore(engine))
     persona = SqlPersonaStore(engine)
     persona_updater = PersonaUpdater(store=persona, memory=memory, messages=messages, llm=llm) if llm is not None else None
@@ -324,8 +344,6 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     profile_doc_updater = (ProfileDocUpdater(store=profile_doc, memory=memory, messages=messages, llm=llm)
                            if llm is not None else None)
     relationship = SqlRelationshipStore(engine)
-    # P6 角色卡：CardService 包住 SQL store；API 与（未来）注入点都只经它。
-    cards = CardService(SqlCardStore(engine))
     context = ContextBuilder(roles=resolver, messages=messages, sessions=sessions, memory=pipeline, persona=persona,
                              relationship=relationship, profile_doc=profile_doc)
     history = HistoryService(messages=messages, control=control, conversation=conversation, jobs=jobs,
@@ -584,6 +602,7 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
                     relationship=relationship, compliance=compliance, account=account, avatars=avatars,
                     avatar_gen=avatar_gen,
                     cards=cards,
+                    characters=characters,
                     admin_token=settings.companion_admin_token, sessions=sessions, brain=brain, qa=qa, objects=objects,
                     qa_retention_days=settings.companion_qa_retention_days, trace_writer=trace_writer, qa_enabled=qa_enabled,
                     tos_key_prefix=settings.tos_key_prefix, _pool=pool, _checkpointer=checkpointer)

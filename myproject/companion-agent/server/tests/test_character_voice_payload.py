@@ -85,22 +85,22 @@ def test_mutating_the_payload_does_not_reach_back_into_the_summary():
 # --- 随包发布的卡 ---------------------------------------------------------------
 
 @pytest.mark.parametrize("character_id", ["linche", "sudai"])
-def test_the_shipped_cards_are_visible_to_the_client(character_id):
+async def test_the_shipped_cards_are_visible_to_the_client(character_id):
     """这些是客户端音色 chip 的第一批真实数据；null 就意味着 chip 没东西可显示。"""
     from companion.paths import CHARACTERS_DIR
     from companion.service.roles.files import CharacterSource
 
-    payload = summarize(character_id, CharacterSource(CHARACTERS_DIR).load(character_id)).to_json()
+    payload = summarize(character_id, await CharacterSource(CHARACTERS_DIR).load(character_id)).to_json()
     assert payload["voice_ref"] and payload["voice_ref"]["voice_id"]
     assert payload["voice_available"] is True
 
 
-def test_the_two_shipped_characters_expose_two_different_voices():
+async def test_the_two_shipped_characters_expose_two_different_voices():
     """客户端要能看出两个角色不一样；相同的话 chip 换人不换名。"""
     from companion.paths import CHARACTERS_DIR
     from companion.service.roles.files import CharacterSource
 
     source = CharacterSource(CHARACTERS_DIR)
-    ids = {summarize(cid, source.load(cid)).to_json()["voice_ref"]["voice_id"]
+    ids = {summarize(cid, await source.load(cid)).to_json()["voice_ref"]["voice_id"]
            for cid in ("linche", "sudai")}
     assert len(ids) == 2
