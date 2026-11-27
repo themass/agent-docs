@@ -3,6 +3,7 @@
 import json
 from companion.agent.brain.deerflow import DeerFlowBrain
 from companion.agent.brain.port import TurnRequest
+from companion.agent.prompt.templates import PLATFORM_LAYER, PROMPT_VERSION
 from companion.agent.tools.registry import ToolRegistry
 from companion.agent.tools.runtime import ToolRuntime, ToolTurn
 from companion.service.tools_impl.builtin import PoiSearchParams, register_builtin_tools
@@ -50,9 +51,9 @@ async def test_missing_key_returns_not_configured_in_model_context():
     assert result["message"] == "未接入地图服务"
 
 
-async def test_fake_amap_json_is_parsed_and_current_location_wins():
+async def test_destination_search_returns_only_provider_distance_from_current_location():
     client = FakePoiHttpClient(payload={"status": "1", "pois": [{
-        "name": "示例餐厅", "address": "示例路 1 号", "distance": "420", "type": "餐饮服务;中餐厅"
+        "name": "示例医院", "address": "示例路 1 号", "distance": "420", "type": "医疗保健服务;医院"
     }]})
     registry = _registry(amap_key="test-only-key", client=client)
     runtime = ToolRuntime(registry=registry, confirmations=NoopConfirmations())
@@ -61,17 +62,18 @@ async def test_fake_amap_json_is_parsed_and_current_location_wins():
                     location={"lat": 31.23, "lng": 121.47})
 
     outcome = await runtime.invoke(turn, "poi_search", {
-        "query": "中餐", "radius_m": 1200, "limit": 1,
+        "query": "市立医院", "radius_m": 1200, "limit": 1,
     })
 
     assert outcome.status == "executed"
-    assert "示例餐厅" in outcome.model_text
+    assert "示例医院" in outcome.model_text
     assert "420" in outcome.model_text
     url, params = client.calls[0]
     assert url.endswith("/place/around")
     assert params["location"] == "121.47,31.23"
     assert params["radius"] == "1200"
     assert params["offset"] == "1"
+    assert params["keywords"] == "市立医院"
     assert "test-only-key" not in outcome.model_text
 
 
@@ -98,6 +100,32 @@ async def test_region_without_current_location_uses_scoped_text_search_without_d
     assert "location" not in params
     assert "radius" not in params
     assert "sortrule" not in params
+
+
+async def test_empty_region_search_returns_no_pois():
+    client = FakePoiHttpClient(payload={"status": "1", "pois": []})
+    registry = _registry(amap_key="test-only-key", client=client)
+    runtime = ToolRuntime(registry=registry, confirmations=NoopConfirmations())
+    turn = ToolTurn(owner_id=7, session_id=1, turn_id="empty", character_id="role", locale="zh-CN",
+                    product="chat", allowed=frozenset({"poi_search"}))
+
+    outcome = await runtime.invoke(turn, "poi_search", {
+        "query": "游泳池", "region": "上海市",
+    })
+
+    result = json.loads(json.loads(outcome.model_text)["result"])
+    assert result == {"status": "ok", "pois": []}
+
+
+def test_platform_guidance_is_intent_led_and_sets_distance_limits():
+    assert PROMPT_VERSION == "2026-11-26.4"
+    assert "不要每轮固定调用" in PLATFORM_LAYER
+    assert "医院、泳池、健身房、景点" in PLATFORM_LAYER
+    assert "地图返回的邻近距离" in PLATFORM_LAYER
+    assert "路线距离或预计时间" in PLATFORM_LAYER
+    assert "status=invalid_location" in PLATFORM_LAYER
+    assert "status=query_failed" in PLATFORM_LAYER
+    assert "结果为空" in PLATFORM_LAYER
 
 
 def test_turn_context_carries_server_location_not_model_arguments():
