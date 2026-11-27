@@ -58,6 +58,16 @@ DELTA_FLUSH_SEC = 0.05
 DELTA_FLUSH_CHARS = 64
 MAX_RESTARTS = 2
 
+#: 回合级 wall-clock 兜底（2026-11-28 生产挂死）。此前回合从头到尾没有任何总时长闸：
+#: 大脑流或工具里的任何一个 await 挂死（Redis/TOS/下游工具都没有自己的超时时就是永久挂死），
+#: 持锁任务永远不返回，续租把锁一直续活——终止事件永远发不出去，锁永远不放，
+#: 该会话的下一条消息只能等锁 TTL 加恢复流程。闸放在 ``_run`` 的整个回合体上
+#: （读输入 + 挂接 + 全部尝试 + 重跑），300 秒：正常回合（含多轮工具）离这个量级还差
+#: 一个数量级，不会误伤；挂死的回合则最多多占一个会话 5 分钟就自动恢复。
+#: Redis 与 TOS 各自的命令级超时（见 bootstrap/redis_client.py、uploads/tos.py）
+#: 在更细的粒度上先兜住大部分挂点，这里是最后一道闸。
+TURN_WALL_CLOCK_SEC = 300.0
+
 Produce = Callable[[TurnRequest, SteerInbox], AsyncIterator[BrainEvent]]
 Drain = Callable[..., Awaitable[None]]
 
@@ -155,6 +165,7 @@ class _RunState:
     last_flush: float = field(default_factory=time.monotonic)
     ctl_last: str = "0-0"      # 已处理的最后一条控制消息 id（去重用）
     lost: bool = False         # 续租失败：这把锁已经不是我们的
+    closed: bool = False       # 收尾已走到「终止事件+放锁」至少一次尝试成功（紧急路径据此判断）
     lc_ids: list[str] = field(default_factory=list)   # 大脑写进对话线程的消息 id（跨重跑累计）
     started: float = field(default_factory=time.monotonic)   # 回合开始，用来算用户等了多久
     first_output_at: float | None = None                     # 第一个可见 token 的时刻
@@ -220,52 +231,85 @@ class TurnRunner:
     async def _run(self, inp: TurnInput, *, started: float) -> None:
         state = _RunState()
         inbox = SteerInbox(budget=self._steer_budget)
-        # ⓪ 段探针：turn 任务被拉起后到进模型前还有两次串行库往返（读消息 + attach_turn），
-        # 原先没有日志，`turn.started` 与 `voice llm start` 之间是黑的。
-        prelude_started = time.monotonic()
-        inputs = await self._load_inputs(inp)
-        restarts = 0
         stop = asyncio.Event()
-        renew = asyncio.create_task(self._renew(inp, state, stop))
-        watch = asyncio.create_task(self._watch_ctl(inp, inbox, state, stop))
+        renew: asyncio.Task | None = None
+        watch: asyncio.Task | None = None
         failed = False
+        timed_out = False
+        # wall-clock 兜底（TURN_WALL_CLOCK_SEC 的取值理由见常数注释）：罩住「读输入 +
+        # 挂接 + 全部尝试」的整个回合体。``_finish`` 刻意留在闸**之外**——到点时恰恰
+        # 需要收尾（终止事件+放锁）能跑完，把收尾也包进闸里就会被一起掐掉，
+        # 「永不终结」换成「终结但没人放锁」，更糟。续租/watch 在下面 finally 里
+        # 无条件停：超时收尾时不许再把一把没人认领的锁续活。
         try:
-            await self._messages.attach_turn(owner_id=inp.owner_id, session_id=inp.session_id,
-                                             message_ids=inp.message_ids, turn_id=inp.turn_id)
-            log.info("turn prelude ms=%d inputs=%d",
-                     int((time.monotonic() - prelude_started) * 1000), len(inputs))
-            # turn.started 不在这里发：已在 SubmitService._start() 里、启动本任务之前发出，
-            # 并与 message.created 合成了一次 Redis 往返。这里再发一次就是重复事件。
-            while True:
-                outcome = await self._attempt(inp, inputs, inbox, state)
-                if outcome != "merged":
-                    break
-                if restarts >= MAX_RESTARTS:
-                    # 重跑次数用尽：合并进来的输入不能再进这个回合，改为排队（D §6.3）。
-                    for message_id, text in state.merged:
-                        await self._requeue(inp, message_id, text)
-                    break
-                restarts += 1
-                metrics.count_restart()
-                await self._attach_merged(inp, state)
-                inputs = inputs + [TurnInputMessage(message_id=mid, text=text) for mid, text in state.merged]
-                state.restart()  # 原地重置：控制协程持有的是同一个对象
-                await self._control.publish(
-                    session_id=inp.session_id, event="turn.restarted",
-                    data={"turn_id": inp.turn_id,
-                          "user_message_ids": inp.message_ids + [m for m, _ in state.merged]})
+            async with asyncio.timeout(TURN_WALL_CLOCK_SEC) as clock:
+                # ⓪ 段探针：turn 任务被拉起后到进模型前还有两次串行库往返（读消息 + attach_turn），
+                # 原先没有日志，`turn.started` 与 `voice llm start` 之间是黑的。
+                prelude_started = time.monotonic()
+                inputs = await self._load_inputs(inp)
+                restarts = 0
+                renew = asyncio.create_task(self._renew(inp, state, stop))
+                watch = asyncio.create_task(self._watch_ctl(inp, inbox, state, stop))
+                await self._messages.attach_turn(owner_id=inp.owner_id, session_id=inp.session_id,
+                                                 message_ids=inp.message_ids, turn_id=inp.turn_id)
+                log.info("turn prelude ms=%d inputs=%d",
+                         int((time.monotonic() - prelude_started) * 1000), len(inputs))
+                # turn.started 不在这里发：已在 SubmitService._start() 里、启动本任务之前发出，
+                # 并与 message.created 合成了一次 Redis 往返。这里再发一次就是重复事件。
+                while True:
+                    outcome = await self._attempt(inp, inputs, inbox, state)
+                    if outcome != "merged":
+                        break
+                    if restarts >= MAX_RESTARTS:
+                        # 重跑次数用尽：合并进来的输入不能再进这个回合，改为排队（D §6.3）。
+                        for message_id, text in state.merged:
+                            await self._requeue(inp, message_id, text)
+                        break
+                    restarts += 1
+                    metrics.count_restart()
+                    await self._attach_merged(inp, state)
+                    inputs = inputs + [TurnInputMessage(message_id=mid, text=text) for mid, text in state.merged]
+                    state.restart()  # 原地重置：控制协程持有的是同一个对象
+                    await self._control.publish(
+                        session_id=inp.session_id, event="turn.restarted",
+                        data={"turn_id": inp.turn_id,
+                              "user_message_ids": inp.message_ids + [m for m, _ in state.merged]})
+        except TimeoutError:
+            # 闸到点时 asyncio.timeout 抛的就是这里；redis-py 的命令级超时是
+            # redis.exceptions.TimeoutError（RedisError 的子类，不是内建 TimeoutError），
+            # 走下面 except Exception。再用 ``clock.expired()`` 排除其它库抛的普通
+            # TimeoutError——只有闸本身到点才算 wall-clock 终结。
+            failed = True
+            if clock.expired():
+                log.error("turn wall-clock exceeded sec=%s", TURN_WALL_CLOCK_SEC,
+                          extra={"turn_id": inp.turn_id})
+                timed_out = True
+            else:
+                log.exception("turn failed", extra={"turn_id": inp.turn_id})
         except Exception:
             log.exception("turn failed", extra={"turn_id": inp.turn_id})
             failed = True
-            await self._control.publish(session_id=inp.session_id, event="error",
-                                        data={"turn_id": inp.turn_id, "code": "turn_failed",
-                                              "message": "回答中断，请重试", "retryable": True})
         finally:
+            if failed:
+                # 终止事件尽力发（发不出去也不能挡住 _finish 放锁）。code 区分两种结局：
+                # turn_timeout = wall-clock 闸到点（回合体挂死被兜底掐断）；
+                # turn_failed = 其它异常。两者对客户端都是「可重试的回答中断」。
+                try:
+                    await self._control.publish(
+                        session_id=inp.session_id, event="error",
+                        data={"turn_id": inp.turn_id,
+                              "code": "turn_timeout" if timed_out else "turn_failed",
+                              "message": "回答中断，请重试", "retryable": True})
+                except Exception:  # noqa: BLE001 —— _finish 的紧急路径还会再试一次终止事件
+                    log.exception("turn error publish failed", extra={"turn_id": inp.turn_id})
             stop.set()
             for task in (renew, watch):
-                task.cancel()
-            await asyncio.gather(renew, watch, return_exceptions=True)
-            # 收尾只执行一次：无论成功、失败，锁都必须释放。
+                if task is not None:
+                    task.cancel()
+            await asyncio.gather(*[t for t in (renew, watch) if t is not None],
+                                 return_exceptions=True)
+            # 收尾只执行一次：无论成功、失败、超时，锁都必须释放。
+            # _finish 内部自带兜底（任何一步抛错都还有紧急路径），不许把异常抛穿这里。
             await self._finish(inp, state, inbox, failed=failed)
 
     # ---- 一次模型调用 ----
@@ -479,10 +523,55 @@ class TurnRunner:
     # ---- 收尾 ----
 
     async def _finish(self, inp: TurnInput, state: _RunState, inbox: SteerInbox, failed: bool = False) -> None:
+        """收尾入口：尽力而为，绝不把异常抛穿给 ``_run`` 的 finally。
+
+        2026-11-28 生产挂死的第二条腿：旧写法里 ``finally: await self._finish(...)``
+        没有任何保护，收尾里任何一步抛错（flush 撞 Redis、DB append、attach_turn……）
+        → **终止事件和放锁一起丢**，表现与「回合永不终结」完全相同。现在：
+        - ``_finish_body`` 内部关键步骤各自 try/except（旁路失败只记日志）；
+        - 事件+放锁（``finish_turn``）失败 → ``_finish_emergency``：终止事件与
+          ``release_lock`` 分开各自再试一次（一次 Redis 往返失败不该拖累另一件事）；
+        - ``state.closed`` 记录「终止事件或放锁至少已尝试成功」，避免紧急路径重复补刀。
+        """
         if state.lost:
-            await self._finish_lost(inp, state)
+            try:
+                await self._finish_lost(inp, state)
+            except Exception:  # noqa: BLE001
+                log.exception("turn finish(lost) failed", extra={"turn_id": inp.turn_id})
+            if not state.closed:
+                await self._finish_emergency(inp, state)
             return
-        await self._flush(inp, state)
+        try:
+            await self._finish_body(inp, state, inbox, failed=failed)
+        except Exception:  # noqa: BLE001 —— 收尾失败不许吞掉「终止事件 + 放锁」这两件保底事
+            log.exception("turn finish failed", extra={"turn_id": inp.turn_id})
+        if not state.closed:
+            await self._finish_emergency(inp, state)
+
+    async def _finish_emergency(self, inp: TurnInput, state: _RunState) -> None:
+        """保底：正常收尾没走到「事件+放锁」，两件事分开各自尽力一次。
+
+        发终止事件与放锁互为独立尝试——Redis 此刻可能完全不可用，也可能只是 DB 挂了；
+        无论哪种，都不许出现「锁还活着、SSE 永远等不到结束」的组合。
+        """
+        log.error("turn finishing via emergency path", extra={"turn_id": inp.turn_id})
+        try:
+            await self._control.publish(session_id=inp.session_id, event="error",
+                                        data={"turn_id": inp.turn_id, "code": "turn_failed",
+                                              "message": "回答中断，请重试", "retryable": True})
+        except Exception:  # noqa: BLE001
+            log.exception("emergency error publish failed", extra={"turn_id": inp.turn_id})
+        try:
+            await self._control.release_lock(session_id=inp.session_id, owner=inp.owner)
+            state.closed = True
+        except Exception:  # noqa: BLE001 —— 最后的兜底是锁 TTL 与恢复流程（turn_recovery）
+            log.exception("emergency release_lock failed", extra={"turn_id": inp.turn_id})
+
+    async def _finish_body(self, inp: TurnInput, state: _RunState, inbox: SteerInbox, failed: bool = False) -> None:
+        try:
+            await self._flush(inp, state)
+        except Exception:  # noqa: BLE001 —— 残余帧发不出去不改变回合结局，正文仍按 deltas 落库
+            log.exception("finish flush failed", extra={"turn_id": inp.turn_id})
         full = "".join(state.deltas)
         interrupted = state.cancelled or failed
         # 打断前缀（契约 v2 §2.2）：房间 worker 在 barge 时把端侧 played_ms 折算成
@@ -499,6 +588,7 @@ class TurnRunner:
         prefix_text = full[:prefix_chars] if prefix_chars > 0 else ""
         saved_id: int | None = None
         saved_alt_group: int | None = None
+        append_failed = False
         # 落库条件只看「有没有说过话」，不看是否被取消（取证 2026-11-26：空 AI 气泡的根因）。
         # 原先是 `full or interrupted`：取消且一字未收时会写下一条 content="" 的 assistant 行
         # （interrupted=True），客户端兜底拉历史就把它带回成「只有头像的空气泡」，而对着空行
@@ -510,35 +600,61 @@ class TurnRunner:
             if prefix_chars > 0:
                 # content 仍存全量（不丢信息）；前缀只进 meta，无需新列（基线守卫不受影响）。
                 meta["spoken_prefix_chars"] = prefix_chars
-            saved = await self._messages.append(
-                owner_id=inp.owner_id, session_id=inp.session_id, role="assistant", content=full,
-                kind="chat", client_message_id=None, turn_id=inp.turn_id,
-                meta=meta, fence=inp.fence,
-                **({"alt_of": inp.alt_of} if inp.alt_of is not None else {}))
-            if saved is None:
+            try:
+                saved = await self._messages.append(
+                    owner_id=inp.owner_id, session_id=inp.session_id, role="assistant", content=full,
+                    kind="chat", client_message_id=None, turn_id=inp.turn_id,
+                    meta=meta, fence=inp.fence,
+                    **({"alt_of": inp.alt_of} if inp.alt_of is not None else {}))
+            except Exception:  # noqa: BLE001 —— 落库抛错：没有回复可「完成」，回合改按 error 收尾（见下）
+                log.exception("finish append failed", extra={"turn_id": inp.turn_id})
+                append_failed = True
+                saved = None
+            if saved is None and not append_failed:
                 # 围栏号已不是最新：这把锁过期后被别的进程接手过。不写、不发完成事件。
                 state.lost = True
                 await self._finish_lost(inp, state)
                 return
-            saved_id = saved.id
-            saved_alt_group = saved.alt_group
-            if interrupted:
-                await self._messages.mark_interrupted(owner_id=inp.owner_id, message_id=saved.id)
+            if not append_failed:
+                saved_id = saved.id
+                saved_alt_group = saved.alt_group
+                if interrupted:
+                    try:
+                        await self._messages.mark_interrupted(owner_id=inp.owner_id, message_id=saved.id)
+                    except Exception:  # noqa: BLE001 —— 标记失败不改变回合结局
+                        log.exception("finish mark_interrupted failed", extra={"turn_id": inp.turn_id})
 
         # 插话：被注入的挂到回合上；没被注入的转回队列（D §6.4），不丢。
+        # 这两步是记账旁路：抛错只记日志——回复已经落库，不能因为挂接失败把整个
+        # 收尾降级成 error（终止事件+放锁优先于记账完整）。
         remaining = inbox.remaining()
         remaining_ids = {int(mid) for mid, _ in remaining}
         injected = [mid for mid in state.steer_pushed if mid not in remaining_ids]
-        await self._messages.attach_turn(owner_id=inp.owner_id, session_id=inp.session_id,
-                                         message_ids=injected, turn_id=inp.turn_id)
+        try:
+            await self._messages.attach_turn(owner_id=inp.owner_id, session_id=inp.session_id,
+                                             message_ids=injected, turn_id=inp.turn_id)
+        except Exception:  # noqa: BLE001
+            log.exception("finish attach_turn failed", extra={"turn_id": inp.turn_id})
         for mid, text in remaining:
-            await self._requeue(inp, int(mid), text)
+            try:
+                await self._requeue(inp, int(mid), text)
+            except Exception:  # noqa: BLE001
+                log.exception("finish requeue failed", extra={"turn_id": inp.turn_id,
+                                                              "message_id": mid})
 
         await self._notify(inp, state, saved_id=saved_id, text=full, interrupted=interrupted,
                            failed=failed, spoken_prefix=prefix_text)
         # 收尾的最后一个事件、删回合状态、放锁，合成一次 Redis 往返。
         # 顺序有硬约束（事件先发、状态在放锁之前删），pipeline 按注册顺序执行所以不变。
-        if saved_id is not None or state.cancelled:
+        if append_failed:
+            # 回复没落库：不能报完成。error 事件仍走 finish_turn——事件、清回合状态、
+            # 放锁仍是同一次原子往返，比 publish+release_lock 拆开的紧急路径更干净。
+            await self._control.finish_turn(session_id=inp.session_id, owner=inp.owner,
+                                            turn_id=inp.turn_id, event="error",
+                                            data={"turn_id": inp.turn_id, "code": "turn_failed",
+                                                  "message": "回答中断，请重试", "retryable": True})
+            state.closed = True
+        elif saved_id is not None or state.cancelled:
             event = "message.done" if saved_id is not None else "turn.cancelled"
             data: dict[str, Any] = {"turn_id": inp.turn_id, "assistant_message_id": saved_id}
             if saved_id is not None:
@@ -547,6 +663,7 @@ class TurnRunner:
                     data["alt_group"] = saved_alt_group
             await self._control.finish_turn(session_id=inp.session_id, owner=inp.owner,
                                             turn_id=inp.turn_id, event=event, data=data)
+            state.closed = True
         else:
             # 跑完整个回合、一个可见 token 都没有（provider 空 completion）。过去这里
             # 只清状态不放事件：订阅这条回合的语音 tokens() 等不到 END 事件，只能熬满
@@ -558,17 +675,28 @@ class TurnRunner:
                                             turn_id=inp.turn_id, event="error",
                                             data={"turn_id": inp.turn_id, "code": "empty_completion",
                                                   "message": "没有生成回答，请重试", "retryable": True})
+            state.closed = True
         if self._drain is not None and not failed:
             await self._drain(owner_id=inp.owner_id, session_id=inp.session_id,
                               character_id=inp.character_id)
 
     async def _finish_lost(self, inp: TurnInput, state: _RunState) -> None:
-        """锁已不是我们的：不写回复、不清回合状态、不排空（这些都属于接手的那个进程）。"""
-        await self._control.publish(session_id=inp.session_id, event="error",
-                                    data={"turn_id": inp.turn_id, "code": "turn_failed",
-                                          "message": "回答中断，请重试", "retryable": True})
+        """锁已不是我们的：不写回复、不清回合状态、不排空（这些都属于接手的那个进程）。
+
+        每一步单独尽力：publish 抛错不能挡住 release_lock（条件放锁，只删自己的）。
+        """
+        try:
+            await self._control.publish(session_id=inp.session_id, event="error",
+                                        data={"turn_id": inp.turn_id, "code": "turn_failed",
+                                              "message": "回答中断，请重试", "retryable": True})
+        except Exception:  # noqa: BLE001
+            log.exception("finish_lost error publish failed", extra={"turn_id": inp.turn_id})
         await self._notify(inp, state, saved_id=None, text="", interrupted=True, failed=True)
-        await self._control.release_lock(session_id=inp.session_id, owner=inp.owner)  # 只释放自己的
+        try:
+            await self._control.release_lock(session_id=inp.session_id, owner=inp.owner)  # 只释放自己的
+            state.closed = True
+        except Exception:  # noqa: BLE001
+            log.exception("finish_lost release_lock failed", extra={"turn_id": inp.turn_id})
 
     async def _notify(self, inp: TurnInput, state: _RunState, *, saved_id: int | None, text: str,
                       interrupted: bool, failed: bool, spoken_prefix: str = "") -> None:

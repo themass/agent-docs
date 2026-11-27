@@ -15,6 +15,14 @@ from typing import Any
 import boto3
 from botocore.config import Config
 
+# 出站超时（2026-11-28 生产挂死排查：回合链路每一段 await 都要有时间闸）。
+# connect 要小：TCP/TLS 连不上没有等的价值，快速失败让调用方降级（附件读不到只跳过这张图）。
+# read 不能太小：get/put 过的是整张图片（几 MiB，慢公网几十秒），太小会把正常附件读成失败；
+# 30 秒是「正常上传下载的上界」与「挂死最多多等 30 秒」的折中。botocore 默认各 60 秒，
+# 再乘默认重试（3 次）最坏是几分钟——调用挂在 asyncio.to_thread 里，回合跟着一起挂。
+TOS_CONNECT_TIMEOUT_SEC = 5
+TOS_READ_TIMEOUT_SEC = 30
+
 
 class TosNotConfigured(RuntimeError):
     pass
@@ -32,7 +40,9 @@ class TosObjectStore:
             aws_access_key_id=access_key,
             aws_secret_access_key=secret_key,
             region_name=region,
-            config=Config(s3={"addressing_style": "virtual"}),
+            config=Config(s3={"addressing_style": "virtual"},
+                          connect_timeout=TOS_CONNECT_TIMEOUT_SEC,
+                          read_timeout=TOS_READ_TIMEOUT_SEC),
         )
 
     async def put(self, *, key: str, data: bytes, content_type: str) -> None:

@@ -85,11 +85,10 @@ def _default_room_store(settings: Any) -> Any:
     url = getattr(settings, "companion_redis_url", "") or ""
     if url:
         try:
-            from redis import asyncio as redis_async
-
+            from companion.bootstrap.redis_client import redis_client_from_url
             from companion.service.room.redis_store import RedisSessionStore
 
-            return RedisSessionStore(redis_async.from_url(url, decode_responses=True))
+            return RedisSessionStore(redis_client_from_url(url, decode_responses=True))
         except Exception:  # noqa: BLE001 —— Redis 不可用时不能让整个服务起不来
             pass
     from companion.service.room.sessions import InMemorySessionStore
@@ -110,9 +109,9 @@ def _default_script_lease(settings: Any) -> Any:
     url = getattr(settings, "companion_redis_url", "") or ""
     if url:
         try:
-            from redis import asyncio as redis_async
+            from companion.bootstrap.redis_client import redis_client_from_url
 
-            return RedisScriptRoomLease(redis_async.from_url(url, decode_responses=True))
+            return RedisScriptRoomLease(redis_client_from_url(url, decode_responses=True))
         except Exception as exc:  # noqa: BLE001
             if env != "dev":
                 raise StartupRefused(
@@ -149,11 +148,10 @@ def create_app(
     # 身份验证：生产只能用 Redis 登录态；dev 才允许 allow_all（D §4、A §5.5）
     assert_startup_safe(env=settings.companion_env, auth_verifier=settings.companion_auth_verifier)
     if verifier is None and settings.companion_auth_verifier == "redis_token":
-        import redis.asyncio as redis_async
-
+        from companion.bootstrap.redis_client import redis_client_from_url
         from companion.service.auth.redis_token import RedisTokenVerifier
 
-        verifier = RedisTokenVerifier(redis_async.from_url(settings.auth_redis_url, decode_responses=True))
+        verifier = RedisTokenVerifier(redis_client_from_url(settings.auth_redis_url, decode_responses=True))
 
     # 房间会话：有 Redis 就存 Redis（多副本可见、重启不丢），否则退回进程内。
     resolved_store = store or _default_room_store(settings)

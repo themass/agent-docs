@@ -269,12 +269,12 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     if not settings.database_url or not settings.companion_redis_url:
         raise RuntimeError("COMPANION_DATABASE_URL (or COMPANION_MYSQL_URL) and COMPANION_REDIS_URL are required")
 
-    from redis import asyncio as redis_async
     from companion.bootstrap.database import make_engine, profile_for
+    from companion.bootstrap.redis_client import redis_client_from_url
 
     pool_profile = profile_for(profile)
     engine = make_engine(settings.database_url, pool_profile)
-    redis = redis_async.from_url(settings.companion_redis_url, decode_responses=False)
+    redis = redis_client_from_url(settings.companion_redis_url, decode_responses=False)
 
     from companion.service.trace.qa import SqlQaStore
 
