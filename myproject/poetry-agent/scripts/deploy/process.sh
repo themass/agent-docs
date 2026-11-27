@@ -1,28 +1,19 @@
 #!/usr/bin/env bash
-# mcp / worker / bff 三个进程的 start / stop / restart / status，用 PID 文件追踪。
+# **一个进程**（agent）的 start / stop / restart / status / logs，用 PID 文件追踪。
 #
-#   ./scripts/deploy/process.sh start [bff|worker|mcp|all]     默认 all
-#   ./scripts/deploy/process.sh stop  [bff|worker|mcp|all]
-#   ./scripts/deploy/process.sh restart [bff|worker|mcp|all]
+#   ./scripts/deploy/process.sh start [agent|all]     默认 all
+#   ./scripts/deploy/process.sh stop  [agent|all]
+#   ./scripts/deploy/process.sh restart [agent|all]
 #   ./scripts/deploy/process.sh status
-#   ./scripts/deploy/process.sh logs [bff|worker|mcp] [行数]
+#   ./scripts/deploy/process.sh logs [agent] [行数]
+#
+# 2026-11-28：bff / 控制桥 / worker 合并成**一个进程、一个端口**（agent_bff.allinone，:8100），
+# 内部令牌统一成一把（POETRY_AGENT_INTERNAL_TOKEN）。原三进程六令牌的设计（A-05/A-12/A-18）
+# 是用户看过架构后否掉的：「放一起，不要那么多的令牌」。人工闸没动——批准仍只有 Studio
+# 登录后的审阅人按得动。旧的三进程模块还在（poetry_domain_mcp.server、agent_worker.app
+# 仍可单独起），只是这里不再起它们。
 #
 # 不用 systemd、不用 sudo、**不用 docker**：setsid 让进程脱离启动它的脚本（和 SSH 会话）继续跑。
-# 起停顺序都是 mcp → worker → bff（依赖方向），stop 反序。
-#
-# 与 compose 的对应关系（compose.yaml 是权威，改动先改那里再同步这里）：
-# * 三个服务只读 OS 环境变量（代码里没有 load_dotenv），.env 由本脚本按**每服务白名单**
-#   导出——这是 A-05 的裸机等价物：worker 永远拿不到 POETRY_DOMAIN_REVIEW_TOKEN 和
-#   POETRY_STUDIO_REVIEWER_TOKEN，agent 造出的提案无法被自己批准。白名单外的键一律不导出，
-#   以后往 .env 加新令牌不会意外泄漏到不该持有它的服务里。
-# * compose 里靠服务名互访的 URL 在这里换成回环地址（可用同名键在 .env 里覆盖）：
-#     POETRY_DOMAIN_CONTROL_URL 默认 http://127.0.0.1:8101
-#     POETRY_WORKER_URL         默认 http://127.0.0.1:8102
-# * 端口/绑定：bff=AGENT_BFF_PORT(8100) mcp=POETRY_DOMAIN_MCP_PORT(8101) worker=WORKER_PORT(8102)，
-#   HOST 用 AGENT_BIND_HOST（默认 127.0.0.1；nginx 的 agent-poetry.sspacee.com 在本机反代，
-#   回环就够，别轻易 0.0.0.0）。
-# * 健康判定与 compose healthcheck 同款：bff/worker 轮询 /health/ready；mcp 按设计**没有**
-#   健康路由（控制桥不能公网可达），只测端口开始监听 + 进程活着。
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"    # 平台根：pyproject.toml + uv.lock + content-agent/
@@ -56,37 +47,31 @@ envget() {  # envget KEY DEFAULT —— 已导出的同名环境变量优先，�
   printf '%s' "${v:-${2-}}"
 }
 
-# ---------- 每服务白名单（对齐 compose.yaml 的 environment 段） ----------
+# ---------- 单进程的环境（一把内部令牌 + Studio 登录 + Java 地址） ----------
 keys_for() {
   case "$1" in
-    bff) printf '%s\n' PORT DEERFLOW_ENABLED POETRY_AGENT_PROFILE_ROOT POETRY_DOMAIN_CONTROL_URL \
+    agent) printf '%s\n' DEERFLOW_ENABLED POETRY_AGENT_PROFILE_ROOT POETRY_DOMAIN_CONTROL_URL \
             POETRY_DOMAIN_CONTROL_TOKEN POETRY_DOMAIN_REVIEW_TOKEN POETRY_API_BASE_URL \
             POETRY_API_TIMEOUT_SECONDS POETRY_STUDIO_REVIEWER_TOKEN POETRY_WORKER_URL \
             POETRY_WORKER_TOKEN POETRY_STUDIO_ORIGINS POETRY_STUDIO_AUTH POETRY_STUDIO_USERS_FILE \
-            POETRY_STUDIO_SESSION_SECRET ;;
-    worker) printf '%s\n' PORT POETRY_AGENT_PROFILE_ROOT POETRY_DOMAIN_CONTROL_URL \
-            POETRY_DOMAIN_CONTROL_TOKEN POETRY_WORKER_TOKEN DEERFLOW_ENABLED DEERFLOW_GATEWAY_URL \
-            DEERFLOW_GATEWAY_TOKEN DEERFLOW_ASSISTANT_ID WORKER_MAX_CONCURRENT_RUNS \
-            DEERFLOW_AUTH_MODE DEERFLOW_OWNER_USER_ID DEERFLOW_FALLBACK_MODEL ;;
-    mcp) printf '%s\n' PORT POETRY_API_BASE_URL POETRY_API_TIMEOUT_SECONDS POETRY_AGENT_INTERNAL_TOKEN \
-         MCP_INTERNAL_TOKEN POETRY_DOMAIN_CONTROL_TOKEN POETRY_DOMAIN_REVIEW_TOKEN \
-         POETRY_AGENT_ACTOR_ROLE ;;
+            POETRY_STUDIO_SESSION_SECRET POETRY_AGENT_INTERNAL_TOKEN MCP_INTERNAL_TOKEN \
+            POETRY_AGENT_ACTOR_ROLE DEERFLOW_GATEWAY_URL DEERFLOW_GATEWAY_TOKEN \
+            DEERFLOW_ASSISTANT_ID WORKER_MAX_CONCURRENT_RUNS DEERFLOW_AUTH_MODE \
+            DEERFLOW_OWNER_USER_ID DEERFLOW_FALLBACK_MODEL ;;
   esac
 }
 
-# 端口与绑定：bff/worker/mcp 各自一个端口；HOST 用 AGENT_BIND_HOST
+# 端口与绑定：一个进程一个端口
 port_for() {
   case "$1" in
-    bff)    envget AGENT_BFF_PORT 8100 ;;
-    worker) envget WORKER_PORT 8102 ;;
-    mcp)    envget POETRY_DOMAIN_MCP_PORT 8101 ;;
+    agent) envget AGENT_BFF_PORT 8100 ;;
   esac
 }
 BIND_HOST="$(envget AGENT_BIND_HOST 127.0.0.1)"
 PROBE_HOST=127.0.0.1   # 健康探测永远走回环，与绑定地址无关
 
 pidfile() { echo "${RUN_DIR}/$1.pid"; }
-marker()  { case "$1" in bff) echo "agent_bff.main" ;; worker) echo "agent_worker.app" ;; mcp) echo "poetry_domain_mcp.server" ;; esac; }
+marker()  { case "$1" in agent) echo "agent_bff.allinone" ;; esac; }
 logfor()  { echo "${LOG_DIR}/$1.log"; }
 
 is_running() {
@@ -98,14 +83,8 @@ is_running() {
   ps -o command= -p "$pid" 2>/dev/null | grep -qF "$(marker "$1")"
 }
 
-health_ok() {  # health_ok NAME —— bff/worker 用 /health/ready；mcp 没有健康路由，测端口监听
+health_ok() {  # health_ok NAME —— 单进程轮询 /health/ready（它会把桥与 worker 的可达性一起报出来）
   local name="$1" port; port="$(port_for "$name")"
-  if [[ "$name" == mcp ]]; then
-    # 与 compose healthcheck 同款（socket 连接即视为健康）。用 venv python 而不是 bash
-    # /dev/tcp——发行版编译 bash 时可能关掉 net 重定向，那样探测会永远失败。
-    "${VENV}/bin/python" -c "import socket,sys; socket.create_connection(('${PROBE_HOST}', ${port}), 2).close()" 2>/dev/null
-    return
-  fi
   curl -sf -m 3 "http://${PROBE_HOST}:${port}/health/ready" >/dev/null 2>&1
 }
 
@@ -150,9 +129,10 @@ start_one() {
     done < <(keys_for "$name")
     export HOST="$BIND_HOST" PORT="$port"
     export POETRY_AGENT_PROFILE_ROOT="${POETRY_AGENT_PROFILE_ROOT:-$(envget POETRY_AGENT_PROFILE_ROOT "$PROFILE_ROOT")}"
-    export POETRY_DOMAIN_CONTROL_URL="${POETRY_DOMAIN_CONTROL_URL:-$(envget POETRY_DOMAIN_CONTROL_URL "http://127.0.0.1:$(port_for mcp)")}"
-    [[ "$name" == bff ]] && export POETRY_WORKER_URL="${POETRY_WORKER_URL:-$(envget POETRY_WORKER_URL "http://127.0.0.1:$(port_for worker)")}"
-    [[ "$name" == bff ]] && export POETRY_STUDIO_USERS_FILE="${POETRY_STUDIO_USERS_FILE:-$(envget POETRY_STUDIO_USERS_FILE "${ROOT}/.data/studio-auth/users.json")}"
+    # 桥与 worker 挂在同一进程里（allinone），URL 指回自己的挂载点。
+    export POETRY_DOMAIN_CONTROL_URL="${POETRY_DOMAIN_CONTROL_URL:-$(envget POETRY_DOMAIN_CONTROL_URL "http://127.0.0.1:${port}/_bridge")}"
+    export POETRY_WORKER_URL="${POETRY_WORKER_URL:-$(envget POETRY_WORKER_URL "http://127.0.0.1:${port}/_worker")}"
+    export POETRY_STUDIO_USERS_FILE="${POETRY_STUDIO_USERS_FILE:-$(envget POETRY_STUDIO_USERS_FILE "${ROOT}/.data/studio-auth/users.json")}"
     # setsid 让进程脱离本脚本的进程组（Linux 有；本地 mac 没有就退化成普通后台进程，
     # 靠 nohup 语义的 SIGHUP 忽略已经够用——生产机是 Linux，走的是 setsid 分支）。
     if command -v setsid >/dev/null 2>&1; then
@@ -171,9 +151,6 @@ start_one() {
   done
   is_running "$name" || { tail -20 "$logfile" >&2; die "${name} 起来就退出了，见上面的日志"; }
   tail -20 "$logfile" >&2
-  if [[ "$name" == mcp ]]; then
-    die "${name} 进程在，但 ${START_TIMEOUT}s 内端口 ${port} 没开始监听（多半是令牌类环境变量缺失）"
-  fi
   die "${name} 进程在，但 ${START_TIMEOUT}s 内 /health/ready 没响应"
 }
 
@@ -222,12 +199,10 @@ status_one() {
 
 cmd="${1:-status}"
 target="${2:-all}"
-# 数组顺序 = 启动顺序（依赖方向 mcp → worker → bff）
-ALL_NAMES=(mcp worker bff)
+ALL_NAMES=(agent)
 case "$target" in
-  bff | worker | mcp) names=("$target") ;;
-  all) names=("${ALL_NAMES[@]}") ;;
-  *) die "未知目标: ${target}（bff / worker / mcp / all）" ;;
+  agent | all) names=(agent) ;;
+  *) die "未知目标: ${target}（agent / all）" ;;
 esac
 
 case "$cmd" in
@@ -235,7 +210,6 @@ case "$cmd" in
     [[ -f "$ENV_FILE" ]] || die "缺 ${ENV_FILE}"
     for n in "${names[@]}"; do start_one "$n"; done ;;
   stop)
-    # 反序：先停最上游的 bff，别让它在依赖消失后对着错误日志重试
     for (( i=${#names[@]}-1; i>=0; i-- )); do stop_one "${names[$i]}"; done ;;
   restart)
     [[ -f "$ENV_FILE" ]] || die "缺 ${ENV_FILE}"
@@ -253,9 +227,8 @@ case "$cmd" in
     ;;
   logs)
     lines="${3:-80}"
-    [[ "$target" == all ]] && die "logs 要指定 bff / worker / mcp"
-    tail -n "$lines" -f "$(logfor "$target")"
+    tail -n "$lines" -f "$(logfor agent)"
     ;;
-  -h | --help | help) sed -n '2,20p' "$0" ;;
+  -h | --help | help) sed -n '2,14p' "$0" ;;
   *) die "未知命令: ${cmd}（start / stop / restart / status / logs）" ;;
 esac

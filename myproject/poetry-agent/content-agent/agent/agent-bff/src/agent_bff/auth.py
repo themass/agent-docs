@@ -325,7 +325,9 @@ class AuthMiddleware:
             await self.app(scope, receive, send)
             return
         path = scope["path"]
-        if path in self.public or path.startswith("/health/"):
+        # /_worker、/_bridge：同进程挂载点（allinone），各自带自己的服务令牌，不经过 Studio 会话。
+        # nginx 只转发 /api/poetry/v1/agent/**，这两个前缀从公网打不到。
+        if path.startswith("/_") or path in self.public or path.startswith("/health/"):
             await self.app(scope, receive, send)
             return
         headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope.get("headers", [])}

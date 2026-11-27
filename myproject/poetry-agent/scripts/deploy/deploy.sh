@@ -96,9 +96,11 @@ fi
 
 # 5. 依赖。平台根是 uv workspace（bff / mcp / worker / student-agent 都是成员），
 #    在根上 sync 一次装齐全部成员——不要按服务目录分别装，lock 只有一个。
+#    --all-packages：根项目自身依赖是空的，**不带它只会装出一个空 venv**（workspace 语义），
+#    2026-11-28 在 104 上就是这么踩的：sync 秒过、导入自检才炸。
 #    --frozen：严格按 uv.lock 装，lock 和 pyproject 不一致就报错而不是悄悄重新解析。
 log "安装 Python 依赖到 ${VENV}（uv workspace：bff + mcp + worker + student-agent）"
-beat "uv sync" env UV_PROJECT_ENVIRONMENT="$VENV" uv sync --frozen --no-dev --project "$ROOT"
+beat "uv sync" env UV_PROJECT_ENVIRONMENT="$VENV" uv sync --frozen --no-dev --all-packages --project "$ROOT"
 
 if [[ "$DO_IMPORTS" == true ]]; then
   log "核对关键包与导入"
