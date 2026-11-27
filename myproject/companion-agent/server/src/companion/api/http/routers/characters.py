@@ -210,6 +210,9 @@ def build_router(catalog: CharacterCatalog, current_user):
         voice_available: bool
         # 客户端据此显示音色名。没有音色的角色给 null。
         voice_ref: dict[str, str] | None = None
+        # 数字人引擎判别（simple|live2d|vrm|…），空串 = 卡没声明。
+        # response_model 会滤掉未声明的字段——这里漏了，客户端就永远看不见它。
+        renderer: str = ""
 
     class CharacterListResponse(BaseModel):
         items: list[CharacterSummaryResponse]
