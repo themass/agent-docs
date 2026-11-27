@@ -98,6 +98,10 @@ def main() -> None:
     from companion.observability.noise import attach_noise_filter
 
     attach_noise_filter()
+    # 语音链路也会出站调第三方（高德、TTS）：httpx 的 INFO 带整条 URL，key 在 query 里
+    from companion.observability.log_safety import pin_third_party_log_levels
+
+    pin_third_party_log_levels()
     log = logging.getLogger("companion.worker")
 
     if not (settings.livekit_url and settings.livekit_api_key and settings.livekit_api_secret):

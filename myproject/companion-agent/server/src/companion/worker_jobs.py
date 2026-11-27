@@ -20,6 +20,10 @@ async def main() -> None:
     from companion.config import settings
 
     logging.basicConfig(level=os.environ.get("COMPANION_LOG_LEVEL", "INFO"))
+    # 后台任务也会出站调第三方（httpx 的 INFO 打整条 URL，密钥若在 query 就落进日志）
+    from companion.observability.log_safety import pin_third_party_log_levels
+
+    pin_third_party_log_levels()
     platform = build_platform(settings, prompts=default_prompts(), profile="jobs")
     await platform.astart()
     try:

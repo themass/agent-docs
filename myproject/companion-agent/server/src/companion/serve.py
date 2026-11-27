@@ -107,6 +107,11 @@ def _configure_logging() -> None:
     from companion.observability.noise import attach_noise_filter
 
     attach_noise_filter()
+    # 同一个 basicConfig 也把 httpx 的 INFO 放了出来——它打整条请求 URL，高德的 key 在
+    # query 里，于是凭据明文进 journald（见 observability/log_safety.py）
+    from companion.observability.log_safety import pin_third_party_log_levels
+
+    pin_third_party_log_levels()
 
 
 def main() -> None:
