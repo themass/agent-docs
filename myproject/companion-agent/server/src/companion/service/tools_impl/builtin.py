@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import asyncio
+import math
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
@@ -83,11 +84,18 @@ def register_builtin_tools(registry: ToolRegistry, *, memory: Any, timeline: Any
 
     async def search_poi(ctx: ToolContext, args: PoiSearchParams) -> dict[str, Any]:
         location = ctx.location
+        lat = location.get("lat") if isinstance(location, dict) else None
+        lng = location.get("lng") if isinstance(location, dict) else None
+        if (not isinstance(lat, (int, float)) or isinstance(lat, bool)
+                or not isinstance(lng, (int, float)) or isinstance(lng, bool)
+                or not math.isfinite(lat) or not math.isfinite(lng)
+                or not -90 <= lat <= 90 or not -180 <= lng <= 180):
+            return {"status": "invalid_location", "message": "请提供当前位置或城市/区域", "pois": []}
         try:
             return await poi_search.search(
                 query=args.query,
-                lat=location.get("lat") if location else None,
-                lng=location.get("lng") if location else None,
+                lat=lat,
+                lng=lng,
                 radius_m=args.radius_m,
                 limit=args.limit,
             )
@@ -164,7 +172,7 @@ def register_builtin_tools(registry: ToolRegistry, *, memory: Any, timeline: Any
     ), get_current_time)
     registry.register(ToolSpec(
         name="poi_search",
-        description="查询高德 POI（商户、餐饮、地点）。附近查询必须用当前回合可信位置；无位置时先问用户城市/区域。只按工具返回结果回答。status=not_configured 时明确说没有接入地图服务；query_failed 时说明查询失败；空列表就说没有查到。绝不编造名称、地址、距离或类别。",
+        description="查询高德 POI（商户、餐饮、地点）。必须使用当前回合可信位置；缺少或无效时会返回 invalid_location，先问用户当前位置或城市/区域。只按工具返回结果回答。status=not_configured 时明确说没有接入地图服务；query_failed 时说明查询失败；空列表就说没有查到。绝不编造名称、地址、距离或类别。",
         params=PoiSearchParams, permission=Permission.READ, side_effect=SideEffect.NONE,
         timeout_s=7.0, result_budget_chars=3000, products=frozenset({"chat", "roleplay"}),
     ), search_poi)

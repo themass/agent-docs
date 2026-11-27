@@ -84,23 +84,33 @@ def test_turn_context_carries_server_location_not_model_arguments():
     assert context["tool_turn"].location == location
 
 
-async def test_model_coordinates_are_not_part_of_tool_schema_or_used_without_turn_location():
+async def test_missing_or_invalid_turn_location_never_calls_provider_or_uses_model_coordinates():
     assert set(PoiSearchParams.model_fields) == {"query", "radius_m", "limit"}
     client = FakePoiHttpClient()
     registry = _registry(amap_key="test-only-key", client=client)
     runtime = ToolRuntime(registry=registry, confirmations=NoopConfirmations())
-    turn = ToolTurn(owner_id=7, session_id=1, turn_id="t5", character_id="role", locale="zh-CN",
-                    product="chat", allowed=frozenset({"poi_search"}))
+    invalid_locations = [
+        None,
+        {"lat": 31.23},
+        {"lat": float("nan"), "lng": 121.47},
+        {"lat": 91, "lng": 121.47},
+        {"lat": True, "lng": 121.47},
+    ]
 
-    outcome = await runtime.invoke(turn, "poi_search", {
-        "query": "上海咖啡", "lat": 0, "lng": 0, "limit": 10,
-    })
+    for index, location in enumerate(invalid_locations):
+        turn = ToolTurn(owner_id=7, session_id=1, turn_id=f"t{index}", character_id="role",
+                        locale="zh-CN", product="chat", allowed=frozenset({"poi_search"}),
+                        location=location)
+        outcome = await runtime.invoke(turn, "poi_search", {
+            "query": "附近美食", "lat": 0, "lng": 0,
+        })
 
-    assert outcome.status == "executed"
-    url, params = client.calls[0]
-    assert url.endswith("/place/text")
-    assert "location" not in params
-    assert params["offset"] == "10"
+        assert outcome.status == "executed"
+        result = json.loads(json.loads(outcome.model_text)["result"])
+        assert result["status"] == "invalid_location"
+        assert result["pois"] == []
+
+    assert client.calls == []
 
 
 async def test_upstream_error_body_is_not_returned_to_model_or_logged(caplog):
