@@ -5,7 +5,7 @@
 # 用法:
 #   her-production.sh new   <workdir> --name 名字 [--asset 拉丁包名] [--tagline ..]
 #                           [--personality ..] [--first-mes ..] [--prompt 生图提示词]
-#                           [--renderer layered]
+#                           [--renderer simple]
 #   her-production.sh portrait <workdir>        # 生 portrait（newapi 豆包 seedream）
 #   her-production.sh persona  <workdir>        # 装配+校验 V2 角色卡（persona 半）
 #   her-production.sh pack     <workdir>        # 组装 asset pack + drill 写 ca_her_pack
@@ -42,7 +42,7 @@ py_server() {  # 在 server 仓库的依赖环境里跑 python（build_her_pack 
 
 cmd_new() {
   local wd="$1"; shift
-  local name="" tagline="" personality="" first_mes="" prompt="" renderer="layered" asset=""
+  local name="" tagline="" personality="" first_mes="" prompt="" renderer="simple" asset=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --name) name="$2"; shift 2;;
