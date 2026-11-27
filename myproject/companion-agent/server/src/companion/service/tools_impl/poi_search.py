@@ -44,10 +44,13 @@ class AmapPoiSearch:
         self._client = config.client or HttpxPoiClient()
 
     async def search(self, *, query: str, lat: float | None = None, lng: float | None = None,
-                     radius_m: int | None = None, limit: int = 5) -> dict[str, Any]:
+                     radius_m: int | None = None, limit: int = 5,
+                     region: str | None = None) -> dict[str, Any]:
+        around = lat is not None and lng is not None
+        if not around and not (region and region.strip()):
+            return {"status": "invalid_location", "message": "请提供当前位置或城市/区域", "pois": []}
         if not self._config.amap_key.strip():
             return {"status": "not_configured", "message": "未接入地图服务", "pois": []}
-        around = lat is not None and lng is not None
         endpoint = AMAP_AROUND_URL if around else AMAP_TEXT_URL
         result_limit = max(1, min(limit, self._config.result_limit))
         params = {"key": self._config.amap_key, "keywords": query, "offset": str(result_limit),
@@ -56,6 +59,8 @@ class AmapPoiSearch:
             params["location"] = f"{lng},{lat}"
             params["radius"] = str(max(100, min(radius_m or 3000, 50000)))
             params["sortrule"] = "distance"
+        else:
+            params["city"] = region.strip()
         try:
             status, body = await self._client.get(endpoint, params=params)
             if status != 200:

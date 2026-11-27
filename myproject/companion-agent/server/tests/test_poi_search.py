@@ -75,6 +75,31 @@ async def test_fake_amap_json_is_parsed_and_current_location_wins():
     assert "test-only-key" not in outcome.model_text
 
 
+async def test_region_without_current_location_uses_scoped_text_search_without_distance():
+    client = FakePoiHttpClient(payload={"status": "1", "pois": [{
+        "name": "示例咖啡店", "address": "示例路 2 号", "type": "餐饮服务;咖啡厅"
+    }]})
+    registry = _registry(amap_key="test-only-key", client=client)
+    runtime = ToolRuntime(registry=registry, confirmations=NoopConfirmations())
+    turn = ToolTurn(owner_id=7, session_id=1, turn_id="region", character_id="role", locale="zh-CN",
+                    product="chat", allowed=frozenset({"poi_search"}))
+
+    outcome = await runtime.invoke(turn, "poi_search", {
+        "query": "咖啡", "region": "上海市", "lat": 0, "lng": 0,
+    })
+
+    assert outcome.status == "executed"
+    result = json.loads(json.loads(outcome.model_text)["result"])
+    assert result["status"] == "ok"
+    assert result["pois"][0]["distance_m"] is None
+    url, params = client.calls[0]
+    assert url.endswith("/place/text")
+    assert params["city"] == "上海市"
+    assert "location" not in params
+    assert "radius" not in params
+    assert "sortrule" not in params
+
+
 def test_turn_context_carries_server_location_not_model_arguments():
     location = {"lat": 31.23, "lng": 121.47, "accuracy_m": 20.0}
     brain = DeerFlowBrain(None, tool_runtime=object(), tool_allowed=frozenset({"poi_search"}))
@@ -85,7 +110,7 @@ def test_turn_context_carries_server_location_not_model_arguments():
 
 
 async def test_missing_or_invalid_turn_location_never_calls_provider_or_uses_model_coordinates():
-    assert set(PoiSearchParams.model_fields) == {"query", "radius_m", "limit"}
+    assert set(PoiSearchParams.model_fields) == {"query", "radius_m", "limit", "region"}
     client = FakePoiHttpClient()
     registry = _registry(amap_key="test-only-key", client=client)
     runtime = ToolRuntime(registry=registry, confirmations=NoopConfirmations())

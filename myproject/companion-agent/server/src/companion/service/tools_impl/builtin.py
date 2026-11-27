@@ -65,6 +65,8 @@ class PoiSearchParams(BaseModel):
     query: str = Field(min_length=1, max_length=100)
     radius_m: int | None = Field(default=None, ge=100, le=50_000)
     limit: int = Field(default=5, ge=1, le=10)
+    region: str | None = Field(default=None, min_length=1, max_length=100,
+                               description="用户明确提供的城市或区县；仅无可信当前位置时用于限定搜索")
 
 
 RECALL_HORIZON = timedelta(days=14)
@@ -86,18 +88,23 @@ def register_builtin_tools(registry: ToolRegistry, *, memory: Any, timeline: Any
         location = ctx.location
         lat = location.get("lat") if isinstance(location, dict) else None
         lng = location.get("lng") if isinstance(location, dict) else None
-        if (not isinstance(lat, (int, float)) or isinstance(lat, bool)
-                or not isinstance(lng, (int, float)) or isinstance(lng, bool)
-                or not math.isfinite(lat) or not math.isfinite(lng)
-                or not -90 <= lat <= 90 or not -180 <= lng <= 180):
+        has_location = (
+            isinstance(lat, (int, float)) and not isinstance(lat, bool)
+            and isinstance(lng, (int, float)) and not isinstance(lng, bool)
+            and math.isfinite(lat) and math.isfinite(lng)
+            and -90 <= lat <= 90 and -180 <= lng <= 180
+        )
+        region = args.region.strip() if isinstance(args.region, str) else ""
+        if not has_location and not region:
             return {"status": "invalid_location", "message": "请提供当前位置或城市/区域", "pois": []}
         try:
             return await poi_search.search(
                 query=args.query,
-                lat=lat,
-                lng=lng,
+                lat=lat if has_location else None,
+                lng=lng if has_location else None,
                 radius_m=args.radius_m,
                 limit=args.limit,
+                region=region if not has_location else None,
             )
         except PoiSearchError:
             return {"status": "query_failed", "message": "地图查询失败", "pois": []}
@@ -172,7 +179,7 @@ def register_builtin_tools(registry: ToolRegistry, *, memory: Any, timeline: Any
     ), get_current_time)
     registry.register(ToolSpec(
         name="poi_search",
-        description="查询高德 POI（商户、餐饮、地点）。必须使用当前回合可信位置；缺少或无效时会返回 invalid_location，先问用户当前位置或城市/区域。只按工具返回结果回答。status=not_configured 时明确说没有接入地图服务；query_failed 时说明查询失败；空列表就说没有查到。绝不编造名称、地址、距离或类别。",
+        description="查询高德 POI（商户、餐饮、地点）。优先使用当前回合可信位置；无有效位置时可用用户明确提供的 region 城市/区县限定文本搜索；两者都没有时返回 invalid_location 并先询问位置。只按工具返回结果回答；区域搜索结果没有 distance_m 时不得声称距离。status=not_configured 时明确说没有接入地图服务；query_failed 时说明查询失败；空列表就说没有查到。绝不编造名称、地址、距离或类别。",
         params=PoiSearchParams, permission=Permission.READ, side_effect=SideEffect.NONE,
         timeout_s=7.0, result_budget_chars=3000, products=frozenset({"chat", "roleplay"}),
     ), search_poi)
