@@ -79,6 +79,14 @@ end
 return 0
 """
 
+# 只删属于指定 turn 的回合状态（判定与删除必须原子，否则清掉的是刚接手的那个回合）。
+_CLEAR_IF_LUA = """
+if redis.call('HGET', KEYS[1], 'turn_id') == ARGV[1] then
+  return redis.call('DEL', KEYS[1])
+end
+return 0
+"""
+
 
 def turn_key(sid: int) -> str:
     return f"{KEY_PREFIX}sess:{sid}:turn"
@@ -116,6 +124,7 @@ class RedisTurnControl:
         self._phase = redis.register_script(_PHASE_LUA)
         self._release = redis.register_script(_RELEASE_LUA)
         self._renew = redis.register_script(_RENEW_LUA)
+        self._clear_if = redis.register_script(_CLEAR_IF_LUA)
 
     # ---- 判定（submit 用）----
 
@@ -305,6 +314,54 @@ class RedisTurnControl:
         raw = await self._r.hgetall(turn_key(session_id))
         parsed = {_s(k): _s(v) for k, v in raw.items()} if raw else {}
         return parsed if parsed.get("turn_id") else None
+
+    async def orphan_turns(self, *, limit: int = 50) -> list[dict[str, Any]]:
+        """崩溃/重启留下的回合：状态哈希还在，但锁已经没了。
+
+        为什么这个判据是确定的而不是超时猜测：
+        - 正常收尾走 ``finish_turn``，DEL 哈希在释放锁之前、同一个 pipeline 里，
+          所以收尾后不可能出现「哈希在、锁没了」；
+        - 新回合接手必先 ``acquire_lock``（然后才 ``init_turn``），锁就在；
+        - 只有进程死掉、锁自己过期（``LOCK_TTL_MS``）才会留下这个组合——而状态哈希
+          **没有 TTL**，除了 ``finish_turn`` 没人删它，所以这个残留是永久的。
+
+        候选来自这里而不是 ``ca_chat_turn``：那张表要等第一次 LLM 调用之后才建行
+        （``note_turn_models``），而被打断的回合往往一次调用都没跑完
+        （线上 session 39：起步 6 秒后被重启打断）。
+
+        ``scan_iter`` 用 SCAN 不用 KEYS：这是每两分钟跑一轮的常驻任务，KEYS 会阻塞 Redis。
+        回合数与在线会话数同量级，所以扫描成本可控；``limit`` 只是单轮上限，
+        没处理完的下一轮继续（判据不变，不会漏）。
+        """
+        out: list[dict[str, Any]] = []
+        async for key in self._r.scan_iter(match=f"{KEY_PREFIX}sess:*:turn", count=200):
+            # 键形如 ca:sess:39:turn。去掉前缀再取，别按整键的下标数——
+            # 前缀本身含冒号，数错一位就永远匹配不上数字（写的时候犯过一次）。
+            sid = _s(key)[len(KEY_PREFIX):].split(":")[1]
+            if not sid.isdigit():
+                continue
+            raw = await self._r.hgetall(key)
+            parsed = {_s(k): _s(v) for k, v in raw.items()} if raw else {}
+            turn_id = parsed.get("turn_id")
+            if not turn_id:
+                continue
+            if await self._r.exists(lock_key(int(sid))):
+                continue      # 有活锁：这个回合正有人在跑
+            out.append({"session_id": int(sid), "turn_id": turn_id,
+                        "message_ids": [i for i in parsed.get("message_ids", "").split(",") if i],
+                        "phase": parsed.get("phase", "")})
+            if len(out) >= limit:
+                break
+        return out
+
+    async def clear_turn_if(self, *, session_id: int, turn_id: str) -> bool:
+        """只删属于 ``turn_id`` 的回合状态。
+
+        无条件 ``clear_turn`` 在这里是错的：扫到孤儿与真正动手之间，会话可能已经起了新回合，
+        那时哈希里是**新**回合的 turn_id，删掉它就会让一个健康回合的控制状态消失（merge/steer
+        全断）。和 ``release_lock`` 同一个道理——只清属于自己的那一份。
+        """
+        return bool(await self._clear_if(keys=[turn_key(session_id)], args=[turn_id]))
 
     async def purge_session(self, *, session_id: int) -> None:
         """注销用：取消进行中的回合，删掉会话的锁、回合状态、围栏与事件流。
