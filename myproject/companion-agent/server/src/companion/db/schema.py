@@ -477,6 +477,42 @@ character_pack = Table(
 )
 
 
+# 系统 her 包（呈现实体独立注册，2026-11-28 persona/her 分层第一刀）：
+# docs/design/2026-11-28-persona-her-split-architecture.md §3。
+# ca_character_pack 回答「她是谁」，这张回答「她长什么样、怎么动」：renderer 是
+# **包**的属性而不是角色的属性（Live2D Expandable Application 条款使 renderer
+# 中立成为法务必需，用户自定义 her 只能走非 Live2D 引擎）。
+# payload：model_ref{asset,version,hash}、effects[]、stickers[]、voice_ref、
+# thumbnail、touch_zones——都是呈现声明，服务端不解析细节，端上按契约校验。
+# status 是蓝图包状态机的服务端子集：draft | published | retired。
+# 与 ca_avatar_release 的分工：那张是既有「形象包」下载目录（role_id 直接挂角色，
+# 历史形态），这张是引擎中立的呈现实体注册表；迁移由播种脚本桥接，不双写。
+her_pack = Table(
+    TABLE_PREFIX + "her_pack", metadata,
+    _pk(),
+    Column("her_id", String(128), nullable=False),                  # 呈现实体的稳定 ID
+    Column("renderer", String(32), nullable=False, server_default=""),      # simple|live2d|vrm|rive|...
+    Column("pack_version", Integer, nullable=False, server_default="1"),    # 内容变一次 +1（对账用）
+    Column("payload", JsonText, nullable=False),                    # 呈现声明（见上）
+    Column("status", String(16), nullable=False, server_default="draft"),
+    Column("source", String(32), nullable=False, server_default=""),        # card | hermes | manual
+    _now(), _upd(),
+    UniqueConstraint("her_id", name="ca_uq_her_pack_id"),
+)
+
+# 角色 ↔ her 绑定：默认一对一，多候选留扩展位（换形象不换人格、换人格不换形象）。
+# 解析取 is_default=1 的那条；同一角色多条默认视为脏数据，读时取 her_id 最小的一条并告警。
+character_her = Table(
+    TABLE_PREFIX + "character_her", metadata,
+    _pk(),
+    Column("role_id", String(128), nullable=False),
+    Column("her_id", String(128), nullable=False),
+    Column("is_default", Boolean, nullable=False, server_default="1"),
+    _now(), _upd(),
+    UniqueConstraint("role_id", "her_id", name="ca_uq_character_her_pair"),
+)
+
+
 user_consent = Table(
     TABLE_PREFIX + "user_consent", metadata,
     Column("owner_id", BigInteger, primary_key=True, autoincrement=False),

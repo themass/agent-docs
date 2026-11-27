@@ -19,6 +19,7 @@ from companion.config import settings
 from companion.paths import CHARACTERS_DIR
 from companion.service.roles.files import CharacterSource
 from companion.api.http.routers import characters as characters_router
+from companion.api.http.routers import hers as hers_router
 from companion.api.http.routers import control as control_router
 from companion.api.http.routers import inbox as inbox_router
 from companion.api.http.routers.characters import CharacterCatalog
@@ -258,6 +259,12 @@ def create_app(
     catalog = CharacterCatalog(
         getattr(platform, "characters", None) or CharacterSource(CHARACTERS_DIR))
     app.include_router(characters_router.build_router(catalog, current_user))
+
+    # her 包目录（persona/her 分层第一刀）：只有平台（数据库）才挂——呈现实体没有
+    # 文件兜底，没库时根本没有注册表可查（与 control/inbox 同一取舍）。
+    if platform is not None and getattr(platform, "hers", None) is not None:
+        app.include_router(hers_router.build_router(
+            hers_router.HerCatalog(platform.hers), current_user))
 
     if platform is not None:
         # 偏好与收件箱读写 Postgres；没有平台时这两组接口不存在，而不是退回进程内存：

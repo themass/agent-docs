@@ -41,6 +41,7 @@ from companion.service.roles.packs import (
     DbCharacterSource,
     SqlCharacterPackStore,
 )
+from companion.service.roles.hers import SqlHerPackStore
 from companion.service.proactive.store import (
     SqlDelivery, SqlPreferencesStore, SqlSendLedger,
 )
@@ -173,6 +174,9 @@ class Platform:
     # 角色读取链（库优先、文件兜底）：目录、语音入口与解析共用一条链，
     # 「页面上的角色」与「说话的角色」不会各自读一份。见 service/roles/packs.py。
     characters: Any = None
+    # her 包注册表（呈现实体，persona/her 分层第一刀）：ca_her_pack + ca_character_her。
+    # 没有文件兜底——呈现实体从第一刀起就以库为事实源（播种 tools/seed_her_packs.py）。
+    hers: Any = None
     # 二次元头像生成（Android 契约）：uploads 可用时才有——生成图的存储复用 uploads。
     avatar_gen: Any = None
     qa_retention_days: int = 90
@@ -329,6 +333,8 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
     file_characters = getattr(prompts, "characters", None)
     characters = ChainedCharacterSource(
         tuple(s for s in (DbCharacterSource(SqlCharacterPackStore(engine)), file_characters) if s is not None))
+    # her 包注册表：与角色链同步建立（同一 engine），路由在 app 装配时挂。
+    hers = SqlHerPackStore(engine)
     # prompts：PromptAssembler（角色卡来源 + skill 目录），陪伴角色卡与它声明的 skill 都从这里来。
     # card_overlays=cards：用户的角色卡微调（ca_role_card）盖在系统包之上，只覆盖人格字段，
     # 最后应用——系统封装与用户微调互不顶掉。
@@ -603,6 +609,7 @@ def build_platform(settings: Settings, *, brain: Any = None, prompts: Any = None
                     avatar_gen=avatar_gen,
                     cards=cards,
                     characters=characters,
+                    hers=hers,
                     admin_token=settings.companion_admin_token, sessions=sessions, brain=brain, qa=qa, objects=objects,
                     qa_retention_days=settings.companion_qa_retention_days, trace_writer=trace_writer, qa_enabled=qa_enabled,
                     tos_key_prefix=settings.tos_key_prefix, _pool=pool, _checkpointer=checkpointer)
