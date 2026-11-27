@@ -1,24 +1,23 @@
 """仓库形象资产 → 独立 her 的注册表（清单数据 + 纯判定；播种脚本与测试共用）。
 
 「把所有的 model 都整理成一个个独立的形象」的落点
-（docs/her-inventory-registry-20261128.md）：两仓库里每一个可用形象资产各注册一行
+（docs/her-inventory-registry-20261128.md）。两仓库里每一个可用形象资产各注册一行
 ca_her_pack（source="manual"）。命名沿用 ``her_id = <renderer>-<asset>`` 纪律（D-HID），
 asset 同时就是端上 pack_id（Hermes 产线设计 N10）。
+
+**draft-first（用户裁决 2026-11-28）**：注册一律写 ``status="draft"``——登记呈现实体，
+不是上架。``published`` 只由人工验收产生（``seed_repo_her_packs.py --accept <her_id>``），
+且验收**不能越过许可证硬闸**（法律项不是产品验收能豁免的）。三道闸因此是
+「能不能上架」的**判读信号**（报告里写明缺哪道），不是注册时自动落状态的条件。
 
 这一层只做**数据与判定**——不碰库、不碰网络、不 import companion：
 
 - **不把二进制搬进本仓库**。注册表存的是客户端资产仓库（Android，weifu-refactor 线）里
   的相对路径；pack hash 由播种时用 ``--assets-root`` 现算（文件本体 sha256，口径与
   AvatarPackStore 整包校验、dh-engines AssetSpec(kind=FILE) 一致）。
-- **许可闸门**：``license_id`` 不在 PUBLISHABLE_LICENSES 里就不可能 published——
-  spine 官方样例 / Live2D 免费集 / 出处未审的资产一律 draft（D-LIC：官方示例模型不可作
-  主形象；Expandable Application 书面结论是发布前法务项）。
-- **renderer 闸门**：PRODUCTION_RENDERERS 是 release 客户端当前真能渲染的词表。给 lab
-  引擎（spine/vrm/talkinghead/duix/tao/live2d）注册 draft 行是**登记实体**，不是上架——
-  published 会直接进 ``/v1/hers`` 选择页。
-- **pack 闸门**：published 必须有 ``model_ref.hash``。散装多文件（live2d/spine 目录）要等
-  产线 T-11 构出合法 manifest zip 才算得出 hash；单文件（纸偶 zip / VRM / GLB）按
-  ``pack_kind=zip|file`` 直接可算。
+- **renderer 词按 DhEngineId 小写对齐**（用户裁决）：simple/live2d/duix/tao/vrm/rive
+  沿用现有，新增 spine/talkinghead。simple=纸偶分层（端上 CharacterEngineType.LAYERED，
+  现网卡播种行 simple-* 已用，不改名）。
 """
 
 from __future__ import annotations
@@ -34,22 +33,21 @@ PACK_ID_RE = re.compile(r"[a-z0-9][a-z0-9_-]{0,63}")
 #: renderer 词表格式：小写、短横；ca_her_pack.renderer 列宽 32。
 RENDERER_RE = re.compile(r"[a-z][a-z0-9_-]{0,31}")
 
-#: ca_her_pack.renderer 词表（docs/her-inventory-registry-20261128.md §2【建议 R1/R2】，
-#: 待协调会话拍板；注册按此先落，lab 引擎全部 draft 兜底）。对照端上两个枚举：
-#: - layered  纸偶分层（CharacterEngineType.LAYERED；产线设计 USER_HER_RENDERERS 已用此词）
-#: - simple   layered 的**遗留服务端词**——现网卡播种行（simple-linche-v1/simple-sudai-v1）
-#:            已用它；保留可读，新行不再用（避免同一引擎两个词各自漂移）
-#: - live2d / rive / duix / tao  CharacterEngineType 已有对应值（DhEngineId 侧 Tao 叫 TAO_AVATAR）
-#: - vrm / spine / talkinghead   新增建议词：DhEngineId 里有引擎、CharacterEngineType 没有值
+#: ca_her_pack.renderer 词表（用户裁决 2026-11-28「renderer 词按你的建议来」，
+#: 口径见 docs/her-inventory-registry-20261128.md §2 定稿；与端上两个枚举对齐）：
+#: - simple        纸偶分层（CharacterEngineType.LAYERED；DhEngineId.SIMPLE；现网 simple-* 行已用）
+#: - live2d/duix/tao/rive  CharacterEngineType 同名值（DhEngineId 侧 Tao 叫 TAO_AVATAR）
+#: - vrm/spine/talkinghead  新增词：DhEngineId 有引擎（VRM/SPINE/TALKING_HEAD）、CharacterEngineType 无值
 RENDERER_VOCAB = frozenset(
-    {"layered", "simple", "live2d", "rive", "duix", "tao", "vrm", "spine", "talkinghead"})
+    {"simple", "live2d", "rive", "duix", "tao", "vrm", "spine", "talkinghead"})
 
-#: release 客户端当前真能渲染的 renderer（纸偶：进 release APK 的就是它）。
-#: live2d 要等 Expandable Application 书面结论（persona/her 分层 §6.4【已定 D-LIC】）；
-#: vrm/spine/talkinghead/duix/tao/rive 引擎仍在 lab（DhEngineId 注释「lab only」）。
-PRODUCTION_RENDERERS = frozenset({"layered", "simple"})
+#: release 客户端当前真能渲染的 renderer（纸偶：进 release APK 的就是它）。这是
+#: 「客户端能不能渲染」判读信号，不是注册状态：live2d 要等 Expandable Application 书面
+#: 结论（persona/her 分层 §6.4【已定 D-LIC】）；vrm/spine/talkinghead/tao/rive 引擎仍在 lab。
+PRODUCTION_RENDERERS = frozenset({"simple"})
 
-#: 可发布级许可证。own = 本仓库自产美术；cc0-1.0 = 上游明示 CC0 且仓库内有出处凭证。
+#: 可发布级许可证（硬闸——人工验收也不能越）。own = 本仓库自产美术；
+#: cc0-1.0 = 上游明示 CC0 且仓库内有出处凭证。
 PUBLISHABLE_LICENSES = frozenset({"own", "cc0-1.0"})
 #: 词表全集（发布闸门只放行前者；后者必须显式标——盘点没有「没许可证」这个空白态）。
 LICENSE_VOCAB = PUBLISHABLE_LICENSES | frozenset({
@@ -103,11 +101,12 @@ def validate_entry(entry: HerEntry) -> None:
 #: 内置形象总表（docs/her-inventory-registry-20261128.md §3）。
 #: 不含卡播种的 simple-linche-v1 / simple-sudai-v1——那两行归 tools/seed_her_packs.py
 #: （source="card"，从 persona 卡的 model_ref 派生）；本清单登记的是**模型资产实体**。
+#: 全部 draft-first 注册；能不能 published 见 publish_blockers。
 ENTRIES: tuple[HerEntry, ...] = (
     HerEntry(
-        her_id="layered-demo-avatar-v1",
+        her_id="simple-demo-avatar-v1",
         name="示例纸偶",
-        renderer="layered",
+        renderer="simple",
         asset="demo-avatar-v1",
         version=1,
         license_id="own",
@@ -211,9 +210,50 @@ ENTRIES: tuple[HerEntry, ...] = (
         evidence_sha256={"layout.moc3":
                          "565eca470f1c4f29be29996617cb0eef146ab75bf17107b6e67d35e3c7358c3a"},
     ),
+    # 端上 Live2dModels.ALLOWED 列的三件套（ATRI/Amadeus/Yuuka）：仅 dev cache，未入库
+    # （.gitignore:48），出处 ChatWaifu 上游，逐件授权未审——draft 锁死到许可落地。
+    HerEntry(
+        her_id="live2d-atri",
+        name="ATRI",
+        renderer="live2d",
+        asset="atri",
+        version=1,
+        license_id="third-party-unreviewed",
+        origin="ChatWaifu 系 ATRI（端上 dh-engines Live2dModels.ALLOWED；仅 dev cache "
+               ".superpowers/dh-packs/ATRI/ 未入库）；逐件商用条款未审",
+        pack_kind="build",
+        evidence_sha256={"atri_8.moc3":
+                         "e7fefd9a58c4c04bf3da602f3b11b762ae6938a2007e7adfe301fbda4ad129b3"},
+    ),
+    HerEntry(
+        her_id="live2d-amadeus",
+        name="Amadeus（kurisu）",
+        renderer="live2d",
+        asset="amadeus",
+        version=1,
+        license_id="third-party-unreviewed",
+        origin="ChatWaifu 系 Amadeus/kurisu（端上 Live2dModels.ALLOWED；仅 dev cache "
+               ".superpowers/dh-packs/Amadeus/ 未入库）；逐件商用条款未审",
+        pack_kind="build",
+        evidence_sha256={"kurisu.moc3":
+                         "9eebf5dab08aea5af08be911c5b0ccb73d6c038f13a72b45d88fb113ce3a3c95"},
+    ),
+    HerEntry(
+        her_id="live2d-yuuka",
+        name="Yuuka",
+        renderer="live2d",
+        asset="yuuka",
+        version=1,
+        license_id="third-party-unreviewed",
+        origin="ChatWaifu 系 Yuuka（端上 Live2dModels.ALLOWED；仅 dev cache "
+               ".superpowers/dh-packs/Yuuka/ 未入库）；逐件商用条款未审",
+        pack_kind="build",
+        evidence_sha256={"yuuka.moc3":
+                         "628aac7663192947f0da343472709b205b4a3ff9da948ce93d1ecf08304a2abe"},
+    ),
     HerEntry(
         her_id="duix-oliver",
-        name="Oliver（Duix 数字人）",
+        name="Oliver（Duix）",
         renderer="duix",
         asset="oliver",
         version=1,
@@ -265,27 +305,25 @@ def pack_digest(entry: HerEntry, assets_root: Path | None) -> str | None:
     return digest.hexdigest()
 
 
-def decide_status(entry: HerEntry, digest: str | None) -> str:
-    """三道闸全过才 published：许可证可发布 + renderer 可生产渲染 + pack hash 算得出。
-    任何一道没过 → draft（登记实体，不上架）。retired 不由播种产生，是人工下架动作。"""
-    if entry.license_id not in PUBLISHABLE_LICENSES:
-        return "draft"
-    if entry.renderer not in PRODUCTION_RENDERERS:
-        return "draft"
-    if digest is None:
-        return "draft"
-    return "published"
+def license_blocked(entry: HerEntry) -> bool:
+    """许可证硬闸：不在可发布白名单里，人工验收也不能 published。"""
+    return entry.license_id not in PUBLISHABLE_LICENSES
 
 
-def block_reason(entry: HerEntry, digest: str | None) -> str:
-    """draft 的第一道未过的闸——报告里必须能直接回答「这行为什么上不了」。"""
-    if entry.license_id not in PUBLISHABLE_LICENSES:
-        return f"license {entry.license_id} not publishable"
+def publish_blockers(entry: HerEntry, digest: str | None) -> list[str]:
+    """人工验收后能不能 published 的判读信号：列出还缺哪道。空 = 验收即可上架。
+
+    三道闸：①许可证（硬，验收不能越）②renderer（客户端能不能渲染，产品可推进）
+    ③pack hash（单文件要 assets-root、散装要产线 T-11 构建，技术可推进）。
+    """
+    blockers: list[str] = []
+    if license_blocked(entry):
+        blockers.append(f"license {entry.license_id} not publishable (hard gate)")
     if entry.renderer not in PRODUCTION_RENDERERS:
-        return f"renderer {entry.renderer} not production-renderable yet"
+        blockers.append(f"renderer {entry.renderer} not client-renderable in release yet")
     if digest is None:
-        return "pack file missing (untracked asset / needs T-11 build)"
-    return "published"
+        blockers.append("pack file missing (needs --assets-root / T-11 build)")
+    return blockers
 
 
 def build_payload(entry: HerEntry, digest: str | None) -> dict[str, Any]:
@@ -304,22 +342,41 @@ def build_payload(entry: HerEntry, digest: str | None) -> dict[str, Any]:
 
 
 async def seed_repo_hers(store, entries: tuple[HerEntry, ...] = ENTRIES,
-                         assets_root: Path | None = None) -> list[dict[str, Any]]:
-    """把清单注册进 ca_her_pack（source="manual"）。返回逐条报告，不做单点吞错——
-    清单本身就是代码，坏了要在 CI 里炸，不是在部署日志里静默。
+                         assets_root: Path | None = None,
+                         accept: frozenset[str] = frozenset()) -> list[dict[str, Any]]:
+    """把清单注册进 ca_her_pack（source="manual"）。**draft-first**：默认全部 status=draft。
 
+    accept 里列的 her_id 走人工验收上架：仍受许可证硬闸——license_blocked 的即使
+    在 accept 里也拒上架（返回 reason 里写 hard gate），因为法律项不是产品验收能豁免。
     幂等由 SqlHerPackStore.upsert 保证（内容没变不写、不顶 pack_version）。
+
     **不建 ca_character_her 绑定**：卡播种（seed_from_cards）已把角色绑到它自己的 her；
     这里的形象是「同一个她可以换形象」的候选池，换绑是协调动作，不由本脚本做。
     """
+    by_id = {e.her_id: e for e in entries}
+    unknown = accept - set(by_id)
+    if unknown:
+        raise ValueError(f"--accept 里的 her_id 不在清单: {', '.join(sorted(unknown))}")
+
     reports: list[dict[str, Any]] = []
     for entry in entries:
         validate_entry(entry)
         digest = pack_digest(entry, assets_root)
+        if entry.her_id in accept:
+            if license_blocked(entry):            # 硬闸：验收不能越许可证
+                status = "draft"
+                forced = "accept refused: license hard gate"
+            else:
+                status = "published"
+                forced = "accepted"
+        else:
+            status = "draft"
+            forced = ""
         rec = await store.upsert(her_id=entry.her_id, renderer=entry.renderer,
                                  payload=build_payload(entry, digest),
-                                 status=decide_status(entry, digest), source="manual")
+                                 status=status, source="manual")
+        blockers = publish_blockers(entry, digest)
         reports.append({"her_id": entry.her_id, "status": rec.status,
                         "pack_version": rec.pack_version, "hash": digest,
-                        "reason": block_reason(entry, digest)})
+                        "blockers": blockers, "note": forced})
     return reports

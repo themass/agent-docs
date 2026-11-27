@@ -1,12 +1,15 @@
 """形象资产清单 → 独立 her 注册的库层口径（tools/her_registry + seed_repo_her_packs）。
 
-盘点纪律（docs/her-inventory-registry-20261128.md）钉在这里：
+盘点与 draft-first 纪律（docs/her-inventory-registry-20261128.md）钉在这里：
 
 - **命名一套**：her_id = <renderer>-<asset>，asset 同时是端上 pack_id（D-HID/N10）——
   清单是代码，命名漂移要在 CI 炸，不在部署日志里静默。
-- **三道闸**（许可证 ∧ renderer ∧ pack hash）全过才 published；Unknown（
-  third-party-unreviewed）哪怕其余全过也必须是 draft——「Unknown 只能标 draft」。
-- **幂等**：重跑不顶 pack_version（播种每次部署都跑）。
+- **draft-first（用户裁决 2026-11-28）**：注册一律 draft，published 只由 --accept 验收产生。
+- **许可证硬闸**：Unknown（third-party-unreviewed）/ spine / live2d 免费集即使被 --accept
+  也必须留在 draft——法律项不是产品验收能豁免的。
+- **renderer 词按 DhEngineId 小写对齐**：simple 是纸偶词（不引入 layered），新增 spine/
+  talkinghead/vrm。
+- **幂等**：重跑不顶 pack_version；验收（draft→published）顶一次版本。
 - **不建绑定**：形象注册与角色绑定是两回事（换形象不换人格，换绑归协调）。
 """
 
@@ -18,19 +21,20 @@ from companion.service.roles.hers import SqlHerPackStore
 from tools.her_registry import (
     ENTRIES,
     LICENSE_VOCAB,
+    PRODUCTION_RENDERERS,
     RENDERER_VOCAB,
     HerEntry,
-    block_reason,
     build_payload,
-    decide_status,
+    license_blocked,
     pack_digest,
+    publish_blockers,
     seed_repo_hers,
     validate_entry,
 )
 
 
 def _entry(**over) -> HerEntry:
-    base = dict(her_id="layered-unit-test-pack", name="测试", renderer="layered",
+    base = dict(her_id="simple-unit-test-pack", name="测试", renderer="simple",
                 asset="unit-test-pack", version=1, license_id="own", origin="test",
                 pack_kind="zip")
     base.update(over)
@@ -48,50 +52,59 @@ def test_every_entry_follows_her_id_and_vocab_discipline():
         seen.add(e.her_id)
 
 
+def test_puppet_word_is_simple_not_layered():
+    """用户裁决：renderer 词与 DhEngineId 小写对齐——纸偶是 simple（现网 simple-* 已用），
+    不另起 layered。新增词只有 spine/talkinghead/vrm（CharacterEngineType 缺的那三个引擎）。"""
+    assert "simple" in RENDERER_VOCAB and "layered" not in RENDERER_VOCAB
+    assert {"spine", "talkinghead", "vrm"} <= RENDERER_VOCAB
+    assert any(e.her_id == "simple-demo-avatar-v1" for e in ENTRIES)
+    assert PRODUCTION_RENDERERS == frozenset({"simple"})
+
+
 @pytest.mark.parametrize("bad", [
     dict(her_id="live2d-wrong-asset"),          # her_id 与 renderer-asset 拼不上
     dict(renderer="spine2d"),                   # 词表外的新造词
+    dict(renderer="layered"),                   # 纸偶词是 simple，layered 不在词表（裁决口径）
     dict(asset="Demo-avatar"),                  # pack_id 大写 → 端上 CharacterAssetPolicy 拒
     dict(license_id="CC0"),                     # 许可证词表外（Unknown 不是自由文本）
-    dict(her_id="layered-x", asset="x", version=0),
+    dict(her_id="simple-x", asset="x", version=0),
 ])
 def test_naming_and_vocab_violations_are_refused(bad):
     with pytest.raises(ValueError):
         validate_entry(_entry(**bad))
 
 
-# ---- 三道闸：状态判定纯函数 ---------------------------------------------------
+# ---- 判读信号：三道闸各自独立，写在报告里而非自动落状态 ------------------------
 
-def test_all_gates_pass_published():
-    e = _entry()
-    assert decide_status(e, "ab" * 32) == "published"
+def test_clean_entry_has_no_blockers():
+    assert publish_blockers(_entry(), "ab" * 32) == []
 
 
-def test_unknown_license_draft_even_with_hash_and_production_renderer():
-    # 「Unknown license 落 draft」——许可闸优先于一切。
+def test_unknown_license_is_a_hard_blocker_even_with_hash_and_renderer():
+    # 「Unknown 只能标 draft」——许可证闸优先，且是硬闸（验收不能越）。
     e = _entry(license_id="third-party-unreviewed")
-    assert decide_status(e, "ab" * 32) == "draft"
-    assert "license" in block_reason(e, "ab" * 32)
+    assert license_blocked(e)
+    assert any("hard gate" in b for b in publish_blockers(e, "ab" * 32))
 
 
-def test_lab_renderer_draft_even_cc0_and_hashed():
-    # CC0 的 vrm/spine/talkinghead 是登记实体，不是上架：引擎还在 lab。
+def test_lab_renderer_is_a_soft_blocker():
+    # CC0 的 vrm/spine/talkinghead：许可可上架，但 release 客户端渲染不了——产品可推进。
     e = _entry(her_id="vrm-unit-test-pack", renderer="vrm", asset="unit-test-pack",
                license_id="cc0-1.0")
-    assert decide_status(e, "ab" * 32) == "draft"
-    assert "renderer" in block_reason(e, "ab" * 32)
+    assert not license_blocked(e)
+    assert publish_blockers(e, "ab" * 32) == [
+        "renderer vrm not client-renderable in release yet"]
 
 
-def test_missing_pack_hash_blocks_publish():
-    e = _entry()
-    assert decide_status(e, None) == "draft"
-    assert "pack file" in block_reason(e, None)
+def test_missing_pack_hash_is_a_blocker():
+    assert publish_blockers(_entry(), None) == [
+        "pack file missing (needs --assets-root / T-11 build)"]
 
 
-def test_spine_sample_license_is_permanently_draft_until_reviewed():
+def test_spine_sample_license_is_blocked_until_reviewed():
     spine = next(e for e in ENTRIES if e.renderer == "spine")
     assert spine.license_id == "spine-sample-eval"
-    assert decide_status(spine, "ab" * 32) == "draft"
+    assert license_blocked(spine)
 
 
 # ---- pack_digest：hash 现算，口径=文件本体 sha256 ------------------------------
@@ -101,37 +114,87 @@ def test_pack_digest_matches_file_sha256(tmp_path):
     rel = "feature-companion/src/main/assets/avatars/demo-avatar-v1.zip"
     (tmp_path / rel).parent.mkdir(parents=True)
     (tmp_path / rel).write_bytes(blob)
-    e = ENTRIES[0]
-    assert e.her_id == "layered-demo-avatar-v1" and e.pack_kind == "zip"
+    e = next(x for x in ENTRIES if x.her_id == "simple-demo-avatar-v1")
+    assert e.pack_kind == "zip"
     assert pack_digest(e, tmp_path) == hashlib.sha256(blob).hexdigest()
 
 
 def test_pack_digest_none_without_root_or_for_build_packs(tmp_path):
-    e = ENTRIES[0]
+    e = next(x for x in ENTRIES if x.her_id == "simple-demo-avatar-v1")
     assert pack_digest(e, None) is None                 # 没给 assets-root
     assert pack_digest(e, tmp_path) is None             # 文件不在（dev cache/引进候选）
     spine = next(x for x in ENTRIES if x.renderer == "spine")
     assert pack_digest(spine, tmp_path) is None         # build 形态：等产线 T-11
 
 
-# ---- 落库：幂等、manual、无绑定、报告可读 --------------------------------------
+# ---- 落库：draft-first、manual、无绑定、幂等 ------------------------------------
 
-async def test_seed_registers_inventory_as_manual_and_is_idempotent(sqlite_engine):
+async def test_seed_registers_everything_as_draft_by_default(sqlite_engine):
     store = SqlHerPackStore(sqlite_engine)
     first = await seed_repo_hers(store)
     assert len(first) == len(ENTRIES)
     assert {r["her_id"] for r in first} == {e.her_id for e in ENTRIES}
+    # draft-first：没有任何一行因为「闸门恰好都过」就自动上架。
+    assert all(r["status"] == "draft" for r in first)
 
-    for e in ENTRIES:                                # 每一行都进来了，source=manual
+    for e in ENTRIES:
         rec = await store.load(e.her_id)
         assert rec is not None and rec.source == "manual" and rec.renderer == e.renderer
-        assert rec.status in ("draft", "published")
+        assert rec.status == "draft"
         ref = rec.model_ref
         assert ref["asset"] == e.asset and ref["version"] == e.version
-        assert "hash" in ref or rec.status == "draft"  # 没 hash 就不可能 published
+        assert rec.payload["license"]["id"] == e.license_id  # 为什么 draft，行里看得见
 
     second = await seed_repo_hers(store)             # 重跑（每次部署都跑）不顶版本
     assert [r["pack_version"] for r in second] == [1] * len(second)
+
+
+async def test_accept_publishes_only_license_clean_rows(sqlite_engine, tmp_path):
+    """验收上架：许可证干净的可 published；许可证硬闸的即使 --accept 也留 draft 并说明。"""
+    rel = next(x for x in ENTRIES if x.her_id == "simple-demo-avatar-v1").source_paths[0]
+    (tmp_path / rel).parent.mkdir(parents=True)
+    (tmp_path / rel).write_bytes(b"d7af-not-real-but-enough")
+    store = SqlHerPackStore(sqlite_engine)
+    reports = {r["her_id"]: r for r in await seed_repo_hers(
+        store, ENTRIES, tmp_path,
+        accept=frozenset({"simple-demo-avatar-v1", "vrm-hairsample-female"}))}
+
+    ok = reports["simple-demo-avatar-v1"]            # own ∧ 纸偶可渲染 ∧ hash 现算
+    assert ok["status"] == "published" and ok["note"] == "accepted"
+    vrm = reports["vrm-hairsample-female"]           # CC0 许可干净，可验收（renderer 仍 lab）
+    assert vrm["status"] == "published"
+
+    rec = await store.load("simple-demo-avatar-v1")
+    assert rec is not None and rec.status == "published"
+    assert rec.model_ref["hash"] == hashlib.sha256(b"d7af-not-real-but-enough").hexdigest()
+
+
+async def test_accept_cannot_override_license_hard_gate(sqlite_engine):
+    """Unknown license 就算被点名验收也只能 draft——法律项不是产品验收能豁免的。"""
+    store = SqlHerPackStore(sqlite_engine)
+    reports = {r["her_id"]: r for r in await seed_repo_hers(
+        store, ENTRIES, None, accept=frozenset({"spine-spineboy-pro", "live2d-atri"}))}
+    for her_id in ("spine-spineboy-pro", "live2d-atri"):
+        assert reports[her_id]["status"] == "draft"
+        assert reports[her_id]["note"] == "accept refused: license hard gate"
+
+
+async def test_accept_unknown_her_id_is_rejected(sqlite_engine):
+    store = SqlHerPackStore(sqlite_engine)
+    with pytest.raises(ValueError):
+        await seed_repo_hers(store, ENTRIES, None, accept=frozenset({"simple-nope"}))
+
+
+async def test_acceptance_bumps_version_once(sqlite_engine, tmp_path):
+    """draft→published 是内容变（status 变）：版本号顶一次，对账看得出验收发生过。"""
+    rel = next(x for x in ENTRIES if x.her_id == "simple-demo-avatar-v1").source_paths[0]
+    (tmp_path / rel).parent.mkdir(parents=True)
+    (tmp_path / rel).write_bytes(b"bytes")
+    store = SqlHerPackStore(sqlite_engine)
+    await seed_repo_hers(store, ENTRIES, tmp_path)                       # draft
+    reports = {r["her_id"]: r for r in await seed_repo_hers(
+        store, ENTRIES, tmp_path, accept=frozenset({"simple-demo-avatar-v1"}))}
+    assert reports["simple-demo-avatar-v1"]["pack_version"] == 2
 
 
 async def test_seed_creates_no_character_bindings(sqlite_engine):
@@ -142,47 +205,21 @@ async def test_seed_creates_no_character_bindings(sqlite_engine):
         assert await store.bindings(role) == []
 
 
-async def test_untracked_or_dev_cache_assets_land_draft_with_reason(sqlite_engine):
+async def test_dev_cache_and_import_candidates_land_draft_with_blockers(sqlite_engine):
     store = SqlHerPackStore(sqlite_engine)
     reports = {r["her_id"]: r for r in await seed_repo_hers(store)}   # 无 assets-root
-    for her_id in ("layered-demo-avatar-v1", "vrm-hairsample-female", "talkinghead-mpfb"):
+    for her_id in ("simple-demo-avatar-v1", "vrm-hairsample-female", "talkinghead-mpfb"):
         assert reports[her_id]["status"] == "draft"
         assert reports[her_id]["hash"] is None
-    for e in ENTRIES:                                # 每条 draft 都要能回答为什么
-        if reports[e.her_id]["status"] == "draft":
-            assert reports[e.her_id]["reason"] != "published"
+        assert any("pack file missing" in b for b in reports[her_id]["blockers"])
+    # ChatWaifu 三件套（仅 dev cache、未入库）必须出现在清单里——「GitHub 引入的 model
+    # 全部整理成独立 her」这条覆盖到了它们，许可未审所以 draft 锁死。
+    for her_id in ("live2d-atri", "live2d-amadeus", "live2d-yuuka"):
+        assert reports[her_id]["status"] == "draft"
+        assert any("hard gate" in b for b in reports[her_id]["blockers"])
 
 
-async def test_demo_puppet_publishes_when_pack_file_is_available(sqlite_engine, tmp_path):
-    """唯一能全过三道闸的内置形象：给了 assets-root + 文件在 → published + hash。"""
-    blob = b"d7af-not-real-but-enough"
-    rel = ENTRIES[0].source_paths[0]
-    (tmp_path / rel).parent.mkdir(parents=True)
-    (tmp_path / rel).write_bytes(blob)
-    store = SqlHerPackStore(sqlite_engine)
-    reports = {r["her_id"]: r for r in await seed_repo_hers(store, ENTRIES, tmp_path)}
-    r = reports["layered-demo-avatar-v1"]
-    assert r["status"] == "published" and r["hash"] == hashlib.sha256(blob).hexdigest()
-
-    rec = await store.load("layered-demo-avatar-v1")
-    assert rec is not None and rec.status == "published"
-    assert rec.model_ref["hash"] == hashlib.sha256(blob).hexdigest()
-    assert rec.payload["license"]["id"] == "own"     # 为什么 draft/为什么上架，行里看得见
-
-
-async def test_changed_asset_bumps_version_once(sqlite_engine, tmp_path):
-    """hash 变了 = 内容变了：版本号是对账信号（packs 同一口径）。"""
-    rel = ENTRIES[0].source_paths[0]
-    (tmp_path / rel).parent.mkdir(parents=True)
-    store = SqlHerPackStore(sqlite_engine)
-    (tmp_path / rel).write_bytes(b"v1-bytes")
-    await seed_repo_hers(store, ENTRIES, tmp_path)
-    (tmp_path / rel).write_bytes(b"v2-bytes")
-    reports = {r["her_id"]: r for r in await seed_repo_hers(store, ENTRIES, tmp_path)}
-    assert reports["layered-demo-avatar-v1"]["pack_version"] == 2
-
-
-# ---- 播种工具：import 名钉死 + 静态筛选 ----------------------------------------
+# ---- 播种工具：import 名钉死 + CLI 参数 ----------------------------------------
 
 async def test_seed_tool_imports_resolve(monkeypatch):
     """同 test_her_pack_store 的教训：104 首跑曾因错 import 直接崩。
@@ -193,19 +230,11 @@ async def test_seed_tool_imports_resolve(monkeypatch):
     monkeypatch.setattr(settings, "companion_database_url", "")
     monkeypatch.setattr(settings, "companion_db_host", "")
     assert await seed() == 2
-    args = parse_args(["--assets-root", "/nonexistent-dir", "--status", "draft"])
-    assert str(args.assets_root) == "/nonexistent-dir" and args.status == "draft"
-
-
-def test_status_filter_is_static_gates_only():
-    """--status published 只筛静态两道闸（许可/renderer）；pack hash 在运行时判。"""
-    from tools.seed_repo_her_packs import seed  # noqa: F401（import 路径钉死）
-    from tools.her_registry import PRODUCTION_RENDERERS, PUBLISHABLE_LICENSES
-
-    static_publishable = {e.her_id for e in ENTRIES
-                          if e.license_id in PUBLISHABLE_LICENSES
-                          and e.renderer in PRODUCTION_RENDERERS}
-    assert static_publishable == {"layered-demo-avatar-v1"}
+    args = parse_args(["--assets-root", "/nonexistent-dir",
+                       "--accept", "simple-demo-avatar-v1",
+                       "--accept", "live2d-atri"])
+    assert str(args.assets_root) == "/nonexistent-dir"
+    assert args.accept == ["simple-demo-avatar-v1", "live2d-atri"]
 
 
 def test_payload_shape_survives_store_validation():
