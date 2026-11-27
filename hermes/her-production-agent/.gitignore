@@ -1,0 +1,7 @@
+# 运行态永不进 git（Hermes profile 纪律）：密钥、演练库、产物、会话。
+.env
+state/
+runs/
+*.db
+*.db-wal
+*.db-shm
